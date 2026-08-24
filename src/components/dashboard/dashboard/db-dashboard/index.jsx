@@ -75,6 +75,29 @@ import {
   AnimatedGrid
 } from "@/components/dashboard/DashboardAnimations";
 import { setAgentId as setAgentIdEdit } from "@/slice/common/EditSlice";
+import { clearBookingFlow } from "@/utils/clearBookingFlow";
+
+const BOOKING_FLOW_SEGMENTS = [
+  "view-hotel-search",
+  "hotel-details",
+  "hotel-checkout",
+  "thank-you",
+  "attractions",
+  "restaurants",
+  "pickupdrop",
+  "localtransfer",
+  "tourguide",
+  "tour-single",
+  "restaurants-details",
+  "activity-single",
+  "restaurants-checkout",
+  "attraction-checkout",
+  "restaurants-thank-you",
+  "attraction-thank-you",
+  "CheckOut",
+  "ThankYou",
+  "updatebooking",
+];
 
 
 const DashboardLayout = () => {
@@ -454,6 +477,19 @@ const DashboardLayout = () => {
 
   // Ensure dashboard content appears ONLY on the exact dashboard route
   const isDashboardPage = location.pathname === "/dashboard/db-dashboard";
+
+  // Leaving ProtectedRoutetour / booking module → clear session + Redux
+  useEffect(() => {
+    const path = location.pathname || "";
+    if (!path.startsWith("/dashboard/db-dashboard")) return;
+
+    const stillInBookingFlow = BOOKING_FLOW_SEGMENTS.some((segment) =>
+      path.includes(segment)
+    );
+    if (stillInBookingFlow) return;
+
+    clearBookingFlow(dispatch);
+  }, [location.pathname, dispatch]);
 
   const handleMainTabChange = (event, newValue) => {
     setMainTabValue(newValue);

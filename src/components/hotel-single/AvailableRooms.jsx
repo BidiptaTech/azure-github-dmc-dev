@@ -51,7 +51,14 @@ const usdPrice = Math.ceil(totalPrice * usdExchangeRate);
    const [pax,setPax] =useState(1);
    const [paxCount,setPaxCount] =useState(1);
    
-   const { priceMode } = location.state || {};
+   const categoryPriceMode = useSelector((state) => state.category.priceMode);
+   const priceMode =
+     location.state?.priceMode ||
+     (typeof categoryPriceMode === "string"
+       ? categoryPriceMode
+       : Array.isArray(categoryPriceMode)
+         ? categoryPriceMode[0]
+         : categoryPriceMode);
 // console.log(priceMode);
 
 

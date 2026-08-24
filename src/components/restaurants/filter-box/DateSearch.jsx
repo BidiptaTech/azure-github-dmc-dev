@@ -1,34 +1,36 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
 import DatePicker, { DateObject } from "react-multi-date-picker";
 
-const DateSearch = ({ setSelectedDate }) => {
-  // Fetch search params from Redux state
+const DateSearch = ({ setSelectedDate, selectedDate: selectedDateProp }) => {
   const searchParams = useSelector((state) => state.restaurants.searchParams);
 
-  //  console.log("Search Params from Redux:", searchParams);
+  const defaultDate = selectedDateProp || searchParams?.date || null;
 
-  // Use searchParams to set the default date
-  const defaultDate = searchParams?.date || null;
-
-  //  console.log("defaultDate", defaultDate);
-
-  // Ensure default date value is in a valid format, if not available, use today's date
-  const selectedDate = defaultDate
+  const initialDate = defaultDate
     ? new DateObject(defaultDate)
-    : new DateObject(); // Use today's date if no valid date is available
+    : new DateObject();
 
-  // State to store the selected date, defaulting to the selected date
-  const [date, setDate] = useState(selectedDate);
+  const [date, setDate] = useState(initialDate);
 
- 
+  // Keep parent in sync so meal/time sections stay visible after refresh
+  useEffect(() => {
+    if (defaultDate) {
+      const next = new DateObject(defaultDate);
+      setDate(next);
+      setSelectedDate(next);
+    } else if (date) {
+      setSelectedDate(date);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [defaultDate]);
 
   return (
     <div className="text-15 text-light-1 ls-2 lh-16 custom_dual_datepicker">
       <DatePicker
         inputClass="custom_input-picker"
         containerClassName="custom_container-picker"
-        value={date} // Ensure the DatePicker displays the default date
+        value={date}
         onChange={(newDate) => {
           setDate(newDate);
           setSelectedDate(newDate);
@@ -36,7 +38,7 @@ const DateSearch = ({ setSelectedDate }) => {
         numberOfMonths={2}
         offsetY={10}
         format="DD/MM/YYYY"
-        readOnly // This disables the input field
+        readOnly
       />
     </div>
   );

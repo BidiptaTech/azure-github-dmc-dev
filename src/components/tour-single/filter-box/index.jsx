@@ -3,7 +3,12 @@ import { useSelector, useDispatch } from "react-redux";
 import { useLocation } from "react-router-dom";
 import Cookies from "js-cookie";
 import dayjs from "dayjs";
-import {addAttractionBookings} from "../../../slice/attractions/attractionSlice";
+import {
+  addAttractionBookings,
+  setAttractionCheckoutDraft,
+  setSelectedAttraction,
+  setSearchParams,
+} from "../../../slice/attractions/attractionSlice";
 import GuestSearch from "./GuestSearch";
 import DateSearch from "./DateSearch";
 import TimeSlot from "./TimeSlot";
@@ -21,7 +26,12 @@ const index = () => {
   const dispatch = useDispatch();
   const AgentId = Cookies.get("AgentId") || "0";
   const location = useLocation();
-  const attraction = location.state?.attraction || {};
+  const selectedAttraction = useSelector(
+    (state) => state.attractions.selectedAttraction
+  );
+  const checkoutDraft = useSelector((state) => state.attractions.checkoutDraft);
+  const attraction =
+    location.state?.attraction || selectedAttraction || {};
   
 
    // console.log('attraction',attraction);
@@ -35,6 +45,9 @@ const index = () => {
 
  
   const tourdetails = useSelector((state) => state.hotels.tourdetails);
+  const globalTourId = useSelector(
+    (state) => state.hotels.id || state.steps?.id || state.auth?.tourId
+  );
   const searchParams = useSelector((state) => state.attractions.searchParams);
 
   // Get currency information from Redux store
@@ -45,47 +58,30 @@ const index = () => {
   // Add PriceHide selector
   const PriceHide = useSelector((state) => state.auth.PriceHide);
 
-  // Extracting prices from the attractionDetails
-  // const adult_price =
-  //   attractionDetails.prices?.travClicks_adult_price ||
-  //   attractionDetails.prices?.dmc_adult_price ||
-  //   0;
-  // const child_price =
-  //   attractionDetails.prices?.travClicks_child_price ||
-  //   attractionDetails.prices?.dmc_child_price ||
-  //   0;
-  // const shared_price =
-  //   attractionDetails.prices?.travClicks_shared_price ||
-  //   attractionDetails.prices?.dmc_shared_price ||
-  //   0;
-  // const private_price =
-  //   attractionDetails.prices?.travClicks_private_price ||
-  //   attractionDetails.prices?.dmc_private_price ||
-  //   0;
+  const draftDate = checkoutDraft?.selectedDate || searchParams?.date || null;
 
-  // Calculate prices for different modes
-  // const withoutTraveller =
-  //   searchParams.adults * adult_price + searchParams.children * child_price;
-
-  // const withPrivate = withoutTraveller + private_price;
-
-  // const withShare =
-  //   withoutTraveller +
-  //   (searchParams.adults + searchParams.children) * shared_price;
-
-  const [selectedDate, setSelectedDate] = useState(null);
-  const [selectedTime, setSelectedTime] = useState("");
-  const [guestCounts, setGuestCounts] = useState({
-    Adults: tourdetails?.adult > 0 ? tourdetails.adult : 1,
-    Children: tourdetails?.child || 0,
-    Seniors: 0
-  });
+  const [selectedDate, setSelectedDate] = useState(draftDate);
+  const [selectedTime, setSelectedTime] = useState(
+    checkoutDraft?.selectedTime || ""
+  );
+  const [guestCounts, setGuestCounts] = useState(
+    checkoutDraft?.guestCounts || {
+      Adults: tourdetails?.adult > 0 ? tourdetails.adult : 1,
+      Children: tourdetails?.child || 0,
+      Seniors: 0,
+    }
+  );
   
   // New state for ticket selection
-  const [selectedTicket, setSelectedTicket] = useState(null);
+  const [selectedTicket, setSelectedTicket] = useState(
+    checkoutDraft?.selectedTicket || null
+  );
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [transportOption, setTransportOption] = useState(null); // null, "private", or "shared"
   const [selectedVehicle, setSelectedVehicle] = useState(null);
+  const [nriStatus, setNriStatus] = useState(
+    checkoutDraft?.nriStatus || "residential"
+  );
   
   // For tracking price updates
   const [priceUpdateTrigger, setPriceUpdateTrigger] = useState(0);
@@ -98,34 +94,68 @@ const index = () => {
   // Check if transport options are available
   const hasTransportOptions = vehicles && vehicles.length > 0;
 
-  // Removed auto-select first ticket when time is selected to ensure user must make the selection
-  
+  // Keep list-item attraction available after refresh (location.state is lost)
   useEffect(() => {
+    if (location.state?.attraction) {
+      dispatch(setSelectedAttraction(location.state.attraction));
+    }
+  }, [location.state?.attraction, dispatch]);
+
+  useEffect(() => {
+    if (checkoutDraft?.guestCounts) return;
     setGuestCounts({
       Adults: tourdetails?.adult > 0 ? tourdetails.adult : 1,
       Children: tourdetails?.child || 0,
-      Seniors: 0
+      Seniors: 0,
     });
-  }, [tourdetails]);
+  }, [tourdetails, checkoutDraft?.guestCounts]);
 
+  // Persist form draft so refresh keeps Time Slot / Ticket Package / Book Now
   useEffect(() => {
-    if (searchParams?.date) {
-      setSelectedDate(searchParams.date);
-    }
-  }, [searchParams]);
+    const dateStr = selectedDate
+      ? dayjs(
+          selectedDate?.toDate ? selectedDate.toDate() : selectedDate
+        ).format("YYYY-MM-DD")
+      : null;
 
-  // New state for NRI status
-  const [nriStatus, setNriStatus] = useState("residential");
+    dispatch(
+      setAttractionCheckoutDraft({
+        selectedDate: dateStr,
+        selectedTime: selectedTime || "",
+        selectedTicket: selectedTicket || null,
+        guestCounts,
+        nriStatus,
+      })
+    );
+
+    if (dateStr && dateStr !== searchParams?.date) {
+      dispatch(
+        setSearchParams({
+          ...(searchParams || {}),
+          date: dateStr,
+        })
+      );
+    }
+  }, [
+    selectedDate,
+    selectedTime,
+    selectedTicket,
+    guestCounts,
+    nriStatus,
+    dispatch,
+    searchParams,
+  ]);
 
   // New useEffect that would typically get nriStatus from attractionDetails or other source
   useEffect(() => {
-    // Set NRI status based on attraction details or other criteria
+    // Prefer restored draft; otherwise fall back to attraction details
+    if (checkoutDraft?.nriStatus) return;
     if (attractionDetails && attractionDetails.nri) {
       setNriStatus(attractionDetails.nri);
     } else {
       setNriStatus("residential");
     }
-  }, [attractionDetails]);
+  }, [attractionDetails, checkoutDraft?.nriStatus]);
 
   // Force re-render when nriStatus changes to update price calculations
   useEffect(() => {
@@ -312,13 +342,18 @@ const index = () => {
       agent_id: parseInt(AgentId, 10) || 0,
       data: [
         {
-          bookingDate: dayjs(selectedDate).format("YYYY-MM-DD"),
+          bookingDate: dayjs(
+            selectedDate?.toDate ? selectedDate.toDate() : selectedDate
+          ).format("YYYY-MM-DD"),
           visitTime: selectedTime,
           adultCount: adultCount,
           childCount: childCount,
           seniorCount: seniorCount,
-          AttractionId: attraction?.id,
-          AttractionName: attraction?.attraction_name || "Unknown Attraction",
+          AttractionId: attraction?.id || attractionDetails?.id,
+          AttractionName:
+            attraction?.attraction_name ||
+            attractionDetails?.name ||
+            "Unknown Attraction",
           ticketId: selectedTicket.ticket_id,
           ticketName: selectedTicket.ticket_name,
           ticket_details: {
@@ -347,7 +382,8 @@ const index = () => {
           packageDetails: selectedTicket.packageDetails || null,
         },
       ],
-      tour_id: parseInt(tourdetails?.tour_id, 10) || 0,
+      tour_id:
+        parseInt(tourdetails?.tour_id || globalTourId, 10) || 0,
       type: "attraction",
     };
 
@@ -412,7 +448,10 @@ const index = () => {
       <div className="col-12">
         <div className="searchMenu-date px-20 py-10 border-light rounded-4">
           <h4 className="text-15 fw-500 ls-2 lh-16">Date</h4>
-          <DateSearch setSelectedDate={setSelectedDate} />
+          <DateSearch
+            setSelectedDate={setSelectedDate}
+            selectedDate={selectedDate}
+          />
         </div>
       </div>
       <div className="col-12">
@@ -423,7 +462,10 @@ const index = () => {
         <div className="col-12">
           <div className="searchMenu-date px-20 py-10 border-light rounded-4">
             <h4 className="text-15 fw-500 ls-2 lh-16">Time Slot</h4>
-            <TimeSlot setSelectedTime={setSelectedTime} />
+            <TimeSlot
+              setSelectedTime={setSelectedTime}
+              selectedTime={selectedTime}
+            />
           </div>
         </div>
       )}

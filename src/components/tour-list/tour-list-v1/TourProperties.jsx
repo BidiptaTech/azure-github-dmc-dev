@@ -11,6 +11,7 @@ import {
   fetchAttractionDetails,
   setSelectedModeData,
   selectFilters,
+  setSelectedAttraction,
 } from "../../../slice/attractions/attractionSlice";
 import TopHeaderFilter from "@/components/tour-list/tour-list-v1/TopHeaderFilter";
 import {
@@ -780,6 +781,8 @@ const TourProperties = () => {
         // dmc_id will be automatically handled by the slice using Redux state
       })
     );
+
+    dispatch(setSelectedAttraction(item));
 
     navigate(`/dashboard/db-dashboard/tour-single/${item.id}`, {
       state: {

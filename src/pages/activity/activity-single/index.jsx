@@ -24,6 +24,7 @@ import { useNavigate } from "react-router-dom";
 import MetaComponent from "@/components/common/MetaComponent";
 import CustomStepper from "@/components/common/sub_common/CustomStepper";
 import TourStatus from "@/components/common/sub_common/TourStatus";
+import { useSelector } from "react-redux";
 
 const metadata = {
   title: "Tour Guide || Travclicks - Travel Technology Transformed",
@@ -37,7 +38,8 @@ const ActivitySingleV1Dynamic = () => {
     activityData.find((item) => item.id == id) || activityData[0];
 
   const location = useLocation();
-  const { guide } = location.state;
+  const checkoutGuide = useSelector((state) => state.tourguide.checkoutGuide);
+  const guide = location.state?.guide || checkoutGuide;
   const [isLoading, setIsLoading] = useState(true); // For skeleton loader
   const navigate = useNavigate();
   useEffect(() => {
@@ -47,6 +49,16 @@ const ActivitySingleV1Dynamic = () => {
     }, 2000); // Adjust timeout as needed
     return () => clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    if (!guide?.guide) {
+      navigate("/dashboard/db-dashboard/tourguide", { replace: true });
+    }
+  }, [guide, navigate]);
+
+  if (!guide?.guide) {
+    return null;
+  }
 
   return (
     <>

@@ -6,7 +6,7 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import Typography from '@mui/material/Typography';
 // import { fetchAttractionDetails } from "@/slice/attractions/attractionSlice";
 
-export default function TimeSlot({ setSelectedTime }) {
+export default function TimeSlot({ setSelectedTime, selectedTime }) {
   const location = useLocation();
   const attraction = location.state?.attraction || {};
 
@@ -31,18 +31,24 @@ export default function TimeSlot({ setSelectedTime }) {
   const timeSlots = attractionDetails?.time_slots || [];
   
   // State to store selected time for display and to control dropdown
-  const [selectedTimeValue, setSelectedTimeValue] = useState("");
+  const [selectedTimeValue, setSelectedTimeValue] = useState(
+    selectedTime || ""
+  );
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
 
-  // Auto-select first time slot when time slots are available
+  // Restore or auto-select first time slot when time slots are available
   useEffect(() => {
+    if (selectedTime && selectedTime !== selectedTimeValue) {
+      setSelectedTimeValue(selectedTime);
+      return;
+    }
     if (timeSlots.length > 0 && !selectedTimeValue) {
       const firstTimeSlot = timeSlots[0];
       setSelectedTimeValue(firstTimeSlot);
       setSelectedTime(firstTimeSlot);
     }
-  }, [timeSlots, selectedTimeValue, setSelectedTime]);
+  }, [timeSlots, selectedTimeValue, setSelectedTime, selectedTime]);
 
   // Handle clicks outside to close dropdown
   useEffect(() => {

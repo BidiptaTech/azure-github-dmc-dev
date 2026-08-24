@@ -116,6 +116,9 @@ const roomSlice = createSlice({
       state.tour_id=action.payload;
      // console.log("ba", state.tour_id);
     },
+    setRoomDatas: (state, action) => {
+      state.roomDatas = action.payload || [];
+    },
     updateQuantity: (state, action) => {
       const { roomType, optionId, quantity } = action.payload;
       const room = state.roomDatas.find((room) => room.room_type === roomType);
@@ -202,6 +205,7 @@ export const {
   decrementQuantity,
   toggleQuantityVisibility,
   settourid,
+  setRoomDatas,
 } = roomSlice.actions;
 
 export default roomSlice.reducer;

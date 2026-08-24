@@ -2,19 +2,35 @@ import { configureStore } from "@reduxjs/toolkit";
 import findPlaceSlice from "../features/hero/findPlaceSlice";
 import attractionsReducer, {
   setAttractionService,
+  setAttractionDetails,
+  setSelectedAttraction,
+  setSearchParams,
+  setAttractionCheckoutDraft,
 } from "../slice/attractions/attractionSlice";
 import authReducer, { setTourIdd } from "../slice/common/authSlices";
 import listsReducer from "../slice/common/TourlistSlice";
-import categoryReducer from "../slice/hotel/CategorySlice";
+import categoryReducer, {
+  setPriceMode as setCategoryPriceMode,
+  setPriceModeId as setCategoryPriceModeId,
+} from "../slice/hotel/CategorySlice";
 import hotelsReducer, {
   setId,
   setHotelService,
   settourdetails,
   updateSearchState,
 } from "../slice/hotel/hotelSlice";
-import hoteldetailsReducer from "../slice/hotel/HotelDetailsSlice";
+import hoteldetailsReducer, {
+  setHotelDetails,
+  setCheckoutHotel,
+  setHotelImages,
+  setHotelPolicies,
+} from "../slice/hotel/HotelDetailsSlice";
 import loginReducer from "@/pages/login/loginSlice";
-import HotelAvailabilityReducer from "../slice/hotel/HotelAvailabilitySlice";
+import HotelAvailabilityReducer, {
+  setId as setRoomsHotelId,
+  settourid as setRoomsTourId,
+  setRoomDatas,
+} from "../slice/hotel/HotelAvailabilitySlice";
 import bookingReducer, {
   setCheckIn,
   setCheckOut,
@@ -24,19 +40,76 @@ import bookingReducer, {
 import enquiryReducer from "@/slice/common/EnquirySlice";
 import cityReducer, { setCity } from "@/slice/common/citySlice";
 import editingReducer, { setTourId1 } from "@/slice/common/EditSlice";
-import stepsReducer, { setTourId } from "@/slice/common/stepsSlice";
+import stepsReducer, {
+  setTourId,
+  hydrateStepsFromSession,
+} from "@/slice/common/stepsSlice";
 import pickupDropReducer, {
   setEntryport,
   setExitport,
+  setentrypickup as setPortEntrypickup,
+  setentrydropoff as setPortEntrydropoff,
+  setpickupdate as setPortPickupdate,
+  setentrytime as setPortEntrytime,
+  setexitpickup as setPortExitpickup,
+  setexitdropoff as setPortExitdropoff,
+  setexittime as setPortExittime,
+  setadult as setPortAdult,
+  setchildren as setPortChildren,
+  settourId as setPortTourId,
+  setPickupPlaceid as setPortPickupPlaceid,
+  setDropoffPlaceid as setPortDropoffPlaceid,
+  setPickupPlaceid1 as setPortPickupPlaceid1,
+  setDropoffPlaceid1 as setPortDropoffPlaceid1,
+  setMode as setPortMode,
+  setPriceMode as setPortPriceMode,
+  setbookingtype1 as setPortBookingtype,
+  setSelectionType as setPortSelectionType,
+  setPortZoneType as setPortZoneType,
+  setCheckoutVehicle as setPortCheckoutVehicle,
 } from "@/slice/port/pickupDropSlice";
 import localtourReducer, {
   setHourly,
   setPointToPoint,
   setZone,
+  setSelectionType,
+  setCheckoutVehicle,
+  setexitpickup,
+  setpickdate,
+  setentrytime as setLocalEntrytime,
+  setentrytime1,
+  setentrypickup as setLocalEntrypickup,
+  setentrydropoff as setLocalEntrydropoff,
+  setPickupPlaceid as setLocalPickupPlaceid,
+  setDropoffPlaceid as setLocalDropoffPlaceid,
+  setPickupZoneid,
+  setDropoffZoneid,
+  setMode as setLocalMode,
+  setadult as setLocalAdult,
+  setchildren as setLocalChildren,
+  sethour as setLocalHour,
+  setPriceMode1,
 } from "@/slice/localtour/Localslice";
-import tourguideReducer, { setbookedGuide } from "@/slice/tourguide/guideslice";
+import tourguideReducer, {
+  setbookedGuide,
+  setentrypickup,
+  setpickupdate,
+  setentrytime,
+  sethour,
+  setHourlyPrice,
+  setadult,
+  setchildren,
+  setPickupPlaceid,
+  setDropoffPlaceid,
+  setMode,
+  setCheckoutGuide,
+} from "@/slice/tourguide/guideslice";
 import restaurantsReducer, {
   setRestaurantsService,
+  setSelectedRestaurant,
+  setListRestaurant,
+  setSearchParams as setRestaurantSearchParams,
+  setRestaurantCheckoutDraft,
 } from "@/slice/restaurant/RestaurantsSlice";
 import dateServiceReducer, {
   setDateService,
@@ -46,6 +119,9 @@ import customerInfoReducer from "../slice/common/customerInfo";
 import commonReducer, {
   setHaveBooking,
   setSelectedCity,
+  setBookingType,
+  setBookingMode,
+  setGuestCounts,
 } from "../slice/common/commonSlice";
 import enquiryListReducer from "../slice/common/enquiryListSlice";
 import citiesReducer from "../slice/common/citiesSlice";
@@ -110,7 +186,22 @@ export const store = configureStore({
     dispatch(setId(saved.tourId));
     if (saved.checkIn) dispatch(setCheckIn(saved.checkIn));
     if (saved.checkOut) dispatch(setCheckOut(saved.checkOut));
-    dispatch(setHaveBooking(true));
+    dispatch(setHaveBooking(!!saved.haveBooking));
+    if (saved.bookingType) dispatch(setBookingType(saved.bookingType));
+    if (saved.bookingMode) dispatch(setBookingMode(saved.bookingMode));
+    if (saved.guestCounts) dispatch(setGuestCounts(saved.guestCounts));
+
+    dispatch(
+      hydrateStepsFromSession({
+        id: saved.tourId,
+        stepStatus1: saved.stepStatus1,
+        localStepStatus: saved.localStepStatus,
+        currentStep: saved.currentStep,
+        localCurrentStep: saved.localCurrentStep,
+        active_status: saved.active_status,
+        type: saved.stepType,
+      })
+    );
 
     if (Array.isArray(saved.searchLocation) && saved.searchLocation.length) {
       dispatch(setSearchLocation(saved.searchLocation));
@@ -164,6 +255,19 @@ export const store = configureStore({
       dispatch(updateSearchState(saved.searchState));
     }
 
+    const hc = saved.hotelCheckout;
+    if (hc) {
+      if (hc.checkoutHotel) dispatch(setCheckoutHotel(hc.checkoutHotel));
+      if (hc.bookingDetails) dispatch(setHotelDetails(hc.bookingDetails));
+      if (hc.hotelPolicies) dispatch(setHotelPolicies(hc.hotelPolicies));
+      if (hc.images) dispatch(setHotelImages(hc.images));
+      if (hc.roomDatas) dispatch(setRoomDatas(hc.roomDatas));
+      if (hc.roomsId) dispatch(setRoomsHotelId(hc.roomsId));
+      if (hc.roomsTourId != null) dispatch(setRoomsTourId(hc.roomsTourId));
+      if (hc.priceMode != null) dispatch(setCategoryPriceMode(hc.priceMode));
+      if (hc.priceModeId) dispatch(setCategoryPriceModeId(hc.priceModeId));
+    }
+
     const svc = saved.services || {};
     if (Array.isArray(svc.hotels) && svc.hotels.length) {
       dispatch(setHotelService(svc.hotels));
@@ -196,30 +300,83 @@ export const store = configureStore({
       dispatch(setDateService(svc.dateService));
     }
 
-    // #region agent log
-    fetch("http://127.0.0.1:7539/ingest/9c7af5d8-43d0-4cfe-81fd-7c964daf146e", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Debug-Session-Id": "8029bf",
-      },
-      body: JSON.stringify({
-        sessionId: "8029bf",
-        runId: "post-fix",
-        hypothesisId: "FLASH",
-        location: "store.js:hydrate",
-        message: "Store hydrated from tour session before render",
-        data: {
-          tourId: saved.tourId,
-          hotelCount: Array.isArray(svc.hotels) ? svc.hotels.length : 0,
-          searchLocationCount: Array.isArray(saved.searchLocation)
-            ? saved.searchLocation.length
-            : 0,
-        },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
+    const gc = saved.guideCheckout;
+    if (gc) {
+      if (gc.entrypickup) dispatch(setentrypickup(gc.entrypickup));
+      if (gc.pickupdate) dispatch(setpickupdate(gc.pickupdate));
+      if (gc.entrytime) dispatch(setentrytime(gc.entrytime));
+      if (gc.hours) dispatch(sethour(gc.hours));
+      if (gc.hourlyPrice != null) dispatch(setHourlyPrice(gc.hourlyPrice));
+      if (gc.adults != null) dispatch(setadult(gc.adults));
+      if (gc.children != null) dispatch(setchildren(gc.children));
+      if (gc.PickupPlaceid) dispatch(setPickupPlaceid(gc.PickupPlaceid));
+      if (gc.DropoffPlaceid) dispatch(setDropoffPlaceid(gc.DropoffPlaceid));
+      if (gc.mode) dispatch(setMode(gc.mode));
+      if (gc.checkoutGuide) dispatch(setCheckoutGuide(gc.checkoutGuide));
+    }
+
+    const ac = saved.attractionCheckout;
+    if (ac) {
+      if (ac.attractionDetails) dispatch(setAttractionDetails(ac.attractionDetails));
+      if (ac.selectedAttraction) dispatch(setSelectedAttraction(ac.selectedAttraction));
+      if (ac.searchParams) dispatch(setSearchParams(ac.searchParams));
+      if (ac.checkoutDraft) dispatch(setAttractionCheckoutDraft(ac.checkoutDraft));
+    }
+
+    const rc = saved.restaurantCheckout;
+    if (rc) {
+      if (rc.selectedRestaurant) dispatch(setSelectedRestaurant(rc.selectedRestaurant));
+      if (rc.listRestaurant) dispatch(setListRestaurant(rc.listRestaurant));
+      if (rc.searchParams) dispatch(setRestaurantSearchParams(rc.searchParams));
+      if (rc.checkoutDraft) dispatch(setRestaurantCheckoutDraft(rc.checkoutDraft));
+    }
+
+    const pc = saved.portCheckout;
+    if (pc) {
+      if (pc.selectionType !== undefined) dispatch(setPortSelectionType(pc.selectionType));
+      if (pc.portZoneType !== undefined) dispatch(setPortZoneType(pc.portZoneType));
+      if (pc.checkoutVehicle) dispatch(setPortCheckoutVehicle(pc.checkoutVehicle));
+
+      if (pc.entrypickup) dispatch(setPortEntrypickup(pc.entrypickup));
+      if (pc.entrydropoff) dispatch(setPortEntrydropoff(pc.entrydropoff));
+      if (pc.pickupdate) dispatch(setPortPickupdate(pc.pickupdate));
+      if (pc.entrytime) dispatch(setPortEntrytime(pc.entrytime));
+      if (pc.PickupPlaceid) dispatch(setPortPickupPlaceid(pc.PickupPlaceid));
+      if (pc.DropoffPlaceid) dispatch(setPortDropoffPlaceid(pc.DropoffPlaceid));
+
+      if (pc.exitpickup) dispatch(setPortExitpickup(pc.exitpickup));
+      if (pc.exitdropoff) dispatch(setPortExitdropoff(pc.exitdropoff));
+      if (pc.exittime) dispatch(setPortExittime(pc.exittime));
+      if (pc.PickupPlaceid1) dispatch(setPortPickupPlaceid1(pc.PickupPlaceid1));
+      if (pc.DropoffPlaceid1) dispatch(setPortDropoffPlaceid1(pc.DropoffPlaceid1));
+
+      if (pc.adult != null) dispatch(setPortAdult(pc.adult));
+      if (pc.children != null) dispatch(setPortChildren(pc.children));
+      if (pc.mode) dispatch(setPortMode(pc.mode));
+      if (pc.pricemode != null) dispatch(setPortPriceMode(pc.pricemode));
+      if (pc.bookingtype) dispatch(setPortBookingtype(pc.bookingtype));
+    }
+
+    const lc = saved.localTransferCheckout;
+    if (lc) {
+      if (lc.selectionType) dispatch(setSelectionType(lc.selectionType));
+      if (lc.checkoutVehicle) dispatch(setCheckoutVehicle(lc.checkoutVehicle));
+      if (lc.exitpickup) dispatch(setexitpickup(lc.exitpickup));
+      if (lc.pickdate) dispatch(setpickdate(lc.pickdate));
+      if (lc.entrytime) dispatch(setLocalEntrytime(lc.entrytime));
+      if (lc.entrytime1) dispatch(setentrytime1(lc.entrytime1));
+      if (lc.entrypickup) dispatch(setLocalEntrypickup(lc.entrypickup));
+      if (lc.entrydropoff) dispatch(setLocalEntrydropoff(lc.entrydropoff));
+      if (lc.PickupPlaceid) dispatch(setLocalPickupPlaceid(lc.PickupPlaceid));
+      if (lc.DropoffPlaceid) dispatch(setLocalDropoffPlaceid(lc.DropoffPlaceid));
+      if (lc.PickupZoneid) dispatch(setPickupZoneid(lc.PickupZoneid));
+      if (lc.DropoffZoneid) dispatch(setDropoffZoneid(lc.DropoffZoneid));
+      if (lc.mode) dispatch(setLocalMode(lc.mode));
+      if (lc.adult != null) dispatch(setLocalAdult(lc.adult));
+      if (lc.children != null) dispatch(setLocalChildren(lc.children));
+      if (lc.hours) dispatch(setLocalHour(lc.hours));
+      if (lc.pricemode) dispatch(setPriceMode1(lc.pricemode));
+    }
   } catch {
     // ignore hydration errors
   }

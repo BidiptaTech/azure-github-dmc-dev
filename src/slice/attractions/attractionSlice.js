@@ -257,7 +257,9 @@ export const createBooking = createAsyncThunk(
       dispatch(setBookingResponse(response.data));
 
       // Extract and dispatch tour_id if this was the first booking (tour created)
-      const tourId = response.data?.order?.tour_id || response.data?.tour_id;
+      const rawTourId = response.data?.order?.tour_id || response.data?.tour_id;
+      const tourIdMatch = rawTourId != null ? String(rawTourId).match(/\d+$/) : null;
+      const tourId = tourIdMatch ? tourIdMatch[0] : rawTourId;
       if (tourId) {
         dispatch(setId(tourId));
         dispatch(setTourId(tourId));
@@ -308,6 +310,15 @@ const initialState = {
   selectedAttraction: null,
   sortBy: "",
   checkoutData: null,
+  // Form draft for tour-single (survives refresh via session)
+  checkoutDraft: {
+    selectedDate: null,
+    selectedTime: "",
+    selectedTicket: null,
+    guestCounts: null,
+    nriStatus: "residential",
+    mode: null,
+  },
   status: "idle",
   error: null,
   bookingDate: null,
@@ -342,6 +353,15 @@ const attractionsSlice = createSlice({
     setSelectedAttraction: (state, action) => {
       state.selectedAttraction = action.payload;
     },
+    setAttractionDetails: (state, action) => {
+      state.attractionDetails = action.payload;
+    },
+    setAttractionCheckoutDraft: (state, action) => {
+      state.checkoutDraft = {
+        ...state.checkoutDraft,
+        ...action.payload,
+      };
+    },
     setSortBy: (state, action) => {
       state.sortBy = action.payload;
     },
@@ -375,6 +395,16 @@ const attractionsSlice = createSlice({
     clearAttractions: (state) => {
       state.attractions = [];
       state.filteredAttractions = [];
+      state.attractionDetails = null;
+      state.selectedAttraction = null;
+      state.checkoutDraft = {
+        selectedDate: null,
+        selectedTime: "",
+        selectedTicket: null,
+        guestCounts: null,
+        nriStatus: "residential",
+        mode: null,
+      };
     },
     setIsFromMainSearch: (state, action) => {
       state.isFromMainSearch = action.payload;
@@ -466,6 +496,8 @@ export const {
   setSearchText,
   setDateRange,
   setSelectedAttraction,
+  setAttractionDetails,
+  setAttractionCheckoutDraft,
   setSortBy,
   setCheckoutData,
   setAttractionService,

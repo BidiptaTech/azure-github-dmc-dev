@@ -15,7 +15,7 @@ import { store } from "./store/store";
 if (typeof window !== "undefined") {
   import("bootstrap");
 }
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import ScrollTopBehaviour from "./components/common/ScrollTopBehaviour";
 import Home from "./pages";
 import LandingPage from "./pages/landing";
@@ -70,28 +70,9 @@ const AUTO_LOGOUT_TIME = 7 * 24 * 60 * 60 * 1000; //Logout after 1 week
 
 function App() {
   const dispatch = useDispatch();
-  useEffect(() => {
-    if (!sessionStorage.getItem("alreadyCleared")) {
-      // Clear localStorage
-      localStorage.clear();
 
-      // Clear sessionStorage
-      sessionStorage.clear();
-
-      // Clear cookies
-      document.cookie.split(";").forEach((c) => {
-        document.cookie = c
-          .replace(/^ +/, "")
-          .replace(/=.*/, "=;expires=" + new Date(0).toUTCString() + ";path=/");
-      });
-
-      // Mark as cleared to avoid infinite reloads
-      sessionStorage.setItem("alreadyCleared", "true");
-
-      // Reload the page after clearing
-      window.location.reload();
-    }
-  }, []);
+  // Do not wipe sessionStorage/localStorage on load — that destroys the
+  // active tour booking session used to survive browser refresh.
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -178,10 +159,10 @@ function App() {
                 </ProtectedRoute>
               }
             >
-              <Route
-                path="*"
-                element={<Navigate to="/dashboard/db-dashboard" replace />}
-              />
+              {/* Index = dashboard home. Do NOT use path="*" here — it
+                  swallows nested booking routes (pickupdrop, etc.) on refresh
+                  and forces Navigate back to /dashboard/db-dashboard. */}
+              <Route index element={null} />
               <Route
                 path="updatebooking"
                 element={

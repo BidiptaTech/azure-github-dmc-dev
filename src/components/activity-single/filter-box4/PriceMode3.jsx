@@ -5,7 +5,8 @@ import { useLocation } from "react-router-dom";
 const PriceMode = ({ pricemode, setpricemode }) => {
   const location = useLocation();
   // const dispatch = useDispatch();
-  const { vehicles } = location.state;
+  const checkoutVehicle = useSelector((state) => state.localtour.checkoutVehicle);
+  const vehicles = location.state?.vehicles || checkoutVehicle;
   const currencyCode = useSelector((state) => state.auth.currencyCode);
   const exchangeRate = useSelector((state) => state.auth.exchangeRate);
   const PriceHide = useSelector((state) => state.auth.PriceHide);
@@ -15,6 +16,7 @@ const PriceMode = ({ pricemode, setpricemode }) => {
 
   // Effect to set the default price mode based on vehicles.sharable
   useEffect(() => {
+    if (!vehicles) return;
     console.log("vehicles.sharable:", vehicles.sharable);
     if (vehicles.sharable === 3) {
       setSelectedPriceMode("Sharable");
@@ -26,7 +28,7 @@ const PriceMode = ({ pricemode, setpricemode }) => {
       setSelectedPriceMode("Private");
       setpricemode("Private"); // Set default price mode
     }
-  }, [vehicles.sharable, setpricemode]);
+  }, [vehicles, setpricemode]);
 
   const handleChange = (event) => {
     console.log("Selected option:", event.target.value);
@@ -37,6 +39,8 @@ const PriceMode = ({ pricemode, setpricemode }) => {
   console.log("Vehicles:", vehicles);
   console.log("Selected Price Mode:", selectedPriceMode);
   console.log("Price Mode:", pricemode);
+
+  if (!vehicles) return null;
 
   return (
     <div>

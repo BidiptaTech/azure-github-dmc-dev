@@ -19,6 +19,9 @@ import {
   fetchGuideDetails,
   resetguide,
   fetchGuides,
+  setentrypickup,
+  setpickupdate,
+  setCheckoutGuide,
 } from "@/slice/tourguide/guideslice";
 
 import MetaComponent from "@/components/common/MetaComponent";
@@ -194,6 +197,10 @@ const ActivityListPage1 = () => {
     dispatch(fetchGuideDetails(searchParams))
       .unwrap()
       .then((guide) => {
+        // Ensure checkout validation fields exist even if search used city fallbacks
+        dispatch(setentrypickup(city));
+        dispatch(setpickupdate(searchParams.date));
+        dispatch(setCheckoutGuide(guide));
         navigate(`/dashboard/db-dashboard/activity-single`, {
           state: { guide: guide },
         });

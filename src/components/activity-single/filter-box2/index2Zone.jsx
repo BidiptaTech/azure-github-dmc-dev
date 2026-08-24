@@ -54,10 +54,12 @@ const Index2Zone = () => {
     (state) => state.pickupDrop.DropoffPlaceid
   );
   const entryytime = useSelector((state) => state.pickupDrop.exittime);
+  const checkoutVehicle = useSelector(
+    (state) => state.pickupDrop.checkoutVehicle
+  );
 
   const dispatch = useDispatch();
   const location = useLocation();
-  const { vehicles } = location.state;
   const id = useSelector((state) => state.hotels.id);
   // const dayprice = vehicles.prices.dmcDayPrice || vehicles.prices.travClicksDay;
   // const nightprice =
@@ -66,7 +68,8 @@ const Index2Zone = () => {
   // const nightEndTime = vehicles.night_end_time;
   const statemode = useSelector((state) => state.pickupDrop.mode);
   const navigate = useNavigate();
-  const seatingCapacity = vehicles.seating_capacity;
+  const vehicles = location.state?.vehicles || checkoutVehicle || null;
+  const seatingCapacity = vehicles?.seating_capacity || 0;
   const [isBookNowEnabled, setIsBookNowEnabled] = useState(false);
   const [isNight, setIsNight] = useState(false);
   // Get default values for guests from Redux store
@@ -102,7 +105,10 @@ const Index2Zone = () => {
   //const [hour, sethours] = useState("");
   //const [hourlyPrice, setHourlyPrice] = useState(0); // Stores selected hourly price
   //const [entryytime, setentryytime] = useState("");
-  const mode = statemode[vehicles.id]?.mode || "default_mode"; // Set a default mode if not found
+  const mode =
+    vehicles?.id && statemode?.[vehicles.id]?.mode
+      ? statemode[vehicles.id].mode
+      : "default_mode"; // Set a default mode if not found
   // Function to update hour and price from HourPackage
   // const handleHourChange = (selectedHour, price) => {
   //   sethours(selectedHour);
@@ -215,11 +221,15 @@ const Index2Zone = () => {
   console.log("pricemodeee", pricemode);
   const Price =
     pricemode === "Sharable"
-      ? vehicles.shared_price * totalGuests
-      : vehicles.private_price;
+      ? (vehicles?.shared_price || 0) * totalGuests
+      : vehicles?.private_price || 0;
   console.log("Price pricemode", Price);
 
   const handlesubmit0 = () => {
+    if (!vehicles?.id) {
+      toast.error("Vehicle details missing. Please go back and select again.");
+      return;
+    }
     // const data = {
     //   exitpickUpLocation,
     //   exitdropOffLocation,

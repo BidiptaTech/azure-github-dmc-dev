@@ -24,10 +24,12 @@ import LanguageIcon from "@mui/icons-material/Language";
 import WarningIcon from "@mui/icons-material/Warning";
 import CloseIcon from "@mui/icons-material/Close";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
+import { useSelector } from "react-redux";
 
 const Overview = () => {
   const location = useLocation();
-  const { guide } = location.state;
+  const checkoutGuide = useSelector((state) => state.tourguide.checkoutGuide);
+  const guide = location.state?.guide || checkoutGuide;
   const [isLoading, setIsLoading] = useState(true); // For skeleton loader
   const [openImageDialog, setOpenImageDialog] = useState(false);
   const [selectedImage, setSelectedImage] = useState("");

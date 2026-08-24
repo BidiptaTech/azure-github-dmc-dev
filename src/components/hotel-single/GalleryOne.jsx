@@ -22,7 +22,14 @@ export default function GalleryOne({ hotel }) {
     (state) => state.hoteldetails.bookingDetails || {}
   );
   const locationData = useLocation();
-  const priceMode = locationData.state?.priceMode;
+  const categoryPriceMode = useSelector((state) => state.category.priceMode);
+  const priceMode =
+    locationData.state?.priceMode ||
+    (typeof categoryPriceMode === "string"
+      ? categoryPriceMode
+      : Array.isArray(categoryPriceMode)
+        ? categoryPriceMode[0]
+        : categoryPriceMode);
 
   const currencySymbol = useSelector((state) => state.auth.currencySymbol);
   const currencyCode = useSelector((state) => state.auth.currencyCode);

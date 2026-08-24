@@ -28,6 +28,7 @@ import { useSelector, useDispatch } from "react-redux";
 
 import {
   setSelectedVehicle,
+  setCheckoutVehicle,
   setMode,
   fetchVehicleDetails,
   setSelectedPort,
@@ -644,6 +645,7 @@ console.log("zone_on5", zone_on);
     )
       .unwrap() // Unwrap the promise to handle the payload directly
       .then((data) => {
+        dispatch(setCheckoutVehicle(data));
         navigate(`/dashboard/db-dashboard/activity-single-2`, {
           state: { vehicles: data },
         });
