@@ -26,6 +26,8 @@ import Overview1 from "@/components/activity-single/Overview1";
 import SidebarRight1 from "@/components/activity-single/SidebarRight1";
 import CustomStepper from "@/components/common/sub_common/CustomStepper";
 import TourStatus from "@/components/common/sub_common/TourStatus";
+import { useDispatch, useSelector } from "react-redux";
+import { setCheckoutVehicle } from "@/slice/port/pickupDropSlice";
 
 const metadata = {
   title:
@@ -40,7 +42,15 @@ const ActivitySingleV2Dynamic = () => {
     activityData.find((item) => item.id == id) || activityData[0];
 
   const location = useLocation();
-  const { vehicles } = location.state;
+  const dispatch = useDispatch();
+  const checkoutVehicle = useSelector((state) => state.pickupDrop.checkoutVehicle);
+  const vehicles = location.state?.vehicles || checkoutVehicle || null;
+
+  useEffect(() => {
+    if (location.state?.vehicles) {
+      dispatch(setCheckoutVehicle(location.state.vehicles));
+    }
+  }, [dispatch, location.state?.vehicles]);
   const [isLoading, setIsLoading] = useState(true); // For skeleton loader
   const navigate = useNavigate();
   useEffect(() => {
@@ -85,7 +95,7 @@ const ActivitySingleV2Dynamic = () => {
           <div className="row">
             <div className="col-xl-8 p-0 d-flex">
               <Card sx={{ boxShadow: 3, borderRadius: 2, flex: 1 }}>
-                {isLoading ? (
+                {isLoading || !vehicles ? (
                   <Skeleton
                     variant="rectangular"
                     height="100%"
@@ -95,8 +105,8 @@ const ActivitySingleV2Dynamic = () => {
                 ) : (
                   <CardMedia
                     component="img"
-                    image={vehicles.image}
-                    alt={vehicles.vehicle_name}
+                    image={vehicles?.image}
+                    alt={vehicles?.vehicle_name}
                     sx={{
                       height: 510,
                       width: "100%",

@@ -645,7 +645,9 @@ export const submitPickupDrop = createAsyncThunk(
       
 
       // Extract and dispatch tour_id if this was the first booking (tour created)
-      const tourId = response.data?.order?.tour_id || response.data?.tour_id;
+      const rawTourId = response.data?.order?.tour_id || response.data?.tour_id;
+      const tourIdMatch = rawTourId != null ? String(rawTourId).match(/\d+$/) : null;
+      const tourId = tourIdMatch ? tourIdMatch[0] : rawTourId;
       if (tourId) {
         dispatch(setId(tourId));
         dispatch(setTourId(tourId));
@@ -853,6 +855,9 @@ const pickupDropSlice = createSlice({
     vehicles1: [],
     selectedVehicle: null,
     selectedVehicle1: null, // For Exit Port
+    // Full vehicle object used by activity-single-1 + zone filter boxes.
+    // Needed because on refresh router `location.state` disappears.
+    checkoutVehicle: null,
     selectionType: "",
     PickupPlaceid: "",
     DropoffPlaceid: "",
@@ -1003,6 +1008,9 @@ const pickupDropSlice = createSlice({
     setSelectedVehicle1: (state, action) => {
       state.selectedVehicle1 = action.payload;
     },
+    setCheckoutVehicle: (state, action) => {
+      state.checkoutVehicle = action.payload;
+    },
     setSelectionType: (state, action) => {
       state.selectionType = action.payload;
       
@@ -1018,6 +1026,7 @@ const pickupDropSlice = createSlice({
     resetVehicles: (state, action) => {
       state.vehicles = [];
       state.vehicles1 = [];
+      state.checkoutVehicle = null;
       state.entrypickup = "";
       state.entrydropoff = "";
       state.exitpickup = "";
@@ -1229,6 +1238,7 @@ export const {
   setExitport,
   setSelectedVehicle,
   setSelectedVehicle1,
+  setCheckoutVehicle,
   setSelectionType,
   setPickupPlaceid,
   setDropoffPlaceid,

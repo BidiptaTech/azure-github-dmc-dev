@@ -442,7 +442,9 @@ export const Localtourslice = createAsyncThunk(
       console.log("API Response:", response.data);
 
       // Extract and dispatch tour_id if this was the first booking (tour created)
-      const tourId = response.data?.order?.tour_id || response.data?.tour_id;
+      const rawTourId = response.data?.order?.tour_id || response.data?.tour_id;
+      const tourIdMatch = rawTourId != null ? String(rawTourId).match(/\d+$/) : null;
+      const tourId = tourIdMatch ? tourIdMatch[0] : rawTourId;
       if (tourId) {
         dispatch(setId(tourId));
         dispatch(setTourId(tourId));
@@ -688,6 +690,7 @@ const LocalSlice = createSlice({
     exitpickdate: "",
     mode: {},
     selectedVehicle: {},
+    checkoutVehicle: null,
     pricemode: "",
     bookingtype: "",
     selectedPort: "",
@@ -850,6 +853,9 @@ const LocalSlice = createSlice({
       state.selectedVehicle = action.payload;
       
     },
+    setCheckoutVehicle: (state, action) => {
+      state.checkoutVehicle = action.payload;
+    },
     setSelectedPort: (state, action) => {
       state.selectedPort = action.payload;
       console.log("selectedPort", state.selectedPort);
@@ -934,6 +940,9 @@ const LocalSlice = createSlice({
         state.status = "failed";
         state.error = action.payload.message; // Save the error in state
         
+      })
+      .addCase(fetchVehicleDetails.fulfilled, (state, action) => {
+        state.checkoutVehicle = action.payload;
       });
 
     builder
@@ -1018,6 +1027,7 @@ export const {
   setchildren,
   setSelectionType,
   setSelectedVehicle,
+  setCheckoutVehicle,
   setpickdate,
   setMode,
   setPriceMode1,

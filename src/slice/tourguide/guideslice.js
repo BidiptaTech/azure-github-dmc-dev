@@ -358,7 +358,10 @@ export const guideslice = createAsyncThunk(
       console.log("API Response:", response.data);
 
       // Extract and dispatch tour_id if this was the first booking (tour created)
-      const tourId = response.data?.order?.tour_id || response.data?.tour_id;
+      // Normalize "DMC-ORD4066" -> "4066" (trailing digits only)
+      const rawTourId = response.data?.order?.tour_id || response.data?.tour_id;
+      const tourIdMatch = rawTourId != null ? String(rawTourId).match(/\d+$/) : null;
+      const tourId = tourIdMatch ? tourIdMatch[0] : rawTourId;
       if (tourId) {
         dispatch(setId(tourId));
         dispatch(setTourId(tourId));
@@ -406,6 +409,9 @@ const Localguideslice = createSlice({
     dateRange: [null, null],
     selectedGuide: null,
     guideDetails: null, // Add this to store guide details
+    // Full /guide-details response used as location.state.guide (refresh restore)
+    checkoutGuide: null,
+    hourlyPrice: 0,
     sortBy: "",
     entrypickup: "",
     entrydropoff: "",
@@ -525,6 +531,12 @@ const Localguideslice = createSlice({
       state.hours = action.payload;
       console.log("htime", state.hours);
     },
+    setHourlyPrice: (state, action) => {
+      state.hourlyPrice = action.payload;
+    },
+    setCheckoutGuide: (state, action) => {
+      state.checkoutGuide = action.payload;
+    },
     setadult: (state, action) => {
       state.adult = action.payload;
       console.log("trav", state.traveller0);
@@ -571,6 +583,16 @@ const Localguideslice = createSlice({
       state.error = null;
       state.selectedGuide = null;
       state.guideDetails = null;
+      state.checkoutGuide = null;
+      state.entrypickup = "";
+      state.pickupdate = "";
+      state.entrytime = "";
+      state.hours = "";
+      state.hourlyPrice = 0;
+      state.adult = 0;
+      state.children = 0;
+      state.PickupPlaceid = "";
+      state.DropoffPlaceid = "";
     },
     setSearchParams: (state, action) => {
       // Create a serialized version of the payload
@@ -640,12 +662,13 @@ const Localguideslice = createSlice({
       })
       .addCase(fetchGuideDetails.fulfilled, (state, action) => {
         state.status = "succeeded";
-        state.guideDetails = action.payload.guide;
+        state.checkoutGuide = action.payload;
+        state.guideDetails = action.payload?.guide ?? action.payload;
         // Update selectedGuide with the fetched guide details
         state.selectedGuide = {
           ...state.selectedGuide,
-          ...action.payload.guide,
-          prices: action.payload.guide.prices || {}
+          ...(action.payload?.guide || action.payload || {}),
+          prices: action.payload?.guide?.prices || action.payload?.prices || {},
         };
         console.log("Guide Details:", action.payload);
       })
@@ -692,6 +715,8 @@ export const {
   //setexittime,
   //setentrytime1,
   sethour,
+  setHourlyPrice,
+  setCheckoutGuide,
   setadult,
   //setlanguagetype1,
   setchildren,

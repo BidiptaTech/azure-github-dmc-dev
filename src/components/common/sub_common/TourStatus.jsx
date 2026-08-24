@@ -23,10 +23,10 @@ import PortModal from "@/components/activity-list/activity-list-v2/PickupDropMod
 import LocalTourModal from "@/components/activity-list/activity-list-v3/LocaltourModal";
 import TourguideModal from "@/components/activity-list/activity-list-v1/TourguideModal";
 import HotelModal from "@/components/hotel-list/common/HotelModal";
-import { setHaveBooking, setSelectedCity } from "@/slice/common/commonSlice";
+import { setHaveBooking, setSelectedCity, setBookingType, setBookingMode, setGuestCounts } from "@/slice/common/commonSlice";
 import { setTourIdd } from "@/slice/common/authSlices";
 import { setTourId1, fetchEditid } from "@/slice/common/EditSlice";
-import { setTourId } from "@/slice/common/stepsSlice";
+import { setTourId, hydrateStepsFromSession } from "@/slice/common/stepsSlice";
 import {
   setId,
   setHotelService,
@@ -87,7 +87,97 @@ export default function TourStatus() {
   // console.log("travelzzzzzz", travelZoneRaw);
   const entryPortRaw = useSelector((state) => state.pickupDrop.entryport || []);
   const exitPortRaw = useSelector((state) => state.pickupDrop.exitport || []);
+  const portCheckoutVehicle = useSelector(
+    (state) => state.pickupDrop.checkoutVehicle
+  );
+  const portSelectionType = useSelector(
+    (state) => state.pickupDrop.selectionType
+  );
+  const portZoneType = useSelector((state) => state.pickupDrop.portZoneType);
+  const portEntryPickup = useSelector(
+    (state) => state.pickupDrop.entrypickup
+  );
+  const portEntryDropoff = useSelector(
+    (state) => state.pickupDrop.entrydropoff
+  );
+  const portEntryDate = useSelector((state) => state.pickupDrop.pickupdate);
+  const portEntryTime = useSelector((state) => state.pickupDrop.entrytime);
+  const portExitPickup = useSelector((state) => state.pickupDrop.exitpickup);
+  const portExitDropoff = useSelector((state) => state.pickupDrop.exitdropoff);
+  const portExitDate = useSelector((state) => state.pickupDrop.pickupdate);
+  const portExitTime = useSelector((state) => state.pickupDrop.exittime);
+  const portPickupPlaceid = useSelector(
+    (state) => state.pickupDrop.PickupPlaceid
+  );
+  const portDropoffPlaceid = useSelector(
+    (state) => state.pickupDrop.DropoffPlaceid
+  );
+  const portPickupPlaceid1 = useSelector(
+    (state) => state.pickupDrop.PickupPlaceid1
+  );
+  const portDropoffPlaceid1 = useSelector(
+    (state) => state.pickupDrop.DropoffPlaceid1
+  );
+  const portAdult = useSelector((state) => state.pickupDrop.adult);
+  const portChildren = useSelector((state) => state.pickupDrop.children);
+  const portMode = useSelector((state) => state.pickupDrop.mode);
+  const portPriceMode = useSelector((state) => state.pickupDrop.pricemode);
+  const portBookingType = useSelector(
+    (state) => state.pickupDrop.bookingtype
+  );
   const bookedGuideRaw = useSelector((state) => state.tourguide.bookedguide || []);
+  const guideEntrypickup = useSelector((state) => state.tourguide.entrypickup);
+  const guidePickupdate = useSelector((state) => state.tourguide.pickupdate);
+  const guideEntrytime = useSelector((state) => state.tourguide.entrytime);
+  const guideHours = useSelector((state) => state.tourguide.hours);
+  const guideHourlyPrice = useSelector((state) => state.tourguide.hourlyPrice);
+  const guideAdult = useSelector((state) => state.tourguide.adult);
+  const guideChildren = useSelector((state) => state.tourguide.children);
+  const guidePickupPlaceid = useSelector((state) => state.tourguide.PickupPlaceid);
+  const guideDropoffPlaceid = useSelector((state) => state.tourguide.DropoffPlaceid);
+  const guideMode = useSelector((state) => state.tourguide.mode);
+  const guideCheckoutGuide = useSelector((state) => state.tourguide.checkoutGuide);
+  const attractionDetailsSession = useSelector(
+    (state) => state.attractions.attractionDetails
+  );
+  const selectedAttractionSession = useSelector(
+    (state) => state.attractions.selectedAttraction
+  );
+  const attractionSearchParams = useSelector(
+    (state) => state.attractions.searchParams
+  );
+  const attractionCheckoutDraft = useSelector(
+    (state) => state.attractions.checkoutDraft
+  );
+  const selectedRestaurantSession = useSelector(
+    (state) => state.restaurants.selectedRestaurant
+  );
+  const listRestaurantSession = useSelector(
+    (state) => state.restaurants.listRestaurant
+  );
+  const restaurantSearchParams = useSelector(
+    (state) => state.restaurants.searchParams
+  );
+  const restaurantCheckoutDraft = useSelector(
+    (state) => state.restaurants.checkoutDraft
+  );
+  const localSelectionType = useSelector((state) => state.localtour.selectionType);
+  const localCheckoutVehicle = useSelector((state) => state.localtour.checkoutVehicle);
+  const localExitpickup = useSelector((state) => state.localtour.exitpickup);
+  const localPickdate = useSelector((state) => state.localtour.pickdate);
+  const localEntrytime = useSelector((state) => state.localtour.entrytime);
+  const localEntrytime1 = useSelector((state) => state.localtour.entrytime1);
+  const localEntrypickup = useSelector((state) => state.localtour.entrypickup);
+  const localEntrydropoff = useSelector((state) => state.localtour.entrydropoff);
+  const localPickupPlaceid = useSelector((state) => state.localtour.PickupPlaceid);
+  const localDropoffPlaceid = useSelector((state) => state.localtour.DropoffPlaceid);
+  const localPickupZoneid = useSelector((state) => state.localtour.PickupZoneid);
+  const localDropoffZoneid = useSelector((state) => state.localtour.DropoffZoneid);
+  const localMode = useSelector((state) => state.localtour.mode);
+  const localAdult = useSelector((state) => state.localtour.adult);
+  const localChildren = useSelector((state) => state.localtour.children);
+  const localHours = useSelector((state) => state.localtour.hours);
+  const localPricemode = useSelector((state) => state.localtour.pricemode);
 
   const dateServiceRaw = useSelector((state) => state.dateService.services || []);
   // console.log("dateService123", dateService);
@@ -103,12 +193,32 @@ export default function TourStatus() {
   const hotelBookingsRaw = useSelector((state) => state.hotels.hotelService || []);
   const tourdetails = useSelector((state) => state.hotels.tourdetails);
   const hotelSearchState = useSelector((state) => state.hotels.searchState);
+  const hotelCheckoutHotel = useSelector((state) => state.hoteldetails.checkoutHotel);
+  const hotelBookingDetails = useSelector((state) => state.hoteldetails.bookingDetails);
+  const hotelPoliciesSession = useSelector((state) => state.hoteldetails.hotelPolicies);
+  const hotelImagesSession = useSelector((state) => state.hoteldetails.images);
+  const hotelRoomDatas = useSelector((state) => state.rooms.roomDatas);
+  const hotelRoomsId = useSelector((state) => state.rooms.id);
+  const hotelRoomsTourId = useSelector((state) => state.rooms.tour_id);
+  const hotelCategoryPriceMode = useSelector((state) => state.category.priceMode);
+  const hotelCategoryPriceModeId = useSelector((state) => state.category.priceModeId);
   const selectedCity = useSelector((state) => state.common.selectedCity);
   const cityList = useSelector((state) => state.city?.city || []);
   const userCountry = useSelector((state) => state.auth?.user_country);
   //  console.log(hotelBookings,"hotelBookings");
 
   const haveBooking = useSelector((state) => state.common.haveBooking);
+  const bookingType = useSelector((state) => state.common.bookingType);
+  const bookingMode = useSelector((state) => state.common.bookingMode);
+  const guestCounts = useSelector((state) => state.common.guestCounts);
+  const {
+    stepStatus1,
+    localStepStatus,
+    currentStep,
+    localCurrentStep,
+    active_status: stepsActiveStatus,
+    type: stepType,
+  } = useSelector((state) => state.steps || {});
   const globalTourId = useSelector(
     (state) => state.auth?.tourId || state.steps?.id
   );
@@ -207,7 +317,8 @@ export default function TourStatus() {
     );
   };
 
-  // Restore active tour after refresh (Redux is in-memory only)
+  // Restore active tour after refresh (Redux is in-memory only).
+  // Prefer sessionStorage; skip edit-tour API when cached services exist.
   useEffect(() => {
     if (hasRestoredTourRef.current) return;
     if (globalTourId) return;
@@ -217,36 +328,6 @@ export default function TourStatus() {
 
     hasRestoredTourRef.current = true;
 
-    // #region agent log
-    fetch("http://127.0.0.1:7539/ingest/9c7af5d8-43d0-4cfe-81fd-7c964daf146e", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Debug-Session-Id": "8029bf",
-      },
-      body: JSON.stringify({
-        sessionId: "8029bf",
-        runId: "post-fix",
-        hypothesisId: "E",
-        location: "TourStatus.jsx:restore-tour",
-        message: "Restoring tour session after refresh",
-        data: {
-          tourId: saved.tourId,
-          checkIn: saved.checkIn || "",
-          checkOut: saved.checkOut || "",
-          haveBooking: !!saved.haveBooking,
-          cachedHotels: Array.isArray(saved.services?.hotels)
-            ? saved.services.hotels.length
-            : 0,
-          hasSearchLocation: Array.isArray(saved.searchLocation)
-            ? saved.searchLocation.length
-            : 0,
-        },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
-
     dispatch(setTourId1(saved.tourId));
     dispatch(setTourIdd(saved.tourId));
     dispatch(setTourId(saved.tourId));
@@ -254,8 +335,23 @@ export default function TourStatus() {
     if (saved.checkIn) dispatch(setCheckIn(saved.checkIn));
     if (saved.checkOut) dispatch(setCheckOut(saved.checkOut));
     if (saved.haveBooking) dispatch(setHaveBooking(true));
+    if (saved.bookingType) dispatch(setBookingType(saved.bookingType));
+    if (saved.bookingMode) dispatch(setBookingMode(saved.bookingMode));
+    if (saved.guestCounts) dispatch(setGuestCounts(saved.guestCounts));
 
-    // Restore search / city context immediately
+    // Restore steps slice (stepper colors / current step)
+    dispatch(
+      hydrateStepsFromSession({
+        id: saved.tourId,
+        stepStatus1: saved.stepStatus1,
+        localStepStatus: saved.localStepStatus,
+        currentStep: saved.currentStep,
+        localCurrentStep: saved.localCurrentStep,
+        active_status: saved.active_status,
+        type: saved.stepType,
+      })
+    );
+
     if (Array.isArray(saved.searchLocation) && saved.searchLocation.length) {
       dispatch(setSearchLocation(saved.searchLocation));
     }
@@ -263,7 +359,6 @@ export default function TourStatus() {
       dispatch(setSelectedCity(saved.selectedCity));
     }
 
-    // destination/country must stay as country NAME — never selectedCity / codes only
     const countryDestination = resolveCountryName(
       (typeof saved.tourdetails?.destination === "string" &&
         saved.tourdetails.destination) ||
@@ -308,7 +403,6 @@ export default function TourStatus() {
     if (saved.searchState) {
       dispatch(updateSearchState(saved.searchState));
     } else if (saved.checkIn || saved.checkOut) {
-      // Hotel search location should be city address/name, not country object
       const cityLocation =
         typeof saved.selectedCity === "string"
           ? saved.selectedCity
@@ -335,7 +429,6 @@ export default function TourStatus() {
       );
     }
 
-    // Restore booked services from cache so UI is not empty if API fails
     const svc = saved.services || {};
     if (Array.isArray(svc.hotels) && svc.hotels.length) {
       dispatch(setHotelService(svc.hotels));
@@ -370,13 +463,9 @@ export default function TourStatus() {
 
     dispatch(setHaveBooking(true));
 
-    const cachedHotelCount = Array.isArray(svc.hotels) ? svc.hotels.length : 0;
-    const cachedAttractionCount = Array.isArray(svc.attractions)
-      ? svc.attractions.length
-      : 0;
     const hasCachedServices =
-      cachedHotelCount > 0 ||
-      cachedAttractionCount > 0 ||
+      (Array.isArray(svc.hotels) && svc.hotels.length > 0) ||
+      (Array.isArray(svc.attractions) && svc.attractions.length > 0) ||
       (Array.isArray(svc.restaurants) && svc.restaurants.length > 0) ||
       (Array.isArray(svc.guides) && svc.guides.length > 0) ||
       (Array.isArray(svc.entryPorts) && svc.entryPorts.length > 0) ||
@@ -385,36 +474,8 @@ export default function TourStatus() {
       (Array.isArray(svc.travelHourly) && svc.travelHourly.length > 0) ||
       (Array.isArray(svc.travelZone) && svc.travelZone.length > 0);
 
-    // Prefer cached services after refresh. Only hit edit-tour when cache is empty.
-    // Do NOT call hydrateDestination here — it overwrites selectedCity with country.
-    if (hasCachedServices) {
-      // #region agent log
-      fetch("http://127.0.0.1:7539/ingest/9c7af5d8-43d0-4cfe-81fd-7c964daf146e", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Debug-Session-Id": "8029bf",
-        },
-        body: JSON.stringify({
-          sessionId: "8029bf",
-          runId: "post-fix",
-          hypothesisId: "C,G",
-          location: "TourStatus.jsx:restore-from-cache",
-          message: "Restored services from cache; skipped fetchEditid",
-          data: {
-            tourId: saved.tourId,
-            cachedHotelCount,
-            cachedAttractionCount,
-            hasSearchLocation: Array.isArray(saved.searchLocation)
-              ? saved.searchLocation.length
-              : 0,
-          },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
-      return;
-    }
+    // Avoid unnecessary API call when session already has booking data
+    if (hasCachedServices) return;
 
     dispatch(fetchEditid(saved.tourId))
       .unwrap()
@@ -428,74 +489,118 @@ export default function TourStatus() {
             saved.checkOut
           );
         }
-        // #region agent log
-        fetch("http://127.0.0.1:7539/ingest/9c7af5d8-43d0-4cfe-81fd-7c964daf146e", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Debug-Session-Id": "8029bf",
-          },
-          body: JSON.stringify({
-            sessionId: "8029bf",
-            runId: "post-fix",
-            hypothesisId: "C,E",
-            location: "TourStatus.jsx:restore-fetch-ok",
-            message: "fetchEditid succeeded after restore",
-            data: {
-              tourId: saved.tourId,
-              hotelCount: Array.isArray(data?.service?.hotel)
-                ? data.service.hotel.length
-                : 0,
-              destination: data?.destination || null,
-            },
-            timestamp: Date.now(),
-          }),
-        }).catch(() => {});
-        // #endregion
       })
-      .catch((err) => {
-        // #region agent log
-        fetch("http://127.0.0.1:7539/ingest/9c7af5d8-43d0-4cfe-81fd-7c964daf146e", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Debug-Session-Id": "8029bf",
-          },
-          body: JSON.stringify({
-            sessionId: "8029bf",
-            runId: "post-fix",
-            hypothesisId: "C,E",
-            location: "TourStatus.jsx:restore-fetch-fail",
-            message: "fetchEditid failed after restore",
-            data: {
-              tourId: saved.tourId,
-              error:
-                typeof err === "string"
-                  ? err
-                  : JSON.stringify(err || {}),
-              usedCache: false,
-            },
-            timestamp: Date.now(),
-          }),
-        }).catch(() => {});
-        // #endregion
-      });
+      .catch(() => {});
   }, [dispatch, globalTourId]);
 
-  // Persist tour context so refresh can restore it
+  // Persist tour context so refresh can restore it (overwrites previous tour)
   useEffect(() => {
-    if (!globalTourId || !checkIn || !checkOut) return;
-    const savedOk = saveTourSession({
+    // Allow persisting drafts even if check-in/out aren't set yet.
+    // We still require `tourId` so hydration can restore state after refresh.
+    if (!globalTourId) return;
+    saveTourSession({
       tourId: globalTourId,
+      // bookings
       checkIn,
       checkOut,
-      haveBooking: !!haveBooking,
       searchLocation: searchLocation || [],
-      selectedCity: selectedCity ?? null,
-      cityList: cityList || [],
       guests: guests || null,
+      // common
+      haveBooking: !!haveBooking,
+      selectedCity: selectedCity ?? null,
+      bookingType: bookingType ?? null,
+      bookingMode: bookingMode ?? null,
+      guestCounts: guestCounts || null,
+      // steps
+      stepStatus1: stepStatus1 || null,
+      localStepStatus: localStepStatus || null,
+      currentStep: currentStep ?? null,
+      localCurrentStep: localCurrentStep ?? null,
+      active_status: stepsActiveStatus ?? null,
+      stepType: stepType ?? null,
+      // hotel / city
+      cityList: cityList || [],
       tourdetails: tourdetails || null,
       searchState: hotelSearchState || null,
+      hotelCheckout: {
+        checkoutHotel: hotelCheckoutHotel || null,
+        bookingDetails: hotelBookingDetails || null,
+        hotelPolicies: hotelPoliciesSession || [],
+        images: hotelImagesSession || [],
+        roomDatas: hotelRoomDatas || null,
+        roomsId: hotelRoomsId || null,
+        roomsTourId: hotelRoomsTourId || 0,
+        priceMode: hotelCategoryPriceMode || null,
+        priceModeId: hotelCategoryPriceModeId || "",
+      },
+      guideCheckout: {
+        entrypickup: guideEntrypickup || "",
+        pickupdate: guidePickupdate || "",
+        entrytime: guideEntrytime || "",
+        hours: guideHours || "",
+        hourlyPrice: guideHourlyPrice || 0,
+        adults: guideAdult,
+        children: guideChildren,
+        PickupPlaceid: guidePickupPlaceid || "",
+        DropoffPlaceid: guideDropoffPlaceid || "",
+        mode: guideMode || {},
+        checkoutGuide: guideCheckoutGuide || null,
+      },
+      attractionCheckout: {
+        attractionDetails: attractionDetailsSession || null,
+        selectedAttraction: selectedAttractionSession || null,
+        searchParams: attractionSearchParams || {},
+        checkoutDraft: attractionCheckoutDraft || null,
+      },
+      restaurantCheckout: {
+        selectedRestaurant: selectedRestaurantSession || null,
+        listRestaurant: listRestaurantSession || null,
+        searchParams: restaurantSearchParams || {},
+        checkoutDraft: restaurantCheckoutDraft || null,
+      },
+      portCheckout: {
+        selectionType: portSelectionType || "",
+        portZoneType: portZoneType || "",
+        checkoutVehicle: portCheckoutVehicle || null,
+        // entry port fields
+        entrypickup: portEntryPickup || "",
+        entrydropoff: portEntryDropoff || "",
+        pickupdate: portEntryDate || "",
+        entrytime: portEntryTime || "",
+        PickupPlaceid: portPickupPlaceid || "",
+        DropoffPlaceid: portDropoffPlaceid || "",
+        // exit port fields
+        exitpickup: portExitPickup || "",
+        exitdropoff: portExitDropoff || "",
+        exittime: portExitTime || "",
+        PickupPlaceid1: portPickupPlaceid1 || "",
+        DropoffPlaceid1: portDropoffPlaceid1 || "",
+        // guests/pricing
+        adult: portAdult,
+        children: portChildren,
+        mode: portMode || {},
+        pricemode: portPriceMode || "",
+        bookingtype: portBookingType || "",
+      },
+      localTransferCheckout: {
+        selectionType: localSelectionType || "",
+        checkoutVehicle: localCheckoutVehicle || null,
+        exitpickup: localExitpickup || "",
+        pickdate: localPickdate || "",
+        entrytime: localEntrytime || "",
+        entrytime1: localEntrytime1 || "",
+        entrypickup: localEntrypickup || "",
+        entrydropoff: localEntrydropoff || "",
+        PickupPlaceid: localPickupPlaceid || "",
+        DropoffPlaceid: localDropoffPlaceid || "",
+        PickupZoneid: localPickupZoneid || "",
+        DropoffZoneid: localDropoffZoneid || "",
+        mode: localMode || {},
+        adult: localAdult,
+        children: localChildren,
+        hours: localHours || "",
+        pricemode: localPricemode || "",
+      },
       services: {
         hotels: hotelBookingsRaw || [],
         attractions: attractionServices || [],
@@ -509,38 +614,6 @@ export default function TourStatus() {
         dateService: dateServiceRaw || [],
       },
     });
-    // #region agent log
-    fetch("http://127.0.0.1:7539/ingest/9c7af5d8-43d0-4cfe-81fd-7c964daf146e", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Debug-Session-Id": "8029bf",
-      },
-      body: JSON.stringify({
-        sessionId: "8029bf",
-        runId: "post-fix",
-        hypothesisId: "G",
-        location: "TourStatus.jsx:persist-session",
-        message: "Persisted tour session",
-        data: {
-          savedOk: !!savedOk,
-          tourId: globalTourId,
-          hotelCount: Array.isArray(hotelBookingsRaw)
-            ? hotelBookingsRaw.length
-            : 0,
-          attractionCount: Array.isArray(attractionServices)
-            ? attractionServices.length
-            : 0,
-          searchLocationCount: Array.isArray(searchLocation)
-            ? searchLocation.length
-            : 0,
-          hasSelectedCity: selectedCity != null,
-          cityListCount: Array.isArray(cityList) ? cityList.length : 0,
-        },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
   }, [
     globalTourId,
     checkIn,
@@ -552,9 +625,83 @@ export default function TourStatus() {
     guests,
     tourdetails,
     hotelSearchState,
+    hotelCheckoutHotel,
+    hotelBookingDetails,
+    hotelPoliciesSession,
+    hotelImagesSession,
+    hotelRoomDatas,
+    hotelRoomsId,
+    hotelRoomsTourId,
+    hotelCategoryPriceMode,
+    hotelCategoryPriceModeId,
+    bookingType,
+    bookingMode,
+    guestCounts,
+    stepStatus1,
+    localStepStatus,
+    currentStep,
+    localCurrentStep,
+    stepsActiveStatus,
+    stepType,
     hotelBookingsRaw,
     attractionServices,
     restaurantServices,
+    guideEntrypickup,
+    guidePickupdate,
+    guideEntrytime,
+    guideHours,
+    guideHourlyPrice,
+    guideAdult,
+    guideChildren,
+    guidePickupPlaceid,
+    guideDropoffPlaceid,
+    guideMode,
+    guideCheckoutGuide,
+    attractionDetailsSession,
+    selectedAttractionSession,
+    attractionSearchParams,
+    attractionCheckoutDraft,
+    selectedRestaurantSession,
+    listRestaurantSession,
+    restaurantSearchParams,
+    restaurantCheckoutDraft,
+    portCheckoutVehicle,
+    portSelectionType,
+    portZoneType,
+    portEntryPickup,
+    portEntryDropoff,
+    portEntryDate,
+    portEntryTime,
+    portExitPickup,
+    portExitDropoff,
+    portExitDate,
+    portExitTime,
+    portPickupPlaceid,
+    portDropoffPlaceid,
+    portPickupPlaceid1,
+    portDropoffPlaceid1,
+    portAdult,
+    portChildren,
+    portMode,
+    portPriceMode,
+    portBookingType,
+    localSelectionType,
+    localCheckoutVehicle,
+    localExitpickup,
+    localPickdate,
+    localEntrytime,
+    localEntrytime1,
+    localEntrypickup,
+    localEntrydropoff,
+    localPickupPlaceid,
+    localDropoffPlaceid,
+    localPickupZoneid,
+    localDropoffZoneid,
+    localMode,
+    localAdult,
+    localChildren,
+    localHours,
+    localPricemode,
     entryPortRaw,
     exitPortRaw,
     travelPointRaw,
@@ -563,64 +710,6 @@ export default function TourStatus() {
     bookedGuideRaw,
     dateServiceRaw,
   ]);
-
-  // #region agent log
-  useEffect(() => {
-    const payload = {
-      sessionId: "8029bf",
-      runId: hasRestoredTourRef.current ? "post-fix" : "pre-fix",
-      hypothesisId: "A,B,C",
-      location: "TourStatus.jsx:mount-state",
-      message: "TourStatus state snapshot",
-      data: {
-        checkIn: checkIn || "",
-        checkOut: checkOut || "",
-        haveBooking: !!haveBooking,
-        globalTourId: globalTourId ?? null,
-        hasActiveTour: !!hasActiveTour,
-        rangeWillBeEmpty: !(checkIn && checkOut),
-        rawCounts: {
-          hotels: Array.isArray(hotelBookingsRaw) ? hotelBookingsRaw.length : -1,
-          attractions: Array.isArray(attractionServices) ? attractionServices.length : -1,
-          restaurants: Array.isArray(restaurantServices) ? restaurantServices.length : -1,
-          guides: Array.isArray(bookedGuideRaw) ? bookedGuideRaw.length : -1,
-          entryPorts: Array.isArray(entryPortRaw) ? entryPortRaw.length : -1,
-          exitPorts: Array.isArray(exitPortRaw) ? exitPortRaw.length : -1,
-        },
-        gatedCounts: {
-          hotels: Array.isArray(hotelBookings) ? hotelBookings.length : -1,
-          attractions: Array.isArray(bookings) ? bookings.length : -1,
-        },
-        navType: typeof performance !== "undefined" && performance.getEntriesByType
-          ? (performance.getEntriesByType("navigation")[0]?.type || "unknown")
-          : "unknown",
-      },
-      timestamp: Date.now(),
-    };
-    fetch("http://127.0.0.1:7539/ingest/9c7af5d8-43d0-4cfe-81fd-7c964daf146e", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Debug-Session-Id": "8029bf",
-      },
-      body: JSON.stringify(payload),
-    }).catch(() => {});
-  }, [
-    checkIn,
-    checkOut,
-    haveBooking,
-    globalTourId,
-    hasActiveTour,
-    hotelBookingsRaw,
-    attractionServices,
-    restaurantServices,
-    bookedGuideRaw,
-    entryPortRaw,
-    exitPortRaw,
-    hotelBookings,
-    bookings,
-  ]);
-  // #endregion
 
   useEffect(() => {
     let newDateServiceDates = new Set();
@@ -663,31 +752,6 @@ export default function TourStatus() {
       const endDate = parseDate(checkOut);
       const parseOk = !isNaN(startDate) && !isNaN(endDate) && startDate <= endDate;
 
-      // #region agent log
-      fetch("http://127.0.0.1:7539/ingest/9c7af5d8-43d0-4cfe-81fd-7c964daf146e", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Debug-Session-Id": "8029bf",
-        },
-        body: JSON.stringify({
-          sessionId: "8029bf",
-          runId: "pre-fix",
-          hypothesisId: "A,D",
-          location: "TourStatus.jsx:range-effect",
-          message: "Date range parse result",
-          data: {
-            checkIn,
-            checkOut,
-            parseOk,
-            startMs: isNaN(startDate) ? null : startDate.getTime(),
-            endMs: isNaN(endDate) ? null : endDate.getTime(),
-          },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
-
       if (parseOk) {
         const updatedRange = [];
         let currentDate = new Date(startDate);
@@ -702,24 +766,6 @@ export default function TourStatus() {
         setRange([]);
       }
     } else {
-      // #region agent log
-      fetch("http://127.0.0.1:7539/ingest/9c7af5d8-43d0-4cfe-81fd-7c964daf146e", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Debug-Session-Id": "8029bf",
-        },
-        body: JSON.stringify({
-          sessionId: "8029bf",
-          runId: "pre-fix",
-          hypothesisId: "A",
-          location: "TourStatus.jsx:range-effect",
-          message: "Missing checkIn/checkOut - clearing range",
-          data: { checkIn: checkIn || "", checkOut: checkOut || "" },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
       setRange([]);
     }
   }, [checkIn, checkOut]);

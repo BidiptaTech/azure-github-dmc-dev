@@ -60,11 +60,13 @@ import "photoswipe/dist/photoswipe.css";
 import toursData from "@/data/tours";
 import Header11 from "@/components/header/header-11";
 import TourGallery from "@/components/tour-single/TourGallery";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { useParams, useNavigate } from "react-router-dom";
 import TourStatus from "@/components/common/sub_common/TourStatus";
 import CustomStepper from "@/components/common/sub_common/CustomStepper";
 import MetaComponent from "@/components/common/MetaComponent";
+import { useEffect } from "react";
+import { fetchAttractionDetails } from "@/slice/attractions/attractionSlice";
 
 const metadata = {
   title: "Attraction || Travclicks - Travel Technology Transformed",
@@ -74,11 +76,31 @@ const metadata = {
 const TourSingleV1Dynamic = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const tour = toursData.find((item) => item.id == id) || toursData[0];
 
   const attractionDetails = useSelector(
     (state) => state.attractions.attractionDetails
   );
+  const bookingMode = useSelector((state) => state.common.bookingMode);
+
+  // After refresh, Redux may be empty — re-fetch by URL id
+  useEffect(() => {
+    if (!id) return;
+    if (attractionDetails) {
+      const detailsId =
+        attractionDetails.id ?? attractionDetails.attraction_id;
+      // Already have details for this page (or payload without id after hydrate)
+      if (detailsId == null || String(detailsId) === String(id)) return;
+    }
+
+    dispatch(
+      fetchAttractionDetails({
+        attractionId: id,
+        price_mode: bookingMode || "dmc",
+      })
+    );
+  }, [id, dispatch, bookingMode, attractionDetails]);
 
   return (
     <>

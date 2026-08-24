@@ -8,7 +8,8 @@ import { alpha } from "@mui/material/styles";
 
 const HourPackage = ({ hour, sethours, onHourChange, entryytime }) => {
   const location = useLocation();
-  const { guide } = location.state;
+  const checkoutGuide = useSelector((state) => state.tourguide.checkoutGuide);
+  const guide = location.state?.guide || checkoutGuide;
   const currencySymbol = useSelector((state) => state.auth.currencySymbol);
   const currencyCode = useSelector((state) => state.auth.currencyCode);
   const exchangeRate = useSelector((state) => state.auth.exchangeRate);
@@ -18,27 +19,27 @@ const HourPackage = ({ hour, sethours, onHourChange, entryytime }) => {
 
   const hourlyPrices = useMemo(() => ({
     1:
-      guide.guide.prices.dmc_hourly_price ||
-      guide.guide.prices.travclicks_hourly_price,
+      guide?.guide?.prices?.dmc_hourly_price ||
+      guide?.guide?.prices?.travclicks_hourly_price,
     2:
-      guide.guide.prices.dmc_two_hour_price ||
-      guide.guide.prices.travclicks_two_hour_price,
+      guide?.guide?.prices?.dmc_two_hour_price ||
+      guide?.guide?.prices?.travclicks_two_hour_price,
     4:
-      guide.guide.prices.dmc_four_hour_price ||
-      guide.guide.prices.travclicks_four_hour_price,
+      guide?.guide?.prices?.dmc_four_hour_price ||
+      guide?.guide?.prices?.travclicks_four_hour_price,
     6:
-      guide.guide.prices.dmc_six_hour_price ||
-      guide.guide.prices.travclicks_six_hour_price,
+      guide?.guide?.prices?.dmc_six_hour_price ||
+      guide?.guide?.prices?.travclicks_six_hour_price,
     8:
-      guide.guide.prices.dmc_eight_hour_price ||
-      guide.guide.prices.travclicks_eight_hour_price,
+      guide?.guide?.prices?.dmc_eight_hour_price ||
+      guide?.guide?.prices?.travclicks_eight_hour_price,
     10:
-      guide.guide.prices.dmc_ten_hour_price ||
-      guide.guide.prices.travclicks_ten_hour_price,
+      guide?.guide?.prices?.dmc_ten_hour_price ||
+      guide?.guide?.prices?.travclicks_ten_hour_price,
     12:
-      guide.guide.prices.dmc_twelve_hour_price ||
-      guide.guide.prices.travclicks_twelve_hour_price,
-  }), [guide.guide.prices]);
+      guide?.guide?.prices?.dmc_twelve_hour_price ||
+      guide?.guide?.prices?.travclicks_twelve_hour_price,
+  }), [guide?.guide?.prices]);
 
   // Calculate available hours based on selected entry time
   useEffect(() => {

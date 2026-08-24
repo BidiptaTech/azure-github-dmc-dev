@@ -20,6 +20,8 @@ import { Skeleton, CardMedia, Card, Typography } from "@mui/material";
 import MapPropertyFinder from "@/components/activity-single/MapPropertyFinder";
 import { useLocation } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
+import { setCheckoutVehicle } from "@/slice/localtour/Localslice";
 
 import MetaComponent from "@/components/common/MetaComponent";
 // import Overview1 from "@/components/activity-single/Overview1";
@@ -41,9 +43,17 @@ const ActivitySingleV3Dynamic = () => {
     activityData.find((item) => item.id == id) || activityData[0];
 
   const location = useLocation();
-  const { vehicles } = location.state;
+  const checkoutVehicle = useSelector((state) => state.localtour.checkoutVehicle);
+  const vehicles = location.state?.vehicles || checkoutVehicle;
   const [isLoading, setIsLoading] = useState(true); // For skeleton loader
   const navigate = useNavigate();
+  const dispatch = useDispatch();
+  useEffect(() => {
+    if (location.state?.vehicles) {
+      dispatch(setCheckoutVehicle(location.state.vehicles));
+    }
+  }, [location.state?.vehicles, dispatch]);
+
   useEffect(() => {
     // Simulate a loading delay
     const timer = setTimeout(() => {
@@ -51,6 +61,10 @@ const ActivitySingleV3Dynamic = () => {
     }, 2000); // Adjust timeout as needed
     return () => clearTimeout(timer);
   }, []);
+
+  if (!vehicles) {
+    return null;
+  }
 
   return (
     <>

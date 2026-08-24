@@ -53,12 +53,24 @@ const RestaurantsDetails = () => {
 
   const loading = useSelector((state) => state.restaurants.loading);
   const error = useSelector((state) => state.restaurants.error);
+  const bookingMode = useSelector((state) => state.common.bookingMode);
 
-  //  useEffect(() => {
-  //   if (id) {
-  //     dispatch(fetchRestaurantsDetails({ restaurantId: id }));
-  //   }
-  // }, [dispatch, id]);
+  // After refresh, Redux may be empty — re-fetch by URL id
+  useEffect(() => {
+    if (!id) return;
+    if (restaurantsDetails) {
+      const detailsId =
+        restaurantsDetails.id ?? restaurantsDetails.restaurant_id;
+      if (detailsId == null || String(detailsId) === String(id)) return;
+    }
+
+    dispatch(
+      fetchRestaurantsDetails({
+        restaurantId: id,
+        price_mode: bookingMode || "dmc",
+      })
+    );
+  }, [id, dispatch, bookingMode, restaurantsDetails]);
 
   console.log("Fetched restaurants Details:787", restaurantsDetails);
 

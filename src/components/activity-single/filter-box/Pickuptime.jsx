@@ -12,6 +12,7 @@ import { styled } from "@mui/material/styles";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import NightsStayIcon from "@mui/icons-material/NightsStay";
 import WbSunnyIcon from "@mui/icons-material/WbSunny";
+import { useSelector } from "react-redux";
 
 // Simple styled components focusing on width and z-index
 const StyledFormControl = styled(FormControl)(({ theme }) => ({
@@ -83,12 +84,13 @@ const DayPriceText = styled(Typography)({
 
 const Pickuptime = ({ entryytime, setentryytime }) => {
   const location = useLocation();
-  const { guide } = location.state;
+  const checkoutGuide = useSelector((state) => state.tourguide.checkoutGuide);
+  const guide = location.state?.guide || checkoutGuide;
   const [open, setOpen] = useState(false);
 
   // Extract night time limits from guide data
-  const nightStartTime = guide.guide.night_start_time || "22:00";
-  const nightEndTime = guide.guide.night_end_time || "06:00";
+  const nightStartTime = guide?.guide?.night_start_time || "22:00";
+  const nightEndTime = guide?.guide?.night_end_time || "06:00";
 
   // Parse 12-hour format time (with AM/PM) to 24-hour hour value
   const parseTimeToHour = (timeStr) => {

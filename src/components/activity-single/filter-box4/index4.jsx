@@ -14,6 +14,8 @@ import {
   sethourlydata,
   Localtourslice,
   sethour,
+  setCheckoutVehicle,
+  setPriceMode1,
 } from "@/slice/localtour/Localslice";
 import { useLocation, useNavigate } from "react-router-dom";
 import { ToastContainer, toast } from "react-toastify";
@@ -34,7 +36,8 @@ const Index4 = () => {
   const dispatch = useDispatch();
   const location = useLocation();
   // const mode = useSelector((state) => state.localtour.mode);
-  const { vehicles } = location.state;
+  const checkoutVehicle = useSelector((state) => state.localtour.checkoutVehicle);
+  const vehicles = location.state?.vehicles || checkoutVehicle;
   // const dayprice = vehicles.prices.dmcDayPrice || vehicles.prices.travClicksDay;
   // const nightprice =
   //   vehicles.prices.dmcNightPrice || vehicles.prices.travClicksNight;
@@ -47,11 +50,19 @@ const Index4 = () => {
 
   const adultsMax = tourDetails?.adult ?? 1;
   const childrenMax = tourDetails?.child ?? 0;
+  const reduxAdult = useSelector((state) => state.localtour.adult);
+  const reduxChildren = useSelector((state) => state.localtour.children);
+  const reduxHours = useSelector((state) => state.localtour.hours);
+  const reduxPricemode = useSelector((state) => state.localtour.pricemode);
 
-  const [adults, setAdults] = useState(adultsMax);
-  const [children, setChildren] = useState(childrenMax);
+  const [adults, setAdults] = useState(reduxAdult || adultsMax);
+  const [children, setChildren] = useState(
+    reduxChildren != null && reduxChildren !== undefined && reduxChildren !== 0
+      ? reduxChildren
+      : childrenMax
+  );
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const seatingCapacity = vehicles.seating_capacity;
+  const seatingCapacity = vehicles?.seating_capacity;
   const [isBookNowEnabled, setIsBookNowEnabled] = useState(false);
   const [isNight, setIsNight] = useState(false);
 
@@ -69,11 +80,17 @@ const Index4 = () => {
   }, [mappedData]);
 
   const statemode = useSelector((state) => state.localtour.mode);
-  const mode = statemode[vehicles.id]?.mode || "default_mode"; // Set a default mode if not found
+  const mode = (vehicles?.id && statemode[vehicles.id]?.mode) || "default_mode";
   const navigate = useNavigate();
 
+  useEffect(() => {
+    if (location.state?.vehicles) {
+      dispatch(setCheckoutVehicle(location.state.vehicles));
+    }
+  }, [location.state?.vehicles, dispatch]);
+
   // State for selected hour and total price
-  const [selectedHours, setSelectedHours] = useState(1); // Default to 1 (valid option)
+  const [selectedHours, setSelectedHours] = useState(Number(reduxHours) || 1);
   const [totalHourlyPrice, setTotalHourlyPrice] = useState(0);
   const totalGuests = adults + children; // Calculate total guests
   // const convertTo24HourDate = (timeStr) => {
@@ -134,7 +151,7 @@ const Index4 = () => {
   //
   const entryytime = useSelector((state) => state.localtour.entrytime1);
   console.log("entryytime", entryytime);
-  const [pricemode, setpricemode] = useState("Sharable");
+  const [pricemode, setpricemode] = useState(reduxPricemode || "Sharable");
   // const Price =
   //   pricemode === "Sharable"
   //     ? vehicles.prices.day_sharable_price
@@ -151,6 +168,7 @@ const Index4 = () => {
    */
   const calculateHourlyPrice = (hours = selectedHours) => {
     // Use the hours parameter instead of selectedHours
+    if (!vehicles?.prices || !entryytime) return 0;
     let totalPrice = 0;
     let currentTime = entryytime; // Using existing entryytime variable in format "11:00 AM"
     let hasNightHours = false; // Track if any night hours are found
@@ -175,11 +193,11 @@ const Index4 = () => {
         : vehicles.prices.private_night_base_price;
 
     // Parse night start and end times - format "20:00:00", "05:00:00"
-    const startNightTime = vehicles.night_start_time
+    const startNightTime = (vehicles.night_start_time || "20:00:00")
       .split(":")
       .slice(0, 2)
       .join(":");
-    const endNightTime = vehicles.night_end_time
+    const endNightTime = (vehicles.night_end_time || "05:00:00")
       .split(":")
       .slice(0, 2)
       .join(":");
@@ -264,6 +282,7 @@ const Index4 = () => {
   // Update the handleHourChange function to pass the new selectedHour value
   const handleHourChange = (selectedHour) => {
     setSelectedHours(selectedHour);
+    dispatch(sethour(selectedHour));
 
     // Calculate the price with the new selectedHour value explicitly
     const calculatedPrice = calculateHourlyPrice(selectedHour);
@@ -279,9 +298,22 @@ const Index4 = () => {
   const handleGuestChange = (updatedAdults, updatedChildren) => {
     setAdults(updatedAdults);
     setChildren(updatedChildren);
+    dispatch(setadult(updatedAdults));
+    dispatch(setchildren(updatedChildren));
   };
 
+  useEffect(() => {
+    if (pricemode) dispatch(setPriceMode1(pricemode));
+  }, [pricemode, dispatch]);
+
   const handlesubmit0 = () => {
+    if (!vehicles) {
+      toast.error("Failed to create booking. Please check your input.", {
+        position: "top-center",
+        autoClose: 3000,
+      });
+      return;
+    }
     if (
       !exitpickUpLocation ||
       !exitselectedDate ||
@@ -410,6 +442,10 @@ const Index4 = () => {
   // const handleModalClose = () => {
   //   setIsModalOpen(false);
   // };
+
+  if (!vehicles) {
+    return <ToastContainer />;
+  }
 
   return (
     <>

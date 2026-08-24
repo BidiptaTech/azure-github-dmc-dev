@@ -307,6 +307,19 @@ const initialState = {
   restaurantDetails: null,
   modeMap: {},
   restaurantBookings: [],
+  // List-row item from navigate state (survives refresh)
+  listRestaurant: null,
+  // Form draft for restaurants-details (survives refresh via session)
+  checkoutDraft: {
+    selectedDate: null,
+    selectedTime: "",
+    mealType: "none",
+    specificMealType: "",
+    selectedMealParts: [],
+    confirmedMealParts: [],
+    selectedMealIndexes: [],
+    selectedMealIndex: null,
+  },
   // Initialize userInfo from localStorage
   userInfo: null,
   isFromMainSearch: false, // Add flag to track if search came from MainFilterSearchBox
@@ -335,6 +348,15 @@ const restaurantsSlice = createSlice({
     },
     setSelectedRestaurant(state, action) {
       state.selectedRestaurant = action.payload;
+    },
+    setListRestaurant(state, action) {
+      state.listRestaurant = action.payload;
+    },
+    setRestaurantCheckoutDraft(state, action) {
+      state.checkoutDraft = {
+        ...state.checkoutDraft,
+        ...action.payload,
+      };
     },
     setSearchText(state, action) {
       state.searchText = action.payload;
@@ -377,6 +399,18 @@ const restaurantsSlice = createSlice({
     },
     clearRestaurants: (state) => {
       state.restaurants = [];
+      state.selectedRestaurant = null;
+      state.listRestaurant = null;
+      state.checkoutDraft = {
+        selectedDate: null,
+        selectedTime: "",
+        mealType: "none",
+        specificMealType: "",
+        selectedMealParts: [],
+        confirmedMealParts: [],
+        selectedMealIndexes: [],
+        selectedMealIndex: null,
+      };
       // Don't clear searchParams as we want to keep the last search criteria
     },
     setIsFromMainSearch: (state, action) => {
@@ -508,6 +542,8 @@ export const {
   setFilters,
   setSortBy,
   setSelectedRestaurant,
+  setListRestaurant,
+  setRestaurantCheckoutDraft,
   setSearchText,
   setCheckoutData,
   updateModeMap,

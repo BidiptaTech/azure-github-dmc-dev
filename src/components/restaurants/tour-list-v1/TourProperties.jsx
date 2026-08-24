@@ -12,6 +12,7 @@ import {
   updateModeMap,
   fetchRestaurantsDetails,
   setHighestTotalPrice,
+  setListRestaurant,
 } from "../../../slice/restaurant/RestaurantsSlice";
 import { selectBookingType, setBookingMode } from "../../../slice/common/commonSlice";
 import { selectSelectedDmcLogo, selectSelectedDmcCompanyName } from "../../../slice/dmc/dmcSlice"; // Import DMC slice selectors
@@ -781,6 +782,8 @@ const TourProperties = () => {
         // dmc_id will be automatically handled by the slice using Redux state
       })
     );
+
+    dispatch(setListRestaurant(item));
     
     navigate(`/dashboard/db-dashboard/restaurants-details/${item.id}`, {
       state: { restaurants: item },

@@ -28,7 +28,9 @@ const hotelDetailsSlice = createSlice({
     totalPrice: 0,
     bookingArray: [], // Add this to store booking data
     priceMode: 'SGD', // default currency
-    hotelPolicies:[]
+    hotelPolicies:[],
+    // Listing hotel card used by hotel-details (survives refresh)
+    checkoutHotel: null,
   },
   reducers: {
     setTotalPrice: (state, action) => {
@@ -64,6 +66,9 @@ const hotelDetailsSlice = createSlice({
       
     //   state.totalPrice = total;
     // },
+    setCheckoutHotel: (state, action) => {
+      state.checkoutHotel = action.payload || null;
+    },
     setHotelDetails: (state, action) => {
       // Make sure we handle the case where the incoming payload might have 'id' instead of 'hotel_id'
       const payload = action.payload;
@@ -271,6 +276,8 @@ const hotelDetailsSlice = createSlice({
       state.totalPrice = 0;
       state.bookingArray = [];
       state.priceMode = 'SGD';
+      state.checkoutHotel = null;
+      state.hotelPolicies = [];
     },
     setPriceMode: (state, action) => {
       state.priceMode = action.payload;
@@ -279,7 +286,8 @@ const hotelDetailsSlice = createSlice({
 });
 
 export const { 
-  setHotelDetails, 
+  setHotelDetails,
+  setCheckoutHotel,
   setHotelImages, 
   clearHotelDetails, 
   setTotalPrice,

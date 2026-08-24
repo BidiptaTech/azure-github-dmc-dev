@@ -129,30 +129,6 @@ const MainFilterSearchBox = () => {
       return;
     }
 
-    // #region agent log
-    fetch("http://127.0.0.1:7539/ingest/9c7af5d8-43d0-4cfe-81fd-7c964daf146e", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Debug-Session-Id": "8029bf",
-      },
-      body: JSON.stringify({
-        sessionId: "8029bf",
-        runId: "post-fix",
-        hypothesisId: "HOTEL_LOC",
-        location: "MainFilterSearchBox.jsx:handleSearch",
-        message: "Hotel search location payload",
-        data: {
-          locationType: typeof selectedLocation,
-          locationString,
-          hasAddress: !!(selectedLocation && selectedLocation.address),
-          hasName: !!(selectedLocation && selectedLocation.name),
-        },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
-
     dispatch(
       updateSearchState({
         // fetchHotels reads searchState.location and must receive a string/array, not an object

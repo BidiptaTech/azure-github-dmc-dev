@@ -49,10 +49,13 @@ const Index1Zone = () => {
   const DropoffPlaceid = useSelector(
     (state) => state.pickupDrop.DropoffPlaceid
   );
+  const checkoutVehicle = useSelector(
+    (state) => state.pickupDrop.checkoutVehicle
+  );
   const dispatch = useDispatch();
   const location = useLocation();
-  const { vehicles } = location.state;
-  const seatingCapacity = vehicles.seating_capacity;
+  const vehicles = location.state?.vehicles || checkoutVehicle || null;
+  const seatingCapacity = vehicles?.seating_capacity || 0;
  
   const navigate = useNavigate();
 
@@ -97,7 +100,10 @@ const Index1Zone = () => {
   // const [hour, sethours] = useState("");
   // const [hourlyPrice, setHourlyPrice] = useState(0); // Stores selected hourly price
   //const [entryytime, setentryytime] = useState("");
-  const mode = statemode[vehicles.id]?.mode || "default_mode"; // Set a default mode if not found
+  const mode =
+    vehicles?.id && statemode?.[vehicles.id]?.mode
+      ? statemode[vehicles.id].mode
+      : "default_mode"; // Set a default mode if not found
   
   const totalGuests = adults + children; // Calculate total guests
   // Function to update hour and price from HourPackage
@@ -131,10 +137,15 @@ const Index1Zone = () => {
   const [pricemode, setpricemode] = useState(""); // Set a default mode if not found
   
   const Price =
-    pricemode === "Sharable" ? vehicles.shared_price * totalGuests
-     : vehicles.private_price;
+    pricemode === "Sharable"
+      ? (vehicles?.shared_price || 0) * totalGuests
+      : vehicles?.private_price || 0;
  
   const handlesubmit0 = () => {
+    if (!vehicles?.id) {
+      toast.error("Vehicle details missing. Please go back and select again.");
+      return;
+    }
     // const data = {
     //   pickUpLocation,
     //   dropOffLocation,

@@ -4,8 +4,10 @@ import { useLocation } from "react-router-dom";
 import Cookies from "js-cookie";
 import dayjs from "dayjs";
 import {
-  
   addRestaurantBooking,
+  setListRestaurant,
+  setRestaurantCheckoutDraft,
+  setSearchParams,
   // updateModeMap,
 } from "../../../slice/restaurant/RestaurantsSlice";
 // import { setDateService } from "../../../slice/common/dateServicesSlice";
@@ -426,10 +428,19 @@ const Index = () => {
   // const { id } = useParams();
   const AgentId = Cookies.get("AgentId") || "0";
   const location = useLocation();
-  const restaurant = location.state?.restaurants || {};
+  const listRestaurant = useSelector(
+    (state) => state.restaurants.listRestaurant
+  );
+  const checkoutDraft = useSelector(
+    (state) => state.restaurants.checkoutDraft
+  );
+  const restaurant = location.state?.restaurants || listRestaurant || {};
  
 
   const tourdetails = useSelector((state) => state.hotels.tourdetails);
+  const globalTourId = useSelector(
+    (state) => state.hotels.id || state.steps?.id || state.auth?.tourId
+  );
   const searchParams =
     useSelector((state) => state.restaurants.searchParams) || {};
   // console.log('aaasss',searchParams);
@@ -446,17 +457,31 @@ const Index = () => {
   const PriceHide = useSelector((state) => state.auth.PriceHide);
   // console.log('PriceHide',PriceHide);
 
-  const [selectedDate, setSelectedDate] = useState(null);
-  const [selectedTime, setSelectedTime] = useState("");
-  const [mealType, setMealType] = useState("none");
-  const [specificMealType, setSpecificMealType] = useState("");
+  const draftDate = checkoutDraft?.selectedDate || searchParams?.date || null;
+
+  const [selectedDate, setSelectedDate] = useState(draftDate);
+  const [selectedTime, setSelectedTime] = useState(
+    checkoutDraft?.selectedTime || ""
+  );
+  const [mealType, setMealType] = useState(
+    checkoutDraft?.mealType || "none"
+  );
+  const [specificMealType, setSpecificMealType] = useState(
+    checkoutDraft?.specificMealType || ""
+  );
 
   // const [isModalOpen, setIsModalOpen] = useState(false);
-  const [showMealOptions, setShowMealOptions] = useState(false);
+  const [showMealOptions, setShowMealOptions] = useState(
+    !!(checkoutDraft?.mealType && checkoutDraft.mealType !== "none")
+  );
   const [availableMealTypes, setAvailableMealTypes] = useState([]);
   const [timeSlots, setTimeSlots] = useState([]);
-  const [selectedMealParts, setSelectedMealParts] = useState([]);
-  const [confirmedMealParts, setConfirmedMealParts] = useState([]);
+  const [selectedMealParts, setSelectedMealParts] = useState(
+    checkoutDraft?.selectedMealParts || []
+  );
+  const [confirmedMealParts, setConfirmedMealParts] = useState(
+    checkoutDraft?.confirmedMealParts || []
+  );
   const [isConfirmationDialogOpen, setIsConfirmationDialogOpen] =
     useState(false);
   const [isConfirmDisabled, setIsConfirmDisabled] = useState(true);
@@ -466,8 +491,12 @@ const Index = () => {
   const [specificMealTypeOpen, setSpecificMealTypeOpen] = useState(false);
   const [guestSearchOpen, setGuestSearchOpen] = useState(false);
 
-  const [selectedMealIndexes, setSelectedMealIndexes] = useState([]);
-  const [selectedMealIndex, setSelectedMealIndex] = useState(null);
+  const [selectedMealIndexes, setSelectedMealIndexes] = useState(
+    checkoutDraft?.selectedMealIndexes || []
+  );
+  const [selectedMealIndex, setSelectedMealIndex] = useState(
+    checkoutDraft?.selectedMealIndex ?? null
+  );
   const [priceTypes, setPriceTypes] = useState([]);
 
   // New state for description modal
@@ -487,6 +516,13 @@ const Index = () => {
     setCurrentDescription(description);
     setDescriptionModalOpen(true);
   };
+
+  // Keep list restaurant after refresh (location.state is lost)
+  useEffect(() => {
+    if (location.state?.restaurants) {
+      dispatch(setListRestaurant(location.state.restaurants));
+    }
+  }, [location.state?.restaurants, dispatch]);
 
   useEffect(() => {
     if (restaurantsDetails?.meals?.length) {
@@ -516,11 +552,47 @@ const Index = () => {
     selectedMealParts,
   ]);
 
+  // Persist form draft so refresh keeps date / meals / Book Now
   useEffect(() => {
-    if (searchParams?.date) {
-      setSelectedDate(searchParams.date);
+    const dateStr = selectedDate
+      ? dayjs(
+          selectedDate?.toDate ? selectedDate.toDate() : selectedDate
+        ).format("YYYY-MM-DD")
+      : null;
+
+    dispatch(
+      setRestaurantCheckoutDraft({
+        selectedDate: dateStr,
+        selectedTime: selectedTime || "",
+        mealType: mealType || "none",
+        specificMealType: specificMealType || "",
+        selectedMealParts,
+        confirmedMealParts,
+        selectedMealIndexes,
+        selectedMealIndex,
+      })
+    );
+
+    if (dateStr && dateStr !== searchParams?.date) {
+      dispatch(
+        setSearchParams({
+          ...(searchParams || {}),
+          date: dateStr,
+        })
+      );
     }
-  }, [searchParams]);
+  }, [
+    selectedDate,
+    selectedTime,
+    mealType,
+    specificMealType,
+    selectedMealParts,
+    confirmedMealParts,
+    selectedMealIndexes,
+    selectedMealIndex,
+    dispatch,
+    searchParams,
+  ]);
 
   useEffect(() => {
     if (restaurantsDetails?.meals?.length > 0) {
@@ -572,6 +644,34 @@ const Index = () => {
     return slots;
   };
 
+  // Rebuild time slots after refresh when meal type + details are restored
+  useEffect(() => {
+    if (!mealType || mealType === "none" || !restaurantsDetails) return;
+
+    setShowMealOptions(true);
+
+    const mealTimes = {
+      breakfast: {
+        open: restaurantsDetails?.opening_time_bf,
+        close: restaurantsDetails?.closing_time_bf,
+      },
+      lunch: {
+        open: restaurantsDetails?.opening_time_lunch,
+        close: restaurantsDetails?.closing_time_lunch,
+      },
+      dinner: {
+        open: restaurantsDetails?.opening_time_dinner,
+        close: restaurantsDetails?.closing_time_dinner,
+      },
+    };
+
+    const slots = generateTimeSlots(
+      mealTimes[mealType]?.open,
+      mealTimes[mealType]?.close
+    );
+    if (slots.length) setTimeSlots(slots);
+  }, [mealType, restaurantsDetails]);
+
   const handleMealTypeChange = (event) => {
     const selectedMeal = event.target.value;
     setMealType(selectedMeal);
@@ -622,12 +722,17 @@ const Index = () => {
       agent_id: AgentId || 0,
       data: [
         {
-          bookingDate: dayjs(selectedDate).format("YYYY-MM-DD"),
+          bookingDate: dayjs(
+            selectedDate?.toDate ? selectedDate.toDate() : selectedDate
+          ).format("YYYY-MM-DD"),
           visitTime: selectedTime,
           adultCount: searchParams?.adults,
           childCount: searchParams?.children,
-          restaurantId: restaurant?.id,
-          restaurantName: restaurant?.restaurant_name || "Unknown Restaurant",
+          restaurantId: restaurant?.id || restaurantsDetails?.id,
+          restaurantName:
+            restaurant?.restaurant_name ||
+            restaurantsDetails?.name ||
+            "Unknown Restaurant",
           mealType,
           mealSpecificType: ["breakfast", "lunch", "dinner"].includes(mealType)
             ? specificMealType
@@ -638,7 +743,7 @@ const Index = () => {
           // transport: selectedTransport // Commenting out transport data
         },
       ],
-      tour_id: parseInt(tourdetails?.tour_id) || 0,
+      tour_id: parseInt(tourdetails?.tour_id || globalTourId, 10) || 0,
       type: "restaurant",
     };
 
@@ -1003,7 +1108,10 @@ const Index = () => {
               </Typography>
             </div>
             <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, opacity: 0 }}>
-              <DateSearch setSelectedDate={setSelectedDate} />
+              <DateSearch
+                setSelectedDate={setSelectedDate}
+                selectedDate={selectedDate}
+              />
             </div>
           </div>
         </div>

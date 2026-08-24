@@ -1,4 +1,4 @@
-import { Link,useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useCallback, useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Button, Switch, Typography } from "@mui/material";
@@ -17,7 +17,15 @@ const usdCurrencyCode = useSelector((state) => state.auth.usdCurrencyCode);
 
 
   const [header, setHeader] = useState(false);
-  const { priceMode } = location.state || {};
+  const location = useLocation();
+  const categoryPriceMode = useSelector((state) => state.category.priceMode);
+  const priceMode =
+    location.state?.priceMode ||
+    (typeof categoryPriceMode === "string"
+      ? categoryPriceMode
+      : Array.isArray(categoryPriceMode)
+        ? categoryPriceMode[0]
+        : categoryPriceMode);
 
   
 

@@ -15,6 +15,7 @@ import {
   //setexittime,
   //setentrytime1,
   sethour,
+  setHourlyPrice as setHourlyPriceRedux,
   setadult,
   //setlanguagetype1,
   setchildren,
@@ -25,6 +26,7 @@ import {
   setData,
   setbookingType,
   setbookingImage,
+  setCheckoutGuide,
 } from "@/slice/tourguide/guideslice";
 import { useLocation, useNavigate } from "react-router-dom";
 import { ToastContainer, toast } from "react-toastify";
@@ -49,10 +51,16 @@ const Index = () => {
   const DropoffPlaceid = useSelector((state) => state.tourguide.DropoffPlaceid);
   const country = useSelector((state) => state.hotels.tourdetails.destination);
   const statemode = useSelector((state) => state.tourguide.mode);
+  const reduxEntrytime = useSelector((state) => state.tourguide.entrytime);
+  const reduxHours = useSelector((state) => state.tourguide.hours);
+  const reduxHourlyPrice = useSelector((state) => state.tourguide.hourlyPrice);
+  const reduxAdult = useSelector((state) => state.tourguide.adult);
+  const reduxChildren = useSelector((state) => state.tourguide.children);
+  const checkoutGuide = useSelector((state) => state.tourguide.checkoutGuide);
   const dispatch = useDispatch();
   const location = useLocation();
   const navigate = useNavigate();
-  const { guide } = location.state;
+  const guide = location.state?.guide || checkoutGuide;
  
   const id = useSelector((state) => state.hotels.id);
 
@@ -67,14 +75,20 @@ const Index = () => {
   const childrenMax = tourDetails?.child ?? 0; // Use optional chaining with fallback
  
 
-  const mode = statemode[guide.guide.guide_id]?.mode || "default_mode"; // Set a default mode if not found
- 
+  const mode =
+    (guide?.guide?.guide_id &&
+      statemode[guide.guide.guide_id]?.mode) ||
+    "default_mode";
 
-  const [adults, setAdults] = useState(adultsMax);
-  const [children, setChildren] = useState(childrenMax);
+  const [adults, setAdults] = useState(
+    reduxAdult || adultsMax
+  );
+  const [children, setChildren] = useState(
+    reduxChildren != null ? reduxChildren : childrenMax
+  );
   //const [isModalOpen, setIsModalOpen] = useState(false);
   const globalid =
-    guide.guide.prices.dmc_id || guide.guide.prices.travclicks_id;
+    guide?.guide?.prices?.dmc_id || guide?.guide?.prices?.travclicks_id;
 
   const [mappedData, setMappedData] = useState({
     pickUpLocation: "",
@@ -87,30 +101,54 @@ const Index = () => {
   });
  
 
-  const [hour, sethours] = useState("");
-  const [hourlyPrice, setHourlyPrice] = useState(0); // Stores selected hourly price
-  const [entryytime, setentryytime] = useState("");
+  const [hour, sethours] = useState(reduxHours || "");
+  const [hourlyPrice, setHourlyPrice] = useState(reduxHourlyPrice || 0);
+  const [entryytime, setentryytime] = useState(reduxEntrytime || "");
   const [isNight, setIsNight] = useState(false);
+
+  // Restore draft after refresh (Redux rehydrated from session)
+  useEffect(() => {
+    if (reduxEntrytime) setentryytime(reduxEntrytime);
+    if (reduxHours) sethours(reduxHours);
+    if (reduxHourlyPrice) setHourlyPrice(reduxHourlyPrice);
+    if (reduxAdult) setAdults(reduxAdult);
+    if (reduxChildren != null && reduxChildren !== undefined) {
+      setChildren(reduxChildren);
+    }
+  }, [
+    reduxEntrytime,
+    reduxHours,
+    reduxHourlyPrice,
+    reduxAdult,
+    reduxChildren,
+  ]);
+
+  // Keep router-lost guide payload available in Redux for refresh
+  useEffect(() => {
+    if (location.state?.guide) {
+      dispatch(setCheckoutGuide(location.state.guide));
+    }
+  }, [location.state?.guide, dispatch]);
 
   // Function to update hour and price from HourPackage
   const handleHourChange = useCallback((selectedHour, price) => {
     sethours(selectedHour);
     setHourlyPrice(price);
-    // setMappedData((prevData) => ({
-    //   ...prevData,
-    //   hour: { label: selectedHour, price: price },
-    // }));
-  }, []);
+    dispatch(sethour(selectedHour));
+    dispatch(setHourlyPriceRedux(price));
+  }, [dispatch]);
+
+  const handleTimeChange = useCallback((time) => {
+    setentryytime(time);
+    dispatch(setentrytime(time));
+  }, [dispatch]);
 
   const handleGuestChange = useCallback((updatedAdults, updatedChildren) => {
     setAdults(updatedAdults);
     setChildren(updatedChildren);
-    // setMappedData((prevData) => ({
-    //   ...prevData,
-    //   adultsMax: updatedAdults,
-    //   childrenMax: updatedChildren,
-    // }));
-  }, []);
+    dispatch(setadult(updatedAdults));
+    dispatch(setchildren(updatedChildren));
+  }, [dispatch]);
 
   const calculateTotalBill = () => {
     if (!entryytime || !hour || !guide)
@@ -282,6 +320,7 @@ const Index = () => {
 
   const handlesubmit0 = () => {
     if (
+      !guide?.guide ||
       !pickUpLocation ||
       // !dropOffLocation ||
       !selectedDate ||
@@ -377,7 +416,7 @@ const Index = () => {
         <div className="searchMenu-date px-20 py-10 border-light rounded-4 -right js-form-dd js-calendar">
           <div>
             {/* <h4 className="text-15 fw-500 ls-2 lh-16">Pick Up Time </h4> */}
-            <Pickuptime entryytime={entryytime} setentryytime={setentryytime} />
+            <Pickuptime entryytime={entryytime} setentryytime={handleTimeChange} />
           </div>
         </div>
       </div>                             

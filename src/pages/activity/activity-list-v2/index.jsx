@@ -10,6 +10,7 @@ import MetaComponent from "@/components/common/MetaComponent";
 import {
   setSelectedVehicle,
   setSelectedVehicle1,
+  setCheckoutVehicle,
   setMode,
   fetchVehicleDetails,
   fetchVehicles,
@@ -174,6 +175,7 @@ const ActivityListPage2 = () => {
     )
       .unwrap() // Unwrap the promise to handle the payload directly
       .then((data) => {
+        dispatch(setCheckoutVehicle(data));
         navigate(`/dashboard/db-dashboard/activity-single-1`, {
           state: { vehicles: data }, // ✅ Pass correct mode
         });

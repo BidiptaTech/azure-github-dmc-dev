@@ -22,6 +22,8 @@ import {
   settourId,
   //setTotalPrice,
   setpointdata,
+  setCheckoutVehicle,
+  setPriceMode1,
 } from "@/slice/localtour/Localslice";
 import { useLocation, useNavigate } from "react-router-dom";
 import { ToastContainer, toast } from "react-toastify";
@@ -52,7 +54,8 @@ const Index5 = () => {
   const DropoffPlaceid = useSelector((state) => state.localtour.DropoffZoneid);
   const dispatch = useDispatch();
   const location = useLocation();
-  const { vehicles } = location.state;
+  const checkoutVehicle = useSelector((state) => state.localtour.checkoutVehicle);
+  const vehicles = location.state?.vehicles || checkoutVehicle;
   console.log("vehicleszonedetail", vehicles);
   const id = useSelector((state) => state.hotels.id);
   // const dayprice = vehicles.prices.dmcDayPrice || vehicles.prices.travClicksDay;
@@ -60,7 +63,7 @@ const Index5 = () => {
   //   vehicles.prices.dmcNightPrice || vehicles.prices.travClicksNight;
   // const nightStartTime = vehicles.night_start_time;
   // const nightEndTime = vehicles.night_end_time;
-  const seatingCapacity = vehicles.seating_capacity;
+  const seatingCapacity = vehicles?.seating_capacity;
   const [isBookNowEnabled, setIsBookNowEnabled] = useState(false);
   //const [isNight, setIsNight] = useState(false);
   const entryytime = useSelector((state) => state.localtour.entrytime);
@@ -75,9 +78,16 @@ const Index5 = () => {
 
   const childrenMax = tourDetails?.child ?? 0; // Use optional chaining with fallback
   console.log("Children Max:", childrenMax);
+  const reduxAdult = useSelector((state) => state.localtour.adult);
+  const reduxChildren = useSelector((state) => state.localtour.children);
+  const reduxPricemode = useSelector((state) => state.localtour.pricemode);
 
-  const [adults, setAdults] = useState(adultsMax);
-  const [children, setChildren] = useState(childrenMax);
+  const [adults, setAdults] = useState(reduxAdult || adultsMax);
+  const [children, setChildren] = useState(
+    reduxChildren != null && reduxChildren !== undefined
+      ? reduxChildren
+      : childrenMax
+  );
   const [isModalOpen, setIsModalOpen] = useState(false);
   const navigate = useNavigate();
   const totalGuests = adults + children; // Calculate total guests
@@ -109,10 +119,20 @@ const Index5 = () => {
   //   }));
   // };
   const statemode = useSelector((state) => state.localtour.mode);
-  const mode = statemode[vehicles.id]?.mode || "default_mode"; // Set a default mode if not found
-  const [pricemode, setpricemode] = useState(""); // Set a default mode if not found
+  const mode = (vehicles?.id && statemode[vehicles.id]?.mode) || "default_mode";
+  const [pricemode, setpricemode] = useState(reduxPricemode || "");
   console.log("pricemodeee", pricemode);
-  
+
+  useEffect(() => {
+    if (location.state?.vehicles) {
+      dispatch(setCheckoutVehicle(location.state.vehicles));
+    }
+  }, [location.state?.vehicles, dispatch]);
+
+  useEffect(() => {
+    if (pricemode) dispatch(setPriceMode1(pricemode));
+  }, [pricemode, dispatch]);
+ 
 
   useEffect(() => {
     setIsBookNowEnabled(totalGuests <= seatingCapacity); // Update the button state
@@ -161,17 +181,14 @@ const Index5 = () => {
   const handleGuestChange = (updatedAdults, updatedChildren) => {
     setAdults(updatedAdults);
     setChildren(updatedChildren);
-    // setMappedData((prevData) => ({
-    //   ...prevData,
-    //   adultsMax: updatedAdults,
-    //   childrenMax: updatedChildren,
-    // }));
+    dispatch(setadult(updatedAdults));
+    dispatch(setchildren(updatedChildren));
   };
 
   const Price =
     pricemode === "Sharable"
-      ? vehicles.shared_price * totalGuests
-      : vehicles.private_price;
+      ? (vehicles?.shared_price || 0) * totalGuests
+      : vehicles?.private_price || 0;
   console.log("Price pricemode", Price);
 
   // const convertTo24HourDate = (timeStr) => {
@@ -224,6 +241,13 @@ const Index5 = () => {
     //   label: hour,
     //   price: hourlyPrice,
     // };
+    if (!vehicles) {
+      toast.error("Please Properly fill and check your input.", {
+        position: "top-center",
+        autoClose: 3000,
+      });
+      return;
+    }
     if (
       !pickUpLocation ||
       !dropOffLocation ||
@@ -383,6 +407,10 @@ const Index5 = () => {
   //   setIsModalOpen(false);
   //   //setIsModalOpen1(false);
   // };
+
+  if (!vehicles) {
+    return <ToastContainer />;
+  }
 
   return (
     <>

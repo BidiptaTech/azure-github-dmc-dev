@@ -28,7 +28,6 @@ import {
   setType,
   resetSteps,
 } from "../../../slice/common/stepsSlice";
-import { setTourIdd } from "../../../slice/common/authSlices";
 import { setBookingType, setHaveBooking } from "../../../slice/common/commonSlice";
 import moment from "moment";
 import { clearUserInfo } from "../../../slice/common/customerInfo"; // Add this import
@@ -47,7 +46,7 @@ import { resetAllServiceResponses } from "../../../slice/common/stepperButtonSli
 import { setCity } from "../../../slice/common/citySlice";
 import { clearSelectedDmc } from "@/slice/dmc/dmcSlice";
 import { fetchCitiesByCountry } from "../../../slice/common/citiesSlice";
-import { clearTourSession } from "@/utils/tourSession";
+import { clearBookingFlow } from "@/utils/clearBookingFlow";
 import { clearViewDetails } from "@/slice/common/ViewDetails";
 
 // Create a reusable alert component
@@ -235,10 +234,9 @@ const MainFilterSearchBox = () => {
     // Reset stepper button state for new search
     dispatch(resetAllServiceResponses());
     
-    // Reset local step tracking for new search
+    // Reset local step tracking for new search — replaces any previous tour session
     dispatch(resetSteps());
-    dispatch(setTourIdd(null));
-    clearTourSession();
+    clearBookingFlow(dispatch);
 
     // Create genders array based on male and female counts
     const maleCount = guestCounts.maleCount || 0;

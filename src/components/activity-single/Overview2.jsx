@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useLocation } from "react-router-dom";
+import { useSelector } from "react-redux";
 import {
   Card,
   CardHeader,
@@ -24,7 +25,9 @@ import {
 
 const Overview2 = () => {
   const location = useLocation();
-  const { vehicles } = location.state;
+  const checkoutVehicle = useSelector((state) => state.localtour.checkoutVehicle);
+  const vehicles = location.state?.vehicles || checkoutVehicle;
+  if (!vehicles) return null;
   // const [isLoading] = useState(false);
   // const [openImageDialog, setOpenImageDialog] = useState(false);
   // const [selectedImage, setSelectedImage] = useState("");

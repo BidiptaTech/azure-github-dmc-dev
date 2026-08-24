@@ -150,6 +150,28 @@ const stepsSlice = createSlice({
       state.error = null;
       state.triggerSearch = null;
     },
+    // Hydrate steps from sessionStorage after refresh
+    hydrateStepsFromSession: (state, action) => {
+      const payload = action.payload || {};
+      if (payload.id != null) state.id = payload.id;
+      if (payload.stepStatus1 && typeof payload.stepStatus1 === "object") {
+        state.stepStatus1 = { ...state.stepStatus1, ...payload.stepStatus1 };
+      }
+      if (payload.localStepStatus && typeof payload.localStepStatus === "object") {
+        state.localStepStatus = {
+          ...state.localStepStatus,
+          ...payload.localStepStatus,
+        };
+      }
+      if (payload.currentStep != null) state.currentStep = payload.currentStep;
+      if (payload.localCurrentStep != null) {
+        state.localCurrentStep = payload.localCurrentStep;
+      }
+      if (payload.active_status != null) {
+        state.active_status = payload.active_status;
+      }
+      if (payload.type != null) state.type = payload.type;
+    },
     // Trigger search for a specific step
     triggerSearch: (state, action) => {
       state.triggerSearch = action.payload; // step name (hotel, port, attraction, guide, restaurent, travel)
@@ -203,6 +225,15 @@ const stepsSlice = createSlice({
 });
 
 // Export actions and reducer
-export const { setTourId, updateStepStatus, resetSteps, setType, setLocalCurrentStep, updateLocalStepStatus, triggerSearch, clearTriggerSearch } =
-  stepsSlice.actions;
+export const {
+  setTourId,
+  updateStepStatus,
+  resetSteps,
+  setType,
+  setLocalCurrentStep,
+  updateLocalStepStatus,
+  hydrateStepsFromSession,
+  triggerSearch,
+  clearTriggerSearch,
+} = stepsSlice.actions;
 export default stepsSlice.reducer;

@@ -11,6 +11,7 @@ import {
 } from "@mui/material";
 import {
   setHotelDetails,
+  setCheckoutHotel,
   setHotelImages,
 } from "@/slice/hotel/HotelDetailsSlice";
 import {
@@ -578,6 +579,7 @@ export default function HotelProperties() {
       // });
 
       dispatch(setHotelDetails(selectedHotel));
+      dispatch(setCheckoutHotel(selectedHotel));
       dispatch(setHotelImages(selectedHotel.images));
       dispatch(setId(id));
       dispatch(settourid(tour_id));
