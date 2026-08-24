@@ -2757,6 +2757,7 @@ class DayLevel extends Model
             'room_type'  => (string) ($row['room_type'] ?? ''),
             'bed_id'     => (string) ($row['bed_id'] ?? ''),
             'bed_type'   => (string) ($row['bed_type'] ?? ''),
+            'max_occupancy' => (int) ($row['max_occupancy'] ?? 0),
             'meal_plan'  => (string) ($row['meal_plan'] ?? ''),
         ];
         if ($starRating !== '') {
