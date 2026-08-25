@@ -257,7 +257,9 @@ export const hottelBookingDataSubmit = createAsyncThunk(
       // console.log("API Response:", response.data);
       
       // Extract and dispatch tour_id if this was the first booking (tour created)
-      const tourId = response.data?.order?.tour_id || response.data?.tour_id;
+      const rawTourId = response.data?.order?.tour_id || response.data?.tour_id;
+      const tourIdMatch = rawTourId != null ? String(rawTourId).match(/\d+$/) : null;
+      const tourId = tourIdMatch ? tourIdMatch[0] : rawTourId;
       if (tourId) {
         dispatch(setId(tourId));
         dispatch(setTourId(tourId));
