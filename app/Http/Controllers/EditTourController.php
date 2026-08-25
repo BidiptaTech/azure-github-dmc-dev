@@ -65,6 +65,9 @@ class EditTourController extends Controller
                 $tour->city = $validated['city'] ?: null;
             }
 
+            // When a city from a new country is added, append that country to tours.destination (CSV).
+            $this->syncTourDestinationFromCities($tour);
+
             $saved = $tour->save();
             if (!$saved) {
                 throw new \Exception('Failed to save city plans.');
@@ -77,6 +80,7 @@ class EditTourController extends Controller
                 'data' => [
                     'city_type' => $tour->city_type,
                     'city' => $tour->city,
+                    'destination' => $tour->destination,
                 ],
             ]);
         } catch (\Throwable $e) {
@@ -265,6 +269,69 @@ class EditTourController extends Controller
         $city = \App\Models\City::where('name', $display)->first();
 
         return ($city && !empty($city->country)) ? (string) $city->country : null;
+    }
+
+    /**
+     * Extract city display labels from tours.city (dated segments and date-less master entries).
+     *
+     * @return array<int, string>
+     */
+    private function extractCityDisplaysFromCityString(string $raw): array
+    {
+        $raw = trim($raw);
+        if ($raw === '') {
+            return [];
+        }
+
+        $displays = [];
+        $re = '/^([^,\[]+?)\s*\[(\d{4}-\d{2}-\d{2})\s*(?:→|->)\s*(\d{4}-\d{2}-\d{2})\]\s*$/u';
+        $parts = array_values(array_filter(array_map('trim', explode(',', $raw))));
+        foreach ($parts as $part) {
+            if ($part === '') {
+                continue;
+            }
+            if (preg_match($re, $part, $m)) {
+                $display = trim((string) ($m[1] ?? ''));
+            } else {
+                $display = $part;
+            }
+            if ($display !== '') {
+                $displays[] = $display;
+            }
+        }
+
+        return $displays;
+    }
+
+    /**
+     * Ensure tours.destination includes every country referenced by the current city plans.
+     * Existing destination countries are kept (order preserved); new ones are appended CSV-style.
+     */
+    private function syncTourDestinationFromCities(Tour $tour, ?string $cityRaw = null, ?string $baseDestination = null): void
+    {
+        $cityRaw = $cityRaw !== null ? $cityRaw : (string) ($tour->city ?? '');
+        $baseDestination = $baseDestination !== null ? $baseDestination : (string) ($tour->destination ?? '');
+
+        $countries = CommonHelper::parseTourDestinationCountries($baseDestination);
+
+        foreach ($this->extractCityDisplaysFromCityString($cityRaw) as $display) {
+            $country = $this->cityPlanCountry($display);
+            if ($country === null || trim($country) === '') {
+                continue;
+            }
+            $exists = false;
+            foreach ($countries as $existing) {
+                if (strcasecmp((string) $existing, $country) === 0) {
+                    $exists = true;
+                    break;
+                }
+            }
+            if (!$exists) {
+                $countries[] = $country;
+            }
+        }
+
+        $tour->destination = !empty($countries) ? implode(', ', $countries) : $tour->destination;
     }
 
     private function isCountryAllowedForRestricted(?string $country, array $ownCountryNames): bool
@@ -607,7 +674,10 @@ class EditTourController extends Controller
             if (!empty($validated['display_id'])) {
                 $tour->display_id = $validated['display_id'];
             }
+            // Base destination from the form, then merge any countries present in city plans
+            // (e.g. user added "Batam (Indonesia)" while destination was still "Singapore").
             $tour->destination = $validated['user_country'];
+            $this->syncTourDestinationFromCities($tour);
             $tour->check_in_time = $checkIn;
             $tour->check_out_time = $checkOut;
 
