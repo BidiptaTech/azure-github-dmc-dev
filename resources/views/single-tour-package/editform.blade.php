@@ -6898,20 +6898,20 @@
                                     </div>
                                     <div class="col-6">
                                         <label for="hotel_select" class="form-label fw-semibold mb-0 text-start" style="color: #495057; font-size: 0.7rem;"><i class="ri-building-line me-1" style="color: #667eea;"></i>Hotel</label>
-                                        <select class="form-select modern-select" id="hotel_select" name="hotel_id" onchange="loadRoomsForSelectedHotel(this.value)" disabled>
+                                        <select class="form-select modern-select" id="hotel_select" name="hotel_id" data-no-select2="true" onchange="loadRoomsForSelectedHotel(this.value)" disabled>
                                             <option value="">Select city first</option>
                                         </select>
                                         <small class="text-muted d-block text-start" id="hotel_loading_status" style="font-size: 0.65rem;"><span id="hotel_count_display">0</span> found</small>
                                     </div>
                                     <div class="col-6">
                                         <label for="room_type" class="form-label fw-semibold mb-0 text-start" style="color: #495057; font-size: 0.7rem;">Room Type</label>
-                                        <select class="form-select modern-select" id="room_type" name="room_type" onchange="loadBedsForSelectedRoom(this.value); updateHotelModalPrice();" disabled>
+                                        <select class="form-select modern-select" id="room_type" name="room_type" data-no-select2="true" onchange="loadBedsForSelectedRoom(this.value)" disabled>
                                             <option value="">Select hotel</option>
                                         </select>
                                     </div>
                                     <div class="col-6">
                                         <label for="bed_type" class="form-label fw-semibold mb-0 text-start" style="color: #495057; font-size: 0.7rem;">Bed Type</label>
-                                        <select class="form-select modern-select" id="bed_type" name="bed_type" onchange="updateBedPricingAndMealPlans(); updateHotelModalPrice();" disabled>
+                                        <select class="form-select modern-select" id="bed_type" name="bed_type" data-no-select2="true" onchange="updateBedPricingAndMealPlans()" disabled>
                                             <option value="">Select room</option>
                                         </select>
                                         <small class="text-success d-block text-start" style="font-size: 0.6rem;"><span id="bed_occupancy_info">Max: 2</span></small>
@@ -18867,6 +18867,28 @@
     }
     
     // Hotel Modal Functions - Chain-dependent dropdowns like create.blade.php
+    // AbortControllers cancel in-flight hotel/room/bed fetches when the user changes selection quickly.
+    window.__hotelModalFetchControllers = window.__hotelModalFetchControllers || {
+        hotels: null,
+        rooms: null,
+        beds: null,
+    };
+
+    function abortHotelModalFetch(kind) {
+        const ctrls = window.__hotelModalFetchControllers;
+        if (ctrls[kind]) {
+            try { ctrls[kind].abort(); } catch (e) { /* ignore */ }
+            ctrls[kind] = null;
+        }
+    }
+
+    function startHotelModalFetch(kind) {
+        abortHotelModalFetch(kind);
+        const controller = new AbortController();
+        window.__hotelModalFetchControllers[kind] = controller;
+        return controller;
+    }
+
     function loadHotelsForSelectedCity(cityName) {
         const hotelSelect = document.getElementById('hotel_select');
         const hotelCount = document.getElementById('hotel_count');
@@ -18875,6 +18897,9 @@
         
         if (!cityName) {
             // Reset to default state when no city selected
+            abortHotelModalFetch('hotels');
+            abortHotelModalFetch('rooms');
+            abortHotelModalFetch('beds');
             hotelSelect.disabled = true;
             hotelSelect.innerHTML = '<option value="">Select city first to load hotels</option>';
             hotelCount.textContent = '0';
@@ -18896,10 +18921,13 @@
         
         // Get current user's DMC ID for hotel filtering
         const currentDmcId = document.getElementById('dmc_id').value;
-        console.log('Loading hotels for city:', cityName, 'DMC ID:', currentDmcId);
+        const controller = startHotelModalFetch('hotels');
         
         // Fetch hotels from API using DMC-specific endpoint (same as create.blade.php)
-        fetch(`{{ route('fetch-hotels-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${currentDmcId}`)
+        fetch(`{{ route('fetch-hotels-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${currentDmcId}`, {
+            signal: controller.signal,
+            headers: { 'Accept': 'application/json' },
+        })
             .then(response => {
                 if (!response.ok) {
                     throw new Error('Network response was not ok');
@@ -18907,9 +18935,12 @@
                 return response.json();
             })
             .then(response => {
-                console.log('Hotel API Response:', response);
-                
-                hotelSelect.innerHTML = '<option value="">Select a hotel in ' + cityName + '</option>';
+                hotelSelect.innerHTML = '';
+                const frag = document.createDocumentFragment();
+                const placeholder = document.createElement('option');
+                placeholder.value = '';
+                placeholder.textContent = 'Select a hotel in ' + cityName;
+                frag.appendChild(placeholder);
                 hotelSelect.disabled = false;
                 
                 if (response.success && response.hotels && response.hotels.length > 0) {
@@ -18918,26 +18949,36 @@
                     
                     response.hotels.forEach(hotel => {
                         const starInfo = hotel.hotel_star_rating ? ` (${hotel.hotel_star_rating}⭐)` : '';
-                const option = document.createElement('option');
-                option.value = hotel.hotel_unique_id;
+                        const option = document.createElement('option');
+                        option.value = hotel.hotel_unique_id;
                         option.textContent = hotel.name + starInfo;
-                option.setAttribute('data-hotel', JSON.stringify(hotel));
-                hotelSelect.appendChild(option);
-            });
+                        // Slim payload only — full hotel JSON on every option was a major lag source
+                        option.setAttribute('data-hotel', JSON.stringify({
+                            hotel_unique_id: hotel.hotel_unique_id || '',
+                            name: hotel.name || '',
+                            city: hotel.city || '',
+                            country: hotel.country || '',
+                            hotel_star_rating: hotel.hotel_star_rating || '',
+                            weekend_days: hotel.weekend_days || null,
+                            check_in_time: hotel.check_in_time || '',
+                            check_out_time: hotel.check_out_time || '',
+                        }));
+                        frag.appendChild(option);
+                    });
+                    hotelSelect.appendChild(frag);
             
                     hotelCount.textContent = response.hotels.length;
                     if (hotelLoadingStatus) {
                         hotelLoadingStatus.innerHTML = `<i class="ri-check-line me-1 text-success"></i>${response.hotels.length} hotels found in ${cityName}`;
                         hotelLoadingStatus.style.color = '#198754';
                     }
-                    console.log(`Loaded ${response.hotels.length} hotels for ${cityName}`);
                     
                     // Validate fields after hotels are loaded
                     validateHotelModalFields();
-        } else {
+                } else {
                     window.hotelData = [];
                     hotelSelect.innerHTML = '<option value="">No hotels found in ' + cityName + '</option>';
-            hotelCount.textContent = '0';
+                    hotelCount.textContent = '0';
                     if (hotelLoadingStatus) {
                         hotelLoadingStatus.innerHTML = `<i class="ri-information-line me-1 text-warning"></i>No hotels found in ${cityName}`;
                         hotelLoadingStatus.style.color = '#fd7e14';
@@ -18949,6 +18990,7 @@
                 }
             })
             .catch(error => {
+                if (error && error.name === 'AbortError') return;
                 console.error('Error loading hotels:', error);
                 window.hotelData = [];
                 hotelSelect.innerHTML = '<option value="">Error loading hotels</option>';
@@ -18979,12 +19021,15 @@
         }
         
         if (!hotelId) {
+            abortHotelModalFetch('rooms');
+            abortHotelModalFetch('beds');
             // Reset to default state when no hotel selected
             resetHotelModalFields();
             return;
         }
         
-        console.log('Loading rooms for hotel:', hotelId);
+        // Cancel any in-flight bed fetch from a previous hotel/room choice
+        abortHotelModalFetch('beds');
         
         // Show loading state
         roomTypeSelect.innerHTML = '<option value="">Loading rooms...</option>';
@@ -18997,9 +19042,13 @@
         // Get DMC id for query string (API resolves DMC from auth; this is informational)
         const dmcEl = document.getElementById('dmc_id');
         const currentDmcId = dmcEl ? String(dmcEl.value || '').trim() : '';
+        const controller = startHotelModalFetch('rooms');
         
-        // fetch-rooms-by-hotel already filters by DMC on the server — use response.rooms as-is (see loadRoomsForSelectedHotel).
-        fetch(`{{ route('fetch-rooms-by-hotel') }}?hotel_id=${encodeURIComponent(hotelId)}&dmc_id=${encodeURIComponent(currentDmcId)}`)
+        // fetch-rooms-by-hotel already filters by DMC on the server — use response.rooms as-is.
+        fetch(`{{ route('fetch-rooms-by-hotel') }}?hotel_id=${encodeURIComponent(hotelId)}&dmc_id=${encodeURIComponent(currentDmcId)}`, {
+            signal: controller.signal,
+            headers: { 'Accept': 'application/json' },
+        })
             .then(response => {
                 if (!response.ok) {
                     throw new Error('Network response was not ok');
@@ -19007,87 +19056,82 @@
                 return response.json();
             })
             .then(response => {
-                console.log('Rooms API Response:', response);
-                
-                // Clear dropdowns
-                roomTypeSelect.innerHTML = '<option value="">Select room type</option>';
+                // Clear dropdowns via fragment (one DOM write)
+                const roomFrag = document.createDocumentFragment();
+                const roomPlaceholder = document.createElement('option');
+                roomPlaceholder.value = '';
+                roomPlaceholder.textContent = 'Select room type';
+                roomFrag.appendChild(roomPlaceholder);
                 bedTypeSelect.innerHTML = '<option value="">Select room type first</option>';
                 mealPlanSelect.innerHTML = '<option value="">Select room type first</option>';
                 
                 if (response.success && response.rooms && response.rooms.length > 0) {
                     const dmcFilteredRooms = response.rooms;
-                    console.log('Rooms from API (server-filtered):', dmcFilteredRooms.length);
+                    if (response.weekend_days) {
+                        window.hotelWeekendDays = response.weekend_days;
+                    }
                     
                     // Store room data globally for bed fetching
                     window.roomData = dmcFilteredRooms;
                     
-                    // Extract unique room types
-                    const roomTypes = [...new Set(dmcFilteredRooms.map(room => room.room_type).filter(Boolean))];
-                    console.log('Available room types:', roomTypes);
+                    // Extract unique room types once (avoid N×find)
+                    const byType = new Map();
+                    dmcFilteredRooms.forEach(room => {
+                        if (!room || !room.room_type) return;
+                        if (!byType.has(room.room_type)) {
+                            byType.set(room.room_type, room);
+                        }
+                    });
                     
-                            // Populate room types with pricing information
-                            roomTypes.forEach(roomType => {
-                                const sampleRoom = dmcFilteredRooms.find(room => room.room_type === roomType);
-                                
-                                if (sampleRoom) {
-                                    // Get guest count for pricing - use person_count_select from modal
-                                    const personCountSelect = document.getElementById('person_count_select');
-                                    const numberOfPersons = personCountSelect ? parseInt(personCountSelect.value) || 1 : 1;
-                                    
-                                    // Determine pricing based on occupancy
-                                    const isSingleOccupancy = numberOfPersons <= 1;
-                                    
-                                    let price = 0;
-                                    let priceText = '';
-                                    
-                                    if (isSingleOccupancy) {
-                                        price = parseFloat(sampleRoom.weekday_price) || 0;
-                                        priceText = ` - ${window.__displayCurrency} ${price}`;
-                                    } else {
-                                        price = parseFloat(sampleRoom.double_weekday_price) || 0;
-                                        priceText = ` - ${window.__displayCurrency} ${price}`;
-                                    }
-                                    
-                                    const option = document.createElement('option');
-                                    option.value = roomType;
-                                    option.textContent = `${roomType}${priceText}`;
-                                    
-                                    // Store room data in dataset for later use
-                                    option.dataset.roomType = roomType;
-                                    option.dataset.weekdayPrice = sampleRoom.weekday_price || 0;
-                                    option.dataset.weekendPrice = sampleRoom.weekend_price || 0;
-                                    option.dataset.doubleWeekdayPrice = sampleRoom.double_weekday_price || 0;
-                                    option.dataset.doubleWeekendPrice = sampleRoom.double_weekend_price || 0;
-                                    option.dataset.roomId = sampleRoom.room_id;
-                                    option.dataset.breakfastPrice = sampleRoom.breakfast_price || 0;
-                                    option.dataset.lunchPrice = sampleRoom.lunch_price || 0;
-                                    option.dataset.dinnerPrice = sampleRoom.dinner_price || 0;
-                                    option.dataset.breakfast = sampleRoom.breakfast || 0;
-                                    option.dataset.lunch = sampleRoom.lunch || 0;
-                                    option.dataset.dinner = sampleRoom.dinner || 0;
-                                    
-                                    roomTypeSelect.appendChild(option);
-                                    console.log(`Added room type: ${roomType} with price ${window.__displayCurrency} ${price}`);
-                                }
-                            });
-                            
-                            // Update price after rooms are loaded
-                            setTimeout(() => {
-                                updateHotelModalPrice();
-                            }, 100);
+                    const personCountSelect = document.getElementById('person_count_select');
+                    const numberOfPersons = personCountSelect ? parseInt(personCountSelect.value) || 1 : 1;
+                    const isSingleOccupancy = numberOfPersons <= 1;
                     
+                    byType.forEach((sampleRoom, roomType) => {
+                        let price = 0;
+                        if (isSingleOccupancy) {
+                            price = parseFloat(sampleRoom.weekday_price) || 0;
+                        } else {
+                            price = parseFloat(sampleRoom.double_weekday_price) || 0;
+                        }
+                        const priceText = price ? ` - ${window.__displayCurrency} ${price}` : '';
+                        
+                        const option = document.createElement('option');
+                        option.value = roomType;
+                        option.textContent = `${roomType}${priceText}`;
+                        
+                        option.dataset.roomType = roomType;
+                        option.dataset.weekdayPrice = sampleRoom.weekday_price || 0;
+                        option.dataset.weekendPrice = sampleRoom.weekend_price || 0;
+                        option.dataset.doubleWeekdayPrice = sampleRoom.double_weekday_price || 0;
+                        option.dataset.doubleWeekendPrice = sampleRoom.double_weekend_price || 0;
+                        option.dataset.roomId = sampleRoom.room_id;
+                        option.dataset.breakfastPrice = sampleRoom.breakfast_price || 0;
+                        option.dataset.lunchPrice = sampleRoom.lunch_price || 0;
+                        option.dataset.dinnerPrice = sampleRoom.dinner_price || 0;
+                        option.dataset.breakfast = sampleRoom.breakfast || 0;
+                        option.dataset.lunch = sampleRoom.lunch || 0;
+                        option.dataset.dinner = sampleRoom.dinner || 0;
+                        
+                        roomFrag.appendChild(option);
+                    });
+                    
+                    roomTypeSelect.innerHTML = '';
+                    roomTypeSelect.appendChild(roomFrag);
                     roomTypeSelect.disabled = false;
-                    console.log(`Loaded ${roomTypes.length} room types for hotel ${hotelId}`);
                     
-                    // Validate fields after rooms are loaded
-                    validateHotelModalFields();
+                    // Update price after rooms are loaded
+                    setTimeout(() => {
+                        updateHotelModalPrice();
+                        validateHotelModalFields();
+                    }, 0);
                 } else {
-                    console.log('No rooms found for hotel:', hotelId);
                     roomTypeSelect.innerHTML = '<option value="">No rooms available</option>';
                     roomTypeSelect.disabled = false;
                 }
             })
             .catch(error => {
+                if (error && error.name === 'AbortError') return;
                 console.error('Error loading rooms:', error);
                 roomTypeSelect.innerHTML = '<option value="">Error loading rooms</option>';
                 bedTypeSelect.innerHTML = '<option value="">Error loading rooms</option>';
@@ -19185,6 +19229,7 @@
         const bedTypeSelect = document.getElementById('bed_type');
         const mealPlanSelect = document.getElementById('meal_plan');
         if (!roomType) {
+            abortHotelModalFetch('beds');
             // Reset to default state when no room type selected
             bedTypeSelect.disabled = true;
             bedTypeSelect.innerHTML = '<option value="">Select room type first</option>';
@@ -19194,8 +19239,6 @@
             updateModalChildPricingVisibility(null);
             return;
         }
-        
-        console.log('Loading beds for room type:', roomType);
         
         // Show loading state
         bedTypeSelect.innerHTML = '<option value="">Loading bed types...</option>';
@@ -19222,11 +19265,13 @@
         // Get the first room ID to fetch beds from beds table
         const firstRoom = selectedRooms[0];
         const roomId = firstRoom.room_id;
-        
-        console.log('Fetching beds for room ID:', roomId);
+        const controller = startHotelModalFetch('beds');
         
         // Fetch beds from the beds table using API endpoint (same as create.blade.php)
-        fetch(`{{ route('fetch-beds-by-room') }}?room_id=${roomId}`)
+        fetch(`{{ route('fetch-beds-by-room') }}?room_id=${roomId}`, {
+            signal: controller.signal,
+            headers: { 'Accept': 'application/json' },
+        })
             .then(response => {
                 if (!response.ok) {
                     throw new Error('Network response was not ok');
@@ -19234,9 +19279,11 @@
                 return response.json();
             })
             .then(data => {
-                console.log('Beds API Response:', data);
-                
-                bedTypeSelect.innerHTML = '<option value="">Select bed type</option>';
+                const frag = document.createDocumentFragment();
+                const placeholder = document.createElement('option');
+                placeholder.value = '';
+                placeholder.textContent = 'Select bed type';
+                frag.appendChild(placeholder);
                 
                 if (data.success && data.beds && data.beds.length > 0) {
                     // Populate bed types from the beds table
@@ -19277,23 +19324,25 @@
                         option.setAttribute('data-room-id', bed.room_id);
                         option.setAttribute('data-bed-max-occupancy', bed.max_occupancy);
                         option.setAttribute('data-bed-type', bed.room_type || bed.bed_type);
-                        bedTypeSelect.appendChild(option);
+                        frag.appendChild(option);
                     });
                     
+                    bedTypeSelect.innerHTML = '';
+                    bedTypeSelect.appendChild(frag);
                     bedTypeSelect.disabled = false;
-                    console.log(`Loaded ${data.beds.length} bed types for room type ${roomType}`);
                     
                     // Validate fields after beds are loaded
                     validateHotelModalFields();
                 } else {
-                    console.log('No beds found for room type:', roomType);
                     bedTypeSelect.innerHTML = '<option value="">No bed types available</option>';
                 }
                 
                 // Meals follow room type (not bed row); rebuild when room type / beds list changes
                 loadHotelModalMealPlansFromRoomType(roomType, { preserveMeal: false });
+                updateHotelModalPrice();
             })
             .catch(error => {
+                if (error && error.name === 'AbortError') return;
                 console.error('Error fetching beds:', error);
                 bedTypeSelect.innerHTML = '<option value="">Error loading bed types</option>';
                 mealPlanSelect.innerHTML = '<option value="">Error loading bed types</option>';
@@ -28196,22 +28245,18 @@
         if (!form) throw new Error('Form not found');
         const url = form.dataset.updateCityUrl;
         if (!url) throw new Error('City save URL not found');
-
         const csrfMeta = document.querySelector('meta[name="csrf-token"]');
         const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
         if (!csrfToken) throw new Error('CSRF token not found');
-
         try { if (typeof window.updateCityHiddenField === 'function') window.updateCityHiddenField(); } catch (e) { /* ignore */ }
         const city = (document.getElementById('city') || {}).value || '';
         const cityType =
             (document.querySelector('input[name="city_type"]:checked') || {}).value ||
             (document.querySelector('input[type="hidden"][name="city_type"]') || {}).value ||
             'single';
-
         const fd = new FormData();
         fd.append('city', city);
         fd.append('city_type', cityType);
-
         const resp = await fetch(url, {
             method: 'POST',
             headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' },
@@ -28223,6 +28268,14 @@
         if (!resp.ok || !data.success) {
             throw new Error((data && data.message) ? data.message : 'Failed to save city plans');
         }
+        // Keep the hidden destination field in sync when a city from a new country was added.
+        try {
+            const dest = data && data.data && data.data.destination != null ? String(data.data.destination) : '';
+            const userCountryEl = document.getElementById('user_country');
+            if (userCountryEl && dest !== '') {
+                userCountryEl.value = dest;
+            }
+        } catch (e) { /* ignore */ }
         return data;
     }
 
@@ -28579,6 +28632,14 @@
             // Show success feedback
             feedback.textContent = data.message || 'Tour information updated successfully.';
             feedback.classList.add('text-success');
+
+            // Keep destination hidden field aligned with server (may include newly merged countries).
+            try {
+                const dest = data && data.data && data.data.destination != null ? String(data.data.destination) : '';
+                if (userCountryEl && dest !== '') {
+                    userCountryEl.value = dest;
+                }
+            } catch (e) { /* ignore */ }
             
             // Show success toastr notification
             showToastr('success', data.message || 'Tour information updated successfully.');
@@ -30206,4 +30267,3 @@
     })();
 </script>
 @endsection
- 
