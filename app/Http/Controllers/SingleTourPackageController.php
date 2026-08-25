@@ -2730,27 +2730,18 @@ class SingleTourPackageController extends Controller
                     'message' => 'DMC ID is required'
                 ], 400);
             }
-            // Log the query parameters for debugging
-            \Log::info('Fetching rooms for hotel', [
-                'hotel_id' => $hotelId,
-                'dmc_id' => $dmcId,
-                'user_id' => Auth::id()
-            ]);
-
             // Fetch rooms for the selected hotel filtered by DMC ID (created_by)
             $rooms = \App\Models\Room::where('hotel_id', $hotelId)
                 ->where('status', 1)
                 ->where('created_by', $dmcId) // Filter by DMC ID
                 ->select('room_id', 'room_type', 'weekday_price', 'weekend_price', 'double_weekday_price', 'double_weekend_price', 
                         'breakfast', 'breakfast_type', 'breakfast_price', 'lunch', 'lunch_type', 'lunch_price', 'dinner', 'dinner_type', 'dinner_price',
-                        'breakfast_included', 'dimension', 'features', 'master_image', 'created_by', 'rooms_only',
+                        'breakfast_included', 'dimension', 'features', 'created_by', 'rooms_only',
                         'child_with_bed', 'child_without_bed')
                 ->orderBy('room_type')
                 ->get();
             // If no rooms found with created_by, try alternative field names
             if ($rooms->count() == 0) {
-                \Log::info('No rooms found with created_by, trying alternative fields');
-                
                 // Try alternative field names for DMC ID
                 $rooms = \App\Models\Room::where('hotel_id', $hotelId)
                     ->where('status', 1)
@@ -2760,50 +2751,17 @@ class SingleTourPackageController extends Controller
                     })
                     ->select('room_id', 'room_type', 'weekday_price', 'weekend_price', 'double_weekday_price', 'double_weekend_price', 
                             'breakfast', 'breakfast_type','breakfast_price','lunch', 'lunch_type', 'lunch_price', 'dinner', 'dinner_type', 'dinner_price',
-                            'breakfast_included', 'dimension', 'features', 'master_image', 'created_by', 'dmc_id', 'rooms_only',
+                            'breakfast_included', 'dimension', 'features', 'created_by', 'dmc_id', 'rooms_only',
                             'child_with_bed', 'child_without_bed')
                     ->orderBy('room_type')
                     ->get();
-                
-                \Log::info('Alternative query results', [
-                    'rooms_found' => $rooms->count(),
-                    'dmc_id' => $dmcId
-                ]);
             }
-
-            // Log the results for debugging
-            \Log::info('Rooms fetched', [
-                'hotel_id' => $hotelId,
-                'dmc_id' => $dmcId,
-                'total_rooms_found' => count($rooms),
-                'room_ids' => $rooms->pluck('room_id')->toArray()
-            ]);
-
-            // Debug: Check what fields are actually available in the first room
-            if ($rooms->count() > 0) {
-                $firstRoom = $rooms->first();
-                \Log::info('First room structure', [
-                    'room_id' => $firstRoom->room_id,
-                    'hotel_id' => $firstRoom->hotel_id,
-                    'created_by' => $firstRoom->created_by ?? 'NOT_FOUND',
-                    'all_fields' => $firstRoom->toArray()
-                ]);
-            }
-
-            // Debug: Check total rooms for this hotel without DMC filtering
-            $totalRoomsForHotel = \App\Models\Room::where('hotel_id', $hotelId)
-                ->where('status', 1)
-                ->count();
-            
-            \Log::info('Total rooms for hotel (without DMC filtering)', [
-                'hotel_id' => $hotelId,
-                'total_rooms' => $totalRoomsForHotel,
-                'rooms_with_dmc_filter' => count($rooms)
-            ]);
 
             // Get hotel weekend_days (JSON array e.g. ["Saturday","Sunday"]) for front-end pricing
             $weekendDays = ['Saturday', 'Sunday'];
-            $hotel = \App\Models\Hotel::where('hotel_unique_id', $hotelId)->first();
+            $hotel = \App\Models\Hotel::where('hotel_unique_id', $hotelId)
+                ->select('weekend_days')
+                ->first();
             if ($hotel && !empty($hotel->weekend_days)) {
                 $decoded = json_decode($hotel->weekend_days, true);
                 if (is_array($decoded) && count($decoded) > 0) {
