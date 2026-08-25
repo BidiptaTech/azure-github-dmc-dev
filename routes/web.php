@@ -1289,6 +1289,10 @@ Route::patch('day-level/{day_level}/inclusion', [DayLevelController::class, 'upd
     ->name('day-level.update-inclusion')
     ->whereNumber('day_level');
 
+Route::delete('day-level/{day_level}/packages/{package_id}', [DayLevelController::class, 'destroyPackage'])
+    ->name('day-level.destroy-package')
+    ->whereNumber('day_level');
+
 // Resource route AFTER
 Route::resource('day-level', DayLevelController::class)->whereNumber('day_level');
 
