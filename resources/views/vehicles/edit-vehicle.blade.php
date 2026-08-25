@@ -200,8 +200,22 @@
         pointer-events: none;
     }
 
-    .readonly-field-container input:hover {
+    .readonly-field-container input:hover,
+    .readonly-field-container .select2-selection:hover {
         border-color: #dfe3e7 !important;
+    }
+
+    .select2-container--default.select2-container--disabled .select2-selection--single {
+        background-color: #f0f2f5 !important;
+        cursor: not-allowed !important;
+        border: 1px solid #dfe3e7 !important;
+        color: #6e7781 !important;
+    }
+
+    #mapping_filter_country:disabled {
+        background-color: #f0f2f5 !important;
+        cursor: not-allowed !important;
+        color: #6e7781 !important;
     }
 
     .field-info-message {
@@ -467,9 +481,13 @@
                             </div>
 
                             <!-- Country -->
+                            @php $locationLockedByMappings = !empty($hasZoneMappings); @endphp
                             <div class="col-md-3 mb-3">
                                 <label for="country" class="form-label"><strong>Country</strong><span class="text-danger">*</span></label>
-                                <select name="country" id="country" class="form-select" required>
+                                @if($locationLockedByMappings)
+                                    <input type="hidden" name="country" value="{{ $selectedCountry ?? $vehicle->country }}">
+                                @endif
+                                <select @if(!$locationLockedByMappings) name="country" required @endif id="country" class="form-select" @disabled($locationLockedByMappings)>
                                     @php $scopedCountries = $countries ?? collect(); @endphp
                                     @if($scopedCountries->count() !== 1)
                                         <option value="">Select Country</option>
@@ -478,6 +496,11 @@
                                         <option value="{{ $c->name }}" {{ ($selectedCountry ?? '') == $c->name ? 'selected' : '' }}>{{ $c->name }}</option>
                                     @endforeach
                                 </select>
+                                @if($locationLockedByMappings)
+                                    <div class="field-info-message">
+                                        <i class="fas fa-lock"></i> Country cannot be changed because zone mapping prices already exist for this vehicle.
+                                    </div>
+                                @endif
                                 @error('country')
                                     <div class="text-danger mt-1">{{ $message }}</div>
                                 @enderror
@@ -486,12 +509,20 @@
                             <!-- City Name -->
                             <div class="col-md-3 mb-3">
                                 <label for="city_name" class="form-label"><strong>City Name</strong><span class="text-danger">*</span></label>
-                                <select name="city_name" id="city_name" class="form-select" required>
+                                @if($locationLockedByMappings)
+                                    <input type="hidden" name="city_name" value="{{ $vehicle->city }}">
+                                @endif
+                                <select @if(!$locationLockedByMappings) name="city_name" required @endif id="city_name" class="form-select" @disabled($locationLockedByMappings)>
                                     <option value="">Select a city</option>
                                     @foreach($city as $c)
                                         <option {{ $c->name == $vehicle->city ? 'selected' : '' }} value="{{ $c->name }}">{{ $c->name }}</option>
                                     @endforeach
                                 </select>
+                                @if($locationLockedByMappings)
+                                    <div class="field-info-message">
+                                        <i class="fas fa-lock"></i> City cannot be changed because zone mapping prices already exist for this vehicle.
+                                    </div>
+                                @endif
                                 @error('city_name')
                                     <div class="text-danger mt-1">{{ $message }}</div>
                                 @enderror
@@ -1512,7 +1543,22 @@
                     $seedPrivateProfitAmount = $seedProfitMapping?->private_profit_amount ?? 0;
                     $seedSharedProfitType = $seedProfitMapping?->shared_profit_type ?? 'percentage';
                     $seedSharedProfitAmount = $seedProfitMapping?->shared_profit_amount ?? 0;
+                    $vehicleMappingCountry = $zoneMappingFilterCountry ?: ($selectedCountry ?? '');
+                    $mappingCountries = collect($countries ?? [])->filter(function ($c) use ($vehicleMappingCountry) {
+                        return strcasecmp((string) ($c->name ?? ''), (string) $vehicleMappingCountry) === 0;
+                    });
+                    if ($mappingCountries->isEmpty() && $vehicleMappingCountry !== '') {
+                        $mappingCountries = collect([(object) ['name' => $vehicleMappingCountry]]);
+                    }
                 @endphp
+                <div class="field-info-message mb-3">
+                    <i class="fas fa-info-circle"></i>
+                    Zone mapping prices are given for this vehicle's country
+                    @if($vehicleMappingCountry)
+                        (<strong>{{ $vehicleMappingCountry }}</strong>)
+                    @endif.
+                    Ports and zones shown here belong to this country only.
+                </div>
                 <div class="row mb-3 align-items-end" id="zone-mapping-filters"
                      data-ports='@json($portsSorted ?? [])'
                      data-from-zones='@json($zoneFilterFromZones ?? [])'
@@ -1523,12 +1569,12 @@
                      data-cities-url="{{ route('fetch-cities-by-country') }}">
                     <div class="{{ $showCityFilter ? 'col-md-2' : 'col-md-4' }}">
                         <label for="mapping_filter_country" class="form-label"><strong>Country</strong></label>
-                        <select id="mapping_filter_country" class="form-select">
-                            @php $scopedCountries = $countries ?? collect(); @endphp
-                            <option value="" selected>All Countries</option>
-                            @foreach($scopedCountries as $c)
-                                <option value="{{ $c->name }}">{{ $c->name }}</option>
-                            @endforeach
+                        <select id="mapping_filter_country" class="form-select" disabled>
+                            @forelse($mappingCountries as $c)
+                                <option value="{{ $c->name }}" selected>{{ $c->name }}</option>
+                            @empty
+                                <option value="" selected>No country assigned</option>
+                            @endforelse
                         </select>
                     </div>
                     @if($showCityFilter)
@@ -4177,17 +4223,24 @@
             width: '100%'
         });
 
+        const locationLockedByMappings = {{ !empty($hasZoneMappings) ? 'true' : 'false' }};
+
         $('#country').select2({
             placeholder: "Search and Select Country",
-            allowClear: true,
+            allowClear: !locationLockedByMappings,
             width: '100%'
         });
 
         $('#city_name').select2({
             placeholder: "Search and Select a City",
-            allowClear: true,
+            allowClear: !locationLockedByMappings,
             width: '100%'
         });
+
+        if (locationLockedByMappings) {
+            $('#country').prop('disabled', true);
+            $('#city_name').prop('disabled', true);
+        }
     });
 </script>
 <script>
@@ -4473,7 +4526,13 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
 
+        const locationLockedByMappings = {{ !empty($hasZoneMappings) ? 'true' : 'false' }};
+
         function loadCitiesByCountry(countryName, preserveCity) {
+            if (locationLockedByMappings) {
+                return;
+            }
+
             if (!countryName) {
                 $('#city_name').prop('disabled', true)
                     .empty()
@@ -4519,9 +4578,11 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
 
-        $('#country').on('change', function () {
-            loadCitiesByCountry($(this).val(), false);
-        });
+        if (!locationLockedByMappings) {
+            $('#country').on('change', function () {
+                loadCitiesByCountry($(this).val(), false);
+            });
+        }
 
         function loadDriversForDmc(dmcId) {
             if (!dmcId) return;
