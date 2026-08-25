@@ -122,12 +122,16 @@
             $createdBy = $currentUserId; // Operation Manager is the current user
         }
         $hasNegotiationHistory = isset($tour) && $tour ? \DB::table('enquiry_comments')->where('tour_id', $tour->tour_id)->whereNull('deleted_at')->exists() : false;
+        $isActualTourStatus = isset($tour) && $tour
+            && strtolower(trim((string) ($tour->tour_status ?? ''))) === 'actual';
+        $actualRemoveServiceTooltip = "Services can't be removed in Actual Status.";
     @endphp
     
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <script>
         window.hasNegotiationHistory = @json($hasNegotiationHistory);
         window.removeServicePageTourStatus = @json(isset($tour) && $tour ? ($tour->tour_status ?? '') : '');
+        window.isActualTourStatus = @json($isActualTourStatus);
         window.__displayCurrency = @json($displayCurrency);
 
         window.isRoomBreakfastIncluded = function(room) {
@@ -1280,7 +1284,8 @@
                                         <i class="ri-calendar-line me-1" style="color: #667eea;"></i>Travel Dates
                                     </label>
                                     <input type="text" class="form-control modern-input" id="travel_dates_range" autocomplete="off"
-                                        placeholder="Select dates" style="height: 40px;" readonly>
+                                        placeholder="Select dates" style="height: 40px;" readonly
+                                        @if($isActualTourStatus) disabled title="Travel dates can't be changed in Actual Status." @endif>
 
                                     {{-- Keep original fields for submission + JS dependencies --}}
                                     <input type="date" class="form-control modern-input d-none" name="start_date" id="start_date"
@@ -1289,14 +1294,16 @@
                                                 ? (is_string($tour->check_in_time) ? date('Y-m-d', strtotime($tour->check_in_time)) : $tour->check_in_time->format('Y-m-d'))
                                                 : ''
                                         }}"
-                                        min="{{ date('Y-m-d') }}">
+                                        min="{{ date('Y-m-d') }}"
+                                        @if($isActualTourStatus) readonly @endif>
                                     <input type="date" class="form-control modern-input d-none" name="end_date" id="end_date"
                                         value="{{
                                             $tour->check_out_time
                                                 ? (is_string($tour->check_out_time) ? date('Y-m-d', strtotime($tour->check_out_time)) : $tour->check_out_time->format('Y-m-d'))
                                                 : ''
                                         }}"
-                                        min="{{ $tour->check_in_time ? (is_string($tour->check_in_time) ? date('Y-m-d', strtotime($tour->check_in_time)) : $tour->check_in_time->format('Y-m-d')) : date('Y-m-d') }}">
+                                        min="{{ $tour->check_in_time ? (is_string($tour->check_in_time) ? date('Y-m-d', strtotime($tour->check_in_time)) : $tour->check_in_time->format('Y-m-d')) : date('Y-m-d') }}"
+                                        @if($isActualTourStatus) readonly @endif>
                                 </div>
 
                                 <!-- Guests -->
@@ -1747,9 +1754,17 @@
                                                         {{ $displayCurrency }} {{ number_format((float)$totalPrice, 2, '.', ',') }}
                                                     </span>
                                                 </div>
+                                                @if($isActualTourStatus)
+                                                <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ $actualRemoveServiceTooltip }}">
+                                                    <button type="button" class="btn btn-sm btn-outline-danger" disabled style="pointer-events: none;" aria-disabled="true">
+                                                        <i class="ri-delete-bin-line"></i>
+                                                    </button>
+                                                </span>
+                                                @else
                                                 <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeHotelService({{ $hotelOrder->booking_id }})">
                                                     <i class="ri-delete-bin-line"></i>
                                                 </button>
+                                                @endif
                                             </div>
                                         </div>
                                         @if(!empty($rooms) && is_array($rooms))
@@ -3572,9 +3587,17 @@
                                         <div class="d-flex justify-content-between align-items-center mb-3">
                                             <h6 class="mb-0 fw-bold text-primary"><i class="ri-login-circle-line me-2"></i>Entry Port Transfer #{{ $index + 1 }}</h6>
                                             <div class="d-flex gap-2">
+                                                @if($isActualTourStatus)
+                                                <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ $actualRemoveServiceTooltip }}">
+                                                    <button type="button" class="btn btn-sm btn-outline-danger" disabled style="pointer-events: none;" aria-disabled="true">
+                                                        <i class="ri-delete-bin-line"></i> Remove
+                                                    </button>
+                                                </span>
+                                                @else
                                                 <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTransportService({{ $order->booking_id }})">
                                                     <i class="ri-delete-bin-line"></i> Remove
                                                 </button>
+                                                @endif
                                             </div>
                                         </div>
                                         <div class="row g-3">
@@ -3926,9 +3949,17 @@
                                             <div class="d-flex justify-content-between align-items-center mb-3">
                                                 <h6 class="mb-0 fw-bold text-danger"><i class="ri-ticket-line me-2"></i>Attraction Booking #{{ $index + 1 }}</h6>
                                                 <div class="d-flex gap-2">
+                                                    @if($isActualTourStatus)
+                                                    <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ $actualRemoveServiceTooltip }}">
+                                                        <button type="button" class="btn btn-sm btn-outline-danger" disabled style="pointer-events: none;" aria-disabled="true">
+                                                            <i class="ri-delete-bin-line"></i> Remove
+                                                        </button>
+                                                    </span>
+                                                    @else
                                                     <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeAttractionService({{ $order->booking_id }})">
                                                         <i class="ri-delete-bin-line"></i> Remove
                                                     </button>
+                                                    @endif
                                                 </div>
                                             </div>
                                         
@@ -3956,25 +3987,51 @@
                                                                     }
                                                                 }
                                                                 return false;
-                                                            });
+                                                            })->unique(function ($attraction) {
+                                                                return \App\Helpers\CommonHelper::normalizeServiceLabel(
+                                                                    \App\Helpers\CommonHelper::attractionDisplayLabel($attraction)
+                                                                );
+                                                            })->values();
                                                             $packagedAttractionList = collect($packagedAttractions ?? []);
+                                                            $attractionIdLookup = $payload['AttractionId'] ?? $payload['attraction_id'] ?? null;
+                                                            $matchedAttraction = \App\Helpers\CommonHelper::matchAttractionFromList(
+                                                                $filteredAttractions,
+                                                                $attractionName,
+                                                                $attractionIdLookup
+                                                            );
                                                             $matchedBundle = $packagedAttractionList->first(function($bundle) use ($attractionName) {
                                                                 return ($bundle->name ?? '') === $attractionName
                                                                     || ('bundle_' . ($bundle->package_attraction_id ?? '')) === $attractionName;
                                                             });
+                                                            // Prefer the catalog attraction when AI sent "Name - Location"
+                                                            if ($matchedAttraction) {
+                                                                $matchedBundle = null;
+                                                            }
                                                             $isBundleSelected = (bool) $matchedBundle;
                                                             $bundleTicketName = $matchedBundle->name ?? $attractionName;
+                                                            $isGenericTicket = !$ticket || in_array(strtolower(trim((string) $ticket)), ['n/a', 'general ticket'], true);
                                                             // Prefer saved ticket; for bundles fall back to attraction/bundle name
-                                                            $displayTicket = ($ticket && $ticket != 'N/A')
+                                                            $displayTicket = !$isGenericTicket
                                                                 ? $ticket
                                                                 : ($isBundleSelected ? $bundleTicketName : null);
                                                         @endphp
                                                         @foreach($filteredAttractions as $attraction)
-                                                            <option value="{{ $attraction->name }}" {{ (!$isBundleSelected && $attractionName == $attraction->name) ? 'selected' : '' }} 
+                                                            @php
+                                                                $isThisAttractionSelected = !$isBundleSelected && $matchedAttraction
+                                                                    && (string) ($matchedAttraction->attraction_id ?? '') === (string) ($attraction->attraction_id ?? '')
+                                                                    && (string) ($matchedAttraction->attraction_id ?? '') !== '';
+                                                                if (!$isThisAttractionSelected && !$isBundleSelected && $matchedAttraction) {
+                                                                    $isThisAttractionSelected = ((string) ($matchedAttraction->name ?? '') === (string) ($attraction->name ?? ''));
+                                                                }
+                                                                if (!$isThisAttractionSelected && !$isBundleSelected && !$matchedAttraction) {
+                                                                    $isThisAttractionSelected = ($attractionName == $attraction->name);
+                                                                }
+                                                            @endphp
+                                                            <option value="{{ $attraction->name }}" {{ $isThisAttractionSelected ? 'selected' : '' }} 
                                                                 data-attraction-id="{{ $attraction->attraction_id ?? '' }}"
                                                                 data-attraction-data="{{ json_encode($attraction) }}">
                                                                 {{ $attraction->name }}
-                                                                @if(isset($attraction->location))
+                                                                @if(isset($attraction->location) && $attraction->location !== '')
                                                                     - {{ $attraction->location }}
                                                                 @endif
                                                             </option>
@@ -3986,6 +4043,16 @@
                                                                     ($matchedBundle->package_attraction_id ?? null) == $bundle->package_attraction_id
                                                                     || $attractionName === $bundle->name
                                                                 );
+                                                                $bundleDisplayName = trim((string) ($bundle->name ?? ''));
+                                                                $duplicatesRegularAttraction = !$bundleSelected && $filteredAttractions->contains(function ($a) use ($bundleDisplayName) {
+                                                                    $name = trim((string) ($a->name ?? ''));
+                                                                    $label = \App\Helpers\CommonHelper::attractionDisplayLabel($a);
+                                                                    return strcasecmp($name, $bundleDisplayName) === 0
+                                                                        || strcasecmp($label, $bundleDisplayName) === 0;
+                                                                });
+                                                            @endphp
+                                                            @continue($duplicatesRegularAttraction)
+                                                            @php
                                                                 $bundleData = [
                                                                     'name' => $bundle->name,
                                                                     'package_attraction_id' => $bundle->package_attraction_id,
@@ -4014,7 +4081,7 @@
                                                                 {{ $bundle->name }}
                                                             </option>
                                                         @endforeach
-                                                        @if($attractionName && !$isBundleSelected && !$filteredAttractions->pluck('name')->contains($attractionName))
+                                                        @if($attractionName && $attractionName !== 'N/A' && !$isBundleSelected && !$matchedAttraction)
                                                             <option value="{{ $attractionName }}" selected>{{ $attractionName }}</option>
                                                         @endif
                                                     </select>
@@ -4024,32 +4091,53 @@
                                                     <select class="form-select border-2" style="height: 35px;" name="ticket_name" id="ticket_name_{{ $order->booking_id }}" required onchange="updateAttractionRowPrice({{ $order->booking_id }})">
                                                         <option value="">Select Ticket</option>
                                                         @php
-                                                            $selectedAttractionForTicket = $attractionName ? collect($filteredAttractions)->first(function($a) use ($attractionName) { return ($a->name ?? '') == $attractionName; }) : null;
-                                                            $selectedTicketData = null;
+                                                            $selectedAttractionForTicket = $matchedAttraction ?: ($attractionName ? collect($filteredAttractions)->first(function($a) use ($attractionName) { return ($a->name ?? '') == $attractionName; }) : null);
+                                                            $catalogTickets = [];
                                                             if ($isBundleSelected && $matchedBundle) {
-                                                                $selectedTicketData = [
+                                                                $catalogTickets = [[
                                                                     'name' => $bundleTicketName,
                                                                     'adult_price' => $matchedBundle->adult_price,
                                                                     'child_price' => $matchedBundle->child_price,
                                                                     'senior_price' => $matchedBundle->senior_citizen_price,
-                                                                ];
-                                                            } elseif ($selectedAttractionForTicket && isset($selectedAttractionForTicket->tickets) && is_array($selectedAttractionForTicket->tickets) && $ticket && $ticket != 'N/A') {
-                                                                foreach ($selectedAttractionForTicket->tickets as $tk) {
-                                                                    $tkName = (is_array($tk) ? ($tk['name'] ?? $tk['ticket_name'] ?? $tk['ticket_id'] ?? '') : ($tk->name ?? $tk->ticket_name ?? $tk->ticket_id ?? ''));
-                                                                    if ($tkName === $ticket) { $selectedTicketData = $tk; break; }
+                                                                ]];
+                                                            } elseif ($selectedAttractionForTicket) {
+                                                                $catalogTickets = collect($selectedAttractionForTicket->tickets ?? [])->all();
+                                                            }
+                                                            $matchedTicketName = null;
+                                                            foreach ($catalogTickets as $tk) {
+                                                                $tkName = (is_array($tk) ? ($tk['name'] ?? $tk['ticket_name'] ?? $tk['ticket_id'] ?? '') : ($tk->name ?? $tk->ticket_name ?? $tk->ticket_id ?? ''));
+                                                                if ($displayTicket && strcasecmp(trim((string) $tkName), trim((string) $displayTicket)) === 0) {
+                                                                    $matchedTicketName = $tkName;
+                                                                    break;
                                                                 }
                                                             }
-                                                            $adultP = $selectedTicketData ? (is_array($selectedTicketData) ? ($selectedTicketData['adult_price'] ?? $selectedTicketData['price'] ?? 0) : ($selectedTicketData->adult_price ?? $selectedTicketData->price ?? 0)) : 0;
-                                                            $childP = $selectedTicketData ? (is_array($selectedTicketData) ? ($selectedTicketData['child_price'] ?? 0) : ($selectedTicketData->child_price ?? 0)) : 0;
-                                                            $seniorP = $selectedTicketData ? (is_array($selectedTicketData) ? ($selectedTicketData['senior_price'] ?? $selectedTicketData['adult_price'] ?? $selectedTicketData['price'] ?? 0) : ($selectedTicketData->senior_price ?? $selectedTicketData->adult_price ?? $selectedTicketData->price ?? 0)) : 0;
+                                                            if (!$matchedTicketName && count($catalogTickets) > 0) {
+                                                                $firstTk = $catalogTickets[0];
+                                                                $matchedTicketName = is_array($firstTk) ? ($firstTk['name'] ?? $firstTk['ticket_name'] ?? '') : ($firstTk->name ?? $firstTk->ticket_name ?? '');
+                                                            }
                                                         @endphp
-                                                        @if($displayTicket)
-                                                            <option value="{{ $displayTicket }}" selected
-                                                                data-adult-price="{{ number_format((float)$adultP, 2, '.', '') }}"
-                                                                data-child-price="{{ number_format((float)$childP, 2, '.', '') }}"
-                                                                data-senior-price="{{ number_format((float)$seniorP, 2, '.', '') }}"
-                                                            >{{ $displayTicket }}</option>
-                                                        @endif
+                                                        @forelse($catalogTickets as $tk)
+                                                            @php
+                                                                $tkName = is_array($tk) ? ($tk['name'] ?? $tk['ticket_name'] ?? $tk['ticket_id'] ?? '') : ($tk->name ?? $tk->ticket_name ?? $tk->ticket_id ?? '');
+                                                                $adultP = is_array($tk) ? ($tk['adult_price'] ?? $tk['price'] ?? 0) : ($tk->adult_price ?? $tk->price ?? 0);
+                                                                $childP = is_array($tk) ? ($tk['child_price'] ?? 0) : ($tk->child_price ?? 0);
+                                                                $seniorP = is_array($tk)
+                                                                    ? ($tk['senior_price'] ?? $tk['senior_adult_price'] ?? $tk['adult_price'] ?? $tk['price'] ?? 0)
+                                                                    : ($tk->senior_price ?? $tk->senior_adult_price ?? $tk->adult_price ?? $tk->price ?? 0);
+                                                                $isTicketSelected = $matchedTicketName && strcasecmp(trim((string) $tkName), trim((string) $matchedTicketName)) === 0;
+                                                            @endphp
+                                                            @if($tkName !== '')
+                                                                <option value="{{ $tkName }}" {{ $isTicketSelected ? 'selected' : '' }}
+                                                                    data-adult-price="{{ number_format((float)$adultP, 2, '.', '') }}"
+                                                                    data-child-price="{{ number_format((float)$childP, 2, '.', '') }}"
+                                                                    data-senior-price="{{ number_format((float)$seniorP, 2, '.', '') }}"
+                                                                >{{ $tkName }}</option>
+                                                            @endif
+                                                        @empty
+                                                            @if($displayTicket)
+                                                                <option value="{{ $displayTicket }}" selected>{{ $displayTicket }}</option>
+                                                            @endif
+                                                        @endforelse
                                                     </select>
                                                     <small class="text-muted d-block mt-1">Select an attraction to see available tickets</small>
                                                 </div>
@@ -4065,7 +4153,9 @@
                                                             // Find the selected attraction to populate time slots from database
                                                             $selectedAttraction = null;
                                                             $timeSlotsFound = false;
-                                                            if ($attractionName) {
+                                                            if ($matchedAttraction) {
+                                                                $selectedAttraction = $matchedAttraction;
+                                                            } elseif ($attractionName) {
                                                                 $selectedAttraction = collect($filteredAttractions)->first(function($attraction) use ($attractionName) {
                                                                     return $attraction->name == $attractionName;
                                                                 });
@@ -4606,9 +4696,17 @@
                                             <div class="d-flex justify-content-between align-items-center mb-3">
                                                 <h6 class="mb-0 fw-bold text-info"><i class="ri-user-star-line me-2"></i>Tour Guide Booking #{{ $index + 1 }}</h6>
                                                 <div class="d-flex gap-2">
+                                                    @if($isActualTourStatus)
+                                                    <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ $actualRemoveServiceTooltip }}">
+                                                        <button type="button" class="btn btn-sm btn-outline-danger" disabled style="pointer-events: none;" aria-disabled="true">
+                                                            <i class="ri-delete-bin-line"></i> Remove
+                                                        </button>
+                                                    </span>
+                                                    @else
                                                     <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeGuideService({{ $order->booking_id }})">
                                                         <i class="ri-delete-bin-line"></i> Remove
                                                     </button>
+                                                    @endif
                                                 </div>
                                             </div>
                                             <div class="row g-3">
@@ -4872,9 +4970,17 @@
                                             <div class="d-flex justify-content-between align-items-center mb-3">
                                                 <h6 class="mb-0 fw-bold text-success"><i class="ri-restaurant-line me-2"></i>Restaurant Booking #{{ $index + 1 }}</h6>
                                                 <div class="d-flex gap-2">
+                                                    @if($isActualTourStatus)
+                                                    <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ $actualRemoveServiceTooltip }}">
+                                                        <button type="button" class="btn btn-sm btn-outline-danger" disabled style="pointer-events: none;" aria-disabled="true">
+                                                            <i class="ri-delete-bin-line"></i> Remove
+                                                        </button>
+                                                    </span>
+                                                    @else
                                                     <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeRestaurantService({{ $order->booking_id }})">
                                                         <i class="ri-delete-bin-line"></i> Remove
                                                     </button>
+                                                    @endif
                                                 </div>
                                             </div>
                                             
@@ -5260,9 +5366,17 @@
                                                     <div class="d-flex justify-content-between align-items-center mb-3">
                                                         <h6 class="mb-0 fw-bold text-warning"><i class="ri-time-line me-2"></i>Hourly Transport #{{ $index + 1 }}</h6>
                                                         <div class="d-flex gap-2">
+                                                            @if($isActualTourStatus)
+                                                            <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ $actualRemoveServiceTooltip }}">
+                                                                <button type="button" class="btn btn-sm btn-outline-danger" disabled style="pointer-events: none;" aria-disabled="true">
+                                                                    <i class="ri-delete-bin-line"></i> Remove
+                                                                </button>
+                                                            </span>
+                                                            @else
                                                             <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTransportService({{ $order->booking_id }})">
                                                                 <i class="ri-delete-bin-line"></i> Remove
                                                             </button>
+                                                            @endif
                                                         </div>
                                                     </div>
                                                     <div class="row g-3">
@@ -5386,9 +5500,17 @@
                                                     <div class="d-flex justify-content-between align-items-center mb-3">
                                                         <h6 class="mb-0 fw-bold text-info"><i class="ri-map-pin-2-line me-2"></i>Point-to-Point Transport #{{ $index + 1 }}</h6>
                                                         <div class="d-flex gap-2">
+                                                            @if($isActualTourStatus)
+                                                            <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ $actualRemoveServiceTooltip }}">
+                                                                <button type="button" class="btn btn-sm btn-outline-danger" disabled style="pointer-events: none;" aria-disabled="true">
+                                                                    <i class="ri-delete-bin-line"></i> Remove
+                                                                </button>
+                                                            </span>
+                                                            @else
                                                             <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTransportService({{ $order->booking_id }})">
                                                                 <i class="ri-delete-bin-line"></i> Remove
                                                             </button>
+                                                            @endif
                                                         </div>
                                                     </div>
                                                     <div class="row g-3">
@@ -5561,9 +5683,17 @@
                                                     <div class="d-flex justify-content-between align-items-center mb-3">
                                                         <h6 class="mb-0 fw-bold text-secondary"><i class="ri-taxi-line me-2"></i>Local Transport #{{ $index + 1 }}</h6>
                                                         <div class="d-flex gap-2">
+                                                            @if($isActualTourStatus)
+                                                            <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ $actualRemoveServiceTooltip }}">
+                                                                <button type="button" class="btn btn-sm btn-outline-danger" disabled style="pointer-events: none;" aria-disabled="true">
+                                                                    <i class="ri-delete-bin-line"></i> Remove
+                                                                </button>
+                                                            </span>
+                                                            @else
                                                             <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTransportService({{ $order->booking_id }})">
                                                                 <i class="ri-delete-bin-line"></i> Remove
                                                             </button>
+                                                            @endif
                                                         </div>
                                                     </div>
                                                     <div class="row g-3">
@@ -5768,10 +5898,6 @@
                                     </div>
                                 </div>
                             </div>
-                            
-                            
-
-                            
 
                             <!-- Departure Transport Services Section -->
                             <div class="service-section mb-3">
@@ -5826,9 +5952,17 @@
                                                     <div class="d-flex justify-content-between align-items-center mb-3">
                                                         <h6 class="mb-0 fw-bold text-danger"><i class="ri-logout-circle-line me-2"></i>Departure Transfer #{{ $index + 1 }}</h6>
                                                         <div class="d-flex gap-2">
+                                                            @if($isActualTourStatus)
+                                                            <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ $actualRemoveServiceTooltip }}">
+                                                                <button type="button" class="btn btn-sm btn-outline-danger" disabled style="pointer-events: none;" aria-disabled="true">
+                                                                    <i class="ri-delete-bin-line"></i> Remove
+                                                                </button>
+                                                            </span>
+                                                            @else
                                                             <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTransportService({{ $order->booking_id }})">
                                                                 <i class="ri-delete-bin-line"></i> Remove
                                                             </button>
+                                                            @endif
                                                         </div>
                                                     </div>
                                                     <div class="row g-3">
@@ -11944,6 +12078,13 @@
         initializeTravelDateRangePicker();
         initializeInlineTransportToggles();
         initializeTransportDynamicFeatures();
+        if (window.isActualTourStatus && typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+            document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function (el) {
+                if (!bootstrap.Tooltip.getInstance(el)) {
+                    new bootstrap.Tooltip(el);
+                }
+            });
+        }
         setTimeout(function() {
             if (typeof window.lockSingleCityFieldIfNeeded === 'function') {
                 window.lockSingleCityFieldIfNeeded();
@@ -11958,11 +12099,19 @@
 
         if (!rangeInput || !startDateInput || !endDateInput) return;
 
+        const lockTravelDates = !!window.isActualTourStatus;
+
         // If the date-range picker library isn't present, fall back to showing the two native date inputs.
         if (typeof $ === 'undefined' || !$.fn || typeof $.fn.daterangepicker === 'undefined' || typeof moment === 'undefined') {
             rangeInput.classList.add('d-none');
             startDateInput.classList.remove('d-none');
             endDateInput.classList.remove('d-none');
+            if (lockTravelDates) {
+                startDateInput.readOnly = true;
+                endDateInput.readOnly = true;
+                startDateInput.setAttribute('title', "Travel dates can't be changed in Actual Status.");
+                endDateInput.setAttribute('title', "Travel dates can't be changed in Actual Status.");
+            }
             return;
         }
 
@@ -12003,6 +12152,18 @@
         const initialStart = safeParseYmd(startDateInput.value) || today;
         const initialEnd = safeParseYmd(endDateInput.value) || initialStart;
         const minDate = initialStart && initialStart.isValid() && initialStart.isBefore(today) ? initialStart : today;
+
+        // Actual tours: show dates as read-only, do not open the picker.
+        if (lockTravelDates) {
+            setHiddenAndNotify(initialStart, initialEnd);
+            syncDisplayFromHidden();
+            rangeInput.readOnly = true;
+            rangeInput.disabled = true;
+            rangeInput.setAttribute('title', "Travel dates can't be changed in Actual Status.");
+            startDateInput.readOnly = true;
+            endDateInput.readOnly = true;
+            return;
+        }
 
         $(rangeInput).daterangepicker({
             autoUpdateInput: false,
@@ -12464,11 +12625,45 @@
         initializeExistingAttractionTimeSlots();
     });
     
+    // AI/day-level names often arrive as "Name - Location". Map the selected
+    // option onto the catalog row that actually has tickets/time slots.
+    function resolveCatalogAttractionOption(attractionSelect) {
+        if (!attractionSelect || !attractionSelect.options) {
+            return null;
+        }
+        const selectedOption = attractionSelect.options[attractionSelect.selectedIndex];
+        if (selectedOption && selectedOption.getAttribute('data-attraction-data')) {
+            return selectedOption;
+        }
+        const normalize = (value) => (value || '').replace(/\s+/g, ' ').trim().toLowerCase();
+        const selectedText = normalize((selectedOption && selectedOption.textContent) || '');
+        const selectedVal = normalize(attractionSelect.value || '');
+        if (!selectedText && !selectedVal) {
+            return selectedOption || null;
+        }
+        for (let i = 0; i < attractionSelect.options.length; i++) {
+            const opt = attractionSelect.options[i];
+            if (!opt.value || !opt.getAttribute('data-attraction-data')) {
+                continue;
+            }
+            const optText = normalize(opt.textContent);
+            const optVal = normalize(opt.value);
+            if (
+                (selectedText && (optText === selectedText || optVal === selectedText || selectedText.startsWith(optVal + ' - ')))
+                || (selectedVal && (optVal === selectedVal || optText === selectedVal || selectedVal.startsWith(optVal + ' - ')))
+            ) {
+                attractionSelect.selectedIndex = i;
+                return opt;
+            }
+        }
+        return selectedOption || null;
+    }
+
     // Function to populate time slot select from attraction data
     function populateTimeSlotFromAttraction(attractionSelect, timeSlotSelect, currentValue = '') {
         if (!attractionSelect || !timeSlotSelect) return;
         
-        const selectedOption = attractionSelect.options[attractionSelect.selectedIndex];
+        const selectedOption = resolveCatalogAttractionOption(attractionSelect);
         if (!selectedOption || !selectedOption.getAttribute('data-attraction-data')) {
             timeSlotSelect.innerHTML = '<option value="">Select Time Slot</option>';
             return;
@@ -12557,7 +12752,7 @@
         const ticketSelect = typeof ticketSelectId === 'string' ? document.getElementById(ticketSelectId) : ticketSelectId;
         if (!ticketSelect) return;
         
-        const selectedOption = attractionSelect.options[attractionSelect.selectedIndex];
+        const selectedOption = resolveCatalogAttractionOption(attractionSelect);
         if (!selectedOption || !selectedOption.getAttribute('data-attraction-data')) {
             ticketSelect.innerHTML = '<option value="">Select Ticket</option>';
             return;
@@ -12582,8 +12777,14 @@
             }
             
             // Populate tickets from attraction data
-            if (attractionData.tickets && Array.isArray(attractionData.tickets) && attractionData.tickets.length > 0) {
-                attractionData.tickets.forEach(ticket => {
+            let tickets = attractionData.tickets;
+            if (tickets && !Array.isArray(tickets) && typeof tickets === 'object') {
+                tickets = Object.values(tickets);
+            }
+            const genericTicket = !currentValue || ['n/a', 'general ticket', 'select ticket'].includes(String(currentValue).trim().toLowerCase());
+            if (tickets && Array.isArray(tickets) && tickets.length > 0) {
+                let matched = false;
+                tickets.forEach(ticket => {
                     const ticketOption = document.createElement('option');
                     // Use ticket name as value, or ticket_id if name is not available
                     const ticketValue = ticket.name || ticket.ticket_name || ticket.ticket_id || '';
@@ -12593,16 +12794,20 @@
                     // Price data for inline edit form total calculation
                     const adultPrice = parseFloat(ticket.adult_price ?? ticket.price ?? 0) || 0;
                     const childPrice = parseFloat(ticket.child_price ?? 0) || 0;
-                    const seniorPrice = parseFloat(ticket.senior_price ?? ticket.adult_price ?? ticket.price ?? 0) || 0;
+                    const seniorPrice = parseFloat(ticket.senior_price ?? ticket.senior_adult_price ?? ticket.adult_price ?? ticket.price ?? 0) || 0;
                     ticketOption.dataset.adultPrice = adultPrice;
                     ticketOption.dataset.childPrice = childPrice;
                     ticketOption.dataset.seniorPrice = seniorPrice;
                     // Set selected if it matches current value
-                    if (currentValue && (ticketValue === currentValue || ticketText === currentValue)) {
+                    if (!genericTicket && currentValue && (ticketValue === currentValue || ticketText === currentValue)) {
                         ticketOption.selected = true;
+                        matched = true;
                     }
                     ticketSelect.appendChild(ticketOption);
                 });
+                if (!matched && ticketSelect.options.length > 1) {
+                    ticketSelect.selectedIndex = 1;
+                }
             } else {
                 // If no tickets found, show message
                 const noTicketOption = document.createElement('option');
@@ -24140,6 +24345,12 @@
     
     function removeService(orderId, serviceType) {
         console.log(`removeService called with orderId: ${orderId}, serviceType: ${serviceType}`);
+
+        const normalizedStatus = String(window.removeServicePageTourStatus || (typeof __tourStatus !== 'undefined' ? __tourStatus : '') || '').toLowerCase().trim();
+        if (window.isActualTourStatus || normalizedStatus === 'actual') {
+            showNotification("Services can't be removed in Actual Status.", 'error');
+            return;
+        }
         
         showRemoveServiceAlert(serviceType, () => {
             showNotification(`Removing ${serviceType} service...`, 'info');
@@ -24153,7 +24364,6 @@
 
             const url = "{{ route('api.orders.cancel', ':orderId') }}".replace(':orderId', orderId);
             const tourId = document.getElementById('tour_id')?.value || '';
-            const normalizedStatus = String(window.removeServicePageTourStatus || __tourStatus || '').toLowerCase();
             const isDefiniteOrActual = ['definite', 'actual'].includes(normalizedStatus);
             
             fetch(url, {

@@ -368,6 +368,31 @@
         .restaurant-transfer-panel .day-service-transfer-panel__icon {
             background: #e6f7f1;
         }
+        .need-transfer-row {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.55rem 0.85rem;
+            margin-top: 0.55rem;
+            padding: 0.4rem 0.55rem;
+            border: 1px solid #e4ebf5;
+            border-radius: var(--dl-radius);
+            background: #fff;
+        }
+        .need-transfer-row__label {
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: #3c4d6d;
+            margin: 0;
+        }
+        .need-transfer-row .form-check {
+            margin: 0;
+            min-height: auto;
+        }
+        .need-transfer-row .form-check-label {
+            font-size: 0.76rem;
+            color: #51627f;
+        }
         .day-group-msg {
             display: none;
             margin-top: 0.5rem;
@@ -1149,7 +1174,11 @@
                                             <option value="">Select room first</option>
                                         </select>
                                     </div>
-                                    <div class="col-lg-3 col-md-6">
+                                    <div class="col-lg-2 col-md-6">
+                                        <label class="form-label" for="hotel_bed_capacity">Bed Capacity</label>
+                                        <input type="text" class="form-control" id="hotel_bed_capacity" value="" placeholder="—" readonly>
+                                    </div>
+                                    <div class="col-lg-4 col-md-6">
                                         <label class="form-label" for="hotel_meal_plan">Meal</label>
                                         <select id="hotel_meal_plan" class="form-select searchable-select">
                                             <option value="">Select meal plan</option>
@@ -2217,6 +2246,7 @@
                 if (opt.data_type_label !== undefined) op.dataset.typeLabel = String(opt.data_type_label);
                 if (opt.data_meal_name !== undefined) op.dataset.mealName = String(opt.data_meal_name);
                 if (opt.data_meal_period !== undefined) op.dataset.mealPeriod = String(opt.data_meal_period);
+                if (opt.max_occupancy !== undefined) op.dataset.maxOccupancy = String(opt.max_occupancy);
                 select.appendChild(op);
             });
             initSearchableSelects(select);
@@ -2956,7 +2986,18 @@
                                         <button type="button" class="btn btn-outline-primary w-100 mt-4" id="attraction_add_btn_${d}" onclick="addAttractionItemForDay(${d})">Add Attraction</button>
                                     </div>
                                 </div>
-                                <div class="day-service-transfer-panel attraction-transfer-panel" id="attraction_transfer_panel_${d}">
+                                <div class="need-transfer-row" id="attraction_need_transfer_row_${d}">
+                                    <span class="need-transfer-row__label">Need transfer?</span>
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="radio" name="attraction_need_transfer_${d}" id="attraction_need_transfer_no_${d}" value="no" checked>
+                                        <label class="form-check-label" for="attraction_need_transfer_no_${d}">No</label>
+                                    </div>
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="radio" name="attraction_need_transfer_${d}" id="attraction_need_transfer_yes_${d}" value="yes">
+                                        <label class="form-check-label" for="attraction_need_transfer_yes_${d}">Yes</label>
+                                    </div>
+                                </div>
+                                <div class="day-service-transfer-panel attraction-transfer-panel" id="attraction_transfer_panel_${d}" style="display:none;">
                                     <div class="day-service-transfer-panel__header">
                                         <span class="day-service-transfer-panel__icon" aria-hidden="true">🚐</span>
                                         <div>
@@ -2978,11 +3019,12 @@
                                             </select>
                                         </div>
                                         <div class="col-md-2">
-                                            <label class="form-label" for="attraction_transfer_price_${d}">Transfer Price</label>
+                                            <label class="form-label" for="attraction_transfer_price_${d}">Transfer Price <span class="small text-muted fw-normal">(zone auto)</span></label>
                                             <div class="input-group price-input-group">
                                                 <span class="input-group-text">{{ $dmcCurrency }}</span>
-                                                <input type="number" class="form-control" id="attraction_transfer_price_${d}" min="0" step="0.01" placeholder="0.00">
+                                                <input type="number" class="form-control transfer-zone-price-input" id="attraction_transfer_price_${d}" data-transfer-prefix="attraction_transfer" min="0" step="0.01" placeholder="0.00" readonly>
                                             </div>
+                                            <small class="text-muted d-block mt-1" id="attraction_transfer_vehicle_hint_${d}">Select pickup &amp; drop for zone vehicle/price</small>
                                         </div>
                                         <div class="col-md-2 d-flex">
                                             <button type="button" class="btn btn-outline-primary w-100 mt-4" id="attraction_transfer_add_btn_${d}" onclick="addAttractionTransferItemForDay(${d})">Add Transfer</button>
@@ -3031,7 +3073,18 @@
                                         <button type="button" class="btn btn-outline-primary w-100 mt-4" id="restaurant_add_btn_${d}" onclick="addRestaurantItemForDay(${d})">Add Restaurant</button>
                                     </div>
                                 </div>
-                                <div class="day-service-transfer-panel restaurant-transfer-panel" id="restaurant_transfer_panel_${d}">
+                                <div class="need-transfer-row" id="restaurant_need_transfer_row_${d}">
+                                    <span class="need-transfer-row__label">Need transfer?</span>
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="radio" name="restaurant_need_transfer_${d}" id="restaurant_need_transfer_no_${d}" value="no" checked>
+                                        <label class="form-check-label" for="restaurant_need_transfer_no_${d}">No</label>
+                                    </div>
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="radio" name="restaurant_need_transfer_${d}" id="restaurant_need_transfer_yes_${d}" value="yes">
+                                        <label class="form-check-label" for="restaurant_need_transfer_yes_${d}">Yes</label>
+                                    </div>
+                                </div>
+                                <div class="day-service-transfer-panel restaurant-transfer-panel" id="restaurant_transfer_panel_${d}" style="display:none;">
                                     <div class="day-service-transfer-panel__header">
                                         <span class="day-service-transfer-panel__icon" aria-hidden="true">🚐</span>
                                         <div>
@@ -3053,11 +3106,12 @@
                                         </select>
                                     </div>
                                         <div class="col-md-2">
-                                            <label class="form-label" for="restaurant_transfer_price_${d}">Transfer Price</label>
+                                            <label class="form-label" for="restaurant_transfer_price_${d}">Transfer Price <span class="small text-muted fw-normal">(zone auto)</span></label>
                                             <div class="input-group price-input-group">
                                                 <span class="input-group-text">{{ $dmcCurrency }}</span>
-                                                <input type="number" class="form-control" id="restaurant_transfer_price_${d}" min="0" step="0.01" placeholder="0.00">
-                                    </div>
+                                                <input type="number" class="form-control transfer-zone-price-input" id="restaurant_transfer_price_${d}" data-transfer-prefix="restaurant_transfer" min="0" step="0.01" placeholder="0.00" readonly>
+                                            </div>
+                                            <small class="text-muted d-block mt-1" id="restaurant_transfer_vehicle_hint_${d}">Select pickup &amp; drop for zone vehicle/price</small>
                                         </div>
                                         <div class="col-md-2 d-flex">
                                             <button type="button" class="btn btn-outline-primary w-100 mt-4" id="restaurant_transfer_add_btn_${d}" onclick="addRestaurantTransferItemForDay(${d})">Add Transfer</button>
@@ -3092,11 +3146,12 @@
                                         </select>
                                     </div>
                                         <div class="col-md-2">
-                                            <label class="form-label" for="arrival_price_${d}">Transfer Price <span class="small text-muted fw-normal">(zone auto / manual)</span></label>
+                                            <label class="form-label" for="arrival_price_${d}">Transfer Price <span class="small text-muted fw-normal">(zone auto)</span></label>
                                             <div class="input-group price-input-group">
                                                 <span class="input-group-text">{{ $dmcCurrency }}</span>
-                                                <input type="number" class="form-control transfer-leg-price-input" id="arrival_price_${d}" data-transfer-prefix="arrival" min="0" step="0.01" placeholder="0.00">
+                                                <input type="number" class="form-control transfer-zone-price-input" id="arrival_price_${d}" data-transfer-prefix="arrival" min="0" step="0.01" placeholder="0.00" readonly>
                                             </div>
+                                            <small class="text-muted d-block mt-1" id="arrival_vehicle_hint_${d}">Select pickup &amp; drop for zone vehicle/price</small>
                                         </div>
                                     <div class="col-md-2 d-flex">
                                             <button type="button" class="btn btn-outline-primary w-100 mt-4" id="arrival_add_btn_${d}" onclick="addArrivalItemForDay(${d})">Add Arrival</button>
@@ -3125,11 +3180,12 @@
                                         </select>
                                     </div>
                                         <div class="col-md-2">
-                                            <label class="form-label" for="departure_price_${d}">Transfer Price <span class="small text-muted fw-normal">(zone auto / manual)</span></label>
+                                            <label class="form-label" for="departure_price_${d}">Transfer Price <span class="small text-muted fw-normal">(zone auto)</span></label>
                                             <div class="input-group price-input-group">
                                                 <span class="input-group-text">{{ $dmcCurrency }}</span>
-                                                <input type="number" class="form-control transfer-leg-price-input" id="departure_price_${d}" data-transfer-prefix="departure" min="0" step="0.01" placeholder="0.00">
+                                                <input type="number" class="form-control transfer-zone-price-input" id="departure_price_${d}" data-transfer-prefix="departure" min="0" step="0.01" placeholder="0.00" readonly>
                                             </div>
+                                            <small class="text-muted d-block mt-1" id="departure_vehicle_hint_${d}">Select pickup &amp; drop for zone vehicle/price</small>
                                         </div>
                                     <div class="col-md-2 d-flex">
                                             <button type="button" class="btn btn-outline-primary w-100 mt-4" id="departure_add_btn_${d}" onclick="addDepartureItemForDay(${d})">Add Departure</button>
@@ -3547,6 +3603,7 @@
                                 room_type: String(h.room_type || ''),
                                 bed_id: String(h.bed_id || ''),
                                 bed_type: String(h.bed_type || ''),
+                                max_occupancy: parseInt(String(h.max_occupancy || 0), 10) || 0,
                                 meal_plan: String(h.meal_plan || ''),
                                 meal_type: String(h.meal_type || ''),
                                 guide_required: String(h.guide_required || 'No'),
@@ -4380,18 +4437,138 @@
             }
         }
 
+        function setTransferZoneVehicleHint(prefix, dayVal, text) {
+            const d = parseInt(String(dayVal || 1), 10) || 1;
+            const el = document.getElementById(`${prefix}_vehicle_hint_${d}`);
+            if (el) el.textContent = text || '';
+        }
+
+        function clearTransferZoneMeta(prefix, dayVal) {
+            const d = parseInt(String(dayVal || 1), 10) || 1;
+            const priceEl = document.getElementById(`${prefix}_price_${d}`);
+            if (priceEl) {
+                delete priceEl.dataset.zoneAuto;
+                delete priceEl.dataset.vehicleId;
+                delete priceEl.dataset.vehicleName;
+            }
+            setTransferZoneVehicleHint(prefix, d, 'Select pickup & drop for zone vehicle/price');
+        }
+
+        function getTransferZoneMeta(prefix, dayVal) {
+            const d = parseInt(String(dayVal || 1), 10) || 1;
+            const priceEl = document.getElementById(`${prefix}_price_${d}`);
+            return {
+                vehicle_id: String(priceEl?.dataset?.vehicleId || '').trim(),
+                vehicle_name: String(priceEl?.dataset?.vehicleName || '').trim(),
+                zone_auto: priceEl?.dataset?.zoneAuto === '1',
+            };
+        }
+
+        function ensureZoneTransferReady(prefix, dayVal, groupKey, options = {}) {
+            const d = parseInt(String(dayVal || 1), 10) || 1;
+            const pickup = String(document.getElementById(`${prefix}_pickup_select_${d}`)?.value || '').trim();
+            const drop = String(document.getElementById(`${prefix}_drop_select_${d}`)?.value || '').trim();
+            const requireBoth = options.requireBoth === true;
+            if (!pickup && !drop && !requireBoth) return true;
+            if (!pickup || !drop) {
+                showDayGroupMessage(d, groupKey, 'Please select both pickup and drop locations for transfer.');
+                return false;
+            }
+            const price = parseDayTransferPriceInput(prefix, d);
+            const meta = getTransferZoneMeta(prefix, d);
+            if (!(price > 0) || !meta.zone_auto) {
+                showDayGroupMessage(d, groupKey, 'No zone price found for this pickup/drop. Check zone mapping / default vehicle, then try again.');
+                return false;
+            }
+            return true;
+        }
+
+        function isNeedServiceTransfer(kind, dayVal) {
+            const d = parseInt(String(dayVal || 1), 10) || 1;
+            const yesEl = document.getElementById(`${kind}_need_transfer_yes_${d}`);
+            return !!(yesEl && yesEl.checked);
+        }
+
+        function setNeedServiceTransfer(kind, dayVal, needed, options = {}) {
+            const d = parseInt(String(dayVal || 1), 10) || 1;
+            const yesEl = document.getElementById(`${kind}_need_transfer_yes_${d}`);
+            const noEl = document.getElementById(`${kind}_need_transfer_no_${d}`);
+            const wantYes = !!needed;
+            if (yesEl) yesEl.checked = wantYes;
+            if (noEl) noEl.checked = !wantYes;
+            toggleServiceTransferPanel(kind, d, {
+                clearWhenNo: options.clearWhenNo !== false && !wantYes,
+            });
+        }
+
+        function clearServiceTransferFields(kind, dayVal) {
+            const d = parseInt(String(dayVal || 1), 10) || 1;
+            const prefix = kind === 'restaurant' ? 'restaurant_transfer' : 'attraction_transfer';
+            safeSetSelectValue(`${prefix}_pickup_select_${d}`, '');
+            safeSetSelectValue(`${prefix}_drop_select_${d}`, '');
+            setDayTransferPriceInput(prefix, d, 0);
+            clearTransferZoneMeta(prefix, d);
+            if (kind === 'attraction') {
+                dayTransferExtras[d] = [];
+                renderExtraTransferRows(d);
+            }
+        }
+
+        function toggleServiceTransferPanel(kind, dayVal, options = {}) {
+            const d = parseInt(String(dayVal || 1), 10) || 1;
+            const panel = document.getElementById(`${kind}_transfer_panel_${d}`);
+            const needed = isNeedServiceTransfer(kind, d);
+            if (panel) {
+                panel.style.display = needed ? '' : 'none';
+            }
+            if (!needed && options.clearWhenNo !== false) {
+                clearServiceTransferFields(kind, d);
+            }
+        }
+
+        function emptyServiceTransferPayload(kind, dayVal) {
+            const d = parseInt(String(dayVal || 1), 10) || 1;
+            const transferType = kind === 'restaurant' ? 'Restaurant Transfer' : 'Attraction Transfer';
+            return {
+                required: 'No',
+                transfer_type: transferType,
+                city: getCityNameFromSelect(`activity_city_select_${d}`) || getCityNameFromSelect(`transfer_city_select_${d}`) || '',
+                type: '',
+                vehicle_id: '',
+                vehicle_name: '',
+                pickup_location: '',
+                pickup_location_value: '',
+                pickup_location_label: '',
+                pickup_location_id: '',
+                drop_location: '',
+                drop_location_value: '',
+                drop_location_label: '',
+                drop_location_id: '',
+                cost: 0,
+                transfer_price: 0,
+                pickup_time: '',
+                additional_transfers: [],
+            };
+        }
+
         async function fetchTransferZonePrice(prefix, dayVal) {
             if (isPrefillingActivityForm) return;
             const legPrefix = String(prefix || '').trim().toLowerCase();
-            if (legPrefix !== 'arrival' && legPrefix !== 'departure') return;
+            const supported = ['arrival', 'departure', 'attraction_transfer', 'restaurant_transfer'];
+            if (!supported.includes(legPrefix)) return;
 
             const d = parseInt(String(dayVal || 1), 10) || 1;
             const pickup = String(document.getElementById(`${legPrefix}_pickup_select_${d}`)?.value || '').trim();
             const drop = String(document.getElementById(`${legPrefix}_drop_select_${d}`)?.value || '').trim();
-            if (!pickup || !drop) return;
-
             const priceEl = document.getElementById(`${legPrefix}_price_${d}`);
-            if (!priceEl || priceEl.dataset.manualPrice === '1') return;
+
+            if (!pickup || !drop) {
+                setDayTransferPriceInput(legPrefix, d, 0);
+                clearTransferZoneMeta(legPrefix, d);
+                return;
+            }
+
+            if (!priceEl) return;
 
             const dmcId = document.getElementById('dmc_id')?.value || '';
             const params = new URLSearchParams({
@@ -4401,21 +4578,41 @@
                 dmc_id: String(dmcId),
             });
 
+            setTransferZoneVehicleHint(legPrefix, d, 'Looking up zone vehicle/price…');
+
             try {
                 const res = await fetch(`${DAY_LEVEL_ROUTES.transferZonePrice}?${params.toString()}`);
                 if (!res.ok) return;
                 const data = await res.json();
-                if (priceEl.dataset.manualPrice === '1') return;
 
+                const vehicleId = String(data?.vehicle_id || '').trim();
+                const vehicleName = String(data?.vehicle_name || '').trim();
                 if (data?.zone_mapped && parseFloat(data.price) > 0) {
                     setDayTransferPriceInput(legPrefix, d, data.price);
                     priceEl.dataset.zoneAuto = '1';
-                } else if (priceEl.dataset.zoneAuto === '1') {
+                    delete priceEl.dataset.manualPrice;
+                    if (vehicleId) priceEl.dataset.vehicleId = vehicleId;
+                    else delete priceEl.dataset.vehicleId;
+                    if (vehicleName) priceEl.dataset.vehicleName = vehicleName;
+                    else delete priceEl.dataset.vehicleName;
+                    setTransferZoneVehicleHint(
+                        legPrefix,
+                        d,
+                        vehicleName
+                            ? `Vehicle: ${vehicleName}`
+                            : (vehicleId ? `Vehicle ID: ${vehicleId}` : 'Zone price applied')
+                    );
+                } else {
                     setDayTransferPriceInput(legPrefix, d, 0);
                     delete priceEl.dataset.zoneAuto;
+                    delete priceEl.dataset.vehicleId;
+                    delete priceEl.dataset.vehicleName;
+                    setTransferZoneVehicleHint(legPrefix, d, 'No zone mapping/price for this pickup & drop');
                 }
             } catch (e) {
-                // Zone lookup failed — user can enter price manually.
+                setDayTransferPriceInput(legPrefix, d, 0);
+                clearTransferZoneMeta(legPrefix, d);
+                setTransferZoneVehicleHint(legPrefix, d, 'Zone price lookup failed');
             }
         }
 
@@ -4427,6 +4624,8 @@
                 if (shouldShowDepartureForDay(d)) {
                     fetchTransferZonePrice('departure', d);
                 }
+                fetchTransferZonePrice('attraction_transfer', d);
+                fetchTransferZonePrice('restaurant_transfer', d);
             }
         }
 
@@ -4535,7 +4734,25 @@
                 || !!(transfer.pickup_location || transfer.drop_location || transfer.city)
                 || transferCost > 0
                 || (Array.isArray(transfer.additional_transfers) && transfer.additional_transfers.length > 0);
-            if (!hasTransferData) return;
+            if (!hasTransferData) {
+                if (String(itemType || '').toLowerCase() === 'restaurant') {
+                    setNeedServiceTransfer('restaurant', rowDay, false, { clearWhenNo: false });
+                } else if (String(itemType || '').toLowerCase() === 'attraction') {
+                    setNeedServiceTransfer('attraction', rowDay, false, { clearWhenNo: false });
+                }
+                return;
+            }
+
+            const tTypeLower = String(transferType || '').trim().toLowerCase();
+            if (tTypeLower.includes('restaurant') || String(itemType || '').toLowerCase() === 'restaurant') {
+                setNeedServiceTransfer('restaurant', rowDay, true, { clearWhenNo: false });
+            } else if (
+                tTypeLower.includes('attraction')
+                || tTypeLower.includes('day transfer')
+                || (String(itemType || '').toLowerCase() === 'attraction' && !tTypeLower.includes('arrival') && !tTypeLower.includes('departure'))
+            ) {
+                setNeedServiceTransfer('attraction', rowDay, true, { clearWhenNo: false });
+            }
 
             const extraRows = Array.isArray(transfer.additional_transfers)
                 ? transfer.additional_transfers
@@ -4598,10 +4815,22 @@
 
             const pricePrefix = resolveTransferPriceFieldPrefix(transferType, itemType);
             setDayTransferPriceInput(pricePrefix, rowDay, transferCost);
-            if (transferCost > 0 && (pricePrefix === 'arrival' || pricePrefix === 'departure')) {
+            if (transferCost > 0) {
                 const savedPriceEl = document.getElementById(`${pricePrefix}_price_${rowDay}`);
                 if (savedPriceEl) {
-                    savedPriceEl.dataset.manualPrice = '1';
+                    savedPriceEl.dataset.zoneAuto = '1';
+                    delete savedPriceEl.dataset.manualPrice;
+                    const vehicleId = String(transfer.vehicle_id || '').trim();
+                    const vehicleName = String(transfer.vehicle_name || '').trim();
+                    if (vehicleId) savedPriceEl.dataset.vehicleId = vehicleId;
+                    if (vehicleName) savedPriceEl.dataset.vehicleName = vehicleName;
+                    setTransferZoneVehicleHint(
+                        pricePrefix,
+                        rowDay,
+                        vehicleName
+                            ? `Vehicle: ${vehicleName}`
+                            : (vehicleId ? `Vehicle ID: ${vehicleId}` : 'Zone price applied')
+                    );
                 }
             }
             renderExtraTransferRows(rowDay);
@@ -4609,6 +4838,9 @@
 
         function getAttractionTransferPayload(dayVal) {
             const d = parseInt(String(dayVal || 1), 10) || 1;
+            if (!isNeedServiceTransfer('attraction', d)) {
+                return emptyServiceTransferPayload('attraction', d);
+            }
             const pickupSelectId = `attraction_transfer_pickup_select_${d}`;
             const dropSelectId = `attraction_transfer_drop_select_${d}`;
             const pickupVal = String(document.getElementById(pickupSelectId)?.value || '').trim();
@@ -4631,12 +4863,16 @@
                 };
             });
             const transferPrice = parseDayTransferPriceInput('attraction_transfer', d);
+            const zoneMeta = getTransferZoneMeta('attraction_transfer', d);
             const hasPrimaryTransfer = !!pickupVal || !!dropVal || transferPrice > 0;
             ensureDayTransferExtras(d);
             return {
                 required: (hasPrimaryTransfer || extras.length) ? 'Yes' : 'No',
                 transfer_type: 'Attraction Transfer',
                 city: getCityNameFromSelect(`activity_city_select_${d}`) || getCityNameFromSelect(`transfer_city_select_${d}`) || '',
+                type: 'private',
+                vehicle_id: zoneMeta.vehicle_id,
+                vehicle_name: zoneMeta.vehicle_name,
                 pickup_location: pickupFields.location,
                 pickup_location_value: pickupFields.location_value,
                 pickup_location_label: pickupFields.location_label,
@@ -4651,6 +4887,9 @@
 
         function getRestaurantTransferPayload(dayVal) {
             const d = parseInt(String(dayVal || 1), 10) || 1;
+            if (!isNeedServiceTransfer('restaurant', d)) {
+                return emptyServiceTransferPayload('restaurant', d);
+            }
             const pickupSelectId = `restaurant_transfer_pickup_select_${d}`;
             const dropSelectId = `restaurant_transfer_drop_select_${d}`;
             const pickupVal = String(document.getElementById(pickupSelectId)?.value || '').trim();
@@ -4658,14 +4897,15 @@
             const pickupFields = buildStoredTransferLocationFields(pickupSelectId, pickupVal);
             const dropFields = buildStoredTransferLocationFields(dropSelectId, dropVal);
             const transferPrice = parseDayTransferPriceInput('restaurant_transfer', d);
+            const zoneMeta = getTransferZoneMeta('restaurant_transfer', d);
             return {
                 required: (pickupVal || dropVal || transferPrice > 0) ? 'Yes' : 'No',
                 transfer_type: 'Restaurant Transfer',
                 city: getCityNameFromSelect(`activity_city_select_${d}`) || getCityNameFromSelect(`transfer_city_select_${d}`) || '',
-                type: '',
+                type: 'private',
                 way: '',
-                vehicle_id: '',
-                vehicle_name: '',
+                vehicle_id: zoneMeta.vehicle_id,
+                vehicle_name: zoneMeta.vehicle_name,
                 pickup_location_id: pickupFields.location_value,
                 pickup_location: pickupFields.location,
                 pickup_location_value: pickupFields.location_value,
@@ -4695,10 +4935,14 @@
             const pickupFields = buildStoredTransferLocationFields(pickupSelectId, pickupVal);
             const dropFields = buildStoredTransferLocationFields(dropSelectId, dropVal);
             const transferPrice = parseDayTransferPriceInput('arrival', d);
+            const zoneMeta = getTransferZoneMeta('arrival', d);
             return {
                 required: 'Yes',
                 transfer_type: 'Arrival',
                 city: getCityNameFromSelect(`transfer_city_select_${d}`) || getCityNameFromSelect(`activity_city_select_${d}`) || '',
+                type: 'private',
+                vehicle_id: zoneMeta.vehicle_id,
+                vehicle_name: zoneMeta.vehicle_name,
                 pickup_location: pickupFields.location,
                 pickup_location_value: pickupFields.location_value,
                 pickup_location_label: pickupFields.location_label,
@@ -4725,10 +4969,14 @@
             const pickupFields = buildStoredTransferLocationFields(pickupSelectId, pickupVal);
             const dropFields = buildStoredTransferLocationFields(dropSelectId, dropVal);
             const transferPrice = parseDayTransferPriceInput('departure', d);
+            const zoneMeta = getTransferZoneMeta('departure', d);
             return {
                 required: 'Yes',
                 transfer_type: 'Departure',
                 city: getCityNameFromSelect(`transfer_city_select_${d}`) || getCityNameFromSelect(`activity_city_select_${d}`) || '',
+                type: 'private',
+                vehicle_id: zoneMeta.vehicle_id,
+                vehicle_name: zoneMeta.vehicle_name,
                 pickup_location: pickupFields.location,
                 pickup_location_value: pickupFields.location_value,
                 pickup_location_label: pickupFields.location_label,
@@ -4762,7 +5010,12 @@
             safeSetSelectValue(`departure_drop_select_${d}`, '');
             ['attraction_transfer', 'restaurant_transfer', 'arrival', 'departure'].forEach((prefix) => {
                 setDayTransferPriceInput(prefix, d, 0);
+                clearTransferZoneMeta(prefix, d);
+                const priceEl = document.getElementById(`${prefix}_price_${d}`);
+                if (priceEl) delete priceEl.dataset.manualPrice;
             });
+            setNeedServiceTransfer('attraction', d, false, { clearWhenNo: false });
+            setNeedServiceTransfer('restaurant', d, false, { clearWhenNo: false });
             const attractionPriceEl = document.getElementById(`attraction_price_${d}`);
             if (attractionPriceEl) attractionPriceEl.value = '0.00';
             const restaurantPriceEl = document.getElementById(`restaurant_price_${d}`);
@@ -5039,12 +5292,14 @@
             const roomOp = getSelectedOption('hotel_room_select');
             if (!roomOp || !roomOp.value) {
                 setSelectOptions('hotel_bed_select', [{ value: '', label: 'Select room first' }]);
+                updateHotelBedCapacityDisplay();
                 return;
             }
 
             const dmcId = document.getElementById('dmc_id').value || '';
             const url = `${DAY_LEVEL_ROUTES.bedsByRoom}?room_id=${encodeURIComponent(roomOp.value)}&dmc_id=${encodeURIComponent(dmcId)}`;
             setSelectOptions('hotel_bed_select', [{ value: '', label: 'Loading beds...' }]);
+            updateHotelBedCapacityDisplay();
 
             try {
                 const res = await fetch(url);
@@ -5055,15 +5310,33 @@
                 const beds = Array.isArray(data) ? data : [];
                 if (!beds.length) {
                     setSelectOptions('hotel_bed_select', [{ value: '', label: 'No beds available for this room' }]);
+                    updateHotelBedCapacityDisplay();
                     return;
                 }
                 setSelectOptions('hotel_bed_select', beds.map(bed => ({
                     value: String(bed.bed_id ?? ''),
                     label: String(bed.bed_type || bed.room_type || `Bed ${bed.bed_id}`),
+                    max_occupancy: parseInt(String(bed.max_occupancy ?? 0), 10) || 0,
                 })));
+                updateHotelBedCapacityDisplay();
             } catch (e) {
                 setSelectOptions('hotel_bed_select', [{ value: '', label: 'Error loading beds' }]);
+                updateHotelBedCapacityDisplay();
             }
+        }
+
+        function updateHotelBedCapacityDisplay() {
+            const capacityEl = document.getElementById('hotel_bed_capacity');
+            if (!capacityEl) return;
+            const bedOp = getSelectedOption('hotel_bed_select');
+            const capacity = parseInt(String(bedOp?.dataset?.maxOccupancy || ''), 10);
+            if (!bedOp || !bedOp.value || !Number.isFinite(capacity) || capacity <= 0) {
+                capacityEl.value = '';
+                capacityEl.placeholder = '—';
+                return;
+            }
+            capacityEl.value = String(capacity);
+            capacityEl.placeholder = '';
         }
 
         async function loadMealPlansForSelectedHotel() {
@@ -5358,6 +5631,7 @@
             document.getElementById('hotel_priority').value = '1';
             document.getElementById('hotelAddBtn').textContent = 'Add Hotel';
             editingHotelIndex = null;
+            updateHotelBedCapacityDisplay();
             toggleHotelMealTypeVisibility();
             toggleHotelTransferFields();
         }
@@ -5402,6 +5676,7 @@
                 room_type: roomOp.textContent || '',
                 bed_id: bedOp?.value || '',
                 bed_type: bedOp?.textContent || '',
+                max_occupancy: parseInt(String(bedOp?.dataset?.maxOccupancy || ''), 10) || 0,
                 meal_plan: mealPlanOp?.value || '',
                 meal_type: document.getElementById('hotel_meal_type')?.value || '',
                 guide_required: 'No',
@@ -5495,6 +5770,7 @@
             safeSetSelectValue('hotel_room_select', x.room_id || '');
             await loadBedsForSelectedRoom();
             safeSetSelectValue('hotel_bed_select', x.bed_id || '');
+            updateHotelBedCapacityDisplay();
             await loadMealPlansForSelectedHotel();
             safeSetSelectValue('hotel_meal_plan', x.meal_plan || '');
             toggleHotelMealTypeVisibility();
@@ -5566,7 +5842,7 @@
                             <td>${escapeHtml(String(x.night || 1))}</td>
                             <td>
                                 <div class="hotel-cell-title">${escapeHtml(formatHotelRoomMealSummary(x))}</div>
-                                ${x.bed_type ? `<div class="hotel-cell-meta">Bed: ${escapeHtml(x.bed_type)}</div>` : ''}
+                                ${x.bed_type ? `<div class="hotel-cell-meta">Bed: ${escapeHtml(x.bed_type)}${(parseInt(String(x.max_occupancy || 0), 10) > 0) ? ` (${escapeHtml(String(x.max_occupancy))} pax)` : ''}</div>` : ''}
                             </td>
                             <td class="text-end">
                                 <div class="hotel-price-night">${getDayCurrency()} ${perNight.toFixed(2)}</div>
@@ -5690,6 +5966,10 @@
                 showDayGroupMessage(normalizedDay, 'attraction', 'Please enter a valid ticket price.');
                 return false;
             }
+            if (isNeedServiceTransfer('attraction', normalizedDay)
+                && !ensureZoneTransferReady('attraction_transfer', normalizedDay, 'attraction', { requireBoth: true })) {
+                return false;
+            }
 
             const payload = {
                 day: normalizedDay,
@@ -5775,6 +6055,10 @@
 
             const periodOp = getSelectedOption(`restaurant_meal_period_${dayVal}`);
             const mealPrice = parseFloat(document.getElementById(`restaurant_price_${dayVal}`)?.value || '0') || 0;
+            if (isNeedServiceTransfer('restaurant', normalizedDay)
+                && !ensureZoneTransferReady('restaurant_transfer', normalizedDay, 'restaurant', { requireBoth: true })) {
+                return false;
+            }
             const payload = {
                 day: normalizedDay,
                 type: 'restaurant',
@@ -5831,6 +6115,12 @@
                 showDayGroupMessage(normalizedDay, 'attraction', 'Please choose an attraction first, then add its transfer.');
                 return false;
             }
+            if (!isNeedServiceTransfer('attraction', normalizedDay)) {
+                setNeedServiceTransfer('attraction', normalizedDay, true, { clearWhenNo: false });
+            }
+            if (!ensureZoneTransferReady('attraction_transfer', normalizedDay, 'attraction', { requireBoth: true })) {
+                return false;
+            }
             if (hasAttraction) {
                 // Attraction + transfer are stored as one combined entry.
                 return addAttractionItemForDay(normalizedDay);
@@ -5847,6 +6137,12 @@
             const editingTransferOnly = !!(editingItem && !String(editingItem.id || '').trim());
             if (!hasRestaurant && !editingTransferOnly) {
                 showDayGroupMessage(normalizedDay, 'restaurant', 'Please choose a restaurant first, then add its transfer.');
+                return false;
+            }
+            if (!isNeedServiceTransfer('restaurant', normalizedDay)) {
+                setNeedServiceTransfer('restaurant', normalizedDay, true, { clearWhenNo: false });
+            }
+            if (!ensureZoneTransferReady('restaurant_transfer', normalizedDay, 'restaurant', { requireBoth: true })) {
                 return false;
             }
             if (hasRestaurant) {
@@ -5867,6 +6163,9 @@
                 showDayGroupMessage(normalizedDay, 'arrival', 'Please select pickup and drop location first, then add the arrival.');
                 return false;
             }
+            if (!ensureZoneTransferReady('arrival', normalizedDay, 'arrival', { requireBoth: true })) {
+                return false;
+            }
             const transferPayload = getArrivalTransferPayload(normalizedDay);
             return addTransferLikeItemForDay(normalizedDay, 'Day Arrival', transferPayload);
         }
@@ -5877,6 +6176,9 @@
             const dropOp = getSelectedOption(`departure_drop_select_${normalizedDay}`);
             if (!pickupOp || !dropOp) {
                 showDayGroupMessage(normalizedDay, 'departure', 'Please select pickup and drop location first, then add the departure.');
+                return false;
+            }
+            if (!ensureZoneTransferReady('departure', normalizedDay, 'departure', { requireBoth: true })) {
                 return false;
             }
             const transferPayload = getDepartureTransferPayload(normalizedDay);
@@ -6040,6 +6342,16 @@
             scrollToDayCard(rowDay);
             } finally {
                 isPrefillingActivityForm = false;
+                const transferType = String(inferTransferTypeFromItem(x) || '').toLowerCase();
+                if (transferType.includes('restaurant')) {
+                    fetchTransferZonePrice('restaurant_transfer', rowDay);
+                } else if (transferType.includes('arrival')) {
+                    fetchTransferZonePrice('arrival', rowDay);
+                } else if (transferType.includes('departure')) {
+                    fetchTransferZonePrice('departure', rowDay);
+                } else if (x.type === 'attraction' || transferType.includes('attraction') || transferType.includes('day transfer')) {
+                    fetchTransferZonePrice('attraction_transfer', rowDay);
+                }
             }
         }
 
@@ -6534,6 +6846,7 @@
                         room_type: String(x.room_type || ''),
                         bed_id: String(x.bed_id || ''),
                         bed_type: String(x.bed_type || ''),
+                        max_occupancy: parseInt(String(x.max_occupancy || 0), 10) || 0,
                         meal_plan: x.meal_plan || '',
                         room_price: parseFloat(x.room_price ?? 0),
                         breakfast_price: parseFloat(x.breakfast_price ?? 0),
@@ -7283,6 +7596,7 @@
             });
             $('#hotel_bed_select').on('change select2:select select2:clear', function () {
                 if (isPrefillingHotelForm) return;
+                updateHotelBedCapacityDisplay();
             });
             $('#hotel_meal_plan').on('change select2:select select2:clear', function () {
                 toggleHotelMealTypeVisibility();
@@ -7299,19 +7613,30 @@
                 hotelTransferState.pickup = this.value || '';
                 const dayVal = getDayFromElementId(this.id);
                 const prefix = String(this.id || '').startsWith('arrival_') ? 'arrival' : 'departure';
-                clearTransferLegPriceManualFlag(prefix, dayVal);
                 fetchTransferZonePrice(prefix, dayVal);
             });
             $(document).on('change select2:select select2:clear', '[id^="arrival_drop_select_"], [id^="departure_drop_select_"]', function () {
                 hotelTransferState.drop = this.value || '';
                 const dayVal = getDayFromElementId(this.id);
                 const prefix = String(this.id || '').startsWith('arrival_') ? 'arrival' : 'departure';
-                clearTransferLegPriceManualFlag(prefix, dayVal);
                 fetchTransferZonePrice(prefix, dayVal);
             });
-            $(document).on('input', '.transfer-leg-price-input', function () {
-                this.dataset.manualPrice = '1';
-                delete this.dataset.zoneAuto;
+            $(document).on('change', '[id^="attraction_need_transfer_"], [id^="restaurant_need_transfer_"]', function () {
+                if (isPrefillingActivityForm || isHydratingDayServices) return;
+                const id = String(this.id || '');
+                const kind = id.startsWith('restaurant_') ? 'restaurant' : 'attraction';
+                const dayVal = getDayFromElementId(this.id);
+                toggleServiceTransferPanel(kind, dayVal, { clearWhenNo: true });
+            });
+            $(document).on('change select2:select select2:clear', '[id^="attraction_transfer_pickup_select_"], [id^="attraction_transfer_drop_select_"]', function () {
+                if (isPrefillingActivityForm || isHydratingDayServices) return;
+                const dayVal = getDayFromElementId(this.id);
+                fetchTransferZonePrice('attraction_transfer', dayVal);
+            });
+            $(document).on('change select2:select select2:clear', '[id^="restaurant_transfer_pickup_select_"], [id^="restaurant_transfer_drop_select_"]', function () {
+                if (isPrefillingActivityForm || isHydratingDayServices) return;
+                const dayVal = getDayFromElementId(this.id);
+                fetchTransferZonePrice('restaurant_transfer', dayVal);
             });
 
             $('#city_id').on('change', function () {
