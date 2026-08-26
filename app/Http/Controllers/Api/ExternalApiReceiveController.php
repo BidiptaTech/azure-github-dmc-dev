@@ -502,9 +502,14 @@ class ExternalApiReceiveController extends Controller
         $mealPlanFields = $this->resolveMealPlanFieldsForOrder($item, $resolvedRoom);
         $mealPlan = $mealPlanFields['key'];
         $mealPlanLabel = $mealPlanFields['label'];
-        $numberOfRooms = max(1, (int) ($item['number_of_rooms'] ?? 1));
-        $adults = max(1, (int) $tour->adult);
-        $occupancy = $adults <= 1 ? 'single' : 'double';
+        $requestedPax = $this->resolveHotelRequestedPax($tour, $item);
+        $bedCapacity = $this->resolveBedCapacity($resolvedBed);
+        // Occupancy stored = least of demanded pax and bed capacity.
+        // Rooms booked = ceil(demanded pax / bed capacity), e.g. 10 pax / 2 capacity => 5 rooms.
+        $allocation = $this->allocateHotelRoomsByBedCapacity($requestedPax, $bedCapacity);
+        $numberOfRooms = $allocation['number_of_rooms'];
+        $headCount = $allocation['head_count'];
+        $occupancy = $headCount <= 1 ? 'single' : 'double';
 
         $payloadPrice = (float) ($item['price'] ?? $item['totalPrice'] ?? 0);
         $price = $payloadPrice;
@@ -513,13 +518,12 @@ class ExternalApiReceiveController extends Controller
                 $resolvedRoom,
                 $nights,
                 $numberOfRooms,
-                $adults,
+                $requestedPax,
                 $occupancy,
                 $mealPlan
             );
         }
 
-        $headCount = max(1, (int) ($resolvedBed?->adult_count ?? $resolvedBed?->max_occupancy ?? $adults));
         $bedType = trim((string) (
             $resolvedBed?->room_type
             ?? $item['bed_type']
@@ -574,14 +578,14 @@ class ExternalApiReceiveController extends Controller
                 'room_type' => $roomType,
                 'number_of_rooms' => $numberOfRooms,
                 'occupancy' => $occupancy,
-                'selected_persons' => $adults,
+                'selected_persons' => $requestedPax,
                 'beds' => [[
                     'bed_id' => $bedId !== null ? (string) $bedId : '',
                     'bed_type' => $bedType,
                     'room_type' => $roomType,
                     'baby_cot' => (int) ($resolvedBed?->baby_cot ?? 0),
                     'head_count' => $headCount,
-                    'max_occupancy' => max(1, (int) ($resolvedBed?->max_occupancy ?? $headCount)),
+                    'max_occupancy' => $bedCapacity,
                     'price' => $bedPrice > 0 ? ($bedPrice * $nights * $numberOfRooms) : $price,
                     'meal_plan' => $mealPlan,
                     'mealTypes' => [$mealPlan],
@@ -782,16 +786,24 @@ class ExternalApiReceiveController extends Controller
 
                 if ($bedRecord) {
                     $bedType = (string) ($bedRecord->room_type ?: ($bed['bed_type'] ?? ''));
-                    $headCount = max(1, (int) ($bed['head_count'] ?? $bedRecord->adult_count ?? $bedRecord->max_occupancy ?? 2));
+                    $maxOccupancy = max(1, (int) ($bed['max_occupancy'] ?? $bedRecord->max_occupancy ?? 1));
+                    $selectedPersons = max(0, (int) ($rooms[$roomIndex]['selected_persons'] ?? 0));
+                    $existingHeadCount = max(0, (int) ($bed['head_count'] ?? 0));
+
+                    // Keep AI/requested head_count; never inflate it to the bed's full capacity.
+                    if ($existingHeadCount > 0) {
+                        $headCount = min($existingHeadCount, $maxOccupancy);
+                    } elseif ($selectedPersons > 0) {
+                        $headCount = min($selectedPersons, $maxOccupancy);
+                    } else {
+                        $headCount = $maxOccupancy;
+                    }
 
                     $rooms[$roomIndex]['beds'][$bedIndex]['bed_id'] = (string) $bedRecord->bed_id;
                     $rooms[$roomIndex]['beds'][$bedIndex]['bed_type'] = $bedType;
                     $rooms[$roomIndex]['beds'][$bedIndex]['room_type'] = $roomType;
                     $rooms[$roomIndex]['beds'][$bedIndex]['head_count'] = $headCount;
-                    $rooms[$roomIndex]['beds'][$bedIndex]['max_occupancy'] = max(
-                        1,
-                        (int) ($bed['max_occupancy'] ?? $bedRecord->max_occupancy ?? $headCount)
-                    );
+                    $rooms[$roomIndex]['beds'][$bedIndex]['max_occupancy'] = $maxOccupancy;
                     $rooms[$roomIndex]['beds'][$bedIndex]['baby_cot'] = (int) ($bed['baby_cot'] ?? $bedRecord->baby_cot ?? 0);
                 }
             }
@@ -1013,6 +1025,8 @@ class ExternalApiReceiveController extends Controller
 
         $total = $roomRate * $nights * $numberOfRooms;
         $plan = strtolower($mealPlan);
+        // Meal cost is per guest for the stay, not multiplied again by room count.
+        $mealGuests = max(1, $adults);
 
         $includesBreakfast = str_contains($plan, 'breakfast')
             || str_contains($plan, 'bed_&_')
@@ -1022,16 +1036,62 @@ class ExternalApiReceiveController extends Controller
         $includesDinner = str_contains($plan, 'dinner') || str_contains($plan, 'all_inclusive');
 
         if ($includesBreakfast) {
-            $total += (float) ($room->breakfast_price ?? 0) * $adults * $nights * $numberOfRooms;
+            $total += (float) ($room->breakfast_price ?? 0) * $mealGuests * $nights;
         }
         if ($includesLunch) {
-            $total += (float) ($room->lunch_price ?? 0) * $adults * $nights * $numberOfRooms;
+            $total += (float) ($room->lunch_price ?? 0) * $mealGuests * $nights;
         }
         if ($includesDinner) {
-            $total += (float) ($room->dinner_price ?? 0) * $adults * $nights * $numberOfRooms;
+            $total += (float) ($room->dinner_price ?? 0) * $mealGuests * $nights;
         }
 
         return round($total, 2);
+    }
+
+    /**
+     * Demanded hotel pax for AI booking (tour adults + children, or payload override).
+     */
+    protected function resolveHotelRequestedPax(Tour $tour, array $item): int
+    {
+        $fromItem = (int) ($item['adultCount'] ?? $item['adults'] ?? $item['pax'] ?? $item['selected_persons'] ?? 0);
+        $childrenFromItem = (int) ($item['childCount'] ?? $item['children'] ?? 0);
+        if ($fromItem > 0) {
+            return max(1, $fromItem + max(0, $childrenFromItem));
+        }
+
+        return max(1, (int) ($tour->adult ?? 0) + (int) ($tour->child ?? 0));
+    }
+
+    /**
+     * Bed max occupancy used as room capacity for AI hotel allocation.
+     */
+    protected function resolveBedCapacity(?Bed $bed): int
+    {
+        if (! $bed) {
+            return 1;
+        }
+
+        return max(1, (int) ($bed->max_occupancy ?: $bed->adult_count ?: 1));
+    }
+
+    /**
+     * Allocate rooms from demanded pax and bed capacity.
+     * Example: 2 pax / capacity 11 => 1 room, head_count 2
+     * Example: 10 pax / capacity 2 => 5 rooms, head_count 2
+     *
+     * @return array{number_of_rooms: int, head_count: int}
+     */
+    protected function allocateHotelRoomsByBedCapacity(int $requestedPax, int $bedCapacity): array
+    {
+        $requestedPax = max(1, $requestedPax);
+        $bedCapacity = max(1, $bedCapacity);
+        $numberOfRooms = (int) ceil($requestedPax / $bedCapacity);
+        $headCount = min($requestedPax, $bedCapacity);
+
+        return [
+            'number_of_rooms' => max(1, $numberOfRooms),
+            'head_count' => max(1, $headCount),
+        ];
     }
 
     /**
@@ -1188,16 +1248,58 @@ class ExternalApiReceiveController extends Controller
     protected function transformAttractionItem(Tour $tour, array $item, array $meta, array $customer): array
     {
         $attractionId = $item['attraction_id'] ?? $item['AttractionId'] ?? null;
-        $attraction = $attractionId ? Attraction::where('attraction_id', $attractionId)->first() : null;
+        $rawName = $item['name'] ?? $item['AttractionName'] ?? null;
+        $dmcId = (int) ($tour->dmc_id ?? 0);
+        $attractionQuery = Attraction::query()->with(['tickets' => function ($query) use ($dmcId) {
+            if ($dmcId > 0) {
+                $query->where('dmc_id', $dmcId);
+            }
+        }]);
+        $attraction = $attractionId ? (clone $attractionQuery)->where('attraction_id', $attractionId)->first() : null;
+        if (! $attraction && $rawName) {
+            $candidates = $dmcId > 0
+                ? (clone $attractionQuery)->whereJsonContains('dmc_id', $dmcId)->get()
+                : $attractionQuery->get();
+            $attraction = CommonHelper::matchAttractionFromList($candidates, $rawName, $attractionId);
+        }
 
-        $name = $item['name'] ?? $item['AttractionName'] ?? ($attraction->name ?? 'Attraction');
+        $name = $attraction->name ?? $rawName ?? 'Attraction';
         $tickets = $item['ticket_mapping'] ?? [];
         $firstTicket = is_array($tickets) && isset($tickets[0]) ? $tickets[0] : [];
         $ticketId = $firstTicket['ticket_id'] ?? $item['ticketId'] ?? null;
-        $ticketName = $firstTicket['ticket_name'] ?? $item['ticketName'] ?? 'General Ticket';
+        $ticketName = $firstTicket['ticket_name'] ?? $item['ticketName'] ?? null;
         $bookingDate = $this->parseDate($meta['bookingDate'] ?? $tour->check_in_time, Carbon::today())->toDateString();
         $price = (float) ($item['price'] ?? $item['totalPrice'] ?? 0);
         $transfer = $this->mapTransferOptions(is_array($item['transfer'] ?? null) ? $item['transfer'] : []);
+
+        if ($attraction) {
+            $dbTickets = $attraction->tickets ?? collect();
+            $matchedTicket = null;
+            if ($ticketId) {
+                $matchedTicket = collect($dbTickets)->first(function ($ticket) use ($ticketId) {
+                    return (string) ($ticket->ticket_id ?? $ticket->id ?? '') === (string) $ticketId;
+                });
+            }
+            if (! $matchedTicket && $ticketName) {
+                $targetTicket = CommonHelper::normalizeServiceLabel($ticketName);
+                $matchedTicket = collect($dbTickets)->first(function ($ticket) use ($targetTicket) {
+                    return CommonHelper::normalizeServiceLabel($ticket->name ?? '') === $targetTicket;
+                });
+            }
+            if (! $matchedTicket && collect($dbTickets)->isNotEmpty()) {
+                $matchedTicket = collect($dbTickets)->first();
+            }
+            if ($matchedTicket) {
+                $ticketId = $matchedTicket->ticket_id ?? $ticketId;
+                $ticketName = $matchedTicket->name ?? $ticketName;
+                if ($price <= 0) {
+                    $price = (float) ($matchedTicket->adult_price ?? 0);
+                }
+            }
+        }
+        if (! $ticketName) {
+            $ticketName = 'General Ticket';
+        }
 
         return array_merge($customer, [
             'bookingDate' => $bookingDate,
@@ -1353,13 +1455,15 @@ class ExternalApiReceiveController extends Controller
         };
     }
     /**
-     * Email the sender (sender_email) using the DMC ai_response setting (QTN / ITN).
+     * Email the API sender_email using the DMC ai_response setting (QTN / ITN).
+     * To = sender_email only. ai_email is for IMAP fetch, never the recipient.
      * Non-fatal by design.
      *
      * @return array{sent: bool, email: ?string}
      */
     protected function notifySender(Tour $tour, array $payload, Collection $orders): array
     {
+        // Recipient is always the enquiry sender — never ai_email / SMTP mailbox.
         $senderEmail = $this->resolveSenderNotificationEmail($payload);
 
         if ($senderEmail === null) {
@@ -1397,6 +1501,30 @@ class ExternalApiReceiveController extends Controller
             $emailUuid = $this->resolveEmailUuidFromPayload($payload);
             $emailSubject = $this->resolveEmailSubjectFromPayload($payload);
             $threadFields = $this->resolveEmailThreadPayloadFields($payload);
+            // API SMTP values win; this DMC's stored /mail/settings fill any gap.
+            // The API does not send smtp_pass, so the stored password is what
+            // makes authenticated sending from the DMC mailbox possible.
+            $storedMailSettings = $dmcUser
+                ? CommonHelper::getDmcMailSettings((int) $dmcUser->userId)
+                : [];
+            $runtimeMailConfig = CommonHelper::resolveApiRuntimeMailConfig(
+                $primaryDmc,
+                $payload,
+                $storedMailSettings
+            );
+
+            if ($runtimeMailConfig === null) {
+                Log::warning('External API: DMC SMTP incomplete, falling back to default mailer', [
+                    'tour_id' => $tour->tour_id,
+                    'dmc_id' => $dmcUser?->userId,
+                    'smtp_user' => $this->payloadValue($payload, ['smtp_user'], ''),
+                    'has_stored_password' => trim((string) ($storedMailSettings['smtp_pass'] ?? '')) !== '',
+                ]);
+            }
+
+            $mailContext = $runtimeMailConfig !== null
+                ? ['_mail_config' => $runtimeMailConfig]
+                : [];
 
             if ($aiResponse === 'QTN') {
                 $emailData = null;
@@ -1443,13 +1571,13 @@ class ExternalApiReceiveController extends Controller
                 if ($emailData) {
                     $emailData['email_uuid'] = $emailUuid;
                     $emailData['subject'] = $emailSubject;
-                    $emailData = array_merge($emailData, $threadFields);
+                    $emailData = array_merge($emailData, $threadFields, $mailContext);
                 }
 
                 $sent = CommonHelper::sendTourQuotationEmail($senderEmail, $emailData ?: array_merge([
                     'email_uuid' => $emailUuid,
                     'subject' => $emailSubject,
-                ], $threadFields));
+                ], $threadFields, $mailContext));
             } else {
                 $bookedServices = $this->buildBookedServicesForEmail($orders);
                 $totalEstimation = round(array_sum(array_map(
@@ -1487,7 +1615,7 @@ class ExternalApiReceiveController extends Controller
                     'booked_services' => $bookedServices,
                     'total_estimation' => $totalEstimation,
                     'currency_code' => $this->resolveItineraryCurrency($payload, $primaryDmc),
-                ], $threadFields), $dmcUser);
+                ], $threadFields, $mailContext), $dmcUser);
             }
 
             if ($sent !== true) {
@@ -1515,7 +1643,8 @@ class ExternalApiReceiveController extends Controller
 
     protected function resolveSenderNotificationEmail(array $payload): ?string
     {
-        $email = trim((string) $this->payloadValue($payload, ['sender_email', 'senderEmail', 'email'], ''));
+        // Do not use generic "email" / "ai_email" — those can be DMC mailbox fields.
+        $email = trim((string) $this->payloadValue($payload, ['sender_email', 'senderEmail'], ''));
 
         if ($email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL)) {
             return $email;
@@ -1532,10 +1661,21 @@ class ExternalApiReceiveController extends Controller
         return null;
     }
 
+    /**
+     * Parent Message-ID for In-Reply-To / References. Older payloads send it as
+     * `email_uuid`; newer ones send the RFC id as `message_id` plus a bare
+     * `uuid`, so `message_id` is preferred when both are present.
+     */
     protected function resolveEmailUuidFromPayload(array $payload): ?string
     {
         return CommonHelper::resolveEmailUuidFromContext([
-            'email_uuid' => $this->payloadValue($payload, ['email_uuid', 'emailUuid'], ''),
+            'email_uuid' => $this->payloadValue($payload, [
+                'email_uuid',
+                'emailUuid',
+                'message_id',
+                'messageId',
+                'uuid',
+            ], ''),
         ]);
     }
 

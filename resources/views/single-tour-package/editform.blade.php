@@ -122,12 +122,16 @@
             $createdBy = $currentUserId; // Operation Manager is the current user
         }
         $hasNegotiationHistory = isset($tour) && $tour ? \DB::table('enquiry_comments')->where('tour_id', $tour->tour_id)->whereNull('deleted_at')->exists() : false;
+        $isActualTourStatus = isset($tour) && $tour
+            && strtolower(trim((string) ($tour->tour_status ?? ''))) === 'actual';
+        $actualRemoveServiceTooltip = "Services can't be removed in Actual Status.";
     @endphp
     
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <script>
         window.hasNegotiationHistory = @json($hasNegotiationHistory);
         window.removeServicePageTourStatus = @json(isset($tour) && $tour ? ($tour->tour_status ?? '') : '');
+        window.isActualTourStatus = @json($isActualTourStatus);
         window.__displayCurrency = @json($displayCurrency);
 
         window.isRoomBreakfastIncluded = function(room) {
@@ -1280,7 +1284,8 @@
                                         <i class="ri-calendar-line me-1" style="color: #667eea;"></i>Travel Dates
                                     </label>
                                     <input type="text" class="form-control modern-input" id="travel_dates_range" autocomplete="off"
-                                        placeholder="Select dates" style="height: 40px;" readonly>
+                                        placeholder="Select dates" style="height: 40px;" readonly
+                                        @if($isActualTourStatus) disabled title="Travel dates can't be changed in Actual Status." @endif>
 
                                     {{-- Keep original fields for submission + JS dependencies --}}
                                     <input type="date" class="form-control modern-input d-none" name="start_date" id="start_date"
@@ -1289,14 +1294,16 @@
                                                 ? (is_string($tour->check_in_time) ? date('Y-m-d', strtotime($tour->check_in_time)) : $tour->check_in_time->format('Y-m-d'))
                                                 : ''
                                         }}"
-                                        min="{{ date('Y-m-d') }}">
+                                        min="{{ date('Y-m-d') }}"
+                                        @if($isActualTourStatus) readonly @endif>
                                     <input type="date" class="form-control modern-input d-none" name="end_date" id="end_date"
                                         value="{{
                                             $tour->check_out_time
                                                 ? (is_string($tour->check_out_time) ? date('Y-m-d', strtotime($tour->check_out_time)) : $tour->check_out_time->format('Y-m-d'))
                                                 : ''
                                         }}"
-                                        min="{{ $tour->check_in_time ? (is_string($tour->check_in_time) ? date('Y-m-d', strtotime($tour->check_in_time)) : $tour->check_in_time->format('Y-m-d')) : date('Y-m-d') }}">
+                                        min="{{ $tour->check_in_time ? (is_string($tour->check_in_time) ? date('Y-m-d', strtotime($tour->check_in_time)) : $tour->check_in_time->format('Y-m-d')) : date('Y-m-d') }}"
+                                        @if($isActualTourStatus) readonly @endif>
                                 </div>
 
                                 <!-- Guests -->
@@ -1659,15 +1666,27 @@
                                             $bedType = $firstBed['bed_type'] ?? '';
                                             $numberOfPersons = $firstBed['head_count'] ?? $firstBed['max_occupancy'] ?? 0;
                                             
-                                            // Get meal plan
+                                            // Get meal plan (create stores string values; some payloads wrap type in an object)
                                             $mealTypes = $firstBed['mealTypes'] ?? [];
                                             if (!empty($mealTypes) && is_array($mealTypes)) {
                                                 $mealPlan = $mealTypes[0] ?? '';
                                             } elseif (isset($firstBed['selectedMeals']) && is_array($firstBed['selectedMeals'])) {
                                                 $firstMeal = reset($firstBed['selectedMeals']);
-                                                $mealPlan = $firstMeal['type'] ?? '';
+                                                $mealPlan = is_array($firstMeal) ? ($firstMeal['type'] ?? '') : $firstMeal;
                                             }
                                         }
+                                        if ($mealPlan === '' && !empty($firstRoom['meal_plan'])) {
+                                            $mealPlan = $firstRoom['meal_plan'];
+                                        }
+                                    }
+                                    if (is_array($mealPlan)) {
+                                        $mealPlan = $mealPlan['type'] ?? $mealPlan['value'] ?? reset($mealPlan) ?? '';
+                                        if (is_array($mealPlan)) {
+                                            $mealPlan = '';
+                                        }
+                                    }
+                                    if ($mealPlan === '' && !empty($hotelInfo['meal_plan'])) {
+                                        $mealPlan = $hotelInfo['meal_plan'];
                                     }
 
                                     // Normalize meal plan for <select> values (JS/API use snake_case e.g. room_only)
@@ -1735,9 +1754,17 @@
                                                         {{ $displayCurrency }} {{ number_format((float)$totalPrice, 2, '.', ',') }}
                                                     </span>
                                                 </div>
+                                                @if($isActualTourStatus)
+                                                <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ $actualRemoveServiceTooltip }}">
+                                                    <button type="button" class="btn btn-sm btn-outline-danger" disabled style="pointer-events: none;" aria-disabled="true">
+                                                        <i class="ri-delete-bin-line"></i>
+                                                    </button>
+                                                </span>
+                                                @else
                                                 <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeHotelService({{ $hotelOrder->booking_id }})">
                                                     <i class="ri-delete-bin-line"></i>
                                                 </button>
+                                                @endif
                                             </div>
                                         </div>
                                         @if(!empty($rooms) && is_array($rooms))
@@ -2037,6 +2064,9 @@
                                                                     });
                                                                     
                                                                     roomTypeSelect.disabled = false;
+                                                                    if (typeof window.refreshSelect2 === 'function') {
+                                                                        window.refreshSelect2(roomTypeSelect);
+                                                                    }
                                                                     console.log(`Loaded ${roomTypes.length} room types for hotel ${hotelId}`);
                                                                     
                                                                     // Update price grid if room type is already selected
@@ -2169,6 +2199,9 @@
                                                                     });
                                                                     
                                                                     bedTypeSelect.disabled = false;
+                                                                    if (typeof window.refreshSelect2 === 'function') {
+                                                                        window.refreshSelect2(bedTypeSelect);
+                                                                    }
                                                                     console.log(`Loaded ${data.beds.length} bed types for room type ${roomType}`);
 
                                                                     setTimeout(() => {
@@ -2216,8 +2249,10 @@
                                                     
                                                     function loadMealPlansForBed_{{ $hotelOrder->booking_id }}(bedDataOrRoom) {
                                                         const mealPlanSelect = document.getElementById('meal_plan_{{ $hotelOrder->booking_id }}');
-                                                        const roomData = window.roomData_{{ $hotelOrder->booking_id }} || [];
+                                                        const rawRoomData = window.roomData_{{ $hotelOrder->booking_id }} || [];
+                                                        const roomData = Array.isArray(rawRoomData) ? rawRoomData : Object.values(rawRoomData || {});
                                                         const bedTypeSelect = document.getElementById('bed_type_{{ $hotelOrder->booking_id }}');
+                                                        const savedMeal = (mealPlanSelect && mealPlanSelect.getAttribute('data-saved-meal')) || @json($mealPlanSelectValue ?? ($mealPlan ?? ''));
                                                         
                                                         console.log('Loading meal plans for booking {{ $hotelOrder->booking_id }}', bedDataOrRoom);
                                                         
@@ -2228,22 +2263,24 @@
                                                         // First, try to get room from selected bed
                                                         if (bedTypeSelect && bedTypeSelect.value) {
                                                             const selectedBedOption = bedTypeSelect.options[bedTypeSelect.selectedIndex];
-                                                            if (selectedBedOption && selectedBedOption.dataset.roomId) {
-                                                                const roomId = selectedBedOption.dataset.roomId;
-                                                                room = roomData.find(r => r.room_id == roomId);
+                                                            if (selectedBedOption && (selectedBedOption.dataset.roomId || selectedBedOption.getAttribute('data-room-id'))) {
+                                                                const roomId = selectedBedOption.dataset.roomId || selectedBedOption.getAttribute('data-room-id');
+                                                                room = roomData.find(r => String(r.room_id) === String(roomId) || String(r.id) === String(roomId));
                                                                 
                                                                 // Get max occupancy from bed data
-                                                                const bedData = JSON.parse(selectedBedOption.dataset.bed || '{}');
-                                                                maxOccupancy = bedData.max_occupancy || null;
+                                                                try {
+                                                                    const bedData = JSON.parse(selectedBedOption.dataset.bed || '{}');
+                                                                    maxOccupancy = bedData.max_occupancy || bedData.base_max_occupancy || null;
+                                                                } catch (e) {}
                                                             }
                                                         }
                                                         
                                                         // If no room from bed, try from passed parameter
                                                         if (!room && bedDataOrRoom) {
-                                                            if (bedDataOrRoom.room_id) {
-                                                                room = roomData.find(r => r.room_id == bedDataOrRoom.room_id);
-                                                            } else if (bedDataOrRoom.room_type) {
+                                                            if (bedDataOrRoom.breakfast !== undefined || bedDataOrRoom.lunch !== undefined || bedDataOrRoom.room_type) {
                                                                 room = bedDataOrRoom;
+                                                            } else if (bedDataOrRoom.room_id) {
+                                                                room = roomData.find(r => String(r.room_id) === String(bedDataOrRoom.room_id)) || bedDataOrRoom;
                                                             }
                                                         }
                                                         
@@ -2260,8 +2297,19 @@
                                                         
                                                         if (!room) {
                                                             console.log('No room found for meal plans');
-                                                            mealPlanSelect.innerHTML = '<option value="">Select room type first</option>';
-                                                            mealPlanSelect.disabled = true;
+                                                            if (savedMeal) {
+                                                                mealPlanSelect.innerHTML = '<option value="">Select meal plan</option>';
+                                                                const savedOpt = document.createElement('option');
+                                                                savedOpt.value = savedMeal;
+                                                                savedOpt.textContent = savedMeal.replace(/_/g, ' ').replace('bed & breakfast', 'room with breakfast');
+                                                                savedOpt.selected = true;
+                                                                mealPlanSelect.appendChild(savedOpt);
+                                                                mealPlanSelect.disabled = false;
+                                                                if (typeof window.refreshSelect2 === 'function') window.refreshSelect2(mealPlanSelect);
+                                                            } else {
+                                                                mealPlanSelect.innerHTML = '<option value="">Select room type first</option>';
+                                                                mealPlanSelect.disabled = true;
+                                                            }
                                                             return;
                                                         }
                                                         
@@ -2420,6 +2468,17 @@
                                                             });
                                                             
                                                             mealPlanSelect.disabled = false;
+                                                            if (existingMealPlan && !mealPlanSelected) {
+                                                                const extra = document.createElement('option');
+                                                                extra.value = existingMealPlan;
+                                                                extra.textContent = String(existingMealPlan).replace(/_/g, ' ');
+                                                                extra.selected = true;
+                                                                mealPlanSelected = true;
+                                                                mealPlanSelect.appendChild(extra);
+                                                            }
+                                                            if (typeof window.refreshSelect2 === 'function') {
+                                                                window.refreshSelect2(mealPlanSelect);
+                                                            }
                                                             console.log(`Loaded ${mealPlans.length} meal plan options dynamically from room data with pax info`);
                                                             if (existingMealPlan && mealPlanSelected) {
                                                                 console.log(`Meal plan "${existingMealPlan}" was automatically selected`);
@@ -3224,10 +3283,10 @@
                                             </div>
                                             <div class="col-md-3">
                                                 <label class="form-label fw-semibold text-muted mb-2"><i class="ri-restaurant-line me-1 text-success"></i>Meal Plan</label>
-                                                <select class="form-select border-2" style="height: 35px;" name="meal_plan" id="meal_plan_{{ $hotelOrder->booking_id }}" onchange="updateHotelPriceGrid_{{ $hotelOrder->booking_id }}(true);">
+                                                <select class="form-select border-2" style="height: 35px;" name="meal_plan" id="meal_plan_{{ $hotelOrder->booking_id }}" data-saved-meal="{{ $mealPlanSelectValue ?? $mealPlan }}" onchange="updateHotelPriceGrid_{{ $hotelOrder->booking_id }}(true);">
                                                     <option value="">Select Meal Plan</option>
                                                     @if($mealPlan)
-                                                        <option value="{{ $mealPlanSelectValue ?? $mealPlan }}" selected>{{ $mealPlan }}</option>
+                                                        <option value="{{ $mealPlanSelectValue ?? $mealPlan }}" selected>{{ is_string($mealPlan) ? $mealPlan : ($mealPlanSelectValue ?? 'Saved meal plan') }}</option>
                                                     @endif
                                                 </select>
                                             </div>
@@ -3513,7 +3572,8 @@
                                                 $pickupDate = $pickupDateRaw;
                                             }
                                         }
-                                        $vehicleName = $transportData['vehicles_name'] ?? '';
+                                        $vehicleName = $transportData['vehicles_name'] ?? $transportData['vehicle_name'] ?? '';
+                                        $vehicleSavedId = $transportData['vehicles_id'] ?? $transportData['vehicle_id'] ?? '';
                                         $vehicleType = $transportData['type'] ?? '';
                                         $passengers = $transportData['passengers'] ?? '';
                                         $availableVehicles = $vehicles ?? collect();
@@ -3527,9 +3587,17 @@
                                         <div class="d-flex justify-content-between align-items-center mb-3">
                                             <h6 class="mb-0 fw-bold text-primary"><i class="ri-login-circle-line me-2"></i>Entry Port Transfer #{{ $index + 1 }}</h6>
                                             <div class="d-flex gap-2">
+                                                @if($isActualTourStatus)
+                                                <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ $actualRemoveServiceTooltip }}">
+                                                    <button type="button" class="btn btn-sm btn-outline-danger" disabled style="pointer-events: none;" aria-disabled="true">
+                                                        <i class="ri-delete-bin-line"></i> Remove
+                                                    </button>
+                                                </span>
+                                                @else
                                                 <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTransportService({{ $order->booking_id }})">
                                                     <i class="ri-delete-bin-line"></i> Remove
                                                 </button>
+                                                @endif
                                             </div>
                                         </div>
                                         <div class="row g-3">
@@ -3539,10 +3607,10 @@
                                             </div>
                                             <div class="col-md-3">
                                                 <label class="form-label fw-semibold text-muted mb-2"><i class="ri-map-pin-line me-1 text-success"></i>City</label>
-                                                <select class="form-select border-2 arrival-zone-select" id="arrival_city_{{ $order->booking_id }}" style="height: 35px;" name="city" onchange="fetchArrivalVehiclesForRow({{ $order->booking_id }}); updateArrivalRowPrice({{ $order->booking_id }});">
+                                                <select class="form-select border-2 arrival-zone-select" id="arrival_city_{{ $order->booking_id }}" style="height: 35px;" name="city" onchange="loadArrivalRowCountryPorts({{ $order->booking_id }}); fetchArrivalVehiclesForRow({{ $order->booking_id }}); updateArrivalRowPrice({{ $order->booking_id }});">
                                                     <option value="">Select city</option>
                                                     @foreach($cities as $city)
-                                                        <option value="{{ $city->name }}" {{ $city->name == $cityValue ? 'selected' : '' }}>{{ $city->name }}</option>
+                                                        <option value="{{ $city->name }}" data-country="{{ $city->country ?? '' }}" {{ $city->name == $cityValue ? 'selected' : '' }}>{{ $city->name }}</option>
                                                     @endforeach
                                                     @if($cityValue && !$cities->contains('name', $cityValue))
                                                         <option value="{{ $cityValue }}" selected>{{ $cityValue }}</option>
@@ -3612,7 +3680,7 @@
                                             <div class="col-md-4">
                                                 <label class="form-label fw-semibold text-muted mb-2"><i class="ri-car-line me-1 text-info"></i>Vehicle</label>
                                                 @php $vehicleMatched = false; @endphp
-                                                <select class="form-select border-2 arrival-vehicle-select" id="arrival_vehicle_{{ $order->booking_id }}" style="height: 35px;" name="vehicle_name" onchange="updateArrivalRowPrice({{ $order->booking_id }});">
+                                                <select class="form-select border-2 arrival-vehicle-select" id="arrival_vehicle_{{ $order->booking_id }}" style="height: 35px;" name="vehicle_name" data-saved-vehicle="{{ $vehicleName }}" data-saved-vehicle-id="{{ $vehicleSavedId }}" onchange="updateArrivalRowPrice({{ $order->booking_id }});">
                                                     <option value="">{{ $vehicleName ? 'Select vehicle' : 'Select vehicle (change pickup/dropoff to load)' }}</option>
                                                     @foreach($availableVehicles as $vehicleOption)
                                                         @php
@@ -3881,9 +3949,17 @@
                                             <div class="d-flex justify-content-between align-items-center mb-3">
                                                 <h6 class="mb-0 fw-bold text-danger"><i class="ri-ticket-line me-2"></i>Attraction Booking #{{ $index + 1 }}</h6>
                                                 <div class="d-flex gap-2">
+                                                    @if($isActualTourStatus)
+                                                    <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ $actualRemoveServiceTooltip }}">
+                                                        <button type="button" class="btn btn-sm btn-outline-danger" disabled style="pointer-events: none;" aria-disabled="true">
+                                                            <i class="ri-delete-bin-line"></i> Remove
+                                                        </button>
+                                                    </span>
+                                                    @else
                                                     <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeAttractionService({{ $order->booking_id }})">
                                                         <i class="ri-delete-bin-line"></i> Remove
                                                     </button>
+                                                    @endif
                                                 </div>
                                             </div>
                                         
@@ -3911,25 +3987,51 @@
                                                                     }
                                                                 }
                                                                 return false;
-                                                            });
+                                                            })->unique(function ($attraction) {
+                                                                return \App\Helpers\CommonHelper::normalizeServiceLabel(
+                                                                    \App\Helpers\CommonHelper::attractionDisplayLabel($attraction)
+                                                                );
+                                                            })->values();
                                                             $packagedAttractionList = collect($packagedAttractions ?? []);
+                                                            $attractionIdLookup = $payload['AttractionId'] ?? $payload['attraction_id'] ?? null;
+                                                            $matchedAttraction = \App\Helpers\CommonHelper::matchAttractionFromList(
+                                                                $filteredAttractions,
+                                                                $attractionName,
+                                                                $attractionIdLookup
+                                                            );
                                                             $matchedBundle = $packagedAttractionList->first(function($bundle) use ($attractionName) {
                                                                 return ($bundle->name ?? '') === $attractionName
                                                                     || ('bundle_' . ($bundle->package_attraction_id ?? '')) === $attractionName;
                                                             });
+                                                            // Prefer the catalog attraction when AI sent "Name - Location"
+                                                            if ($matchedAttraction) {
+                                                                $matchedBundle = null;
+                                                            }
                                                             $isBundleSelected = (bool) $matchedBundle;
                                                             $bundleTicketName = $matchedBundle->name ?? $attractionName;
+                                                            $isGenericTicket = !$ticket || in_array(strtolower(trim((string) $ticket)), ['n/a', 'general ticket'], true);
                                                             // Prefer saved ticket; for bundles fall back to attraction/bundle name
-                                                            $displayTicket = ($ticket && $ticket != 'N/A')
+                                                            $displayTicket = !$isGenericTicket
                                                                 ? $ticket
                                                                 : ($isBundleSelected ? $bundleTicketName : null);
                                                         @endphp
                                                         @foreach($filteredAttractions as $attraction)
-                                                            <option value="{{ $attraction->name }}" {{ (!$isBundleSelected && $attractionName == $attraction->name) ? 'selected' : '' }} 
+                                                            @php
+                                                                $isThisAttractionSelected = !$isBundleSelected && $matchedAttraction
+                                                                    && (string) ($matchedAttraction->attraction_id ?? '') === (string) ($attraction->attraction_id ?? '')
+                                                                    && (string) ($matchedAttraction->attraction_id ?? '') !== '';
+                                                                if (!$isThisAttractionSelected && !$isBundleSelected && $matchedAttraction) {
+                                                                    $isThisAttractionSelected = ((string) ($matchedAttraction->name ?? '') === (string) ($attraction->name ?? ''));
+                                                                }
+                                                                if (!$isThisAttractionSelected && !$isBundleSelected && !$matchedAttraction) {
+                                                                    $isThisAttractionSelected = ($attractionName == $attraction->name);
+                                                                }
+                                                            @endphp
+                                                            <option value="{{ $attraction->name }}" {{ $isThisAttractionSelected ? 'selected' : '' }} 
                                                                 data-attraction-id="{{ $attraction->attraction_id ?? '' }}"
                                                                 data-attraction-data="{{ json_encode($attraction) }}">
                                                                 {{ $attraction->name }}
-                                                                @if(isset($attraction->location))
+                                                                @if(isset($attraction->location) && $attraction->location !== '')
                                                                     - {{ $attraction->location }}
                                                                 @endif
                                                             </option>
@@ -3941,6 +4043,16 @@
                                                                     ($matchedBundle->package_attraction_id ?? null) == $bundle->package_attraction_id
                                                                     || $attractionName === $bundle->name
                                                                 );
+                                                                $bundleDisplayName = trim((string) ($bundle->name ?? ''));
+                                                                $duplicatesRegularAttraction = !$bundleSelected && $filteredAttractions->contains(function ($a) use ($bundleDisplayName) {
+                                                                    $name = trim((string) ($a->name ?? ''));
+                                                                    $label = \App\Helpers\CommonHelper::attractionDisplayLabel($a);
+                                                                    return strcasecmp($name, $bundleDisplayName) === 0
+                                                                        || strcasecmp($label, $bundleDisplayName) === 0;
+                                                                });
+                                                            @endphp
+                                                            @continue($duplicatesRegularAttraction)
+                                                            @php
                                                                 $bundleData = [
                                                                     'name' => $bundle->name,
                                                                     'package_attraction_id' => $bundle->package_attraction_id,
@@ -3969,7 +4081,7 @@
                                                                 {{ $bundle->name }}
                                                             </option>
                                                         @endforeach
-                                                        @if($attractionName && !$isBundleSelected && !$filteredAttractions->pluck('name')->contains($attractionName))
+                                                        @if($attractionName && $attractionName !== 'N/A' && !$isBundleSelected && !$matchedAttraction)
                                                             <option value="{{ $attractionName }}" selected>{{ $attractionName }}</option>
                                                         @endif
                                                     </select>
@@ -3979,32 +4091,53 @@
                                                     <select class="form-select border-2" style="height: 35px;" name="ticket_name" id="ticket_name_{{ $order->booking_id }}" required onchange="updateAttractionRowPrice({{ $order->booking_id }})">
                                                         <option value="">Select Ticket</option>
                                                         @php
-                                                            $selectedAttractionForTicket = $attractionName ? collect($filteredAttractions)->first(function($a) use ($attractionName) { return ($a->name ?? '') == $attractionName; }) : null;
-                                                            $selectedTicketData = null;
+                                                            $selectedAttractionForTicket = $matchedAttraction ?: ($attractionName ? collect($filteredAttractions)->first(function($a) use ($attractionName) { return ($a->name ?? '') == $attractionName; }) : null);
+                                                            $catalogTickets = [];
                                                             if ($isBundleSelected && $matchedBundle) {
-                                                                $selectedTicketData = [
+                                                                $catalogTickets = [[
                                                                     'name' => $bundleTicketName,
                                                                     'adult_price' => $matchedBundle->adult_price,
                                                                     'child_price' => $matchedBundle->child_price,
                                                                     'senior_price' => $matchedBundle->senior_citizen_price,
-                                                                ];
-                                                            } elseif ($selectedAttractionForTicket && isset($selectedAttractionForTicket->tickets) && is_array($selectedAttractionForTicket->tickets) && $ticket && $ticket != 'N/A') {
-                                                                foreach ($selectedAttractionForTicket->tickets as $tk) {
-                                                                    $tkName = (is_array($tk) ? ($tk['name'] ?? $tk['ticket_name'] ?? $tk['ticket_id'] ?? '') : ($tk->name ?? $tk->ticket_name ?? $tk->ticket_id ?? ''));
-                                                                    if ($tkName === $ticket) { $selectedTicketData = $tk; break; }
+                                                                ]];
+                                                            } elseif ($selectedAttractionForTicket) {
+                                                                $catalogTickets = collect($selectedAttractionForTicket->tickets ?? [])->all();
+                                                            }
+                                                            $matchedTicketName = null;
+                                                            foreach ($catalogTickets as $tk) {
+                                                                $tkName = (is_array($tk) ? ($tk['name'] ?? $tk['ticket_name'] ?? $tk['ticket_id'] ?? '') : ($tk->name ?? $tk->ticket_name ?? $tk->ticket_id ?? ''));
+                                                                if ($displayTicket && strcasecmp(trim((string) $tkName), trim((string) $displayTicket)) === 0) {
+                                                                    $matchedTicketName = $tkName;
+                                                                    break;
                                                                 }
                                                             }
-                                                            $adultP = $selectedTicketData ? (is_array($selectedTicketData) ? ($selectedTicketData['adult_price'] ?? $selectedTicketData['price'] ?? 0) : ($selectedTicketData->adult_price ?? $selectedTicketData->price ?? 0)) : 0;
-                                                            $childP = $selectedTicketData ? (is_array($selectedTicketData) ? ($selectedTicketData['child_price'] ?? 0) : ($selectedTicketData->child_price ?? 0)) : 0;
-                                                            $seniorP = $selectedTicketData ? (is_array($selectedTicketData) ? ($selectedTicketData['senior_price'] ?? $selectedTicketData['adult_price'] ?? $selectedTicketData['price'] ?? 0) : ($selectedTicketData->senior_price ?? $selectedTicketData->adult_price ?? $selectedTicketData->price ?? 0)) : 0;
+                                                            if (!$matchedTicketName && count($catalogTickets) > 0) {
+                                                                $firstTk = $catalogTickets[0];
+                                                                $matchedTicketName = is_array($firstTk) ? ($firstTk['name'] ?? $firstTk['ticket_name'] ?? '') : ($firstTk->name ?? $firstTk->ticket_name ?? '');
+                                                            }
                                                         @endphp
-                                                        @if($displayTicket)
-                                                            <option value="{{ $displayTicket }}" selected
-                                                                data-adult-price="{{ number_format((float)$adultP, 2, '.', '') }}"
-                                                                data-child-price="{{ number_format((float)$childP, 2, '.', '') }}"
-                                                                data-senior-price="{{ number_format((float)$seniorP, 2, '.', '') }}"
-                                                            >{{ $displayTicket }}</option>
-                                                        @endif
+                                                        @forelse($catalogTickets as $tk)
+                                                            @php
+                                                                $tkName = is_array($tk) ? ($tk['name'] ?? $tk['ticket_name'] ?? $tk['ticket_id'] ?? '') : ($tk->name ?? $tk->ticket_name ?? $tk->ticket_id ?? '');
+                                                                $adultP = is_array($tk) ? ($tk['adult_price'] ?? $tk['price'] ?? 0) : ($tk->adult_price ?? $tk->price ?? 0);
+                                                                $childP = is_array($tk) ? ($tk['child_price'] ?? 0) : ($tk->child_price ?? 0);
+                                                                $seniorP = is_array($tk)
+                                                                    ? ($tk['senior_price'] ?? $tk['senior_adult_price'] ?? $tk['adult_price'] ?? $tk['price'] ?? 0)
+                                                                    : ($tk->senior_price ?? $tk->senior_adult_price ?? $tk->adult_price ?? $tk->price ?? 0);
+                                                                $isTicketSelected = $matchedTicketName && strcasecmp(trim((string) $tkName), trim((string) $matchedTicketName)) === 0;
+                                                            @endphp
+                                                            @if($tkName !== '')
+                                                                <option value="{{ $tkName }}" {{ $isTicketSelected ? 'selected' : '' }}
+                                                                    data-adult-price="{{ number_format((float)$adultP, 2, '.', '') }}"
+                                                                    data-child-price="{{ number_format((float)$childP, 2, '.', '') }}"
+                                                                    data-senior-price="{{ number_format((float)$seniorP, 2, '.', '') }}"
+                                                                >{{ $tkName }}</option>
+                                                            @endif
+                                                        @empty
+                                                            @if($displayTicket)
+                                                                <option value="{{ $displayTicket }}" selected>{{ $displayTicket }}</option>
+                                                            @endif
+                                                        @endforelse
                                                     </select>
                                                     <small class="text-muted d-block mt-1">Select an attraction to see available tickets</small>
                                                 </div>
@@ -4020,7 +4153,9 @@
                                                             // Find the selected attraction to populate time slots from database
                                                             $selectedAttraction = null;
                                                             $timeSlotsFound = false;
-                                                            if ($attractionName) {
+                                                            if ($matchedAttraction) {
+                                                                $selectedAttraction = $matchedAttraction;
+                                                            } elseif ($attractionName) {
                                                                 $selectedAttraction = collect($filteredAttractions)->first(function($attraction) use ($attractionName) {
                                                                     return $attraction->name == $attractionName;
                                                                 });
@@ -4561,9 +4696,17 @@
                                             <div class="d-flex justify-content-between align-items-center mb-3">
                                                 <h6 class="mb-0 fw-bold text-info"><i class="ri-user-star-line me-2"></i>Tour Guide Booking #{{ $index + 1 }}</h6>
                                                 <div class="d-flex gap-2">
+                                                    @if($isActualTourStatus)
+                                                    <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ $actualRemoveServiceTooltip }}">
+                                                        <button type="button" class="btn btn-sm btn-outline-danger" disabled style="pointer-events: none;" aria-disabled="true">
+                                                            <i class="ri-delete-bin-line"></i> Remove
+                                                        </button>
+                                                    </span>
+                                                    @else
                                                     <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeGuideService({{ $order->booking_id }})">
                                                         <i class="ri-delete-bin-line"></i> Remove
                                                     </button>
+                                                    @endif
                                                 </div>
                                             </div>
                                             <div class="row g-3">
@@ -4827,9 +4970,17 @@
                                             <div class="d-flex justify-content-between align-items-center mb-3">
                                                 <h6 class="mb-0 fw-bold text-success"><i class="ri-restaurant-line me-2"></i>Restaurant Booking #{{ $index + 1 }}</h6>
                                                 <div class="d-flex gap-2">
+                                                    @if($isActualTourStatus)
+                                                    <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ $actualRemoveServiceTooltip }}">
+                                                        <button type="button" class="btn btn-sm btn-outline-danger" disabled style="pointer-events: none;" aria-disabled="true">
+                                                            <i class="ri-delete-bin-line"></i> Remove
+                                                        </button>
+                                                    </span>
+                                                    @else
                                                     <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeRestaurantService({{ $order->booking_id }})">
                                                         <i class="ri-delete-bin-line"></i> Remove
                                                     </button>
+                                                    @endif
                                                 </div>
                                             </div>
                                             
@@ -5215,9 +5366,17 @@
                                                     <div class="d-flex justify-content-between align-items-center mb-3">
                                                         <h6 class="mb-0 fw-bold text-warning"><i class="ri-time-line me-2"></i>Hourly Transport #{{ $index + 1 }}</h6>
                                                         <div class="d-flex gap-2">
+                                                            @if($isActualTourStatus)
+                                                            <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ $actualRemoveServiceTooltip }}">
+                                                                <button type="button" class="btn btn-sm btn-outline-danger" disabled style="pointer-events: none;" aria-disabled="true">
+                                                                    <i class="ri-delete-bin-line"></i> Remove
+                                                                </button>
+                                                            </span>
+                                                            @else
                                                             <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTransportService({{ $order->booking_id }})">
                                                                 <i class="ri-delete-bin-line"></i> Remove
                                                             </button>
+                                                            @endif
                                                         </div>
                                                     </div>
                                                     <div class="row g-3">
@@ -5341,9 +5500,17 @@
                                                     <div class="d-flex justify-content-between align-items-center mb-3">
                                                         <h6 class="mb-0 fw-bold text-info"><i class="ri-map-pin-2-line me-2"></i>Point-to-Point Transport #{{ $index + 1 }}</h6>
                                                         <div class="d-flex gap-2">
+                                                            @if($isActualTourStatus)
+                                                            <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ $actualRemoveServiceTooltip }}">
+                                                                <button type="button" class="btn btn-sm btn-outline-danger" disabled style="pointer-events: none;" aria-disabled="true">
+                                                                    <i class="ri-delete-bin-line"></i> Remove
+                                                                </button>
+                                                            </span>
+                                                            @else
                                                             <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTransportService({{ $order->booking_id }})">
                                                                 <i class="ri-delete-bin-line"></i> Remove
                                                             </button>
+                                                            @endif
                                                         </div>
                                                     </div>
                                                     <div class="row g-3">
@@ -5516,9 +5683,17 @@
                                                     <div class="d-flex justify-content-between align-items-center mb-3">
                                                         <h6 class="mb-0 fw-bold text-secondary"><i class="ri-taxi-line me-2"></i>Local Transport #{{ $index + 1 }}</h6>
                                                         <div class="d-flex gap-2">
+                                                            @if($isActualTourStatus)
+                                                            <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ $actualRemoveServiceTooltip }}">
+                                                                <button type="button" class="btn btn-sm btn-outline-danger" disabled style="pointer-events: none;" aria-disabled="true">
+                                                                    <i class="ri-delete-bin-line"></i> Remove
+                                                                </button>
+                                                            </span>
+                                                            @else
                                                             <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTransportService({{ $order->booking_id }})">
                                                                 <i class="ri-delete-bin-line"></i> Remove
                                                             </button>
+                                                            @endif
                                                         </div>
                                                     </div>
                                                     <div class="row g-3">
@@ -5723,10 +5898,6 @@
                                     </div>
                                 </div>
                             </div>
-                            
-                            
-
-                            
 
                             <!-- Departure Transport Services Section -->
                             <div class="service-section mb-3">
@@ -5756,7 +5927,8 @@
                                                     $pickupLocation = $transportData['exitpickup'] ?? $transportData['entrypickup'] ?? '';
                                                     $dropoffLocation = $transportData['exitdropoff'] ?? $transportData['entrydropoff'] ?? '';
                                                     $pickupTime = $transportData['entrytime'] ?? $transportData['exittime'] ?? $transportData['exitpickuptime'] ?? '';
-                                                    $vehicleName = $transportData['vehicles_name'] ?? '';
+                                                    $vehicleName = $transportData['vehicles_name'] ?? $transportData['vehicle_name'] ?? '';
+                                                    $vehicleSavedId = $transportData['vehicles_id'] ?? $transportData['vehicle_id'] ?? '';
                                                     $vehicleType = $transportData['type'] ?? '';
                                                     $passengers = $transportData['passengers'] ?? '';
                                                     $totalPrice = $transportData['totalPrice'] ?? $transportData['price'] ?? 0;
@@ -5780,9 +5952,17 @@
                                                     <div class="d-flex justify-content-between align-items-center mb-3">
                                                         <h6 class="mb-0 fw-bold text-danger"><i class="ri-logout-circle-line me-2"></i>Departure Transfer #{{ $index + 1 }}</h6>
                                                         <div class="d-flex gap-2">
+                                                            @if($isActualTourStatus)
+                                                            <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ $actualRemoveServiceTooltip }}">
+                                                                <button type="button" class="btn btn-sm btn-outline-danger" disabled style="pointer-events: none;" aria-disabled="true">
+                                                                    <i class="ri-delete-bin-line"></i> Remove
+                                                                </button>
+                                                            </span>
+                                                            @else
                                                             <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTransportService({{ $order->booking_id }})">
                                                                 <i class="ri-delete-bin-line"></i> Remove
                                                             </button>
+                                                            @endif
                                                         </div>
                                                     </div>
                                                     <div class="row g-3">
@@ -5792,10 +5972,10 @@
                                                         </div>
                                                         <div class="col-md-3">
                                                             <label class="form-label fw-semibold text-muted mb-2"><i class="ri-map-pin-line me-1 text-success"></i>City</label>
-                                                            <select class="form-select border-2" style="height: 35px;" name="city">
+                                                            <select class="form-select border-2" id="departure_city_{{ $order->booking_id }}" style="height: 35px;" name="city" onchange="loadDepartureRowCountryPorts({{ $order->booking_id }});">
                                                                 <option value="">Select city</option>
                                                                 @foreach($cities as $city)
-                                                                    <option value="{{ $city->name }}" {{ $city->name == $cityValue ? 'selected' : '' }}>{{ $city->name }}</option>
+                                                                    <option value="{{ $city->name }}" data-country="{{ $city->country ?? '' }}" {{ $city->name == $cityValue ? 'selected' : '' }}>{{ $city->name }}</option>
                                                                 @endforeach
                                                                 @if($cityValue && !$cities->contains('name', $cityValue))
                                                                     <option value="{{ $cityValue }}" selected>{{ $cityValue }}</option>
@@ -5835,7 +6015,7 @@
                                                         </div>
                                                         <div class="col-md-3">
                                                             <label class="form-label fw-semibold text-muted mb-2"><i class="ri-map-pin-line me-1 text-danger"></i>Drop Off Location</label>
-                                                            <select class="form-select border-2 departure-dropoff-location" style="height: 35px;" name="dropoff_location" data-booking-id="{{ $order->booking_id }}" onchange="updateDepartureVehicles({{ $order->booking_id }})">
+                                                            <select class="form-select border-2 departure-dropoff-location" id="departure_dropoff_{{ $order->booking_id }}" style="height: 35px;" name="dropoff_location" data-booking-id="{{ $order->booking_id }}" onchange="updateDepartureVehicles({{ $order->booking_id }})">
                                                                 <option value="">Select dropoff port</option>
                                                                 @foreach($ports as $port)
                                                                     <option value="{{ $port->port_name }}" 
@@ -5901,7 +6081,7 @@
                                                         <div class="col-md-4">
                                                             <label class="form-label fw-semibold text-muted mb-2"><i class="ri-car-line me-1 text-info"></i>Vehicle</label>
                                                             @php $vehicleMatched = false; @endphp
-                                                            <select class="form-select border-2 departure-vehicle-select" style="height: 35px;" name="vehicle_name" id="departure_vehicle_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}" onchange="updateDepartureServiceType({{ $order->booking_id }})"> 
+                                                            <select class="form-select border-2 departure-vehicle-select" style="height: 35px;" name="vehicle_name" id="departure_vehicle_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}" data-saved-vehicle="{{ $vehicleName }}" data-saved-vehicle-id="{{ $vehicleSavedId }}" onchange="updateDepartureServiceType({{ $order->booking_id }})"> 
                                                                 <option value="">{{ $vehicleName ? 'Select vehicle' : 'Select vehicle' }}</option>
                                                                 @foreach($availableVehicles as $vehicleOption)
                                                                     @php
@@ -6041,7 +6221,8 @@
                                                 </div>
                                                 <div class="col-md-3">
                                                     <label class="form-label mb-1" style="font-size: 0.8rem;">Email</label>
-                                                    <input type="email" class="form-control form-control-sm" id="customerEmail" name="customer_email" placeholder="Enter email" value="{{ $customer_info['email'] ?? '' }}" style="font-size: 0.85rem;">
+                                                    @php $leadGuestEmail = trim((string) ($customer_info['email'] ?? '')); @endphp
+                                                    <input type="email" class="form-control form-control-sm" id="customerEmail" name="customer_email" placeholder="Enter email" value="{{ $leadGuestEmail }}" @if($leadGuestEmail !== '') readonly @endif style="font-size: 0.85rem;{{ $leadGuestEmail !== '' ? ' background-color: #e9ecef;' : '' }}">
                                                 </div>
                                                 <div class="col-md-2">
                                                     <label class="form-label mb-1" style="font-size: 0.8rem;">Country Code</label>
@@ -6182,7 +6363,8 @@
                                                                 </div>
                                                                 <div class="col-md-4">
                                                                     <label class="form-label fw-semibold">Email</label>
-                                                                    <input type="email" class="form-control guest-email" name="additional_guests[{{ $index }}][email]" value="{{ $guest['email'] ?? '' }}" placeholder="Enter email">
+                                                                    @php $additionalGuestEmail = trim((string) ($guest['email'] ?? '')); @endphp
+                                                                    <input type="email" class="form-control guest-email" name="additional_guests[{{ $index }}][email]" value="{{ $additionalGuestEmail }}" placeholder="Enter email" @if($additionalGuestEmail !== '') readonly @endif @if($additionalGuestEmail !== '') style="background-color: #e9ecef;" @endif
                                                                 </div>
                                                                 @if(in_array($tour->tour_status ?? '', ['Definite', 'Actual']))
                                                                     <div class="col-md-4">
@@ -6662,7 +6844,7 @@
 
 <!-- Hotel Booking Modal -->
 <div class="modal fade" id="hotelBookingModal" tabindex="-1" aria-labelledby="hotelBookingModalLabel" aria-hidden="true" data-currency="{{ $displayCurrency }}">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-dialog modal-dialog-centered modal-lg" style="max-width: 960px;">
         <div class="modal-content border-0" style="border-radius: 12px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.15);">
             <div class="modal-header text-white border-0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 0.75rem 1rem;">
                 <div class="d-flex align-items-center">
@@ -6675,7 +6857,7 @@
                 </div>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" style="opacity: 0.9; font-size: 0.75rem;"></button>
             </div>
-            <div class="modal-body text-start" style="padding: 0.6rem 0.75rem; background: #ffffff; max-height: 72vh; overflow-y: auto;">
+            <div class="modal-body text-start" style="padding: 0.85rem 1rem; background: #ffffff; max-height: 80vh; overflow-y: auto;">
                 <form id="hotelBookingForm" class="text-start">
                     @csrf
                     <input type="hidden" id="modal_tour_id" name="tour_id">
@@ -6716,20 +6898,20 @@
                                     </div>
                                     <div class="col-6">
                                         <label for="hotel_select" class="form-label fw-semibold mb-0 text-start" style="color: #495057; font-size: 0.7rem;"><i class="ri-building-line me-1" style="color: #667eea;"></i>Hotel</label>
-                                        <select class="form-select modern-select" id="hotel_select" name="hotel_id" onchange="loadRoomsForSelectedHotel(this.value)" disabled>
+                                        <select class="form-select modern-select" id="hotel_select" name="hotel_id" data-no-select2="true" onchange="loadRoomsForSelectedHotel(this.value)" disabled>
                                             <option value="">Select city first</option>
                                         </select>
                                         <small class="text-muted d-block text-start" id="hotel_loading_status" style="font-size: 0.65rem;"><span id="hotel_count_display">0</span> found</small>
                                     </div>
                                     <div class="col-6">
                                         <label for="room_type" class="form-label fw-semibold mb-0 text-start" style="color: #495057; font-size: 0.7rem;">Room Type</label>
-                                        <select class="form-select modern-select" id="room_type" name="room_type" onchange="loadBedsForSelectedRoom(this.value); updateHotelModalPrice();" disabled>
+                                        <select class="form-select modern-select" id="room_type" name="room_type" data-no-select2="true" onchange="loadBedsForSelectedRoom(this.value)" disabled>
                                             <option value="">Select hotel</option>
                                         </select>
                                     </div>
                                     <div class="col-6">
                                         <label for="bed_type" class="form-label fw-semibold mb-0 text-start" style="color: #495057; font-size: 0.7rem;">Bed Type</label>
-                                        <select class="form-select modern-select" id="bed_type" name="bed_type" onchange="updateBedPricingAndMealPlans(); updateHotelModalPrice();" disabled>
+                                        <select class="form-select modern-select" id="bed_type" name="bed_type" data-no-select2="true" onchange="updateBedPricingAndMealPlans()" disabled>
                                             <option value="">Select room</option>
                                         </select>
                                         <small class="text-success d-block text-start" style="font-size: 0.6rem;"><span id="bed_occupancy_info">Max: 2</span></small>
@@ -6963,9 +7145,11 @@
                 <button type="button" class="btn" data-bs-dismiss="modal" style="height: 36px; border-radius: 8px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; padding: 0.375rem 1rem; font-weight: 500; font-size: 0.8rem; transition: all 0.2s;">
                     Cancel
                 </button>
-                <button type="button" class="btn text-white" id="proceed_hotel_btn" onclick="proceedToHotelSelection()" disabled style="height: 36px; border-radius: 8px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border: none; padding: 0.375rem 1rem; font-weight: 500; font-size: 0.8rem; transition: all 0.2s; box-shadow: 0 2px 6px rgba(16, 185, 129, 0.3);">
-                    <i class="ri-check-line me-1"></i>Book Hotels
-                </button>
+                <span class="d-inline-block" tabindex="0" id="proceed_hotel_wrap" title="Please click Get Price before booking">
+                    <button type="button" class="btn text-white" id="proceed_hotel_btn" onclick="proceedToHotelSelection()" disabled style="height: 36px; border-radius: 8px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border: none; padding: 0.375rem 1rem; font-weight: 500; font-size: 0.8rem; transition: all 0.2s; box-shadow: 0 2px 6px rgba(16, 185, 129, 0.3);">
+                        <i class="ri-check-line me-1"></i>Book Hotels
+                    </button>
+                </span>
             </div>
         </div>
     </div>
@@ -8426,7 +8610,7 @@
                                 <select class="form-select modern-select" id="modal_entryport_transport_city" name="city" style="height: 36px; font-size: 0.8rem;">
                                     <option value="">Select city</option>
                                     @foreach($cities as $city)
-                                    <option value="{{ $city->name }}" data-city="{{ json_encode($city) }}">{{ $city->name }}</option>
+                                    <option value="{{ $city->name }}" data-city="{{ json_encode($city) }}" data-country="{{ $city->country ?? '' }}">{{ $city->name }}</option>
                                     @endforeach
                                 </select>
                             </div>
@@ -9130,7 +9314,7 @@
                                             <select class="form-select border-2" id="modal_exitport_transport_city" name="city" style="padding-left: 45px;">
                                                 <option value="">Select city</option>
                                                 @foreach($cities as $city)
-                                                <option value="{{ $city->name }}" data-city="{{ json_encode($city) }}">{{ $city->name }}</option>
+                                                <option value="{{ $city->name }}" data-city="{{ json_encode($city) }}" data-country="{{ $city->country ?? '' }}">{{ $city->name }}</option>
                                                 @endforeach
                                             </select>
                                             <i style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
@@ -9565,6 +9749,55 @@
         hiddenInput.value = `${hourStr}:${minStr} ` + (ampmSelect.value || 'AM');
     }
 
+    function vehicleMatchesSaved(vehicle, savedName, savedId) {
+        const name = String(vehicle.vehicle_name || vehicle.vehicle_id || '').trim();
+        const id = String(vehicle.vehicle_id || '').trim();
+        const saved = String(savedName || '').trim();
+        const savedIdStr = String(savedId || '').trim();
+        if (savedIdStr && id && String(savedIdStr) === String(id)) return true;
+        if (!saved || !name) return false;
+        const a = saved.toLowerCase();
+        const b = name.toLowerCase();
+        return a === b || a.indexOf(b) !== -1 || b.indexOf(a) !== -1;
+    }
+
+    function populateVehicleSelect(vehicleSelect, vehicles, savedName, savedId) {
+        if (!vehicleSelect) return false;
+        vehicleSelect.innerHTML = '<option value="">Select vehicle</option>';
+        let selected = false;
+        (vehicles || []).forEach(function (v) {
+            const name = v.vehicle_name || v.vehicle_id || 'Vehicle';
+            const info = name + (v.vehicle_type ? ' (' + v.vehicle_type + ')' : '') + (v.seating_capacity ? ' - ' + v.seating_capacity + ' seats' : '');
+            const opt = document.createElement('option');
+            opt.value = name;
+            opt.textContent = info;
+            opt.setAttribute('data-vehicle-id', v.vehicle_id || '');
+            opt.setAttribute('data-private-price', v.private_price || v.base_price || '');
+            opt.setAttribute('data-shared-price', v.shared_price || v.sharable_base_price || '');
+            opt.setAttribute('data-sharable', v.sharable || 0);
+            if (!selected && vehicleMatchesSaved(v, savedName, savedId)) {
+                opt.selected = true;
+                selected = true;
+            }
+            vehicleSelect.appendChild(opt);
+        });
+        if (!selected && savedName) {
+            const opt = document.createElement('option');
+            opt.value = savedName;
+            opt.textContent = savedName;
+            if (savedId) opt.setAttribute('data-vehicle-id', savedId);
+            opt.setAttribute('data-sharable', '3');
+            opt.selected = true;
+            selected = true;
+            vehicleSelect.appendChild(opt);
+        }
+        vehicleSelect.disabled = false;
+        if (typeof window.refreshSelect2 === 'function') {
+            window.refreshSelect2(vehicleSelect);
+        }
+        return selected;
+    }
+
     // Fetch zone-respected vehicles for one arrival row and populate vehicle dropdown; then update price.
     function fetchArrivalVehiclesForRow(bookingId) {
         const cityEl = document.getElementById('arrival_city_' + bookingId);
@@ -9580,9 +9813,10 @@
         const dropoffZoneId = dropoffOpt ? (dropoffOpt.getAttribute('data-zone-id') || dropoffOpt.value) : '';
         const pickupType = pickupOpt ? (pickupOpt.getAttribute('data-type') || 'Port') : 'Port';
         const dropoffType = dropoffOpt ? (dropoffOpt.getAttribute('data-type') || 'Hotel') : 'Hotel';
+        const savedName = vehicleSelect.getAttribute('data-saved-vehicle') || vehicleSelect.value || '';
+        const savedId = vehicleSelect.getAttribute('data-saved-vehicle-id') || '';
 
         if (!city || !pickupZoneId || !dropoffZoneId) {
-            vehicleSelect.innerHTML = '<option value="">Select vehicle (choose city, pickup & dropoff)</option>';
             return;
         }
 
@@ -9605,22 +9839,24 @@
         .then(r => r.ok ? r.json() : r.text().then(t => { throw new Error(t || r.status); }))
         .then(data => {
             if (data.success && data.vehicles && data.vehicles.length > 0) {
-                vehicleSelect.innerHTML = '<option value="">Select vehicle</option>';
-                data.vehicles.forEach(v => {
-                    const name = v.vehicle_name || v.vehicle_id || 'Vehicle';
-                    const info = name + (v.vehicle_type ? ' (' + v.vehicle_type + ')' : '');
-                    const esc = (s) => String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
-                    vehicleSelect.innerHTML += '<option value="' + esc(name) + '" data-private-price="' + (v.private_price || '') + '" data-shared-price="' + (v.shared_price || '') + '">' + esc(info) + '</option>';
-                });
-                updateArrivalRowPrice(bookingId);
+                populateVehicleSelect(vehicleSelect, data.vehicles, savedName, savedId);
+                const totalInput = document.getElementById('arrival_total_price_' + bookingId);
+                const savedTotal = totalInput ? totalInput.value : '';
+                if (vehicleSelect.value && (!savedTotal || parseFloat(savedTotal) === 0)) {
+                    updateArrivalRowPrice(bookingId);
+                }
+            } else if (savedName) {
+                populateVehicleSelect(vehicleSelect, [], savedName, savedId);
             } else {
                 vehicleSelect.innerHTML = '<option value="">No vehicles for this route</option>';
-                document.getElementById('arrival_total_price_' + bookingId).value = '0.00';
+                if (typeof window.refreshSelect2 === 'function') window.refreshSelect2(vehicleSelect);
             }
         })
         .catch(err => {
             console.warn('Arrival vehicles fetch failed:', err);
-            vehicleSelect.innerHTML = '<option value="">Error loading vehicles</option>';
+            if (savedName) {
+                populateVehicleSelect(vehicleSelect, [], savedName, savedId);
+            }
         });
     }
 
@@ -11842,6 +12078,13 @@
         initializeTravelDateRangePicker();
         initializeInlineTransportToggles();
         initializeTransportDynamicFeatures();
+        if (window.isActualTourStatus && typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+            document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function (el) {
+                if (!bootstrap.Tooltip.getInstance(el)) {
+                    new bootstrap.Tooltip(el);
+                }
+            });
+        }
         setTimeout(function() {
             if (typeof window.lockSingleCityFieldIfNeeded === 'function') {
                 window.lockSingleCityFieldIfNeeded();
@@ -11856,11 +12099,19 @@
 
         if (!rangeInput || !startDateInput || !endDateInput) return;
 
+        const lockTravelDates = !!window.isActualTourStatus;
+
         // If the date-range picker library isn't present, fall back to showing the two native date inputs.
         if (typeof $ === 'undefined' || !$.fn || typeof $.fn.daterangepicker === 'undefined' || typeof moment === 'undefined') {
             rangeInput.classList.add('d-none');
             startDateInput.classList.remove('d-none');
             endDateInput.classList.remove('d-none');
+            if (lockTravelDates) {
+                startDateInput.readOnly = true;
+                endDateInput.readOnly = true;
+                startDateInput.setAttribute('title', "Travel dates can't be changed in Actual Status.");
+                endDateInput.setAttribute('title', "Travel dates can't be changed in Actual Status.");
+            }
             return;
         }
 
@@ -11901,6 +12152,18 @@
         const initialStart = safeParseYmd(startDateInput.value) || today;
         const initialEnd = safeParseYmd(endDateInput.value) || initialStart;
         const minDate = initialStart && initialStart.isValid() && initialStart.isBefore(today) ? initialStart : today;
+
+        // Actual tours: show dates as read-only, do not open the picker.
+        if (lockTravelDates) {
+            setHiddenAndNotify(initialStart, initialEnd);
+            syncDisplayFromHidden();
+            rangeInput.readOnly = true;
+            rangeInput.disabled = true;
+            rangeInput.setAttribute('title', "Travel dates can't be changed in Actual Status.");
+            startDateInput.readOnly = true;
+            endDateInput.readOnly = true;
+            return;
+        }
 
         $(rangeInput).daterangepicker({
             autoUpdateInput: false,
@@ -12362,11 +12625,45 @@
         initializeExistingAttractionTimeSlots();
     });
     
+    // AI/day-level names often arrive as "Name - Location". Map the selected
+    // option onto the catalog row that actually has tickets/time slots.
+    function resolveCatalogAttractionOption(attractionSelect) {
+        if (!attractionSelect || !attractionSelect.options) {
+            return null;
+        }
+        const selectedOption = attractionSelect.options[attractionSelect.selectedIndex];
+        if (selectedOption && selectedOption.getAttribute('data-attraction-data')) {
+            return selectedOption;
+        }
+        const normalize = (value) => (value || '').replace(/\s+/g, ' ').trim().toLowerCase();
+        const selectedText = normalize((selectedOption && selectedOption.textContent) || '');
+        const selectedVal = normalize(attractionSelect.value || '');
+        if (!selectedText && !selectedVal) {
+            return selectedOption || null;
+        }
+        for (let i = 0; i < attractionSelect.options.length; i++) {
+            const opt = attractionSelect.options[i];
+            if (!opt.value || !opt.getAttribute('data-attraction-data')) {
+                continue;
+            }
+            const optText = normalize(opt.textContent);
+            const optVal = normalize(opt.value);
+            if (
+                (selectedText && (optText === selectedText || optVal === selectedText || selectedText.startsWith(optVal + ' - ')))
+                || (selectedVal && (optVal === selectedVal || optText === selectedVal || selectedVal.startsWith(optVal + ' - ')))
+            ) {
+                attractionSelect.selectedIndex = i;
+                return opt;
+            }
+        }
+        return selectedOption || null;
+    }
+
     // Function to populate time slot select from attraction data
     function populateTimeSlotFromAttraction(attractionSelect, timeSlotSelect, currentValue = '') {
         if (!attractionSelect || !timeSlotSelect) return;
         
-        const selectedOption = attractionSelect.options[attractionSelect.selectedIndex];
+        const selectedOption = resolveCatalogAttractionOption(attractionSelect);
         if (!selectedOption || !selectedOption.getAttribute('data-attraction-data')) {
             timeSlotSelect.innerHTML = '<option value="">Select Time Slot</option>';
             return;
@@ -12455,7 +12752,7 @@
         const ticketSelect = typeof ticketSelectId === 'string' ? document.getElementById(ticketSelectId) : ticketSelectId;
         if (!ticketSelect) return;
         
-        const selectedOption = attractionSelect.options[attractionSelect.selectedIndex];
+        const selectedOption = resolveCatalogAttractionOption(attractionSelect);
         if (!selectedOption || !selectedOption.getAttribute('data-attraction-data')) {
             ticketSelect.innerHTML = '<option value="">Select Ticket</option>';
             return;
@@ -12480,8 +12777,14 @@
             }
             
             // Populate tickets from attraction data
-            if (attractionData.tickets && Array.isArray(attractionData.tickets) && attractionData.tickets.length > 0) {
-                attractionData.tickets.forEach(ticket => {
+            let tickets = attractionData.tickets;
+            if (tickets && !Array.isArray(tickets) && typeof tickets === 'object') {
+                tickets = Object.values(tickets);
+            }
+            const genericTicket = !currentValue || ['n/a', 'general ticket', 'select ticket'].includes(String(currentValue).trim().toLowerCase());
+            if (tickets && Array.isArray(tickets) && tickets.length > 0) {
+                let matched = false;
+                tickets.forEach(ticket => {
                     const ticketOption = document.createElement('option');
                     // Use ticket name as value, or ticket_id if name is not available
                     const ticketValue = ticket.name || ticket.ticket_name || ticket.ticket_id || '';
@@ -12491,16 +12794,20 @@
                     // Price data for inline edit form total calculation
                     const adultPrice = parseFloat(ticket.adult_price ?? ticket.price ?? 0) || 0;
                     const childPrice = parseFloat(ticket.child_price ?? 0) || 0;
-                    const seniorPrice = parseFloat(ticket.senior_price ?? ticket.adult_price ?? ticket.price ?? 0) || 0;
+                    const seniorPrice = parseFloat(ticket.senior_price ?? ticket.senior_adult_price ?? ticket.adult_price ?? ticket.price ?? 0) || 0;
                     ticketOption.dataset.adultPrice = adultPrice;
                     ticketOption.dataset.childPrice = childPrice;
                     ticketOption.dataset.seniorPrice = seniorPrice;
                     // Set selected if it matches current value
-                    if (currentValue && (ticketValue === currentValue || ticketText === currentValue)) {
+                    if (!genericTicket && currentValue && (ticketValue === currentValue || ticketText === currentValue)) {
                         ticketOption.selected = true;
+                        matched = true;
                     }
                     ticketSelect.appendChild(ticketOption);
                 });
+                if (!matched && ticketSelect.options.length > 1) {
+                    ticketSelect.selectedIndex = 1;
+                }
             } else {
                 // If no tickets found, show message
                 const noTicketOption = document.createElement('option');
@@ -14707,6 +15014,26 @@
             dropoffZoneSelect.addEventListener('change', checkDropoffFormCompletion);
         }
         
+        const exitCitySelect = document.getElementById('modal_exitport_transport_city');
+        if (exitCitySelect && !exitCitySelect.dataset.cityChangeWired) {
+            exitCitySelect.dataset.cityChangeWired = '1';
+            exitCitySelect.addEventListener('change', function () {
+                if (typeof window.loadDropoffModalCountryPorts === 'function') {
+                    window.loadDropoffModalCountryPorts();
+                }
+            });
+            if (typeof jQuery !== 'undefined') {
+                jQuery(exitCitySelect).on('select2:select select2:change', function () {
+                    if (typeof window.loadDropoffModalCountryPorts === 'function') {
+                        window.loadDropoffModalCountryPorts();
+                    }
+                });
+            }
+        }
+        if (typeof window.loadDropoffModalCountryPorts === 'function') {
+            window.loadDropoffModalCountryPorts();
+        }
+
         const pickupTimeInput = document.getElementById('modal_dropoff_transport_pickup_time_input');
         if (pickupTimeInput) {
             pickupTimeInput.addEventListener('input', () => {
@@ -14764,6 +15091,127 @@
         });
     }
 
+    window.ALL_TOUR_PORTS = @json($ports ?? []);
+
+    function getCountryFromCitySelect(selectEl) {
+        if (!selectEl) return '';
+        const opt = selectEl.options[selectEl.selectedIndex];
+        if (!opt || !opt.value) return '';
+        let country = (opt.getAttribute('data-country') || '').toString().trim();
+        if (!country) {
+            try {
+                const cityData = JSON.parse(opt.getAttribute('data-city') || '{}');
+                country = (cityData.country || '').toString().trim();
+            } catch (e) { /* ignore */ }
+        }
+        return country;
+    }
+
+    function fillPortSelectOptions(selectEl, ports, options) {
+        if (!selectEl) return;
+        options = options || {};
+        const useName = !!options.useName;
+        const placeholder = options.placeholder || (useName ? 'Select pickup port' : 'Select location');
+        const selectedValue = String(options.selectedValue != null ? options.selectedValue : (selectEl.value || '')).trim();
+        const norm = function (s) { return String(s || '').trim().toLowerCase(); };
+        selectEl.innerHTML = '<option value="">' + placeholder + '</option>';
+        let matched = false;
+        (ports || []).forEach(function (port) {
+            const opt = document.createElement('option');
+            const portId = port.port_id || port.id || '';
+            const portName = port.port_name || '';
+            opt.value = useName ? portName : portId;
+            opt.textContent = portName;
+            opt.setAttribute('data-type', 'Port');
+            opt.setAttribute('data-zone-id', portId);
+            opt.setAttribute('data-port-id', portId);
+            opt.setAttribute('data-port', JSON.stringify(port));
+            const selectedNorm = norm(selectedValue);
+            const nameNorm = norm(portName);
+            const idNorm = norm(portId);
+            if (selectedValue && !matched && (
+                String(opt.value) === selectedValue ||
+                String(portName) === selectedValue ||
+                String(portId) === selectedValue ||
+                (selectedNorm && nameNorm && (selectedNorm === nameNorm || selectedNorm.indexOf(nameNorm) !== -1 || nameNorm.indexOf(selectedNorm) !== -1)) ||
+                (selectedNorm && idNorm && selectedNorm === idNorm)
+            )) {
+                opt.selected = true;
+                matched = true;
+            }
+            selectEl.appendChild(opt);
+        });
+        if (typeof window.refreshSelect2 === 'function') {
+            window.refreshSelect2(selectEl);
+        } else if (typeof jQuery !== 'undefined' && jQuery(selectEl).data('select2')) {
+            jQuery(selectEl).trigger('change.select2');
+        }
+    }
+
+    window.loadCountryPortsThen = function (cityName, country, cb) {
+        const done = typeof cb === 'function' ? cb : function () {};
+        const params = new URLSearchParams();
+        if (country) params.set('country_id', country);
+        if (cityName) params.set('city', cityName);
+        const fallback = function () {
+            const all = window.ALL_TOUR_PORTS || [];
+            const c = String(country || '').toLowerCase();
+            done(!c ? all : all.filter(function (p) {
+                return String(p.country || '').toLowerCase() === c;
+            }));
+        };
+        if (!cityName && !country) {
+            done([]);
+            return;
+        }
+        fetch('{{ route("fetch-ports-by-country-single-tour") }}?' + params.toString())
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                const ports = (data && data.ports) ? data.ports : [];
+                done(ports);
+            })
+            .catch(fallback);
+    };
+
+    window.loadArrivalRowCountryPorts = function (bookingId) {
+        const cityEl = document.getElementById('arrival_city_' + bookingId);
+        const pickupEl = document.getElementById('arrival_pickup_' + bookingId);
+        if (!cityEl || !pickupEl) return;
+        const selected = pickupEl.value;
+        window.loadCountryPortsThen(cityEl.value, getCountryFromCitySelect(cityEl), function (ports) {
+            fillPortSelectOptions(pickupEl, ports, { useName: true, placeholder: 'Select pickup port', selectedValue: selected });
+            if (typeof fetchArrivalVehiclesForRow === 'function') {
+                fetchArrivalVehiclesForRow(bookingId);
+            }
+        });
+    };
+
+    window.loadDepartureRowCountryPorts = function (bookingId) {
+        const cityEl = document.getElementById('departure_city_' + bookingId);
+        const dropoffEl = document.getElementById('departure_dropoff_' + bookingId);
+        if (!cityEl || !dropoffEl) return;
+        const selected = dropoffEl.value;
+        window.loadCountryPortsThen(cityEl.value, getCountryFromCitySelect(cityEl), function (ports) {
+            fillPortSelectOptions(dropoffEl, ports, { useName: true, placeholder: 'Select dropoff port', selectedValue: selected });
+            if (typeof updateDepartureVehicles === 'function') {
+                updateDepartureVehicles(bookingId);
+            }
+        });
+    };
+
+    window.loadDropoffModalCountryPorts = function () {
+        const cityEl = document.getElementById('modal_exitport_transport_city');
+        const dropoffEl = document.getElementById('modal_dropoff_transport_dropoff_zone');
+        if (!cityEl || !dropoffEl) return;
+        const selected = dropoffEl.value;
+        window.loadCountryPortsThen(cityEl.value, getCountryFromCitySelect(cityEl), function (ports) {
+            fillPortSelectOptions(dropoffEl, ports, { useName: false, placeholder: 'Select dropoff location', selectedValue: selected });
+            if (typeof window.refreshSelect2 === 'function') {
+                window.refreshSelect2(dropoffEl);
+            }
+        });
+    };
+
     function getTransportModalCityContext() {
         const citySelect = document.getElementById('modal_entryport_transport_city');
         if (!citySelect || !citySelect.value) {
@@ -14814,21 +15262,25 @@
         }
 
         // Backend data
-        const allPorts = @json($ports ?? []);
+        const allPorts = window.ALL_TOUR_PORTS || @json($ports ?? []);
         const allHotels = @json($hotels ?? []);
         const allRestaurants = @json($restaurants ?? []);
         const allAttractions = @json($attractions ?? []);
         const cityCtx = getTransportModalCityContext();
+        const citySelect = document.getElementById('modal_entryport_transport_city');
+        const country = getCountryFromCitySelect(citySelect);
         const filterByCity = function(list) {
             if (!cityCtx.cityName && cityCtx.cityId == null) return list;
             const filtered = list.filter(function(item) { return recordMatchesTransportCity(item, cityCtx); });
             return filtered.length ? filtered : list;
         };
-        const ports = filterByCity(allPorts);
         const hotels = filterByCity(allHotels);
         const restaurants = filterByCity(allRestaurants);
         const attractions = filterByCity(allAttractions);
+        const pickupSelected = pickupSelect.value;
+        const dropoffSelected = dropoffSelect.value;
 
+        const applyPortLists = function (ports) {
         // Helper to build port options
         const buildPortOptions = () => {
             let html = '<option value="">Select location</option>';
@@ -14905,24 +15357,31 @@
             // Pickup: Hotels + Restaurants
             pickupSelect.innerHTML = buildHotelRestaurantOptions();
 
-            // Dropoff: Ports
+            // Dropoff: Ports (country-wide)
             dropoffSelect.innerHTML = buildPortOptions();
         } else {
             console.log('Configuring transport modal for ARRIVAL (entry_port): pickup = ports, dropoff = hotels/attractions/restaurants');
 
-            // Pickup: Ports
+            // Pickup: Ports (country-wide)
             pickupSelect.innerHTML = buildPortOptions();
 
-            // Dropoff: Hotels + Attractions + Restaurants (original behaviour)
+            // Dropoff: Hotels + Attractions + Restaurants (city-filtered)
             dropoffSelect.innerHTML = buildArrivalDropoffOptions();
         }
 
-        // Reset selects to default value
         pickupSelect.value = '';
         dropoffSelect.value = '';
+        if (pickupSelected && Array.from(pickupSelect.options).some(function (o) { return o.value === pickupSelected; })) {
+            pickupSelect.value = pickupSelected;
+        }
+        if (dropoffSelected && Array.from(dropoffSelect.options).some(function (o) { return o.value === dropoffSelected; })) {
+            dropoffSelect.value = dropoffSelected;
+        }
 
-        // Select2 caches options on init; refresh after innerHTML changes (live server timing can init before this runs)
         refreshTransportModalZoneSelects();
+        };
+
+        window.loadCountryPortsThen(cityCtx.cityName, country, applyPortLists);
     }
     
     function loadZonesForPickup() {
@@ -18408,6 +18867,28 @@
     }
     
     // Hotel Modal Functions - Chain-dependent dropdowns like create.blade.php
+    // AbortControllers cancel in-flight hotel/room/bed fetches when the user changes selection quickly.
+    window.__hotelModalFetchControllers = window.__hotelModalFetchControllers || {
+        hotels: null,
+        rooms: null,
+        beds: null,
+    };
+
+    function abortHotelModalFetch(kind) {
+        const ctrls = window.__hotelModalFetchControllers;
+        if (ctrls[kind]) {
+            try { ctrls[kind].abort(); } catch (e) { /* ignore */ }
+            ctrls[kind] = null;
+        }
+    }
+
+    function startHotelModalFetch(kind) {
+        abortHotelModalFetch(kind);
+        const controller = new AbortController();
+        window.__hotelModalFetchControllers[kind] = controller;
+        return controller;
+    }
+
     function loadHotelsForSelectedCity(cityName) {
         const hotelSelect = document.getElementById('hotel_select');
         const hotelCount = document.getElementById('hotel_count');
@@ -18416,6 +18897,9 @@
         
         if (!cityName) {
             // Reset to default state when no city selected
+            abortHotelModalFetch('hotels');
+            abortHotelModalFetch('rooms');
+            abortHotelModalFetch('beds');
             hotelSelect.disabled = true;
             hotelSelect.innerHTML = '<option value="">Select city first to load hotels</option>';
             hotelCount.textContent = '0';
@@ -18437,10 +18921,13 @@
         
         // Get current user's DMC ID for hotel filtering
         const currentDmcId = document.getElementById('dmc_id').value;
-        console.log('Loading hotels for city:', cityName, 'DMC ID:', currentDmcId);
+        const controller = startHotelModalFetch('hotels');
         
         // Fetch hotels from API using DMC-specific endpoint (same as create.blade.php)
-        fetch(`{{ route('fetch-hotels-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${currentDmcId}`)
+        fetch(`{{ route('fetch-hotels-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${currentDmcId}`, {
+            signal: controller.signal,
+            headers: { 'Accept': 'application/json' },
+        })
             .then(response => {
                 if (!response.ok) {
                     throw new Error('Network response was not ok');
@@ -18448,9 +18935,12 @@
                 return response.json();
             })
             .then(response => {
-                console.log('Hotel API Response:', response);
-                
-                hotelSelect.innerHTML = '<option value="">Select a hotel in ' + cityName + '</option>';
+                hotelSelect.innerHTML = '';
+                const frag = document.createDocumentFragment();
+                const placeholder = document.createElement('option');
+                placeholder.value = '';
+                placeholder.textContent = 'Select a hotel in ' + cityName;
+                frag.appendChild(placeholder);
                 hotelSelect.disabled = false;
                 
                 if (response.success && response.hotels && response.hotels.length > 0) {
@@ -18459,26 +18949,36 @@
                     
                     response.hotels.forEach(hotel => {
                         const starInfo = hotel.hotel_star_rating ? ` (${hotel.hotel_star_rating}⭐)` : '';
-                const option = document.createElement('option');
-                option.value = hotel.hotel_unique_id;
+                        const option = document.createElement('option');
+                        option.value = hotel.hotel_unique_id;
                         option.textContent = hotel.name + starInfo;
-                option.setAttribute('data-hotel', JSON.stringify(hotel));
-                hotelSelect.appendChild(option);
-            });
+                        // Slim payload only — full hotel JSON on every option was a major lag source
+                        option.setAttribute('data-hotel', JSON.stringify({
+                            hotel_unique_id: hotel.hotel_unique_id || '',
+                            name: hotel.name || '',
+                            city: hotel.city || '',
+                            country: hotel.country || '',
+                            hotel_star_rating: hotel.hotel_star_rating || '',
+                            weekend_days: hotel.weekend_days || null,
+                            check_in_time: hotel.check_in_time || '',
+                            check_out_time: hotel.check_out_time || '',
+                        }));
+                        frag.appendChild(option);
+                    });
+                    hotelSelect.appendChild(frag);
             
                     hotelCount.textContent = response.hotels.length;
                     if (hotelLoadingStatus) {
                         hotelLoadingStatus.innerHTML = `<i class="ri-check-line me-1 text-success"></i>${response.hotels.length} hotels found in ${cityName}`;
                         hotelLoadingStatus.style.color = '#198754';
                     }
-                    console.log(`Loaded ${response.hotels.length} hotels for ${cityName}`);
                     
                     // Validate fields after hotels are loaded
                     validateHotelModalFields();
-        } else {
+                } else {
                     window.hotelData = [];
                     hotelSelect.innerHTML = '<option value="">No hotels found in ' + cityName + '</option>';
-            hotelCount.textContent = '0';
+                    hotelCount.textContent = '0';
                     if (hotelLoadingStatus) {
                         hotelLoadingStatus.innerHTML = `<i class="ri-information-line me-1 text-warning"></i>No hotels found in ${cityName}`;
                         hotelLoadingStatus.style.color = '#fd7e14';
@@ -18490,6 +18990,7 @@
                 }
             })
             .catch(error => {
+                if (error && error.name === 'AbortError') return;
                 console.error('Error loading hotels:', error);
                 window.hotelData = [];
                 hotelSelect.innerHTML = '<option value="">Error loading hotels</option>';
@@ -18520,12 +19021,15 @@
         }
         
         if (!hotelId) {
+            abortHotelModalFetch('rooms');
+            abortHotelModalFetch('beds');
             // Reset to default state when no hotel selected
             resetHotelModalFields();
             return;
         }
         
-        console.log('Loading rooms for hotel:', hotelId);
+        // Cancel any in-flight bed fetch from a previous hotel/room choice
+        abortHotelModalFetch('beds');
         
         // Show loading state
         roomTypeSelect.innerHTML = '<option value="">Loading rooms...</option>';
@@ -18538,9 +19042,13 @@
         // Get DMC id for query string (API resolves DMC from auth; this is informational)
         const dmcEl = document.getElementById('dmc_id');
         const currentDmcId = dmcEl ? String(dmcEl.value || '').trim() : '';
+        const controller = startHotelModalFetch('rooms');
         
-        // fetch-rooms-by-hotel already filters by DMC on the server — use response.rooms as-is (see loadRoomsForSelectedHotel).
-        fetch(`{{ route('fetch-rooms-by-hotel') }}?hotel_id=${encodeURIComponent(hotelId)}&dmc_id=${encodeURIComponent(currentDmcId)}`)
+        // fetch-rooms-by-hotel already filters by DMC on the server — use response.rooms as-is.
+        fetch(`{{ route('fetch-rooms-by-hotel') }}?hotel_id=${encodeURIComponent(hotelId)}&dmc_id=${encodeURIComponent(currentDmcId)}`, {
+            signal: controller.signal,
+            headers: { 'Accept': 'application/json' },
+        })
             .then(response => {
                 if (!response.ok) {
                     throw new Error('Network response was not ok');
@@ -18548,87 +19056,82 @@
                 return response.json();
             })
             .then(response => {
-                console.log('Rooms API Response:', response);
-                
-                // Clear dropdowns
-                roomTypeSelect.innerHTML = '<option value="">Select room type</option>';
+                // Clear dropdowns via fragment (one DOM write)
+                const roomFrag = document.createDocumentFragment();
+                const roomPlaceholder = document.createElement('option');
+                roomPlaceholder.value = '';
+                roomPlaceholder.textContent = 'Select room type';
+                roomFrag.appendChild(roomPlaceholder);
                 bedTypeSelect.innerHTML = '<option value="">Select room type first</option>';
                 mealPlanSelect.innerHTML = '<option value="">Select room type first</option>';
                 
                 if (response.success && response.rooms && response.rooms.length > 0) {
                     const dmcFilteredRooms = response.rooms;
-                    console.log('Rooms from API (server-filtered):', dmcFilteredRooms.length);
+                    if (response.weekend_days) {
+                        window.hotelWeekendDays = response.weekend_days;
+                    }
                     
                     // Store room data globally for bed fetching
                     window.roomData = dmcFilteredRooms;
                     
-                    // Extract unique room types
-                    const roomTypes = [...new Set(dmcFilteredRooms.map(room => room.room_type).filter(Boolean))];
-                    console.log('Available room types:', roomTypes);
+                    // Extract unique room types once (avoid N×find)
+                    const byType = new Map();
+                    dmcFilteredRooms.forEach(room => {
+                        if (!room || !room.room_type) return;
+                        if (!byType.has(room.room_type)) {
+                            byType.set(room.room_type, room);
+                        }
+                    });
                     
-                            // Populate room types with pricing information
-                            roomTypes.forEach(roomType => {
-                                const sampleRoom = dmcFilteredRooms.find(room => room.room_type === roomType);
-                                
-                                if (sampleRoom) {
-                                    // Get guest count for pricing - use person_count_select from modal
-                                    const personCountSelect = document.getElementById('person_count_select');
-                                    const numberOfPersons = personCountSelect ? parseInt(personCountSelect.value) || 1 : 1;
-                                    
-                                    // Determine pricing based on occupancy
-                                    const isSingleOccupancy = numberOfPersons <= 1;
-                                    
-                                    let price = 0;
-                                    let priceText = '';
-                                    
-                                    if (isSingleOccupancy) {
-                                        price = parseFloat(sampleRoom.weekday_price) || 0;
-                                        priceText = ` - ${window.__displayCurrency} ${price}`;
-                                    } else {
-                                        price = parseFloat(sampleRoom.double_weekday_price) || 0;
-                                        priceText = ` - ${window.__displayCurrency} ${price}`;
-                                    }
-                                    
-                                    const option = document.createElement('option');
-                                    option.value = roomType;
-                                    option.textContent = `${roomType}${priceText}`;
-                                    
-                                    // Store room data in dataset for later use
-                                    option.dataset.roomType = roomType;
-                                    option.dataset.weekdayPrice = sampleRoom.weekday_price || 0;
-                                    option.dataset.weekendPrice = sampleRoom.weekend_price || 0;
-                                    option.dataset.doubleWeekdayPrice = sampleRoom.double_weekday_price || 0;
-                                    option.dataset.doubleWeekendPrice = sampleRoom.double_weekend_price || 0;
-                                    option.dataset.roomId = sampleRoom.room_id;
-                                    option.dataset.breakfastPrice = sampleRoom.breakfast_price || 0;
-                                    option.dataset.lunchPrice = sampleRoom.lunch_price || 0;
-                                    option.dataset.dinnerPrice = sampleRoom.dinner_price || 0;
-                                    option.dataset.breakfast = sampleRoom.breakfast || 0;
-                                    option.dataset.lunch = sampleRoom.lunch || 0;
-                                    option.dataset.dinner = sampleRoom.dinner || 0;
-                                    
-                                    roomTypeSelect.appendChild(option);
-                                    console.log(`Added room type: ${roomType} with price ${window.__displayCurrency} ${price}`);
-                                }
-                            });
-                            
-                            // Update price after rooms are loaded
-                            setTimeout(() => {
-                                updateHotelModalPrice();
-                            }, 100);
+                    const personCountSelect = document.getElementById('person_count_select');
+                    const numberOfPersons = personCountSelect ? parseInt(personCountSelect.value) || 1 : 1;
+                    const isSingleOccupancy = numberOfPersons <= 1;
                     
+                    byType.forEach((sampleRoom, roomType) => {
+                        let price = 0;
+                        if (isSingleOccupancy) {
+                            price = parseFloat(sampleRoom.weekday_price) || 0;
+                        } else {
+                            price = parseFloat(sampleRoom.double_weekday_price) || 0;
+                        }
+                        const priceText = price ? ` - ${window.__displayCurrency} ${price}` : '';
+                        
+                        const option = document.createElement('option');
+                        option.value = roomType;
+                        option.textContent = `${roomType}${priceText}`;
+                        
+                        option.dataset.roomType = roomType;
+                        option.dataset.weekdayPrice = sampleRoom.weekday_price || 0;
+                        option.dataset.weekendPrice = sampleRoom.weekend_price || 0;
+                        option.dataset.doubleWeekdayPrice = sampleRoom.double_weekday_price || 0;
+                        option.dataset.doubleWeekendPrice = sampleRoom.double_weekend_price || 0;
+                        option.dataset.roomId = sampleRoom.room_id;
+                        option.dataset.breakfastPrice = sampleRoom.breakfast_price || 0;
+                        option.dataset.lunchPrice = sampleRoom.lunch_price || 0;
+                        option.dataset.dinnerPrice = sampleRoom.dinner_price || 0;
+                        option.dataset.breakfast = sampleRoom.breakfast || 0;
+                        option.dataset.lunch = sampleRoom.lunch || 0;
+                        option.dataset.dinner = sampleRoom.dinner || 0;
+                        
+                        roomFrag.appendChild(option);
+                    });
+                    
+                    roomTypeSelect.innerHTML = '';
+                    roomTypeSelect.appendChild(roomFrag);
                     roomTypeSelect.disabled = false;
-                    console.log(`Loaded ${roomTypes.length} room types for hotel ${hotelId}`);
                     
-                    // Validate fields after rooms are loaded
-                    validateHotelModalFields();
+                    // Update price after rooms are loaded
+                    setTimeout(() => {
+                        updateHotelModalPrice();
+                        validateHotelModalFields();
+                    }, 0);
                 } else {
-                    console.log('No rooms found for hotel:', hotelId);
                     roomTypeSelect.innerHTML = '<option value="">No rooms available</option>';
                     roomTypeSelect.disabled = false;
                 }
             })
             .catch(error => {
+                if (error && error.name === 'AbortError') return;
                 console.error('Error loading rooms:', error);
                 roomTypeSelect.innerHTML = '<option value="">Error loading rooms</option>';
                 bedTypeSelect.innerHTML = '<option value="">Error loading rooms</option>';
@@ -18726,6 +19229,7 @@
         const bedTypeSelect = document.getElementById('bed_type');
         const mealPlanSelect = document.getElementById('meal_plan');
         if (!roomType) {
+            abortHotelModalFetch('beds');
             // Reset to default state when no room type selected
             bedTypeSelect.disabled = true;
             bedTypeSelect.innerHTML = '<option value="">Select room type first</option>';
@@ -18735,8 +19239,6 @@
             updateModalChildPricingVisibility(null);
             return;
         }
-        
-        console.log('Loading beds for room type:', roomType);
         
         // Show loading state
         bedTypeSelect.innerHTML = '<option value="">Loading bed types...</option>';
@@ -18763,11 +19265,13 @@
         // Get the first room ID to fetch beds from beds table
         const firstRoom = selectedRooms[0];
         const roomId = firstRoom.room_id;
-        
-        console.log('Fetching beds for room ID:', roomId);
+        const controller = startHotelModalFetch('beds');
         
         // Fetch beds from the beds table using API endpoint (same as create.blade.php)
-        fetch(`{{ route('fetch-beds-by-room') }}?room_id=${roomId}`)
+        fetch(`{{ route('fetch-beds-by-room') }}?room_id=${roomId}`, {
+            signal: controller.signal,
+            headers: { 'Accept': 'application/json' },
+        })
             .then(response => {
                 if (!response.ok) {
                     throw new Error('Network response was not ok');
@@ -18775,9 +19279,11 @@
                 return response.json();
             })
             .then(data => {
-                console.log('Beds API Response:', data);
-                
-                bedTypeSelect.innerHTML = '<option value="">Select bed type</option>';
+                const frag = document.createDocumentFragment();
+                const placeholder = document.createElement('option');
+                placeholder.value = '';
+                placeholder.textContent = 'Select bed type';
+                frag.appendChild(placeholder);
                 
                 if (data.success && data.beds && data.beds.length > 0) {
                     // Populate bed types from the beds table
@@ -18818,23 +19324,25 @@
                         option.setAttribute('data-room-id', bed.room_id);
                         option.setAttribute('data-bed-max-occupancy', bed.max_occupancy);
                         option.setAttribute('data-bed-type', bed.room_type || bed.bed_type);
-                        bedTypeSelect.appendChild(option);
+                        frag.appendChild(option);
                     });
                     
+                    bedTypeSelect.innerHTML = '';
+                    bedTypeSelect.appendChild(frag);
                     bedTypeSelect.disabled = false;
-                    console.log(`Loaded ${data.beds.length} bed types for room type ${roomType}`);
                     
                     // Validate fields after beds are loaded
                     validateHotelModalFields();
                 } else {
-                    console.log('No beds found for room type:', roomType);
                     bedTypeSelect.innerHTML = '<option value="">No bed types available</option>';
                 }
                 
                 // Meals follow room type (not bed row); rebuild when room type / beds list changes
                 loadHotelModalMealPlansFromRoomType(roomType, { preserveMeal: false });
+                updateHotelModalPrice();
             })
             .catch(error => {
+                if (error && error.name === 'AbortError') return;
                 console.error('Error fetching beds:', error);
                 bedTypeSelect.innerHTML = '<option value="">Error loading bed types</option>';
                 mealPlanSelect.innerHTML = '<option value="">Error loading bed types</option>';
@@ -18906,13 +19414,17 @@
         const bedTypeSelect = document.getElementById('bed_type');
         const mealPlanSelect = document.getElementById('meal_plan');
         const proceedBtn = document.getElementById('proceed_hotel_btn');
+        const proceedWrap = document.getElementById('proceed_hotel_wrap');
         
         // Check if all required fields are selected
-        const isValid = citySelect && citySelect.value &&
+        const fieldsFilled = citySelect && citySelect.value &&
                         hotelSelect && hotelSelect.value &&
                         roomTypeSelect && roomTypeSelect.value &&
                         bedTypeSelect && bedTypeSelect.value &&
                         mealPlanSelect && mealPlanSelect.value;
+
+        // A booking must carry a rate that "Get Price" actually calculated.
+        const isValid = !!fieldsFilled && window.hotelModalPriceFetched === true;
         
         if (proceedBtn) {
             proceedBtn.disabled = !isValid;
@@ -18922,6 +19434,16 @@
             } else {
                 proceedBtn.classList.remove('btn-success');
                 proceedBtn.classList.add('btn-secondary');
+            }
+        }
+
+        if (proceedWrap) {
+            if (isValid) {
+                proceedWrap.removeAttribute('title');
+            } else if (!fieldsFilled) {
+                proceedWrap.setAttribute('title', 'Select city, hotel, room, bed and meal plan first');
+            } else {
+                proceedWrap.setAttribute('title', 'Please click Get Price before booking');
             }
         }
         
@@ -19095,6 +19617,12 @@
         const bedTypeSelect = document.getElementById('bed_type');
         const mealPlanSelect = document.getElementById('meal_plan');
         const proceedBtn = document.getElementById('proceed_hotel_btn');
+        const proceedWrap = document.getElementById('proceed_hotel_wrap');
+
+        window.hotelModalPriceFetched = false;
+        if (proceedWrap) {
+            proceedWrap.setAttribute('title', 'Select city, hotel, room, bed and meal plan first');
+        }
         
         if (roomTypeSelect) {
             roomTypeSelect.disabled = true;
@@ -19502,6 +20030,10 @@
     
     // Function to update hotel modal price based on room type, number of rooms, and dates
     function updateHotelModalPrice() {
+        // Any change to the booking invalidates the last "Get Price" result.
+        window.hotelModalPriceFetched = false;
+        validateHotelModalFields();
+
         const roomTypeSelect = document.getElementById('room_type');
         const numberOfRoomsInput = document.getElementById('number_of_rooms_modal');
         const priceInput = document.getElementById('total_price_modal');
@@ -20036,6 +20568,8 @@
                 const gridTotal = document.getElementById('hotel_modal_price_grid_total');
                 if (gridTotal) gridTotal.textContent = currencySymbol + finalTotal.toFixed(2);
 
+                window.hotelModalPriceFetched = true;
+
                 showNotification(
                     'Price calculated: ' + currencySymbol + finalTotal.toFixed(2) +
                     ' (Room: ' + Number(data.room_total).toFixed(2) + ', Meals: ' + Number(data.meal_total).toFixed(2) +
@@ -20043,11 +20577,15 @@
                     'success'
                 );
             } else {
+                window.hotelModalPriceFetched = false;
                 showNotification((data && data.message) ? data.message : 'Failed to calculate price.', 'error');
             }
+            validateHotelModalFields();
         })
         .catch(error => {
             console.error('Error fetching modal hotel price:', error);
+            window.hotelModalPriceFetched = false;
+            validateHotelModalFields();
             showNotification('Error calculating hotel price.', 'error');
         })
         .finally(() => {
@@ -20219,6 +20757,11 @@
         
         if (!hotelId || !checkIn || !checkOut) {
             showNotification('Please fill in all required fields', 'error');
+            return;
+        }
+
+        if (window.hotelModalPriceFetched !== true) {
+            showNotification('Please click "Get Price" before booking.', 'warning');
             return;
         }
         
@@ -23851,6 +24394,12 @@
     
     function removeService(orderId, serviceType) {
         console.log(`removeService called with orderId: ${orderId}, serviceType: ${serviceType}`);
+
+        const normalizedStatus = String(window.removeServicePageTourStatus || (typeof __tourStatus !== 'undefined' ? __tourStatus : '') || '').toLowerCase().trim();
+        if (window.isActualTourStatus || normalizedStatus === 'actual') {
+            showNotification("Services can't be removed in Actual Status.", 'error');
+            return;
+        }
         
         showRemoveServiceAlert(serviceType, () => {
             showNotification(`Removing ${serviceType} service...`, 'info');
@@ -23864,7 +24413,6 @@
 
             const url = "{{ route('api.orders.cancel', ':orderId') }}".replace(':orderId', orderId);
             const tourId = document.getElementById('tour_id')?.value || '';
-            const normalizedStatus = String(window.removeServicePageTourStatus || __tourStatus || '').toLowerCase();
             const isDefiniteOrActual = ['definite', 'actual'].includes(normalizedStatus);
             
             fetch(url, {
@@ -24117,6 +24665,19 @@
                 }
             });
         }
+
+        document.querySelectorAll('[id^="arrival_city_"]').forEach(function (el) {
+            const bookingId = el.id.replace('arrival_city_', '');
+            if (bookingId && el.value && typeof window.loadArrivalRowCountryPorts === 'function') {
+                window.loadArrivalRowCountryPorts(bookingId);
+            }
+        });
+        document.querySelectorAll('[id^="departure_city_"]').forEach(function (el) {
+            const bookingId = el.id.replace('departure_city_', '');
+            if (bookingId && el.value && typeof window.loadDepartureRowCountryPorts === 'function') {
+                window.loadDepartureRowCountryPorts(bookingId);
+            }
+        });
     });
 
     function getCustomerInfo(){
@@ -27684,22 +28245,18 @@
         if (!form) throw new Error('Form not found');
         const url = form.dataset.updateCityUrl;
         if (!url) throw new Error('City save URL not found');
-
         const csrfMeta = document.querySelector('meta[name="csrf-token"]');
         const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
         if (!csrfToken) throw new Error('CSRF token not found');
-
         try { if (typeof window.updateCityHiddenField === 'function') window.updateCityHiddenField(); } catch (e) { /* ignore */ }
         const city = (document.getElementById('city') || {}).value || '';
         const cityType =
             (document.querySelector('input[name="city_type"]:checked') || {}).value ||
             (document.querySelector('input[type="hidden"][name="city_type"]') || {}).value ||
             'single';
-
         const fd = new FormData();
         fd.append('city', city);
         fd.append('city_type', cityType);
-
         const resp = await fetch(url, {
             method: 'POST',
             headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' },
@@ -27711,6 +28268,14 @@
         if (!resp.ok || !data.success) {
             throw new Error((data && data.message) ? data.message : 'Failed to save city plans');
         }
+        // Keep the hidden destination field in sync when a city from a new country was added.
+        try {
+            const dest = data && data.data && data.data.destination != null ? String(data.data.destination) : '';
+            const userCountryEl = document.getElementById('user_country');
+            if (userCountryEl && dest !== '') {
+                userCountryEl.value = dest;
+            }
+        } catch (e) { /* ignore */ }
         return data;
     }
 
@@ -28067,6 +28632,14 @@
             // Show success feedback
             feedback.textContent = data.message || 'Tour information updated successfully.';
             feedback.classList.add('text-success');
+
+            // Keep destination hidden field aligned with server (may include newly merged countries).
+            try {
+                const dest = data && data.data && data.data.destination != null ? String(data.data.destination) : '';
+                if (userCountryEl && dest !== '') {
+                    userCountryEl.value = dest;
+                }
+            } catch (e) { /* ignore */ }
             
             // Show success toastr notification
             showToastr('success', data.message || 'Tour information updated successfully.');
@@ -28100,13 +28673,10 @@
         const pickupZoneType = pickupSelect.options[pickupSelect.selectedIndex]?.getAttribute('data-type');
         const dropoffZoneType = dropoffSelect.options[dropoffSelect.selectedIndex]?.getAttribute('data-type');
         const city = citySelect?.value || '';
+        const savedName = vehicleSelect.getAttribute('data-saved-vehicle') || vehicleSelect.value || '';
+        const savedId = vehicleSelect.getAttribute('data-saved-vehicle-id') || '';
         
         if (!pickupZoneId || !dropoffZoneId || !city) {
-            // Clear vehicle select if zones not selected
-            if (vehicleSelect) {
-                vehicleSelect.innerHTML = '<option value="">Select pickup and dropoff locations first</option>';
-                vehicleSelect.disabled = true;
-            }
             return;
         }
         
@@ -28147,31 +28717,25 @@
             }
             
             if (data.success && data.vehicles && data.vehicles.length > 0) {
-                // Populate vehicle dropdown
-                vehicleSelect.innerHTML = '<option value="">Select vehicle</option>';
-                data.vehicles.forEach(vehicle => {
-                    const vehicleInfo = `${vehicle.vehicle_name} (${vehicle.vehicle_type || ''}) - ${vehicle.seating_capacity || ''} seats`;
-                    vehicleSelect.innerHTML += `<option value="${vehicle.vehicle_name || vehicle.vehicle_id}" 
-                        data-vehicle-id="${vehicle.vehicle_id || ''}"
-                        data-private-price="${vehicle.private_price || vehicle.base_price || 0}"
-                        data-shared-price="${vehicle.shared_price || vehicle.sharable_base_price || 0}"
-                        data-sharable="${vehicle.sharable || 0}">
-                        ${vehicleInfo}
-                    </option>`;
-                });
-                vehicleSelect.disabled = false;
-                
-                // Update service type based on vehicle sharability
+                populateVehicleSelect(vehicleSelect, data.vehicles, savedName, savedId);
+                updateDepartureServiceType(bookingId);
+            } else if (savedName) {
+                populateVehicleSelect(vehicleSelect, [], savedName, savedId);
                 updateDepartureServiceType(bookingId);
             } else {
                 vehicleSelect.innerHTML = '<option value="">No vehicles available for this route</option>';
                 vehicleSelect.disabled = true;
+                if (typeof window.refreshSelect2 === 'function') window.refreshSelect2(vehicleSelect);
             }
         } catch (error) {
             console.error('Error fetching vehicles:', error);
             if (vehicleSelect) {
-                vehicleSelect.innerHTML = '<option value="">Error loading vehicles</option>';
-                vehicleSelect.disabled = true;
+                if (savedName) {
+                    populateVehicleSelect(vehicleSelect, [], savedName, savedId);
+                } else {
+                    vehicleSelect.innerHTML = '<option value="">Error loading vehicles</option>';
+                    vehicleSelect.disabled = true;
+                }
             }
         }
     }
@@ -29703,4 +30267,3 @@
     })();
 </script>
 @endsection
- 

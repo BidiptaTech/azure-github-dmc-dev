@@ -2608,8 +2608,8 @@ class BookingsController extends Controller
 
             $tourId = (int) $request->tour_id;
             $roleId = (int) (Auth::user()->role_id ?? 0);
-            $holdRoles = [33, 12, 37, 38];
-            $financeRoles = [36, 126, 127];
+            $holdRoles = [33, 12, 37, 38, 128, 129, 130, 131, 132, 134, 135, 137, 138];
+            $financeRoles = [36, 126, 127, 129, 130, 131, 133, 134, 136, 137, 138];
 
             if (in_array($roleId, $holdRoles, true)) {
                 $updated = Order::withTrashed()

@@ -404,6 +404,13 @@ class TourController extends Controller
               ->map(fn($city) => "{$city->name}, ({$city->country})")
               ->toArray();
 
+        // Mirrors `destination`: same countries, same order, as ISO alpha-2 codes.
+        $shortCodes = Country::whereIn('name', $countryArray)->pluck('short_code', 'name');
+        $short_code = collect($countryArray)
+              ->map(fn($name) => $shortCodes[$name] ?? null)
+              ->filter()
+              ->implode(', ');
+
         try {
             $hotel_status = Tour::where('tour_id', $tour->tour_id)->first();
             if ($hotel_status) {
@@ -492,6 +499,7 @@ class TourController extends Controller
                     'tour_id' => $tour->tour_id,
                     'agent_id' => $tour->agent_id,
                     'destination' => $tour->destination,
+                    'short_code' => $short_code,
                     'child' => $tour->child,
                     'infant' => $tour->infant,
                     'male' => $tour->male_count,
@@ -2625,7 +2633,6 @@ class TourController extends Controller
                     'tour_id' => $tour_id, 
                     'status' => 1,
                     'dmcId' => $tour->dmc_id,
-                    'enquiry_id' => $enquiryId,
                     'sender_id' => $userId,
                     'sender_type' => 'agent',
                     'receiver_id' => $currentEnquiry->sender_id ?? 0,
@@ -2636,6 +2643,7 @@ class TourController extends Controller
                     'comment' => $request->comment,
                     'status' => 1,
                 ]);
+                $enquiry->refresh();
                 
                 if ($enquiry) {
                     // Mark previous enquiry as inactive if it exists
