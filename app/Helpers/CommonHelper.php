@@ -476,6 +476,134 @@ class CommonHelper
         return ['master_value' => $url];
     }
 
+    /**
+     * Delete a JSON blob from the AI Azure storage account.
+     * Treats BlobNotFound as success (already gone).
+     */
+    public static function deleteJsonFromAzure(string $fileName, string $container = 'aiuploads'): bool
+    {
+        $fileName = trim($fileName);
+        if ($fileName === '') {
+            return false;
+        }
+
+        $storage = Setting::where('name', 'file_storage')->where('status', 1)->first();
+        if (! $storage || $storage->value !== 'azure') {
+            Log::warning('Azure JSON delete skipped: file_storage is not azure', [
+                'file_name' => $fileName,
+            ]);
+
+            return false;
+        }
+
+        try {
+            $config = self::azureAiDiskConfig();
+            if (empty($config['name']) || empty($config['key'])) {
+                Log::warning('Azure JSON delete skipped: missing AI storage credentials', [
+                    'file_name' => $fileName,
+                ]);
+
+                return false;
+            }
+
+            $blobContainer = self::azureAiContainer($container);
+            $connectionString = sprintf(
+                'DefaultEndpointsProtocol=https;AccountName=%s;AccountKey=%s;EndpointSuffix=core.windows.net',
+                $config['name'],
+                $config['key']
+            );
+
+            $blobClient = BlobRestProxy::createBlobService($connectionString);
+            $blobClient->deleteBlob($blobContainer, $fileName);
+
+            Log::info('Azure JSON blob deleted', [
+                'file_name' => $fileName,
+                'container' => $blobContainer,
+                'account' => $config['name'],
+            ]);
+
+            return true;
+        } catch (\Throwable $e) {
+            $message = $e->getMessage();
+            if (
+                stripos($message, 'BlobNotFound') !== false
+                || stripos($message, 'The specified blob does not exist') !== false
+            ) {
+                Log::info('Azure JSON blob already absent', [
+                    'file_name' => $fileName,
+                    'container' => $container,
+                ]);
+
+                return true;
+            }
+
+            Log::error('Azure JSON delete failed: ' . $message, [
+                'file_name' => $fileName,
+                'container' => $container,
+            ]);
+
+            return false;
+        }
+    }
+
+    /**
+     * List blob names in the AI container that start with a prefix.
+     *
+     * @return list<string>
+     */
+    public static function listAzureJsonBlobs(string $prefix = '', string $container = 'aiuploads'): array
+    {
+        $storage = Setting::where('name', 'file_storage')->where('status', 1)->first();
+        if (! $storage || $storage->value !== 'azure') {
+            return [];
+        }
+
+        try {
+            $config = self::azureAiDiskConfig();
+            if (empty($config['name']) || empty($config['key'])) {
+                return [];
+            }
+
+            $blobContainer = self::azureAiContainer($container);
+            $connectionString = sprintf(
+                'DefaultEndpointsProtocol=https;AccountName=%s;AccountKey=%s;EndpointSuffix=core.windows.net',
+                $config['name'],
+                $config['key']
+            );
+
+            $blobClient = BlobRestProxy::createBlobService($connectionString);
+            $options = new \MicrosoftAzure\Storage\Blob\Models\ListBlobsOptions();
+            if (trim($prefix) !== '') {
+                $options->setPrefix($prefix);
+            }
+
+            $names = [];
+            $nextMarker = null;
+            do {
+                if ($nextMarker !== null && $nextMarker !== '') {
+                    $options->setMarker($nextMarker);
+                }
+                $result = $blobClient->listBlobs($blobContainer, $options);
+                foreach ($result->getBlobs() as $blob) {
+                    $name = trim((string) $blob->getName());
+                    if ($name !== '') {
+                        $names[] = $name;
+                    }
+                }
+                $nextMarker = method_exists($result, 'getNextMarker') ? $result->getNextMarker() : null;
+            } while (! empty($nextMarker));
+
+            return $names;
+        } catch (\Throwable $e) {
+            Log::error('Azure JSON list failed: ' . $e->getMessage(), [
+                'prefix' => $prefix,
+                'container' => $container,
+            ]);
+
+            return [];
+        }
+    }
+
     /*
     * Upload file to Azure with dynamic container support
     * Date 16-06-2025
