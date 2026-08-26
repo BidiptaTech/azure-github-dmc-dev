@@ -778,7 +778,9 @@
     padding: 0.45rem 1rem;
   }
 
-  #masterDmcTeamModal.show {
+  #masterDmcTeamModal.show,
+  #deleteModal.show,
+  #walletmodal.show {
     display: block !important;
     z-index: 1100;
   }
@@ -1028,6 +1030,22 @@
                           <span class="text-muted" style="font-size:11px;">{{ $user->ai_response ?: '—' }}</span>
                         @endif
                       </div>
+                      <div class="users-corp-control-item">
+                        <span class="users-corp-label">AI Resp</span>
+                        @if($canEditSettings)
+                          <select class="form-select ai-response-type-dropdown"
+                            data-user-id="{{ $user->userId }}"
+                            data-previous-value="{{ strtolower((string) ($user->ai_response_type ?? '')) }}"
+                            id="ai_response_type_{{ $user->userId }}"
+                            title="AI Response Type: Lite or Pro">
+                            <option value="" {{ empty($user->ai_response_type) ? 'selected' : '' }}>--</option>
+                            <option value="lite" {{ strtolower((string) ($user->ai_response_type ?? '')) === 'lite' ? 'selected' : '' }}>Lite</option>
+                            <option value="pro" {{ strtolower((string) ($user->ai_response_type ?? '')) === 'pro' ? 'selected' : '' }}>Pro</option>
+                          </select>
+                        @else
+                          <span class="text-muted" style="font-size:11px;">{{ $user->ai_response_type ? ucfirst($user->ai_response_type) : '—' }}</span>
+                        @endif
+                      </div>
                     @endif
 
                     @if($showThirdPartyForThisRow)
@@ -1118,10 +1136,8 @@
                         @endif
                         @if(hasPermission('delete users'))
                           <button type="button"
-                            class="btn btn-outline-danger btn-icon"
-                            data-toggle="modal"
-                            data-target="#deleteModal"
-                            onclick="setDeleteForm('{{ route('users.destroy', $user->userId) }}')"
+                            class="btn btn-outline-danger btn-icon js-user-delete"
+                            data-delete-url="{{ route('users.destroy', $user->userId) }}"
                             title="Delete">
                             <svg xmlns="http://www.w3.org/2000/svg" height="14px" viewBox="0 -960 960 960" width="14px" fill="currentColor"><path d="M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z"/></svg>
                           </button>
@@ -1141,16 +1157,17 @@
 
 <!--User Delete Modal -->
 <div class="modal fade" id="deleteModal" tabindex="-1" role="dialog" aria-labelledby="deleteModalLabel" aria-hidden="true">
-  <div class="modal-dialog" role="document">
+  <div class="modal-dialog modal-dialog-centered" role="document">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="deleteModalLabel">Confirmation</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" data-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">
         Are you sure want to delete?
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-dismiss="modal">Close</button>
           <form id="deleteForm" action="" method="POST" style="display:inline">
               @csrf
               @method('DELETE')
@@ -1286,11 +1303,114 @@
 </script>
 <!-- End DataTable JS -->
 
-<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
 <script>
-  function setDeleteForm(url) {
-    document.getElementById('deleteForm').action = url;
+  function setDeleteForm(url, event) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+
+    var form = document.getElementById('deleteForm');
+    if (form && url) {
+      form.action = url;
+    }
+
+    openUsersPageModal('deleteModal');
   }
+
+  function openUsersPageModal(id) {
+    var el = document.getElementById(id);
+    if (!el) {
+      return;
+    }
+
+    if (el.parentElement !== document.body) {
+      document.body.appendChild(el);
+    }
+
+    var alreadyOpen = document.querySelector('.modal.show');
+    el.style.zIndex = (alreadyOpen && alreadyOpen !== el) ? '1110' : '1100';
+
+    try {
+      if (window.bootstrap && bootstrap.Modal && typeof bootstrap.Modal.getOrCreateInstance === 'function') {
+        bootstrap.Modal.getOrCreateInstance(el).show();
+        return;
+      }
+    } catch (e) {}
+
+    try {
+      var $el = window.jQuery ? window.jQuery(el) : null;
+      if ($el && typeof $el.modal === 'function') {
+        $el.modal('show');
+        return;
+      }
+    } catch (e2) {}
+
+    el.classList.add('show');
+    el.style.display = 'block';
+    el.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('modal-open');
+    if (!document.querySelector('.modal-backdrop')) {
+      var backdrop = document.createElement('div');
+      backdrop.className = 'modal-backdrop fade show';
+      document.body.appendChild(backdrop);
+    }
+  }
+
+  function closeUsersPageModal(id) {
+    var el = document.getElementById(id);
+    if (!el) {
+      return;
+    }
+
+    try {
+      if (window.bootstrap && bootstrap.Modal && typeof bootstrap.Modal.getInstance === 'function') {
+        var instance = bootstrap.Modal.getInstance(el);
+        if (instance) {
+          instance.hide();
+          return;
+        }
+      }
+    } catch (e) {}
+
+    try {
+      var $el = window.jQuery ? window.jQuery(el) : null;
+      if ($el && typeof $el.modal === 'function') {
+        $el.modal('hide');
+        return;
+      }
+    } catch (e2) {}
+
+    el.classList.remove('show');
+    el.style.display = 'none';
+    el.setAttribute('aria-hidden', 'true');
+    if (!document.querySelector('.modal.show')) {
+      document.body.classList.remove('modal-open');
+      document.querySelectorAll('.modal-backdrop').forEach(function(node) {
+        node.remove();
+      });
+    }
+  }
+
+  document.addEventListener('click', function(event) {
+    var trigger = event.target.closest('.js-user-delete');
+    if (!trigger) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    setDeleteForm(trigger.getAttribute('data-delete-url') || '', event);
+  }, true);
+
+  document.addEventListener('click', function(event) {
+    var dismiss = event.target.closest('#deleteModal [data-bs-dismiss="modal"], #deleteModal [data-dismiss="modal"]');
+    if (!dismiss) {
+      return;
+    }
+    event.preventDefault();
+    closeUsersPageModal('deleteModal');
+  });
 </script>
 
 @if($collapseToTravclicksAndMasterDmc)
@@ -1387,6 +1507,17 @@
                             '</select>' +
                         '</div>'
                     );
+                    controls.push(
+                        '<div class="mdmc-control-item">' +
+                            '<span class="mdmc-label">AI Resp</span>' +
+                            '<select class="form-select ai-response-type-dropdown" data-user-id="' + uid + '" data-previous-value="' +
+                                escapeHtml(u.ai_response_type || '') + '" id="modal_ai_response_type_' + uid + '" title="AI Response Type: Lite or Pro">' +
+                                '<option value=""' + (!u.ai_response_type ? ' selected' : '') + '>--</option>' +
+                                '<option value="lite"' + (u.ai_response_type === 'lite' ? ' selected' : '') + '>Lite</option>' +
+                                '<option value="pro"' + (u.ai_response_type === 'pro' ? ' selected' : '') + '>Pro</option>' +
+                            '</select>' +
+                        '</div>'
+                    );
                 } else {
                     controls.push(controlSwitch('Zone', '', 'modal_zone_ro_' + uid, uid, u.zone_on, true));
                     controls.push(controlSwitch('Price', '', 'modal_price_ro_' + uid, uid, u.price_hide, true));
@@ -1403,6 +1534,14 @@
                         '<div class="mdmc-control-item">' +
                             '<span class="mdmc-label">AI</span>' +
                             '<span class="text-muted" style="font-size:11px;">' + escapeHtml(u.ai_response || '—') + '</span>' +
+                        '</div>'
+                    );
+                    controls.push(
+                        '<div class="mdmc-control-item">' +
+                            '<span class="mdmc-label">AI Resp</span>' +
+                            '<span class="text-muted" style="font-size:11px;">' +
+                                (u.ai_response_type ? (u.ai_response_type.charAt(0).toUpperCase() + u.ai_response_type.slice(1)) : '—') +
+                            '</span>' +
                         '</div>'
                     );
                 }
@@ -1482,7 +1621,7 @@
             }
             if (showActionColumn && u.can_delete && u.destroy_url) {
                 iconRow +=
-                    '<button type="button" class="btn btn-outline-danger btn-icon" data-toggle="modal" data-target="#deleteModal" onclick="setDeleteForm(\'' + escapeHtml(u.destroy_url) + '\')" title="Delete">' +
+                    '<button type="button" class="btn btn-outline-danger btn-icon js-user-delete" data-delete-url="' + escapeHtml(u.destroy_url) + '" title="Delete">' +
                         '<svg xmlns="http://www.w3.org/2000/svg" height="14px" viewBox="0 -960 960 960" width="14px" fill="currentColor"><path d="M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z"/></svg>' +
                     '</button>';
             }
@@ -2023,6 +2162,48 @@ $(document).ready(function() {
     });
 
     $(document).on('focus', '.ai-response-dropdown:not(:disabled)', function() {
+        $(this).data('previous-value', $(this).val());
+    });
+
+    $(document).on('change', '.ai-response-type-dropdown:not(:disabled)', function() {
+        const $dropdown = $(this);
+        const userId = $dropdown.data('user-id');
+        const selectedValue = $dropdown.val();
+        const previousValue = $dropdown.data('previous-value') ?? '';
+
+        $dropdown.prop('disabled', true);
+
+        $.ajax({
+            url: "{{ route('update.airesponsetype') }}",
+            type: "POST",
+            data: {
+                user_id: userId,
+                ai_response_type: selectedValue,
+                _token: "{{ csrf_token() }}"
+            },
+            success: function(response) {
+                $dropdown.prop('disabled', false);
+                if (response.success) {
+                    $dropdown.data('previous-value', selectedValue);
+                    toastr.success(response.message || 'AI Response Type updated successfully');
+                } else {
+                    toastr.error(response.message || 'Error updating AI Response Type');
+                    $dropdown.val(response.previous_value || previousValue || '');
+                }
+            },
+            error: function(xhr) {
+                $dropdown.prop('disabled', false);
+                const msg = xhr.responseJSON && xhr.responseJSON.message
+                    ? xhr.responseJSON.message
+                    : 'Error updating AI Response Type';
+                toastr.error(msg);
+                $dropdown.val(previousValue || '');
+                console.error(xhr.responseText);
+            }
+        });
+    });
+
+    $(document).on('focus', '.ai-response-type-dropdown:not(:disabled)', function() {
         $(this).data('previous-value', $(this).val());
     });
 });

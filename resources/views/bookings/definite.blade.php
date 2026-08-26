@@ -849,12 +849,13 @@
     ])
      <!-- Compact Header + Stats Bar -->
     @php
-        // Travel-date filter window: defaults to the next 30 days, selectable one year either side.
+        // Default: show all Definite bookings whose travel end (check_out) is today or later.
+        // Start Date = today; End Date left blank (no 30-day upper bound).
         $filterMinDate = now()->subYear()->toDateString();
         $filterMaxDate = now()->addYear()->toDateString();
         $filterStartDate = now()->toDateString();
-        $filterEndDate = now()->addDays(30)->toDateString();
-        $filterRangeLabel = now()->format('M j') . ' - ' . now()->addDays(30)->format('M j, Y');
+        $filterEndDate = '';
+        $filterRangeLabel = 'Today onwards (' . now()->format('M j, Y') . ')';
 
         $toDateOnly = function ($value) {
             if (empty($value)) {
@@ -867,15 +868,16 @@
             }
         };
 
-        // Rows whose stay overlaps the default window, used for the initial stat counts.
-        $defaultRangeTours = $tours->filter(function ($tour) use ($toDateOnly, $filterStartDate, $filterEndDate) {
+        // Rows whose travel end is today or in the future (used for initial stat counts).
+        $defaultRangeTours = $tours->filter(function ($tour) use ($toDateOnly, $filterStartDate) {
             $stayStart = $toDateOnly($tour->check_in_time ?? null);
             $stayEnd = $toDateOnly($tour->check_out_time ?? null);
             if (!$stayStart && !$stayEnd) {
                 return false;
             }
+            $end = $stayEnd ?: $stayStart;
 
-            return ($stayStart ?: $stayEnd) <= $filterEndDate && ($stayEnd ?: $stayStart) >= $filterStartDate;
+            return $end >= $filterStartDate;
         });
     @endphp
     <div class="new-enq-header-bar p-3 mb-3">
@@ -8938,6 +8940,18 @@ function loadIndividualAttractionContent(modalId, tourId, attractionOrderIndex, 
     });
 }
 
+function displayErrorContent(modalId, message) {
+    const contentEl = document.getElementById(`${modalId}_content`);
+    if (!contentEl) return;
+    contentEl.innerHTML = `
+        <div class="text-center py-5">
+            <i class="ri-error-warning-line text-danger mb-3" style="font-size:3rem;"></i>
+            <h5 class="text-danger">${message || 'An error occurred'}</h5>
+            <p class="text-muted mb-0">Please try again later.</p>
+        </div>
+    `;
+}
+
 function generateIndividualAttractionContent(attractionBooking, modalId, tourId, attractionOrderIndex, bookingIndex, autoCancelDate=null) {
     const serviceCurrency = (attractionBooking && attractionBooking.currency) ? attractionBooking.currency : (window.bookingCurrency || 'SGD');
     const bookingDate = attractionBooking.bookingDate;
@@ -8949,6 +8963,12 @@ function generateIndividualAttractionContent(attractionBooking, modalId, tourId,
     }) : 'N/A';
     const tourRow = document.querySelector('tr[data-tour-id="' + tourId + '"]');
     const isPro = tourRow ? parseInt(tourRow.getAttribute('data-is-pro') || 0) : 0;
+    const transferPrice = parseFloat(
+        isPro == 1 && attractionBooking.transferOptions?.totalPrice > 0
+            ? attractionBooking.transferOptions.totalPrice
+            : (attractionBooking.transferOptions?.cost || 0)
+    ) || 0;
+    const guidePrice = parseFloat(attractionBooking.guideOptions?.total_price || 0) || 0;
     
     const content = `
         <div class="card mb-3 shadow-sm border-0" style="border-radius: 10px; overflow: hidden; border-left: 4px solid #fd9853 !important;">
@@ -9223,19 +9243,19 @@ function generateIndividualAttractionContent(attractionBooking, modalId, tourId,
                         <div class="col-md-3">
                             <div class="text-center p-2 border rounded bg-white" style="border-color: #17a2b8 !important;">
                                 <small class="text-muted d-block" style="font-size: 0.7rem;">Vehicle Price</small>
-                                <div class="fw-bold text-info" style="font-size: 0.8rem;">${serviceCurrency} ${parseFloat(isPro == 1 && attractionBooking.transferOptions?.totalPrice > 0 ? attractionBooking.transferOptions.totalPrice : (attractionBooking.transferOptions?.cost || 0)).toFixed(2)}</div>
+                                <div class="fw-bold text-info" style="font-size: 0.8rem;">${serviceCurrency} ${transferPrice.toFixed(2)}</div>
                             </div>
                         </div>
                         <div class="col-md-3">
                             <div class="text-center p-2 border rounded bg-white" style="border-color: #6c757d !important;">
                                 <small class="text-muted d-block" style="font-size: 0.7rem;">Guide Price</small>
-                                <div class="fw-bold" style="font-size: 0.8rem; color: #6c757d;">${serviceCurrency} ${parseFloat((attractionBooking.guideOptions?.total_price || 0)).toFixed(2)}</div>
+                                <div class="fw-bold" style="font-size: 0.8rem; color: #6c757d;">${serviceCurrency} ${guidePrice.toFixed(2)}</div>
                             </div>
                         </div>
                         <div class="col-md-3">
                             <div class="text-center p-2 border rounded bg-white" style="border-color: #fd9853 !important; background: linear-gradient(135deg, rgba(253,152,83,0.1) 0%, rgba(254,120,84,0.1) 100%) !important;">
                                 <small class="text-muted d-block" style="font-size: 0.7rem;">Grand Total</small>
-                                <div class="fw-bold" style="font-size: 1.1rem; color: #fd9853;">${serviceCurrency} ${(parseFloat(attractionBooking.totalPrice || 0) + parseFloat(isPro == 1 && attractionBooking.transferOptions.totalPrice > 0 ? attractionBooking.transferOptions.totalPrice : (attractionBooking.transferOptions.cost || 0)) + parseFloat(attractionBooking.guideOptions?.total_price || 0)).toFixed(2)}</div>
+                                <div class="fw-bold" style="font-size: 1.1rem; color: #fd9853;">${serviceCurrency} ${(parseFloat(attractionBooking.totalPrice || 0) + transferPrice + guidePrice).toFixed(2)}</div>
                             </div>
                         </div>
                     </div>
@@ -22435,7 +22455,9 @@ window.filterTable = function() {
             show = false;
         }
         
-        // Travel date filter: keep a tour when its check-in / check-out stay overlaps the selected range.
+        // Travel date filter by check_in / check_out (data-stay-start / data-stay-end).
+        // With only Start Date set (default = today), keeps tours whose end
+        // date (check_out, falling back to check_in) is on/after that date.
         if (startDateValue || endDateValue) {
             if (!stayStartAttr && !stayEndAttr) {
                 // No travel dates recorded, so the tour cannot match a travel window
@@ -22503,7 +22525,7 @@ window.filterTable = function() {
                 label = `${start.toLocaleString('default', { month: 'short' })} ${start.getDate()} - ${end.toLocaleString('default', { month: 'short' })} ${end.getDate()}, ${end.getFullYear()}`;
             }
         } else if (start) {
-            label = `From ${start.toLocaleString('default', { month: 'short', day: '2-digit', year: 'numeric' })}`;
+            label = `Today onwards (${start.toLocaleString('default', { month: 'short', day: '2-digit', year: 'numeric' })})`;
         } else if (end) {
             label = `Up to ${end.toLocaleString('default', { month: 'short', day: '2-digit', year: 'numeric' })}`;
         }
@@ -22546,10 +22568,15 @@ function resetFilters() {
     
     if (startDateInput) startDateInput.value = startDateInput.getAttribute('data-default-value') || '';
     if (endDateInput) {
+        // Default: Start = today, End blank (today onwards)
         endDateInput.value = endDateInput.getAttribute('data-default-value') || '';
         endDateInput.removeAttribute('min');
         const rangeMin = document.getElementById('startDateFilter')?.getAttribute('min');
-        if (rangeMin) endDateInput.setAttribute('min', rangeMin);
+        if (startDateInput && startDateInput.value) {
+            endDateInput.setAttribute('min', startDateInput.value);
+        } else if (rangeMin) {
+            endDateInput.setAttribute('min', rangeMin);
+        }
     }
     filterTable();
     
@@ -22635,7 +22662,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Apply initial filter on page load to show today's data
+    // Apply initial filter on page load (travel end date today or future)
     filterTable();
 });
 

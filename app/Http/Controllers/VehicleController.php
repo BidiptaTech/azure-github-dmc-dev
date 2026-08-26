@@ -765,18 +765,28 @@ class VehicleController extends Controller
             $dmcs = User::where('role_id', 11)->get();
         }
 
+        $hasZoneMappings = $this->vehicleHasZoneMappings((int) $vehicle->vehicle_id);
+
         // Check if we're in the zone mapping tab
         if (request()->has('zone_mapping')) {
-            // Zone mapping filters default to "All Countries" / "All Cities"
-            $zoneMappingFilterCountry = '';
+            // Zone mapping is always for this vehicle's country (not all master DMC countries)
+            $zoneMappingFilterCountry = $selectedCountry ?: '';
             $defaultFilterCityId = null;
 
-            // Zones for this DMC (city filter applied client-side in zone mapping UI)
-            $zones = Zone::where('dmc_id', $vehicle->dmc_id)->orWhereNull('dmc_id')->get();
+            // Zones for this DMC, limited to the vehicle's country
+            $zonesQuery = Zone::where(function ($q) use ($vehicle) {
+                $q->where('dmc_id', $vehicle->dmc_id)->orWhereNull('dmc_id');
+            });
+            if (!empty($cityIds)) {
+                $zonesQuery->whereIn('city', $cityIds);
+            }
+            $zones = $zonesQuery->get();
 
-            // Ports scoped to master DMC countries (city filter applied client-side)
+            // Ports scoped to this vehicle's country
             $portsQuery = Port::where('status', 1);
-            if (!empty($masterDmcCountryNames)) {
+            if (!empty($selectedCountry)) {
+                $portsQuery->where('country', $selectedCountry);
+            } elseif (!empty($masterDmcCountryNames)) {
                 $portsQuery->whereIn('country', $masterDmcCountryNames);
             }
             $ports = $portsQuery->orderBy('port_name')->get();
@@ -809,10 +819,10 @@ class VehicleController extends Controller
                 ];
             }
             
-            return view('vehicles.edit-vehicle', compact('vehicle', 'drivers', 'dmcs', 'city', 'countries', 'selectedCountry', 'zoneMappingFilterCountry', 'masterDmcCountryNames', 'defaultFilterCityId', 'zones', 'ports', 'mappings', 'mappingZoneItems'));
+            return view('vehicles.edit-vehicle', compact('vehicle', 'drivers', 'dmcs', 'city', 'countries', 'selectedCountry', 'zoneMappingFilterCountry', 'masterDmcCountryNames', 'defaultFilterCityId', 'zones', 'ports', 'mappings', 'mappingZoneItems', 'hasZoneMappings'));
         }
         
-        return view('vehicles.edit-vehicle', compact('vehicle', 'drivers', 'dmcs', 'city', 'countries', 'selectedCountry', 'masterDmcCountryNames'));
+        return view('vehicles.edit-vehicle', compact('vehicle', 'drivers', 'dmcs', 'city', 'countries', 'selectedCountry', 'masterDmcCountryNames', 'hasZoneMappings'));
 
         // return view('vehicles.edit-vehicle', compact('vehicle', 'drivers', 'dmcs', 'city'));
     }
@@ -984,10 +994,13 @@ class VehicleController extends Controller
         $vehicle->is_available = $request->input('vehicle_status') == 1 ? 1 : 0;
         $vehicle->image = $master_image;
         $vehicle->driver_id = $request->driver_id;
-        if (\Schema::hasColumn('vehicles', 'country')) {
-            $vehicle->country = $request->input('country');
+        $hasZoneMappings = $this->vehicleHasZoneMappings((int) $vehicle->vehicle_id);
+        if (!$hasZoneMappings) {
+            if (\Schema::hasColumn('vehicles', 'country')) {
+                $vehicle->country = $request->input('country');
+            }
+            $vehicle->city = $request->city_name;
         }
-        $vehicle->city = $request->city_name;
         $vehicle->city_tour_seating_capacity = $request->input('city_tour_seating_capacity')?? 0;
         // $vehicle->city_tour_guides = $request->input('city_tour_guides')?? 0;
         // Regular Day Pricing
@@ -1135,12 +1148,27 @@ class VehicleController extends Controller
                 $fromZoneType = 'Attraction';
                 $toZoneType = 'Restaurant';
                 break;
+            case 'hotel_hotel':
+                $fromZoneType = 'Hotel';
+                $toZoneType = 'Hotel';
+                break;
+            case 'attraction_attraction':
+                $fromZoneType = 'Attraction';
+                $toZoneType = 'Attraction';
+                break;
+            case 'restaurant_restaurant':
+                $fromZoneType = 'Restaurant';
+                $toZoneType = 'Restaurant';
+                break;
             default:
                 $fromZoneType = 'Unknown';
                 $toZoneType = 'Unknown';
         }
         foreach ($privatePrices as $fromZoneId => $toZones) {
             foreach ($toZones as $toZoneId => $privatePrice) {
+                if ($mappingType === 'port_port' && (string) $fromZoneId === (string) $toZoneId) {
+                    continue;
+                }
                 $sharedPrice = $sharedPrices[$fromZoneId][$toZoneId] ?? 0;
                 $privateCostPrice = $privateCostPrices[$fromZoneId][$toZoneId] ?? $privatePrice;
                 $sharedCostPrice = $sharedCostPrices[$fromZoneId][$toZoneId] ?? $sharedPrice;
@@ -1183,8 +1211,10 @@ class VehicleController extends Controller
             return redirect()->back()->with('error', 'Invalid mapping type for export.');
         }
 
+        $vehicleCountry = $this->resolveVehicleCountryName($vehicle);
+        $requestedCountry = trim((string) $request->query('country', ''));
         $filters = [
-            'country' => trim((string) $request->query('country', '')),
+            'country' => $vehicleCountry !== '' ? $vehicleCountry : $requestedCountry,
             'city_id' => trim((string) $request->query('city_id', '')),
             'from_zone_id' => trim((string) $request->query('from_zone_id', '')),
         ];
@@ -1270,6 +1300,10 @@ class VehicleController extends Controller
             $fromZoneId = trim((string) ($row[$fromIdx] ?? ''));
             $toZoneId = trim((string) ($row[$toIdx] ?? ''));
             if ($fromZoneId === '' || $toZoneId === '') {
+                $skipped++;
+                continue;
+            }
+            if ($mappingType === 'port_port' && $fromZoneId === $toZoneId) {
                 $skipped++;
                 continue;
             }
@@ -1359,6 +1393,9 @@ class VehicleController extends Controller
             'hotel_attraction' => ['from' => 'Hotel', 'to' => 'Attraction'],
             'hotel_restaurant' => ['from' => 'Hotel', 'to' => 'Restaurant'],
             'attraction_restaurant' => ['from' => 'Attraction', 'to' => 'Restaurant'],
+            'hotel_hotel' => ['from' => 'Hotel', 'to' => 'Hotel'],
+            'attraction_attraction' => ['from' => 'Attraction', 'to' => 'Attraction'],
+            'restaurant_restaurant' => ['from' => 'Restaurant', 'to' => 'Restaurant'],
         ];
     }
 
@@ -1371,12 +1408,40 @@ class VehicleController extends Controller
         return [$config['from'], $config['to']];
     }
 
+    private function vehicleHasZoneMappings(int $vehicleId): bool
+    {
+        return VehicleZoneMapping::where('vehicle_id', $vehicleId)->exists();
+    }
+
+    private function resolveVehicleCountryName(Vehicle $vehicle): string
+    {
+        if (\Schema::hasColumn('vehicles', 'country') && !empty($vehicle->country)) {
+            return trim((string) $vehicle->country);
+        }
+
+        if (!empty($vehicle->city)) {
+            $country = City::where('name', $vehicle->city)->value('country');
+            if (!empty($country)) {
+                return trim((string) $country);
+            }
+        }
+
+        $masterDmcCountryNames = $this->getMasterDmcCountryNamesForDmc((int) $vehicle->dmc_id);
+
+        return (string) ($masterDmcCountryNames[0] ?? '');
+    }
+
     private function getScopedPortsForVehicle(Vehicle $vehicle)
     {
-        $masterDmcCountryNames = $this->getMasterDmcCountryNamesForDmc((int) $vehicle->dmc_id);
         $query = Port::where('status', 1);
-        if (!empty($masterDmcCountryNames)) {
-            $query->whereIn('country', $masterDmcCountryNames);
+        $vehicleCountry = $this->resolveVehicleCountryName($vehicle);
+        if ($vehicleCountry !== '') {
+            $query->where('country', $vehicleCountry);
+        } else {
+            $masterDmcCountryNames = $this->getMasterDmcCountryNamesForDmc((int) $vehicle->dmc_id);
+            if (!empty($masterDmcCountryNames)) {
+                $query->whereIn('country', $masterDmcCountryNames);
+            }
         }
 
         return $query->orderBy('port_name')->get();
@@ -1384,7 +1449,6 @@ class VehicleController extends Controller
 
     private function getScopedZonesForVehicle(Vehicle $vehicle, ?string $zoneType = null)
     {
-        $masterDmcCountryNames = $this->getMasterDmcCountryNamesForDmc((int) $vehicle->dmc_id);
         $query = Zone::query()
             ->where(function ($q) use ($vehicle) {
                 $q->where('dmc_id', $vehicle->dmc_id)->orWhereNull('dmc_id');
@@ -1395,8 +1459,13 @@ class VehicleController extends Controller
             $query->where('zone_type', $zoneType);
         }
 
-        if (!empty($masterDmcCountryNames)) {
-            $cityIds = City::whereIn('country', $masterDmcCountryNames)->pluck('city_id');
+        $vehicleCountry = $this->resolveVehicleCountryName($vehicle);
+        $countryNames = $vehicleCountry !== ''
+            ? [$vehicleCountry]
+            : $this->getMasterDmcCountryNamesForDmc((int) $vehicle->dmc_id);
+
+        if (!empty($countryNames)) {
+            $cityIds = City::whereIn('country', $countryNames)->pluck('city_id');
             if ($cityIds->isNotEmpty()) {
                 $query->whereIn('city', $cityIds);
             }

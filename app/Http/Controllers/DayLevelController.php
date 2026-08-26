@@ -302,7 +302,7 @@ class DayLevelController extends Controller
     public function create()
     {
         $user = Auth::user();
-        $allowedRoleIds = [33, 34, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138, 37, 38];
+        $allowedRoleIds = [11,33, 34, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138, 37, 38];
 
         // Check if user has permission to access this page
         if (!in_array($user->role_id, $allowedRoleIds)) {
@@ -587,24 +587,28 @@ class DayLevelController extends Controller
                 $q->where('is_active', 1)->orWhereNull('is_active');
             });
 
+        $bedColumns = ['bed_id', 'room_type', 'max_occupancy'];
+
         if ($dmcId > 0 && Schema::hasColumn('beds', 'dmc_id')) {
-            $scoped = $baseBedQuery()->where('dmc_id', $dmcId)->orderBy('room_type')->get(['bed_id', 'room_type']);
+            $scoped = $baseBedQuery()->where('dmc_id', $dmcId)->orderBy('room_type')->get($bedColumns);
             if ($scoped->isNotEmpty()) {
                 return response()->json(
                     $scoped->map(fn ($bed) => [
-                        'bed_id'   => $bed->bed_id,
+                        'bed_id' => $bed->bed_id,
                         'bed_type' => (string) ($bed->room_type ?? ''),
+                        'max_occupancy' => (int) ($bed->max_occupancy ?? 0),
                     ])->values()
                 );
             }
         }
 
-        $beds = $baseBedQuery()->orderBy('room_type')->get(['bed_id', 'room_type']);
+        $beds = $baseBedQuery()->orderBy('room_type')->get($bedColumns);
 
         return response()->json(
             $beds->map(fn ($bed) => [
-                'bed_id'   => $bed->bed_id,
+                'bed_id' => $bed->bed_id,
                 'bed_type' => (string) ($bed->room_type ?? ''),
+                'max_occupancy' => (int) ($bed->max_occupancy ?? 0),
             ])->values()
         );
     }
@@ -995,6 +999,8 @@ class DayLevelController extends Controller
                 'price' => 0,
                 'private_price' => 0,
                 'shared_price' => 0,
+                'vehicle_id' => null,
+                'vehicle_name' => null,
             ]);
         }
 
@@ -1018,6 +1024,8 @@ class DayLevelController extends Controller
                 'price' => 0,
                 'private_price' => 0,
                 'shared_price' => 0,
+                'vehicle_id' => null,
+                'vehicle_name' => null,
             ]);
         }
 
@@ -1029,9 +1037,13 @@ class DayLevelController extends Controller
                 'price' => 0,
                 'private_price' => 0,
                 'shared_price' => 0,
+                'vehicle_id' => null,
+                'vehicle_name' => null,
                 'message' => 'No default transfer vehicle configured for this DMC',
             ]);
         }
+
+        $vehicleName = $this->resolveTransferVehicleName($vehicleId, $dmcId);
 
         $zoneRequest = Request::create('/', 'GET', [
             'vehicle_id' => $vehicleId,
@@ -1064,6 +1076,7 @@ class DayLevelController extends Controller
             'private_price' => $private,
             'shared_price' => $shared,
             'vehicle_id' => $vehicleId,
+            'vehicle_name' => $vehicleName,
             'message' => $payload['message'] ?? null,
         ]);
     }
@@ -1167,6 +1180,43 @@ class DayLevelController extends Controller
         }
 
         return null;
+    }
+
+    private function resolveTransferVehicleName(string $vehicleId, int $dmcId): ?string
+    {
+        $vehicleId = trim($vehicleId);
+        if ($vehicleId === '') {
+            return null;
+        }
+
+        $query = Vehicle::query()
+            ->whereNull('deleted_at')
+            ->where(function ($q) use ($vehicleId) {
+                $q->where('vehicle_id', $vehicleId);
+                if (ctype_digit($vehicleId)) {
+                    $q->orWhere('id', (int) $vehicleId);
+                }
+            });
+
+        if ($dmcId > 0 && Schema::hasColumn('vehicles', 'dmc_id')) {
+            $query->where(function ($q) use ($dmcId) {
+                $q->where('dmc_id', $dmcId)
+                    ->orWhereRaw("COALESCE(dmc_id::text, '') LIKE ?", ['%' . $dmcId . '%']);
+            });
+        }
+
+        $vehicle = $query->first(['vehicle_name', 'vehicle_type']);
+        if ($vehicle === null) {
+            return null;
+        }
+
+        $name = trim((string) ($vehicle->vehicle_name ?? ''));
+        $type = trim((string) ($vehicle->vehicle_type ?? ''));
+        if ($name === '') {
+            return $type !== '' ? $type : null;
+        }
+
+        return $type !== '' ? ($name . ' (' . $type . ')') : $name;
     }
 
     private function resolveTransferCountry(Request $request, int $masterDmcId, int $dmcId): string
@@ -1530,7 +1580,7 @@ class DayLevelController extends Controller
     public function index()
     {
         $user = Auth::user();
-        $allowedRoleIds = [33, 34, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138, 37, 38];
+        $allowedRoleIds = [11, 33, 34, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138, 37, 38];
 
         // Check if user has permission to access this page
         if (!in_array($user->role_id, $allowedRoleIds)) {
@@ -1554,7 +1604,7 @@ class DayLevelController extends Controller
     public function updateInclusion(Request $request, DayLevel $dayLevel)
     {
         $user = Auth::user();
-        $allowedRoleIds = [33, 34, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138, 37, 38];
+        $allowedRoleIds = [11, 33, 34, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138, 37, 38];
 
         if (! in_array((int) $user->role_id, $allowedRoleIds, true)) {
             return response()->json(['success' => false, 'message' => 'You do not have permission to update inclusion.'], 403);
@@ -1680,7 +1730,7 @@ class DayLevelController extends Controller
     public function edit(Request $request, DayLevel $dayLevel)
     {
         $user = Auth::user();
-        $allowedRoleIds = [33, 34, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138, 37, 38];
+        $allowedRoleIds = [11, 33, 34, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138, 37, 38];
 
         // Check if user has permission to access this page
         if (!in_array($user->role_id, $allowedRoleIds)) {
@@ -1935,21 +1985,196 @@ class DayLevelController extends Controller
     }
 
     // =========================================================================
-    // DESTROY
+    // DESTROY – soft-delete day level row + rebuild Azure JSON without it
     // =========================================================================
     public function destroy(DayLevel $dayLevel)
     {
         $user = Auth::user();
-        $allowedRoleIds = [33, 34, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138, 37, 38];
+        $allowedRoleIds = [11, 33, 34, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138, 37, 38];
 
-        // Check if user has permission to access this page
-        if (!in_array($user->role_id, $allowedRoleIds)) {
+        if (! in_array((int) $user->role_id, $allowedRoleIds, true)) {
+            if ($this->wantsJsonResponse()) {
+                return response()->json(['success' => false, 'message' => 'You do not have permission to delete this package.'], 403);
+            }
+
             return redirect()->route('dashboard')->with('error', 'You have not permission for access this page');
         }
 
+        if (! $this->userCanAccessDayLevel($dayLevel)) {
+            if ($this->wantsJsonResponse()) {
+                return response()->json(['success' => false, 'message' => 'This package is not available for your account.'], 403);
+            }
+
+            return redirect()->route('day-level.index')->with('error', 'This package is not available for your account.');
+        }
+
+        $dayLevelId = (int) $dayLevel->id;
+        $affectedMasterId = (int) ($dayLevel->master_dmc_id ?? 0);
         $dayLevel->delete();
-        $this->refreshCombinedJsonFile();
-        return redirect()->route('day-level.index')->with('success', 'Day Level deleted.');
+
+        $azureSync = ['ok' => false, 'deleted_blobs' => []];
+        try {
+            $azureSync = $this->refreshCombinedJsonFile(
+                $affectedMasterId > 0 ? [$affectedMasterId] : []
+            );
+        } catch (\Throwable $e) {
+            Log::warning('Day-level soft-deleted in DB but Azure JSON refresh failed', [
+                'day_level_id' => $dayLevelId,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        if ($this->wantsJsonResponse()) {
+            return response()->json([
+                'success' => true,
+                'message' => ! empty($azureSync['ok'])
+                    ? 'Day Level package deleted and removed from Azure blob storage.'
+                    : 'Day Level package soft-deleted. Azure blob sync may have failed — check logs.',
+                'deleted_day_level_id' => $dayLevelId,
+                'azure_sync' => $azureSync,
+            ]);
+        }
+
+        return redirect()->route('day-level.index')->with(
+            ! empty($azureSync['ok']) ? 'success' : 'warning',
+            ! empty($azureSync['ok'])
+                ? 'Day Level deleted and removed from Azure blob storage.'
+                : 'Day Level soft-deleted. Azure blob sync may have failed — check logs.'
+        );
+    }
+
+    /**
+     * Soft-remove one package from a Day Level row.
+     * If no packages remain, soft-deletes the whole row. Always rebuilds Azure JSON.
+     */
+    public function destroyPackage(Request $request, DayLevel $dayLevel, string $packageId)
+    {
+        $user = Auth::user();
+        $allowedRoleIds = [11, 33, 34, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138, 37, 38];
+
+        if (! in_array((int) $user->role_id, $allowedRoleIds, true)) {
+            return response()->json(['success' => false, 'message' => 'You do not have permission to delete this package.'], 403);
+        }
+
+        if (! $this->userCanAccessDayLevel($dayLevel)) {
+            return response()->json(['success' => false, 'message' => 'This package is not available for your account.'], 403);
+        }
+
+        $packageId = trim($packageId);
+        if ($packageId === '') {
+            return response()->json(['success' => false, 'message' => 'Package id is required.'], 422);
+        }
+
+        $summaries = $dayLevel->collectPackageSummaries();
+        $matched = collect($summaries)->first(function ($summary) use ($packageId) {
+            return (string) ($summary['package_id'] ?? '') === $packageId
+                && ! empty($summary['has_stable_id']);
+        });
+        if (! $matched) {
+            return response()->json(['success' => false, 'message' => 'Package not found on this Day Level row.'], 404);
+        }
+
+        $previousDestinations = $this->extractDestinationsFromStoredDayLevel($dayLevel);
+        $remainingDestinations = DayLevel::removePackageFromDestinations($previousDestinations, $packageId);
+        $remainingDestinations = DayLevel::canonicalizeDestinationsForStorage($remainingDestinations);
+
+        $dayLevelId = (int) $dayLevel->id;
+        $affectedMasterIds = array_values(array_unique(array_filter([
+            (int) ($dayLevel->master_dmc_id ?? 0),
+        ])));
+        $rowDeleted = false;
+
+        try {
+            DB::beginTransaction();
+
+            if ($remainingDestinations === []) {
+                $dayLevel->delete();
+                $rowDeleted = true;
+            } else {
+                $meta = $this->computeDayLevelMetadataFromDestinations($remainingDestinations);
+                $services = $this->extractTransferServicesFromDestinations($remainingDestinations);
+                $resolvedDmcId = (int) ($remainingDestinations[0]['DMC_id'] ?? $dayLevel->dmc_id);
+                $incomingMasterId = $this->resolveMasterDmcIdForDmcUserId($resolvedDmcId);
+                if ($incomingMasterId <= 0) {
+                    $incomingMasterId = (int) $dayLevel->master_dmc_id;
+                }
+                if ($incomingMasterId > 0) {
+                    $affectedMasterIds[] = $incomingMasterId;
+                }
+                $country = (string) ($remainingDestinations[0]['country'] ?? $meta['country'] ?? '');
+                $country = $country !== '' ? $country : null;
+
+                $firstCityName = (string) ($meta['first_city_name'] ?? '');
+                $cityId = null;
+                if ($firstCityName !== '') {
+                    $cityQuery = City::whereNull('deleted_at')->where('name', 'ilike', $firstCityName);
+                    if (! blank($country)) {
+                        $cityQuery->where('country', 'ilike', (string) $country);
+                    }
+                    $cityId = $cityQuery->value('id');
+                }
+
+                $rowDays = max(1, (int) ($meta['max_day_count'] ?? 1));
+
+                $dayLevel->update([
+                    'master_dmc_id' => $incomingMasterId,
+                    'dmc_id' => $resolvedDmcId,
+                    'city_id' => $cityId,
+                    'country' => $country,
+                    'days' => $rowDays,
+                    'hotels' => $meta['hotels_flat'] ?? [],
+                    'airport_transfer_type' => $services['airport_transfer']['type'] ?: null,
+                    'airport_transfer_cost' => $services['airport_transfer']['cost'],
+                    'vehicle_id' => $services['airport_transfer']['vehicle_id'],
+                    'vehicle_service_type' => $services['airport_transfer']['vehicle_service_type'] ?: null,
+                    'vehicle_passengers' => $services['airport_transfer']['vehicle_passengers'],
+                    'activities' => $remainingDestinations,
+                    'inter_city' => $this->buildPersistedInterCityPayload($incomingMasterId, $remainingDestinations),
+                ]);
+            }
+
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            Log::error('DayLevel package delete failed: ' . $e->getMessage(), [
+                'day_level_id' => $dayLevelId,
+                'package_id' => $packageId,
+            ]);
+
+            return response()->json(['success' => false, 'message' => 'Could not delete package. Please try again.'], 500);
+        }
+
+        $azureSync = ['ok' => false, 'deleted_blobs' => []];
+        try {
+            $azureSync = $this->refreshCombinedJsonFile(array_values(array_unique(array_filter($affectedMasterIds))));
+        } catch (\Throwable $e) {
+            Log::warning('Day-level package deleted in DB but Azure JSON refresh failed', [
+                'day_level_id' => $dayLevelId,
+                'package_id' => $packageId,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => ! empty($azureSync['ok'])
+                ? ($rowDeleted
+                    ? 'Package deleted. Day Level row soft-deleted and removed from Azure blob storage.'
+                    : 'Package deleted and removed from Azure blob storage.')
+                : ($rowDeleted
+                    ? 'Package deleted and Day Level soft-deleted. Azure blob sync may have failed — check logs.'
+                    : 'Package deleted. Azure blob sync may have failed — check logs.'),
+            'deleted_package_id' => $packageId,
+            'row_deleted' => $rowDeleted,
+            'azure_sync' => $azureSync,
+        ]);
+    }
+
+    private function wantsJsonResponse(): bool
+    {
+        return request()->expectsJson()
+            || request()->ajax()
+            || str_contains((string) request()->header('Accept', ''), 'application/json');
     }
 
     // =========================================================================
@@ -3593,9 +3818,20 @@ class DayLevelController extends Controller
     /**
      * Rebuild combined + per-master JSON blobs after each create/update/delete.
      * Each uploaded file is only the raw package array (starts with `[`, ends with `]`).
+     * Masters that no longer have packages get their blob deleted from Azure.
+     *
+     * @param  list<int>  $masterIdsPossiblyEmptied  Master IDs that may have zero packages after this change
+     * @return array{ok: bool, combined_url: ?string, uploaded_masters: list<int>, deleted_blobs: list<string>}
      */
-    private function refreshCombinedJsonFile(): void
+    private function refreshCombinedJsonFile(array $masterIdsPossiblyEmptied = []): array
     {
+        $result = [
+            'ok' => false,
+            'combined_url' => null,
+            'uploaded_masters' => [],
+            'deleted_blobs' => [],
+        ];
+
         try {
             $rows = DayLevel::query()
                 ->with('dmc')
@@ -3622,10 +3858,11 @@ class DayLevelController extends Controller
             if ($json === null) {
                 Log::warning('Day-level Azure JSON refresh skipped: payload could not be encoded as a JSON array.');
 
-                return;
+                return $result;
             }
 
             $combinedUrl = $this->storeDayLevelJsonOnAzure($json, 'day-level-combined.json');
+            $result['combined_url'] = $combinedUrl;
             if ($combinedUrl === null) {
                 Log::warning('Day-level combined JSON was not uploaded to Azure (check file_storage=azure and AZURE_AI_* credentials).');
             } else {
@@ -3657,6 +3894,7 @@ class DayLevelController extends Controller
                 if ($masterJson !== null) {
                     $masterUrl = $this->storeDayLevelJsonOnAzure($masterJson, 'master-dmc-' . $masterId . '.json');
                     if ($masterUrl !== null) {
+                        $result['uploaded_masters'][] = (int) $masterId;
                         Log::info('Day-level master DMC JSON synced to Azure', [
                             'master_dmc_id' => $masterId,
                             'url'           => $masterUrl,
@@ -3669,12 +3907,74 @@ class DayLevelController extends Controller
                     }
                 }
             }
+
+            $deletedBlobs = $this->purgeEmptyMasterDmcJsonBlobs(
+                array_keys($masterIds),
+                $masterIdsPossiblyEmptied
+            );
+            $result['deleted_blobs'] = $deletedBlobs;
+            $result['ok'] = $combinedUrl !== null;
+
+            return $result;
         } catch (\Throwable $e) {
             Log::error('Failed to refresh day-level JSON on Azure', [
                 'message' => $e->getMessage(),
                 'trace'   => $e->getTraceAsString(),
             ]);
+
+            return $result;
         }
+    }
+
+    /**
+     * Delete master-dmc-{id}.json blobs that no longer have any packages.
+     * Uses known emptied IDs first, then lists the container to catch orphans.
+     *
+     * @param  list<int>  $activeMasterIds
+     * @param  list<int>  $masterIdsPossiblyEmptied
+     * @return list<string>
+     */
+    private function purgeEmptyMasterDmcJsonBlobs(array $activeMasterIds, array $masterIdsPossiblyEmptied = []): array
+    {
+        $active = [];
+        foreach ($activeMasterIds as $id) {
+            $id = (int) $id;
+            if ($id > 0) {
+                $active[$id] = true;
+            }
+        }
+
+        $candidates = [];
+        foreach ($masterIdsPossiblyEmptied as $id) {
+            $id = (int) $id;
+            if ($id > 0 && ! isset($active[$id])) {
+                $candidates['master-dmc-' . $id . '.json'] = true;
+            }
+        }
+
+        // Also remove any orphan master-dmc-*.json still sitting in the container.
+        $listed = CommonHelper::listAzureJsonBlobs('master-dmc-', self::DAY_LEVEL_JSON_CONTAINER);
+        foreach ($listed as $blobName) {
+            if (! preg_match('/^master-dmc-(\d+)\.json$/i', $blobName, $m)) {
+                continue;
+            }
+            $id = (int) $m[1];
+            if ($id > 0 && ! isset($active[$id])) {
+                $candidates[$blobName] = true;
+            }
+        }
+
+        $deleted = [];
+        foreach (array_keys($candidates) as $blobName) {
+            if (CommonHelper::deleteJsonFromAzure($blobName, self::DAY_LEVEL_JSON_CONTAINER)) {
+                $deleted[] = $blobName;
+                Log::info('Day-level orphan master JSON deleted from Azure', [
+                    'file_name' => $blobName,
+                ]);
+            }
+        }
+
+        return $deleted;
     }
 }
 

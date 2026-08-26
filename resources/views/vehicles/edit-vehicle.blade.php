@@ -200,8 +200,22 @@
         pointer-events: none;
     }
 
-    .readonly-field-container input:hover {
+    .readonly-field-container input:hover,
+    .readonly-field-container .select2-selection:hover {
         border-color: #dfe3e7 !important;
+    }
+
+    .select2-container--default.select2-container--disabled .select2-selection--single {
+        background-color: #f0f2f5 !important;
+        cursor: not-allowed !important;
+        border: 1px solid #dfe3e7 !important;
+        color: #6e7781 !important;
+    }
+
+    #mapping_filter_country:disabled {
+        background-color: #f0f2f5 !important;
+        cursor: not-allowed !important;
+        color: #6e7781 !important;
     }
 
     .field-info-message {
@@ -345,6 +359,39 @@
                     </span>
                 </a>
             </li>
+            <li class="nav-item" role="presentation">
+                <a class="nav-link port-port-tab {{ request()->get('mapping_type') == 'hotel_hotel' ? 'active' : '' }}"
+                   href="{{ route('vehicle.edit', ['vehicle' => Crypt::encrypt($vehicle->vehicle_id), 'zone_mapping' => true, 'mapping_type' => 'hotel_hotel']) }}"
+                   role="tab">
+                    <span class="d-flex align-items-center">
+                        <span>Hotel</span>
+                        <i class="fa-solid fa-repeat mx-2" aria-hidden="true"></i>
+                        <span>Hotel</span>
+                    </span>
+                </a>
+            </li>
+            <li class="nav-item" role="presentation">
+                <a class="nav-link port-port-tab {{ request()->get('mapping_type') == 'attraction_attraction' ? 'active' : '' }}"
+                   href="{{ route('vehicle.edit', ['vehicle' => Crypt::encrypt($vehicle->vehicle_id), 'zone_mapping' => true, 'mapping_type' => 'attraction_attraction']) }}"
+                   role="tab">
+                    <span class="d-flex align-items-center">
+                        <span>Attraction</span>
+                        <i class="fa-solid fa-repeat mx-2" aria-hidden="true"></i>
+                        <span>Attraction</span>
+                    </span>
+                </a>
+            </li>
+            <li class="nav-item" role="presentation">
+                <a class="nav-link port-port-tab {{ request()->get('mapping_type') == 'restaurant_restaurant' ? 'active' : '' }}"
+                   href="{{ route('vehicle.edit', ['vehicle' => Crypt::encrypt($vehicle->vehicle_id), 'zone_mapping' => true, 'mapping_type' => 'restaurant_restaurant']) }}"
+                   role="tab">
+                    <span class="d-flex align-items-center">
+                        <span>Restaurant</span>
+                        <i class="fa-solid fa-repeat mx-2" aria-hidden="true"></i>
+                        <span>Restaurant</span>
+                    </span>
+                </a>
+            </li>
         </ul>
         @endif
         
@@ -434,9 +481,13 @@
                             </div>
 
                             <!-- Country -->
+                            @php $locationLockedByMappings = !empty($hasZoneMappings); @endphp
                             <div class="col-md-3 mb-3">
                                 <label for="country" class="form-label"><strong>Country</strong><span class="text-danger">*</span></label>
-                                <select name="country" id="country" class="form-select" required>
+                                @if($locationLockedByMappings)
+                                    <input type="hidden" name="country" value="{{ $selectedCountry ?? $vehicle->country }}">
+                                @endif
+                                <select @if(!$locationLockedByMappings) name="country" required @endif id="country" class="form-select" @disabled($locationLockedByMappings)>
                                     @php $scopedCountries = $countries ?? collect(); @endphp
                                     @if($scopedCountries->count() !== 1)
                                         <option value="">Select Country</option>
@@ -445,6 +496,11 @@
                                         <option value="{{ $c->name }}" {{ ($selectedCountry ?? '') == $c->name ? 'selected' : '' }}>{{ $c->name }}</option>
                                     @endforeach
                                 </select>
+                                @if($locationLockedByMappings)
+                                    <div class="field-info-message">
+                                        <i class="fas fa-lock"></i> Country cannot be changed because zone mapping prices already exist for this vehicle.
+                                    </div>
+                                @endif
                                 @error('country')
                                     <div class="text-danger mt-1">{{ $message }}</div>
                                 @enderror
@@ -453,12 +509,20 @@
                             <!-- City Name -->
                             <div class="col-md-3 mb-3">
                                 <label for="city_name" class="form-label"><strong>City Name</strong><span class="text-danger">*</span></label>
-                                <select name="city_name" id="city_name" class="form-select" required>
+                                @if($locationLockedByMappings)
+                                    <input type="hidden" name="city_name" value="{{ $vehicle->city }}">
+                                @endif
+                                <select @if(!$locationLockedByMappings) name="city_name" required @endif id="city_name" class="form-select" @disabled($locationLockedByMappings)>
                                     <option value="">Select a city</option>
                                     @foreach($city as $c)
                                         <option {{ $c->name == $vehicle->city ? 'selected' : '' }} value="{{ $c->name }}">{{ $c->name }}</option>
                                     @endforeach
                                 </select>
+                                @if($locationLockedByMappings)
+                                    <div class="field-info-message">
+                                        <i class="fas fa-lock"></i> City cannot be changed because zone mapping prices already exist for this vehicle.
+                                    </div>
+                                @endif
                                 @error('city_name')
                                     <div class="text-danger mt-1">{{ $message }}</div>
                                 @enderror
@@ -1018,24 +1082,39 @@
                     $zoneMappingTypesWithFilters = [
                         'port_port', 'port_attraction', 'port_restaurant', 'port_hotel',
                         'hotel_attraction', 'hotel_restaurant', 'attraction_restaurant',
+                        'hotel_hotel', 'attraction_attraction', 'restaurant_restaurant',
+                    ];
+                    // City picker is only meaningful for the zone-to-zone tabs; the port tabs
+                    // stay country-scoped.
+                    $zoneMappingTypesWithCityFilter = [
+                        'hotel_attraction', 'hotel_restaurant', 'attraction_restaurant',
+                        'hotel_hotel', 'attraction_attraction', 'restaurant_restaurant',
                     ];
                     $currentMappingType = request()->get('mapping_type');
+                    $showCityFilter = in_array($currentMappingType, $zoneMappingTypesWithCityFilter);
                     $zoneFilterFromSelectMode = 'port';
                     $zoneFilterFromPlaceholder = '-- Select From Port --';
                     $zoneFilterFromZones = collect();
 
-                    if ($currentMappingType === 'hotel_attraction' || $currentMappingType === 'hotel_restaurant') {
+                    if ($currentMappingType === 'hotel_attraction' || $currentMappingType === 'hotel_restaurant' || $currentMappingType === 'hotel_hotel') {
                         $zoneFilterFromSelectMode = 'zone';
                         $zoneFilterFromPlaceholder = '-- Select Hotel --';
                         $zoneFilterFromZones = collect($zones ?? [])
                             ->filter(fn ($z) => ($z->zone_type ?? null) === 'Hotel')
                             ->map($buildVehicleZonePayload)
                             ->values();
-                    } elseif ($currentMappingType === 'attraction_restaurant') {
+                    } elseif ($currentMappingType === 'attraction_restaurant' || $currentMappingType === 'attraction_attraction') {
                         $zoneFilterFromSelectMode = 'zone';
                         $zoneFilterFromPlaceholder = '-- Select Attraction --';
                         $zoneFilterFromZones = collect($zones ?? [])
                             ->filter(fn ($z) => ($z->zone_type ?? null) === 'Attraction')
+                            ->map($buildVehicleZonePayload)
+                            ->values();
+                    } elseif ($currentMappingType === 'restaurant_restaurant') {
+                        $zoneFilterFromSelectMode = 'zone';
+                        $zoneFilterFromPlaceholder = '-- Select Restaurant --';
+                        $zoneFilterFromZones = collect($zones ?? [])
+                            ->filter(fn ($z) => ($z->zone_type ?? null) === 'Restaurant')
                             ->map($buildVehicleZonePayload)
                             ->values();
                     }
@@ -1102,24 +1181,39 @@
 
                             const countryEl = document.getElementById('mapping_filter_country');
                             const cityEl = document.getElementById('mapping_filter_city');
-                            if (!countryEl || !cityEl) return;
+                            // The city dropdown only exists on the zone-to-zone tabs. Country
+                            // filtering must still work on the port tabs without it.
+                            if (!countryEl) return;
 
                             const self = this;
                             const onCountryChange = function () {
                                 self.country = this.value || '';
                                 self.cityId = '';
-                                cityEl.value = '';
+                                if (cityEl) {
+                                    cityEl.value = '';
+                                }
                                 self.loadCitiesForCountry(self.country, function () {
                                     self.applyToFromZoneSelect();
                                 });
                             };
                             const onCityChange = function () {
-                                self.cityId = this.value || '';
+                                self.cityId = cityEl ? (cityEl.value || '') : '';
                                 self.applyToFromZoneSelect();
                             };
 
                             countryEl.addEventListener('change', onCountryChange);
-                            cityEl.addEventListener('change', onCityChange);
+
+                            if (cityEl) {
+                                // Select2 publishes its change through jQuery.trigger(), which never
+                                // reaches a native addEventListener handler, so bind through jQuery
+                                // when it is present. A jQuery binding still catches real DOM events.
+                                if (window.jQuery) {
+                                    window.jQuery(cityEl).off('change.zoneMappingFilter')
+                                        .on('change.zoneMappingFilter', onCityChange);
+                                } else {
+                                    cityEl.addEventListener('change', onCityChange);
+                                }
+                            }
 
                             // Searchable city dropdown (Select2)
                             this.initCitySelect2('');
@@ -1136,23 +1230,25 @@
                             }
                         },
 
+                        // Always resolves the country's city ids, even on tabs that render no city
+                        // dropdown, because getFilteredZones() narrows zones by those ids.
                         loadCitiesForCountry(countryName, done) {
                             const cityEl = document.getElementById('mapping_filter_city');
-                            if (!cityEl) {
-                                if (typeof done === 'function') done();
-                                return;
-                            }
 
                             if (!countryName) {
                                 this.cityIdsForCountry = [];
-                                cityEl.innerHTML = '<option value="">All Cities</option>';
-                                this.initCitySelect2('');
+                                if (cityEl) {
+                                    cityEl.innerHTML = '<option value="">All Cities</option>';
+                                    this.initCitySelect2('');
+                                }
                                 if (typeof done === 'function') done();
                                 return;
                             }
 
-                            cityEl.innerHTML = '<option value="">Loading cities...</option>';
-                            this.initCitySelect2('');
+                            if (cityEl) {
+                                cityEl.innerHTML = '<option value="">Loading cities...</option>';
+                                this.initCitySelect2('');
+                            }
 
                             const self = this;
                             fetch(this.citiesUrl + '?country=' + encodeURIComponent(countryName), {
@@ -1162,20 +1258,32 @@
                                 .then(function (response) {
                                     const cities = response.cities || [];
                                     self.cityIdsForCountry = cities.map(c => String(c.city_id));
-                                    cityEl.innerHTML = '<option value="">All Cities</option>';
-                                    cities.forEach(function (city) {
-                                        const opt = document.createElement('option');
-                                        opt.value = city.city_id;
-                                        opt.textContent = city.name;
-                                        cityEl.appendChild(opt);
-                                    });
-                                    self.initCitySelect2(self.cityId || '');
+
+                                    if (cityEl) {
+                                        cityEl.innerHTML = '<option value="">All Cities</option>';
+                                        cities.forEach(function (city) {
+                                            const opt = document.createElement('option');
+                                            opt.value = city.city_id;
+                                            opt.textContent = city.name;
+                                            cityEl.appendChild(opt);
+                                        });
+                                        // Drop a stale selection that no longer belongs to this country.
+                                        if (self.cityId && !self.cityIdsForCountry.includes(String(self.cityId))) {
+                                            self.cityId = '';
+                                        }
+                                        self.initCitySelect2(self.cityId || '');
+                                    } else {
+                                        self.cityId = '';
+                                    }
+
                                     if (typeof done === 'function') done();
                                 })
                                 .catch(function () {
                                     self.cityIdsForCountry = [];
-                                    cityEl.innerHTML = '<option value="">All Cities</option>';
-                                    self.initCitySelect2('');
+                                    if (cityEl) {
+                                        cityEl.innerHTML = '<option value="">All Cities</option>';
+                                        self.initCitySelect2('');
+                                    }
                                     if (typeof done === 'function') done();
                                 });
                         },
@@ -1258,8 +1366,8 @@
                                 opt.dataset.itemImages = itemImages;
                                 if (z.zone_type === 'Hotel') {
                                     opt.dataset.hotelCount = String((z.items || []).length);
-                                } else if (z.zone_type === 'Attraction') {
-                                    opt.dataset.attractionCount = String((z.items || []).length);
+                                } else if (z.zone_type === 'Restaurant') {
+                                    opt.dataset.restaurantCount = String((z.items || []).length);
                                 }
                                 selectEl.append(opt);
                                 return;
@@ -1277,6 +1385,8 @@
                                 opt.dataset.hotelCount = String((z.items || []).length);
                             } else if (z.zone_type === 'Attraction') {
                                 opt.dataset.attractionCount = String((z.items || []).length);
+                            } else if (z.zone_type === 'Restaurant') {
+                                opt.dataset.restaurantCount = String((z.items || []).length);
                             }
                             selectEl.appendChild(opt);
                         },
@@ -1412,6 +1522,12 @@
                                 Map Hotel to Restaurant Transportation
                             @elseif(request()->get('mapping_type') == 'attraction_restaurant')
                                 Map Attraction to Restaurant Transportation
+                            @elseif(request()->get('mapping_type') == 'hotel_hotel')
+                                Map Hotel to Hotel Transportation
+                            @elseif(request()->get('mapping_type') == 'attraction_attraction')
+                                Map Attraction to Attraction Transportation
+                            @elseif(request()->get('mapping_type') == 'restaurant_restaurant')
+                                Map Restaurant to Restaurant Transportation
                             @else
                                 Map Transportation Services
                             @endif
@@ -1427,7 +1543,22 @@
                     $seedPrivateProfitAmount = $seedProfitMapping?->private_profit_amount ?? 0;
                     $seedSharedProfitType = $seedProfitMapping?->shared_profit_type ?? 'percentage';
                     $seedSharedProfitAmount = $seedProfitMapping?->shared_profit_amount ?? 0;
+                    $vehicleMappingCountry = $zoneMappingFilterCountry ?: ($selectedCountry ?? '');
+                    $mappingCountries = collect($countries ?? [])->filter(function ($c) use ($vehicleMappingCountry) {
+                        return strcasecmp((string) ($c->name ?? ''), (string) $vehicleMappingCountry) === 0;
+                    });
+                    if ($mappingCountries->isEmpty() && $vehicleMappingCountry !== '') {
+                        $mappingCountries = collect([(object) ['name' => $vehicleMappingCountry]]);
+                    }
                 @endphp
+                <div class="field-info-message mb-3">
+                    <i class="fas fa-info-circle"></i>
+                    Zone mapping prices are given for this vehicle's country
+                    @if($vehicleMappingCountry)
+                        (<strong>{{ $vehicleMappingCountry }}</strong>)
+                    @endif.
+                    Ports and zones shown here belong to this country only.
+                </div>
                 <div class="row mb-3 align-items-end" id="zone-mapping-filters"
                      data-ports='@json($portsSorted ?? [])'
                      data-from-zones='@json($zoneFilterFromZones ?? [])'
@@ -1436,22 +1567,24 @@
                      data-selected-country="{{ $zoneMappingFilterCountry ?? '' }}"
                      data-default-city-id="{{ $defaultFilterCityId ?? '' }}"
                      data-cities-url="{{ route('fetch-cities-by-country') }}">
-                    <div class="col-md-2">
+                    <div class="{{ $showCityFilter ? 'col-md-2' : 'col-md-4' }}">
                         <label for="mapping_filter_country" class="form-label"><strong>Country</strong></label>
-                        <select id="mapping_filter_country" class="form-select">
-                            @php $scopedCountries = $countries ?? collect(); @endphp
-                            <option value="" selected>All Countries</option>
-                            @foreach($scopedCountries as $c)
-                                <option value="{{ $c->name }}">{{ $c->name }}</option>
-                            @endforeach
+                        <select id="mapping_filter_country" class="form-select" disabled>
+                            @forelse($mappingCountries as $c)
+                                <option value="{{ $c->name }}" selected>{{ $c->name }}</option>
+                            @empty
+                                <option value="" selected>No country assigned</option>
+                            @endforelse
                         </select>
                     </div>
+                    @if($showCityFilter)
                     <div class="col-md-2">
                         <label for="mapping_filter_city" class="form-label"><strong>City</strong></label>
                         <select id="mapping_filter_city" class="form-select">
                             <option value="">All Cities</option>
                         </select>
                     </div>
+                    @endif
                     <div class="col-md-2">
                         <label for="global_private_profit_type" class="form-label"><strong>Private Profit</strong></label>
                         <select id="global_private_profit_type" name="global_private_profit_type" class="form-select js-global-private-profit-type">
@@ -1612,7 +1745,7 @@
                         </div>
                     </div>
                     
-                    @elseif(request()->get('mapping_type') == 'hotel_attraction')
+                    @elseif(in_array(request()->get('mapping_type'), ['hotel_attraction', 'hotel_hotel']))
                     <div class="col-md-6">
                         <label for="from_zone" class="form-label"><strong>Hotel</strong><span class="text-danger">*</span></label>
                         <select id="from_zone" name="from_zone" class="form-select" data-show-description="true">
@@ -1694,7 +1827,7 @@
                         </div>
                     </div>
                     
-                    @elseif(request()->get('mapping_type') == 'attraction_restaurant')
+                    @elseif(in_array(request()->get('mapping_type'), ['attraction_restaurant', 'attraction_attraction']))
                     <div class="col-md-6">
                         <label for="from_zone" class="form-label"><strong>Attraction</strong><span class="text-danger">*</span></label>
                         <select id="from_zone" name="from_zone" class="form-select" data-show-description="true">
@@ -1735,9 +1868,48 @@
                             </div>
                         </div>
                     </div>
+                    @elseif(request()->get('mapping_type') == 'restaurant_restaurant')
+                    <div class="col-md-6">
+                        <label for="from_zone" class="form-label"><strong>Restaurant</strong><span class="text-danger">*</span></label>
+                        <select id="from_zone" name="from_zone" class="form-select" data-show-description="true">
+                            <option value="">-- Select Restaurant --</option>
+                            @foreach($zonesSorted as $zone)
+                                @if($zone->zone_type == 'Restaurant')
+                                    @php
+                                        $assignedRestaurants = App\Models\Restaurant::where('status', 1)
+                                            ->whereJsonContains('dmc_id', $zone->dmc_id)
+                                            ->get()
+                                            ->filter(function($restaurant) use ($zone) {
+                                                return $restaurant->getZoneForDmc($zone->dmc_id) == $zone->zone_id;
+                                            });
+                                        $restaurantCount = $assignedRestaurants->count();
+                                        $restaurantNames = $assignedRestaurants->pluck('name')->filter()->implode(', ');
+                                        $restaurantItems = $assignedRestaurants->map(fn($r) => ['name' => $r->name ?? '', 'image' => ($r->master_image ?? '') ? (str_starts_with($r->master_image ?? '', 'http') || str_starts_with($r->master_image ?? '', '/') ? $r->master_image : asset($r->master_image)) : ''])->toArray();
+                                    @endphp
+                                    <option value="{{ $zone->zone_id }}"
+                                            data-type="{{ $zone->zone_type }}"
+                                            data-description="{{ $zone->description ?? 'No description available' }}"
+                                            data-zone-name="{{ $zone->zone_name }}"
+                                            data-restaurant-count="{{ $restaurantCount }}"
+                                            data-item-names="{{ e($restaurantNames) }}"
+                                            data-item-images="{{ e(json_encode($restaurantItems)) }}">
+                                        {{ $zone->zone_name }} ({{ $restaurantCount }} restaurants) - {{ html_entity_decode(strip_tags($zone->description)) ?? 'Unknown Description' }}
+                                    </option>
+                                @endif
+                            @endforeach
+                        </select>
+                        <div id="from_zone_description" class="mt-2 zone-description d-none">
+                            <div class="card">
+                                <div class="card-body bg-light p-3">
+                                    <h6 class="card-subtitle text-muted mb-2"><span id="from_zone_type_label">Restaurant</span>: <span id="from_zone_name_label"></span></h6>
+                                    <p class="card-text" id="from_zone_description_text"></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                     @endif
 
-                    @if(in_array(request()->get('mapping_type'), ['port_port','port_attraction','port_restaurant','port_hotel','hotel_attraction','hotel_restaurant','attraction_restaurant']))
+                    @if(in_array(request()->get('mapping_type'), ['port_port','port_attraction','port_restaurant','port_hotel','hotel_attraction','hotel_restaurant','attraction_restaurant','hotel_hotel','attraction_attraction','restaurant_restaurant']))
                     <div class="col-md-6 d-flex flex-column justify-content-end">
                         <label class="form-label d-none d-md-block">&nbsp;</label>
                         <div class="d-flex justify-content-md-end align-items-center gap-2 flex-wrap">
@@ -1762,7 +1934,7 @@
                     </div>
                     @endif
                     
-                    @if(!in_array(request()->get('mapping_type'), ['port_port','port_attraction','port_restaurant','port_hotel','hotel_attraction','hotel_restaurant','attraction_restaurant']))
+                    @if(!in_array(request()->get('mapping_type'), ['port_port','port_attraction','port_restaurant','port_hotel','hotel_attraction','hotel_restaurant','attraction_restaurant','hotel_hotel','attraction_attraction','restaurant_restaurant']))
                         <div class="col-md-2 d-flex align-items-end">
                             <button type="button" id="addMapping" class="btn btn-primary w-100">Add Mapping</button>
                         </div>
@@ -1790,6 +1962,12 @@
                                                 From Hotel
                                             @elseif(request()->get('mapping_type') == 'attraction_restaurant')
                                                 From Attraction
+                                            @elseif(request()->get('mapping_type') == 'hotel_hotel')
+                                                From Hotel
+                                            @elseif(request()->get('mapping_type') == 'attraction_attraction')
+                                                From Attraction
+                                            @elseif(request()->get('mapping_type') == 'restaurant_restaurant')
+                                                From Restaurant
                                             @else
                                                 From Zone
                                             @endif
@@ -1808,6 +1986,12 @@
                                             @elseif(request()->get('mapping_type') == 'hotel_restaurant')
                                                 To Restaurant
                                             @elseif(request()->get('mapping_type') == 'attraction_restaurant')
+                                                To Restaurant
+                                            @elseif(request()->get('mapping_type') == 'hotel_hotel')
+                                                To Hotel
+                                            @elseif(request()->get('mapping_type') == 'attraction_attraction')
+                                                To Attraction
+                                            @elseif(request()->get('mapping_type') == 'restaurant_restaurant')
                                                 To Restaurant
                                             @else
                                                 To Zone
@@ -1867,6 +2051,12 @@
                                                 } elseif(request()->get('mapping_type') == 'hotel_restaurant' && $fromType == 'Hotel' && $toType == 'Restaurant') {
                                                     $showMapping = true;
                                                 } elseif(request()->get('mapping_type') == 'attraction_restaurant' && $fromType == 'Attraction' && $toType == 'Restaurant') {
+                                                    $showMapping = true;
+                                                } elseif(request()->get('mapping_type') == 'hotel_hotel' && $fromType == 'Hotel' && $toType == 'Hotel') {
+                                                    $showMapping = true;
+                                                } elseif(request()->get('mapping_type') == 'attraction_attraction' && $fromType == 'Attraction' && $toType == 'Attraction') {
+                                                    $showMapping = true;
+                                                } elseif(request()->get('mapping_type') == 'restaurant_restaurant' && $fromType == 'Restaurant' && $toType == 'Restaurant') {
                                                     $showMapping = true;
                                                 }
                                             @endphp
@@ -2161,7 +2351,7 @@
                 }
             </style>
 
-            @if(in_array(request()->get('mapping_type'), ['port_port','port_attraction','port_restaurant','port_hotel','hotel_attraction','hotel_restaurant','attraction_restaurant']))
+            @if(in_array(request()->get('mapping_type'), ['port_port','port_attraction','port_restaurant','port_hotel','hotel_attraction','hotel_restaurant','attraction_restaurant','hotel_hotel','attraction_attraction','restaurant_restaurant']))
             <form id="zoneMappingImportForm"
                   method="POST"
                   action="{{ route('vehicle.zone_mappings.import') }}"
@@ -3828,6 +4018,179 @@
                     });
                 </script>
             @endif
+
+            @if(in_array(request()->get('mapping_type'), ['hotel_hotel', 'attraction_attraction', 'restaurant_restaurant']))
+                @php
+                    $sameTypeMap = [
+                        'hotel_hotel' => ['type' => 'Hotel', 'label' => 'Hotel', 'plural' => 'hotels'],
+                        'attraction_attraction' => ['type' => 'Attraction', 'label' => 'Attraction', 'plural' => 'attractions'],
+                        'restaurant_restaurant' => ['type' => 'Restaurant', 'label' => 'Restaurant', 'plural' => 'restaurants'],
+                    ];
+                    $sameTypeCfg = $sameTypeMap[request()->get('mapping_type')];
+                    $sameType = $sameTypeCfg['type'];
+                    $sameTypeLabel = $sameTypeCfg['label'];
+                    $sameTypePlural = $sameTypeCfg['plural'];
+
+                    $sameTypeMappings = collect($mappings ?? [])
+                        ->filter(function ($m) use ($sameType) {
+                            return (($m->from_zone_type ?? $sameType) === $sameType)
+                                && (($m->to_zone_type ?? $sameType) === $sameType);
+                        })
+                        ->map(function ($m) {
+                            return [
+                                'from' => (string) $m->from_zone_id,
+                                'to' => (string) $m->to_zone_id,
+                                'private_price' => (float) ($m->private_price ?? 0),
+                                'private_cost_price' => (float) ($m->private_cost_price ?? $m->private_price ?? 0),
+                                'private_profit_type' => (string) ($m->private_profit_type ?? 'percentage'),
+                                'private_profit_amount' => (float) ($m->private_profit_amount ?? 0),
+                                'shared_price' => (float) ($m->shared_price ?? 0),
+                                'shared_cost_price' => (float) ($m->shared_cost_price ?? $m->shared_price ?? 0),
+                                'shared_profit_type' => (string) ($m->shared_profit_type ?? 'percentage'),
+                                'shared_profit_amount' => (float) ($m->shared_profit_amount ?? 0),
+                                'mapping_id' => $m->mapping_id ?? null,
+                            ];
+                        })
+                        ->values();
+
+                    $sameTypeZones = collect($zones ?? [])
+                        ->filter(fn ($z) => ($z->zone_type ?? null) === $sameType)
+                        ->map($buildVehicleZonePayload)
+                        ->values();
+                @endphp
+
+                <script>
+                    document.addEventListener('DOMContentLoaded', function () {
+                        const mappingType = document.querySelector('input[name="mapping_type"]')?.value;
+                        if (!['hotel_hotel', 'attraction_attraction', 'restaurant_restaurant'].includes(mappingType)) return;
+
+                        const Ui = window.VehicleZoneMappingUi;
+                        const zoneType = @json($sameType);
+                        const zoneLabel = @json($sameTypeLabel);
+                        const zonePlural = @json($sameTypePlural);
+                        const fromZones = @json($sameTypeZones);
+                        const toZones = fromZones;
+                        const existing = @json($sameTypeMappings);
+                        const fromById = new Map((fromZones || []).map(z => [String(z.zone_id), z]));
+                        const toById = fromById;
+                        const existingKeyed = new Map((existing || []).map(m => [`${String(m.from)}__${String(m.to)}`, m]));
+                        const tbody = document.getElementById('mappingsTableBody');
+
+                        function zoneText(map, zoneId) {
+                            const z = map.get(String(zoneId));
+                            if (!z) return `Zone ID: ${zoneId}`;
+                            const name = (z.zone_name || '').trim();
+                            return name ? `${name}` : `Zone ID: ${zoneId}`;
+                        }
+
+                        function buildRow(fromId, toId) {
+                            const key = `${String(fromId)}__${String(toId)}`;
+                            const existingMapping = existingKeyed.get(key);
+                            const tr = document.createElement('tr');
+                            tr.setAttribute('data-from', String(fromId));
+                            tr.setAttribute('data-to', String(toId));
+                            tr.setAttribute('data-from-type', zoneType);
+                            tr.setAttribute('data-to-type', zoneType);
+                            if (existingMapping?.mapping_id) tr.setAttribute('data-mapping-id', existingMapping.mapping_id);
+                            tr.innerHTML = `
+                                <td>${Ui.zoneCellHtml(fromById, fromId)}</td>
+                                <td>${Ui.zoneCellHtml(toById, toId)}</td>
+                                <td><input type="number" name="private_cost_prices[${String(fromId)}][${String(toId)}]" class="form-control js-zone-private-cost" value="${Number(existingMapping?.private_cost_price ?? existingMapping?.private_price ?? 0)}" step="0.01" min="0"></td>
+                                <td><input type="number" name="private_prices[${String(fromId)}][${String(toId)}]" class="form-control js-zone-private-sell" value="${Number(existingMapping?.private_price ?? 0)}" step="0.01" min="0"></td>
+                                <td><input type="number" name="shared_cost_prices[${String(fromId)}][${String(toId)}]" class="form-control js-zone-shared-cost" value="${Number(existingMapping?.shared_cost_price ?? existingMapping?.shared_price ?? 0)}" step="0.01" min="0"></td>
+                                <td><input type="number" name="shared_prices[${String(fromId)}][${String(toId)}]" class="form-control js-zone-shared-sell" value="${Number(existingMapping?.shared_price ?? 0)}" step="0.01" min="0"></td>
+                                <td class="zone-col-actions">
+                                    <button type="button" class="btn btn-sm btn-danger remove-mapping" title="Remove" ${existingMapping?.mapping_id ? `data-mapping-id="${String(existingMapping.mapping_id).replaceAll('"','&quot;')}"` : ''}>
+                                        <i class="ri-delete-bin-line"></i>
+                                    </button>
+                                </td>
+                            `;
+                            return tr;
+                        }
+
+                        function priceScore(m) {
+                            return Math.max(Number(m?.private_price ?? 0), Number(m?.shared_price ?? 0));
+                        }
+
+                        function renderExistingRows() {
+                            if (!tbody) return;
+                            tbody.innerHTML = '';
+                            const F = window.VehicleZoneMappingFilters;
+                            let rows = (existing || []).filter(m => priceScore(m) > 0);
+                            if (F && F._inited) {
+                                rows = F.filterExistingZoneZoneMappings(rows, fromZones || [], toZones || []);
+                            }
+                            rows = rows.slice().sort((a, b) => priceScore(b) - priceScore(a));
+                            if (!rows.length) {
+                                const tr = document.createElement('tr');
+                                tr.innerHTML = `<td colspan="7" class="text-center text-muted py-4">Select a <strong>${zoneLabel}</strong> to auto-populate destination ${zonePlural} for the selected country/city.</td>`;
+                                tbody.appendChild(tr);
+                                return;
+                            }
+                            rows.forEach(m => tbody.appendChild(buildRow(String(m.from), String(m.to))));
+                        }
+
+                        function renderForFrom(fromId) {
+                            if (!tbody) return;
+                            tbody.innerHTML = '';
+                            const F = window.VehicleZoneMappingFilters;
+                            if (fromId && F && F._inited && !F.isZoneInFilter(fromId, fromZones || [])) {
+                                fromId = '';
+                                const fromEl = document.getElementById('from_zone');
+                                if (fromEl) {
+                                    if (window.jQuery) window.jQuery(fromEl).val('').trigger('change');
+                                    else fromEl.value = '';
+                                }
+                            }
+                            if (!fromId) {
+                                renderExistingRows();
+                                return;
+                            }
+                            const fromStr = String(fromId);
+                            const filteredZones = (F ? F.getFilteredZones(toZones || []) : (toZones || []));
+                            if (!filteredZones.length) {
+                                const tr = document.createElement('tr');
+                                tr.innerHTML = `<td colspan="7" class="text-center text-muted py-4">No ${zonePlural} found for the selected country/city.</td>`;
+                                tbody.appendChild(tr);
+                                return;
+                            }
+                            filteredZones
+                                .slice()
+                                .sort((a, b) => zoneText(toById, String(b.zone_id)).localeCompare(zoneText(toById, String(a.zone_id))))
+                                .forEach(z => tbody.appendChild(buildRow(fromStr, String(z.zone_id))));
+                        }
+
+                        function getFromValue() {
+                            const F = window.VehicleZoneMappingFilters;
+                            if (F && typeof F.getFromZoneValue === 'function') return F.getFromZoneValue();
+                            const el = document.getElementById('from_zone');
+                            return el ? el.value : '';
+                        }
+
+                        function bootSameTypeMappingUi() {
+                            document.addEventListener('change', function (e) {
+                                if (e.target && e.target.id === 'from_zone') renderForFrom(getFromValue());
+                            });
+                            if (window.jQuery) {
+                                window.jQuery(document).on('select2:select select2:clear', '#from_zone', function () {
+                                    renderForFrom(getFromValue());
+                                });
+                            }
+                            renderForFrom(getFromValue());
+                            setTimeout(function () { renderForFrom(getFromValue()); }, 0);
+                            document.addEventListener('zoneMappingFiltersChanged', function () {
+                                renderForFrom(getFromValue());
+                            });
+                        }
+
+                        if (window.VehicleZoneMappingFilters && window.VehicleZoneMappingFilters._inited) {
+                            bootSameTypeMappingUi();
+                        } else {
+                            document.addEventListener('zoneMappingFiltersReady', bootSameTypeMappingUi, { once: true });
+                        }
+                    });
+                </script>
+            @endif
             @endif
         </div>
     </div>
@@ -3860,17 +4223,24 @@
             width: '100%'
         });
 
+        const locationLockedByMappings = {{ !empty($hasZoneMappings) ? 'true' : 'false' }};
+
         $('#country').select2({
             placeholder: "Search and Select Country",
-            allowClear: true,
+            allowClear: !locationLockedByMappings,
             width: '100%'
         });
 
         $('#city_name').select2({
             placeholder: "Search and Select a City",
-            allowClear: true,
+            allowClear: !locationLockedByMappings,
             width: '100%'
         });
+
+        if (locationLockedByMappings) {
+            $('#country').prop('disabled', true);
+            $('#city_name').prop('disabled', true);
+        }
     });
 </script>
 <script>
@@ -4156,7 +4526,13 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
 
+        const locationLockedByMappings = {{ !empty($hasZoneMappings) ? 'true' : 'false' }};
+
         function loadCitiesByCountry(countryName, preserveCity) {
+            if (locationLockedByMappings) {
+                return;
+            }
+
             if (!countryName) {
                 $('#city_name').prop('disabled', true)
                     .empty()
@@ -4202,9 +4578,11 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
 
-        $('#country').on('change', function () {
-            loadCitiesByCountry($(this).val(), false);
-        });
+        if (!locationLockedByMappings) {
+            $('#country').on('change', function () {
+                loadCitiesByCountry($(this).val(), false);
+            });
+        }
 
         function loadDriversForDmc(dmcId) {
             if (!dmcId) return;

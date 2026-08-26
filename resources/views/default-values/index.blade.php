@@ -4,6 +4,52 @@
 
 @section('content')
 <div class="container-xxl flex-grow-1 container-p-y">
+    @php
+        $activeCount = $defaultValues->where('status', 1)->count();
+        $inactiveCount = $defaultValues->where('status', 0)->count();
+        $cityCount = $defaultValues->pluck('country')->filter()->zip($defaultValues->pluck('city')->filter())->map(function ($pair) {
+            return implode('::', $pair->all());
+        })->unique()->count();
+        $typeCount = $defaultValues->pluck('name')->filter()->unique()->count();
+        $countries = $defaultValues->pluck('country')->filter()->unique()->sort()->values();
+        $cities = $defaultValues->pluck('city')->filter()->unique()->sort()->values();
+        $types = $defaultValues->pluck('name')->filter()->unique()->values();
+        $typeLabels = [
+            'hotel' => 'Hotel',
+            'restaurant' => 'Restaurant',
+            'attraction' => 'Attraction',
+            'car_private' => 'Car (Private)',
+            'car_shared' => 'Car (Shared)',
+            'port' => 'Port',
+            'guide' => 'Guide',
+        ];
+    @endphp
+    <style>
+        .default-list-stat {
+            border: 1px solid #e7eaf3;
+            border-radius: 14px;
+            padding: 1rem;
+            background: linear-gradient(135deg, #ffffff 0%, #f8faff 100%);
+            height: 100%;
+        }
+        .default-list-stat-label {
+            color: #98a2b3;
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .default-list-stat-value {
+            font-size: 1.55rem;
+            font-weight: 700;
+            color: #344054;
+            margin-top: 0.2rem;
+        }
+        .default-filter-card {
+            border: 1px solid #e7eaf3;
+            border-radius: 14px;
+            background: #fbfcff;
+        }
+    </style>
     <h4 class="fw-bold py-3 mb-4">
         <span class="text-muted fw-light">Default Values /</span> List
     </h4>
@@ -61,8 +107,81 @@
                 Each service type can be set once per city. The Enquiry Form Pro applies these when that city is selected.
             </div>
 
+            <div class="row g-3 mb-4">
+                <div class="col-md-3 col-sm-6">
+                    <div class="default-list-stat">
+                        <div class="default-list-stat-label">Total Mappings</div>
+                        <div class="default-list-stat-value">{{ $defaultValues->count() }}</div>
+                    </div>
+                </div>
+                <div class="col-md-3 col-sm-6">
+                    <div class="default-list-stat">
+                        <div class="default-list-stat-label">Active</div>
+                        <div class="default-list-stat-value">{{ $activeCount }}</div>
+                    </div>
+                </div>
+                <div class="col-md-3 col-sm-6">
+                    <div class="default-list-stat">
+                        <div class="default-list-stat-label">Cities Covered</div>
+                        <div class="default-list-stat-value">{{ $cityCount }}</div>
+                    </div>
+                </div>
+                <div class="col-md-3 col-sm-6">
+                    <div class="default-list-stat">
+                        <div class="default-list-stat-label">Service Types Used</div>
+                        <div class="default-list-stat-value">{{ $typeCount }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card default-filter-card mb-4">
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <label for="defaultFilterSearch" class="form-label">Search</label>
+                            <input type="text" id="defaultFilterSearch" class="form-control" placeholder="Search service or city">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="defaultFilterCountry" class="form-label">Country</label>
+                            <select id="defaultFilterCountry" class="form-select">
+                                <option value="">All Countries</option>
+                                @foreach($countries as $country)
+                                    <option value="{{ $country }}">{{ $country }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label for="defaultFilterCity" class="form-label">City</label>
+                            <select id="defaultFilterCity" class="form-select">
+                                <option value="">All Cities</option>
+                                @foreach($cities as $city)
+                                    <option value="{{ $city }}">{{ $city }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label for="defaultFilterType" class="form-label">Type</label>
+                            <select id="defaultFilterType" class="form-select">
+                                <option value="">All Types</option>
+                                @foreach($types as $type)
+                                    <option value="{{ $type }}">{{ $typeLabels[$type] ?? ucfirst(str_replace('_', ' ', $type)) }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label for="defaultFilterStatus" class="form-label">Status</label>
+                            <select id="defaultFilterStatus" class="form-select">
+                                <option value="">All Status</option>
+                                <option value="1">Active</option>
+                                <option value="0">Inactive</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="table-responsive text-nowrap">
-                <table class="table table-bordered">
+                <table class="table table-bordered" id="defaultValuesTable">
                     <thead>
                         <tr>
                             <th>#</th>
@@ -77,7 +196,29 @@
                     </thead>
                     <tbody>
                         @forelse($defaultValues as $key => $defaultValue)
-                        <tr>
+                        @php
+                            $serviceName = 'N/A';
+                            if ($defaultValue->name == 'hotel' && $defaultValue->hotel) {
+                                $serviceName = $defaultValue->hotel->name ?? 'N/A';
+                            } elseif ($defaultValue->name == 'restaurant' && $defaultValue->restaurant) {
+                                $serviceName = $defaultValue->restaurant->name ?? 'N/A';
+                            } elseif ($defaultValue->name == 'attraction' && $defaultValue->attraction) {
+                                $serviceName = $defaultValue->attraction->name ?? 'N/A';
+                            } elseif (($defaultValue->name == 'car_private' || $defaultValue->name == 'car_shared') && $defaultValue->vehicle) {
+                                $serviceName = $defaultValue->vehicle->vehicle_name ?? 'N/A';
+                            } elseif ($defaultValue->name == 'port' && $defaultValue->port) {
+                                $serviceName = $defaultValue->port->port_name ?? 'N/A';
+                            } elseif ($defaultValue->name == 'guide' && $defaultValue->guide) {
+                                $serviceName = $defaultValue->guide->name ?? 'N/A';
+                            }
+                        @endphp
+                        <tr
+                            data-country="{{ strtolower($defaultValue->country ?: '') }}"
+                            data-city="{{ strtolower($defaultValue->city ?: '') }}"
+                            data-type="{{ strtolower($defaultValue->name ?: '') }}"
+                            data-status="{{ (string) $defaultValue->status }}"
+                            data-search="{{ strtolower(($defaultValue->country ?: '') . ' ' . ($defaultValue->city ?: '') . ' ' . ($defaultValue->name ?: '') . ' ' . $serviceName) }}"
+                        >
                             <td>{{ ++$key }}</td>
                             <td>{{ $defaultValue->country ?: '—' }}</td>
                             <td>{{ $defaultValue->city ?: '—' }}</td>
@@ -99,22 +240,6 @@
                                 @endif
                             </td>
                             <td>
-                                @php
-                                    $serviceName = 'N/A';
-                                    if ($defaultValue->name == 'hotel' && $defaultValue->hotel) {
-                                        $serviceName = $defaultValue->hotel->name ?? 'N/A';
-                                    } elseif ($defaultValue->name == 'restaurant' && $defaultValue->restaurant) {
-                                        $serviceName = $defaultValue->restaurant->name ?? 'N/A';
-                                    } elseif ($defaultValue->name == 'attraction' && $defaultValue->attraction) {
-                                        $serviceName = $defaultValue->attraction->name ?? 'N/A';
-                                    } elseif (($defaultValue->name == 'car_private' || $defaultValue->name == 'car_shared') && $defaultValue->vehicle) {
-                                        $serviceName = $defaultValue->vehicle->vehicle_name ?? 'N/A';
-                                    } elseif ($defaultValue->name == 'port' && $defaultValue->port) {
-                                        $serviceName = $defaultValue->port->port_name ?? 'N/A';
-                                    } elseif ($defaultValue->name == 'guide' && $defaultValue->guide) {
-                                        $serviceName = $defaultValue->guide->name ?? 'N/A';
-                                    }
-                                @endphp
                                 <div style="max-width: 300px; word-wrap: break-word; white-space: normal;">
                                     {{ $serviceName }}
                                 </div>
@@ -166,4 +291,43 @@
     </div>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const filters = {
+        search: document.getElementById('defaultFilterSearch'),
+        country: document.getElementById('defaultFilterCountry'),
+        city: document.getElementById('defaultFilterCity'),
+        type: document.getElementById('defaultFilterType'),
+        status: document.getElementById('defaultFilterStatus')
+    };
+    const rows = Array.from(document.querySelectorAll('#defaultValuesTable tbody tr[data-country]'));
+
+    function applyFilters() {
+        const search = (filters.search?.value || '').toLowerCase().trim();
+        const country = (filters.country?.value || '').toLowerCase();
+        const city = (filters.city?.value || '').toLowerCase();
+        const type = (filters.type?.value || '').toLowerCase();
+        const status = filters.status?.value || '';
+
+        rows.forEach(function (row) {
+            const visible = (!search || row.dataset.search.includes(search))
+                && (!country || row.dataset.country === country)
+                && (!city || row.dataset.city === city)
+                && (!type || row.dataset.type === type)
+                && (!status || row.dataset.status === status);
+
+            row.style.display = visible ? '' : 'none';
+        });
+    }
+
+    Object.values(filters).forEach(function (input) {
+        if (!input) return;
+        input.addEventListener('input', applyFilters);
+        input.addEventListener('change', applyFilters);
+    });
+});
+</script>
+@endpush
 

@@ -1250,6 +1250,9 @@ class HotelController extends Controller
                 return redirect()->back()->with('error', 'Only administrators and virtual DMCs can create rooms.');
             }
         
+            $this->sanitizeRoomGalleryUploads($request);
+            $this->sanitizeRoomMasterUpload($request);
+
             $request->validate([
                 'room_type' => 'nullable',
                 'total_no_of_room' => 'nullable|integer',
@@ -1258,7 +1261,11 @@ class HotelController extends Controller
                 'doubleWeekdayPrice' => 'nullable|numeric',
                 'doubleWeekendPrice' => 'nullable|numeric',
                 'children_price' => 'nullable|numeric|min:0',
-                'master_image' => 'required|nullable',
+                'master_image' => $request->hasFile('master_image')
+                    ? ['required', 'file', 'max:5120']
+                    : ['required'],
+                'all_images' => 'nullable|array',
+                'all_images.*' => 'nullable|image|max:5120',
                 'child_with_bed' => 'nullable|numeric|min:0',
                 'child_without_bed' => 'nullable|numeric|min:0',
                 'child_with_bed_cost' => 'nullable|numeric|min:0',
@@ -1270,7 +1277,18 @@ class HotelController extends Controller
                 'breakfast_cost_price' => 'nullable|numeric|min:0',
                 'lunch_cost_price' => 'nullable|numeric|min:0',
                 'dinner_cost_price' => 'nullable|numeric|min:0',
+            ], [
+                'master_image.required' => 'Please upload a master image.',
+                'master_image.file' => 'Please upload a master image.',
+                'master_image.max' => 'Master image must not exceed 5 MB.',
             ]);
+
+            if ($request->hasFile('master_image') && !$this->isUploadedImageFile($request->file('master_image'))) {
+                return redirect()->back()
+                    ->withInput()
+                    ->withErrors(['master_image' => 'Master image must be a JPEG, PNG, WEBP or GIF.'])
+                    ->with('error', 'Master image must be a JPEG, PNG, WEBP or GIF.');
+            }
         
             $admin_base_room = 1; // Admin creates base rooms
             $lastRoom = Room::withTrashed()->orderBy('id', 'desc')->first();
@@ -1279,25 +1297,23 @@ class HotelController extends Controller
             // while (Room::where('room_id', $roomId)->exists()) {
             //     $roomId = CommonHelper::createId($roomId);
             // }
-            // Handle image paths
-            $imagePaths = [];
-            if ($request->hasFile('all_images')) {
-                foreach ($request->file('all_images') as $image) {
-                    $pathData = CommonHelper::image_path('file_storage', $image);
-                    if (!empty($pathData['master_value'])) {
-                        $imagePaths[] = $pathData['master_value'];
-                    }
-                }
-            }
+            // Handle image paths. The create form has two file inputs: the visible drop
+            // zone posts as images[] and JS copies selections onto hidden all_images[].
+            $imagePaths = $this->storeUploadedRoomGallery($request);
             $imagePathsJson = json_encode($imagePaths);
 
-            //master image
             $master_image = '';
-            if($request->hasFile('master_image')){
+            if ($request->hasFile('master_image')) {
                 $masterImagePath = CommonHelper::image_path('file_storage', $request->file('master_image'));
-                if (!empty($pathData['master_value'])) {
-                    $master_image = $pathData['master_value'];
+                if (!empty($masterImagePath['master_value'])) {
+                    $master_image = $masterImagePath['master_value'];
                 }
+            }
+
+            if ($master_image === '') {
+                return redirect()->back()
+                    ->withInput()
+                    ->withErrors(['master_image' => 'Unable to upload master image. Please try a smaller JPEG/PNG file and try again.']);
             }
         
             // Check if admin has any base room for this hotel
@@ -1403,7 +1419,10 @@ class HotelController extends Controller
     
 
         } catch (\Illuminate\Validation\ValidationException $e) {
-            throw $e;
+            return redirect()->back()
+                ->withInput()
+                ->withErrors($e->errors())
+                ->with('error', collect($e->errors())->flatten()->first() ?: 'Please check the room details and try again.');
         } catch (\Throwable $e) {
             \Log::error('HotelController::storeroom failed', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
             return redirect()->back()->withInput()->with('error', $this->hotelUserFacingError($e, 'Unable to save the room. Please check your details and try again.'));
@@ -1929,6 +1948,9 @@ class HotelController extends Controller
     {
         try {
 
+            $this->sanitizeRoomGalleryUploads($request);
+            $this->sanitizeRoomMasterUpload($request);
+
             $request->validate([
                 'no_of_room' => 'nullable|numeric',
                 'total_no_of_room' => 'nullable|numeric',
@@ -1937,7 +1959,11 @@ class HotelController extends Controller
                 'double_weekday_price' => 'nullable|numeric',
                 'double_weekend_price' => 'nullable|numeric',
                 'children_price' => 'nullable|numeric|min:0',
-                'images.*' => 'image|mimes:jpeg,png,jpg,gif|max:2048',
+                'master_image' => $request->hasFile('master_image')
+                    ? ['nullable', 'file', 'max:5120']
+                    : 'nullable',
+                'all_images' => 'nullable|array',
+                'all_images.*' => 'nullable|image|max:5120',
                 'child_with_bed' => 'nullable|numeric|min:0',
                 'child_without_bed' => 'nullable|numeric|min:0',
                 'child_with_bed_cost' => 'nullable|numeric|min:0',
@@ -1949,7 +1975,17 @@ class HotelController extends Controller
                 'breakfast_cost_price' => 'nullable|numeric|min:0',
                 'lunch_cost_price' => 'nullable|numeric|min:0',
                 'dinner_cost_price' => 'nullable|numeric|min:0',
+            ], [
+                'master_image.file' => 'Please upload a master image.',
+                'master_image.max' => 'Master image must not exceed 5 MB.',
             ]);
+
+            if ($request->hasFile('master_image') && !$this->isUploadedImageFile($request->file('master_image'))) {
+                return redirect()->back()
+                    ->withInput()
+                    ->withErrors(['master_image' => 'Master image must be a JPEG, PNG, WEBP or GIF.'])
+                    ->with('error', 'Master image must be a JPEG, PNG, WEBP or GIF.');
+            }
 
             $auth_user = Auth::user();
             $originalRoom = Room::where('room_id', $request->room_id)->first();
@@ -2001,6 +2037,113 @@ class HotelController extends Controller
     }
 
     /**
+     * Drop empty/invalid gallery file slots before validation.
+     * An unused all_images[] input still posts a blank UploadedFile, which fails the image rule.
+     */
+    private function sanitizeRoomGalleryUploads(Request $request): void
+    {
+        foreach (['all_images', 'images'] as $key) {
+            $files = $request->file($key);
+            if ($files === null) {
+                $request->files->remove($key);
+                continue;
+            }
+
+            $list = is_array($files) ? $files : [$files];
+            $valid = array_values(array_filter($list, function ($file) {
+                return $file instanceof \Illuminate\Http\UploadedFile
+                    && $file->isValid()
+                    && $file->getSize() > 0;
+            }));
+
+            if ($valid === []) {
+                $request->files->remove($key);
+            } else {
+                $request->files->set($key, $valid);
+            }
+        }
+    }
+
+    private function sanitizeRoomMasterUpload(Request $request): void
+    {
+        $file = $request->file('master_image');
+        if ($file === null) {
+            return;
+        }
+
+        if (is_array($file)) {
+            $valid = null;
+            foreach ($file as $item) {
+                if (
+                    $item instanceof \Illuminate\Http\UploadedFile
+                    && $item->isValid()
+                    && $item->getSize() > 0
+                ) {
+                    $valid = $item;
+                    break;
+                }
+            }
+            if ($valid) {
+                $request->files->set('master_image', $valid);
+            } else {
+                $request->files->remove('master_image');
+            }
+            return;
+        }
+
+        if (
+            !($file instanceof \Illuminate\Http\UploadedFile)
+            || !$file->isValid()
+            || $file->getSize() <= 0
+        ) {
+            $request->files->remove('master_image');
+        }
+    }
+
+    private function isUploadedImageFile(\Illuminate\Http\UploadedFile $file): bool
+    {
+        $mime = strtolower((string) $file->getMimeType());
+        if (str_starts_with($mime, 'image/')) {
+            return true;
+        }
+
+        $extension = strtolower((string) $file->getClientOriginalExtension());
+
+        return in_array($extension, ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'], true);
+    }
+
+    /**
+     * Persist additional room images from either all_images[] or images[].
+     * The create/edit forms use a visible drop zone named images[] and a hidden
+     * all_images[] that JS copies selections onto; we accept whichever arrives.
+     *
+     * @return array<int, string>
+     */
+    private function storeUploadedRoomGallery(Request $request): array
+    {
+        $galleryFiles = [];
+        if ($request->hasFile('all_images')) {
+            $galleryFiles = (array) $request->file('all_images');
+        } elseif ($request->hasFile('images')) {
+            $galleryFiles = (array) $request->file('images');
+        }
+
+        $imagePaths = [];
+        foreach ($galleryFiles as $image) {
+            if (!$image || !$image->isValid()) {
+                continue;
+            }
+
+            $pathData = CommonHelper::image_path('file_storage', $image);
+            if (!empty($pathData['master_value'])) {
+                $imagePaths[] = $pathData['master_value'];
+            }
+        }
+
+        return $imagePaths;
+    }
+
+    /**
      * Update existing room (for admin users or DMC updating their own room)
      */
     private function updateExistingRoom(Request $request, Room $room)
@@ -2038,29 +2181,22 @@ class HotelController extends Controller
             }
 
             $existingImages = $request->input('existing_images', []);
-        
+            if (!is_array($existingImages)) {
+                $existingImages = [];
+            }
+
             // Get current images and find removed ones
             $currentImages = $room->images ? json_decode($room->images, true) : [];
-            if(is_array($currentImages) && is_array($existingImages)) {
-                $removedImages = array_diff($currentImages, $existingImages);
-                // Delete removed images from Azure
-                foreach($removedImages as $removedImage) {
-                    CommonHelper::deleteAzureImage($removedImage);
-                }
+            if (!is_array($currentImages)) {
+                $currentImages = [];
             }
-        
-            $imagePaths = []; 
-
-            if ($request->hasFile('all_images')) {
-                foreach ($request->file('all_images') as $image) {
-                    $pathData = CommonHelper::image_path('file_storage', $image);
-                    if (!empty($pathData['master_value'])) {
-                        $imagePaths[] = $pathData['master_value']; 
-                    }
-                }
+            $removedImages = array_diff($currentImages, $existingImages);
+            foreach ($removedImages as $removedImage) {
+                CommonHelper::deleteAzureImage($removedImage);
             }
 
-            $img_path = array_merge($existingImages, $imagePaths);
+            $imagePaths = $this->storeUploadedRoomGallery($request);
+            $img_path = array_values(array_filter(array_merge($existingImages, $imagePaths)));
 
             // Calculate final prices based on user type and base room logic
             $finalWeekdayPrice = $request->singleWeekdayPrice ?? $request->baseSingleWeekdayPrice ?? 0;
@@ -2190,15 +2326,7 @@ class HotelController extends Controller
             }
 
             // Handle additional images
-            $imagePaths = [];
-            if ($request->hasFile('all_images')) {
-                foreach ($request->file('all_images') as $image) {
-                    $pathData = CommonHelper::image_path('file_storage', $image);
-                    if (!empty($pathData['master_value'])) {
-                        $imagePaths[] = $pathData['master_value'];
-                    }
-                }
-            }
+            $imagePaths = $this->storeUploadedRoomGallery($request);
 
             // Check if DMC has a base room for this hotel
             $dmcBaseRoom = Room::where('hotel_id', $request->hotel_id)
