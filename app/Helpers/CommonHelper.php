@@ -604,6 +604,397 @@ class CommonHelper
         }
     }
 
+    /**
+     * Azure AI Search config from services.azure_search / .env.
+     *
+     * @return array{endpoint: string, admin_key: string, index: string, indexer: string, key_field: string, api_version: string}|null
+     */
+    public static function azureSearchConfig(): ?array
+    {
+        $cfg = config('services.azure_search', []);
+        $endpoint = rtrim(trim((string) ($cfg['endpoint'] ?? '')), '/');
+        $adminKey = trim((string) ($cfg['admin_key'] ?? ''));
+        $index = trim((string) ($cfg['index'] ?? ''));
+
+        if ($endpoint === '' || $adminKey === '' || $index === '') {
+            return null;
+        }
+
+        return [
+            'endpoint' => $endpoint,
+            'admin_key' => $adminKey,
+            'index' => $index,
+            'indexer' => trim((string) ($cfg['indexer'] ?? '')),
+            'key_field' => trim((string) ($cfg['key_field'] ?? 'id')) ?: 'id',
+            'api_version' => trim((string) ($cfg['api_version'] ?? '2024-07-01')) ?: '2024-07-01',
+        ];
+    }
+
+    /**
+     * Delete documents from Azure AI Search by key (default field: id = package_id).
+     *
+     * @param  list<string>  $documentKeys
+     * @return array{ok: bool, deleted: list<string>, skipped: bool, error: ?string}
+     */
+    public static function deleteAzureSearchDocumentsByKeys(array $documentKeys): array
+    {
+        $keys = [];
+        foreach ($documentKeys as $key) {
+            $key = trim((string) $key);
+            if ($key !== '') {
+                $keys[$key] = true;
+            }
+        }
+        $keys = array_keys($keys);
+
+        $empty = ['ok' => true, 'deleted' => [], 'skipped' => true, 'error' => null];
+        if ($keys === []) {
+            return $empty;
+        }
+
+        $cfg = self::azureSearchConfig();
+        if ($cfg === null) {
+            Log::warning('Azure Search document delete skipped: AZURE_SEARCH_* not configured');
+
+            return [
+                'ok' => false,
+                'deleted' => [],
+                'skipped' => true,
+                'error' => 'Azure Search not configured',
+            ];
+        }
+
+        $keyField = $cfg['key_field'];
+        $deleted = [];
+        $url = sprintf(
+            '%s/indexes/%s/docs/index?api-version=%s',
+            $cfg['endpoint'],
+            rawurlencode($cfg['index']),
+            rawurlencode($cfg['api_version'])
+        );
+
+        try {
+            foreach (array_chunk($keys, 500) as $chunk) {
+                $value = [];
+                foreach ($chunk as $docKey) {
+                    $value[] = [
+                        '@search.action' => 'delete',
+                        $keyField => $docKey,
+                    ];
+                }
+
+                $response = Http::withHeaders([
+                    'api-key' => $cfg['admin_key'],
+                    'Content-Type' => 'application/json',
+                ])->timeout(60)->post($url, ['value' => $value]);
+
+                if (! $response->successful()) {
+                    Log::error('Azure Search document delete failed', [
+                        'status' => $response->status(),
+                        'body' => $response->body(),
+                        'keys' => $chunk,
+                    ]);
+
+                    return [
+                        'ok' => false,
+                        'deleted' => $deleted,
+                        'skipped' => false,
+                        'error' => 'HTTP ' . $response->status() . ': ' . $response->body(),
+                    ];
+                }
+
+                $deleted = array_merge($deleted, $chunk);
+            }
+
+            Log::info('Azure Search documents deleted by key', [
+                'index' => $cfg['index'],
+                'key_field' => $keyField,
+                'count' => count($deleted),
+                'keys' => $deleted,
+            ]);
+
+            return [
+                'ok' => true,
+                'deleted' => $deleted,
+                'skipped' => false,
+                'error' => null,
+            ];
+        } catch (\Throwable $e) {
+            Log::error('Azure Search document delete exception: ' . $e->getMessage());
+
+            return [
+                'ok' => false,
+                'deleted' => $deleted,
+                'skipped' => false,
+                'error' => $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * List document keys currently in the Azure AI Search index.
+     *
+     * @return list<string>
+     */
+    public static function listAzureSearchDocumentKeys(int $pageSize = 1000): array
+    {
+        $cfg = self::azureSearchConfig();
+        if ($cfg === null) {
+            return [];
+        }
+
+        $keyField = $cfg['key_field'];
+        $keys = [];
+        $skip = 0;
+
+        try {
+            do {
+                $url = sprintf(
+                    '%s/indexes/%s/docs/search?api-version=%s',
+                    $cfg['endpoint'],
+                    rawurlencode($cfg['index']),
+                    rawurlencode($cfg['api_version'])
+                );
+
+                $response = Http::withHeaders([
+                    'api-key' => $cfg['admin_key'],
+                    'Content-Type' => 'application/json',
+                ])->timeout(60)->post($url, [
+                    'search' => '*',
+                    'select' => $keyField,
+                    'top' => $pageSize,
+                    'skip' => $skip,
+                ]);
+
+                if (! $response->successful()) {
+                    Log::warning('Azure Search list keys failed', [
+                        'status' => $response->status(),
+                        'body' => $response->body(),
+                    ]);
+
+                    break;
+                }
+
+                $payload = $response->json();
+                $rows = is_array($payload['value'] ?? null) ? $payload['value'] : [];
+                foreach ($rows as $row) {
+                    if (! is_array($row)) {
+                        continue;
+                    }
+                    $key = trim((string) ($row[$keyField] ?? ''));
+                    if ($key !== '') {
+                        $keys[] = $key;
+                    }
+                }
+
+                $count = count($rows);
+                $skip += $count;
+            } while ($count === $pageSize && $skip < 100000);
+
+            return array_values(array_unique($keys));
+        } catch (\Throwable $e) {
+            Log::error('Azure Search list keys exception: ' . $e->getMessage());
+
+            return $keys;
+        }
+    }
+
+    /**
+     * Remove index docs whose keys are not in the active package id set (stale after blob deletes).
+     *
+     * @param  list<string>  $activePackageIds
+     * @return array{ok: bool, deleted: list<string>, skipped: bool, error: ?string}
+     */
+    public static function purgeAzureSearchOrphansNotIn(array $activePackageIds): array
+    {
+        $cfg = self::azureSearchConfig();
+        if ($cfg === null) {
+            return [
+                'ok' => false,
+                'deleted' => [],
+                'skipped' => true,
+                'error' => 'Azure Search not configured',
+            ];
+        }
+
+        $active = [];
+        foreach ($activePackageIds as $id) {
+            $id = trim((string) $id);
+            if ($id !== '') {
+                $active[$id] = true;
+            }
+        }
+
+        $indexed = self::listAzureSearchDocumentKeys();
+        $orphans = [];
+        foreach ($indexed as $key) {
+            if (! isset($active[$key])) {
+                $orphans[] = $key;
+            }
+        }
+
+        if ($orphans === []) {
+            return [
+                'ok' => true,
+                'deleted' => [],
+                'skipped' => false,
+                'error' => null,
+            ];
+        }
+
+        Log::info('Azure Search orphan purge starting', [
+            'active_count' => count($active),
+            'indexed_count' => count($indexed),
+            'orphan_count' => count($orphans),
+            'orphans' => $orphans,
+        ]);
+
+        return self::deleteAzureSearchDocumentsByKeys($orphans);
+    }
+
+    /**
+     * Reset then run the Azure AI Search indexer so it re-reads current blob JSON.
+     *
+     * @return array{ok: bool, reset: bool, run: bool, skipped: bool, error: ?string}
+     */
+    public static function resetAndRunAzureSearchIndexer(): array
+    {
+        $cfg = self::azureSearchConfig();
+        if ($cfg === null || $cfg['indexer'] === '') {
+            Log::warning('Azure Search indexer reset/run skipped: endpoint/key/index/indexer not configured');
+
+            return [
+                'ok' => false,
+                'reset' => false,
+                'run' => false,
+                'skipped' => true,
+                'error' => 'Azure Search indexer not configured',
+            ];
+        }
+
+        $headers = [
+            'api-key' => $cfg['admin_key'],
+            'Content-Type' => 'application/json',
+        ];
+
+        try {
+            $resetUrl = sprintf(
+                '%s/indexers/%s/reset?api-version=%s',
+                $cfg['endpoint'],
+                rawurlencode($cfg['indexer']),
+                rawurlencode($cfg['api_version'])
+            );
+            $resetResponse = Http::withHeaders($headers)->timeout(60)->post($resetUrl);
+            if (! $resetResponse->successful() && $resetResponse->status() !== 204) {
+                Log::error('Azure Search indexer reset failed', [
+                    'status' => $resetResponse->status(),
+                    'body' => $resetResponse->body(),
+                ]);
+
+                return [
+                    'ok' => false,
+                    'reset' => false,
+                    'run' => false,
+                    'skipped' => false,
+                    'error' => 'Reset HTTP ' . $resetResponse->status() . ': ' . $resetResponse->body(),
+                ];
+            }
+
+            $runUrl = sprintf(
+                '%s/indexers/%s/run?api-version=%s',
+                $cfg['endpoint'],
+                rawurlencode($cfg['indexer']),
+                rawurlencode($cfg['api_version'])
+            );
+            $runResponse = Http::withHeaders($headers)->timeout(60)->post($runUrl);
+            if (! $runResponse->successful() && $runResponse->status() !== 202) {
+                Log::error('Azure Search indexer run failed', [
+                    'status' => $runResponse->status(),
+                    'body' => $runResponse->body(),
+                ]);
+
+                return [
+                    'ok' => false,
+                    'reset' => true,
+                    'run' => false,
+                    'skipped' => false,
+                    'error' => 'Run HTTP ' . $runResponse->status() . ': ' . $runResponse->body(),
+                ];
+            }
+
+            Log::info('Azure Search indexer reset + run triggered', [
+                'indexer' => $cfg['indexer'],
+                'index' => $cfg['index'],
+            ]);
+
+            return [
+                'ok' => true,
+                'reset' => true,
+                'run' => true,
+                'skipped' => false,
+                'error' => null,
+            ];
+        } catch (\Throwable $e) {
+            Log::error('Azure Search indexer reset/run exception: ' . $e->getMessage());
+
+            return [
+                'ok' => false,
+                'reset' => false,
+                'run' => false,
+                'skipped' => false,
+                'error' => $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * After blob JSON sync: delete removed package docs, purge orphans, reset+run indexer.
+     *
+     * @param  list<string>  $deletedPackageIds
+     * @param  list<string>  $activePackageIds
+     * @return array{ok: bool, deleted_keys: list<string>, orphan_deleted: list<string>, indexer: array<string, mixed>, skipped: bool, error: ?string}
+     */
+    public static function syncAzureSearchAfterDayLevelChange(array $deletedPackageIds, array $activePackageIds): array
+    {
+        $result = [
+            'ok' => false,
+            'deleted_keys' => [],
+            'orphan_deleted' => [],
+            'indexer' => [],
+            'skipped' => false,
+            'error' => null,
+        ];
+
+        if (self::azureSearchConfig() === null) {
+            $result['skipped'] = true;
+            $result['error'] = 'Azure Search not configured';
+
+            return $result;
+        }
+
+        $deleteResult = self::deleteAzureSearchDocumentsByKeys($deletedPackageIds);
+        $result['deleted_keys'] = $deleteResult['deleted'] ?? [];
+
+        $orphanResult = self::purgeAzureSearchOrphansNotIn($activePackageIds);
+        $result['orphan_deleted'] = $orphanResult['deleted'] ?? [];
+
+        $indexerResult = self::resetAndRunAzureSearchIndexer();
+        $result['indexer'] = $indexerResult;
+
+        $result['ok'] = (! empty($deleteResult['ok']) || ! empty($deleteResult['skipped']))
+            && (! empty($orphanResult['ok']) || ! empty($orphanResult['skipped']))
+            && (! empty($indexerResult['ok']) || ! empty($indexerResult['skipped']));
+
+        if (! $result['ok']) {
+            $result['error'] = $deleteResult['error']
+                ?? $orphanResult['error']
+                ?? $indexerResult['error']
+                ?? 'Azure Search sync failed';
+        }
+
+        return $result;
+    }
+
     /*
     * Upload file to Azure with dynamic container support
     * Date 16-06-2025
