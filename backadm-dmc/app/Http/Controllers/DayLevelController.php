@@ -2009,10 +2009,14 @@ class DayLevelController extends Controller
         }
 
         $dayLevelId = (int) $dayLevel->id;
+        $affectedMasterId = (int) ($dayLevel->master_dmc_id ?? 0);
         $dayLevel->delete();
 
+        $azureSync = ['ok' => false, 'deleted_blobs' => []];
         try {
-            $this->refreshCombinedJsonFile();
+            $azureSync = $this->refreshCombinedJsonFile(
+                $affectedMasterId > 0 ? [$affectedMasterId] : []
+            );
         } catch (\Throwable $e) {
             Log::warning('Day-level soft-deleted in DB but Azure JSON refresh failed', [
                 'day_level_id' => $dayLevelId,
@@ -2023,12 +2027,20 @@ class DayLevelController extends Controller
         if ($this->wantsJsonResponse()) {
             return response()->json([
                 'success' => true,
-                'message' => 'Day Level package deleted and removed from Azure.',
+                'message' => ! empty($azureSync['ok'])
+                    ? 'Day Level package deleted and removed from Azure blob storage.'
+                    : 'Day Level package soft-deleted. Azure blob sync may have failed — check logs.',
                 'deleted_day_level_id' => $dayLevelId,
+                'azure_sync' => $azureSync,
             ]);
         }
 
-        return redirect()->route('day-level.index')->with('success', 'Day Level deleted and removed from Azure.');
+        return redirect()->route('day-level.index')->with(
+            ! empty($azureSync['ok']) ? 'success' : 'warning',
+            ! empty($azureSync['ok'])
+                ? 'Day Level deleted and removed from Azure blob storage.'
+                : 'Day Level soft-deleted. Azure blob sync may have failed — check logs.'
+        );
     }
 
     /**
@@ -2067,6 +2079,9 @@ class DayLevelController extends Controller
         $remainingDestinations = DayLevel::canonicalizeDestinationsForStorage($remainingDestinations);
 
         $dayLevelId = (int) $dayLevel->id;
+        $affectedMasterIds = array_values(array_unique(array_filter([
+            (int) ($dayLevel->master_dmc_id ?? 0),
+        ])));
         $rowDeleted = false;
 
         try {
@@ -2082,6 +2097,9 @@ class DayLevelController extends Controller
                 $incomingMasterId = $this->resolveMasterDmcIdForDmcUserId($resolvedDmcId);
                 if ($incomingMasterId <= 0) {
                     $incomingMasterId = (int) $dayLevel->master_dmc_id;
+                }
+                if ($incomingMasterId > 0) {
+                    $affectedMasterIds[] = $incomingMasterId;
                 }
                 $country = (string) ($remainingDestinations[0]['country'] ?? $meta['country'] ?? '');
                 $country = $country !== '' ? $country : null;
@@ -2126,8 +2144,9 @@ class DayLevelController extends Controller
             return response()->json(['success' => false, 'message' => 'Could not delete package. Please try again.'], 500);
         }
 
+        $azureSync = ['ok' => false, 'deleted_blobs' => []];
         try {
-            $this->refreshCombinedJsonFile();
+            $azureSync = $this->refreshCombinedJsonFile(array_values(array_unique(array_filter($affectedMasterIds))));
         } catch (\Throwable $e) {
             Log::warning('Day-level package deleted in DB but Azure JSON refresh failed', [
                 'day_level_id' => $dayLevelId,
@@ -2138,11 +2157,16 @@ class DayLevelController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => $rowDeleted
-                ? 'Package deleted. Day Level row soft-deleted and removed from Azure.'
-                : 'Package deleted and removed from Azure.',
+            'message' => ! empty($azureSync['ok'])
+                ? ($rowDeleted
+                    ? 'Package deleted. Day Level row soft-deleted and removed from Azure blob storage.'
+                    : 'Package deleted and removed from Azure blob storage.')
+                : ($rowDeleted
+                    ? 'Package deleted and Day Level soft-deleted. Azure blob sync may have failed — check logs.'
+                    : 'Package deleted. Azure blob sync may have failed — check logs.'),
             'deleted_package_id' => $packageId,
             'row_deleted' => $rowDeleted,
+            'azure_sync' => $azureSync,
         ]);
     }
 
@@ -3794,9 +3818,20 @@ class DayLevelController extends Controller
     /**
      * Rebuild combined + per-master JSON blobs after each create/update/delete.
      * Each uploaded file is only the raw package array (starts with `[`, ends with `]`).
+     * Masters that no longer have packages get their blob deleted from Azure.
+     *
+     * @param  list<int>  $masterIdsPossiblyEmptied  Master IDs that may have zero packages after this change
+     * @return array{ok: bool, combined_url: ?string, uploaded_masters: list<int>, deleted_blobs: list<string>}
      */
-    private function refreshCombinedJsonFile(): void
+    private function refreshCombinedJsonFile(array $masterIdsPossiblyEmptied = []): array
     {
+        $result = [
+            'ok' => false,
+            'combined_url' => null,
+            'uploaded_masters' => [],
+            'deleted_blobs' => [],
+        ];
+
         try {
             $rows = DayLevel::query()
                 ->with('dmc')
@@ -3823,10 +3858,11 @@ class DayLevelController extends Controller
             if ($json === null) {
                 Log::warning('Day-level Azure JSON refresh skipped: payload could not be encoded as a JSON array.');
 
-                return;
+                return $result;
             }
 
             $combinedUrl = $this->storeDayLevelJsonOnAzure($json, 'day-level-combined.json');
+            $result['combined_url'] = $combinedUrl;
             if ($combinedUrl === null) {
                 Log::warning('Day-level combined JSON was not uploaded to Azure (check file_storage=azure and AZURE_AI_* credentials).');
             } else {
@@ -3858,6 +3894,7 @@ class DayLevelController extends Controller
                 if ($masterJson !== null) {
                     $masterUrl = $this->storeDayLevelJsonOnAzure($masterJson, 'master-dmc-' . $masterId . '.json');
                     if ($masterUrl !== null) {
+                        $result['uploaded_masters'][] = (int) $masterId;
                         Log::info('Day-level master DMC JSON synced to Azure', [
                             'master_dmc_id' => $masterId,
                             'url'           => $masterUrl,
@@ -3870,12 +3907,74 @@ class DayLevelController extends Controller
                     }
                 }
             }
+
+            $deletedBlobs = $this->purgeEmptyMasterDmcJsonBlobs(
+                array_keys($masterIds),
+                $masterIdsPossiblyEmptied
+            );
+            $result['deleted_blobs'] = $deletedBlobs;
+            $result['ok'] = $combinedUrl !== null;
+
+            return $result;
         } catch (\Throwable $e) {
             Log::error('Failed to refresh day-level JSON on Azure', [
                 'message' => $e->getMessage(),
                 'trace'   => $e->getTraceAsString(),
             ]);
+
+            return $result;
         }
+    }
+
+    /**
+     * Delete master-dmc-{id}.json blobs that no longer have any packages.
+     * Uses known emptied IDs first, then lists the container to catch orphans.
+     *
+     * @param  list<int>  $activeMasterIds
+     * @param  list<int>  $masterIdsPossiblyEmptied
+     * @return list<string>
+     */
+    private function purgeEmptyMasterDmcJsonBlobs(array $activeMasterIds, array $masterIdsPossiblyEmptied = []): array
+    {
+        $active = [];
+        foreach ($activeMasterIds as $id) {
+            $id = (int) $id;
+            if ($id > 0) {
+                $active[$id] = true;
+            }
+        }
+
+        $candidates = [];
+        foreach ($masterIdsPossiblyEmptied as $id) {
+            $id = (int) $id;
+            if ($id > 0 && ! isset($active[$id])) {
+                $candidates['master-dmc-' . $id . '.json'] = true;
+            }
+        }
+
+        // Also remove any orphan master-dmc-*.json still sitting in the container.
+        $listed = CommonHelper::listAzureJsonBlobs('master-dmc-', self::DAY_LEVEL_JSON_CONTAINER);
+        foreach ($listed as $blobName) {
+            if (! preg_match('/^master-dmc-(\d+)\.json$/i', $blobName, $m)) {
+                continue;
+            }
+            $id = (int) $m[1];
+            if ($id > 0 && ! isset($active[$id])) {
+                $candidates[$blobName] = true;
+            }
+        }
+
+        $deleted = [];
+        foreach (array_keys($candidates) as $blobName) {
+            if (CommonHelper::deleteJsonFromAzure($blobName, self::DAY_LEVEL_JSON_CONTAINER)) {
+                $deleted[] = $blobName;
+                Log::info('Day-level orphan master JSON deleted from Azure', [
+                    'file_name' => $blobName,
+                ]);
+            }
+        }
+
+        return $deleted;
     }
 }
 
