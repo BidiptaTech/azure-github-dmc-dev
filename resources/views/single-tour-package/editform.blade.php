@@ -4135,7 +4135,11 @@
                                                                 $isTicketSelected = $matchedTicketName && strcasecmp(trim((string) $tkName), trim((string) $matchedTicketName)) === 0;
                                                             @endphp
                                                             @if($tkName !== '')
+                                                                @php
+                                                                    $tkId = is_array($tk) ? ($tk['ticket_id'] ?? '') : ($tk->ticket_id ?? '');
+                                                                @endphp
                                                                 <option value="{{ $tkName }}" {{ $isTicketSelected ? 'selected' : '' }}
+                                                                    data-ticket-id="{{ $tkId }}"
                                                                     data-adult-price="{{ number_format((float)$adultP, 2, '.', '') }}"
                                                                     data-child-price="{{ number_format((float)$childP, 2, '.', '') }}"
                                                                     data-senior-price="{{ number_format((float)$seniorP, 2, '.', '') }}"
@@ -12775,6 +12779,9 @@
                     ticketOption.dataset.adultPrice = adultPrice;
                     ticketOption.dataset.childPrice = childPrice;
                     ticketOption.dataset.seniorPrice = seniorPrice;
+                    if (ticket.ticket_id !== undefined && ticket.ticket_id !== null) {
+                        ticketOption.dataset.ticketId = String(ticket.ticket_id);
+                    }
                     // Set selected if it matches current value
                     if (!genericTicket && currentValue && (ticketValue === currentValue || ticketText === currentValue)) {
                         ticketOption.selected = true;
@@ -27580,6 +27587,58 @@
         if (totalPriceInput) {
             formData.set('total_price', totalPriceInput.value || '0');
             formData.set('totalPrice', totalPriceInput.value || '0');
+        }
+
+        // Always send resolved attraction_id / ticket_id so backend can replace stale AI IDs.
+        const attractionSelect = document.getElementById(`attraction_name_${bookingId}`);
+        const ticketSelect = document.getElementById(`ticket_name_${bookingId}`);
+        const visitTimeSelect = document.getElementById(`visit_time_${bookingId}`);
+        if (attractionSelect) {
+            const selectedAttractionOpt = (typeof resolveCatalogAttractionOption === 'function')
+                ? resolveCatalogAttractionOption(attractionSelect)
+                : attractionSelect.options[attractionSelect.selectedIndex];
+            const attractionId = selectedAttractionOpt?.getAttribute('data-attraction-id')
+                || selectedAttractionOpt?.dataset?.attractionId
+                || '';
+            const attractionName = (selectedAttractionOpt?.value || attractionSelect.value || '').trim();
+            if (attractionName) {
+                formData.set('attraction_name', attractionName);
+            }
+            formData.set('attraction_id', attractionId || '');
+            try {
+                const attractionDataRaw = selectedAttractionOpt?.getAttribute('data-attraction-data');
+                if (attractionDataRaw) {
+                    const attractionData = JSON.parse(attractionDataRaw);
+                    if (attractionData && attractionData.name) {
+                        formData.set('attraction_name', attractionData.name);
+                    }
+                    if (!attractionId && attractionData && attractionData.attraction_id) {
+                        formData.set('attraction_id', String(attractionData.attraction_id));
+                    }
+                    if (selectedAttractionOpt?.dataset?.isBundle === '1' || attractionData?.is_bundle) {
+                        formData.set('is_bundle', '1');
+                        formData.set('package_attraction_id', String(attractionData.package_attraction_id || attractionId || ''));
+                    }
+                }
+            } catch (e) {
+                console.warn('Could not parse attraction data for update', e);
+            }
+        }
+        if (ticketSelect) {
+            const selectedTicketOpt = ticketSelect.options[ticketSelect.selectedIndex];
+            formData.set('ticket_name', ticketSelect.value || '');
+            formData.set(
+                'ticket_id',
+                selectedTicketOpt?.dataset?.ticketId
+                    || selectedTicketOpt?.getAttribute('data-ticket-id')
+                    || ''
+            );
+            formData.set('adult_price', selectedTicketOpt?.dataset?.adultPrice || '0');
+            formData.set('child_price', selectedTicketOpt?.dataset?.childPrice || '0');
+            formData.set('senior_price', selectedTicketOpt?.dataset?.seniorPrice || '0');
+        }
+        if (visitTimeSelect) {
+            formData.set('visit_time', visitTimeSelect.value || '');
         }
 
         // Collect transport data if transport is required
