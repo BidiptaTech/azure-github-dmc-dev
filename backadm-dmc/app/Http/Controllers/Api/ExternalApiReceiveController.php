@@ -261,10 +261,14 @@ class ExternalApiReceiveController extends Controller
             $this->payloadValue($payload, ['start_date', 'check_in', 'check_in_date']),
             Carbon::today()
         );
+        // Tour length must match booked package services (hotels/attractions),
+        // not the customer's original requested_days when the package is shorter.
         $requestedDays = (int) ($this->payloadValue($payload, ['requested_days', 'total_days', 'nights'], 0) ?: 0);
-        $checkOutTime = $requestedDays > 0
-            ? (clone $checkInTime)->addDays($requestedDays - 1)
-            : (clone $checkInTime);
+        $availableDays = $this->extractAvailablePackageDays($payload);
+        $tourDays = $availableDays > 0
+            ? $availableDays
+            : ($requestedDays > 0 ? $requestedDays : 1);
+        $checkOutTime = (clone $checkInTime)->addDays(max(1, $tourDays) - 1);
         if ($checkOutTime->lt($checkInTime)) {
             $checkOutTime = clone $checkInTime;
         }
@@ -511,8 +515,20 @@ class ExternalApiReceiveController extends Controller
         $headCount = $allocation['head_count'];
         $occupancy = $headCount <= 1 ? 'single' : 'double';
 
-        $payloadPrice = (float) ($item['price'] ?? $item['totalPrice'] ?? 0);
+        $payloadPrice = (float) ($item['price'] ?? $item['totalPrice'] ?? $item['total_price'] ?? 0);
+        $packageRoomPrice = (float) ($item['room_price'] ?? 0);
+        $packageBreakfast = (float) ($item['breakfast_price'] ?? 0);
+        $packageLunch = (float) ($item['lunch_price'] ?? 0);
+        $packageDinner = (float) ($item['dinner_price'] ?? 0);
+        $packagePerNight = (float) ($item['price_per_night'] ?? 0);
+        if ($packagePerNight <= 0) {
+            $packagePerNight = $packageRoomPrice + $packageBreakfast + $packageLunch + $packageDinner;
+        }
+
         $price = $payloadPrice;
+        if ($price <= 0 && $packagePerNight > 0) {
+            $price = $packagePerNight * $nights * $numberOfRooms;
+        }
         if ($price <= 0 && $resolvedRoom) {
             $price = $this->calculateHotelTotalPrice(
                 $resolvedRoom,
@@ -537,12 +553,19 @@ class ExternalApiReceiveController extends Controller
             ?? ''
         ));
 
-        $bedPrice = $resolvedRoom
-            ? ($occupancy === 'single'
-                ? (float) ($resolvedRoom->weekday_price ?? 0)
-                : (float) ($resolvedRoom->double_weekday_price ?? $resolvedRoom->weekday_price ?? 0))
-            : 0;
-        $mealPrice = max(0, $price - ($bedPrice * $nights * $numberOfRooms));
+        $bedPrice = $packageRoomPrice > 0
+            ? $packageRoomPrice
+            : ($resolvedRoom
+                ? ($occupancy === 'single'
+                    ? (float) ($resolvedRoom->weekday_price ?? 0)
+                    : (float) ($resolvedRoom->double_weekday_price ?? $resolvedRoom->weekday_price ?? 0))
+                : 0);
+        $mealUnitPrice = $packageBreakfast + $packageLunch + $packageDinner;
+        if ($mealUnitPrice <= 0) {
+            $mealPrice = max(0, $price - ($bedPrice * $nights * $numberOfRooms));
+        } else {
+            $mealPrice = $mealUnitPrice * $nights * $numberOfRooms;
+        }
         $roomId = $resolvedRoom?->room_id ?? ($item['room_id'] ?? $item['roomId'] ?? null);
         $bedId = $resolvedBed?->bed_id ?? ($item['bed_id'] ?? $item['bedId'] ?? null);
 
@@ -600,6 +623,11 @@ class ExternalApiReceiveController extends Controller
             'meal_plan' => $mealPlan,
             'mealPlan' => $mealPlanLabel,
             'meal_type' => $mealPlanFields['meal_type'],
+            'room_price' => $bedPrice,
+            'breakfast_price' => $packageBreakfast,
+            'lunch_price' => $packageLunch,
+            'dinner_price' => $packageDinner,
+            'price_per_night' => $packagePerNight > 0 ? $packagePerNight : ($bedPrice + $packageBreakfast + $packageLunch + $packageDinner),
             'totalPrice' => $price,
             'price' => $price,
             'transfer_options' => $transfer,
@@ -1301,9 +1329,12 @@ class ExternalApiReceiveController extends Controller
             $ticketName = 'General Ticket';
         }
 
+        $visitTime = $this->resolveAttractionVisitTime($item, $attraction);
+
         return array_merge($customer, [
             'bookingDate' => $bookingDate,
-            'visitTime' => $item['visitTime'] ?? $item['time_slot'] ?? '10:00 AM',
+            'visitTime' => $visitTime,
+            'time_slot' => $visitTime,
             'adultCount' => max(1, (int) ($item['adultCount'] ?? $tour->adult ?: 1)),
             'childCount' => max(0, (int) ($item['childCount'] ?? $tour->child)),
             'seniorCount' => max(0, (int) ($item['seniorCount'] ?? 0)),
@@ -1332,6 +1363,26 @@ class ExternalApiReceiveController extends Controller
             'remarks' => $item['remarks'] ?? null,
             'supplement' => filter_var($item['supplement'] ?? false, FILTER_VALIDATE_BOOLEAN),
         ]);
+    }
+
+    /**
+     * Prefer AI-provided visit time; otherwise first catalog open/close slot.
+     */
+    protected function resolveAttractionVisitTime(array $item, $attraction = null): string
+    {
+        foreach (['visitTime', 'time_slot', 'visit_time', 'time', 'slot'] as $key) {
+            $value = trim((string) ($item[$key] ?? ''));
+            if ($value !== '' && strcasecmp($value, 'N/A') !== 0) {
+                return $value;
+            }
+        }
+
+        $slots = CommonHelper::attractionTimeSlots($attraction);
+        if ($slots !== []) {
+            return (string) ($slots[0]['slot'] ?? $slots[0]['open'] ?? '10:00 AM');
+        }
+
+        return '10:00 AM';
     }
 
     protected function transformRestaurantItem(Tour $tour, array $item, array $meta, array $customer): array

@@ -2237,6 +2237,9 @@
                 if (opt.breakfast_price !== undefined) op.dataset.breakfastPrice = String(opt.breakfast_price);
                 if (opt.lunch_price !== undefined) op.dataset.lunchPrice = String(opt.lunch_price);
                 if (opt.dinner_price !== undefined) op.dataset.dinnerPrice = String(opt.dinner_price);
+                if (opt.includes_breakfast !== undefined) op.dataset.includesBreakfast = opt.includes_breakfast ? '1' : '0';
+                if (opt.includes_lunch !== undefined) op.dataset.includesLunch = opt.includes_lunch ? '1' : '0';
+                if (opt.includes_dinner !== undefined) op.dataset.includesDinner = opt.includes_dinner ? '1' : '0';
                 if (opt.rate !== undefined) op.dataset.rate = String(opt.rate);
                 if (opt.data_name !== undefined) op.dataset.name = String(opt.data_name);
                 if (opt.data_country !== undefined) op.dataset.country = String(opt.data_country);
@@ -5281,6 +5284,7 @@
                     };
                 }));
                 applyHotelRoomBasePrice();
+                await loadMealPlansForSelectedHotel();
             } catch (e) {
                 hotelRoomsCache = [];
                 setSelectOptions('hotel_room_select', [{ value: '', label: 'Error loading rooms' }]);
@@ -5353,6 +5357,13 @@
                 return;
             }
 
+            // Prefer local room cache (already has meal flags + prices), then refresh from API.
+            const room = getSelectedRoomPricing();
+            const localPlans = buildMealPlanOptionsFromRoom(room);
+            setSelectOptions('hotel_meal_plan', localPlans.length ? localPlans : [{ value: 'room only', label: 'room only' }]);
+            applyHotelMealPlanPrices();
+            toggleHotelMealTypeVisibility();
+
             const dmcId = document.getElementById('dmc_id').value || '';
             const url = `${DAY_LEVEL_ROUTES.mealPlansByHotel}?hotel_unique_id=${encodeURIComponent(hotelOp.value)}&room_id=${encodeURIComponent(roomOp.value)}&dmc_id=${encodeURIComponent(dmcId)}`;
             try {
@@ -5361,16 +5372,93 @@
                     throw new Error('Failed to fetch meal plans');
                 }
                 const plans = await res.json();
-                if (Array.isArray(plans)) {
-                    setSelectOptions('hotel_meal_plan', plans);
-                } else {
-                    setSelectOptions('hotel_meal_plan', []);
+                if (Array.isArray(plans) && plans.length) {
+                    const current = String(document.getElementById('hotel_meal_plan')?.value || '');
+                    setSelectOptions('hotel_meal_plan', plans.map(plan => ({
+                        value: String(plan.value ?? plan.label ?? ''),
+                        label: String(plan.label ?? plan.value ?? ''),
+                        breakfast_price: parseFloat(plan.breakfast_price) || 0,
+                        lunch_price: parseFloat(plan.lunch_price) || 0,
+                        dinner_price: parseFloat(plan.dinner_price) || 0,
+                        includes_breakfast: !!plan.includes_breakfast,
+                        includes_lunch: !!plan.includes_lunch,
+                        includes_dinner: !!plan.includes_dinner,
+                    })));
+                    if (current) {
+                        safeSetSelectValue('hotel_meal_plan', current);
+                    }
+                    applyHotelMealPlanPrices();
                 }
                 toggleHotelMealTypeVisibility();
             } catch (e) {
-                setSelectOptions('hotel_meal_plan', []);
+                // Keep local meal plans if API fails.
                 toggleHotelMealTypeVisibility();
             }
+        }
+
+        function isTruthyMealFlag(value) {
+            if (value === true || value === 1 || value === '1') return true;
+            if (value === false || value === 0 || value === '0' || value == null) return false;
+            if (typeof value === 'string') {
+                const trimmed = value.trim().toLowerCase();
+                return trimmed !== '' && trimmed !== '0' && trimmed !== 'false' && trimmed !== 'no';
+            }
+            if (typeof value === 'number') return value > 0;
+            return !!value;
+        }
+
+        function buildMealPlanOptionsFromRoom(room) {
+            if (!room) {
+                return [{
+                    value: 'room only',
+                    label: 'room only',
+                    breakfast_price: 0,
+                    lunch_price: 0,
+                    dinner_price: 0,
+                    includes_breakfast: false,
+                    includes_lunch: false,
+                    includes_dinner: false,
+                }];
+            }
+
+            const breakfastPrice = parseFloat(room.breakfast_price) || 0;
+            const lunchPrice = parseFloat(room.lunch_price) || 0;
+            const dinnerPrice = parseFloat(room.dinner_price) || 0;
+            const hasBreakfast = isTruthyMealFlag(room.breakfast) || isTruthyMealFlag(room.breakfast_included) || breakfastPrice > 0;
+            const hasLunch = isTruthyMealFlag(room.lunch) || isTruthyMealFlag(room.lunch_included) || lunchPrice > 0;
+            const hasDinner = isTruthyMealFlag(room.dinner) || isTruthyMealFlag(room.dinner_included) || dinnerPrice > 0;
+
+            const keys = ['room only'];
+            if (hasBreakfast) keys.push('room with breakfast');
+            if (hasLunch) keys.push('room with lunch');
+            if (hasDinner) keys.push('room with dinner');
+            if (hasBreakfast && hasLunch) keys.push('room with breakfast + lunch');
+            if (hasBreakfast && hasDinner) keys.push('room with breakfast + dinner');
+            if (hasLunch && hasDinner) keys.push('room with lunch + dinner');
+            if (hasBreakfast && hasLunch && hasDinner) {
+                keys.push('room with all meals (breakfast + lunch + dinner)');
+            }
+
+            return keys.map((plan) => {
+                const key = plan.toLowerCase();
+                const breakfast = key.includes('breakfast') ? breakfastPrice : 0;
+                const lunch = key.includes('lunch') ? lunchPrice : 0;
+                const dinner = key.includes('dinner') ? dinnerPrice : 0;
+                const parts = [];
+                if (breakfast > 0) parts.push(`B ${breakfast.toFixed(2)}`);
+                if (lunch > 0) parts.push(`L ${lunch.toFixed(2)}`);
+                if (dinner > 0) parts.push(`D ${dinner.toFixed(2)}`);
+                return {
+                    value: plan,
+                    label: parts.length ? `${plan} — ${parts.join(' + ')}` : plan,
+                    breakfast_price: breakfast,
+                    lunch_price: lunch,
+                    dinner_price: dinner,
+                    includes_breakfast: key.includes('breakfast'),
+                    includes_lunch: key.includes('lunch'),
+                    includes_dinner: key.includes('dinner'),
+                };
+            });
         }
 
         function toggleHotelMealTypeVisibility() {
@@ -5379,7 +5467,7 @@
             const selectedOp = getSelectedOption('hotel_meal_plan');
             const selectedText = String(selectedOp?.textContent || '').trim().toLowerCase();
             const selectedValue = String(selectedOp?.value || '').trim().toLowerCase();
-            const isRoomOnly = selectedText.includes('room only') || selectedValue.includes('room only');
+            const isRoomOnly = selectedText.includes('room only') || selectedValue.includes('room only') || !selectedValue;
 
             if (wrap) {
                 wrap.style.display = isRoomOnly ? 'none' : '';
@@ -5425,13 +5513,32 @@
             const room = getSelectedRoomPricing();
             const mealOp = getSelectedOption('hotel_meal_plan');
             const plan = String(mealOp?.value || mealOp?.textContent || '').toLowerCase();
-            const breakfast = parseFloat(room?.breakfast_price) || 0;
-            const lunch = parseFloat(room?.lunch_price) || 0;
-            const dinner = parseFloat(room?.dinner_price) || 0;
 
-            setPriceInput('hotel_breakfast_price', plan.includes('breakfast') ? breakfast : 0);
-            setPriceInput('hotel_lunch_price', plan.includes('lunch') ? lunch : 0);
-            setPriceInput('hotel_dinner_price', plan.includes('dinner') ? dinner : 0);
+            const roomBreakfast = parseFloat(room?.breakfast_price) || 0;
+            const roomLunch = parseFloat(room?.lunch_price) || 0;
+            const roomDinner = parseFloat(room?.dinner_price) || 0;
+
+            const fromOptionBreakfast = parseFloat(mealOp?.dataset?.breakfastPrice);
+            const fromOptionLunch = parseFloat(mealOp?.dataset?.lunchPrice);
+            const fromOptionDinner = parseFloat(mealOp?.dataset?.dinnerPrice);
+
+            const includesBreakfast = mealOp?.dataset?.includesBreakfast === 'true' || mealOp?.dataset?.includesBreakfast === '1' || plan.includes('breakfast');
+            const includesLunch = mealOp?.dataset?.includesLunch === 'true' || mealOp?.dataset?.includesLunch === '1' || plan.includes('lunch');
+            const includesDinner = mealOp?.dataset?.includesDinner === 'true' || mealOp?.dataset?.includesDinner === '1' || plan.includes('dinner');
+
+            const breakfast = includesBreakfast
+                ? (Number.isFinite(fromOptionBreakfast) ? fromOptionBreakfast : roomBreakfast)
+                : 0;
+            const lunch = includesLunch
+                ? (Number.isFinite(fromOptionLunch) ? fromOptionLunch : roomLunch)
+                : 0;
+            const dinner = includesDinner
+                ? (Number.isFinite(fromOptionDinner) ? fromOptionDinner : roomDinner)
+                : 0;
+
+            setPriceInput('hotel_breakfast_price', breakfast);
+            setPriceInput('hotel_lunch_price', lunch);
+            setPriceInput('hotel_dinner_price', dinner);
             updateHotelPriceTotal();
         }
 
