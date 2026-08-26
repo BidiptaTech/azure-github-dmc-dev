@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Mail;
 use App\Helpers\CommonHelper;
 use App\Mail\TravclicksMail;
 use App\Services\FirebaseService;
+use App\Models\Attraction;
 
 class EditTourController extends Controller
 {
@@ -2206,14 +2207,20 @@ class EditTourController extends Controller
             'attraction_name' => 'nullable|string|max:255', // Optional for backward compatibility
             'attraction_id' => 'nullable',
             'ticket_name' => 'nullable|string|max:255',
+            'ticket_id' => 'nullable',
             'visit_time' => 'nullable|string|max:255',
             'adult_count' => 'nullable|integer|min:0',
             'child_count' => 'nullable|integer|min:0',
             'senior_count' => 'nullable|integer|min:0',
             'total_price' => 'nullable|numeric|min:0',
+            'adult_price' => 'nullable|numeric|min:0',
+            'child_price' => 'nullable|numeric|min:0',
+            'senior_price' => 'nullable|numeric|min:0',
             'notes' => 'nullable|string|max:1000',
             'remarks' => 'nullable|string|max:1000',
             'supplement' => 'nullable',
+            'is_bundle' => 'nullable',
+            'package_attraction_id' => 'nullable',
         ]);
 
         try {
@@ -2281,27 +2288,80 @@ class EditTourController extends Controller
                     $currentPayload['AttractionName'] = $validated['attraction_name'];
                     $currentPayload['attraction_name'] = $validated['attraction_name'];
                 }
-                if (array_key_exists('attraction_id', $validated)) {
-                    $currentPayload['attraction_id'] = $validated['attraction_id'];
-                }
-                if (array_key_exists('ticket_name', $validated)) {
-                    $currentPayload['ticketName'] = $validated['ticket_name'];
-                }
-                if (array_key_exists('visit_time', $validated)) {
-                    $currentPayload['visitTime'] = $validated['visit_time'];
+
+                // Keep AttractionId in sync with the selected attraction; stale IDs
+                // cause the edit form to rematch the old attraction after refresh.
+                $incomingAttractionId = $request->input('attraction_id', $validated['attraction_id'] ?? null);
+                if ($incomingAttractionId !== null && trim((string) $incomingAttractionId) !== '') {
+                    $currentPayload['AttractionId'] = is_numeric($incomingAttractionId)
+                        ? (int) $incomingAttractionId
+                        : $incomingAttractionId;
+                    $currentPayload['attraction_id'] = $currentPayload['AttractionId'];
+                } elseif ($request->has('attraction_id') || array_key_exists('attraction_id', $validated)) {
+                    // Explicit empty id (e.g. free-text / unmatched name) — clear stale id.
+                    unset($currentPayload['AttractionId'], $currentPayload['attraction_id']);
+                } elseif (! empty($validated['attraction_name'])) {
+                    $resolvedAttraction = Attraction::query()
+                        ->whereNull('deleted_at')
+                        ->where('name', $validated['attraction_name'])
+                        ->first(['attraction_id', 'name']);
+                    if ($resolvedAttraction) {
+                        $currentPayload['AttractionId'] = $resolvedAttraction->attraction_id;
+                        $currentPayload['attraction_id'] = $resolvedAttraction->attraction_id;
+                        $currentPayload['AttractionName'] = $resolvedAttraction->name;
+                        $currentPayload['attraction_name'] = $resolvedAttraction->name;
+                    } else {
+                        unset($currentPayload['AttractionId'], $currentPayload['attraction_id']);
+                    }
                 }
 
-                if (!empty($validated['adult_count'])) {
+                if (array_key_exists('ticket_name', $validated)) {
+                    $currentPayload['ticketName'] = $validated['ticket_name'];
+                    $currentPayload['ticket_name'] = $validated['ticket_name'];
+                }
+                $incomingTicketId = $request->input('ticket_id', $validated['ticket_id'] ?? null);
+                if ($incomingTicketId !== null && trim((string) $incomingTicketId) !== '') {
+                    $currentPayload['ticketId'] = is_numeric($incomingTicketId)
+                        ? (int) $incomingTicketId
+                        : $incomingTicketId;
+                    $currentPayload['ticket_id'] = $currentPayload['ticketId'];
+                } elseif ($request->has('ticket_id')) {
+                    unset($currentPayload['ticketId'], $currentPayload['ticket_id']);
+                }
+
+                if (array_key_exists('visit_time', $validated)) {
+                    $currentPayload['visitTime'] = $validated['visit_time'];
+                    $currentPayload['time_slot'] = $validated['visit_time'];
+                }
+
+                if (array_key_exists('adult_count', $validated) && $validated['adult_count'] !== null) {
                     $currentPayload['adultCount'] = (int) $validated['adult_count'];
                 }
-                if (!empty($validated['child_count'])) {
+                if (array_key_exists('child_count', $validated) && $validated['child_count'] !== null) {
                     $currentPayload['childCount'] = (int) $validated['child_count'];
                 }
-                if (!empty($validated['senior_count'])) {
+                if (array_key_exists('senior_count', $validated) && $validated['senior_count'] !== null) {
                     $currentPayload['seniorCount'] = (int) $validated['senior_count'];
                 }
-                if (!empty($validated['total_price'])) {
+                if (array_key_exists('total_price', $validated) && $validated['total_price'] !== null) {
                     $currentPayload['totalPrice'] = (float) $validated['total_price'];
+                    $currentPayload['price'] = (float) $validated['total_price'];
+                }
+
+                $ticketDetails = is_array($currentPayload['ticket_details'] ?? null)
+                    ? $currentPayload['ticket_details']
+                    : [];
+                if ($request->filled('adult_price')) {
+                    $ticketDetails['adult_price'] = (float) $request->input('adult_price');
+                }
+                if ($request->filled('child_price')) {
+                    $ticketDetails['child_price'] = (float) $request->input('child_price');
+                }
+                if ($request->filled('senior_price')) {
+                    $ticketDetails['senior_price'] = (float) $request->input('senior_price');
+                }
+                if ($ticketDetails !== []) {
+                    $currentPayload['ticket_details'] = $ticketDetails;
                 }
 
                 if (!empty($validated['notes'])) {

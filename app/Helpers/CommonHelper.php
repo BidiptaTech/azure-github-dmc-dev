@@ -3057,6 +3057,37 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         $attractions = collect($attractions);
         $name = trim((string) $name);
         $attractionId = ($attractionId !== null && $attractionId !== '') ? (string) $attractionId : '';
+        $hasUsableName = $name !== '' && strcasecmp($name, 'N/A') !== 0;
+        $target = $hasUsableName ? self::normalizeServiceLabel($name) : '';
+
+        $matchByName = function () use ($attractions, $target, $hasUsableName) {
+            if (! $hasUsableName) {
+                return null;
+            }
+
+            $exact = $attractions->first(function ($attraction) use ($target) {
+                $attrName = is_array($attraction) ? ($attraction['name'] ?? '') : ($attraction->name ?? '');
+
+                return self::normalizeServiceLabel($attrName) === $target;
+            });
+            if ($exact) {
+                return $exact;
+            }
+
+            return $attractions->first(function ($attraction) use ($target) {
+                $label = self::normalizeServiceLabel(self::attractionDisplayLabel($attraction));
+                if ($label === $target) {
+                    return true;
+                }
+
+                $attrName = self::normalizeServiceLabel(is_array($attraction) ? ($attraction['name'] ?? '') : ($attraction->name ?? ''));
+                if ($attrName === '') {
+                    return false;
+                }
+
+                return str_starts_with($target, $attrName . ' - ');
+            });
+        };
 
         if ($attractionId !== '') {
             $byId = $attractions->first(function ($attraction) use ($attractionId) {
@@ -3067,38 +3098,29 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 return (string) $id === $attractionId;
             });
             if ($byId) {
+                // If a name was also provided and does not belong to this ID, prefer name
+                // (stale AttractionId after an edit is a common case).
+                if ($hasUsableName) {
+                    $idName = self::normalizeServiceLabel(
+                        is_array($byId) ? ($byId['name'] ?? '') : ($byId->name ?? '')
+                    );
+                    $idLabel = self::normalizeServiceLabel(self::attractionDisplayLabel($byId));
+                    $nameMatchesId = $target === $idName
+                        || $target === $idLabel
+                        || ($idName !== '' && str_starts_with($target, $idName . ' - '));
+                    if (! $nameMatchesId) {
+                        $byName = $matchByName();
+                        if ($byName) {
+                            return $byName;
+                        }
+                    }
+                }
+
                 return $byId;
             }
         }
 
-        if ($name === '' || strcasecmp($name, 'N/A') === 0) {
-            return null;
-        }
-
-        $target = self::normalizeServiceLabel($name);
-
-        $exact = $attractions->first(function ($attraction) use ($target) {
-            $attrName = is_array($attraction) ? ($attraction['name'] ?? '') : ($attraction->name ?? '');
-
-            return self::normalizeServiceLabel($attrName) === $target;
-        });
-        if ($exact) {
-            return $exact;
-        }
-
-        return $attractions->first(function ($attraction) use ($target) {
-            $label = self::normalizeServiceLabel(self::attractionDisplayLabel($attraction));
-            if ($label === $target) {
-                return true;
-            }
-
-            $attrName = self::normalizeServiceLabel(is_array($attraction) ? ($attraction['name'] ?? '') : ($attraction->name ?? ''));
-            if ($attrName === '') {
-                return false;
-            }
-
-            return str_starts_with($target, $attrName . ' - ');
-        });
+        return $matchByName();
     }
 
     /**

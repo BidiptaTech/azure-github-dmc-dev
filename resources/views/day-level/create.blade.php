@@ -1190,7 +1190,7 @@
 
                                 <div class="hotels-form-panel pricing-panel" id="hotel_pricing_panel">
                                     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
-                                        <div class="pricing-panel-title mb-0">Pricing (editable)</div>
+                                        <div class="pricing-panel-title mb-0">Pricing <small class="text-muted fw-normal">(meals from meal plan)</small></div>
                                         <span class="pricing-total-badge" id="hotel_price_total_badge">Total: {{ $dmcCurrency }} 0.00</span>
                                     </div>
                                     <div class="row g-3 align-items-end">
@@ -1202,24 +1202,24 @@
                                         </div>
                                     </div>
                                         <div class="col-lg-3 col-md-6">
-                                            <label class="form-label" for="hotel_breakfast_price">Breakfast</label>
+                                            <label class="form-label" for="hotel_breakfast_price">Breakfast <small class="text-muted">(from meal)</small></label>
                                             <div class="input-group price-input-group">
                                                 <span class="input-group-text">{{ $dmcCurrency }}</span>
-                                                <input type="number" class="form-control" id="hotel_breakfast_price" min="0" step="0.01" placeholder="0.00" oninput="updateHotelPriceTotal()">
+                                                <input type="number" class="form-control" id="hotel_breakfast_price" min="0" step="0.01" placeholder="0.00" readonly tabindex="-1">
                                             </div>
                                         </div>
                                         <div class="col-lg-3 col-md-6">
-                                            <label class="form-label" for="hotel_lunch_price">Lunch</label>
+                                            <label class="form-label" for="hotel_lunch_price">Lunch <small class="text-muted">(from meal)</small></label>
                                             <div class="input-group price-input-group">
                                                 <span class="input-group-text">{{ $dmcCurrency }}</span>
-                                                <input type="number" class="form-control" id="hotel_lunch_price" min="0" step="0.01" placeholder="0.00" oninput="updateHotelPriceTotal()">
+                                                <input type="number" class="form-control" id="hotel_lunch_price" min="0" step="0.01" placeholder="0.00" readonly tabindex="-1">
                                             </div>
                                         </div>
                                         <div class="col-lg-3 col-md-6">
-                                            <label class="form-label" for="hotel_dinner_price">Dinner</label>
+                                            <label class="form-label" for="hotel_dinner_price">Dinner <small class="text-muted">(from meal)</small></label>
                                             <div class="input-group price-input-group">
                                                 <span class="input-group-text">{{ $dmcCurrency }}</span>
-                                                <input type="number" class="form-control" id="hotel_dinner_price" min="0" step="0.01" placeholder="0.00" oninput="updateHotelPriceTotal()">
+                                                <input type="number" class="form-control" id="hotel_dinner_price" min="0" step="0.01" placeholder="0.00" readonly tabindex="-1">
                                             </div>
                                     </div>
                                     </div>
@@ -5884,10 +5884,8 @@
 
             safeSetSelectValue('hotel_meal_type', x.meal_type || '');
             setPriceInput('hotel_room_price', x.room_price ?? x.price ?? 0);
-            setPriceInput('hotel_breakfast_price', x.breakfast_price ?? 0);
-            setPriceInput('hotel_lunch_price', x.lunch_price ?? 0);
-            setPriceInput('hotel_dinner_price', x.dinner_price ?? 0);
-            updateHotelPriceTotal();
+            // Breakfast / lunch / dinner are meal-plan driven (readonly).
+            applyHotelMealPlanPrices();
             document.getElementById('hotel_priority').value = String(x.priority || 1);
             toggleHotelTransferFields();
             const shouldLoadXferOpts = hotelsHaveArrivalDepartureTransferSaved();
