@@ -2942,6 +2942,111 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
     }
 
     /**
+     * Parse open_time / close_time (JSON array string or plain time) into a list.
+     *
+     * @return list<string>
+     */
+    public static function parseAttractionTimeList($value): array
+    {
+        if ($value === null || $value === '') {
+            return [];
+        }
+        if (is_array($value)) {
+            return array_values(array_filter(array_map(
+                static fn ($v) => trim((string) $v),
+                $value
+            )));
+        }
+
+        $raw = trim((string) $value);
+        $decoded = json_decode($raw, true);
+        if (is_array($decoded)) {
+            return array_values(array_filter(array_map(
+                static fn ($v) => trim((string) $v),
+                $decoded
+            )));
+        }
+
+        return $raw !== '' ? [$raw] : [];
+    }
+
+    /**
+     * Build selectable time slots from attraction open/close times.
+     *
+     * @return list<array{open: string, close: string, slot: string}>
+     */
+    public static function attractionTimeSlots($attraction): array
+    {
+        $openTimes = self::parseAttractionTimeList(
+            is_array($attraction) ? ($attraction['open_time'] ?? null) : ($attraction->open_time ?? null)
+        );
+        $closeTimes = self::parseAttractionTimeList(
+            is_array($attraction) ? ($attraction['close_time'] ?? null) : ($attraction->close_time ?? null)
+        );
+        if ($openTimes === [] || $closeTimes === []) {
+            return [];
+        }
+
+        $slots = [];
+        foreach ($openTimes as $index => $openTime) {
+            $closeTime = $closeTimes[$index] ?? $closeTimes[0] ?? '';
+            if ($openTime === '' || $closeTime === '') {
+                continue;
+            }
+            $slots[] = [
+                'open' => $openTime,
+                'close' => $closeTime,
+                'slot' => $openTime . ' - ' . $closeTime,
+            ];
+        }
+
+        return $slots;
+    }
+
+    /**
+     * Compact payload for attraction <option data-attraction-data>.
+     * Avoids embedding the full Eloquent model (which can break JSON in HTML attributes).
+     *
+     * @return array<string, mixed>
+     */
+    public static function attractionSelectPayload($attraction): array
+    {
+        $tickets = collect(is_array($attraction) ? ($attraction['tickets'] ?? []) : ($attraction->tickets ?? []))
+            ->map(function ($ticket) {
+                return [
+                    'ticket_id' => is_array($ticket) ? ($ticket['ticket_id'] ?? null) : ($ticket->ticket_id ?? null),
+                    'name' => is_array($ticket) ? ($ticket['name'] ?? '') : ($ticket->name ?? ''),
+                    'ticket_name' => is_array($ticket) ? ($ticket['name'] ?? $ticket['ticket_name'] ?? '') : ($ticket->name ?? ''),
+                    'adult_price' => is_array($ticket) ? ($ticket['adult_price'] ?? 0) : ($ticket->adult_price ?? 0),
+                    'child_price' => is_array($ticket) ? ($ticket['child_price'] ?? 0) : ($ticket->child_price ?? 0),
+                    'senior_price' => is_array($ticket)
+                        ? ($ticket['senior_price'] ?? $ticket['senior_adult_price'] ?? 0)
+                        : ($ticket->senior_price ?? $ticket->senior_adult_price ?? 0),
+                ];
+            })
+            ->values()
+            ->all();
+
+        $openTimes = self::parseAttractionTimeList(
+            is_array($attraction) ? ($attraction['open_time'] ?? null) : ($attraction->open_time ?? null)
+        );
+        $closeTimes = self::parseAttractionTimeList(
+            is_array($attraction) ? ($attraction['close_time'] ?? null) : ($attraction->close_time ?? null)
+        );
+        $timeSlots = self::attractionTimeSlots($attraction);
+
+        return [
+            'attraction_id' => is_array($attraction) ? ($attraction['attraction_id'] ?? null) : ($attraction->attraction_id ?? null),
+            'name' => is_array($attraction) ? ($attraction['name'] ?? '') : ($attraction->name ?? ''),
+            'location' => is_array($attraction) ? ($attraction['location'] ?? '') : ($attraction->location ?? ''),
+            'open_time' => $openTimes,
+            'close_time' => $closeTimes,
+            'time_slots' => $timeSlots,
+            'tickets' => $tickets,
+        ];
+    }
+
+    /**
      * Match a catalog attraction when AI/day-level names include " - Location"
      * or differ only by case/whitespace.
      *
