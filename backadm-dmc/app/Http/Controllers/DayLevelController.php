@@ -2010,12 +2010,21 @@ class DayLevelController extends Controller
 
         $dayLevelId = (int) $dayLevel->id;
         $affectedMasterId = (int) ($dayLevel->master_dmc_id ?? 0);
+        $deletedPackageIds = [];
+        foreach ($dayLevel->collectPackageSummaries() as $summary) {
+            $pid = trim((string) ($summary['package_id'] ?? ''));
+            if ($pid !== '' && ! empty($summary['has_stable_id'])) {
+                $deletedPackageIds[] = $pid;
+            }
+        }
+
         $dayLevel->delete();
 
-        $azureSync = ['ok' => false, 'deleted_blobs' => []];
+        $azureSync = ['ok' => false, 'deleted_blobs' => [], 'search' => []];
         try {
             $azureSync = $this->refreshCombinedJsonFile(
-                $affectedMasterId > 0 ? [$affectedMasterId] : []
+                $affectedMasterId > 0 ? [$affectedMasterId] : [],
+                $deletedPackageIds
             );
         } catch (\Throwable $e) {
             Log::warning('Day-level soft-deleted in DB but Azure JSON refresh failed', [
@@ -2028,9 +2037,10 @@ class DayLevelController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => ! empty($azureSync['ok'])
-                    ? 'Day Level package deleted and removed from Azure blob storage.'
-                    : 'Day Level package soft-deleted. Azure blob sync may have failed — check logs.',
+                    ? 'Day Level deleted from DB, blob storage, and Azure AI Search (indexer reset).'
+                    : 'Day Level soft-deleted. Azure blob/search sync may have failed — check logs.',
                 'deleted_day_level_id' => $dayLevelId,
+                'deleted_package_ids' => $deletedPackageIds,
                 'azure_sync' => $azureSync,
             ]);
         }
@@ -2038,8 +2048,8 @@ class DayLevelController extends Controller
         return redirect()->route('day-level.index')->with(
             ! empty($azureSync['ok']) ? 'success' : 'warning',
             ! empty($azureSync['ok'])
-                ? 'Day Level deleted and removed from Azure blob storage.'
-                : 'Day Level soft-deleted. Azure blob sync may have failed — check logs.'
+                ? 'Day Level deleted from blob storage and Azure AI Search (indexer reset).'
+                : 'Day Level soft-deleted. Azure blob/search sync may have failed — check logs.'
         );
     }
 
@@ -2144,9 +2154,12 @@ class DayLevelController extends Controller
             return response()->json(['success' => false, 'message' => 'Could not delete package. Please try again.'], 500);
         }
 
-        $azureSync = ['ok' => false, 'deleted_blobs' => []];
+        $azureSync = ['ok' => false, 'deleted_blobs' => [], 'search' => []];
         try {
-            $azureSync = $this->refreshCombinedJsonFile(array_values(array_unique(array_filter($affectedMasterIds))));
+            $azureSync = $this->refreshCombinedJsonFile(
+                array_values(array_unique(array_filter($affectedMasterIds))),
+                [$packageId]
+            );
         } catch (\Throwable $e) {
             Log::warning('Day-level package deleted in DB but Azure JSON refresh failed', [
                 'day_level_id' => $dayLevelId,
@@ -2159,11 +2172,11 @@ class DayLevelController extends Controller
             'success' => true,
             'message' => ! empty($azureSync['ok'])
                 ? ($rowDeleted
-                    ? 'Package deleted. Day Level row soft-deleted and removed from Azure blob storage.'
-                    : 'Package deleted and removed from Azure blob storage.')
+                    ? 'Package deleted from blob storage and Azure AI Search. Day Level row soft-deleted.'
+                    : 'Package deleted from blob storage and Azure AI Search (indexer reset).')
                 : ($rowDeleted
-                    ? 'Package deleted and Day Level soft-deleted. Azure blob sync may have failed — check logs.'
-                    : 'Package deleted. Azure blob sync may have failed — check logs.'),
+                    ? 'Package deleted and Day Level soft-deleted. Azure blob/search sync may have failed — check logs.'
+                    : 'Package deleted. Azure blob/search sync may have failed — check logs.'),
             'deleted_package_id' => $packageId,
             'row_deleted' => $rowDeleted,
             'azure_sync' => $azureSync,
@@ -3819,17 +3832,20 @@ class DayLevelController extends Controller
      * Rebuild combined + per-master JSON blobs after each create/update/delete.
      * Each uploaded file is only the raw package array (starts with `[`, ends with `]`).
      * Masters that no longer have packages get their blob deleted from Azure.
+     * On delete: removes package docs from Azure AI Search, purges orphans, resets+runs indexer.
      *
      * @param  list<int>  $masterIdsPossiblyEmptied  Master IDs that may have zero packages after this change
-     * @return array{ok: bool, combined_url: ?string, uploaded_masters: list<int>, deleted_blobs: list<string>}
+     * @param  list<string>  $deletedPackageIds  Package ids removed from DB (search key = id)
+     * @return array{ok: bool, combined_url: ?string, uploaded_masters: list<int>, deleted_blobs: list<string>, search: array<string, mixed>}
      */
-    private function refreshCombinedJsonFile(array $masterIdsPossiblyEmptied = []): array
+    private function refreshCombinedJsonFile(array $masterIdsPossiblyEmptied = [], array $deletedPackageIds = []): array
     {
         $result = [
             'ok' => false,
             'combined_url' => null,
             'uploaded_masters' => [],
             'deleted_blobs' => [],
+            'search' => [],
         ];
 
         try {
@@ -3852,6 +3868,7 @@ class DayLevelController extends Controller
                 'day_level_rows' => $rows->count(),
                 'package_count'  => count($payload),
                 'package_ids'    => $packageIds,
+                'deleted_package_ids' => $deletedPackageIds,
             ]);
 
             $json = $this->encodeFlatPackagesForBlobStorage($payload);
@@ -3914,6 +3931,21 @@ class DayLevelController extends Controller
             );
             $result['deleted_blobs'] = $deletedBlobs;
             $result['ok'] = $combinedUrl !== null;
+
+            // Blob indexer does not drop docs when JSON/blobs are deleted — purge by id, then reset+run.
+            if ($deletedPackageIds !== [] || $deletedBlobs !== []) {
+                $searchSync = CommonHelper::syncAzureSearchAfterDayLevelChange($deletedPackageIds, $packageIds);
+                $result['search'] = $searchSync;
+                if (! empty($searchSync['skipped'])) {
+                    Log::warning('Azure Search sync skipped after day-level change — set AZURE_SEARCH_* in .env', [
+                        'deleted_package_ids' => $deletedPackageIds,
+                    ]);
+                } elseif (empty($searchSync['ok'])) {
+                    Log::warning('Azure Search sync incomplete after day-level change', [
+                        'search' => $searchSync,
+                    ]);
+                }
+            }
 
             return $result;
         } catch (\Throwable $e) {
