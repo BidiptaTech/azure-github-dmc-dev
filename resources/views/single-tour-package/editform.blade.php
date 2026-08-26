@@ -3864,7 +3864,15 @@
                                                     $bookingDate = $bookingDateRaw;
                                                 }
                                             }
-                                            $timeSlot = $payload['visitTime'] ?? 'N/A';
+                                            $timeSlot = $payload['visitTime']
+                                                ?? $payload['time_slot']
+                                                ?? $payload['visit_time']
+                                                ?? $payload['time']
+                                                ?? '';
+                                            $timeSlot = is_string($timeSlot) ? trim($timeSlot) : '';
+                                            if ($timeSlot === '' || strcasecmp($timeSlot, 'N/A') === 0) {
+                                                $timeSlot = '';
+                                            }
                                             $ticket = $payload['ticketName'] ?? 'N/A';
                                             $adultCount = $payload['adultCount'] ?? 0;
                                             $childCount = $payload['childCount'] ?? 0;
@@ -4029,7 +4037,7 @@
                                                             @endphp
                                                             <option value="{{ $attraction->name }}" {{ $isThisAttractionSelected ? 'selected' : '' }} 
                                                                 data-attraction-id="{{ $attraction->attraction_id ?? '' }}"
-                                                                data-attraction-data="{{ json_encode($attraction) }}">
+                                                                data-attraction-data="{{ json_encode(\App\Helpers\CommonHelper::attractionSelectPayload($attraction)) }}">
                                                                 {{ $attraction->name }}
                                                                 @if(isset($attraction->location) && $attraction->location !== '')
                                                                     - {{ $attraction->location }}
@@ -4160,104 +4168,42 @@
                                                                     return $attraction->name == $attractionName;
                                                                 });
                                                             }
+                                                            $catalogTimeSlots = $selectedAttraction
+                                                                ? \App\Helpers\CommonHelper::attractionTimeSlots($selectedAttraction)
+                                                                : [];
+                                                            // If saved visitTime is missing/placeholder, prefer first catalog slot
+                                                            if ($catalogTimeSlots !== [] && $timeSlot === '') {
+                                                                $timeSlot = (string) ($catalogTimeSlots[0]['slot'] ?? '');
+                                                            }
                                                         @endphp
-                                                        @if($selectedAttraction && isset($selectedAttraction->time_slots) && is_array($selectedAttraction->time_slots) && count($selectedAttraction->time_slots) > 0)
+                                                        @if($catalogTimeSlots !== [])
                                                             @php $timeSlotsFound = true; @endphp
-                                                            @foreach($selectedAttraction->time_slots as $slotData)
+                                                            @foreach($catalogTimeSlots as $slotData)
                                                                 @php
                                                                     $slotValue = $slotData['slot'] ?? ($slotData['open'] ?? '');
-                                                                    $slotText = $slotData['slot'] ?? ($slotData['open'] . (isset($slotData['close']) ? ' - ' . $slotData['close'] : ''));
-                                                                    $isSelected = ($slotValue == $timeSlot || $slotText == $timeSlot);
+                                                                    $slotText = $slotData['slot'] ?? (($slotData['open'] ?? '') . (isset($slotData['close']) ? ' - ' . $slotData['close'] : ''));
+                                                                    $isSelected = ($slotValue == $timeSlot || $slotText == $timeSlot || ($timeSlot !== '' && str_contains((string) $slotValue, $timeSlot)));
                                                                 @endphp
                                                                 <option value="{{ $slotValue }}" {{ $isSelected ? 'selected' : '' }}>
                                                                     {{ $slotText }}
                                                                 </option>
                                                             @endforeach
-                                                        @elseif($selectedAttraction && $selectedAttraction->open_time && $selectedAttraction->close_time)
-                                                            @php $timeSlotsFound = true; @endphp
-                                                            @php
-                                                                // Parse open_time from database (can be JSON array or string)
-                                                                $openTimes = [];
-                                                                if (is_array($selectedAttraction->open_time)) {
-                                                                    $openTimes = $selectedAttraction->open_time;
-                                                                } elseif (is_string($selectedAttraction->open_time)) {
-                                                                    $decoded = json_decode($selectedAttraction->open_time, true);
-                                                                    $openTimes = is_array($decoded) ? $decoded : [$selectedAttraction->open_time];
-                                                                }
-                                                                
-                                                                // Parse close_time from database (can be JSON array or string)
-                                                                $closeTimes = [];
-                                                                if (is_array($selectedAttraction->close_time)) {
-                                                                    $closeTimes = $selectedAttraction->close_time;
-                                                                } elseif (is_string($selectedAttraction->close_time)) {
-                                                                    $decoded = json_decode($selectedAttraction->close_time, true);
-                                                                    $closeTimes = is_array($decoded) ? $decoded : [$selectedAttraction->close_time];
-                                                                }
-                                                            @endphp
-                                                            @if(!empty($openTimes) && !empty($closeTimes))
-                                                                @foreach($openTimes as $index => $openTime)
-                                                                    @php
-                                                                        $closeTime = $closeTimes[$index] ?? ($closeTimes[0] ?? '');
-                                                                        if ($openTime && $closeTime) {
-                                                                            $slotValue = $openTime . ' - ' . $closeTime;
-                                                                            $isSelected = ($slotValue == $timeSlot || str_contains($slotValue, $timeSlot));
-                                                                    } else {
-                                                                        continue;
-                                                                    }
-                                                                    @endphp
-                                                                    <option value="{{ $slotValue }}" {{ $isSelected ? 'selected' : '' }}>
-                                                                        {{ $slotValue }}
-                                                                    </option>
-                                                                @endforeach
-                                                            @endif
                                                         @endif
                                                         @if(!$timeSlotsFound)
                                                             <option value="" disabled>Select an attraction to see available time slots</option>
                                                         @endif
                                                         @php
-                                                            // Add current time slot as option if it doesn't match any existing options
-                                                            if ($timeSlot && $timeSlot != 'N/A') {
+                                                            // Preserve saved time when it is not in catalog options
+                                                            if ($timeSlot !== '') {
                                                                 $timeSlotExists = false;
-                                                                // Check if time slot already exists in options
-                                                                if ($selectedAttraction && isset($selectedAttraction->time_slots) && is_array($selectedAttraction->time_slots)) {
-                                                                    foreach($selectedAttraction->time_slots as $slotData) {
-                                                                        $slotValue = $slotData['slot'] ?? ($slotData['open'] ?? '');
-                                                                        $slotText = $slotData['slot'] ?? ($slotData['open'] . (isset($slotData['close']) ? ' - ' . $slotData['close'] : ''));
-                                                                        if ($slotValue == $timeSlot || $slotText == $timeSlot) {
-                                                                            $timeSlotExists = true;
-                                                                            break;
-                                                                        }
-                                                                    }
-                                                                } elseif ($selectedAttraction && $selectedAttraction->open_time && $selectedAttraction->close_time) {
-                                                                    // Parse open_time and close_time from database
-                                                                    $openTimes = [];
-                                                                    if (is_array($selectedAttraction->open_time)) {
-                                                                        $openTimes = $selectedAttraction->open_time;
-                                                                    } elseif (is_string($selectedAttraction->open_time)) {
-                                                                        $decoded = json_decode($selectedAttraction->open_time, true);
-                                                                        $openTimes = is_array($decoded) ? $decoded : [$selectedAttraction->open_time];
-                                                                    }
-                                                                    
-                                                                    $closeTimes = [];
-                                                                    if (is_array($selectedAttraction->close_time)) {
-                                                                        $closeTimes = $selectedAttraction->close_time;
-                                                                    } elseif (is_string($selectedAttraction->close_time)) {
-                                                                        $decoded = json_decode($selectedAttraction->close_time, true);
-                                                                        $closeTimes = is_array($decoded) ? $decoded : [$selectedAttraction->close_time];
-                                                                    }
-                                                                    
-                                                                    foreach($openTimes as $index => $openTime) {
-                                                                        $closeTime = $closeTimes[$index] ?? ($closeTimes[0] ?? '');
-                                                                        if ($openTime && $closeTime) {
-                                                                            $slotValue = $openTime . ' - ' . $closeTime;
-                                                                            if ($slotValue == $timeSlot || str_contains($slotValue, $timeSlot)) {
-                                                                                $timeSlotExists = true;
-                                                                                break;
-                                                                            }
-                                                                        }
+                                                                foreach ($catalogTimeSlots as $slotData) {
+                                                                    $slotValue = $slotData['slot'] ?? ($slotData['open'] ?? '');
+                                                                    $slotText = $slotData['slot'] ?? (($slotData['open'] ?? '') . (isset($slotData['close']) ? ' - ' . $slotData['close'] : ''));
+                                                                    if ($slotValue == $timeSlot || $slotText == $timeSlot || str_contains((string) $slotValue, $timeSlot)) {
+                                                                        $timeSlotExists = true;
+                                                                        break;
                                                                     }
                                                                 }
-                                                                // If current time slot doesn't exist in database options, add it to preserve the value
                                                                 if (!$timeSlotExists) {
                                                                     echo '<option value="' . htmlspecialchars($timeSlot) . '" selected>' . htmlspecialchars($timeSlot) . '</option>';
                                                                 }
@@ -12681,7 +12627,7 @@
                     const slotText = timeSlot.slot || (timeSlot.open + (timeSlot.close ? ' - ' + timeSlot.close : ''));
                     timeOption.value = slotValue;
                     timeOption.textContent = slotText;
-                    if (currentValue && (slotValue === currentValue || slotText === currentValue)) {
+                    if (currentValue && (slotValue === currentValue || slotText === currentValue || (slotValue && slotValue.indexOf(currentValue) !== -1))) {
                         timeOption.selected = true;
                     }
                     timeSlotSelect.appendChild(timeOption);
@@ -12728,6 +12674,37 @@
                         }
                         timeSlotSelect.appendChild(timeOption);
                     });
+                }
+            }
+
+            // Keep a non-catalog saved value visible/selected
+            const normalizedCurrent = (currentValue || '').trim();
+            if (normalizedCurrent && normalizedCurrent.toUpperCase() !== 'N/A') {
+                let matched = false;
+                for (let i = 0; i < timeSlotSelect.options.length; i++) {
+                    if (timeSlotSelect.options[i].selected && timeSlotSelect.options[i].value) {
+                        matched = true;
+                        break;
+                    }
+                }
+                if (!matched) {
+                    const keepOption = document.createElement('option');
+                    keepOption.value = normalizedCurrent;
+                    keepOption.textContent = normalizedCurrent;
+                    keepOption.selected = true;
+                    timeSlotSelect.appendChild(keepOption);
+                    matched = true;
+                }
+            }
+
+            // If still nothing selected, pick the first real slot
+            if (!timeSlotSelect.value) {
+                for (let i = 0; i < timeSlotSelect.options.length; i++) {
+                    const opt = timeSlotSelect.options[i];
+                    if (opt.value && !opt.disabled) {
+                        opt.selected = true;
+                        break;
+                    }
                 }
             }
             

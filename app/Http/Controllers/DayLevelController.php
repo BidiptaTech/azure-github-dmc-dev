@@ -1366,7 +1366,7 @@ class DayLevelController extends Controller
 
     private function getExistingRoomMealColumns(): array
     {
-        $base = ['room_type', 'rooms_only'];
+        $base = ['room_id', 'room_type', 'rooms_only'];
         $optional = [
             'breakfast',
             'lunch',
@@ -1374,6 +1374,9 @@ class DayLevelController extends Controller
             'breakfast_included',
             'lunch_included',
             'dinner_included',
+            'breakfast_price',
+            'lunch_price',
+            'dinner_price',
         ];
 
         $existing = [];
@@ -1410,22 +1413,52 @@ class DayLevelController extends Controller
     private function buildMealPlanOptionsFromRooms(array $rooms): array
     {
         $set = [];
+        $bestPrices = [
+            'breakfast_price' => 0.0,
+            'lunch_price' => 0.0,
+            'dinner_price' => 0.0,
+        ];
 
         foreach ($rooms as $room) {
-            $room = is_array($room) ? $room : [];
+            $room = is_array($room) ? $room : (array) $room;
             $roomText = 'room';
 
-            $hasBreakfast = $this->isTruthyMealFlag($room['breakfast'] ?? null) || $this->isTruthyMealFlag($room['breakfast_included'] ?? null);
-            $hasLunch = $this->isTruthyMealFlag($room['lunch'] ?? null) || $this->isTruthyMealFlag($room['lunch_included'] ?? null);
-            $hasDinner = $this->isTruthyMealFlag($room['dinner'] ?? null) || $this->isTruthyMealFlag($room['dinner_included'] ?? null);
+            $breakfastPrice = (float) ($room['breakfast_price'] ?? 0);
+            $lunchPrice = (float) ($room['lunch_price'] ?? 0);
+            $dinnerPrice = (float) ($room['dinner_price'] ?? 0);
+            $bestPrices['breakfast_price'] = max($bestPrices['breakfast_price'], $breakfastPrice);
+            $bestPrices['lunch_price'] = max($bestPrices['lunch_price'], $lunchPrice);
+            $bestPrices['dinner_price'] = max($bestPrices['dinner_price'], $dinnerPrice);
+
+            $hasBreakfast = $this->isTruthyMealFlag($room['breakfast'] ?? null)
+                || $this->isTruthyMealFlag($room['breakfast_included'] ?? null)
+                || $breakfastPrice > 0;
+            $hasLunch = $this->isTruthyMealFlag($room['lunch'] ?? null)
+                || $this->isTruthyMealFlag($room['lunch_included'] ?? null)
+                || $lunchPrice > 0;
+            $hasDinner = $this->isTruthyMealFlag($room['dinner'] ?? null)
+                || $this->isTruthyMealFlag($room['dinner_included'] ?? null)
+                || $dinnerPrice > 0;
 
             $set[$roomText . ' only'] = true;
-            if ($hasBreakfast) $set[$roomText . ' with breakfast'] = true;
-            if ($hasLunch) $set[$roomText . ' with lunch'] = true;
-            if ($hasDinner) $set[$roomText . ' with dinner'] = true;
-            if ($hasBreakfast && $hasLunch) $set[$roomText . ' with breakfast + lunch'] = true;
-            if ($hasBreakfast && $hasDinner) $set[$roomText . ' with breakfast + dinner'] = true;
-            if ($hasLunch && $hasDinner) $set[$roomText . ' with lunch + dinner'] = true;
+            if ($hasBreakfast) {
+                $set[$roomText . ' with breakfast'] = true;
+            }
+            if ($hasLunch) {
+                $set[$roomText . ' with lunch'] = true;
+            }
+            if ($hasDinner) {
+                $set[$roomText . ' with dinner'] = true;
+            }
+            if ($hasBreakfast && $hasLunch) {
+                $set[$roomText . ' with breakfast + lunch'] = true;
+            }
+            if ($hasBreakfast && $hasDinner) {
+                $set[$roomText . ' with breakfast + dinner'] = true;
+            }
+            if ($hasLunch && $hasDinner) {
+                $set[$roomText . ' with lunch + dinner'] = true;
+            }
             if ($hasBreakfast && $hasLunch && $hasDinner) {
                 $set[$roomText . ' with all meals (breakfast + lunch + dinner)'] = true;
             }
@@ -1444,10 +1477,39 @@ class DayLevelController extends Controller
         $plans = array_keys($set);
         sort($plans, SORT_NATURAL | SORT_FLAG_CASE);
 
-        return array_map(function ($plan) {
+        return array_map(function ($plan) use ($bestPrices) {
+            $key = strtolower((string) $plan);
+            $breakfast = str_contains($key, 'breakfast') ? (float) $bestPrices['breakfast_price'] : 0.0;
+            $lunch = str_contains($key, 'lunch') ? (float) $bestPrices['lunch_price'] : 0.0;
+            $dinner = str_contains($key, 'dinner') ? (float) $bestPrices['dinner_price'] : 0.0;
+            $mealTotal = $breakfast + $lunch + $dinner;
+
+            $label = (string) $plan;
+            if ($mealTotal > 0) {
+                $parts = [];
+                if ($breakfast > 0) {
+                    $parts[] = 'B ' . number_format($breakfast, 2, '.', '');
+                }
+                if ($lunch > 0) {
+                    $parts[] = 'L ' . number_format($lunch, 2, '.', '');
+                }
+                if ($dinner > 0) {
+                    $parts[] = 'D ' . number_format($dinner, 2, '.', '');
+                }
+                if ($parts !== []) {
+                    $label .= ' — ' . implode(' + ', $parts);
+                }
+            }
+
             return [
-                'value' => $plan,
-                'label' => $plan,
+                'value' => (string) $plan,
+                'label' => $label,
+                'breakfast_price' => $breakfast,
+                'lunch_price' => $lunch,
+                'dinner_price' => $dinner,
+                'includes_breakfast' => str_contains($key, 'breakfast'),
+                'includes_lunch' => str_contains($key, 'lunch'),
+                'includes_dinner' => str_contains($key, 'dinner'),
             ];
         }, $plans);
     }
