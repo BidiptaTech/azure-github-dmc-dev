@@ -1527,22 +1527,55 @@ class ExternalApiReceiveController extends Controller
     {
         $vehicleRawId = trim($vehicleRawId);
         $vehicleName = trim($vehicleName);
-        $query = Vehicle::query()->whereNull('deleted_at');
+        // Include soft-deleted rows so AI/day-level tokens like "30" still resolve to a real name.
+        $query = Vehicle::withTrashed();
 
         $vehicle = null;
         if ($vehicleRawId !== '') {
-            $vehicle = (clone $query)->where('vehicle_id', $vehicleRawId)->first();
+            $vehicle = (clone $query)
+                ->where('vehicle_id', $vehicleRawId)
+                ->orderByRaw('CASE WHEN deleted_at IS NULL THEN 0 ELSE 1 END')
+                ->first();
             if (! $vehicle && ctype_digit($vehicleRawId)) {
-                $vehicle = (clone $query)->where('id', (int) $vehicleRawId)->first();
+                $vehicle = (clone $query)
+                    ->where('id', (int) $vehicleRawId)
+                    ->orderByRaw('CASE WHEN deleted_at IS NULL THEN 0 ELSE 1 END')
+                    ->first();
             }
         }
-        if (! $vehicle && $vehicleName !== '') {
+        // Ignore bogus names that are just the numeric id (common AI/day-level mismatch).
+        $nameLooksLikeId = $vehicleName !== '' && (
+            $vehicleName === $vehicleRawId
+            || (ctype_digit($vehicleName) && $vehicleName === (string) ((int) $vehicleName))
+        );
+        if (! $vehicle && $vehicleName !== '' && ! $nameLooksLikeId) {
             $vehicle = (clone $query)
                 ->where(function ($q) use ($vehicleName) {
                     $q->whereRaw('LOWER(TRIM(vehicle_name)) = ?', [strtolower($vehicleName)])
                         ->orWhereRaw('LOWER(TRIM(vehicle_type)) = ?', [strtolower($vehicleName)]);
                 })
+                ->orderByRaw('CASE WHEN deleted_at IS NULL THEN 0 ELSE 1 END')
                 ->first();
+        }
+
+        // Soft-deleted default → prefer an active vehicle for the same DMC when possible.
+        if ($vehicle && $vehicle->deleted_at) {
+            $dmcId = (int) ($vehicle->dmc_id ?? 0);
+            $active = null;
+            if ($dmcId > 0) {
+                $active = Vehicle::query()
+                    ->whereNull('deleted_at')
+                    ->where(function ($q) use ($dmcId) {
+                        $q->where('dmc_id', $dmcId)
+                            ->orWhere('dmc_id', (string) $dmcId)
+                            ->orWhereRaw('CAST(dmc_id AS TEXT) = ?', [(string) $dmcId]);
+                    })
+                    ->orderBy('id')
+                    ->first();
+            }
+            if ($active) {
+                $vehicle = $active;
+            }
         }
 
         if (! $vehicle) {
@@ -1554,9 +1587,15 @@ class ExternalApiReceiveController extends Controller
             $name = trim((string) ($vehicle->vehicle_type ?? ''));
         }
 
+        $canonicalId = (string) ($vehicle->vehicle_id ?? $vehicle->id ?? $vehicleRawId);
+        if ($name === '' || $name === $canonicalId || (ctype_digit($name) && (string) ((int) $name) === $name)) {
+            // Last resort: never leave a bare numeric id as the display name if type exists.
+            $name = trim((string) ($vehicle->vehicle_type ?? '')) ?: $canonicalId;
+        }
+
         return [
-            'vehicle_id' => (string) ($vehicle->vehicle_id ?? $vehicle->id ?? $vehicleRawId),
-            'vehicle_name' => $name !== '' ? $name : (string) ($vehicle->vehicle_id ?? $vehicleRawId),
+            'vehicle_id' => $canonicalId,
+            'vehicle_name' => $name,
             'vehicle_type' => (string) ($vehicle->vehicle_type ?? ''),
             'seating_capacity' => $vehicle->seating_capacity ?? '',
             'private_price' => (string) ($vehicle->base_price ?? $vehicle->private_price ?? '0.00'),

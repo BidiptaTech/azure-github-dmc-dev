@@ -1418,18 +1418,42 @@ class DayLevelController extends Controller
             ->first();
 
         $vehicleId = trim((string) ($row->service_id ?? ''));
-        if ($vehicleId !== '') {
-            return $vehicleId;
+        // Only accept an active (non-deleted) vehicle for this DMC.
+        if ($vehicleId !== '' && $this->vehicleBelongsToDmc($vehicleId, $dmcId)) {
+            $canonical = $this->resolveCanonicalVehicleId($vehicleId, $dmcId);
+            if ($canonical !== null) {
+                return $canonical;
+            }
         }
 
         if ($prefer !== 'shared') {
-            return $this->resolveDefaultTransferVehicleId($dmcId, 'shared');
+            $shared = $this->resolveDefaultTransferVehicleId($dmcId, 'shared');
+            if ($shared !== null) {
+                return $shared;
+            }
+        }
+
+        // Fallback: first active vehicle for this DMC (default may point at a soft-deleted row).
+        $fallback = Vehicle::query()
+            ->whereNull('deleted_at')
+            ->where(function ($q) use ($dmcId) {
+                $q->where('dmc_id', $dmcId)
+                    ->orWhere('dmc_id', (string) $dmcId)
+                    ->orWhereRaw('CAST(dmc_id AS TEXT) = ?', [(string) $dmcId]);
+            })
+            ->orderBy('id')
+            ->first(['vehicle_id', 'id']);
+
+        if ($fallback) {
+            $id = trim((string) ($fallback->vehicle_id ?? ''));
+            return $id !== '' ? $id : (string) $fallback->id;
         }
 
         return null;
     }
 
-    private function resolveTransferVehicleName(string $vehicleId, int $dmcId): ?string
+    /** Canonical active vehicles.vehicle_id for a raw id / vehicle_id token. */
+    private function resolveCanonicalVehicleId(string $vehicleId, int $dmcId): ?string
     {
         $vehicleId = trim($vehicleId);
         if ($vehicleId === '') {
@@ -1446,13 +1470,45 @@ class DayLevelController extends Controller
             });
 
         if ($dmcId > 0 && Schema::hasColumn('vehicles', 'dmc_id')) {
+            $this->applyVehicleDmcFilter($query, $dmcId);
+        }
+
+        $vehicle = $query->first(['vehicle_id', 'id']);
+        if (! $vehicle) {
+            return null;
+        }
+
+        $canonical = trim((string) ($vehicle->vehicle_id ?? ''));
+
+        return $canonical !== '' ? $canonical : (string) $vehicle->id;
+    }
+
+    private function resolveTransferVehicleName(string $vehicleId, int $dmcId): ?string
+    {
+        $vehicleId = trim($vehicleId);
+        if ($vehicleId === '') {
+            return null;
+        }
+
+        // Prefer active vehicle; fall back to soft-deleted so historical IDs still show a name.
+        $query = Vehicle::withTrashed()
+            ->where(function ($q) use ($vehicleId) {
+                $q->where('vehicle_id', $vehicleId);
+                if (ctype_digit($vehicleId)) {
+                    $q->orWhere('id', (int) $vehicleId);
+                }
+            })
+            ->orderByRaw('CASE WHEN deleted_at IS NULL THEN 0 ELSE 1 END');
+
+        if ($dmcId > 0 && Schema::hasColumn('vehicles', 'dmc_id')) {
             $query->where(function ($q) use ($dmcId) {
                 $q->where('dmc_id', $dmcId)
+                    ->orWhere('dmc_id', (string) $dmcId)
                     ->orWhereRaw("COALESCE(dmc_id::text, '') LIKE ?", ['%' . $dmcId . '%']);
             });
         }
 
-        $vehicle = $query->first(['vehicle_name', 'vehicle_type']);
+        $vehicle = $query->first(['vehicle_name', 'vehicle_type', 'vehicle_id']);
         if ($vehicle === null) {
             return null;
         }
@@ -1463,7 +1519,11 @@ class DayLevelController extends Controller
             return $type !== '' ? $type : null;
         }
 
-        return $type !== '' ? ($name . ' (' . $type . ')') : $name;
+        if ($type !== '' && strcasecmp($name, $type) !== 0) {
+            return $name . ' (' . $type . ')';
+        }
+
+        return $name;
     }
 
     private function resolveTransferCountry(Request $request, int $masterDmcId, int $dmcId): string

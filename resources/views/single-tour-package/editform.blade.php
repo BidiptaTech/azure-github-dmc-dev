@@ -4882,8 +4882,7 @@
                                             }
                                             // AI orders often store vehicles.id (numeric) without vehicle_name — resolve for display.
                                             if ($transportVehicleId !== '' || $transportVehicle !== '') {
-                                                $resolvedVehicle = \App\Models\Vehicle::query()
-                                                    ->whereNull('deleted_at')
+                                                $resolvedVehicle = \App\Models\Vehicle::withTrashed()
                                                     ->where(function ($q) use ($transportVehicleId, $transportVehicle) {
                                                         if ($transportVehicleId !== '') {
                                                             $q->where('vehicle_id', $transportVehicleId);
@@ -4891,18 +4890,36 @@
                                                                 $q->orWhere('id', (int) $transportVehicleId);
                                                             }
                                                         }
-                                                        if ($transportVehicle !== '' && $transportVehicle !== $transportVehicleId) {
+                                                        if ($transportVehicle !== '' && $transportVehicle !== $transportVehicleId && !ctype_digit((string) $transportVehicle)) {
                                                             $q->orWhereRaw('LOWER(TRIM(vehicle_name)) = ?', [strtolower(trim($transportVehicle))]);
                                                         }
                                                     })
-                                                    ->first(['vehicle_id', 'vehicle_name', 'vehicle_type', 'seating_capacity']);
+                                                    ->orderByRaw('CASE WHEN deleted_at IS NULL THEN 0 ELSE 1 END')
+                                                    ->first(['id', 'vehicle_id', 'vehicle_name', 'vehicle_type', 'seating_capacity', 'dmc_id', 'deleted_at']);
+                                                if ($resolvedVehicle && $resolvedVehicle->deleted_at) {
+                                                    $dmcForVehicle = (int) ($resolvedVehicle->dmc_id ?? 0);
+                                                    $activeReplacement = \App\Models\Vehicle::query()
+                                                        ->whereNull('deleted_at')
+                                                        ->when($dmcForVehicle > 0, function ($q) use ($dmcForVehicle) {
+                                                            $q->where(function ($qq) use ($dmcForVehicle) {
+                                                                $qq->where('dmc_id', $dmcForVehicle)
+                                                                    ->orWhere('dmc_id', (string) $dmcForVehicle)
+                                                                    ->orWhereRaw('CAST(dmc_id AS TEXT) = ?', [(string) $dmcForVehicle]);
+                                                            });
+                                                        })
+                                                        ->orderBy('id')
+                                                        ->first(['id', 'vehicle_id', 'vehicle_name', 'vehicle_type', 'seating_capacity']);
+                                                    if ($activeReplacement) {
+                                                        $resolvedVehicle = $activeReplacement;
+                                                    }
+                                                }
                                                 if ($resolvedVehicle) {
-                                                    $transportVehicleId = (string) ($resolvedVehicle->vehicle_id ?? $transportVehicleId);
+                                                    $transportVehicleId = (string) ($resolvedVehicle->vehicle_id ?? $resolvedVehicle->id ?? $transportVehicleId);
                                                     $resolvedName = trim((string) ($resolvedVehicle->vehicle_name ?? ''));
                                                     if ($resolvedName === '') {
                                                         $resolvedName = trim((string) ($resolvedVehicle->vehicle_type ?? ''));
                                                     }
-                                                    if ($resolvedName !== '') {
+                                                    if ($resolvedName !== '' && !(ctype_digit($resolvedName) && $resolvedName === $transportVehicleId)) {
                                                         $transportVehicle = $resolvedName;
                                                     }
                                                     if (empty($vehicleDetails) || !is_array($vehicleDetails)) {

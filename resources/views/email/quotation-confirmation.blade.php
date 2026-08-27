@@ -125,10 +125,72 @@
             $travelTo = null;
         }
 
-        $travellingDate = $travelFrom ? strtolower($travelFrom->format('jS F')) : 'N/A';
+        $travellingDate = 'N/A';
+        if ($travelFrom && $travelTo) {
+            $travellingDate = $travelFrom->format('d M Y') . ' to ' . $travelTo->format('d M Y');
+        } elseif ($travelFrom) {
+            $travellingDate = $travelFrom->format('d M Y');
+        }
         $inclusionDateRange = ($travelFrom && $travelTo)
             ? $travelFrom->format('d M Y') . ' to ' . $travelTo->format('d M Y')
             : 'N/A';
+
+        $resolveVehicleDisplayName = static function ($rawName, $rawId = null) {
+            $name = trim((string) $rawName);
+            $id = trim((string) ($rawId ?? ''));
+            $token = $id !== '' ? $id : $name;
+            $needsLookup = $token !== '' && (
+                $name === ''
+                || $name === $token
+                || (ctype_digit($name) && (string) ((int) $name) === $name)
+            );
+            if (! $needsLookup) {
+                return $name;
+            }
+            if ($token === '') {
+                return $name;
+            }
+            try {
+                $vehicle = \App\Models\Vehicle::withTrashed()
+                    ->where(function ($q) use ($token) {
+                        $q->where('vehicle_id', $token);
+                        if (ctype_digit($token)) {
+                            $q->orWhere('id', (int) $token);
+                        }
+                    })
+                    ->orderByRaw('CASE WHEN deleted_at IS NULL THEN 0 ELSE 1 END')
+                    ->first(['vehicle_name', 'vehicle_type', 'vehicle_id', 'id', 'dmc_id', 'deleted_at']);
+                if ($vehicle && $vehicle->deleted_at) {
+                    $dmcId = (int) ($vehicle->dmc_id ?? 0);
+                    $active = \App\Models\Vehicle::query()
+                        ->whereNull('deleted_at')
+                        ->when($dmcId > 0, function ($q) use ($dmcId) {
+                            $q->where(function ($qq) use ($dmcId) {
+                                $qq->where('dmc_id', $dmcId)
+                                    ->orWhere('dmc_id', (string) $dmcId)
+                                    ->orWhereRaw('CAST(dmc_id AS TEXT) = ?', [(string) $dmcId]);
+                            });
+                        })
+                        ->orderBy('id')
+                        ->first(['vehicle_name', 'vehicle_type']);
+                    if ($active) {
+                        $vehicle = $active;
+                    }
+                }
+                if ($vehicle) {
+                    $resolved = trim((string) ($vehicle->vehicle_name ?? ''));
+                    if ($resolved === '') {
+                        $resolved = trim((string) ($vehicle->vehicle_type ?? ''));
+                    }
+                    if ($resolved !== '' && !(ctype_digit($resolved) && $resolved === $token)) {
+                        return $resolved;
+                    }
+                }
+            } catch (\Throwable $e) {
+                // keep original
+            }
+            return $name !== '' ? $name : $token;
+        };
 
         $isProTour = (int)($tour->is_pro ?? 0) === 1;
         $occupancyKey = $pdfAdults >= 2 ? 'double' : 'single';
@@ -641,7 +703,6 @@
                                     </tr>
                                     <tr>
                                         <td width="50%" style="{{ $cellBorder }} padding:8px 6px; vertical-align:top;">
-                                            <div style="margin-bottom:6px;"><strong>Date:</strong> {{ $inclusionDateRange }}</div>
                                             <div style="font-weight:bold; margin-bottom:6px;">Inclusions:</div>
                                             @php
                                                 $hotelPriceLookup = [];
@@ -671,7 +732,6 @@
                                             @endif
                                         </td>
                                         <td width="50%" style="{{ $cellBorder }} padding:8px 6px; vertical-align:top;">
-                                            <div style="margin-bottom:6px;"><strong>Date:</strong> {{ $inclusionDateRange }}</div>
                                             <div style="font-weight:bold; margin-bottom:6px;">Inclusions:</div>
                                             @php $hasAnyOtherInclusions = (!empty($bookedAttractionCards) || !empty($bookedRestaurantCards) || !empty($bookedArrivals) || !empty($bookedDepartures) || !empty($bookedLocalTransfers)); @endphp
                                             @if($hasAnyOtherInclusions)
@@ -686,10 +746,16 @@
                                                         <li style="margin:2px 0; line-height:1.35;">
                                                             <strong>Attraction:</strong> {{ $attrTitle }}
                                                             @if(is_array($ad) && is_array($tr) && (!empty($tr['vehicle_name']) || !empty($tr['type']) || !empty($tr['pickup_location_name'])))
+                                                                @php
+                                                                    $attrVehicleLabel = $resolveVehicleDisplayName(
+                                                                        $tr['vehicle_name'] ?? '',
+                                                                        $tr['vehicle_id'] ?? ($tr['vehicle_details']['vehicle_id'] ?? null)
+                                                                    );
+                                                                @endphp
                                                                 <div style="margin:2px 0 0 14px;">
                                                                     <strong>Transfer / vehicle:</strong>
                                                                     {{ implode(' · ', array_filter([$tr['type'] ?? null, $tr['way'] ?? null])) }}
-                                                                    @if(!empty($tr['vehicle_name'])) — {{ $tr['vehicle_name'] }} @endif
+                                                                    @if($attrVehicleLabel !== '') — {{ $attrVehicleLabel }} @endif
                                                                     @if(!empty($tr['pickup_location_name']) || !empty($tr['pickup_time']))
                                                                         <br>
                                                                         @if(!empty($tr['pickup_location_name']))<strong>Pickup:</strong> {{ $tr['pickup_location_name'] }}@endif
@@ -716,10 +782,16 @@
                                                         <li style="margin:2px 0; line-height:1.35;">
                                                             <strong>Restaurant:</strong> {{ $restTitle }}@if(!empty($mealPlan)) — {{ $mealPlan }}@endif
                                                             @if(is_array($rs) && is_array($tr) && (!empty($tr['vehicle_name']) || !empty($tr['pickup_location_name']) || !empty($tr['pickup_time'])))
+                                                                @php
+                                                                    $restVehicleLabel = $resolveVehicleDisplayName(
+                                                                        $tr['vehicle_name'] ?? '',
+                                                                        $tr['vehicle_id'] ?? ($tr['vehicle_details']['vehicle_id'] ?? null)
+                                                                    );
+                                                                @endphp
                                                                 <div style="margin:2px 0 0 14px;">
                                                                     <strong>Transfer / vehicle:</strong>
                                                                     {{ implode(' · ', array_filter([$tr['type'] ?? null, $tr['way'] ?? null])) }}
-                                                                    @if(!empty($tr['vehicle_name'])) — {{ $tr['vehicle_name'] }} @endif
+                                                                    @if($restVehicleLabel !== '') — {{ $restVehicleLabel }} @endif
                                                                 </div>
                                                             @endif
                                                         </li>
