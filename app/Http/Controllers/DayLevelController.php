@@ -388,6 +388,7 @@ class DayLevelController extends Controller
             $this->applyHotelDmcFilter($hotelsQuery, $dmcId);
 
             $hotels = $hotelsQuery->get(['id', 'hotel_unique_id', 'name', 'hotel_star_rating', 'city', 'dmc_id']);
+            $hotels = $this->filterHotelsThatHaveRoomsForDmc($hotels, $dmcId);
 
             $result['hotels'] = $hotels
                 ->groupBy('hotel_star_rating')
@@ -397,7 +398,7 @@ class DayLevelController extends Controller
             $result['hotels_flat'] = $hotels->values()->toArray();
         }
 
-        // ── Attractions (DMC-mapped only) ───────────────────────────
+        // ── Attractions (DMC-mapped + must have tickets for this DMC) ─
         // attractions table has NO city column — use location only
         if (in_array($type, ['all', 'attractions'])) {
             $attractionsQuery = Attraction::whereNull('deleted_at')
@@ -406,6 +407,7 @@ class DayLevelController extends Controller
                 ->orderBy('name');
 
             $this->applyServiceDmcFilter($attractionsQuery, $dmcId);
+            $this->applyAttractionHasTicketsForDmcFilter($attractionsQuery, $dmcId);
 
             $attractions = $attractionsQuery
                 ->get(['attraction_id', 'name', 'location', 'adult_price'])
@@ -421,7 +423,7 @@ class DayLevelController extends Controller
             }, $attractions);
         }
 
-        // ── Restaurants (DMC-mapped only) ─────────────────────────────
+        // ── Restaurants (DMC-mapped + must have meals for this DMC) ──
         if (in_array($type, ['all', 'restaurants'])) {
             $restaurantsQuery = Restaurant::whereNull('deleted_at')
                 ->where('is_active', 1)
@@ -429,6 +431,7 @@ class DayLevelController extends Controller
                 ->orderBy('name');
 
             $this->applyServiceDmcFilter($restaurantsQuery, $dmcId);
+            $this->applyRestaurantHasMealsForDmcFilter($restaurantsQuery, $dmcId);
 
             $result['restaurants'] = $restaurantsQuery
                 ->get(['restaurant_id', 'name', 'city'])
@@ -436,19 +439,22 @@ class DayLevelController extends Controller
                 ->toArray();
         }
 
-        // ── Guides ──────────────────────────────────────────────────
+        // ── Guides (DMC-scoped) ─────────────────────────────────────
         if (in_array($type, ['all', 'guides'])) {
-            $result['guides'] = Guide::whereNull('deleted_at')
+            $guidesQuery = Guide::whereNull('deleted_at')
                 ->where('is_active', 1)
                 ->where('city', 'ilike', "%{$cityName}%")
-                ->orderBy('name')
+                ->orderBy('name');
+
+            $this->applyGuideDmcFilter($guidesQuery, $dmcId);
+
+            $result['guides'] = $guidesQuery
                 ->get(['id', 'guide_id', 'name', 'city', 'day_rate'])
                 ->values()
                 ->toArray();
         }
 
-        // ── Vehicles (for airport transfer) ─────────────────────────
-        // vehicles.city and vehicles.dmc_id exist per SQL dump
+        // ── Vehicles (for airport transfer) — DMC only, no city fallback ─
         if (in_array($type, ['all', 'vehicles'])) {
             $vehicleQuery = Vehicle::whereNull('deleted_at')
                 // Keep legacy rows visible; many vehicle rows use null/0 flags.
@@ -459,33 +465,15 @@ class DayLevelController extends Controller
                     $q->where('is_active', 1)->orWhereNull('is_active')->orWhere('is_active', 0);
                 })
                 ->where('city', 'ilike', "%{$cityName}%")
-                ->where(function ($q) use ($dmcId) {
-                    // vehicles.dmc_id is plain numeric in this flow
-                    $q->where('dmc_id', $dmcId)
-                      ->orWhereRaw('CAST(dmc_id AS TEXT) = ?', [(string) $dmcId])
-                      ->orWhereRaw('CAST(dmc_id AS TEXT) LIKE ?', ['%' . (string) $dmcId . '%']);
-                })
                 ->orderBy('vehicle_name');
 
-            $vehicles = $vehicleQuery->get([
+            $this->applyVehicleDmcFilter($vehicleQuery, $dmcId);
+
+            $result['vehicles'] = $vehicleQuery->get([
                 'id', 'vehicle_id', 'vehicle_name', 'vehicle_type',
                 'seating_capacity', 'sharable', 'image',
                 'base_price', 'cost_per_hour', 'city', 'dmc_id',
-            ]);
-
-            // Fallback: if strict dmc mapping has no rows, show city vehicles
-            if ($vehicles->isEmpty()) {
-                $vehicles = Vehicle::whereNull('deleted_at')
-                    ->where('city', 'ilike', "%{$cityName}%")
-                    ->orderBy('vehicle_name')
-                    ->get([
-                    'id', 'vehicle_id', 'vehicle_name', 'vehicle_type',
-                    'seating_capacity', 'sharable', 'image',
-                    'base_price', 'cost_per_hour', 'city', 'dmc_id',
-                ]);
-            }
-
-            $result['vehicles'] = $vehicles->values()->toArray();
+            ])->values()->toArray();
         }
 
         return response()->json($result);
@@ -514,8 +502,9 @@ class DayLevelController extends Controller
         $this->applyHotelDmcFilter($query, $dmcId);
 
         $hotels = $query->get(['id', 'hotel_unique_id', 'name', 'city', 'hotel_star_rating', 'dmc_id']);
+        $hotels = $this->filterHotelsThatHaveRoomsForDmc($hotels, $dmcId);
 
-        return response()->json($hotels);
+        return response()->json($hotels->values());
     }
 
     // =========================================================================
@@ -698,7 +687,8 @@ class DayLevelController extends Controller
     }
 
     /**
-     * Active rooms for a hotel (DMC-scoped when rows exist, else all hotel rooms).
+     * Active rooms for a hotel, strictly scoped to the selected DMC.
+     * No fallback to other DMCs' rooms — hotels without DMC rooms stay empty.
      *
      * @param  list<string>  $columns
      */
@@ -720,18 +710,164 @@ class DayLevelController extends Controller
             return $query;
         };
 
-        if ($dmcId > 0) {
-            $scoped = $buildQuery()->where(function ($q) use ($dmcId) {
+        if ($dmcId <= 0) {
+            return $buildQuery()->get();
+        }
+
+        return $buildQuery()->where(function ($q) use ($dmcId) {
+            $q->where('created_by', $dmcId)
+                ->orWhere('dmc_id', $dmcId);
+        })->get();
+    }
+
+    /**
+     * Hotel unique ids that have at least one active room for this DMC.
+     *
+     * @return array<string, true>
+     */
+    private function hotelUniqueIdSetWithRoomsForDmc(int $dmcId): array
+    {
+        if ($dmcId <= 0) {
+            return [];
+        }
+
+        static $cache = [];
+        if (isset($cache[$dmcId])) {
+            return $cache[$dmcId];
+        }
+
+        $ids = Room::query()
+            ->whereNull('deleted_at')
+            ->where(function ($q) {
+                $q->where('status', 1)->orWhereNull('status');
+            })
+            ->whereNotNull('room_type')
+            ->where('room_type', '!=', '')
+            ->where(function ($q) use ($dmcId) {
                 $q->where('created_by', $dmcId)
                     ->orWhere('dmc_id', $dmcId);
-            })->get();
+            })
+            ->distinct()
+            ->pluck('hotel_id')
+            ->map(fn ($id) => trim((string) $id))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
 
-            if ($scoped->isNotEmpty()) {
-                return $scoped;
+        $set = [];
+        foreach ($ids as $id) {
+            $set[$id] = true;
+            if (ctype_digit($id)) {
+                $set[(string) ((int) $id)] = true;
             }
         }
 
-        return $buildQuery()->get();
+        return $cache[$dmcId] = $set;
+    }
+
+    /**
+     * Keep only hotels that have bookable rooms for the selected DMC.
+     *
+     * @param  \Illuminate\Support\Collection<int, mixed>  $hotels
+     * @return \Illuminate\Support\Collection<int, mixed>
+     */
+    private function filterHotelsThatHaveRoomsForDmc($hotels, int $dmcId)
+    {
+        if ($dmcId <= 0) {
+            return $hotels;
+        }
+
+        $roomHotelIds = $this->hotelUniqueIdSetWithRoomsForDmc($dmcId);
+        if ($roomHotelIds === []) {
+            return $hotels->filter(fn () => false)->values();
+        }
+
+        return $hotels->filter(function ($hotel) use ($roomHotelIds) {
+            $uid = trim((string) (is_array($hotel)
+                ? ($hotel['hotel_unique_id'] ?? '')
+                : ($hotel->hotel_unique_id ?? '')));
+            $listId = trim((string) (is_array($hotel)
+                ? ($hotel['id'] ?? '')
+                : ($hotel->id ?? '')));
+
+            if ($uid !== '' && isset($roomHotelIds[$uid])) {
+                return true;
+            }
+            if ($listId !== '' && isset($roomHotelIds[$listId])) {
+                return true;
+            }
+            if ($uid !== '' && ctype_digit($uid) && isset($roomHotelIds[(string) ((int) $uid)])) {
+                return true;
+            }
+
+            return false;
+        })->values();
+    }
+
+    private function applyAttractionHasTicketsForDmcFilter($query, int $dmcId): void
+    {
+        if ($dmcId <= 0 || ! Schema::hasTable('tickets')) {
+            return;
+        }
+
+        $query->whereIn('attraction_id', function ($sub) use ($dmcId) {
+            $sub->select('attraction_id')
+                ->from('tickets')
+                ->where('dmc_id', $dmcId)
+                ->whereNotNull('attraction_id');
+            if (Schema::hasColumn('tickets', 'deleted_at')) {
+                $sub->whereNull('deleted_at');
+            }
+        });
+    }
+
+    private function applyRestaurantHasMealsForDmcFilter($query, int $dmcId): void
+    {
+        if ($dmcId <= 0 || ! Schema::hasTable('meals')) {
+            return;
+        }
+
+        $query->whereIn('restaurant_id', function ($sub) use ($dmcId) {
+            $sub->select('restaurant_id')
+                ->from('meals')
+                ->where('dmc_id', $dmcId)
+                ->whereNotNull('restaurant_id');
+            if (Schema::hasColumn('meals', 'deleted_at')) {
+                $sub->whereNull('deleted_at');
+            }
+        });
+    }
+
+    private function applyGuideDmcFilter($query, int $dmcId): void
+    {
+        if ($dmcId <= 0) {
+            return;
+        }
+
+        $query->where(function ($q) use ($dmcId) {
+            if (Schema::hasColumn('guides', 'dmc_id')) {
+                $q->where('dmc_id', $dmcId)
+                    ->orWhereRaw("CAST(dmc_id AS TEXT) = ?", [(string) $dmcId])
+                    ->orWhereRaw("COALESCE(dmc_id::text, '') LIKE ?", ['%' . $dmcId . '%']);
+            }
+            if (Schema::hasColumn('guides', 'created_by')) {
+                $q->orWhere('created_by', $dmcId);
+            }
+        });
+    }
+
+    private function applyVehicleDmcFilter($query, int $dmcId): void
+    {
+        if ($dmcId <= 0) {
+            return;
+        }
+
+        $query->where(function ($q) use ($dmcId) {
+            $q->where('dmc_id', $dmcId)
+                ->orWhereRaw('CAST(dmc_id AS TEXT) = ?', [(string) $dmcId])
+                ->orWhereRaw("COALESCE(dmc_id::text, '') LIKE ?", ['%' . $dmcId . '%']);
+        });
     }
 
     /**
@@ -850,7 +986,10 @@ class DayLevelController extends Controller
             $hotelQuery->where('city', $likeOperator, "%{$cityName}%");
         }
         $this->applyHotelDmcFilter($hotelQuery, $dmcId);
-        $hotelsForLocations = $hotelQuery->get(['id', 'hotel_unique_id', 'name', 'city']);
+        $hotelsForLocations = $this->filterHotelsThatHaveRoomsForDmc(
+            $hotelQuery->get(['id', 'hotel_unique_id', 'name', 'city']),
+            $dmcId
+        );
 
         $defaultHotelRow = DefaultValue::query()
             ->where('dmc_id', $dmcId)
@@ -883,6 +1022,7 @@ class DayLevelController extends Controller
                 ->where('location', $likeOperator, "%{$cityName}%")
                 ->orderBy('name');
             $this->applyServiceDmcFilter($attractionsQuery, $dmcId);
+            $this->applyAttractionHasTicketsForDmcFilter($attractionsQuery, $dmcId);
             $attractionLocations = $attractionsQuery
                 ->get(['attraction_id', 'name', 'location'])
                 ->map(fn ($a) => [
@@ -899,6 +1039,7 @@ class DayLevelController extends Controller
                 ->where('city', $likeOperator, "%{$cityName}%")
                 ->orderBy('name');
             $this->applyServiceDmcFilter($restaurantsQuery, $dmcId);
+            $this->applyRestaurantHasMealsForDmcFilter($restaurantsQuery, $dmcId);
             $restaurantLocations = $restaurantsQuery
                 ->get(['restaurant_id', 'name', 'city'])
                 ->map(fn ($r) => [
