@@ -1124,7 +1124,7 @@ class DayLevelController extends Controller
 
     /**
      * Zone-respected transfer price for arrival/departure (and other leg transfers).
-     * Uses DMC default vehicle + vehicle_zone_mappings via EnquiryFormPro::getZonePrices.
+     * Uses this DMC's default vehicle + this DMC's zone assignments only (no cross-DMC fallback).
      */
     public function transferZonePrice(Request $request)
     {
@@ -1133,16 +1133,18 @@ class DayLevelController extends Controller
         $dropValue = trim((string) $request->input('drop_value', ''));
         $transferType = strtolower(trim((string) $request->input('transfer_type', 'private')));
 
+        $empty = [
+            'success' => true,
+            'zone_mapped' => false,
+            'price' => 0,
+            'private_price' => 0,
+            'shared_price' => 0,
+            'vehicle_id' => null,
+            'vehicle_name' => null,
+        ];
+
         if ($pickupValue === '' || $dropValue === '') {
-            return response()->json([
-                'success' => false,
-                'zone_mapped' => false,
-                'price' => 0,
-                'private_price' => 0,
-                'shared_price' => 0,
-                'vehicle_id' => null,
-                'vehicle_name' => null,
-            ]);
+            return response()->json(array_merge($empty, ['success' => false]));
         }
 
         $pickup = $this->parseTransferLocationValue($pickupValue);
@@ -1158,41 +1160,38 @@ class DayLevelController extends Controller
         $pickupId = $this->resolveServiceIdForZoneLookup($pickup['type'], $pickup['id'], $dmcId);
         $dropId = $this->resolveServiceIdForZoneLookup($drop['type'], $drop['id'], $dmcId);
 
-        if ($pickupId === null || $dropId === null || $pickupType === '' || $dropType === '') {
-            return response()->json([
-                'success' => true,
-                'zone_mapped' => false,
-                'price' => 0,
-                'private_price' => 0,
-                'shared_price' => 0,
-                'vehicle_id' => null,
-                'vehicle_name' => null,
-            ]);
+        // Hotel / attraction / restaurant → only this DMC's assigned zone (no other-DMC fallback).
+        // zone:* tokens must keep the zone id (do not re-resolve as hotel/attraction entity).
+        $pickupZoneId = $pickup['type'] === 'zone'
+            ? ($this->zoneBelongsToDmc((string) $pickup['id'], $dmcId) ? (string) $pickup['id'] : null)
+            : $this->resolveDmcStrictZoneId($pickupType, (string) ($pickupId ?? ''), $dmcId);
+        $dropZoneId = $drop['type'] === 'zone'
+            ? ($this->zoneBelongsToDmc((string) $drop['id'], $dmcId) ? (string) $drop['id'] : null)
+            : $this->resolveDmcStrictZoneId($dropType, (string) ($dropId ?? ''), $dmcId);
+
+        if ($pickupZoneId === null || $dropZoneId === null || $pickupType === '' || $dropType === '') {
+            return response()->json(array_merge($empty, [
+                'message' => 'No DMC zone assignment for selected pickup/drop',
+            ]));
         }
 
         $vehicleId = $this->resolveDefaultTransferVehicleId($dmcId);
-        if ($vehicleId === null) {
-            return response()->json([
-                'success' => true,
-                'zone_mapped' => false,
-                'price' => 0,
-                'private_price' => 0,
-                'shared_price' => 0,
-                'vehicle_id' => null,
-                'vehicle_name' => null,
+        $vehicleName = $vehicleId ? $this->resolveTransferVehicleName($vehicleId, $dmcId) : null;
+        if ($vehicleId === null || $vehicleName === null || !$this->vehicleBelongsToDmc($vehicleId, $dmcId)) {
+            return response()->json(array_merge($empty, [
                 'message' => 'No default transfer vehicle configured for this DMC',
-            ]);
+            ]));
         }
-
-        $vehicleName = $this->resolveTransferVehicleName($vehicleId, $dmcId);
 
         $zoneRequest = Request::create('/', 'GET', [
             'vehicle_id' => $vehicleId,
-            'pickup_id' => $pickupId,
-            'drop_id' => $dropId,
+            // Pass DMC-strict zone IDs so getZonePrices does not fall back to other DMC assignments.
+            'pickup_id' => $pickupZoneId,
+            'drop_id' => $dropZoneId,
             'pickup_type' => $pickupType,
             'drop_type' => $dropType,
             'dmc_id' => $dmcId,
+            'strict_dmc' => 1,
         ]);
 
         $zoneResponse = app(EnquiryFormPro::class)->getZonePrices($zoneRequest);
@@ -1220,6 +1219,113 @@ class DayLevelController extends Controller
             'vehicle_name' => $vehicleName,
             'message' => $payload['message'] ?? null,
         ]);
+    }
+
+    /**
+     * Resolve zone id strictly for this DMC (hotel/attraction/restaurant assignments only).
+     * Port / already-zone tokens keep their id when they belong to the DMC.
+     */
+    private function resolveDmcStrictZoneId(string $type, string $serviceId, int $dmcId): ?string
+    {
+        $type = strtolower(trim($type));
+        $serviceId = trim($serviceId);
+        if ($type === '' || $serviceId === '' || $dmcId <= 0) {
+            return null;
+        }
+
+        if ($type === 'port') {
+            return $serviceId;
+        }
+
+        if ($type === 'zone') {
+            return $this->zoneBelongsToDmc($serviceId, $dmcId) ? $serviceId : null;
+        }
+
+        if ($type === 'hotel') {
+            $hotel = Hotel::query()
+                ->whereNull('deleted_at')
+                ->where(function ($q) use ($serviceId) {
+                    $q->where('hotel_unique_id', $serviceId);
+                    if (ctype_digit($serviceId)) {
+                        $q->orWhere('id', (int) $serviceId);
+                    }
+                })
+                ->first();
+            $zoneId = $hotel?->getZoneForDmc($dmcId);
+
+            return ($zoneId !== null && trim((string) $zoneId) !== '') ? (string) $zoneId : null;
+        }
+
+        if ($type === 'attraction') {
+            $attraction = Attraction::query()
+                ->whereNull('deleted_at')
+                ->where(function ($q) use ($serviceId) {
+                    $q->where('attraction_id', $serviceId);
+                    if (ctype_digit($serviceId)) {
+                        $q->orWhere('id', (int) $serviceId);
+                    }
+                })
+                ->first();
+            $zoneId = $attraction?->getZoneForDmc($dmcId);
+
+            return ($zoneId !== null && trim((string) $zoneId) !== '') ? (string) $zoneId : null;
+        }
+
+        if ($type === 'restaurant') {
+            $restaurant = Restaurant::query()
+                ->whereNull('deleted_at')
+                ->where(function ($q) use ($serviceId) {
+                    $q->where('restaurant_id', $serviceId);
+                    if (ctype_digit($serviceId)) {
+                        $q->orWhere('id', (int) $serviceId);
+                    }
+                })
+                ->first();
+            $zoneId = $restaurant?->getZoneForDmc($dmcId);
+
+            return ($zoneId !== null && trim((string) $zoneId) !== '') ? (string) $zoneId : null;
+        }
+
+        return null;
+    }
+
+    private function zoneBelongsToDmc(string $zoneId, int $dmcId): bool
+    {
+        if ($zoneId === '' || $dmcId <= 0) {
+            return false;
+        }
+
+        return Zone::query()
+            ->where('zone_id', $zoneId)
+            ->where(function ($q) use ($dmcId) {
+                $q->where('dmc_id', $dmcId)
+                    ->orWhere('dmc_id', (string) $dmcId)
+                    ->orWhereRaw('CAST(dmc_id AS TEXT) = ?', [(string) $dmcId]);
+            })
+            ->exists();
+    }
+
+    private function vehicleBelongsToDmc(string $vehicleId, int $dmcId): bool
+    {
+        $vehicleId = trim($vehicleId);
+        if ($vehicleId === '' || $dmcId <= 0) {
+            return false;
+        }
+
+        $query = Vehicle::query()
+            ->whereNull('deleted_at')
+            ->where(function ($q) use ($vehicleId) {
+                $q->where('vehicle_id', $vehicleId);
+                if (ctype_digit($vehicleId)) {
+                    $q->orWhere('id', (int) $vehicleId);
+                }
+            });
+
+        if (Schema::hasColumn('vehicles', 'dmc_id')) {
+            $this->applyVehicleDmcFilter($query, $dmcId);
+        }
+
+        return $query->exists();
     }
 
     /** @return array{type: string, id: string} */
