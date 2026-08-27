@@ -16,6 +16,7 @@ use App\Models\Room;
 use App\Models\Tax;
 use App\Models\Tour;
 use App\Models\User;
+use App\Models\Vehicle;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -1447,28 +1448,119 @@ class ExternalApiReceiveController extends Controller
         $wayRaw = $transfer['way'] ?? 'One Way';
         $way = in_array($wayRaw, ['Two Way', 'Return'], true) ? 'Two Way' : 'One Way';
 
+        $vehicleRawId = trim((string) ($transfer['vehicle_id'] ?? $transfer['vehicles_id'] ?? ''));
+        $vehicleName = trim((string) ($transfer['vehicle_name'] ?? $transfer['vehicles_name'] ?? ''));
+        $vehicleDetails = [];
+        if ($vehicleRawId !== '' || $vehicleName !== '') {
+            $resolved = $this->resolveVehicleForTransfer($vehicleRawId, $vehicleName);
+            if ($resolved !== null) {
+                $vehicleRawId = (string) ($resolved['vehicle_id'] ?? $vehicleRawId);
+                $vehicleName = (string) ($resolved['vehicle_name'] ?? $vehicleName);
+                $vehicleDetails = $resolved;
+            }
+        }
+
+        $pickupLabel = trim((string) (
+            $transfer['pickup_location_label']
+            ?? $fallback['pickup_label']
+            ?? $transfer['pickup_location']
+            ?? $fallback['pickup_location']
+            ?? ''
+        ));
+        $dropLabel = trim((string) (
+            $transfer['drop_location_label']
+            ?? $fallback['drop_label']
+            ?? $transfer['drop_location']
+            ?? $fallback['drop_location']
+            ?? $transfer['destination']
+            ?? ''
+        ));
+        $pickupId = trim((string) (
+            $transfer['pickup_location_id']
+            ?? $transfer['pickup_location_value']
+            ?? ''
+        ));
+        $dropId = trim((string) (
+            $transfer['drop_location_id']
+            ?? $transfer['drop_location_value']
+            ?? $transfer['destination_id']
+            ?? ''
+        ));
+        foreach ([&$pickupId, &$dropId] as &$locToken) {
+            if (str_contains($locToken, ':')) {
+                $locToken = trim((string) substr($locToken, strpos($locToken, ':') + 1));
+            }
+        }
+        unset($locToken);
+
         return [
             'transfer_required' => $required,
             'type' => $type,
             'way' => $way,
-            'vehicle_id' => $transfer['vehicle_id'] ?? '',
-            'vehicle_name' => $transfer['vehicle_name'] ?? '',
-            'pickup_location_name' => $transfer['pickup_location_label']
-                ?? $fallback['pickup_label']
-                ?? $transfer['pickup_location']
-                ?? $fallback['pickup_location']
-                ?? '',
-            'destination' => $transfer['drop_location_label']
-                ?? $fallback['drop_label']
-                ?? $transfer['drop_location']
-                ?? $fallback['drop_location']
-                ?? '',
-            'pickup_location_id' => $transfer['pickup_location_id'] ?? '',
+            'vehicle_id' => $vehicleRawId,
+            'vehicle_name' => $vehicleName !== '' ? $vehicleName : $vehicleRawId,
+            'pickup_location_name' => $pickupLabel,
+            'destination' => $dropLabel,
+            'pickup_location_id' => $pickupId,
+            'destination_id' => $dropId,
+            'drop_location_id' => $dropId,
+            'drop_location_label' => $dropLabel,
             'cost' => (float) ($transfer['cost'] ?? $transfer['price'] ?? 0),
             'price' => (float) ($transfer['cost'] ?? $transfer['price'] ?? 0),
             'passengers' => $transfer['passengers'] ?? null,
             'pickup_time' => $transfer['pickup_time'] ?? '',
             'city' => $transfer['city'] ?? $fallback['city'] ?? '',
+            'vehicle_details' => $vehicleDetails !== [] ? $vehicleDetails : [
+                'vehicle_id' => $vehicleRawId,
+                'vehicle_name' => $vehicleName !== '' ? $vehicleName : $vehicleRawId,
+            ],
+        ];
+    }
+
+    /**
+     * Resolve AI/day-level vehicle tokens to canonical vehicles.vehicle_id + name.
+     * AI often sends numeric vehicles.id instead of vehicle_id.
+     *
+     * @return array{vehicle_id: string, vehicle_name: string, vehicle_type?: string, seating_capacity?: int|string}|null
+     */
+    protected function resolveVehicleForTransfer(string $vehicleRawId, string $vehicleName = ''): ?array
+    {
+        $vehicleRawId = trim($vehicleRawId);
+        $vehicleName = trim($vehicleName);
+        $query = Vehicle::query()->whereNull('deleted_at');
+
+        $vehicle = null;
+        if ($vehicleRawId !== '') {
+            $vehicle = (clone $query)->where('vehicle_id', $vehicleRawId)->first();
+            if (! $vehicle && ctype_digit($vehicleRawId)) {
+                $vehicle = (clone $query)->where('id', (int) $vehicleRawId)->first();
+            }
+        }
+        if (! $vehicle && $vehicleName !== '') {
+            $vehicle = (clone $query)
+                ->where(function ($q) use ($vehicleName) {
+                    $q->whereRaw('LOWER(TRIM(vehicle_name)) = ?', [strtolower($vehicleName)])
+                        ->orWhereRaw('LOWER(TRIM(vehicle_type)) = ?', [strtolower($vehicleName)]);
+                })
+                ->first();
+        }
+
+        if (! $vehicle) {
+            return null;
+        }
+
+        $name = trim((string) ($vehicle->vehicle_name ?? ''));
+        if ($name === '') {
+            $name = trim((string) ($vehicle->vehicle_type ?? ''));
+        }
+
+        return [
+            'vehicle_id' => (string) ($vehicle->vehicle_id ?? $vehicle->id ?? $vehicleRawId),
+            'vehicle_name' => $name !== '' ? $name : (string) ($vehicle->vehicle_id ?? $vehicleRawId),
+            'vehicle_type' => (string) ($vehicle->vehicle_type ?? ''),
+            'seating_capacity' => $vehicle->seating_capacity ?? '',
+            'private_price' => (string) ($vehicle->base_price ?? $vehicle->private_price ?? '0.00'),
+            'shared_price' => (string) ($vehicle->sharable_base_price ?? $vehicle->shared_price ?? '0.00'),
         ];
     }
 
