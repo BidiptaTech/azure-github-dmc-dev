@@ -4864,25 +4864,105 @@
                                             
                                             // Extract transport options
                                             $transferOptions = $payload['transfer_options'] ?? [];
-                                            $transferRequired = isset($transferOptions['transfer_required']) && $transferOptions['transfer_required'] === true;
+                                            $transferRequiredRaw = $transferOptions['transfer_required'] ?? $transferOptions['required'] ?? false;
+                                            $transferRequired = filter_var($transferRequiredRaw, FILTER_VALIDATE_BOOLEAN)
+                                                || in_array(strtolower(trim((string) $transferRequiredRaw)), ['1', 'yes', 'true', 'on'], true);
                                             $transportType = $transferOptions['type'] ?? '';
                                             
                                             // Get vehicle name from vehicle_details or vehicle_id/vehicle_name
                                             $vehicleDetails = $transferOptions['vehicle_details'] ?? [];
-                                            $transportVehicle = $vehicleDetails['vehicle_name'] ?? $transferOptions['vehicle_name'] ?? $transferOptions['vehicle_id'] ?? '';
-                                            $transportVehicleId = $transferOptions['vehicle_id'] ?? '';
+                                            $transportVehicle = $vehicleDetails['vehicle_name']
+                                                ?? $transferOptions['vehicle_name']
+                                                ?? '';
+                                            $transportVehicleId = (string) ($transferOptions['vehicle_id']
+                                                ?? $vehicleDetails['vehicle_id']
+                                                ?? '');
+                                            if ($transportVehicle === '' && $transportVehicleId !== '') {
+                                                $transportVehicle = $transportVehicleId;
+                                            }
+                                            // AI orders often store vehicles.id (numeric) without vehicle_name — resolve for display.
+                                            if ($transportVehicleId !== '' || $transportVehicle !== '') {
+                                                $resolvedVehicle = \App\Models\Vehicle::query()
+                                                    ->whereNull('deleted_at')
+                                                    ->where(function ($q) use ($transportVehicleId, $transportVehicle) {
+                                                        if ($transportVehicleId !== '') {
+                                                            $q->where('vehicle_id', $transportVehicleId);
+                                                            if (ctype_digit((string) $transportVehicleId)) {
+                                                                $q->orWhere('id', (int) $transportVehicleId);
+                                                            }
+                                                        }
+                                                        if ($transportVehicle !== '' && $transportVehicle !== $transportVehicleId) {
+                                                            $q->orWhereRaw('LOWER(TRIM(vehicle_name)) = ?', [strtolower(trim($transportVehicle))]);
+                                                        }
+                                                    })
+                                                    ->first(['vehicle_id', 'vehicle_name', 'vehicle_type', 'seating_capacity']);
+                                                if ($resolvedVehicle) {
+                                                    $transportVehicleId = (string) ($resolvedVehicle->vehicle_id ?? $transportVehicleId);
+                                                    $resolvedName = trim((string) ($resolvedVehicle->vehicle_name ?? ''));
+                                                    if ($resolvedName === '') {
+                                                        $resolvedName = trim((string) ($resolvedVehicle->vehicle_type ?? ''));
+                                                    }
+                                                    if ($resolvedName !== '') {
+                                                        $transportVehicle = $resolvedName;
+                                                    }
+                                                    if (empty($vehicleDetails) || !is_array($vehicleDetails)) {
+                                                        $vehicleDetails = [];
+                                                    }
+                                                    $vehicleDetails['vehicle_id'] = $transportVehicleId;
+                                                    $vehicleDetails['vehicle_name'] = $transportVehicle;
+                                                    $vehicleDetails['seating_capacity'] = $vehicleDetails['seating_capacity']
+                                                        ?? $resolvedVehicle->seating_capacity
+                                                        ?? '';
+                                                }
+                                            }
                                             
-                                            // Get destination from pickup_location_name or destination
-                                            $transportDestination = $transferOptions['pickup_location_name'] ?? $transferOptions['destination'] ?? '';
-                                            $transportDestinationId = $transferOptions['pickup_location_id'] ?? '';
+                                            // Destination / drop-off (edit form "Destination" = drop-off from restaurant)
+                                            $transportDestination = trim((string) (
+                                                $transferOptions['destination']
+                                                ?? $transferOptions['pickup_location_name']
+                                                ?? $transferOptions['drop_location_label']
+                                                ?? $transferOptions['drop_location']
+                                                ?? $transferOptions['pickup_location_label']
+                                                ?? ''
+                                            ));
+                                            $transportDestinationId = (string) (
+                                                $transferOptions['pickup_location_id']
+                                                ?? $transferOptions['destination_id']
+                                                ?? $transferOptions['drop_location_id']
+                                                ?? $transferOptions['drop_location_value']
+                                                ?? $transferOptions['pickup_location_value']
+                                                ?? ''
+                                            );
+                                            if (str_contains($transportDestinationId, ':')) {
+                                                $transportDestinationId = trim((string) substr($transportDestinationId, strpos($transportDestinationId, ':') + 1));
+                                            }
                                             
                                             $transportSeats = $vehicleDetails['seating_capacity'] ?? $transferOptions['seats'] ?? '';
                                             $transportPassengers = $transferOptions['passengers'] ?? '';
-                                            $transportPrice = $transferOptions['cost'] ?? $transferOptions['price'] ?? 0;
+                                            $transportPrice = $transferOptions['cost'] ?? $transferOptions['price'] ?? $transferOptions['transfer_price'] ?? 0;
                                             $transportWay = $transferOptions['way'] ?? 'One Way';
                                             $transportReturn = ($transportWay === 'Two Way');
                                             $restaurantRemarks = $payload['remarks'] ?? $restaurantNotes ?? '';
                                             $restaurantSupplement = ($payload['supplement'] ?? $payload['is_supplement'] ?? false);
+
+                                            $restaurantTransportDestMatches = static function ($name, $id = '') use ($transportDestination, $transportDestinationId): bool {
+                                                $name = trim((string) $name);
+                                                $id = trim((string) $id);
+                                                $savedId = trim((string) $transportDestinationId);
+                                                $savedName = trim((string) $transportDestination);
+                                                if ($savedId !== '' && $id !== '' && (string) $savedId === (string) $id) {
+                                                    return true;
+                                                }
+                                                if ($savedName !== '' && $name !== '') {
+                                                    if (strcasecmp($savedName, $name) === 0) {
+                                                        return true;
+                                                    }
+                                                    if (stripos($savedName, $name) === 0 || stripos($name, $savedName) === 0) {
+                                                        return true;
+                                                    }
+                                                }
+                                                return false;
+                                            };
 
                                             // Geo for multi-city segment filtering (prefer order columns, then JSON, then master restaurant)
                                             $serviceCity = trim((string) ($payload['city'] ?? $payload['location'] ?? ''));
@@ -5107,46 +5187,68 @@
                                                             $destHotels = $hotels ?? collect();
                                                             $destAttractions = $attractions ?? collect();
                                                             $destRestaurants = $restaurants ?? collect();
+                                                            $restaurantDestMatched = false;
                                                         @endphp
-                                                        <select class="form-select border-2 restaurant-transport-destination-select" style="height: 35px;" name="restaurant_transport_destination_{{ $order->booking_id }}" id="restaurant_transport_destination_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}">
+                                                        <select class="form-select border-2 restaurant-transport-destination-select" style="height: 35px;" name="restaurant_transport_destination_{{ $order->booking_id }}" id="restaurant_transport_destination_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}" data-saved-destination="{{ $transportDestination }}" data-saved-destination-id="{{ $transportDestinationId }}" data-saved-vehicle-id="{{ $transportVehicleId }}" data-saved-vehicle-name="{{ $transportVehicle }}">
                                                             <option value="">Search & select destination</option>
                                                             <optgroup label="Hotels">
                                                                 @foreach($destHotels as $h)
+                                                                    @php
+                                                                        $isDestSelected = $restaurantTransportDestMatches($h->name ?? '', $h->hotel_unique_id ?? '');
+                                                                        $restaurantDestMatched = $restaurantDestMatched || $isDestSelected;
+                                                                    @endphp
                                                                     <option value="{{ $h->name ?? '' }}" 
                                                                             data-destination-id="{{ $h->hotel_unique_id ?? '' }}" 
                                                                             data-destination-type="hotel" 
-                                                                            {{ ($transportDestination === ($h->name ?? '')) ? 'selected' : '' }}>
+                                                                            {{ $isDestSelected ? 'selected' : '' }}>
                                                                         {{ $h->name ?? '' }}
                                                                     </option>
                                                                 @endforeach
                                                             </optgroup>
                                                             <optgroup label="Attractions">
                                                                 @foreach($destAttractions as $a)
+                                                                    @php
+                                                                        $isDestSelected = $restaurantTransportDestMatches($a->name ?? '', $a->attraction_id ?? '');
+                                                                        $restaurantDestMatched = $restaurantDestMatched || $isDestSelected;
+                                                                    @endphp
                                                                     <option value="{{ $a->name ?? '' }}" 
                                                                             data-destination-id="{{ $a->attraction_id ?? '' }}" 
                                                                             data-destination-type="attraction" 
-                                                                            {{ ($transportDestination === ($a->name ?? '')) ? 'selected' : '' }}>
+                                                                            {{ $isDestSelected ? 'selected' : '' }}>
                                                                         {{ $a->name ?? '' }}
                                                                     </option>
                                                                 @endforeach
                                                             </optgroup>
                                                             <optgroup label="Restaurants">
                                                                 @foreach($destRestaurants as $r)
+                                                                    @php
+                                                                        $isDestSelected = $restaurantTransportDestMatches($r->name ?? '', $r->restaurant_id ?? '');
+                                                                        $restaurantDestMatched = $restaurantDestMatched || $isDestSelected;
+                                                                    @endphp
                                                                     <option value="{{ $r->name ?? '' }}" 
                                                                             data-destination-id="{{ $r->restaurant_id ?? '' }}" 
                                                                             data-destination-type="restaurant" 
-                                                                            {{ ($transportDestination === ($r->name ?? '')) ? 'selected' : '' }}>
+                                                                            {{ $isDestSelected ? 'selected' : '' }}>
                                                                         {{ $r->name ?? '' }}
                                                                     </option>
                                                                 @endforeach
                                                             </optgroup>
+                                                            @if($transportDestination && !$restaurantDestMatched)
+                                                                <option value="{{ $transportDestination }}"
+                                                                        data-destination-id="{{ $transportDestinationId }}"
+                                                                        data-destination-type="hotel"
+                                                                        selected>
+                                                                    {{ $transportDestination }}
+                                                                </option>
+                                                            @endif
                                                         </select>
                                                     </div>
                                                     <div class="col-md-3">
                                                         <label class="form-label fw-semibold text-muted mb-2">Vehicle (by country)</label>
-                                                        <select class="form-select border-2 restaurant-transport-vehicle-select" style="height: 35px;" name="restaurant_transport_vehicle_{{ $order->booking_id }}" id="restaurant_transport_vehicle_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}">
+                                                        @php $restaurantVehicleMatched = false; @endphp
+                                                        <select class="form-select border-2 restaurant-transport-vehicle-select" style="height: 35px;" name="restaurant_transport_vehicle_{{ $order->booking_id }}" id="restaurant_transport_vehicle_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}" data-saved-vehicle-id="{{ $transportVehicleId }}" data-saved-vehicle-name="{{ $transportVehicle }}">
                                                             <option value="">{{ $transportDestination ? 'Select vehicle' : 'Select destination first' }}</option>
-                                                            @if($transportDestination)
+                                                            @if($transportDestination || $transportVehicleId || $transportVehicle)
                                                                 @if($filteredVehicles && count($filteredVehicles) > 0)
                                                                     @foreach($filteredVehicles as $vehicle)
                                                                         @php
@@ -5154,21 +5256,30 @@
                                                                             $vehicleId = $vehicle->vehicle_id ?? '';
                                                                             $vehicleType = $vehicle->vehicle_type ?? '';
                                                                             $seatingCapacity = $vehicle->seating_capacity ?? '';
-                                                                            // Match by vehicle_id for proper mapping
-                                                                            $isSelected = ($transportVehicleId == $vehicleId || 
-                                                                                           $transportVehicleId == (string)$vehicleId ||
-                                                                                           ($transportVehicle && ($transportVehicle == $vehicleId || $transportVehicle == (string)$vehicleId)));
+                                                                            $isSelected = ($transportVehicleId !== '' && (
+                                                                                    (string) $transportVehicleId === (string) $vehicleId
+                                                                                ))
+                                                                                || ($transportVehicle !== '' && (
+                                                                                    strcasecmp((string) $transportVehicle, (string) $vehicleName) === 0
+                                                                                    || (string) $transportVehicle === (string) $vehicleId
+                                                                                ));
+                                                                            $restaurantVehicleMatched = $restaurantVehicleMatched || $isSelected;
                                                                         @endphp
                                                                         <option value="{{ $vehicleId }}" data-vehicle-id="{{ $vehicleId }}" data-vehicle-name="{{ $vehicleName }}" data-seating-capacity="{{ $seatingCapacity }}" {{ $isSelected ? 'selected' : '' }}>
                                                                             {{ $vehicleName }}
-                                                                            @if($isSelected)
-                                                                                ({{ $vehicleName }})
-                                                                            @endif
                                                                             @if($seatingCapacity)
                                                                                 - {{ $seatingCapacity }} seats
                                                                             @endif
                                                                         </option>
                                                                     @endforeach
+                                                                @endif
+                                                                @if(($transportVehicleId || $transportVehicle) && !$restaurantVehicleMatched)
+                                                                    <option value="{{ $transportVehicleId !== '' ? $transportVehicleId : $transportVehicle }}"
+                                                                            data-vehicle-id="{{ $transportVehicleId }}"
+                                                                            data-vehicle-name="{{ $transportVehicle !== '' ? $transportVehicle : $transportVehicleId }}"
+                                                                            selected>
+                                                                        {{ $transportVehicle !== '' ? $transportVehicle : $transportVehicleId }}
+                                                                    </option>
                                                                 @endif
                                                             @endif
                                                         </select>
@@ -5176,6 +5287,8 @@
                                                             // Ensure selected vehicle is displayed and Select2 is initialized
                                                             $(document).ready(function() {
                                                                 const vehicleSelect = $('#restaurant_transport_vehicle_{{ $order->booking_id }}');
+                                                                const destinationSelect = $('#restaurant_transport_destination_{{ $order->booking_id }}');
+                                                                const savedVehicleId = String(vehicleSelect.data('saved-vehicle-id') || destinationSelect.data('saved-vehicle-id') || '').trim();
                                                                 
                                                                 // Set selected value if exists
                                                                 const selectedOption = vehicleSelect.find('option[selected]');
@@ -5184,6 +5297,8 @@
                                                                     if (selectedValue) {
                                                                         vehicleSelect.val(selectedValue);
                                                                     }
+                                                                } else if (savedVehicleId) {
+                                                                    vehicleSelect.val(savedVehicleId);
                                                                 }
                                                                 
                                                                 // Initialize Select2 if not already initialized
@@ -5191,6 +5306,7 @@
                                                                     if (window.initializeAllSelect2) {
                                                                         setTimeout(function() {
                                                                             window.initializeAllSelect2(vehicleSelect.parent());
+                                                                            window.initializeAllSelect2(destinationSelect.parent());
                                                                         }, 200);
                                                                     }
                                                                 }
@@ -10920,7 +11036,12 @@
                         // Save the currently selected vehicle_id before replacing HTML
                         const previouslySelectedValue = vehicleSelect.val();
                         const previouslySelectedOption = vehicleSelect.find('option:selected');
-                        const previouslySelectedVehicleId = previouslySelectedOption.data('vehicle-id') || previouslySelectedOption.attr('value') || previouslySelectedValue;
+                        const previouslySelectedVehicleId = previouslySelectedOption.data('vehicle-id')
+                            || previouslySelectedOption.attr('value')
+                            || previouslySelectedValue
+                            || vehicleSelect.data('saved-vehicle-id')
+                            || destinationSelect.data('saved-vehicle-id')
+                            || '';
                         
                         vehicleSelect.html('<option value="">Select vehicle</option>');
                         
@@ -10963,6 +11084,17 @@
                             
                                 // Calculate price
                                 calculateRestaurantTransportPrice(bookingId);
+                            } else {
+                                // Keep saved vehicle visible even if zone API did not return it
+                                const savedName = String(vehicleSelect.data('saved-vehicle-name') || destinationSelect.data('saved-vehicle-name') || previouslySelectedVehicleId).trim();
+                                const fallback = $('<option></option>')
+                                    .val(String(previouslySelectedVehicleId))
+                                    .attr('data-vehicle-id', String(previouslySelectedVehicleId))
+                                    .attr('data-vehicle-name', savedName)
+                                    .prop('selected', true)
+                                    .text(savedName);
+                                vehicleSelect.append(fallback);
+                                vehicleSelect.val(String(previouslySelectedVehicleId));
                             }
                         }
                         // If no previous selection, don't auto-select - let user choose
@@ -11240,6 +11372,16 @@
                 const bookingId = destinationSelect.data('booking-id');
                 const selectedOption = destinationSelect.find('option:selected');
                 const vehicleSelect = $('#restaurant_transport_vehicle_' + bookingId);
+                const savedVehicleId = String(
+                    vehicleSelect.data('saved-vehicle-id')
+                    || destinationSelect.data('saved-vehicle-id')
+                    || ''
+                ).trim();
+                const savedVehicleName = String(
+                    vehicleSelect.data('saved-vehicle-name')
+                    || destinationSelect.data('saved-vehicle-name')
+                    || ''
+                ).trim();
                 
                 if (selectedOption.val() && selectedOption.val().trim()) {
                     // Check if vehicle select already has options from server-side rendering
@@ -11247,17 +11389,37 @@
                     
                     if (hasVehicleOptions) {
                         // Vehicles are already loaded from server, ensure selected value is displayed
-                        const selectedOption = vehicleSelect.find('option[selected]');
-                        if (selectedOption.length) {
-                            const selectedValue = selectedOption.attr('value');
+                        let selectedVehicleOption = vehicleSelect.find('option[selected]');
+                        if (!selectedVehicleOption.length && savedVehicleId) {
+                            selectedVehicleOption = vehicleSelect.find('option').filter(function() {
+                                return String($(this).val()) === savedVehicleId
+                                    || String($(this).data('vehicle-id') || '') === savedVehicleId;
+                            }).first();
+                        }
+                        if (selectedVehicleOption.length) {
+                            const selectedValue = selectedVehicleOption.attr('value');
                             if (selectedValue) {
-                                vehicleSelect.val(selectedValue);
+                                vehicleSelect.val(selectedValue).trigger('change.select2');
                             }
                         }
                     } else {
                         // No vehicles loaded yet, trigger the change event to load vehicles via AJAX
                         destinationSelect.trigger('change');
                     }
+                } else if (savedVehicleId || savedVehicleName) {
+                    // Destination option missing from list but vehicle was saved — keep showing it
+                    if (vehicleSelect.find('option').filter(function() {
+                        return String($(this).val()) === savedVehicleId || String($(this).data('vehicle-id') || '') === savedVehicleId;
+                    }).length === 0) {
+                        const opt = $('<option></option>')
+                            .val(savedVehicleId || savedVehicleName)
+                            .attr('data-vehicle-id', savedVehicleId)
+                            .attr('data-vehicle-name', savedVehicleName || savedVehicleId)
+                            .prop('selected', true)
+                            .text(savedVehicleName || savedVehicleId);
+                        vehicleSelect.append(opt);
+                    }
+                    vehicleSelect.val(savedVehicleId || savedVehicleName).trigger('change.select2');
                 } else {
                     // No destination selected, clear vehicle dropdown
                     if (vehicleSelect.length) {
