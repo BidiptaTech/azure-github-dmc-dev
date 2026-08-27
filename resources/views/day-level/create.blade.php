@@ -2056,13 +2056,38 @@
             });
         }
 
+        function isLockedServiceTransferPickupSelect(el) {
+            const id = String(el?.id || '');
+            return id.startsWith('attraction_transfer_pickup_select_')
+                || id.startsWith('restaurant_transfer_pickup_select_');
+        }
+
+        function lockServiceTransferPickupSelect(selectId) {
+            const el = document.getElementById(selectId);
+            if (!el || !isLockedServiceTransferPickupSelect(el)) return;
+            el.disabled = true;
+            const $el = $(el);
+            if ($el.data('select2')) {
+                $el.select2('destroy');
+            }
+            initSearchableSelects(el);
+        }
+
         function initSearchableSelects(scope = document) {
             const $scope = $(scope);
             const $targets = $scope.hasClass('searchable-select') ? $scope : $scope.find('.searchable-select');
             $targets.each(function () {
                 const $el = $(this);
                 if ($el.data('select2')) return;
-                $el.select2({ width: '100%', placeholder: 'Search and select', allowClear: true });
+                const lockedPickup = isLockedServiceTransferPickupSelect(this);
+                if (lockedPickup) {
+                    this.disabled = true;
+                }
+                $el.select2({
+                    width: '100%',
+                    placeholder: 'Search and select',
+                    allowClear: !lockedPickup,
+                });
             });
         }
 
@@ -2157,6 +2182,8 @@
             setSelectOptions(`attraction_transfer_drop_select_${d}`, opts, silent);
             setSelectOptions(`restaurant_transfer_pickup_select_${d}`, opts, silent);
             setSelectOptions(`restaurant_transfer_drop_select_${d}`, opts, silent);
+            lockServiceTransferPickupSelect(`attraction_transfer_pickup_select_${d}`);
+            lockServiceTransferPickupSelect(`restaurant_transfer_pickup_select_${d}`);
         }
 
         function safeSetSelectValueSilent(selectId, value) {
@@ -2182,38 +2209,68 @@
         function applyAttractionTransferDefaults(dayVal) {
             const d = parseInt(String(dayVal || 1), 10) || 1;
             const attractionOp = getSelectedOption(`attraction_select_${d}`);
+            const pickupSelectId = `attraction_transfer_pickup_select_${d}`;
+            const dropSelectId = `attraction_transfer_drop_select_${d}`;
+
+            // Pickup is always the selected attraction.
             if (attractionOp?.value) {
-                const dropVal = ensureTransferLocationOption(
-                    `attraction_transfer_drop_select_${d}`,
-                    `attraction:${attractionOp.value}`,
-                    formatTransferLocationLabel({ value: `attraction:${attractionOp.value}`, label: attractionOp.textContent, type: 'attraction' })
-                );
-                safeSetSelectValue(`attraction_transfer_drop_select_${d}`, dropVal);
+                const attractionToken = `attraction:${attractionOp.value}`;
+                const attractionLabel = formatTransferLocationLabel({
+                    value: attractionToken,
+                    label: attractionOp.textContent,
+                    type: 'attraction',
+                });
+                const pickupVal = ensureTransferLocationOption(pickupSelectId, attractionToken, attractionLabel);
+                safeSetSelectValue(pickupSelectId, pickupVal);
             }
+            lockServiceTransferPickupSelect(pickupSelectId);
+
+            // Drop defaults to hotel for that day when empty / still pointing at the attraction.
             const hotel = getArrivalHotelForDay(d) || getDepartureHotelForDay(d);
-            const pickupEl = document.getElementById(`attraction_transfer_pickup_select_${d}`);
-            if (hotel?.value && pickupEl && !String(pickupEl.value || '').trim()) {
-                const pickupVal = ensureTransferLocationOption(`attraction_transfer_pickup_select_${d}`, hotel.value, hotel.label || 'Hotel');
-                safeSetSelectValue(`attraction_transfer_pickup_select_${d}`, pickupVal);
+            const dropEl = document.getElementById(dropSelectId);
+            const currentDrop = String(dropEl?.value || '').trim();
+            const dropIsAttraction = currentDrop.startsWith('attraction:');
+            if (hotel?.value && dropEl && (!currentDrop || dropIsAttraction)) {
+                const dropVal = ensureTransferLocationOption(dropSelectId, hotel.value, hotel.label || 'Hotel');
+                safeSetSelectValue(dropSelectId, dropVal);
+            }
+
+            if (isNeedServiceTransfer('attraction', d)) {
+                fetchTransferZonePrice('attraction_transfer', d);
             }
         }
 
         function applyRestaurantTransferDefaults(dayVal) {
             const d = parseInt(String(dayVal || 1), 10) || 1;
             const restaurantOp = getSelectedOption(`restaurant_select_${d}`);
+            const pickupSelectId = `restaurant_transfer_pickup_select_${d}`;
+            const dropSelectId = `restaurant_transfer_drop_select_${d}`;
+
+            // Pickup is always the selected restaurant.
             if (restaurantOp?.value) {
-                const dropVal = ensureTransferLocationOption(
-                    `restaurant_transfer_drop_select_${d}`,
-                    `restaurant:${restaurantOp.value}`,
-                    formatTransferLocationLabel({ value: `restaurant:${restaurantOp.value}`, label: restaurantOp.textContent, type: 'restaurant' })
-                );
-                safeSetSelectValue(`restaurant_transfer_drop_select_${d}`, dropVal);
+                const restaurantToken = `restaurant:${restaurantOp.value}`;
+                const restaurantLabel = formatTransferLocationLabel({
+                    value: restaurantToken,
+                    label: restaurantOp.textContent,
+                    type: 'restaurant',
+                });
+                const pickupVal = ensureTransferLocationOption(pickupSelectId, restaurantToken, restaurantLabel);
+                safeSetSelectValue(pickupSelectId, pickupVal);
             }
+            lockServiceTransferPickupSelect(pickupSelectId);
+
+            // Drop defaults to hotel for that day when empty / still pointing at the restaurant.
             const hotel = getArrivalHotelForDay(d) || getDepartureHotelForDay(d);
-            const pickupEl = document.getElementById(`restaurant_transfer_pickup_select_${d}`);
-            if (hotel?.value && pickupEl && !String(pickupEl.value || '').trim()) {
-                const pickupVal = ensureTransferLocationOption(`restaurant_transfer_pickup_select_${d}`, hotel.value, hotel.label || 'Hotel');
-                safeSetSelectValue(`restaurant_transfer_pickup_select_${d}`, pickupVal);
+            const dropEl = document.getElementById(dropSelectId);
+            const currentDrop = String(dropEl?.value || '').trim();
+            const dropIsRestaurant = currentDrop.startsWith('restaurant:');
+            if (hotel?.value && dropEl && (!currentDrop || dropIsRestaurant)) {
+                const dropVal = ensureTransferLocationOption(dropSelectId, hotel.value, hotel.label || 'Hotel');
+                safeSetSelectValue(dropSelectId, dropVal);
+            }
+
+            if (isNeedServiceTransfer('restaurant', d)) {
+                fetchTransferZonePrice('restaurant_transfer', d);
             }
         }
 
@@ -3005,13 +3062,13 @@
                                         <span class="day-service-transfer-panel__icon" aria-hidden="true">🚐</span>
                                         <div>
                                             <strong>Attraction Transfer</strong>
-                                            <div class="small text-muted">Pickup from hotel, attraction or restaurant → drop at attraction</div>
+                                            <div class="small text-muted">Pickup is always this attraction → drop at hotel (or choose drop)</div>
                                         </div>
                                     </div>
                                     <div class="row g-2 align-items-end">
                                         <div class="col-md-4">
                                             <label class="form-label" for="attraction_transfer_pickup_select_${d}">Pickup Location</label>
-                                            <select id="attraction_transfer_pickup_select_${d}" class="form-select searchable-select">
+                                            <select id="attraction_transfer_pickup_select_${d}" class="form-select searchable-select" disabled>
                                                 <option value="">Select pickup</option>
                                             </select>
                                         </div>
@@ -3092,13 +3149,13 @@
                                         <span class="day-service-transfer-panel__icon" aria-hidden="true">🚐</span>
                                         <div>
                                             <strong>Restaurant Transfer</strong>
-                                            <div class="small text-muted">Pickup from hotel, attraction or restaurant → drop at restaurant</div>
+                                            <div class="small text-muted">Pickup is always this restaurant → drop at hotel (or choose drop)</div>
                                         </div>
                                     </div>
                                     <div class="row g-2 align-items-end">
                                     <div class="col-md-4">
                                             <label class="form-label" for="restaurant_transfer_pickup_select_${d}">Pickup Location</label>
-                                            <select id="restaurant_transfer_pickup_select_${d}" class="form-select searchable-select">
+                                            <select id="restaurant_transfer_pickup_select_${d}" class="form-select searchable-select" disabled>
                                             <option value="">Select pickup</option>
                                         </select>
                                     </div>
@@ -7732,6 +7789,13 @@
                 const kind = id.startsWith('restaurant_') ? 'restaurant' : 'attraction';
                 const dayVal = getDayFromElementId(this.id);
                 toggleServiceTransferPanel(kind, dayVal, { clearWhenNo: true });
+                if (isNeedServiceTransfer(kind, dayVal)) {
+                    if (kind === 'restaurant') {
+                        applyRestaurantTransferDefaults(dayVal);
+                    } else {
+                        applyAttractionTransferDefaults(dayVal);
+                    }
+                }
             });
             $(document).on('change select2:select select2:clear', '[id^="attraction_transfer_pickup_select_"], [id^="attraction_transfer_drop_select_"]', function () {
                 if (isPrefillingActivityForm || isHydratingDayServices) return;
