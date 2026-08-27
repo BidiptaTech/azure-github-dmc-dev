@@ -86,68 +86,35 @@ class CountryController extends Controller
             return response()->json(['error' => 'Agency not found'], 404);
         }
 
-        $agentDmcIds = $agency->dmc_id;
+        $agentDmcIds = $this->parseIdList($agency->dmc_id);
+        $candidates = $this->getAgencyDmcUsers($agentDmcIds, true);
 
-        if (is_string($agentDmcIds) && str_starts_with(trim($agentDmcIds), '[')) {
-            $agentDmcIds = json_decode($agentDmcIds, true);
-        } elseif (is_string($agentDmcIds)) {
-            $agentDmcIds = explode(',', $agentDmcIds);
+        $requestCountries = $this->resolveRequestedCountryNames($request);
+
+        $matchingUserIds = [];
+        foreach ($candidates as $dmcUser) {
+            if ($this->isThirdPartyDmc($dmcUser)) {
+                continue;
+            }
+
+            if (!empty($requestCountries)) {
+                $dmcCountries = $this->getMasterDmcCountryNamesForDmc((int) $dmcUser->userId);
+                if (!$this->countryListsOverlap($dmcCountries, $requestCountries)) {
+                    continue;
+                }
+            }
+
+            $matchingUserIds[] = (int) $dmcUser->userId;
         }
+        $matchingUserIds = array_values(array_unique($matchingUserIds));
 
-        if (!is_array($agentDmcIds)) {
-            $agentDmcIds = $agentDmcIds ? [$agentDmcIds] : [];
-        }
-
-        $agentDmcIds = array_values(array_unique(array_map('intval', array_filter($agentDmcIds, function ($id) {
-            return $id !== null && $id !== '' && (int) $id > 0;
-        }))));
-
-        $dmcColumns = ['userId', 'salutation', 'name', 'company_name', 'email', 'phone', 'country', 'logo', 'address', 'zone_on', 'price_hide'];
+        $dmcColumns = [
+            'userId', 'dmcId', 'salutation', 'name', 'company_name', 'email', 'phone',
+            'country', 'logo', 'address', 'zone_on', 'price_hide', 'thirdparty', 'thirdparty_enabled',
+        ];
         $dmcsQuery = User::select($dmcColumns)
             ->where('role_id', 11)
-            ->whereIn('dmcId', $agentDmcIds ?: [0]);
-
-        $requestCountries = [];
-        if ($request->filled('country')) {
-            $countryParam = $request->country;
-
-            if (is_string($countryParam) && str_starts_with(trim($countryParam), '[')) {
-                $cleanedParam = str_replace(["''", "'"], '"', $countryParam);
-                $requestCountries = json_decode($cleanedParam, true);
-                if (json_last_error() !== JSON_ERROR_NONE) {
-                    return response()->json(['error' => 'Invalid country format'], 400);
-                }
-            } elseif (is_array($countryParam)) {
-                $requestCountries = $countryParam;
-            } else {
-                $requestCountries = [$countryParam];
-            }
-
-            if (!is_array($requestCountries)) {
-                $requestCountries = [$requestCountries];
-            }
-
-            $requestCountries = array_values(array_filter($requestCountries, function ($country) {
-                return $country !== null && trim((string) $country) !== '';
-            }));
-
-            if (empty($requestCountries)) {
-                return response()->json(['error' => 'No valid countries provided'], 400);
-            }
-
-            $normalizedCountries = array_map(function ($country) {
-                return preg_replace('/\s+/', '', (string) $country);
-            }, $requestCountries);
-
-            $quoted = array_map(function ($country) {
-                return '"' . str_replace('"', '\\"', $country) . '"';
-            }, $normalizedCountries);
-
-            $dmcsQuery->whereRaw(
-                "string_to_array(regexp_replace(country, '\\s+', '', 'g'), ',') && ?",
-                ['{' . implode(',', $quoted) . '}']
-            );
-        }
+            ->whereIn('userId', $matchingUserIds ?: [0]);
 
         if ($request->filled('search')) {
             $search = $request->search;
@@ -164,6 +131,9 @@ class CountryController extends Controller
         $dmcs->getCollection()->transform(function ($dmc) {
             $dmc->zone_on = $dmc->zone_on ?? false;
             $dmc->price_hide = $dmc->price_hide ?? false;
+            $dmc->thirdparty = strtolower(trim((string) ($dmc->thirdparty ?? 'no'))) === 'yes' ? 'yes' : 'no';
+            $dmc->thirdparty_enabled = strtolower(trim((string) ($dmc->thirdparty_enabled ?? 'no'))) === 'yes' ? 'yes' : 'no';
+            $dmc->is_third_party = $dmc->thirdparty === 'yes';
             return $dmc;
         });
 
@@ -252,15 +222,7 @@ class CountryController extends Controller
         }
 
         $agentDmcIds = $this->parseIdList($agency->dmc_id);
-        $dmcUsers = collect();
-        if (!empty($agentDmcIds)) {
-            $dmcUsers = User::where('role_id', 11)
-                ->where(function ($q) use ($agentDmcIds) {
-                    $q->whereIn('userId', $agentDmcIds)
-                        ->orWhereIn('dmcId', $agentDmcIds);
-                })
-                ->get();
-        }
+        $dmcUsers = $this->getAgencyDmcUsers($agentDmcIds, true);
 
         $countryNames = [];
         foreach ($dmcUsers as $dmcUser) {
@@ -317,6 +279,128 @@ class CountryController extends Controller
             'results' => $formattedResults,
             'count' => $formattedResults->count(),
         ]);
+    }
+
+    /**
+     * Same rule as Single Tour Lite create form: Multi City is blocked when thirdparty=yes.
+     */
+    private function isThirdPartyDmc(?User $dmcUser): bool
+    {
+        if (!$dmcUser) {
+            return false;
+        }
+
+        return strtolower(trim((string) ($dmcUser->thirdparty ?? 'no'))) === 'yes';
+    }
+
+    /**
+     * @param  array<int, int>  $agentDmcIds
+     * @return \Illuminate\Support\Collection<int, User>
+     */
+    private function getAgencyDmcUsers(array $agentDmcIds, bool $excludeThirdParty = false)
+    {
+        if (empty($agentDmcIds)) {
+            return collect();
+        }
+
+        $query = User::where('role_id', 11)
+            ->where(function ($q) use ($agentDmcIds) {
+                $q->whereIn('userId', $agentDmcIds)
+                    ->orWhereIn('dmcId', $agentDmcIds);
+            });
+
+        if ($excludeThirdParty) {
+            $query->where(function ($q) {
+                $q->whereNull('thirdparty')
+                    ->orWhereRaw("LOWER(TRIM(thirdparty::text)) <> ?", ['yes']);
+            });
+        }
+
+        return $query->get();
+    }
+
+    /**
+     * Accept country and/or city filters (array, CSV, or JSON) and resolve to country names.
+     * City names from multi-city search are mapped to their country, same as Pro/Lite.
+     *
+     * @return array<int, string>
+     */
+    private function resolveRequestedCountryNames(Request $request): array
+    {
+        $labels = [];
+        foreach (['country', 'countries', 'city', 'cities'] as $key) {
+            if (!$request->filled($key)) {
+                continue;
+            }
+            $labels = array_merge($labels, $this->parseFlexibleList($request->input($key)));
+        }
+
+        $countries = [];
+        foreach ($labels as $label) {
+            $label = trim((string) $label);
+            if ($label === '') {
+                continue;
+            }
+
+            $fromCity = City::whereRaw('LOWER(name) = ?', [mb_strtolower($label, 'UTF-8')])->value('country');
+            $countries[] = $fromCity ?: $label;
+        }
+
+        if ($request->filled('city_id')) {
+            $cityIds = $this->parseIdList($request->input('city_id'));
+            if (!empty($cityIds)) {
+                $fromIds = City::whereIn('city_id', $cityIds)->pluck('country')->all();
+                foreach ($fromIds as $country) {
+                    $countries[] = $country;
+                }
+            }
+        }
+
+        $countries = array_values(array_unique(array_filter(array_map(
+            static fn ($c) => trim((string) $c),
+            $countries
+        ), static fn ($c) => $c !== '')));
+
+        return $countries;
+    }
+
+    /**
+     * @param  mixed  $value
+     * @return array<int, string>
+     */
+    private function parseFlexibleList($value): array
+    {
+        if (is_string($value) && str_starts_with(trim($value), '[')) {
+            $cleaned = str_replace(["''", "'"], '"', $value);
+            $decoded = json_decode($cleaned, true);
+            $value = json_last_error() === JSON_ERROR_NONE ? $decoded : $value;
+        } elseif (is_string($value)) {
+            $value = preg_split('/\s*,\s*/', $value) ?: [];
+        }
+
+        if (!is_array($value)) {
+            $value = $value !== null && $value !== '' ? [$value] : [];
+        }
+
+        return array_values(array_filter(array_map(static function ($item) {
+            return trim((string) $item);
+        }, $value), static fn ($item) => $item !== ''));
+    }
+
+    /**
+     * @param  array<int, string>  $left
+     * @param  array<int, string>  $right
+     */
+    private function countryListsOverlap(array $left, array $right): bool
+    {
+        $leftNorm = array_map(static fn ($c) => mb_strtolower(trim((string) $c), 'UTF-8'), $left);
+        foreach ($right as $item) {
+            if (in_array(mb_strtolower(trim((string) $item), 'UTF-8'), $leftNorm, true)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
