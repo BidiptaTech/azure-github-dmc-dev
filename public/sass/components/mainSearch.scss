@@ -7,6 +7,31 @@
     border-radius: 4px !important;
   }
 
+  &.-col-city-guest {
+    .button-grid {
+      grid-template-columns: 1fr 290px auto;
+    }
+  }
+
+  &.-col-city-date-guest {
+    z-index: 30;
+
+    .button-grid {
+      grid-template-columns: 1fr 250px 290px auto;
+    }
+
+    .searchMenu-loc,
+    .searchMenu-date,
+    .searchMenu-guests {
+      position: relative;
+      z-index: 5;
+    }
+
+    .dropdown-menu {
+      z-index: 10040 !important;
+    }
+  }
+
   .button-grid {
     display: grid;
     grid-template-columns: 1fr 250px 290px auto;

@@ -460,7 +460,8 @@ const GuestSearch = ({ onGuestChange, guestCounts }) => {
           border: 'none',
           borderRadius: '16px',
           boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
-          animation: 'fadeIn 0.3s ease-in-out'
+          animation: 'fadeIn 0.3s ease-in-out',
+          zIndex: 10040,
         }}
       >
         <div

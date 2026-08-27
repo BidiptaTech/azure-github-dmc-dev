@@ -43,6 +43,8 @@ const initialState = {
   isNavigating: false,
   haveBooking: false,
   selectedCity: null,
+  // City-wise check-in / check-out: [{ city, checkIn, checkOut }, ...]
+  cityWiseDates: [],
   guestCounts: {
     Adults: 1,
     Children: 0,
@@ -85,6 +87,14 @@ const commonSlice = createSlice({
       state.selectedCity = action.payload;
       console.log("City stored in commonSlice:", state.selectedCity);
     },
+    setCityWiseDates: (state, action) => {
+      // Expected: [{ city: "Kolkata", checkIn: "DD/MM/YYYY", checkOut: "DD/MM/YYYY" }, ...]
+      state.cityWiseDates = Array.isArray(action.payload) ? action.payload : [];
+      console.log("City-wise dates stored in commonSlice:", state.cityWiseDates);
+    },
+    clearCityWiseDates: (state) => {
+      state.cityWiseDates = [];
+    },
     setGuestCounts: (state, action) => {
       state.guestCounts = action.payload;
     },
@@ -108,12 +118,23 @@ const commonSlice = createSlice({
   },
 });
 
-export const { setBookingType, setBookingMode, setIsNavigating, setSelectedCity, setGuestCounts, resetGuestSearch, clearGuestSearchReset, setHaveBooking } =
-  commonSlice.actions;
+export const {
+  setBookingType,
+  setBookingMode,
+  setIsNavigating,
+  setSelectedCity,
+  setCityWiseDates,
+  clearCityWiseDates,
+  setGuestCounts,
+  resetGuestSearch,
+  clearGuestSearchReset,
+  setHaveBooking,
+} = commonSlice.actions;
 export const selectBookingType = (state) => state.common.bookingType;
 export const selectIsNavigating = (state) => state.common.isNavigating;
 export const selectBookingMode = (state) => state.common.bookingMode;
 export const selectGuestCounts = (state) => state.common.guestCounts;
 export const selectShouldResetGuestSearch = (state) => state.common.shouldResetGuestSearch;
 export const selectHaveBooking = (state) => state.common.haveBooking;
+export const selectCityWiseDates = (state) => state.common.cityWiseDates;
 export default commonSlice.reducer;

@@ -52,15 +52,23 @@ export const fetchCitiesByCountry = createAsyncThunk(
 
 export const fetchCityCountry = createAsyncThunk(
   "cities/fetchCityCountry",
-  async (search_term, { rejectWithValue }) => {
+  async (search_term, { getState, rejectWithValue }) => {
     try {
       const token = Cookies.get("authToken");
+      const state = getState();
+      const AgentId =
+        Cookies.get("AgentId") ||
+        state.auth?.agentId ||
+        state.editing?.agentId ||
+        null;
+
       if (!token) {
         return rejectWithValue("No authentication token found");
       }
       const response = await axios.get(`${BASE_URL}/city-country`, {
         params: {
-          search: search_term
+          search: search_term,
+          agent_id: AgentId
         },
         headers: {
           "Authorization": `Bearer ${token}`

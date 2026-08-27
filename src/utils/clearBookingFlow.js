@@ -27,7 +27,7 @@ import {
 } from "@/slice/localtour/Localslice";
 import { setbookedGuide, resetguide } from "@/slice/tourguide/guideslice";
 import { setDateService } from "@/slice/common/dateServicesSlice";
-import { setHaveBooking, setSelectedCity, setBookingType, setBookingMode } from "@/slice/common/commonSlice";
+import { setHaveBooking, setSelectedCity, setBookingType, setBookingMode, clearCityWiseDates } from "@/slice/common/commonSlice";
 import { clearUserInfo } from "@/slice/common/customerInfo";
 import { resetAllServiceResponses } from "@/slice/common/stepperButtonSlice";
 
@@ -48,6 +48,7 @@ export function clearBookingFlow(dispatch) {
 
   dispatch(setHaveBooking(false));
   dispatch(setSelectedCity(null));
+  dispatch(clearCityWiseDates());
   dispatch(setBookingType(null));
   dispatch(setBookingMode("dmc"));
   dispatch(clearUserInfo());

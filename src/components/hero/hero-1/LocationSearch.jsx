@@ -1,51 +1,40 @@
 import { useState, useEffect, useRef } from "react";
-import { useSelector, useDispatch } from 'react-redux';
-import { fetchCityCountry, addSelectedCity, removeSelectedCity } from '@/slice/common/citiesSlice';
+import { useSelector, useDispatch } from "react-redux";
+import {
+  fetchCityCountry,
+  addSelectedCity,
+  removeSelectedCity,
+} from "@/slice/common/citiesSlice";
 import { setSearchLocation } from "@/slice/common/BookingSlice";
 
 const SearchBar = ({ onLocationSelect }) => {
   const [searchValue, setSearchValue] = useState("");
-  const [selectedItem, setSelectedItem] = useState(null); // Single city selection
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [suggestions, setSuggestions] = useState([]);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  // Multi-select related states - commented out for single select
-  // const [showMoreCitiesTooltip, setShowMoreCitiesTooltip] = useState(false);
+  const [showMoreCitiesTooltip, setShowMoreCitiesTooltip] = useState(false);
   const listRef = useRef(null);
   const inputRef = useRef(null);
-  // const tooltipRef = useRef(null);
+  const moreCitiesRef = useRef(null);
+  const closeTooltipTimerRef = useRef(null);
   const dispatch = useDispatch();
-  // Get selected DMC data from Redux store
-  const selectedCountries = useSelector((state) => state.dmc.selectedCountries);
-  const selectedDmcData = selectedCountries && selectedCountries.length > 0 ? selectedCountries[0] : null;
-  
-  // Get city-country search results and selected cities from Redux
-  const { cityCountryResults, loading: cityCountryLoading, selectedCities } = useSelector((state) => state.cities || { cityCountryResults: [], loading: false, selectedCities: [] });
-  
-  // Multi-select functionality - commented out for single select
-  // Using selectedCities from Redux for multi-select (commented out)
-  // For single select, using local state selectedItem instead
-  
-  const defaultCountries = [
-    { name: "India", code: "in" },
-    { name: "Singapore", code: "SG" },
-    // You can add more locations here
-  ];
 
-  // Get country from selected DMC data - memoized to prevent infinite loops
-  // const global_countries = useSelector((state) => state.auth.global_countries);
-  // const locationSearchContent = useMemo(() => {
-  //   const content = global_countries && Array.isArray(global_countries)
-  //     ? global_countries.map((country, index) => ({
-  //         name: country.name,
-  //         country_code: country.country_code,
-  //         code: country.code,    
-  //         key: `country-${index}`
-  //       }))
-  //     : defaultCountries;
-  //   return content;
-  // }, [global_countries]);
-  
+  const selectedCountries = useSelector((state) => state.dmc.selectedCountries);
+  const selectedDmcData =
+    selectedCountries && selectedCountries.length > 0
+      ? selectedCountries[0]
+      : null;
+
+  const {
+    cityCountryResults,
+    loading: cityCountryLoading,
+    selectedCities,
+  } = useSelector((state) => state.cities || {
+    cityCountryResults: [],
+    loading: false,
+    selectedCities: [],
+  });
+
   // Call fetchCityCountry when user types 3 or more characters
   useEffect(() => {
     if (searchValue && searchValue.length >= 3) {
@@ -53,45 +42,68 @@ const SearchBar = ({ onLocationSelect }) => {
       dispatch(fetchCityCountry(firstThreeChars));
     }
   }, [searchValue, dispatch]);
-  
-  // Update location content when selected DMC changes
-  // useEffect(() => {
-  //   // Auto-select the DMC's country if available
-  //   if (selectedDmcData && selectedDmcData.name) {
-  //     const dmcCountry = {
-  //       name: selectedDmcData.name, // Full country name
-  //       code: selectedDmcData.code, // Use full name as code for database
-  //       key: 'selected-dmc-country'
-  //     };
-  //     setSearchValue(dmcCountry.name);
-  //     setSelectedItem(dmcCountry);
-  //     setIsDropdownOpen(false);
-      
-  //     // Call the onLocationSelect callback
-  //     if (onLocationSelect) {
-  //       onLocationSelect(dmcCountry);
-  //     }
-  //   }
-  // }, [selectedDmcData, onLocationSelect]);
 
   // Filter and suggest results based on search input
   useEffect(() => {
     if (searchValue) {
-      // If we have API results and search value is 3+ characters, use API results
-      if (searchValue.length >= 3 && cityCountryResults && cityCountryResults.length > 0) {
+      if (
+        searchValue.length >= 3 &&
+        cityCountryResults &&
+        cityCountryResults.length > 0
+      ) {
         setSuggestions(cityCountryResults);
         setIsDropdownOpen(true);
       } else if (searchValue.length < 3) {
-        // Clear suggestions if less than 3 characters
         setSuggestions([]);
         setIsDropdownOpen(false);
       }
     } else {
-      // Clear suggestions when search value is empty
       setSuggestions([]);
       setIsDropdownOpen(false);
     }
   }, [searchValue, cityCountryResults]);
+
+  // Hide overflow panel when there are no overflow cities left
+  useEffect(() => {
+    if (selectedCities.length <= 2) {
+      setShowMoreCitiesTooltip(false);
+    }
+  }, [selectedCities.length]);
+
+  useEffect(() => {
+    return () => {
+      if (closeTooltipTimerRef.current) {
+        clearTimeout(closeTooltipTimerRef.current);
+      }
+    };
+  }, []);
+
+  const openMoreCitiesPanel = () => {
+    if (closeTooltipTimerRef.current) {
+      clearTimeout(closeTooltipTimerRef.current);
+      closeTooltipTimerRef.current = null;
+    }
+    setShowMoreCitiesTooltip(true);
+  };
+
+  const scheduleCloseMoreCitiesPanel = () => {
+    if (closeTooltipTimerRef.current) {
+      clearTimeout(closeTooltipTimerRef.current);
+    }
+    closeTooltipTimerRef.current = setTimeout(() => {
+      setShowMoreCitiesTooltip(false);
+      closeTooltipTimerRef.current = null;
+    }, 200);
+  };
+
+  const notifyParentLocation = (cities) => {
+    if (!onLocationSelect) return;
+    const nextCity = cities?.[0];
+    onLocationSelect(nextCity?.country || null);
+    if (nextCity?.country_code) {
+      dispatch(setSearchLocation(nextCity.country_code));
+    }
+  };
 
   const handleOptionClick = (item, event) => {
     if (event) {
@@ -99,100 +111,52 @@ const SearchBar = ({ onLocationSelect }) => {
       event.stopPropagation();
     }
 
-    // Single city selection
-    setSelectedItem(item);
-    setSearchValue(item.city);
-    setHighlightedIndex(-1);
-    setIsDropdownOpen(false);
-    
-    // Pass the city's country name to onLocationSelect
-    if (onLocationSelect) {
-      onLocationSelect(item.country);
-      dispatch(setSearchLocation(item.country_code));
+    const isSelected = selectedCities.some(
+      (selected) => selected.city_id === item.city_id
+    );
+
+    if (isSelected) {
+      dispatch(removeSelectedCity(item.city_id));
+      notifyParentLocation(
+        selectedCities.filter((city) => city.city_id !== item.city_id)
+      );
+    } else {
       dispatch(addSelectedCity(item));
-    }
-    
-    // Remove focus from input after selection
-    if (inputRef.current) {
-      inputRef.current.blur();
+      notifyParentLocation([item, ...selectedCities]);
     }
 
-    // Multi-select functionality - commented out
-    // // Check if city is already selected
-    // const isSelected = selectedCities.some(
-    //   (selected) => selected.city_id === item.city_id
-    // );
-    // if (isSelected) {
-    //   // Remove from selection
-    //   dispatch(removeSelectedCity(item.city_id));
-    // } else {
-    //   // Add to selection
-    //   dispatch(addSelectedCity(item));
-    //   onLocationSelect(item.country);
-    // }
-    // setHighlightedIndex(-1);
-    // // Keep dropdown open for multi-select
-    // // Don't clear search value to allow selecting multiple items
+    setHighlightedIndex(-1);
+    setSearchValue("");
   };
 
-  // Add a new function to handle input change
   const handleInputChange = (e) => {
-    // If a city is already selected, prevent changing the input
-    if (selectedItem) {
-      return;
-    }
     setSearchValue(e.target.value);
-    setSelectedItem(null);
     setHighlightedIndex(-1);
   };
-  
-  // Handle input focus
+
   const handleInputFocus = () => {
-    // Always open dropdown on focus if there are suggestions
     if (suggestions.length > 0) {
       setIsDropdownOpen(true);
     }
   };
-  
-  // Clear selected location (single select)
-  const handleClearSelection = (e) => {
+
+  const handleRemoveCity = (cityId, e) => {
     if (e) {
+      e.preventDefault();
       e.stopPropagation();
     }
-    setSelectedItem(null);
-    setSearchValue("");
-    setIsDropdownOpen(true);
-    
-    // Inform parent component about cleared selection
-    if (onLocationSelect) {
-      onLocationSelect(null);
-      dispatch(removeSelectedCity(selectedItem.city_id));
-    }
-    
-    // Focus the input after clearing
+    // Keep overflow panel open while removing from it
+    openMoreCitiesPanel();
+    dispatch(removeSelectedCity(cityId));
+    notifyParentLocation(
+      selectedCities.filter((city) => city.city_id !== cityId)
+    );
     if (inputRef.current) {
       inputRef.current.focus();
     }
   };
 
-  // Multi-select: Remove a selected city - commented out
-  // const handleRemoveCity = (cityId, e) => {
-  //   if (e) {
-  //     e.stopPropagation();
-  //   }
-  //   dispatch(removeSelectedCity(cityId));
-  // };
-
-  // Handle keyboard navigation
   const handleKeyDown = (e) => {
-    // If a city is already selected, only allow Escape or Backspace to clear
-    if (selectedItem) {
-      if (e.key === "Escape" || e.key === "Backspace") {
-        handleClearSelection(e);
-      }
-      return;
-    }
-    
     if (!suggestions.length) return;
 
     if (e.key === "ArrowDown") {
@@ -208,15 +172,15 @@ const SearchBar = ({ onLocationSelect }) => {
       );
       setIsDropdownOpen(true);
     } else if (e.key === "Enter" && highlightedIndex !== -1) {
-      e.preventDefault(); // Prevent form submission
+      e.preventDefault();
       handleOptionClick(suggestions[highlightedIndex]);
     } else if (e.key === "Escape") {
       setIsDropdownOpen(false);
       setHighlightedIndex(-1);
+      setShowMoreCitiesTooltip(false);
     }
   };
 
-  // Ensure highlighted item is visible
   useEffect(() => {
     if (listRef.current && highlightedIndex !== -1) {
       const activeItem = listRef.current.children[highlightedIndex];
@@ -226,18 +190,22 @@ const SearchBar = ({ onLocationSelect }) => {
     }
   }, [highlightedIndex]);
 
-  // Close dropdown when clicking outside
+  // Close dropdown / overflow panel when clicking outside
   useEffect(() => {
     function handleClickOutside(event) {
-      if (listRef.current && !listRef.current.contains(event.target) && 
-          !event.target.classList.contains('js-search')) {
+      if (
+        listRef.current &&
+        !listRef.current.contains(event.target) &&
+        !event.target.classList.contains("js-search")
+      ) {
         setIsDropdownOpen(false);
       }
-      // Multi-select: Close tooltip when clicking outside - commented out
-      // if (tooltipRef.current && !tooltipRef.current.contains(event.target) &&
-      //     !event.target.closest('.more-cities-trigger')) {
-      //   setShowMoreCitiesTooltip(false);
-      // }
+      if (
+        moreCitiesRef.current &&
+        !moreCitiesRef.current.contains(event.target)
+      ) {
+        setShowMoreCitiesTooltip(false);
+      }
     }
 
     document.addEventListener("mousedown", handleClickOutside);
@@ -246,15 +214,11 @@ const SearchBar = ({ onLocationSelect }) => {
     };
   }, []);
 
-  // Check if a city is selected (single select)
   const isCitySelected = (cityId) => {
-    return selectedItem && selectedItem.city_id === cityId;
+    return selectedCities.some((city) => city.city_id === cityId);
   };
 
-  // Multi-select: Check if a city is selected - commented out
-  // const isCitySelected = (cityId) => {
-  //   return selectedCities.some((city) => city.city_id === cityId);
-  // };
+  const overflowCities = selectedCities.slice(2);
 
   return (
     <div className="searchMenu-loc px-30 lg:py-20 lg:px-0">
@@ -274,29 +238,8 @@ const SearchBar = ({ onLocationSelect }) => {
             onFocus={handleInputFocus}
           />
         </div>
-        
-        {/* Display selected city (single select) */}
-        {selectedItem && (
-          <div className="d-flex flex-wrap gap-1 mt-5">
-            <div
-              className="d-inline-flex align-items-center bg-light-2 rounded-4 px-10 py-12"
-              style={{ fontSize: "10px" }}
-            >
-              <span className="fw-500">{selectedItem.city}</span>
-              <button
-                type="button"
-                className="border-0 bg-transparent cursor-pointer ms-5"
-                onClick={handleClearSelection}
-                style={{ padding: "0 1px" }}
-              >
-                <i className="icon-close text-10" />
-              </button>
-            </div>
-          </div>
-        )}
 
-        {/* Multi-select: Display selected cities as chips - commented out */}
-        {/* {selectedCities.length > 0 && (
+        {selectedCities.length > 0 && (
           <div className="d-flex flex-wrap gap-1 mt-5 position-relative">
             {selectedCities.slice(0, 2).map((city) => (
               <div
@@ -315,75 +258,159 @@ const SearchBar = ({ onLocationSelect }) => {
                 </button>
               </div>
             ))}
-            {selectedCities.length > 2 && (
-              <>
-                <div
-                  className="d-inline-flex align-items-center bg-light-2 rounded-4 px-10 py-12 more-cities-trigger cursor-pointer"
-                  style={{ fontSize: "10px" }}
-                  onMouseEnter={() => setShowMoreCitiesTooltip(true)}
-                  onMouseLeave={() => setShowMoreCitiesTooltip(false)}
-                  onClick={() => setShowMoreCitiesTooltip(!showMoreCitiesTooltip)}
+
+            {overflowCities.length > 0 && (
+              <div
+                ref={moreCitiesRef}
+                className="position-relative d-inline-flex"
+                onMouseEnter={openMoreCitiesPanel}
+                onMouseLeave={scheduleCloseMoreCitiesPanel}
+              >
+                <button
+                  type="button"
+                  className="d-inline-flex align-items-center border-0 rounded-4 px-10 py-12 more-cities-trigger cursor-pointer"
+                  style={{
+                    fontSize: "10px",
+                    background: showMoreCitiesTooltip ? "#3554d1" : "#eef1ff",
+                    color: showMoreCitiesTooltip ? "#fff" : "#3554d1",
+                    fontWeight: 600,
+                  }}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setShowMoreCitiesTooltip((prev) => !prev);
+                  }}
+                  aria-expanded={showMoreCitiesTooltip}
                 >
-                  <span className="fw-500">+{selectedCities.length - 2} more</span>
-                </div>
+                  +{overflowCities.length} more
+                </button>
+
                 {showMoreCitiesTooltip && (
                   <div
-                    ref={tooltipRef}
-                    className="position-absolute bg-white shadow-2 rounded-4 p-15"
+                    className="position-absolute"
                     style={{
-                      top: "100%",
-                      left: "0",
-                      marginTop: "5px",
-                      minWidth: "200px",
+                      top: "calc(100% + 8px)",
+                      left: 0,
+                      minWidth: "240px",
                       maxWidth: "300px",
-                      zIndex: 1000,
-                      maxHeight: "250px",
-                      overflowY: "auto"
+                      zIndex: 10050,
                     }}
-                    onMouseEnter={() => setShowMoreCitiesTooltip(true)}
-                    onMouseLeave={() => setShowMoreCitiesTooltip(false)}
+                    onMouseEnter={openMoreCitiesPanel}
+                    onMouseLeave={scheduleCloseMoreCitiesPanel}
                   >
-                    <div className="text-13 fw-500 mb-10 pb-10 border-bottom">Remaining Cities:</div>
-                    <div className="d-flex flex-column gap-2">
-                      {selectedCities.slice(2).map((city) => (
-                        <div
-                          key={city.city_id}
-                          className="d-flex align-items-center justify-content-between bg-light-1 rounded-4 px-10 py-8"
-                          style={{ fontSize: "11px" }}
+                    {/* Bridge so cursor can move from chip → panel without closing */}
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: "-10px",
+                        left: 0,
+                        right: 0,
+                        height: "10px",
+                      }}
+                    />
+                    <div
+                      className="bg-white rounded-8"
+                      style={{
+                        border: "1px solid #e4e7f1",
+                        boxShadow:
+                          "0 12px 28px rgba(17, 24, 39, 0.14), 0 2px 6px rgba(17, 24, 39, 0.06)",
+                        overflow: "hidden",
+                      }}
+                    >
+                      <div
+                        className="d-flex align-items-center justify-content-between px-15 py-12"
+                        style={{
+                          background: "linear-gradient(90deg, #3554d1 0%, #4c6fff 100%)",
+                          color: "#fff",
+                        }}
+                      >
+                        <span className="text-13 fw-600">
+                          More cities ({overflowCities.length})
+                        </span>
+                        <button
+                          type="button"
+                          className="border-0 bg-transparent text-white cursor-pointer"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowMoreCitiesTooltip(false);
+                          }}
+                          style={{ lineHeight: 1, padding: 0 }}
+                          aria-label="Close"
                         >
-                          <div className="flex-grow-1">
-                            <div className="fw-500">{city.city}</div>
-                            <div className="text-light-1" style={{ fontSize: "10px" }}>{city.country}</div>
-                          </div>
-                          <button
-                            type="button"
-                            className="border-0 bg-transparent cursor-pointer ms-5"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleRemoveCity(city.city_id, e);
-                            }}
-                            style={{ padding: "0 5px" }}
-                          >
-                            <i className="icon-close text-12" />
-                          </button>
+                          <i className="icon-close text-12" />
+                        </button>
+                      </div>
+
+                      <div
+                        className="p-10"
+                        style={{ maxHeight: "220px", overflowY: "auto" }}
+                      >
+                        <div className="d-flex flex-column gap-2">
+                          {overflowCities.map((city) => (
+                            <div
+                              key={city.city_id}
+                              className="d-flex align-items-center justify-content-between rounded-4 px-12 py-10"
+                              style={{
+                                background: "#f7f8fc",
+                                border: "1px solid #eef0f6",
+                              }}
+                            >
+                              <div className="flex-grow-1 pe-10">
+                                <div
+                                  className="fw-600"
+                                  style={{ fontSize: "12px", color: "#1a1a1a" }}
+                                >
+                                  {city.city}
+                                </div>
+                                <div
+                                  style={{
+                                    fontSize: "11px",
+                                    color: "#6b7280",
+                                    marginTop: "2px",
+                                  }}
+                                >
+                                  {city.country}
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                className="border-0 rounded-100 cursor-pointer d-flex align-items-center justify-content-center"
+                                onClick={(e) => handleRemoveCity(city.city_id, e)}
+                                style={{
+                                  width: "24px",
+                                  height: "24px",
+                                  background: "#fff",
+                                  border: "1px solid #dde1ec",
+                                  color: "#6b7280",
+                                  flexShrink: 0,
+                                }}
+                                aria-label={`Remove ${city.city}`}
+                              >
+                                <i className="icon-close text-10" />
+                              </button>
+                            </div>
+                          ))}
                         </div>
-                      ))}
+                      </div>
                     </div>
                   </div>
                 )}
-              </>
+              </div>
             )}
           </div>
-        )} */}
+        )}
       </div>
 
       {isDropdownOpen && (
-        <div className="shadow-2 dropdown-menu min-width-400 show">
+        <div
+          className="shadow-2 dropdown-menu min-width-400 show"
+          style={{ zIndex: 10040 }}
+        >
           <div className="bg-white px-20 py-20 sm:px-0 sm:py-15 rounded-4">
             {suggestions.length > 0 ? (
-              <div 
+              <div
                 className="max-height-300 overflow-y-auto"
-                style={{ maxHeight: '300px' }}
+                style={{ maxHeight: "300px" }}
               >
                 <ul className="y-gap-5 js-results" ref={listRef}>
                   {suggestions.map((item, index) => {
@@ -403,22 +430,32 @@ const SearchBar = ({ onLocationSelect }) => {
                         style={{ cursor: "pointer" }}
                       >
                         <div className="d-flex align-items-center">
-                          {/* Multi-select: Checkbox indicator - commented out */}
-                          {/* <div className="me-10" style={{ minWidth: "20px" }}>
+                          <div className="me-10" style={{ minWidth: "20px" }}>
                             {isSelected ? (
                               <i className="icon-check text-16 text-primary" />
                             ) : (
-                              <div style={{ width: "16px", height: "16px", border: "2px solid #ddd", borderRadius: "3px" }} />
+                              <div
+                                style={{
+                                  width: "16px",
+                                  height: "16px",
+                                  border: "2px solid #ddd",
+                                  borderRadius: "3px",
+                                }}
+                              />
                             )}
-                          </div> */}
+                          </div>
                           <div className="icon-location-2 text-light-1 text-20 pt-4" />
                           <div className="ml-10 flex-grow-1">
-                            {/* City name - highlighted/bold */}
-                            <div className="text-15 lh-16 fw-500 js-search-option-target" style={{ color: "#1a1a1a" }}>
+                            <div
+                              className="text-15 lh-16 fw-500 js-search-option-target"
+                              style={{ color: "#1a1a1a" }}
+                            >
                               {item.city}
                             </div>
-                            {/* Country name - greyed out */}
-                            <div className="text-13 lh-14 text-light-1" style={{ color: "#999", marginTop: "2px" }}>
+                            <div
+                              className="text-13 lh-14 text-light-1"
+                              style={{ color: "#999", marginTop: "2px" }}
+                            >
                               {item.country}
                             </div>
                           </div>
