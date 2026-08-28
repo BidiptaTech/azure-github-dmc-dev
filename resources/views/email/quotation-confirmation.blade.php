@@ -256,6 +256,11 @@
             }
         }
 
+        $segregatedPerPax = \App\Helpers\CommonHelper::resolveQuotationSegregatedPerPax($tourPrices, $isProTour);
+        $hotelPerPax = $segregatedPerPax['hotel'];
+        $otherPerPax = $segregatedPerPax['other'];
+        $packagePerPax = $segregatedPerPax['package'];
+
         $formatBreakdownLine = function (array $line) use ($formatMoney) {
             return \App\Helpers\CommonHelper::formatQuotationBreakdownCalculation($line, $formatMoney);
         };
@@ -736,8 +741,21 @@
                                 @if(!empty($priceBreakdown['grand_total']))
                                     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse; border:2px solid #000; margin-bottom:14px;">
                                         <tr>
-                                            <td style="{{ $panelTitle }}">Total Quotation Price ({{ $currencyLabel ?? $currencyCode }})</td>
-                                            <td style="{{ $panelTitle }} text-align:center; width:30%;">{{ $currencyCode }} {{ number_format((float)($priceBreakdown['grand_total'] ?? 0), 0, '.', ',') }}</td>
+                                            <td colspan="3" style="{{ $panelTitle }}">Price (per pax) — {{ $currencyLabel ?? $currencyCode }}</td>
+                                        </tr>
+                                        <tr>
+                                            <th style="{{ $thStyle }} width:33%;">Single</th>
+                                            <th style="{{ $thStyle }} width:33%;">Double</th>
+                                            <th style="{{ $thStyle }} width:33%;">Triple</th>
+                                        </tr>
+                                        <tr>
+                                            <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $formatMoney($packagePerPax['single']) }}</td>
+                                            <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $formatMoney($packagePerPax['double']) }}</td>
+                                            <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $packagePerPax['triple'] > 0 ? $formatMoney($packagePerPax['triple']) : '—' }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td colspan="2" style="{{ $tdStyle }} text-align:right; font-weight:bold;">Total Quotation Price ({{ $currencyLabel ?? $currencyCode }})</td>
+                                            <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $currencyCode }} {{ number_format((float)($priceBreakdown['grand_total'] ?? 0), 0, '.', ',') }}</td>
                                         </tr>
                                     </table>
                                 @endif
@@ -870,25 +888,23 @@
                                                     <th style="{{ $thStyle }} width:33%;">Triple</th>
                                                 </tr>
                                                 <tr>
-                                                    @if($breakdownHotelTotal > 0)
-                                                        <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $occupancyKey === 'single' ? $formatMoney($breakdownHotelTotal) : '—' }}</td>
-                                                        <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $occupancyKey === 'double' ? $formatMoney($breakdownHotelTotal) : '—' }}</td>
-                                                        <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $occupancyKey === 'triple' ? $formatMoney($breakdownHotelTotal) : '—' }}</td>
-                                                    @else
-                                                        <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $formatMoney($hotelOnlySingleTotal) }}</td>
-                                                        <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $formatMoney($hotelOnlyDoubleTotal) }}</td>
-                                                        <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $formatMoney($hotelOnlyTripleTotal) }}</td>
-                                                    @endif
+                                                    <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $formatMoney($hotelPerPax['single']) }}</td>
+                                                    <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $formatMoney($hotelPerPax['double']) }}</td>
+                                                    <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $hotelPerPax['triple'] > 0 ? $formatMoney($hotelPerPax['triple']) : '—' }}</td>
                                                 </tr>
                                             </table>
                                         </td>
                                         <td width="50%" style="{{ $cellBorder }} padding:8px 6px; vertical-align:top;">
                                             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse; border:1px solid #000;">
                                                 <tr>
-                                                    <th style="{{ $thStyle }}">{{ $breakdownOtherTotal > 0 ? 'Total price' : 'Price (per pax)' }}</th>
+                                                    <th style="{{ $thStyle }} width:33%;">Single</th>
+                                                    <th style="{{ $thStyle }} width:33%;">Double</th>
+                                                    <th style="{{ $thStyle }} width:33%;">Triple</th>
                                                 </tr>
                                                 <tr>
-                                                    <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $formatMoney($breakdownOtherTotal > 0 ? $breakdownOtherTotal : $otherTotalForOccupancy) }}</td>
+                                                    <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $formatMoney($otherPerPax['single']) }}</td>
+                                                    <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $formatMoney($otherPerPax['double']) }}</td>
+                                                    <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $formatMoney($otherPerPax['triple']) }}</td>
                                                 </tr>
                                             </table>
                                         </td>
