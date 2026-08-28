@@ -193,8 +193,15 @@
         };
 
         $isProTour = (int)($tour->is_pro ?? 0) === 1;
-        $occupancyKey = $pdfAdults >= 2 ? 'double' : 'single';
-        $roomingText = $pdfAdults >= 2 ? '01 DBL TWIN' : '01 SGL';
+
+        $hotelDisplayOccupancy = \App\Helpers\CommonHelper::resolveQuotationHotelDisplayOccupancy(
+            $orders ?? collect(),
+            is_array($hotelOptions ?? null) ? $hotelOptions : null,
+            $pdfAdults
+        );
+        $occupancyKey = $hotelDisplayOccupancy['occupancy_key'];
+        $roomingText = $hotelDisplayOccupancy['rooming_text'];
+        $displayOccupancyKey = $occupancyKey;
 
         $pdfBaseCurrency = strtoupper($baseCurrency ?? ($tour->currency ?? 'SGD'));
         $pdfSelectedCurrency = strtoupper($selectedCurrency ?? $pdfBaseCurrency);
@@ -208,6 +215,10 @@
 
         $formatMoney = function ($amount) use ($currencyLabel, $formatAmount) {
             return $currencyLabel . ' ' . $formatAmount($amount);
+        };
+
+        $formatMoneyPerPax = function ($amount) use ($formatMoney) {
+            return $formatMoney($amount) . ' /pax';
         };
 
         $supplements = $tourPrices['supplyments'] ?? ($tourPrices['supplements'] ?? []);
@@ -269,17 +280,17 @@
 
         $tripleOccupancyAvailable = $hotelOnlyTripleTotal > 0;
 
-        $formatOccupancyHotelCells = function ($single, $double, $triple, $tripleAvailable, callable $moneyFormatter) use ($pdfAdults) {
+        $formatOccupancyHotelCells = function ($single, $double, $triple, $tripleAvailable, callable $moneyFormatter) use ($displayOccupancyKey) {
             $blank = '';
             $singleCell = $blank;
             $doubleCell = $blank;
             $tripleCell = $blank;
 
-            if ($pdfAdults <= 1 && (float) $single > 0) {
+            if ($displayOccupancyKey === 'single' && (float) $single > 0) {
                 $singleCell = $moneyFormatter($single);
-            } elseif ($pdfAdults === 2 && (float) $double > 0) {
+            } elseif ($displayOccupancyKey === 'double' && (float) $double > 0) {
                 $doubleCell = $moneyFormatter($double);
-            } elseif ($pdfAdults >= 3 && $tripleAvailable && (float) $triple > 0) {
+            } elseif ($displayOccupancyKey === 'triple' && $tripleAvailable && (float) $triple > 0) {
                 $tripleCell = $moneyFormatter($triple);
             }
 
@@ -338,7 +349,7 @@
             $overallHotelDoubleDisplay,
             $overallHotelTripleDisplay,
             $overallTripleAvailable,
-            fn ($amount) => $formatMoney($amount)
+            fn ($amount) => $formatMoneyPerPax($amount)
         );
 
         // Overall quotation price from actual order totals.
@@ -1079,37 +1090,18 @@
                                                     <th style="{{ $thStyle }}">Total Price</th>
                                                 </tr>
                                                 <tr>
-                                                    <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $formatMoney($otherServicesDisplayTotal) }}</td>
+                                                    <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $formatMoneyPerPax($otherServicesDisplayTotal) }}</td>
                                                 </tr>
                                             </table>
                                         </td>
                                     </tr>
                                 </table>
 
-                                @if(!empty($quotationOrderRows))
+                                @if(!empty($pdfOverallQuotationFormatted))
                                     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse; border:2px solid #000; table-layout:fixed; margin-top:14px;">
                                         <tr>
-                                            <td colspan="2" style="{{ $panelTitle }}">Overall Quotation Price ({{ $currencyLabel }})</td>
-                                        </tr>
-                                        <tr>
-                                            <th style="{{ $thStyle }} text-align:left; width:70%;">Order</th>
-                                            <th style="{{ $thStyle }} text-align:center; width:30%;">Total Price</th>
-                                        </tr>
-                                        @foreach($quotationOrderRows as $orderRow)
-                                            <tr>
-                                                <td style="{{ $tdStyle }} vertical-align:top;">{{ $orderRow['label'] }}</td>
-                                                <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">
-                                                    @if($overallQuotationConvertedOk)
-                                                        {{ $formatMoney($orderRow['converted_amount']) }}
-                                                    @else
-                                                        {{ $currencyLabel }} {{ number_format((float) $orderRow['amount'], 0, '.', ',') }}
-                                                    @endif
-                                                </td>
-                                            </tr>
-                                        @endforeach
-                                        <tr>
-                                            <td style="{{ $tdStyle }} text-align:right; font-weight:bold;">Overall Quotation Price</td>
-                                            <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $pdfOverallQuotationFormatted }}</td>
+                                            <td style="{{ $tdStyle }} text-align:right; font-weight:bold; width:70%;">Overall Quotation Price</td>
+                                            <td style="{{ $tdStyle }} text-align:center; font-weight:bold; width:30%;">{{ $pdfOverallQuotationFormatted }}</td>
                                         </tr>
                                     </table>
                                 @endif
@@ -1143,7 +1135,7 @@
                                                     $suppDouble,
                                                     $suppTriple,
                                                     $suppTripleAvailable,
-                                                    fn ($amount) => $formatMoney($amount)
+                                                    fn ($amount) => $formatMoneyPerPax($amount)
                                                 );
                                             @endphp
                                             <tr>
