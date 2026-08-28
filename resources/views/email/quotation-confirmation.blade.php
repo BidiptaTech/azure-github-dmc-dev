@@ -210,14 +210,6 @@
             return $currencyLabel . ' ' . $formatAmount($amount);
         };
 
-        $formatPerPaxMoney = function ($amount) use ($formatMoney) {
-            if (! is_numeric($amount) || (float) $amount <= 0) {
-                return '—';
-            }
-
-            return $formatMoney($amount) . ' (Per Pax)';
-        };
-
         $supplements = $tourPrices['supplyments'] ?? ($tourPrices['supplements'] ?? []);
         $otherSingleTotal = (float)($tourPrices['other_services_single'] ?? 0);
         $otherDoubleTotal = (float)($tourPrices['other_services_double'] ?? 0);
@@ -242,7 +234,7 @@
             ? max(0, $tripleSharingTotal - $otherSingleTotal)
             : 0;
 
-        $priceBreakdown = $priceBreakdown ?? \App\Helpers\CommonHelper::buildQuotationPriceBreakdown(
+        $priceBreakdown = \App\Helpers\CommonHelper::buildQuotationPriceBreakdown(
             $tour,
             $tourPrices,
             $pdfAdults,
@@ -250,34 +242,29 @@
             $pdfInfants
         );
 
-        $breakdownHotelTotal = (float) ($priceBreakdown['hotel_total'] ?? 0);
-        $breakdownOtherTotal = (float) ($priceBreakdown['other_total'] ?? 0);
-        if (! array_key_exists('hotel_total', $priceBreakdown) || ! array_key_exists('other_total', $priceBreakdown)) {
-            $breakdownHotelTotal = 0.0;
-            $breakdownOtherTotal = 0.0;
-            foreach ($priceBreakdown['lines'] ?? [] as $breakdownSumLine) {
-                if (($breakdownSumLine['category'] ?? '') === 'hotel') {
-                    $breakdownHotelTotal += (float) ($breakdownSumLine['line_total'] ?? 0);
-                } else {
-                    $breakdownOtherTotal += (float) ($breakdownSumLine['line_total'] ?? 0);
-                }
-            }
-        }
-
-        $segregatedPerPax = \App\Helpers\CommonHelper::resolveQuotationSegregatedPerPax($tourPrices, $isProTour);
-        $hotelPerPax = $segregatedPerPax['hotel'];
-        $otherPerPax = $segregatedPerPax['other'];
-        $packagePerPax = $segregatedPerPax['package'];
-        $hotelOccupancyKey = \App\Helpers\CommonHelper::resolveQuotationHotelOccupancyKey($pdfAdults, $tourPrices);
-        $hotelDisplay = \App\Helpers\CommonHelper::resolveQuotationHotelDisplayCells($pdfAdults, $tourPrices, $isProTour);
-        $otherPerPaxPrice = \App\Helpers\CommonHelper::resolveQuotationOtherPerPaxPrice($tourPrices);
-
-        $formatOccupancyCell = function (?float $amount) use ($formatPerPaxMoney) {
-            return ($amount !== null && (float) $amount > 0) ? $formatPerPaxMoney($amount) : '—';
-        };
-
         $formatBreakdownLine = function (array $line) use ($formatMoney) {
-            return \App\Helpers\CommonHelper::formatQuotationBreakdownCalculation($line, $formatMoney);
+            $multiplierLabel = (string) ($line['multiplier_label'] ?? $line['multiplier'] ?? 1);
+            $childPart = (float) ($line['child_part'] ?? 0);
+            $childUnit = (float) ($line['child_unit'] ?? 0);
+            $childCount = (int) ($line['child_count'] ?? 0);
+
+            if ($childPart > 0) {
+                $parts = [];
+                if ((float) ($line['per_head'] ?? 0) > 0) {
+                    $parts[] = $formatMoney($line['per_head']) . ' × ' . $multiplierLabel;
+                }
+                if ($childUnit > 0 && $childCount > 0) {
+                    $parts[] = $formatMoney($childUnit) . ' × ' . $childCount;
+                }
+
+                return implode(' + ', $parts) . ' = ' . $formatMoney($line['line_total'] ?? 0);
+            }
+
+            return $formatMoney($line['per_head'] ?? 0)
+                . ' × '
+                . $multiplierLabel
+                . ' = '
+                . $formatMoney($line['line_total'] ?? 0);
         };
 
         $bookedAttractionCards = [];
@@ -493,7 +480,7 @@
     }
 
     $formatBreakdownLineEmail = function (array $line) use ($currencyCode) {
-        $formatMoney = static function ($amount) use ($currencyCode) {
+        $format = static function ($amount) use ($currencyCode) {
             if (! is_numeric($amount)) {
                 return $currencyCode . ' 0';
             }
@@ -501,7 +488,28 @@
             return $currencyCode . ' ' . number_format((float) $amount, 0, '.', ',');
         };
 
-        return \App\Helpers\CommonHelper::formatQuotationBreakdownCalculation($line, $formatMoney);
+        $multiplierLabel = (string) ($line['multiplier_label'] ?? $line['multiplier'] ?? 1);
+        $childPart = (float) ($line['child_part'] ?? 0);
+        $childUnit = (float) ($line['child_unit'] ?? 0);
+        $childCount = (int) ($line['child_count'] ?? 0);
+
+        if ($childPart > 0) {
+            $parts = [];
+            if ((float) ($line['per_head'] ?? 0) > 0) {
+                $parts[] = $format($line['per_head']) . ' × ' . $multiplierLabel;
+            }
+            if ($childUnit > 0 && $childCount > 0) {
+                $parts[] = $format($childUnit) . ' × ' . $childCount;
+            }
+
+            return implode(' + ', $parts) . ' = ' . $format($line['line_total'] ?? 0);
+        }
+
+        return $format($line['per_head'] ?? 0)
+            . ' × '
+            . $multiplierLabel
+            . ' = '
+            . $format($line['line_total'] ?? 0);
     };
 
     // Build "What's included" from booked service types
@@ -701,6 +709,26 @@
                                                     </td>
                                                 @endforeach
                                             </tr>
+                                            @if(!empty($priceBreakdown['lines']))
+                                                <tr>
+                                                    <td colspan="4" style="padding-top:12px;">
+                                                        <div style="font-size:11px; color:{{ $textMuted }}; margin-bottom:6px;">Price breakdown</div>
+                                                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid {{ $border }}; border-radius:8px; overflow:hidden;">
+                                                            @foreach($priceBreakdown['lines'] as $breakdownLine)
+                                                                <tr>
+                                                                    <td style="padding:8px 10px; border-bottom:1px solid {{ $border }}; font-size:12px; color:{{ $textDark }}; width:42%;">{{ $breakdownLine['label'] ?? 'Service' }}</td>
+                                                                    <td style="padding:8px 10px; border-bottom:1px solid {{ $border }}; font-size:12px; color:{{ $textMuted }}; text-align:center;">{{ $formatBreakdownLineEmail($breakdownLine) }}</td>
+                                                                    <td style="padding:8px 10px; border-bottom:1px solid {{ $border }}; font-size:12px; font-weight:700; color:{{ $textDark }}; text-align:right; width:18%;">{{ $currencyCode }} {{ number_format((float)($breakdownLine['line_total'] ?? 0), 0, '.', ',') }}</td>
+                                                                </tr>
+                                                            @endforeach
+                                                            <tr>
+                                                                <td colspan="2" style="padding:10px; font-size:12px; font-weight:700; color:{{ $textDark }}; text-align:right;">Total</td>
+                                                                <td style="padding:10px; font-size:13px; font-weight:800; color:{{ $brandBlue }}; text-align:right;">{{ $currencyCode }} {{ number_format((float)($priceBreakdown['grand_total'] ?? 0), 0, '.', ',') }}</td>
+                                                            </tr>
+                                                        </table>
+                                                    </td>
+                                                </tr>
+                                            @endif
                                             @if(!empty($requested_days) || !empty($available_days))
                                                 <tr>
                                                     <td colspan="4" style="padding-top:10px;">
@@ -881,48 +909,23 @@
                                                     <th style="{{ $thStyle }} width:33%;">Triple</th>
                                                 </tr>
                                                 <tr>
-                                                    <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $formatOccupancyCell($hotelDisplay['single']) }}</td>
-                                                    <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $formatOccupancyCell($hotelDisplay['double']) }}</td>
-                                                    <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $formatOccupancyCell($hotelDisplay['triple']) }}</td>
+                                                    <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $formatMoney($hotelOnlySingleTotal) }}</td>
+                                                    <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $formatMoney($hotelOnlyDoubleTotal) }}</td>
+                                                    <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $formatMoney($hotelOnlyTripleTotal) }}</td>
                                                 </tr>
                                             </table>
                                         </td>
                                         <td width="50%" style="{{ $cellBorder }} padding:8px 6px; vertical-align:top;">
                                             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse; border:1px solid #000;">
                                                 <tr>
-                                                    <th style="{{ $thStyle }}">Price (Per Pax)</th>
+                                                    <th style="{{ $thStyle }}">Price (per pax)</th>
                                                 </tr>
                                                 <tr>
-                                                    <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $formatPerPaxMoney($otherPerPaxPrice) }}</td>
+                                                    <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $formatMoney($otherTotalForOccupancy) }}</td>
                                                 </tr>
                                             </table>
                                         </td>
                                     </tr>
-                                    @if(!empty($priceBreakdown['grand_total']))
-                                    <tr>
-                                        <td colspan="2" style="{{ $cellBorder }} padding:0; vertical-align:top;">
-                                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse; border-top:2px solid #000;">
-                                                <tr>
-                                                    <td colspan="3" style="{{ $panelTitle }}">Overall Package Price (Per Pax) — {{ $currencyLabel ?? $currencyCode }}</td>
-                                                </tr>
-                                                <tr>
-                                                    <th style="{{ $thStyle }} width:33%;">Single</th>
-                                                    <th style="{{ $thStyle }} width:33%;">Double</th>
-                                                    <th style="{{ $thStyle }} width:33%;">Triple</th>
-                                                </tr>
-                                                <tr>
-                                                    <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $formatMoney($packagePerPax['single']) }}</td>
-                                                    <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $formatMoney($packagePerPax['double']) }}</td>
-                                                    <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $packagePerPax['triple'] > 0 ? $formatMoney($packagePerPax['triple']) : '—' }}</td>
-                                                </tr>
-                                                <tr>
-                                                    <td colspan="2" style="{{ $tdStyle }} text-align:right; font-weight:bold;">Total Quotation Price ({{ $currencyLabel ?? $currencyCode }})</td>
-                                                    <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $currencyCode }} {{ number_format((float)($priceBreakdown['grand_total'] ?? 0), 0, '.', ',') }}</td>
-                                                </tr>
-                                            </table>
-                                        </td>
-                                    </tr>
-                                    @endif
                                 </table>
 
                                 @if(!empty($suppHotels))
