@@ -40,6 +40,7 @@ import dayjs from "dayjs";
 import { setHotelDetails } from "@/slice/hotel/HotelDetailsSlice";
 import { setPriceMode } from "@/slice/hotel/CategorySlice";
 import { setBookingType, setHaveBooking, setIsNavigating } from "@/slice/common/commonSlice";
+import { toCityOnly } from "@/utils/locationFormat";
 import DoNotDisturbIcon from "@mui/icons-material/DoNotDisturb";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 
@@ -126,6 +127,15 @@ export default function Index2() {
   console.log("Current hotel details in index2.jsx:", hotelDetails);
   const tourdetails = useSelector((state) => state.hotels.tourdetails);
   const bookingDates = useSelector((state) => state.hotels.searchState);
+  const selectedCity = useSelector((state) => state.common.selectedCity);
+
+  const resolveBookedCity = () => {
+    const fromSelected = toCityOnly(selectedCity);
+    if (fromSelected) return fromSelected;
+    const fromSearch = toCityOnly(bookingDates?.location);
+    if (fromSearch) return fromSearch;
+    return toCityOnly(tourdetails?.destination) || "";
+  };
   const categoryPriceMode = useSelector((state) => state.category?.priceMode);
 
   // Add PriceHide selector
@@ -262,6 +272,7 @@ export default function Index2() {
       const roomsToSubmit =
         rooms && rooms.length > 0 ? rooms : hotelData?.rooms || [];
 
+      const bookedCity = resolveBookedCity();
       const payload = {
         ...userInfo,
         rooms: roomsToSubmit,
@@ -276,7 +287,8 @@ export default function Index2() {
           hotel_name: hotelDetails?.hotel_name || "",
           checkInTime: hotelDetails?.check_in_time || "",
           checkOutTime: hotelDetails?.check_out_time || "",
-          location: tourdetails?.destination || "",
+          location: bookedCity || tourdetails?.destination || "",
+          city: bookedCity,
           image: hotelDetails?.image || "",
           cancellation_charge: hotelDetails?.cancellation_charge || "",
         },
@@ -366,6 +378,7 @@ export default function Index2() {
       const roomsToSubmit =
         rooms && rooms.length > 0 ? rooms : hotelData?.rooms || [];
 
+      const bookedCity = resolveBookedCity();
       const payload = {
         ...userInfo,
         rooms: roomsToSubmit,
@@ -381,7 +394,8 @@ export default function Index2() {
           hotel_name: hotelDetails?.hotel_name || "",
           checkInTime: hotelDetails?.check_in_time || "",
           checkOutTime: hotelDetails?.check_out_time || "",
-          location: tourdetails?.destination || "",
+          location: bookedCity || tourdetails?.destination || "",
+          city: bookedCity,
           image: hotelDetails?.image || "",
           cancellation_charge: hotelDetails?.cancellation_charge || "",
         },
