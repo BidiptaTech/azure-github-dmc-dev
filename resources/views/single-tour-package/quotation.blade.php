@@ -308,6 +308,9 @@
             $infants
         );
 
+        $breakdownHotelTotal = (float) ($priceBreakdown['hotel_total'] ?? 0);
+        $breakdownOtherTotal = (float) ($priceBreakdown['other_total'] ?? 0);
+
         $formatBreakdownLine = function (array $line) use ($formatMoney) {
             return \App\Helpers\CommonHelper::formatQuotationBreakdownCalculation($line, $formatMoney);
         };
@@ -1111,9 +1114,9 @@
                                         <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatNativeMoney($overallHotelDouble, $overallDisplayCurrency) }}</td>
                                         <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $overallHotelTriple > 0 ? $formatNativeMoney($overallHotelTriple, $overallDisplayCurrency) : '—' }}</td>
                                     @else
-                                        <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatMoney($hotelOnlySingleTotal) }}</td>
-                                        <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatMoney($hotelOnlyDoubleTotal) }}</td>
-                                        <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatMoney($hotelOnlyTripleTotal) }}</td>
+                                        <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $breakdownHotelTotal > 0 && $occupancyKey === 'single' ? $formatMoney($breakdownHotelTotal) : ($breakdownHotelTotal > 0 ? '—' : $formatMoney($hotelOnlySingleTotal)) }}</td>
+                                        <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $breakdownHotelTotal > 0 && $occupancyKey === 'double' ? $formatMoney($breakdownHotelTotal) : ($breakdownHotelTotal > 0 ? '—' : $formatMoney($hotelOnlyDoubleTotal)) }}</td>
+                                        <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $breakdownHotelTotal > 0 && $occupancyKey === 'triple' ? $formatMoney($breakdownHotelTotal) : ($breakdownHotelTotal > 0 ? '—' : $formatMoney($hotelOnlyTripleTotal)) }}</td>
                                     @endif
                                 </tr>
                             </tbody>
@@ -1124,7 +1127,7 @@
                         <table style="width: 100%; border-collapse: collapse; border: 1px solid #000; table-layout: fixed;">
                             <thead>
                                 <tr>
-                                    <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center;">Price (per pax)</th>
+                                    <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center;">{{ $breakdownOtherTotal > 0 ? 'Total price' : 'Price (per pax)' }}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -1133,7 +1136,7 @@
                                         @if($overallConvertedOk)
                                             {{ $formatNativeMoney($overallOther, $overallDisplayCurrency) }}
                                         @else
-                                            {{ $formatMoney($otherTotalForOccupancy) }}
+                                            {{ $formatMoney($breakdownOtherTotal > 0 ? $breakdownOtherTotal : $otherTotalForOccupancy) }}
                                         @endif
                                     </td>
                                 </tr>
