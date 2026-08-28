@@ -3034,34 +3034,28 @@
                                                         
                                                         const totalPriceInput = document.getElementById('total_price_{{ $hotelOrder->booking_id }}');
                                                         const headerTotalEl = document.getElementById('hotel_header_total_{{ $hotelOrder->booking_id }}');
-                                                        const dbTotal = totalPriceInput ? (parseFloat(totalPriceInput.dataset.dbTotal) || 0) : 0;
                                                         let displayTotal = grandTotal;
 
                                                         if (totalPriceInput) {
-                                                            const currentVal = parseFloat(totalPriceInput.value) || 0;
-                                                            const hasSavedCustom = dbTotal > 0 && Math.abs(dbTotal - grandTotal) > 0.009;
                                                             const isManual = totalPriceInput.dataset.manualEdit === 'true';
 
                                                             if (syncInput && grandTotal > 0) {
                                                                 totalPriceInput.value = grandTotal.toFixed(2);
-                                                                displayTotal = grandTotal;
+                                                                totalPriceInput.dataset.dbTotal = grandTotal.toFixed(2);
                                                                 totalPriceInput.dataset.manualEdit = 'false';
+                                                                displayTotal = grandTotal;
                                                             } else if (isManual) {
-                                                                displayTotal = currentVal > 0 ? currentVal : dbTotal;
-                                                            } else if (hasSavedCustom) {
-                                                                totalPriceInput.value = dbTotal.toFixed(2);
-                                                                displayTotal = dbTotal;
-                                                                totalPriceInput.dataset.manualEdit = 'true';
+                                                                displayTotal = parseFloat(totalPriceInput.value) || 0;
                                                             } else if (grandTotal > 0) {
                                                                 totalPriceInput.value = grandTotal.toFixed(2);
                                                                 displayTotal = grandTotal;
                                                             } else {
-                                                                displayTotal = currentVal || dbTotal;
+                                                                displayTotal = parseFloat(totalPriceInput.value) || parseFloat(totalPriceInput.dataset.dbTotal) || 0;
                                                             }
                                                         }
 
-                                                        if (headerTotalEl && displayTotal > 0) {
-                                                            headerTotalEl.textContent = currencyLabel + ' ' + displayTotal.toFixed(2);
+                                                        if (headerTotalEl) {
+                                                            headerTotalEl.textContent = currencyLabel + ' ' + (displayTotal > 0 ? displayTotal.toFixed(2) : '0.00');
                                                         }
                                                     }
                                                     
@@ -3088,12 +3082,9 @@
                                                             return;
                                                         }
                                                         
-                                                        // Preserve existing price value on initial load if it's already set and valid (from database)
-                                                        // Only auto-calculate if the current value is 0 or empty, or if forceUpdate is true
+                                                        // Preserve existing price only when user explicitly edited it (not stale DB per-room values).
                                                         const currentPrice = parseFloat(priceInput.value) || 0;
-                                                        if (!forceUpdate && currentPrice > 0 && priceInput.dataset.preservedFromDb !== 'true') {
-                                                            // Mark as preserved from database to prevent overwriting on initial load
-                                                            priceInput.dataset.preservedFromDb = 'true';
+                                                        if (!forceUpdate && priceInput.dataset.manualEdit === 'true') {
                                                             return;
                                                         }
                                                         
@@ -3154,17 +3145,11 @@
                                                         
                                                         if (forceUpdate && totalPrice > 0) {
                                                             priceInput.value = totalPrice.toFixed(2);
-                                                        } else {
-                                                            const dbTotal = parseFloat(priceInput.dataset.dbTotal) || 0;
-                                                            const hasSavedCustom = dbTotal > 0 && Math.abs(dbTotal - totalPrice) > 0.009;
-                                                            if (!hasSavedCustom && priceInput.dataset.manualEdit !== 'true') {
-                                                                if (totalPrice > 0) {
-                                                                    priceInput.value = totalPrice.toFixed(2);
-                                                                } else if (currentPrice === 0) {
-                                                                    priceInput.value = '0.00';
-                                                                }
-                                                            } else if (dbTotal > 0 && priceInput.dataset.manualEdit !== 'true') {
-                                                                priceInput.value = dbTotal.toFixed(2);
+                                                        } else if (priceInput.dataset.manualEdit !== 'true') {
+                                                            if (totalPrice > 0) {
+                                                                priceInput.value = totalPrice.toFixed(2);
+                                                            } else if (currentPrice === 0) {
+                                                                priceInput.value = '0.00';
                                                             }
                                                         }
                                                         
@@ -3209,7 +3194,7 @@
                                                             }
                                                         }
                                                         setTimeout(() => {
-                                                            try { updateHotelPriceGrid_{{ $hotelOrder->booking_id }}(); } catch (e) {}
+                                                            try { updateHotelPriceGrid_{{ $hotelOrder->booking_id }}(true); } catch (e) {}
                                                         }, 600);
 
                                                         if (typeof window.setHotelSaveBlocked === 'function') {
@@ -3353,7 +3338,7 @@
                                                         <i class="ri-money-dollar-circle-line me-1"></i> Get Price
                                                     </button>
                                                 </div>
-                                                <small class="text-muted d-block mt-2" style="font-size: 0.7rem; line-height: 1.7; word-wrap: break-word;">Price per room &amp; rooms</small>
+                                                <small class="text-muted d-block mt-2" style="font-size: 0.7rem; line-height: 1.7; word-wrap: break-word;">Total for all rooms, nights &amp; extra beds</small>
                                             </div>
                                         </div>
                                         
