@@ -234,7 +234,7 @@
             ? max(0, $tripleSharingTotal - $otherSingleTotal)
             : 0;
 
-        $priceBreakdown = \App\Helpers\CommonHelper::buildQuotationPriceBreakdown(
+        $priceBreakdown = $priceBreakdown ?? \App\Helpers\CommonHelper::buildQuotationPriceBreakdown(
             $tour,
             $tourPrices,
             $pdfAdults,
@@ -243,28 +243,7 @@
         );
 
         $formatBreakdownLine = function (array $line) use ($formatMoney) {
-            $multiplierLabel = (string) ($line['multiplier_label'] ?? $line['multiplier'] ?? 1);
-            $childPart = (float) ($line['child_part'] ?? 0);
-            $childUnit = (float) ($line['child_unit'] ?? 0);
-            $childCount = (int) ($line['child_count'] ?? 0);
-
-            if ($childPart > 0) {
-                $parts = [];
-                if ((float) ($line['per_head'] ?? 0) > 0) {
-                    $parts[] = $formatMoney($line['per_head']) . ' × ' . $multiplierLabel;
-                }
-                if ($childUnit > 0 && $childCount > 0) {
-                    $parts[] = $formatMoney($childUnit) . ' × ' . $childCount;
-                }
-
-                return implode(' + ', $parts) . ' = ' . $formatMoney($line['line_total'] ?? 0);
-            }
-
-            return $formatMoney($line['per_head'] ?? 0)
-                . ' × '
-                . $multiplierLabel
-                . ' = '
-                . $formatMoney($line['line_total'] ?? 0);
+            return \App\Helpers\CommonHelper::formatQuotationBreakdownCalculation($line, $formatMoney);
         };
 
         $bookedAttractionCards = [];
@@ -480,7 +459,7 @@
     }
 
     $formatBreakdownLineEmail = function (array $line) use ($currencyCode) {
-        $format = static function ($amount) use ($currencyCode) {
+        $formatMoney = static function ($amount) use ($currencyCode) {
             if (! is_numeric($amount)) {
                 return $currencyCode . ' 0';
             }
@@ -488,28 +467,7 @@
             return $currencyCode . ' ' . number_format((float) $amount, 0, '.', ',');
         };
 
-        $multiplierLabel = (string) ($line['multiplier_label'] ?? $line['multiplier'] ?? 1);
-        $childPart = (float) ($line['child_part'] ?? 0);
-        $childUnit = (float) ($line['child_unit'] ?? 0);
-        $childCount = (int) ($line['child_count'] ?? 0);
-
-        if ($childPart > 0) {
-            $parts = [];
-            if ((float) ($line['per_head'] ?? 0) > 0) {
-                $parts[] = $format($line['per_head']) . ' × ' . $multiplierLabel;
-            }
-            if ($childUnit > 0 && $childCount > 0) {
-                $parts[] = $format($childUnit) . ' × ' . $childCount;
-            }
-
-            return implode(' + ', $parts) . ' = ' . $format($line['line_total'] ?? 0);
-        }
-
-        return $format($line['per_head'] ?? 0)
-            . ' × '
-            . $multiplierLabel
-            . ' = '
-            . $format($line['line_total'] ?? 0);
+        return \App\Helpers\CommonHelper::formatQuotationBreakdownCalculation($line, $formatMoney);
     };
 
     // Build "What's included" from booked service types
@@ -709,26 +667,6 @@
                                                     </td>
                                                 @endforeach
                                             </tr>
-                                            @if(!empty($priceBreakdown['lines']))
-                                                <tr>
-                                                    <td colspan="4" style="padding-top:12px;">
-                                                        <div style="font-size:11px; color:{{ $textMuted }}; margin-bottom:6px;">Price breakdown</div>
-                                                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid {{ $border }}; border-radius:8px; overflow:hidden;">
-                                                            @foreach($priceBreakdown['lines'] as $breakdownLine)
-                                                                <tr>
-                                                                    <td style="padding:8px 10px; border-bottom:1px solid {{ $border }}; font-size:12px; color:{{ $textDark }}; width:42%;">{{ $breakdownLine['label'] ?? 'Service' }}</td>
-                                                                    <td style="padding:8px 10px; border-bottom:1px solid {{ $border }}; font-size:12px; color:{{ $textMuted }}; text-align:center;">{{ $formatBreakdownLineEmail($breakdownLine) }}</td>
-                                                                    <td style="padding:8px 10px; border-bottom:1px solid {{ $border }}; font-size:12px; font-weight:700; color:{{ $textDark }}; text-align:right; width:18%;">{{ $currencyCode }} {{ number_format((float)($breakdownLine['line_total'] ?? 0), 0, '.', ',') }}</td>
-                                                                </tr>
-                                                            @endforeach
-                                                            <tr>
-                                                                <td colspan="2" style="padding:10px; font-size:12px; font-weight:700; color:{{ $textDark }}; text-align:right;">Total</td>
-                                                                <td style="padding:10px; font-size:13px; font-weight:800; color:{{ $brandBlue }}; text-align:right;">{{ $currencyCode }} {{ number_format((float)($priceBreakdown['grand_total'] ?? 0), 0, '.', ',') }}</td>
-                                                            </tr>
-                                                        </table>
-                                                    </td>
-                                                </tr>
-                                            @endif
                                             @if(!empty($requested_days) || !empty($available_days))
                                                 <tr>
                                                     <td colspan="4" style="padding-top:10px;">
@@ -780,6 +718,30 @@
                                         </tr>
                                     @endif
                                 </table>
+
+                                @if(!empty($priceBreakdown['lines']))
+                                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse; border:2px solid #000; margin-bottom:14px;">
+                                        <tr>
+                                            <td colspan="3" style="{{ $panelTitle }}">Price Breakdown ({{ $currencyLabel ?? $currencyCode }})</td>
+                                        </tr>
+                                        <tr>
+                                            <th style="{{ $thStyle }} text-align:left; width:45%;">Service</th>
+                                            <th style="{{ $thStyle }} width:40%;">Calculation</th>
+                                            <th style="{{ $thStyle }} width:15%;">Amount</th>
+                                        </tr>
+                                        @foreach($priceBreakdown['lines'] as $breakdownLine)
+                                            <tr>
+                                                <td style="{{ $tdStyle }}">{{ $breakdownLine['label'] ?? 'Service' }}</td>
+                                                <td style="{{ $tdStyle }} text-align:center;">{{ $formatBreakdownLineEmail($breakdownLine) }}</td>
+                                                <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $currencyCode }} {{ number_format((float)($breakdownLine['line_total'] ?? 0), 0, '.', ',') }}</td>
+                                            </tr>
+                                        @endforeach
+                                        <tr>
+                                            <td colspan="2" style="{{ $tdStyle }} text-align:right; font-weight:bold;">Total</td>
+                                            <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $currencyCode }} {{ number_format((float)($priceBreakdown['grand_total'] ?? 0), 0, '.', ',') }}</td>
+                                        </tr>
+                                    </table>
+                                @endif
 
                                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse; border:2px solid #000; table-layout:fixed;">
                                     <tr>
