@@ -439,6 +439,45 @@
             $overallQuotationTotal = ceil($overallQuotationTotal);
         }
 
+        // Other-services totals from actual order amounts (not per-pax sharing rates).
+        $otherOrderTotalByBucketKey = [];
+        $overallOtherServicesOrderTotal = 0.0;
+        $overallOtherServicesOrdersConvertedOk = true;
+
+        foreach ($countryQuotationGroups ?? [] as $group) {
+            if (! is_array($group)) {
+                continue;
+            }
+
+            $bucketKey = (string) ($group['key'] ?? '');
+            $otherAmt = (float) ($group['other_total'] ?? 0);
+            if ($bucketKey !== '') {
+                $otherOrderTotalByBucketKey[$bucketKey] = $otherAmt;
+            }
+
+            $groupCurrency = strtoupper(trim((string) ($group['currency'] ?? $baseCurrency)));
+            if ($groupCurrency === '') {
+                $groupCurrency = strtoupper((string) $baseCurrency);
+            }
+
+            $convertedOther = \App\Helpers\CurrencyHelper::convertAmount($otherAmt, $groupCurrency, $selectedCurrency);
+            if ($convertedOther === null) {
+                if ($groupCurrency === $selectedCurrency) {
+                    $overallOtherServicesOrderTotal += $otherAmt;
+                } else {
+                    $overallOtherServicesOrdersConvertedOk = false;
+                }
+            } else {
+                $overallOtherServicesOrderTotal += (float) $convertedOther;
+            }
+        }
+
+        if ($overallOtherServicesOrdersConvertedOk) {
+            $overallOtherServicesOrderTotal = ceil($overallOtherServicesOrderTotal);
+        } else {
+            $overallOtherServicesOrderTotal = array_sum($otherOrderTotalByBucketKey);
+        }
+
         // Build booked inclusions list from servicesByType (derived from orders for this tour)
         // We intentionally only show the categories requested by the user.
         $bookedAttractionCards = []; // full cards (transfer / guide details for PDF)
@@ -1071,7 +1110,8 @@
                         $shareHotelSingle = (float)($share['hotel_single'] ?? 0);
                         $shareHotelDouble = (float)($share['hotel_double'] ?? 0);
                         $shareHotelTriple = (float)($share['hotel_triple'] ?? 0);
-                        $shareOther = (float)($share['other_services_single'] ?? ($share['other_services_double'] ?? 0));
+                        $shareKey = (string)($share['key'] ?? (mb_strtolower($shareCountry) . '|' . $shareCurrency));
+                        $shareOther = (float)($otherOrderTotalByBucketKey[$shareKey] ?? 0);
                         if ($isProTour) {
                             $shareHotelSingle = $shareHotelDouble > 0 ? $shareHotelDouble : $shareHotelSingle;
                         }
@@ -1112,7 +1152,7 @@
                                     <table style="width: 100%; border-collapse: collapse; border: 1px solid #000; table-layout: fixed;">
                                         <thead>
                                             <tr>
-                                                <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center;">Price (per pax)</th>
+                                                <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center;">Total Price</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -1271,16 +1311,16 @@
                         <table style="width: 100%; border-collapse: collapse; border: 1px solid #000; table-layout: fixed;">
                             <thead>
                                 <tr>
-                                    <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center;">Price (per pax)</th>
+                                    <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center;">Total Price</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr>
                                     <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">
-                                        @if($overallConvertedOk)
-                                            {{ $formatNativeMoney($overallOther, $overallDisplayCurrency) }}
+                                        @if($overallOtherServicesOrdersConvertedOk)
+                                            {{ $formatMoney($overallOtherServicesOrderTotal) }}
                                         @else
-                                            {{ $formatMoney($otherTotalForOccupancy) }}
+                                            {{ $formatNativeMoney($overallOtherServicesOrderTotal, $overallDisplayCurrency) }}
                                         @endif
                                     </td>
                                 </tr>

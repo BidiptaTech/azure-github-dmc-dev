@@ -95,6 +95,39 @@
 
         $otherTotalForOccupancy = $occupancyKey === 'double' ? $otherDoubleTotal : $otherSingleTotal;
 
+        // Other-services totals from actual order amounts (not per-pax sharing rates).
+        $otherServicesOrderTotal = 0.0;
+        $otherServicesOrderTotalConvertedOk = true;
+        foreach ($countryQuotationGroups ?? [] as $group) {
+            if (! is_array($group)) {
+                continue;
+            }
+            $otherAmt = (float) ($group['other_total'] ?? 0);
+            $groupCurrency = strtoupper(trim((string) ($group['currency'] ?? $baseCurrency)));
+            if ($groupCurrency === '') {
+                $groupCurrency = strtoupper((string) $baseCurrency);
+            }
+            $convertedOther = \App\Helpers\CurrencyHelper::convertAmount($otherAmt, $groupCurrency, $selectedCurrency);
+            if ($convertedOther === null) {
+                if ($groupCurrency === $selectedCurrency) {
+                    $otherServicesOrderTotal += $otherAmt;
+                } else {
+                    $otherServicesOrderTotalConvertedOk = false;
+                }
+            } else {
+                $otherServicesOrderTotal += (float) $convertedOther;
+            }
+        }
+        if ($otherServicesOrderTotalConvertedOk) {
+            $otherServicesOrderTotal = ceil($otherServicesOrderTotal);
+        } else {
+            $otherServicesOrderTotal = array_sum(array_map(
+                fn ($group) => (float) ($group['other_total'] ?? 0),
+                array_filter($countryQuotationGroups ?? [], 'is_array')
+            ));
+        }
+        $otherServicesDisplayTotal = $otherServicesOrderTotal > 0 ? $otherServicesOrderTotal : $otherTotalForOccupancy;
+
         // Hotel-only totals per-head (supplements excluded)
         // overall total = hotel + other services (for all occupancies, including triple)
         $hotelOnlySingleTotal = max(0, (float)($tourPrices['single_sharing'] ?? 0) - $otherSingleTotal);
@@ -603,12 +636,12 @@
                     <table style="width: 100%; border-collapse: collapse; border: 1px solid #000; table-layout: fixed;">
                         <thead>
                             <tr>
-                                <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center;">Price (per pax)</th>
+                                <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center;">Total Price</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr>
-                                <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatMoney($otherTotalForOccupancy) }}</td>
+                                <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatMoney($otherServicesDisplayTotal) }}</td>
                             </tr>
                         </tbody>
                     </table>
