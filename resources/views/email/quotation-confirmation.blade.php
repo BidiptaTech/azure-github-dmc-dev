@@ -235,38 +235,8 @@
         $groupDiscountAmount = (float)($tour->discount_amount ?? 0);
         $otherTotalForOccupancy = $occupancyKey === 'double' ? $otherDoubleTotal : $otherSingleTotal;
 
-        // Other-services totals from actual order amounts (not per-pax sharing rates).
-        $otherServicesOrderTotal = 0.0;
-        $otherServicesOrderTotalConvertedOk = true;
-        foreach ($countryQuotationGroups ?? [] as $group) {
-            if (! is_array($group)) {
-                continue;
-            }
-            $otherAmt = (float) ($group['other_total'] ?? 0);
-            $groupCurrency = strtoupper(trim((string) ($group['currency'] ?? $pdfBaseCurrency)));
-            if ($groupCurrency === '') {
-                $groupCurrency = $pdfBaseCurrency;
-            }
-            $convertedOther = \App\Helpers\CurrencyHelper::convertAmount($otherAmt, $groupCurrency, $pdfSelectedCurrency);
-            if ($convertedOther === null) {
-                if ($groupCurrency === $pdfSelectedCurrency) {
-                    $otherServicesOrderTotal += $otherAmt;
-                } else {
-                    $otherServicesOrderTotalConvertedOk = false;
-                }
-            } else {
-                $otherServicesOrderTotal += (float) $convertedOther;
-            }
-        }
-        if ($otherServicesOrderTotalConvertedOk) {
-            $otherServicesOrderTotal = ceil($otherServicesOrderTotal);
-        } else {
-            $otherServicesOrderTotal = array_sum(array_map(
-                fn ($group) => (float) ($group['other_total'] ?? 0),
-                array_filter($countryQuotationGroups ?? [], 'is_array')
-            ));
-        }
-        $otherServicesDisplayTotal = $otherServicesOrderTotal > 0 ? $otherServicesOrderTotal : $otherTotalForOccupancy;
+        // Per-pax other-services rate for quotation display (attraction + restaurant unit prices, not line totals).
+        $otherServicesDisplayTotal = $otherTotalForOccupancy;
 
         $hotelOnlySingleTotal = max(0, (float)($tourPrices['single_sharing'] ?? 0) - $otherSingleTotal);
         $hotelOnlyDoubleTotal = max(0, (float)($tourPrices['double_sharing'] ?? 0) - $otherDoubleTotal);

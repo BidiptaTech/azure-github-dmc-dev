@@ -482,6 +482,7 @@
         } else {
             $overallOtherServicesOrderTotal = array_sum($otherOrderTotalByBucketKey);
         }
+        $otherServicesDisplayPerPax = $otherTotalForOccupancy;
 
         // Build booked inclusions list from servicesByType (derived from orders for this tour)
         // We intentionally only show the categories requested by the user.
@@ -1322,11 +1323,7 @@
                             <tbody>
                                 <tr>
                                     <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">
-                                        @if($overallOtherServicesOrdersConvertedOk)
-                                            {{ $formatMoney($overallOtherServicesOrderTotal) }}
-                                        @else
-                                            {{ $formatNativeMoney($overallOtherServicesOrderTotal, $overallDisplayCurrency) }}
-                                        @endif
+                                        {{ $formatMoney($otherServicesDisplayPerPax) }} /pax
                                     </td>
                                 </tr>
                             </tbody>
