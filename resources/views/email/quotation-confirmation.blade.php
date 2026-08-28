@@ -234,6 +234,39 @@
             ? max(0, $tripleSharingTotal - $otherSingleTotal)
             : 0;
 
+        $priceBreakdown = \App\Helpers\CommonHelper::buildQuotationPriceBreakdown(
+            $tour,
+            $tourPrices,
+            $pdfAdults,
+            $pdfChildren,
+            $pdfInfants
+        );
+
+        $formatBreakdownLine = function (array $line) use ($formatMoney) {
+            $multiplierLabel = (string) ($line['multiplier_label'] ?? $line['multiplier'] ?? 1);
+            $childPart = (float) ($line['child_part'] ?? 0);
+            $childUnit = (float) ($line['child_unit'] ?? 0);
+            $childCount = (int) ($line['child_count'] ?? 0);
+
+            if ($childPart > 0) {
+                $parts = [];
+                if ((float) ($line['per_head'] ?? 0) > 0) {
+                    $parts[] = $formatMoney($line['per_head']) . ' × ' . $multiplierLabel;
+                }
+                if ($childUnit > 0 && $childCount > 0) {
+                    $parts[] = $formatMoney($childUnit) . ' × ' . $childCount;
+                }
+
+                return implode(' + ', $parts) . ' = ' . $formatMoney($line['line_total'] ?? 0);
+            }
+
+            return $formatMoney($line['per_head'] ?? 0)
+                . ' × '
+                . $multiplierLabel
+                . ' = '
+                . $formatMoney($line['line_total'] ?? 0);
+        };
+
         $bookedAttractionCards = [];
         $bookedRestaurantCards = [];
         $bookedArrivals = [];
@@ -442,6 +475,43 @@
         $tdStyle = $cellBorder . ' padding:6px; font-size:12px; vertical-align:top;';
     }
 
+    if (! isset($priceBreakdown) || ! is_array($priceBreakdown)) {
+        $priceBreakdown = ['lines' => [], 'grand_total' => (float) ($total_estimation ?? 0)];
+    }
+
+    $formatBreakdownLineEmail = function (array $line) use ($currencyCode) {
+        $format = static function ($amount) use ($currencyCode) {
+            if (! is_numeric($amount)) {
+                return $currencyCode . ' 0';
+            }
+
+            return $currencyCode . ' ' . number_format((float) $amount, 0, '.', ',');
+        };
+
+        $multiplierLabel = (string) ($line['multiplier_label'] ?? $line['multiplier'] ?? 1);
+        $childPart = (float) ($line['child_part'] ?? 0);
+        $childUnit = (float) ($line['child_unit'] ?? 0);
+        $childCount = (int) ($line['child_count'] ?? 0);
+
+        if ($childPart > 0) {
+            $parts = [];
+            if ((float) ($line['per_head'] ?? 0) > 0) {
+                $parts[] = $format($line['per_head']) . ' × ' . $multiplierLabel;
+            }
+            if ($childUnit > 0 && $childCount > 0) {
+                $parts[] = $format($childUnit) . ' × ' . $childCount;
+            }
+
+            return implode(' + ', $parts) . ' = ' . $format($line['line_total'] ?? 0);
+        }
+
+        return $format($line['per_head'] ?? 0)
+            . ' × '
+            . $multiplierLabel
+            . ' = '
+            . $format($line['line_total'] ?? 0);
+    };
+
     // Build "What's included" from booked service types
     $includedCounts = [
         'hotel'      => 0,
@@ -630,19 +700,38 @@
                                                         ['Dates', $tripDates],
                                                         ['Guests', $guestsText],
                                                         ['Quoted by', $bookedVia],
-                                                        ['Est. Quotation Value', $packageValue],
                                                     ];
                                                 @endphp
                                                 @foreach($summaryCells as $cell)
-                                                    <td style="vertical-align:top; padding-right:10px; width:20%;">
+                                                    <td style="vertical-align:top; padding-right:10px; width:25%;">
                                                         <div style="font-size:11px; color:{{ $textMuted }}; margin-bottom:4px;">{{ $cell[0] }}</div>
-                                                        <div style="font-size:13px; font-weight:700; color:{{ $loop->last ? $brandBlue : $textDark }};">{{ $cell[1] }}</div>
+                                                        <div style="font-size:13px; font-weight:700; color:{{ $textDark }};">{{ $cell[1] }}</div>
                                                     </td>
                                                 @endforeach
                                             </tr>
+                                            @if(!empty($priceBreakdown['lines']))
+                                                <tr>
+                                                    <td colspan="4" style="padding-top:12px;">
+                                                        <div style="font-size:11px; color:{{ $textMuted }}; margin-bottom:6px;">Price breakdown</div>
+                                                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid {{ $border }}; border-radius:8px; overflow:hidden;">
+                                                            @foreach($priceBreakdown['lines'] as $breakdownLine)
+                                                                <tr>
+                                                                    <td style="padding:8px 10px; border-bottom:1px solid {{ $border }}; font-size:12px; color:{{ $textDark }}; width:42%;">{{ $breakdownLine['label'] ?? 'Service' }}</td>
+                                                                    <td style="padding:8px 10px; border-bottom:1px solid {{ $border }}; font-size:12px; color:{{ $textMuted }}; text-align:center;">{{ $formatBreakdownLineEmail($breakdownLine) }}</td>
+                                                                    <td style="padding:8px 10px; border-bottom:1px solid {{ $border }}; font-size:12px; font-weight:700; color:{{ $textDark }}; text-align:right; width:18%;">{{ $currencyCode }} {{ number_format((float)($breakdownLine['line_total'] ?? 0), 0, '.', ',') }}</td>
+                                                                </tr>
+                                                            @endforeach
+                                                            <tr>
+                                                                <td colspan="2" style="padding:10px; font-size:12px; font-weight:700; color:{{ $textDark }}; text-align:right;">Total</td>
+                                                                <td style="padding:10px; font-size:13px; font-weight:800; color:{{ $brandBlue }}; text-align:right;">{{ $currencyCode }} {{ number_format((float)($priceBreakdown['grand_total'] ?? 0), 0, '.', ',') }}</td>
+                                                            </tr>
+                                                        </table>
+                                                    </td>
+                                                </tr>
+                                            @endif
                                             @if(!empty($requested_days) || !empty($available_days))
                                                 <tr>
-                                                    <td colspan="5" style="padding-top:10px;">
+                                                    <td colspan="4" style="padding-top:10px;">
                                                         @if(!empty($requested_days))
                                                             <span style="font-size:11px; color:{{ $textMuted }};">Requested: </span>
                                                             <span style="font-size:12px; font-weight:600; color:{{ $textDark }};">{{ $requested_nights ?? max(0, (int) $requested_days - 1) }} night{{ (($requested_nights ?? max(0, (int) $requested_days - 1)) !== 1) ? 's' : '' }}</span>

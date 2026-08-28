@@ -309,6 +309,7 @@ class ExternalApiReceiveController extends Controller
         $tour->check_out_time = $checkOutTime;
         $tour->display_id = 'DMC-ORD';
         $tour->tour_status = 'New Enquiry';
+        $tour->is_pro = CommonHelper::resolveTourIsProFromDmc($dmcUser);
         $tour->city = $city;
         $tour->dmc_id = $dmcId;
         $tour->auto_cancel_date = $autoCancelDate;

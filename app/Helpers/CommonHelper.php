@@ -3657,6 +3657,43 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         return null;
     }
 
+    /**
+     * Resolve lite/pro AI booking mode from DMC user settings (users.ai_response_type).
+     * Falls back to master DMC when the child DMC has no selection.
+     */
+    public static function resolveDmcAiResponseType(?User $dmcUser): ?string
+    {
+        if ($dmcUser === null) {
+            return null;
+        }
+
+        $type = strtolower(trim((string) ($dmcUser->ai_response_type ?? '')));
+        if (in_array($type, ['lite', 'pro'], true)) {
+            return $type;
+        }
+
+        $masterId = (int) ($dmcUser->master_dmc_id ?? 0);
+        if ($masterId > 0 && $masterId !== (int) $dmcUser->userId) {
+            $master = User::where('userId', $masterId)->first();
+            if ($master) {
+                $masterType = strtolower(trim((string) ($master->ai_response_type ?? '')));
+                if (in_array($masterType, ['lite', 'pro'], true)) {
+                    return $masterType;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Map DMC ai_response_type to tours.is_pro (1 = pro, 0 = lite).
+     */
+    public static function resolveTourIsProFromDmc(?User $dmcUser): int
+    {
+        return self::resolveDmcAiResponseType($dmcUser) === 'pro' ? 1 : 0;
+    }
+
     public static function normalizeEmailMessageId(?string $messageId): ?string
     {
         $messageId = trim((string) $messageId);
@@ -5051,6 +5088,139 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             : ($otherDouble > 0 ? $otherDouble : $otherSingle);
 
         return $hotelTotal + ($otherPerHead * $chargeableAdults);
+    }
+
+    /**
+     * Human-readable label for a booked order item in price breakdowns.
+     *
+     * @param  array<string, mixed>  $item
+     */
+    protected static function resolveOrderItemPriceLabel(string $type, array $item): string
+    {
+        $normalizedType = strtolower(str_replace(' ', '_', trim($type)));
+        $headline = static fn (string $value): string => \Illuminate\Support\Str::headline(
+            str_replace(['_', '-'], ' ', trim($value))
+        );
+
+        $name = trim((string) (
+            $item['AttractionName']
+            ?? $item['attractionName']
+            ?? $item['restaurantName']
+            ?? $item['restaurant_name']
+            ?? $item['hotelName']
+            ?? $item['name']
+            ?? ''
+        ));
+
+        return match ($normalizedType) {
+            'attraction', 'attraction_package' => 'Attraction' . ($name !== '' ? ': ' . $name : ''),
+            'restaurant' => 'Restaurant' . ($name !== '' ? ': ' . $name : ''),
+            'entry_port' => 'Arrival' . ($name !== '' ? ': ' . $name : ''),
+            'exit_port' => 'Departure' . ($name !== '' ? ': ' . $name : ''),
+            'guide' => 'Guide' . ($name !== '' ? ': ' . $name : ''),
+            'travel_point', 'point_to_point' => 'Point to Point' . ($name !== '' ? ': ' . $name : ''),
+            'travel_hourly', 'hourly' => 'Hourly Transfer' . ($name !== '' ? ': ' . $name : ''),
+            'local_transport', 'local_transfer', 'local_transfer_vehicle', 'port_transport' => 'Local Transfer' . ($name !== '' ? ': ' . $name : ''),
+            default => ($name !== '' ? $name : $headline($normalizedType !== '' ? $normalizedType : 'Service')),
+        };
+    }
+
+    /**
+     * Segregated quotation price breakdown for PDF / email display.
+     * Hotels show per-head × pax-in-room (e.g. double rate × 2). Other services show per-head × chargeable adults.
+     *
+     * @param  array<string, mixed>  $tourPrices
+     * @return array{lines: array<int, array<string, mixed>>, grand_total: float, occupancy_key: string, chargeable_adults: int}
+     */
+    public static function buildQuotationPriceBreakdown(
+        Tour $tour,
+        array $tourPrices,
+        int $adults,
+        int $children = 0,
+        int $infants = 0
+    ): array {
+        unset($infants);
+
+        $isProTour = (int) ($tour->is_pro ?? 0) === 1;
+        $tourType = strtoupper((string) ($tour->tour_type ?? 'FIT'));
+        $focSize = $tourType === 'GROUP' ? max(0, (int) ($tour->foc_size ?? 0)) : 0;
+        $chargeableAdults = max(0, $adults - $focSize);
+        $occupancyKey = $adults >= 2 ? 'double' : 'single';
+        $hotelPaxInRoom = $occupancyKey === 'double' ? 2 : 1;
+
+        $lines = [];
+        $grandTotal = 0.0;
+
+        foreach ($tourPrices['hotel_price_options'] ?? [] as $hotelOption) {
+            if (! is_array($hotelOption)) {
+                continue;
+            }
+
+            $label = trim((string) ($hotelOption['display_name'] ?? $hotelOption['hotel_name'] ?? 'Hotel'));
+            $single = (float) ($hotelOption['single'] ?? 0);
+            $double = (float) ($hotelOption['double'] ?? 0);
+            if ($isProTour && $double > 0) {
+                $single = $double;
+            }
+
+            $perHead = $occupancyKey === 'double' ? ($double > 0 ? $double : $single) : $single;
+            if ($perHead <= 0) {
+                continue;
+            }
+
+            $lineTotal = $perHead * $hotelPaxInRoom;
+            $lines[] = [
+                'label' => $label,
+                'category' => 'hotel',
+                'per_head' => $perHead,
+                'multiplier' => $hotelPaxInRoom,
+                'multiplier_label' => (string) $hotelPaxInRoom,
+                'line_total' => $lineTotal,
+                'formula' => 'per_head × pax',
+            ];
+            $grandTotal += $lineTotal;
+        }
+
+        foreach ($tourPrices['service_price_lines'] ?? [] as $serviceLine) {
+            if (! is_array($serviceLine)) {
+                continue;
+            }
+
+            $label = trim((string) ($serviceLine['label'] ?? 'Service'));
+            $single = (float) ($serviceLine['single'] ?? 0);
+            $double = (float) ($serviceLine['double'] ?? 0);
+            $childUnit = (float) ($serviceLine['child_unit'] ?? 0);
+            $perHead = $occupancyKey === 'double' ? ($double > 0 ? $double : $single) : $single;
+
+            if ($perHead <= 0 && $childUnit <= 0) {
+                continue;
+            }
+
+            $adultPart = $perHead * max(1, $chargeableAdults);
+            $childPart = $childUnit * max(0, $children);
+            $lineTotal = $adultPart + $childPart;
+
+            $lines[] = [
+                'label' => $label,
+                'category' => (string) ($serviceLine['type'] ?? 'other'),
+                'per_head' => $perHead,
+                'multiplier' => max(1, $chargeableAdults),
+                'multiplier_label' => (string) max(1, $chargeableAdults),
+                'child_unit' => $childUnit,
+                'child_count' => max(0, $children),
+                'child_part' => $childPart,
+                'line_total' => $lineTotal,
+                'formula' => $childPart > 0 ? 'adult + child' : 'per_head × pax',
+            ];
+            $grandTotal += $lineTotal;
+        }
+
+        return [
+            'lines' => $lines,
+            'grand_total' => $grandTotal,
+            'occupancy_key' => $occupancyKey,
+            'chargeable_adults' => $chargeableAdults,
+        ];
     }
 
     /**
@@ -6539,6 +6709,38 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             'other' => ['single' => 0, 'double' => 0],
         ];
 
+        // Per-service lines for quotation price breakdown (non-hotel, non-supplement)
+        $servicePriceLines = [];
+        $appendServicePriceLine = function (
+            string $type,
+            array $item,
+            float $singleSharing,
+            float $doubleSharing,
+            float $childUnitPrice = 0.0,
+            bool $isSupplementRow = false
+        ) use (&$servicePriceLines): void {
+            if ($isSupplementRow) {
+                return;
+            }
+
+            $normalizedType = strtolower(str_replace(' ', '_', trim($type)));
+            if ($normalizedType === 'hotel') {
+                return;
+            }
+
+            if ($singleSharing <= 0 && $doubleSharing <= 0 && $childUnitPrice <= 0) {
+                return;
+            }
+
+            $servicePriceLines[] = [
+                'label' => self::resolveOrderItemPriceLabel($type, $item),
+                'type' => $normalizedType,
+                'single' => $singleSharing,
+                'double' => $doubleSharing,
+                'child_unit' => $childUnitPrice,
+            ];
+        };
+
         // Supplements: services with "supplement": true (excluded from main total).
         // Non-hotel supplement rows expose full line booking total; hotel supplements use stay totals per rooming.
         $supplements = [];
@@ -7307,6 +7509,14 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                                 $otherServiceSingle += $singleSharing;
                                 $otherServiceDouble += $doubleSharing;
                                 $trackCountryOther((float)$singleSharing, (float)$doubleSharing);
+                                $appendServicePriceLine(
+                                    $type,
+                                    $item,
+                                    (float) $singleSharing,
+                                    (float) $doubleSharing,
+                                    (float) ($childUnitPrice ?? 0),
+                                    $isSupplement
+                                );
                             }
                         }
                         // Handle entry_port and exit_port
@@ -7328,6 +7538,14 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                                 $otherServiceSingle += $singleSharing;
                                 $otherServiceDouble += $doubleSharing;
                                 $trackCountryOther((float)$singleSharing, (float)$doubleSharing);
+                                $appendServicePriceLine(
+                                    $type,
+                                    $item,
+                                    (float) $singleSharing,
+                                    (float) $doubleSharing,
+                                    0.0,
+                                    $isSupplement
+                                );
                             }
                         }
                         // Handle travel_point, travel_hourly, local_transport
@@ -7349,6 +7567,14 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                                 $otherServiceSingle += $singleSharing;
                                 $otherServiceDouble += $doubleSharing;
                                 $trackCountryOther((float)$singleSharing, (float)$doubleSharing);
+                                $appendServicePriceLine(
+                                    $type,
+                                    $item,
+                                    (float) $singleSharing,
+                                    (float) $doubleSharing,
+                                    0.0,
+                                    $isSupplement
+                                );
                             }
                         }
                         // Handle guide: per adult price (totalPrice / Adults)
@@ -7367,6 +7593,14 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                                 $otherServiceSingle += $singleSharing;
                                 $otherServiceDouble += $doubleSharing;
                                 $trackCountryOther((float)$singleSharing, (float)$doubleSharing);
+                                $appendServicePriceLine(
+                                    $type,
+                                    $item,
+                                    (float) $singleSharing,
+                                    (float) $doubleSharing,
+                                    0.0,
+                                    $isSupplement
+                                );
                             }
                         }
                         // Default calculation for other service types
@@ -7391,6 +7625,14 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                                 $otherServiceSingle += $singleSharing;
                                 $otherServiceDouble += $doubleSharing;
                                 $trackCountryOther((float)$singleSharing, (float)$doubleSharing);
+                                $appendServicePriceLine(
+                                    $type,
+                                    $item,
+                                    (float) $singleSharing,
+                                    (float) $doubleSharing,
+                                    0.0,
+                                    $isSupplement
+                                );
                             }
                         }
 
@@ -7658,6 +7900,16 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             return $row;
         }, $supplements);
 
+        $servicePriceLinesFormatted = array_values(array_map(function (array $line) use ($otherFactor) {
+            return [
+                'label' => $line['label'] ?? 'Service',
+                'type' => $line['type'] ?? 'other',
+                'single' => ceil((float) ($line['single'] ?? 0) * $otherFactor),
+                'double' => ceil((float) ($line['double'] ?? 0) * $otherFactor),
+                'child_unit' => ceil((float) ($line['child_unit'] ?? 0) * $otherFactor),
+            ];
+        }, $servicePriceLines));
+
         return [
             // Per-head totals (hotel + other services, supplements excluded)
             'single_sharing'       => ceil($totalSingleSharing),
@@ -7665,6 +7917,8 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             'triple_sharing'       => ceil($totalTripleSharing),
             // Hotel-wise per-head prices (each hotel separately, for rooming scenarios)
             'hotel_price_options'  => $hotelPriceOptions,
+            // Per-service lines for segregated quotation breakdown
+            'service_price_lines'  => $servicePriceLinesFormatted,
             // Other services per-head total (non-hotel, non-supplement)
             'other_services_single' => ceil($otherServiceSingle),
             'other_services_double' => ceil($otherServiceDouble),
