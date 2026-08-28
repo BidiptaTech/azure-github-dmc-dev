@@ -6605,6 +6605,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             'tourPrices' => $tourPrices,
             'hotelOptions' => $hotelOptions,
             'countryQuotationGroups' => $countryQuotationGroups,
+            'orders' => $orders,
             'bankDetails' => $bankDetails,
             'termsAndConditions' => $termsAndConditions,
             'exclusions' => $exclusions,

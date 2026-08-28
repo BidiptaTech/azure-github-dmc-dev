@@ -267,6 +267,200 @@
             ? max(0, $tripleSharingTotal - $otherSingleTotal)
             : 0;
 
+        $tripleOccupancyAvailable = $hotelOnlyTripleTotal > 0;
+
+        $formatOccupancyHotelCells = function ($single, $double, $triple, $tripleAvailable, callable $moneyFormatter) use ($pdfAdults) {
+            $blank = '';
+            $singleCell = $blank;
+            $doubleCell = $blank;
+            $tripleCell = $blank;
+
+            if ($pdfAdults <= 1 && (float) $single > 0) {
+                $singleCell = $moneyFormatter($single);
+            } elseif ($pdfAdults === 2 && (float) $double > 0) {
+                $doubleCell = $moneyFormatter($double);
+            } elseif ($pdfAdults >= 3 && $tripleAvailable && (float) $triple > 0) {
+                $tripleCell = $moneyFormatter($triple);
+            }
+
+            return [$singleCell, $doubleCell, $tripleCell];
+        };
+
+        // Overall hotel cost for entire package (from country_sharing, fallback to hotel-only totals).
+        $countrySharingRows = is_array($tourPrices['country_sharing'] ?? null)
+            ? $tourPrices['country_sharing']
+            : [];
+        $overallHotelSingle = 0.0;
+        $overallHotelDouble = 0.0;
+        $overallHotelTriple = 0.0;
+        $overallHotelConvertedOk = false;
+
+        if (!empty($countrySharingRows)) {
+            $overallHotelConvertedOk = true;
+            foreach ($countrySharingRows as $share) {
+                $fromCurrency = strtoupper((string) ($share['currency'] ?? $pdfBaseCurrency));
+                $hSingle = (float) ($share['hotel_single'] ?? 0);
+                $hDouble = (float) ($share['hotel_double'] ?? 0);
+                $hTriple = (float) ($share['hotel_triple'] ?? 0);
+                if ($isProTour) {
+                    $hSingle = $hDouble > 0 ? $hDouble : $hSingle;
+                }
+
+                $cSingle = \App\Helpers\CurrencyHelper::convertAmount($hSingle, $fromCurrency, $pdfSelectedCurrency);
+                $cDouble = \App\Helpers\CurrencyHelper::convertAmount($hDouble, $fromCurrency, $pdfSelectedCurrency);
+                $cTriple = \App\Helpers\CurrencyHelper::convertAmount($hTriple, $fromCurrency, $pdfSelectedCurrency);
+
+                if ($cSingle === null || $cDouble === null) {
+                    $overallHotelConvertedOk = false;
+                    break;
+                }
+
+                $overallHotelSingle += (float) $cSingle;
+                $overallHotelDouble += (float) $cDouble;
+                $overallHotelTriple += ($cTriple !== null) ? (float) $cTriple : 0.0;
+            }
+        }
+
+        if ($overallHotelConvertedOk && ! empty($countrySharingRows)) {
+            $overallHotelSingleDisplay = ceil($overallHotelSingle);
+            $overallHotelDoubleDisplay = ceil($overallHotelDouble);
+            $overallHotelTripleDisplay = $overallHotelTriple > 0 ? ceil($overallHotelTriple) : 0;
+            $overallTripleAvailable = $overallHotelTripleDisplay > 0;
+        } else {
+            $overallHotelSingleDisplay = $hotelOnlySingleTotal;
+            $overallHotelDoubleDisplay = $hotelOnlyDoubleTotal;
+            $overallHotelTripleDisplay = $hotelOnlyTripleTotal;
+            $overallTripleAvailable = $tripleOccupancyAvailable;
+        }
+
+        [$overallCellSingle, $overallCellDouble, $overallCellTriple] = $formatOccupancyHotelCells(
+            $overallHotelSingleDisplay,
+            $overallHotelDoubleDisplay,
+            $overallHotelTripleDisplay,
+            $overallTripleAvailable,
+            fn ($amount) => $formatMoney($amount)
+        );
+
+        // Overall quotation price from actual order totals.
+        $extractQuotationOrderAmount = function ($order) use ($isProTour) {
+            $data = is_string($order->data ?? null) ? json_decode($order->data, true) : ($order->data ?? null);
+            if (! is_array($data)) {
+                return 0.0;
+            }
+
+            $items = isset($data[0]) ? $data : [$data];
+            $orderType = (string) ($order->type ?? '');
+            $total = 0.0;
+
+            foreach ($items as $item) {
+                if (! is_array($item)) {
+                    continue;
+                }
+
+                $itemPrice = (float) ($item['totalPrice'] ?? $item['price'] ?? 0);
+                $transferPrice = 0.0;
+                if ($orderType !== 'hotel' && isset($item['transfer_options']['cost']) && $item['transfer_options']['cost'] > 0) {
+                    if ($isProTour && isset($item['transfer_options']['totalPrice'])) {
+                        $transferPrice = (float) $item['transfer_options']['totalPrice'];
+                    } else {
+                        $transferPrice = (float) $item['transfer_options']['cost'];
+                    }
+                }
+
+                $guidePrice = 0.0;
+                if (isset($item['guide_options']) && is_array($item['guide_options'])) {
+                    $gv = $item['guide_options']['total_price']
+                        ?? $item['guide_options']['cost']
+                        ?? $item['guide_options']['Cost']
+                        ?? $item['guide_options']['sell']
+                        ?? $item['guide_options']['Sell']
+                        ?? 0;
+                    if ($gv > 0) {
+                        $guidePrice = (float) $gv;
+                    }
+                }
+
+                $total += $itemPrice + $transferPrice + $guidePrice;
+            }
+
+            return $total;
+        };
+
+        $resolveQuotationOrderLabel = function ($order) {
+            $typeLabel = \Illuminate\Support\Str::headline(str_replace('_', ' ', (string) ($order->type ?? 'Order')));
+            $bookingId = $order->booking_id ?? '';
+            $data = is_string($order->data ?? null) ? json_decode($order->data, true) : ($order->data ?? null);
+            $item = is_array($data) ? (isset($data[0]) && is_array($data[0]) ? $data[0] : $data) : [];
+            $name = trim((string) (
+                $item['hotelDetails']['hotel_name']
+                ?? $item['hotelname']
+                ?? $item['AttractionName']
+                ?? $item['attractionName']
+                ?? $item['restaurantName']
+                ?? $item['restaurant_name']
+                ?? ''
+            ));
+
+            $label = $typeLabel;
+            if ($name !== '') {
+                $label .= ' — ' . $name;
+            }
+            if ($bookingId !== '') {
+                $label .= ' (#' . $bookingId . ')';
+            }
+
+            return $label;
+        };
+
+        $quotationOrderRows = [];
+        $overallQuotationTotal = 0.0;
+        $overallQuotationConvertedOk = true;
+
+        foreach (($orders ?? collect()) as $order) {
+            if ((int) ($order->status ?? 0) !== 1) {
+                continue;
+            }
+
+            $amount = $extractQuotationOrderAmount($order);
+            if ($amount <= 0) {
+                continue;
+            }
+
+            $orderCurrency = strtoupper(trim((string) ($order->currency ?? $pdfBaseCurrency)));
+            if ($orderCurrency === '') {
+                $orderCurrency = $pdfBaseCurrency;
+            }
+
+            $convertedAmount = \App\Helpers\CurrencyHelper::convertAmount($amount, $orderCurrency, $pdfSelectedCurrency);
+            if ($convertedAmount === null) {
+                if ($orderCurrency === $pdfSelectedCurrency) {
+                    $convertedAmount = $amount;
+                } else {
+                    $overallQuotationConvertedOk = false;
+                    $convertedAmount = $amount;
+                }
+            }
+
+            $quotationOrderRows[] = [
+                'label' => $resolveQuotationOrderLabel($order),
+                'amount' => $amount,
+                'currency' => $orderCurrency,
+                'converted_amount' => (float) $convertedAmount,
+            ];
+
+            if ($overallQuotationConvertedOk) {
+                $overallQuotationTotal += (float) $convertedAmount;
+            }
+        }
+
+        if (! $overallQuotationConvertedOk) {
+            $overallQuotationTotal = array_sum(array_column($quotationOrderRows, 'amount'));
+        } else {
+            $overallQuotationTotal = ceil($overallQuotationTotal);
+        }
+
+        $pdfOverallQuotationFormatted = $overallQuotationTotal > 0 ? $formatMoney($overallQuotationTotal) : '';
+
         $priceBreakdown = \App\Helpers\CommonHelper::buildQuotationPriceBreakdown(
             $tour,
             $tourPrices,
@@ -709,80 +903,6 @@
                         </td>
                     </tr>
 
-                    <!-- TRIP SUMMARY -->
-                    <tr>
-                        <td style="padding:22px 28px 4px 28px;">
-                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid {{ $border }}; border-radius:12px;">
-                                <tr>
-                                    <td style="padding:16px 18px 4px 18px;">
-                                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-                                            <tr>
-                                                <td style="font-size:14px; font-weight:700; color:{{ $textDark }};">📋 Trip summary</td>
-                                                <td style="text-align:right;"><a href="{{ $detailsUrl }}" style="font-size:12px; color:{{ $brandBlue }}; text-decoration:none; font-weight:600;">View details ›</a></td>
-                                            </tr>
-                                        </table>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td style="padding:10px 18px 16px 18px;">
-                                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-                                            <tr>
-                                                @php
-                                                    $summaryCells = [
-                                                        ['Destination', $destinationDisplay],
-                                                        ['Dates', $tripDates],
-                                                        ['Guests', $guestsText],
-                                                        ['Quoted by', $bookedVia],
-                                                    ];
-                                                @endphp
-                                                @foreach($summaryCells as $cell)
-                                                    <td style="vertical-align:top; padding-right:10px; width:25%;">
-                                                        <div style="font-size:11px; color:{{ $textMuted }}; margin-bottom:4px;">{{ $cell[0] }}</div>
-                                                        <div style="font-size:13px; font-weight:700; color:{{ $textDark }};">{{ $cell[1] }}</div>
-                                                    </td>
-                                                @endforeach
-                                            </tr>
-                                            @if(!empty($priceBreakdown['lines']))
-                                                <tr>
-                                                    <td colspan="4" style="padding-top:12px;">
-                                                        <div style="font-size:11px; color:{{ $textMuted }}; margin-bottom:6px;">Price breakdown</div>
-                                                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid {{ $border }}; border-radius:8px; overflow:hidden;">
-                                                            @foreach($priceBreakdown['lines'] as $breakdownLine)
-                                                                <tr>
-                                                                    <td style="padding:8px 10px; border-bottom:1px solid {{ $border }}; font-size:12px; color:{{ $textDark }}; width:42%;">{{ $breakdownLine['label'] ?? 'Service' }}</td>
-                                                                    <td style="padding:8px 10px; border-bottom:1px solid {{ $border }}; font-size:12px; color:{{ $textMuted }}; text-align:center;">{{ $formatBreakdownLineEmail($breakdownLine) }}</td>
-                                                                    <td style="padding:8px 10px; border-bottom:1px solid {{ $border }}; font-size:12px; font-weight:700; color:{{ $textDark }}; text-align:right; width:18%;">{{ $currencyCode }} {{ number_format((float)($breakdownLine['line_total'] ?? 0), 0, '.', ',') }}</td>
-                                                                </tr>
-                                                            @endforeach
-                                                            <tr>
-                                                                <td colspan="2" style="padding:10px; font-size:12px; font-weight:700; color:{{ $textDark }}; text-align:right;">Total</td>
-                                                                <td style="padding:10px; font-size:13px; font-weight:800; color:{{ $brandBlue }}; text-align:right;">{{ $currencyCode }} {{ number_format((float)($priceBreakdown['grand_total'] ?? 0), 0, '.', ',') }}</td>
-                                                            </tr>
-                                                        </table>
-                                                    </td>
-                                                </tr>
-                                            @endif
-                                            @if(!empty($requested_days) || !empty($available_days))
-                                                <tr>
-                                                    <td colspan="4" style="padding-top:10px;">
-                                                        @if(!empty($requested_days))
-                                                            <span style="font-size:11px; color:{{ $textMuted }};">Requested: </span>
-                                                            <span style="font-size:12px; font-weight:600; color:{{ $textDark }};">{{ $requested_nights ?? max(0, (int) $requested_days - 1) }} night{{ (($requested_nights ?? max(0, (int) $requested_days - 1)) !== 1) ? 's' : '' }}</span>
-                                                        @endif
-                                                        @if(!empty($available_days))
-                                                            <span style="font-size:11px; color:{{ $textMuted }}; margin-left:12px;">Package available: </span>
-                                                            <span style="font-size:12px; font-weight:600; color:{{ $textDark }};">{{ $available_nights ?? max(0, (int) $available_days - 1) }} night{{ (($available_nights ?? max(0, (int) $available_days - 1)) !== 1) ? 's' : '' }}</span>
-                                                        @endif
-                                                    </td>
-                                                </tr>
-                                            @endif
-                                        </table>
-                                    </td>
-                                </tr>
-                            </table>
-                        </td>
-                    </tr>
-
                     <!-- QUOTATION BODY (PDF-style when full tour data is available) -->
                     @if($hasPdfQuotationLayout)
                         <tr>
@@ -810,6 +930,11 @@
                                     @if($showGroupDiscountAmount)
                                         <tr>
                                             <td style="padding:4px 0;"><strong>Discount amount:</strong> {{ $formatMoney($groupDiscountAmount) }}</td>
+                                        </tr>
+                                    @endif
+                                    @if(!empty($pdfOverallQuotationFormatted))
+                                        <tr>
+                                            <td style="padding:4px 0;"><strong>Overall Quotation Price:</strong> {{ $pdfOverallQuotationFormatted }}</td>
                                         </tr>
                                     @endif
                                 </table>
@@ -942,9 +1067,9 @@
                                                     <th style="{{ $thStyle }} width:33%;">Triple</th>
                                                 </tr>
                                                 <tr>
-                                                    <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $formatMoney($hotelOnlySingleTotal) }}</td>
-                                                    <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $formatMoney($hotelOnlyDoubleTotal) }}</td>
-                                                    <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $formatMoney($hotelOnlyTripleTotal) }}</td>
+                                                    <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $overallCellSingle }}</td>
+                                                    <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $overallCellDouble }}</td>
+                                                    <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $overallCellTriple }}</td>
                                                 </tr>
                                             </table>
                                         </td>
@@ -960,6 +1085,34 @@
                                         </td>
                                     </tr>
                                 </table>
+
+                                @if(!empty($quotationOrderRows))
+                                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse; border:2px solid #000; table-layout:fixed; margin-top:14px;">
+                                        <tr>
+                                            <td colspan="2" style="{{ $panelTitle }}">Overall Quotation Price ({{ $currencyLabel }})</td>
+                                        </tr>
+                                        <tr>
+                                            <th style="{{ $thStyle }} text-align:left; width:70%;">Order</th>
+                                            <th style="{{ $thStyle }} text-align:center; width:30%;">Total Price</th>
+                                        </tr>
+                                        @foreach($quotationOrderRows as $orderRow)
+                                            <tr>
+                                                <td style="{{ $tdStyle }} vertical-align:top;">{{ $orderRow['label'] }}</td>
+                                                <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">
+                                                    @if($overallQuotationConvertedOk)
+                                                        {{ $formatMoney($orderRow['converted_amount']) }}
+                                                    @else
+                                                        {{ $currencyLabel }} {{ number_format((float) $orderRow['amount'], 0, '.', ',') }}
+                                                    @endif
+                                                </td>
+                                            </tr>
+                                        @endforeach
+                                        <tr>
+                                            <td style="{{ $tdStyle }} text-align:right; font-weight:bold;">Overall Quotation Price</td>
+                                            <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $pdfOverallQuotationFormatted }}</td>
+                                        </tr>
+                                    </table>
+                                @endif
 
                                 @if(!empty($suppHotels))
                                     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse; margin-top:14px;">
@@ -984,15 +1137,23 @@
                                                 if ($isProTour) {
                                                     $suppSingle = $suppDouble > 0 ? $suppDouble : $suppSingle;
                                                 }
+                                                $suppTripleAvailable = $suppTriple > 0;
+                                                [$suppCellSingle, $suppCellDouble, $suppCellTriple] = $formatOccupancyHotelCells(
+                                                    $suppSingle,
+                                                    $suppDouble,
+                                                    $suppTriple,
+                                                    $suppTripleAvailable,
+                                                    fn ($amount) => $formatMoney($amount)
+                                                );
                                             @endphp
                                             <tr>
                                                 <td style="{{ $tdStyle }}">
                                                     {{ $hotelLabel }}
                                                     @if($niceDate)<span style="color:#444;"> ({{ $niceDate }})</span>@endif
                                                 </td>
-                                                <td style="{{ $tdStyle }} text-align:center;">{{ $formatMoney($suppSingle) }}</td>
-                                                <td style="{{ $tdStyle }} text-align:center;">{{ $formatMoney($suppDouble) }}</td>
-                                                <td style="{{ $tdStyle }} text-align:center;">{{ $suppTriple > 0 ? $formatMoney($suppTriple) : '—' }}</td>
+                                                <td style="{{ $tdStyle }} text-align:center;">{{ $suppCellSingle }}</td>
+                                                <td style="{{ $tdStyle }} text-align:center;">{{ $suppCellDouble }}</td>
+                                                <td style="{{ $tdStyle }} text-align:center;">{{ $suppCellTriple }}</td>
                                             </tr>
                                         @endforeach
                                     </table>
