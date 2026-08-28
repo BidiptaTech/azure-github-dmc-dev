@@ -311,6 +311,11 @@
         $breakdownHotelTotal = (float) ($priceBreakdown['hotel_total'] ?? 0);
         $breakdownOtherTotal = (float) ($priceBreakdown['other_total'] ?? 0);
 
+        $segregatedPerPax = \App\Helpers\CommonHelper::resolveQuotationSegregatedPerPax($tourPrices, $isProTour);
+        $hotelPerPax = $segregatedPerPax['hotel'];
+        $otherPerPax = $segregatedPerPax['other'];
+        $packagePerPax = $segregatedPerPax['package'];
+
         $formatBreakdownLine = function (array $line) use ($formatMoney) {
             return \App\Helpers\CommonHelper::formatQuotationBreakdownCalculation($line, $formatMoney);
         };
@@ -946,7 +951,12 @@
                         $shareHotelSingle = (float)($share['hotel_single'] ?? 0);
                         $shareHotelDouble = (float)($share['hotel_double'] ?? 0);
                         $shareHotelTriple = (float)($share['hotel_triple'] ?? 0);
-                        $shareOther = (float)($share['other_services_single'] ?? ($share['other_services_double'] ?? 0));
+                        $shareOtherSingle = (float)($share['other_services_single'] ?? 0);
+                        $shareOtherDouble = (float)($share['other_services_double'] ?? 0);
+                        $shareOtherTriple = $shareOtherSingle;
+                        if ($shareOtherDouble <= 0) {
+                            $shareOtherDouble = $shareOtherSingle;
+                        }
                         if ($isProTour) {
                             $shareHotelSingle = $shareHotelDouble > 0 ? $shareHotelDouble : $shareHotelSingle;
                         }
@@ -979,12 +989,16 @@
                                     <table style="width: 100%; border-collapse: collapse; border: 1px solid #000; table-layout: fixed;">
                                         <thead>
                                             <tr>
-                                                <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center;">Price (per pax)</th>
+                                                <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 33.33%;">Single</th>
+                                                <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 33.33%;">Double</th>
+                                                <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 33.33%;">Triple</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             <tr>
-                                                <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatNativeMoney($shareOther, $shareCurrency) }}</td>
+                                                <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatNativeMoney($shareOtherSingle, $shareCurrency) }}</td>
+                                                <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatNativeMoney($shareOtherDouble, $shareCurrency) }}</td>
+                                                <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatNativeMoney($shareOtherTriple, $shareCurrency) }}</td>
                                             </tr>
                                         </tbody>
                                     </table>
@@ -1001,7 +1015,9 @@
             $overallHotelSingle = 0.0;
             $overallHotelDouble = 0.0;
             $overallHotelTriple = 0.0;
-            $overallOther = 0.0;
+            $overallOtherSingle = 0.0;
+            $overallOtherDouble = 0.0;
+            $overallOtherTriple = 0.0;
             $overallConvertedOk = false;
 
             if (!empty($countrySharingRows)) {
@@ -1011,7 +1027,12 @@
                     $hSingle = (float)($share['hotel_single'] ?? 0);
                     $hDouble = (float)($share['hotel_double'] ?? 0);
                     $hTriple = (float)($share['hotel_triple'] ?? 0);
-                    $oOther = (float)($share['other_services_single'] ?? ($share['other_services_double'] ?? 0));
+                    $oSingle = (float)($share['other_services_single'] ?? 0);
+                    $oDouble = (float)($share['other_services_double'] ?? 0);
+                    $oTriple = $oSingle;
+                    if ($oDouble <= 0) {
+                        $oDouble = $oSingle;
+                    }
                     if ($isProTour) {
                         $hSingle = $hDouble > 0 ? $hDouble : $hSingle;
                     }
@@ -1019,9 +1040,11 @@
                     $cSingle = \App\Helpers\CurrencyHelper::convertAmount($hSingle, $fromCurrency, $selectedCurrency);
                     $cDouble = \App\Helpers\CurrencyHelper::convertAmount($hDouble, $fromCurrency, $selectedCurrency);
                     $cTriple = \App\Helpers\CurrencyHelper::convertAmount($hTriple, $fromCurrency, $selectedCurrency);
-                    $cOther  = \App\Helpers\CurrencyHelper::convertAmount($oOther, $fromCurrency, $selectedCurrency);
+                    $cOtherSingle = \App\Helpers\CurrencyHelper::convertAmount($oSingle, $fromCurrency, $selectedCurrency);
+                    $cOtherDouble = \App\Helpers\CurrencyHelper::convertAmount($oDouble, $fromCurrency, $selectedCurrency);
+                    $cOtherTriple = \App\Helpers\CurrencyHelper::convertAmount($oTriple, $fromCurrency, $selectedCurrency);
 
-                    if ($cSingle === null || $cDouble === null || $cOther === null) {
+                    if ($cSingle === null || $cDouble === null || $cOtherSingle === null || $cOtherDouble === null) {
                         $overallConvertedOk = false;
                         break;
                     }
@@ -1029,7 +1052,9 @@
                     $overallHotelSingle += (float)$cSingle;
                     $overallHotelDouble += (float)$cDouble;
                     $overallHotelTriple += ($cTriple !== null) ? (float)$cTriple : 0.0;
-                    $overallOther += (float)$cOther;
+                    $overallOtherSingle += (float)$cOtherSingle;
+                    $overallOtherDouble += (float)$cOtherDouble;
+                    $overallOtherTriple += ($cOtherTriple !== null) ? (float)$cOtherTriple : (float)$cOtherSingle;
                 }
             }
 
@@ -1045,7 +1070,9 @@
                     $fbHotelSingle = 0.0;
                     $fbHotelDouble = 0.0;
                     $fbHotelTriple = 0.0;
-                    $fbOther = 0.0;
+                    $fbOtherSingle = 0.0;
+                    $fbOtherDouble = 0.0;
+                    $fbOtherTriple = 0.0;
                     foreach ($countrySharingRows as $share) {
                         $fromCurrency = strtoupper((string)($share['currency'] ?? $baseCurrency));
                         if ($fallbackCurrency === null) {
@@ -1057,14 +1084,21 @@
                         $hSingle = (float)($share['hotel_single'] ?? 0);
                         $hDouble = (float)($share['hotel_double'] ?? 0);
                         $hTriple = (float)($share['hotel_triple'] ?? 0);
-                        $oOther = (float)($share['other_services_single'] ?? ($share['other_services_double'] ?? 0));
+                        $oSingle = (float)($share['other_services_single'] ?? 0);
+                        $oDouble = (float)($share['other_services_double'] ?? 0);
+                        $oTriple = $oSingle;
+                        if ($oDouble <= 0) {
+                            $oDouble = $oSingle;
+                        }
                         if ($isProTour) {
                             $hSingle = $hDouble > 0 ? $hDouble : $hSingle;
                         }
                         $fbHotelSingle += $hSingle;
                         $fbHotelDouble += $hDouble;
                         $fbHotelTriple += $hTriple;
-                        $fbOther += $oOther;
+                        $fbOtherSingle += $oSingle;
+                        $fbOtherDouble += $oDouble;
+                        $fbOtherTriple += $oTriple;
                     }
                     if ($sameCurrency && $fallbackCurrency) {
                         $overallConvertedOk = true;
@@ -1073,24 +1107,32 @@
                         $overallHotelSingle = ceil($fbHotelSingle);
                         $overallHotelDouble = ceil($fbHotelDouble);
                         $overallHotelTriple = $fbHotelTriple > 0 ? ceil($fbHotelTriple) : 0;
-                        $overallOther = ceil($fbOther);
+                        $overallOtherSingle = ceil($fbOtherSingle);
+                        $overallOtherDouble = ceil($fbOtherDouble);
+                        $overallOtherTriple = ceil($fbOtherTriple);
                     } else {
                         $overallHotelSingle = null;
                         $overallHotelDouble = null;
                         $overallHotelTriple = null;
-                        $overallOther = null;
+                        $overallOtherSingle = null;
+                        $overallOtherDouble = null;
+                        $overallOtherTriple = null;
                     }
                 } else {
                     $overallHotelSingle = null;
                     $overallHotelDouble = null;
                     $overallHotelTriple = null;
-                    $overallOther = null;
+                    $overallOtherSingle = null;
+                    $overallOtherDouble = null;
+                    $overallOtherTriple = null;
                 }
             } else {
                 $overallHotelSingle = ceil($overallHotelSingle);
                 $overallHotelDouble = ceil($overallHotelDouble);
                 $overallHotelTriple = $overallHotelTriple > 0 ? ceil($overallHotelTriple) : 0;
-                $overallOther = ceil($overallOther);
+                $overallOtherSingle = ceil($overallOtherSingle);
+                $overallOtherDouble = ceil($overallOtherDouble);
+                $overallOtherTriple = ceil($overallOtherTriple);
             }
         @endphp
         <div class="overall-price-box" style="margin-top: 10px;">
@@ -1114,9 +1156,9 @@
                                         <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatNativeMoney($overallHotelDouble, $overallDisplayCurrency) }}</td>
                                         <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $overallHotelTriple > 0 ? $formatNativeMoney($overallHotelTriple, $overallDisplayCurrency) : '—' }}</td>
                                     @else
-                                        <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $breakdownHotelTotal > 0 && $occupancyKey === 'single' ? $formatMoney($breakdownHotelTotal) : ($breakdownHotelTotal > 0 ? '—' : $formatMoney($hotelOnlySingleTotal)) }}</td>
-                                        <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $breakdownHotelTotal > 0 && $occupancyKey === 'double' ? $formatMoney($breakdownHotelTotal) : ($breakdownHotelTotal > 0 ? '—' : $formatMoney($hotelOnlyDoubleTotal)) }}</td>
-                                        <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $breakdownHotelTotal > 0 && $occupancyKey === 'triple' ? $formatMoney($breakdownHotelTotal) : ($breakdownHotelTotal > 0 ? '—' : $formatMoney($hotelOnlyTripleTotal)) }}</td>
+                                        <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatMoney($hotelPerPax['single']) }}</td>
+                                        <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatMoney($hotelPerPax['double']) }}</td>
+                                        <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $hotelPerPax['triple'] > 0 ? $formatMoney($hotelPerPax['triple']) : '—' }}</td>
                                     @endif
                                 </tr>
                             </tbody>
@@ -1127,16 +1169,32 @@
                         <table style="width: 100%; border-collapse: collapse; border: 1px solid #000; table-layout: fixed;">
                             <thead>
                                 <tr>
-                                    <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center;">{{ $breakdownOtherTotal > 0 ? 'Total price' : 'Price (per pax)' }}</th>
+                                    <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 33.33%;">Single</th>
+                                    <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 33.33%;">Double</th>
+                                    <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 33.33%;">Triple</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr>
                                     <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">
                                         @if($overallConvertedOk)
-                                            {{ $formatNativeMoney($overallOther, $overallDisplayCurrency) }}
+                                            {{ $formatNativeMoney($overallOtherSingle ?? $otherPerPax['single'], $overallDisplayCurrency) }}
                                         @else
-                                            {{ $formatMoney($breakdownOtherTotal > 0 ? $breakdownOtherTotal : $otherTotalForOccupancy) }}
+                                            {{ $formatMoney($otherPerPax['single']) }}
+                                        @endif
+                                    </td>
+                                    <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">
+                                        @if($overallConvertedOk)
+                                            {{ $formatNativeMoney($overallOtherDouble ?? $otherPerPax['double'], $overallDisplayCurrency) }}
+                                        @else
+                                            {{ $formatMoney($otherPerPax['double']) }}
+                                        @endif
+                                    </td>
+                                    <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">
+                                        @if($overallConvertedOk)
+                                            {{ $formatNativeMoney($overallOtherTriple ?? $otherPerPax['triple'], $overallDisplayCurrency) }}
+                                        @else
+                                            {{ $formatMoney($otherPerPax['triple']) }}
                                         @endif
                                     </td>
                                 </tr>
@@ -1181,8 +1239,21 @@
             <div class="overall-price-box" style="margin-top: 10px;">
                 <table style="width: 100%; border-collapse: collapse; border: 2px solid #000; table-layout: fixed;">
                     <tr>
-                        <td style="border: 1px solid #000; padding: 8px; font-weight: bold; background: #f3f3f3;">Total Quotation Price ({{ $currencyLabel }})</td>
-                        <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold; width: 30%;">{{ $formatMoney($priceBreakdown['grand_total'] ?? 0) }}</td>
+                        <td colspan="3" style="border: 1px solid #000; padding: 8px; font-weight: bold; background: #f3f3f3;">Price (per pax) — {{ $currencyLabel }}</td>
+                    </tr>
+                    <tr>
+                        <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 33.33%;">Single</th>
+                        <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 33.33%;">Double</th>
+                        <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 33.33%;">Triple</th>
+                    </tr>
+                    <tr>
+                        <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatMoney($packagePerPax['single']) }}</td>
+                        <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatMoney($packagePerPax['double']) }}</td>
+                        <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $packagePerPax['triple'] > 0 ? $formatMoney($packagePerPax['triple']) : '—' }}</td>
+                    </tr>
+                    <tr>
+                        <td colspan="2" style="border: 1px solid #000; padding: 8px; text-align: right; font-weight: bold;">Total Quotation Price ({{ $currencyLabel }})</td>
+                        <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatMoney($priceBreakdown['grand_total'] ?? 0) }}</td>
                     </tr>
                 </table>
             </div>
