@@ -224,9 +224,14 @@
         // Pro form: hotel single column uses double rate (both columns show the same hotel price).
         $isProTour = (int)($tour->is_pro ?? 0) === 1;
 
-        // Very basic rooming heuristic: if >= 2 adults, show DBL
-        $occupancyKey = $adults >= 2 ? 'double' : 'single';
-        $roomingText = $adults >= 2 ? '01 DBL TWIN' : '01 SGL';
+        $hotelDisplayOccupancy = \App\Helpers\CommonHelper::resolveQuotationHotelDisplayOccupancy(
+            $orders ?? collect(),
+            is_array($hotelOptions ?? null) ? $hotelOptions : null,
+            $adults
+        );
+        $occupancyKey = $hotelDisplayOccupancy['occupancy_key'];
+        $roomingText = $hotelDisplayOccupancy['rooming_text'];
+        $displayOccupancyKey = $occupancyKey;
 
         $baseCurrency = strtoupper($baseCurrency ?? ($tour->currency ?? 'SGD'));
         $selectedCurrency = strtoupper($selectedCurrency ?? $baseCurrency);
@@ -303,18 +308,18 @@
         // Triple occupancy is available when extra-bed pricing exists in tour totals.
         $tripleOccupancyAvailable = $hotelOnlyTripleTotal > 0;
 
-        // Show only the hotel price cell that matches passenger count (others stay blank).
-        $formatOccupancyHotelCells = function ($single, $double, $triple, $tripleAvailable, callable $moneyFormatter) use ($adults) {
+        // Show only the hotel price cell that matches booked room occupancy (others stay blank).
+        $formatOccupancyHotelCells = function ($single, $double, $triple, $tripleAvailable, callable $moneyFormatter) use ($displayOccupancyKey) {
             $blank = '';
             $singleCell = $blank;
             $doubleCell = $blank;
             $tripleCell = $blank;
 
-            if ($adults <= 1 && (float) $single > 0) {
+            if ($displayOccupancyKey === 'single' && (float) $single > 0) {
                 $singleCell = $moneyFormatter($single);
-            } elseif ($adults === 2 && (float) $double > 0) {
+            } elseif ($displayOccupancyKey === 'double' && (float) $double > 0) {
                 $doubleCell = $moneyFormatter($double);
-            } elseif ($adults >= 3 && $tripleAvailable && (float) $triple > 0) {
+            } elseif ($displayOccupancyKey === 'triple' && $tripleAvailable && (float) $triple > 0) {
                 $tripleCell = $moneyFormatter($triple);
             }
 
