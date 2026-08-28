@@ -5389,6 +5389,142 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
     }
 
     /**
+     * Resolve quotation hotel display occupancy from booked rooming (not total pax).
+     * e.g. 14 pax in 7 double rooms => double occupancy, not triple.
+     *
+     * @param  \Illuminate\Support\Collection|array|null  $orders
+     * @param  array<int, array<string, mixed>>|null  $hotelOptions
+     * @return array{occupancy_key: string, rooming_text: string, room_counts: array{single: int, double: int, triple: int}}
+     */
+    public static function resolveQuotationHotelDisplayOccupancy($orders = null, ?array $hotelOptions = null, int $adults = 0): array
+    {
+        $roomCounts = ['single' => 0, 'double' => 0, 'triple' => 0];
+
+        $orderList = $orders instanceof \Illuminate\Support\Collection
+            ? $orders
+            : collect($orders ?? []);
+
+        foreach ($orderList as $order) {
+            if (strtolower((string) ($order->type ?? '')) !== 'hotel') {
+                continue;
+            }
+
+            $rawData = $order->data;
+            if (is_string($rawData)) {
+                $rawData = json_decode($rawData, true);
+            }
+            if (empty($rawData) || ! is_array($rawData)) {
+                continue;
+            }
+
+            $items = isset($rawData[0]) && is_array($rawData[0]) ? $rawData : [$rawData];
+            foreach ($items as $item) {
+                if (! is_array($item)) {
+                    continue;
+                }
+
+                $rooms = $item['rooms'] ?? [];
+                if (! is_array($rooms)) {
+                    continue;
+                }
+
+                foreach ($rooms as $room) {
+                    if (! is_array($room)) {
+                        continue;
+                    }
+
+                    $noOfRooms = (int) ($room['no_of_room'] ?? $room['number_of_rooms'] ?? 0);
+                    $noOfRooms = $noOfRooms > 0 ? $noOfRooms : 1;
+                    $beds = isset($room['beds']) && is_array($room['beds']) ? $room['beds'] : [];
+
+                    if (! empty($beds)) {
+                        foreach ($beds as $bed) {
+                            if (! is_array($bed)) {
+                                continue;
+                            }
+                            $headCount = (int) ($bed['head_count'] ?? $bed['headCount'] ?? $bed['occupancy'] ?? 0);
+                            if ($headCount >= 3) {
+                                $roomCounts['triple'] += $noOfRooms;
+                            } elseif ($headCount >= 2) {
+                                $roomCounts['double'] += $noOfRooms;
+                            } elseif ($headCount >= 1) {
+                                $roomCounts['single'] += $noOfRooms;
+                            }
+                        }
+                    } else {
+                        $selectedPersons = (int) ($room['selected_persons'] ?? $room['selectedPersons'] ?? 0);
+                        if ($selectedPersons === 3) {
+                            $roomCounts['triple'] += $noOfRooms;
+                        } elseif ($selectedPersons === 2) {
+                            $roomCounts['double'] += $noOfRooms;
+                        } elseif ($selectedPersons === 1) {
+                            $roomCounts['single'] += $noOfRooms;
+                        }
+                    }
+                }
+            }
+        }
+
+        if (($roomCounts['single'] + $roomCounts['double'] + $roomCounts['triple']) === 0 && is_array($hotelOptions)) {
+            foreach ($hotelOptions as $hotel) {
+                if (! is_array($hotel)) {
+                    continue;
+                }
+                $nor = $hotel['no_of_rooms'] ?? [];
+                if (! is_array($nor)) {
+                    continue;
+                }
+                $roomCounts['single'] += (int) ($nor['single'] ?? 0);
+                $roomCounts['double'] += (int) ($nor['double'] ?? 0);
+                $roomCounts['triple'] += (int) ($nor['triple'] ?? 0);
+            }
+        }
+
+        $totalRooms = $roomCounts['single'] + $roomCounts['double'] + $roomCounts['triple'];
+
+        if ($totalRooms > 0) {
+            if ($roomCounts['triple'] > 0
+                && $roomCounts['triple'] >= $roomCounts['double']
+                && $roomCounts['triple'] >= $roomCounts['single']) {
+                $occupancyKey = 'triple';
+            } elseif ($roomCounts['double'] > 0 && $roomCounts['double'] >= $roomCounts['single']) {
+                $occupancyKey = 'double';
+            } else {
+                $occupancyKey = 'single';
+            }
+        } else {
+            $occupancyKey = $adults <= 1 ? 'single' : 'double';
+            $roomCounts[$occupancyKey] = $occupancyKey === 'double'
+                ? max(1, (int) ceil(max(1, $adults) / 2))
+                : 1;
+        }
+
+        $roomingParts = [];
+        if ($roomCounts['single'] > 0) {
+            $roomingParts[] = sprintf('%02d SGL', $roomCounts['single']);
+        }
+        if ($roomCounts['double'] > 0) {
+            $roomingParts[] = sprintf('%02d DBL TWIN', $roomCounts['double']);
+        }
+        if ($roomCounts['triple'] > 0) {
+            $roomingParts[] = sprintf('%02d TRPL', $roomCounts['triple']);
+        }
+        if ($roomingParts === []) {
+            $roomingParts[] = match ($occupancyKey) {
+                'triple' => sprintf('%02d TRPL', max(1, $roomCounts['triple'])),
+                'double' => sprintf('%02d DBL TWIN', max(1, $roomCounts['double'])),
+                default => sprintf('%02d SGL', max(1, $roomCounts['single'])),
+            };
+        }
+
+        return [
+            'occupancy_key' => $occupancyKey,
+            'rooming_text' => implode(' + ', $roomingParts),
+            'room_counts' => $roomCounts,
+        ];
+    }
+
+    /**
      * Resolve a tour for email preview: by tour_id / display_id, or the latest tour with orders.
      */
     public static function findTourForEmailPreview(?string $tourKey = null): ?Tour
@@ -8947,7 +9083,16 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                                     }
                                 }
                             } else {
-                                $totalSingleRooms += $noOfRooms;
+                                $selectedPersons = (int) ($room['selected_persons'] ?? $room['selectedPersons'] ?? 0);
+                                if ($selectedPersons === 3) {
+                                    $totalTripleRooms += $noOfRooms;
+                                } elseif ($selectedPersons === 2) {
+                                    $totalDoubleRooms += $noOfRooms;
+                                } elseif ($selectedPersons === 1) {
+                                    $totalSingleRooms += $noOfRooms;
+                                } else {
+                                    $totalSingleRooms += $noOfRooms;
+                                }
                             }
                         }
                     }
@@ -9013,7 +9158,16 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                                     }
                                 }
                             } else {
-                                $roomSingleCount = $noOfRooms;
+                                $selectedPersons = (int) ($firstRoom['selected_persons'] ?? $firstRoom['selectedPersons'] ?? 0);
+                                if ($selectedPersons === 3) {
+                                    $roomTripleCount += $noOfRooms;
+                                } elseif ($selectedPersons === 2) {
+                                    $roomDoubleCount += $noOfRooms;
+                                } elseif ($selectedPersons === 1) {
+                                    $roomSingleCount += $noOfRooms;
+                                } else {
+                                    $roomSingleCount += $noOfRooms;
+                                }
                             }
                             $totalSingleRooms += $roomSingleCount;
                             $totalDoubleRooms += $roomDoubleCount;
