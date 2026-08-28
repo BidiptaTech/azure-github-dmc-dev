@@ -1632,23 +1632,14 @@ class ExternalApiReceiveController extends Controller
 
     protected function resolveTransferLineCost(array $transfer, int $billablePax): float
     {
-        $unitCost = (float) ($transfer['cost'] ?? $transfer['price'] ?? 0);
+        unset($billablePax);
+
         $explicitTotal = (float) ($transfer['totalPrice'] ?? $transfer['total_cost'] ?? 0);
-        $pax = max(1, (int) ($transfer['passengers'] ?? $billablePax));
-
-        if ($unitCost <= 0) {
+        if ($explicitTotal > 0) {
             return round($explicitTotal, 2);
         }
 
-        if ($explicitTotal <= 0 || abs($explicitTotal - $unitCost) < 0.01) {
-            return round($unitCost * $pax, 2);
-        }
-
-        if ($explicitTotal >= ($unitCost * max(2, $pax) * 0.9)) {
-            return round($explicitTotal, 2);
-        }
-
-        return round($unitCost * $pax, 2);
+        return round((float) ($transfer['cost'] ?? $transfer['price'] ?? 0), 2);
     }
 
     protected function normalizeMealPlan(string $mealPlan): string
