@@ -733,26 +733,11 @@
                                     @endif
                                 </table>
 
-                                @if(!empty($priceBreakdown['lines']))
+                                @if(!empty($priceBreakdown['grand_total']))
                                     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse; border:2px solid #000; margin-bottom:14px;">
                                         <tr>
-                                            <td colspan="3" style="{{ $panelTitle }}">Price Breakdown ({{ $currencyLabel ?? $currencyCode }})</td>
-                                        </tr>
-                                        <tr>
-                                            <th style="{{ $thStyle }} text-align:left; width:45%;">Service</th>
-                                            <th style="{{ $thStyle }} width:40%;">Calculation</th>
-                                            <th style="{{ $thStyle }} width:15%;">Amount</th>
-                                        </tr>
-                                        @foreach($priceBreakdown['lines'] as $breakdownLine)
-                                            <tr>
-                                                <td style="{{ $tdStyle }}">{{ $breakdownLine['label'] ?? 'Service' }}</td>
-                                                <td style="{{ $tdStyle }} text-align:center;">{{ $formatBreakdownLineEmail($breakdownLine) }}</td>
-                                                <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $currencyCode }} {{ number_format((float)($breakdownLine['line_total'] ?? 0), 0, '.', ',') }}</td>
-                                            </tr>
-                                        @endforeach
-                                        <tr>
-                                            <td colspan="2" style="{{ $tdStyle }} text-align:right; font-weight:bold;">Total</td>
-                                            <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $currencyCode }} {{ number_format((float)($priceBreakdown['grand_total'] ?? 0), 0, '.', ',') }}</td>
+                                            <td style="{{ $panelTitle }}">Total Quotation Price ({{ $currencyLabel ?? $currencyCode }})</td>
+                                            <td style="{{ $panelTitle }} text-align:center; width:30%;">{{ $currencyCode }} {{ number_format((float)($priceBreakdown['grand_total'] ?? 0), 0, '.', ',') }}</td>
                                         </tr>
                                     </table>
                                 @endif
