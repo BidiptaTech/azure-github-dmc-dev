@@ -1466,8 +1466,13 @@ class ExternalApiReceiveController extends Controller
         $ticketId = $firstTicket['ticket_id'] ?? $item['ticketId'] ?? null;
         $ticketName = $firstTicket['ticket_name'] ?? $item['ticketName'] ?? null;
         $bookingDate = $this->parseDate($meta['bookingDate'] ?? $tour->check_in_time, Carbon::today())->toDateString();
-        $price = (float) ($item['price'] ?? $item['totalPrice'] ?? 0);
-        $transfer = $this->mapTransferOptions(is_array($item['transfer'] ?? null) ? $item['transfer'] : []);
+        $unitPrice = (float) ($item['price'] ?? $item['totalPrice'] ?? 0);
+        $pax = $this->resolveBillablePax($item, $tour);
+        $transfer = $this->mapTransferOptions(
+            is_array($item['transfer'] ?? null) ? $item['transfer'] : [],
+            [],
+            $pax
+        );
 
         if ($attraction) {
             $dbTickets = $attraction->tickets ?? collect();
@@ -1489,8 +1494,8 @@ class ExternalApiReceiveController extends Controller
             if ($matchedTicket) {
                 $ticketId = $matchedTicket->ticket_id ?? $ticketId;
                 $ticketName = $matchedTicket->name ?? $ticketName;
-                if ($price <= 0) {
-                    $price = (float) ($matchedTicket->adult_price ?? 0);
+                if ($unitPrice <= 0) {
+                    $unitPrice = (float) ($matchedTicket->adult_price ?? 0);
                 }
             }
         }
@@ -1498,13 +1503,18 @@ class ExternalApiReceiveController extends Controller
             $ticketName = 'General Ticket';
         }
 
+        $pricing = $this->resolvePerPaxLineTotal($item, $tour, $unitPrice);
+        $unitPrice = $pricing['unit_price'];
+        $lineTotal = $pricing['line_total'];
+        $pax = $pricing['pax'];
+
         $visitTime = $this->resolveAttractionVisitTime($item, $attraction);
 
         return array_merge($customer, [
             'bookingDate' => $bookingDate,
             'visitTime' => $visitTime,
             'time_slot' => $visitTime,
-            'adultCount' => max(1, (int) ($item['adultCount'] ?? $tour->adult ?: 1)),
+            'adultCount' => $pax,
             'childCount' => max(0, (int) ($item['childCount'] ?? $tour->child)),
             'seniorCount' => max(0, (int) ($item['seniorCount'] ?? 0)),
             'AttractionId' => $attraction?->attraction_id ?? $attractionId,
@@ -1512,7 +1522,7 @@ class ExternalApiReceiveController extends Controller
             'ticketId' => $ticketId,
             'ticketName' => $ticketName,
             'ticket_details' => [
-                'adult_price' => $price,
+                'adult_price' => $unitPrice,
                 'child_price' => 0,
                 'senior_price' => 0,
                 'description' => '',
@@ -1520,9 +1530,9 @@ class ExternalApiReceiveController extends Controller
             ],
             'Selection' => 'withoutTransport',
             'mode' => 'dmc',
-            'totalPrice' => $price,
-            'price' => $price,
-            'prices' => ['price' => $price],
+            'totalPrice' => $lineTotal,
+            'price' => $lineTotal,
+            'prices' => ['price' => $lineTotal],
             'dmc_id' => $tour->dmc_id,
             'created_by_dmc' => $tour->dmc_id,
             'transfer_options' => $transfer,
@@ -1565,13 +1575,22 @@ class ExternalApiReceiveController extends Controller
         $dish = $mealConfig['dish'] ?? $item['dish'] ?? $item['mealSpecificType'] ?? '';
         $timeSlot = $mealConfig['time_slot'] ?? $item['time_slot'] ?? $item['visitTime'] ?? '12:00 PM';
         $bookingDate = $this->parseDate($meta['bookingDate'] ?? $tour->check_in_time, Carbon::today())->toDateString();
-        $price = (float) ($item['price'] ?? $item['totalPrice'] ?? $item['mealPrice'] ?? 0);
-        $transfer = $this->mapTransferOptions(is_array($item['transfer'] ?? null) ? $item['transfer'] : []);
+        $unitPrice = (float) ($item['price'] ?? $item['totalPrice'] ?? $item['mealPrice'] ?? 0);
+        $pax = $this->resolveBillablePax($item, $tour);
+        $transfer = $this->mapTransferOptions(
+            is_array($item['transfer'] ?? null) ? $item['transfer'] : [],
+            [],
+            $pax
+        );
+        $pricing = $this->resolvePerPaxLineTotal($item, $tour, $unitPrice);
+        $unitPrice = $pricing['unit_price'];
+        $lineTotal = $pricing['line_total'];
+        $pax = $pricing['pax'];
 
         return array_merge($customer, [
             'bookingDate' => $bookingDate,
             'visitTime' => $timeSlot,
-            'adultCount' => max(1, (int) ($item['adultCount'] ?? $tour->adult ?: 1)),
+            'adultCount' => $pax,
             'childCount' => max(0, (int) ($item['childCount'] ?? $tour->child)),
             'restaurantId' => $restaurant?->restaurant_id ?? $restaurantId,
             'restaurantName' => $name,
@@ -1580,12 +1599,12 @@ class ExternalApiReceiveController extends Controller
             'MealDescription' => [[
                 'item_name' => $dish !== '' ? $dish : 'Menu Item',
                 'name' => $dish !== '' ? $dish : 'Menu Item',
-                'price' => $price,
+                'price' => $unitPrice,
                 'meal_id' => $restaurant?->restaurant_id ?? $restaurantId,
-                'quantity' => 1,
+                'quantity' => $pax,
             ]],
-            'totalPrice' => $price,
-            'mealPrice' => $price,
+            'totalPrice' => $lineTotal,
+            'mealPrice' => $lineTotal,
             'priceTypes' => ['dmc'],
             'dmc_id' => (string) ($tour->dmc_id ?? ''),
             'transfer_options' => $transfer,
@@ -1597,7 +1616,7 @@ class ExternalApiReceiveController extends Controller
     /**
      * Convert external transfer blocks into editform-compatible transfer_options.
      */
-    protected function mapTransferOptions(array $transfer, array $fallback = []): ?array
+    protected function mapTransferOptions(array $transfer, array $fallback = [], ?int $billablePax = null): ?array
     {
         $requiredRaw = $transfer['required'] ?? $fallback['required'] ?? false;
         $required = filter_var($requiredRaw, FILTER_VALIDATE_BOOLEAN)
@@ -1615,6 +1634,8 @@ class ExternalApiReceiveController extends Controller
 
         $wayRaw = $transfer['way'] ?? 'One Way';
         $way = in_array($wayRaw, ['Two Way', 'Return'], true) ? 'Two Way' : 'One Way';
+        $pax = max(1, (int) ($transfer['passengers'] ?? $billablePax ?? 0));
+        $lineCost = $this->resolveTransferLineCost($transfer, $pax);
 
         $vehicleRawId = trim((string) ($transfer['vehicle_id'] ?? $transfer['vehicles_id'] ?? ''));
         $vehicleName = trim((string) ($transfer['vehicle_name'] ?? $transfer['vehicles_name'] ?? ''));
@@ -1673,9 +1694,9 @@ class ExternalApiReceiveController extends Controller
             'destination_id' => $dropId,
             'drop_location_id' => $dropId,
             'drop_location_label' => $dropLabel,
-            'cost' => (float) ($transfer['cost'] ?? $transfer['price'] ?? 0),
-            'price' => (float) ($transfer['cost'] ?? $transfer['price'] ?? 0),
-            'passengers' => $transfer['passengers'] ?? null,
+            'cost' => $lineCost,
+            'price' => $lineCost,
+            'passengers' => $pax,
             'pickup_time' => $transfer['pickup_time'] ?? '',
             'city' => $transfer['city'] ?? $fallback['city'] ?? '',
             'vehicle_details' => $vehicleDetails !== [] ? $vehicleDetails : [
@@ -1683,6 +1704,81 @@ class ExternalApiReceiveController extends Controller
                 'vehicle_name' => $vehicleName !== '' ? $vehicleName : $vehicleRawId,
             ],
         ];
+    }
+
+    protected function resolveBillablePax(array $item, Tour $tour): int
+    {
+        $adults = (int) ($item['adultCount'] ?? $item['adults'] ?? $item['pax'] ?? 0);
+        $children = (int) ($item['childCount'] ?? $item['children'] ?? 0);
+        if ($adults > 0) {
+            return max(1, $adults + max(0, $children));
+        }
+
+        return max(1, (int) ($tour->adult ?? 0) + (int) ($tour->child ?? 0));
+    }
+
+    /**
+     * @return array{unit_price: float, line_total: float, pax: int}
+     */
+    protected function resolvePerPaxLineTotal(array $item, Tour $tour, float $unitPrice): array
+    {
+        $pax = $this->resolveBillablePax($item, $tour);
+        $explicitTotal = (float) ($item['totalPrice'] ?? $item['total_price'] ?? 0);
+
+        if ($unitPrice <= 0 && $explicitTotal > 0) {
+            return [
+                'unit_price' => $pax > 0 ? round($explicitTotal / $pax, 2) : $explicitTotal,
+                'line_total' => round($explicitTotal, 2),
+                'pax' => $pax,
+            ];
+        }
+
+        if ($unitPrice <= 0) {
+            return ['unit_price' => 0.0, 'line_total' => 0.0, 'pax' => $pax];
+        }
+
+        if ($explicitTotal <= 0 || abs($explicitTotal - $unitPrice) < 0.01) {
+            return [
+                'unit_price' => $unitPrice,
+                'line_total' => round($unitPrice * $pax, 2),
+                'pax' => $pax,
+            ];
+        }
+
+        if ($explicitTotal >= ($unitPrice * max(2, $pax) * 0.9)) {
+            return [
+                'unit_price' => $unitPrice,
+                'line_total' => round($explicitTotal, 2),
+                'pax' => $pax,
+            ];
+        }
+
+        return [
+            'unit_price' => $unitPrice,
+            'line_total' => round($unitPrice * $pax, 2),
+            'pax' => $pax,
+        ];
+    }
+
+    protected function resolveTransferLineCost(array $transfer, int $billablePax): float
+    {
+        $unitCost = (float) ($transfer['cost'] ?? $transfer['price'] ?? 0);
+        $explicitTotal = (float) ($transfer['totalPrice'] ?? $transfer['total_cost'] ?? 0);
+        $pax = max(1, (int) ($transfer['passengers'] ?? $billablePax));
+
+        if ($unitCost <= 0) {
+            return round($explicitTotal, 2);
+        }
+
+        if ($explicitTotal <= 0 || abs($explicitTotal - $unitCost) < 0.01) {
+            return round($unitCost * $pax, 2);
+        }
+
+        if ($explicitTotal >= ($unitCost * max(2, $pax) * 0.9)) {
+            return round($explicitTotal, 2);
+        }
+
+        return round($unitCost * $pax, 2);
     }
 
     /**
