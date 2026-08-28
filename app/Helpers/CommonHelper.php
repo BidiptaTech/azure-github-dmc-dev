@@ -5192,6 +5192,14 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         return [
             'lines' => $lines,
             'grand_total' => $grandTotal,
+            'hotel_total' => array_sum(array_map(
+                static fn (array $line) => (float) ($line['line_total'] ?? 0),
+                array_filter($lines, static fn (array $line) => ($line['category'] ?? '') === 'hotel')
+            )),
+            'other_total' => array_sum(array_map(
+                static fn (array $line) => (float) ($line['line_total'] ?? 0),
+                array_filter($lines, static fn (array $line) => ($line['category'] ?? '') !== 'hotel')
+            )),
             'occupancy_key' => $occupancyKey,
             'chargeable_adults' => $chargeableAdults,
         ];
@@ -5237,6 +5245,33 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             . $multiplierLabel
             . ' = '
             . $formatMoney($line['line_total'] ?? 0);
+    }
+
+    /**
+     * @param  array<string, mixed>  $item
+     * @return array{adultUnit: float, childUnit: float, adultCount: int, childCount: int}
+     */
+    protected static function resolveOrderUnitPrices(array $item): array
+    {
+        $adultUnit = (float) ($item['adultPrice'] ?? $item['adult_price'] ?? 0);
+        $childUnit = (float) ($item['childPrice'] ?? $item['child_price'] ?? 0);
+
+        if ($adultUnit <= 0 && isset($item['ticket_details']['adult_price']) && is_numeric($item['ticket_details']['adult_price'])) {
+            $adultUnit = (float) $item['ticket_details']['adult_price'];
+        }
+        if ($childUnit <= 0 && isset($item['ticket_details']['child_price']) && is_numeric($item['ticket_details']['child_price'])) {
+            $childUnit = (float) $item['ticket_details']['child_price'];
+        }
+
+        $adultCount = max(0, (int) ($item['adultCount'] ?? $item['adults'] ?? $item['adult'] ?? 0));
+        $childCount = max(0, (int) ($item['childCount'] ?? $item['child'] ?? 0));
+
+        return [
+            'adultUnit' => $adultUnit,
+            'childUnit' => $childUnit,
+            'adultCount' => $adultCount,
+            'childCount' => $childCount,
+        ];
     }
 
     /**
@@ -5333,42 +5368,57 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
     }
 
     /**
-     * Attraction and similar services: totalPrice is the booked line total (not always per-pax × count).
+     * Attraction tickets: unit price × pax when ticket unit price is known.
      *
      * @param  array<string, mixed>  $item
      * @return array<string, mixed>|null
      */
     protected static function resolveFlatOrderBreakdownLine(array $item, string $category): ?array
     {
-        $lineTotal = (float) ($item['totalPrice'] ?? $item['price'] ?? 0);
-        if ($lineTotal <= 0) {
+        $label = self::resolveOrderItemPriceLabel($category, $item);
+        $units = self::resolveOrderUnitPrices($item);
+        $storedTotal = (float) ($item['totalPrice'] ?? $item['price'] ?? 0);
+
+        $adultUnit = $units['adultUnit'];
+        $childUnit = $units['childUnit'];
+        $adultCount = $units['adultCount'];
+        $childCount = $units['childCount'];
+
+        if ($adultUnit > 0 && $adultCount > 0) {
+            $lineTotal = ($adultUnit * $adultCount) + ($childUnit * $childCount);
+
+            if ($childCount > 0 && $childUnit > 0) {
+                $components = [];
+                if ($adultUnit > 0 && $adultCount > 0) {
+                    $components[] = $adultUnit * $adultCount;
+                }
+                if ($childUnit > 0 && $childCount > 0) {
+                    $components[] = $childUnit * $childCount;
+                }
+                $calculation = ['mode' => 'components', 'components' => $components];
+            } else {
+                $calculation = [
+                    'mode' => 'per_head',
+                    'per_head' => $adultUnit,
+                    'multiplier' => $adultCount,
+                ];
+            }
+        } elseif ($storedTotal > 0 && $adultCount > 1) {
+            $lineTotal = $storedTotal;
+            $calculation = [
+                'mode' => 'per_head',
+                'per_head' => $storedTotal / $adultCount,
+                'multiplier' => $adultCount,
+            ];
+        } elseif ($storedTotal > 0) {
+            $lineTotal = $storedTotal;
+            $calculation = ['mode' => 'flat'];
+        } else {
             return null;
         }
 
-        $label = self::resolveOrderItemPriceLabel($category, $item);
-        $adultCount = max(0, (int) ($item['adultCount'] ?? $item['adults'] ?? 0));
-        $childCount = max(0, (int) ($item['childCount'] ?? 0));
-        $adultUnit = (float) ($item['adultPrice'] ?? $item['adult_price'] ?? 0);
-        $childUnit = (float) ($item['childPrice'] ?? $item['child_price'] ?? 0);
-        $expectedFromUnits = ($adultUnit * $adultCount) + ($childUnit * $childCount);
-
-        if ($adultUnit > 0 && $adultCount > 0 && $childCount <= 0 && abs($lineTotal - $expectedFromUnits) < 1) {
-            $calculation = [
-                'mode' => 'per_head',
-                'per_head' => $adultUnit,
-                'multiplier' => $adultCount,
-            ];
-        } elseif ($adultUnit > 0 && abs($lineTotal - $expectedFromUnits) < 1) {
-            $components = [];
-            if ($adultUnit > 0 && $adultCount > 0) {
-                $components[] = $adultUnit * $adultCount;
-            }
-            if ($childUnit > 0 && $childCount > 0) {
-                $components[] = $childUnit * $childCount;
-            }
-            $calculation = ['mode' => 'components', 'components' => $components];
-        } else {
-            $calculation = ['mode' => 'flat'];
+        if ($lineTotal <= 0) {
+            return null;
         }
 
         return [
@@ -5386,7 +5436,21 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
     protected static function resolveRestaurantOrderBreakdownLine(array $item, ?Tour $tour): ?array
     {
         $isPro = $tour && (int) ($tour->is_pro ?? 0) === 1;
-        $mealTotal = (float) ($item['totalPrice'] ?? $item['mealPrice'] ?? 0);
+        $units = self::resolveOrderUnitPrices($item);
+        $mealStored = (float) ($item['totalPrice'] ?? $item['mealPrice'] ?? 0);
+        $mealUnit = (float) ($item['MealDescription'][0]['price'] ?? 0);
+        $mealQty = max(1, (int) ($item['MealDescription'][0]['quantity'] ?? 1));
+        if ($mealUnit > 0) {
+            $mealUnit = $mealUnit / $mealQty;
+        }
+
+        if ($mealUnit > 0 && $units['adultCount'] > 0 && abs($mealStored - ($mealUnit * $units['adultCount'])) < 1) {
+            $mealTotal = $mealUnit * $units['adultCount'];
+            $mealUsesPax = true;
+        } else {
+            $mealTotal = $mealStored > 0 ? $mealStored : ($mealUnit > 0 ? $mealUnit * max(1, $units['adultCount']) : 0);
+            $mealUsesPax = false;
+        }
 
         $transferCost = 0.0;
         $transfer = $item['transfer_options'] ?? null;
@@ -5405,14 +5469,28 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         }
 
         $components = [];
+        $calculationParts = [];
+
         if ($mealTotal > 0) {
             $components[] = $mealTotal;
+            if ($mealUsesPax && $mealUnit > 0 && $units['adultCount'] > 0) {
+                $calculationParts[] = [
+                    'mode' => 'per_head',
+                    'per_head' => $mealUnit,
+                    'multiplier' => $units['adultCount'],
+                    'amount' => $mealTotal,
+                ];
+            } else {
+                $calculationParts[] = ['mode' => 'flat', 'amount' => $mealTotal];
+            }
         }
         if ($transferCost > 0) {
             $components[] = $transferCost;
+            $calculationParts[] = ['mode' => 'flat', 'amount' => $transferCost];
         }
         if ($guideCost > 0) {
             $components[] = $guideCost;
+            $calculationParts[] = ['mode' => 'flat', 'amount' => $guideCost];
         }
 
         $lineTotal = array_sum($components);
@@ -5420,9 +5498,20 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             return null;
         }
 
-        $calculation = count($components) > 1
-            ? ['mode' => 'components', 'components' => $components]
-            : ['mode' => 'flat'];
+        if (count($calculationParts) > 1) {
+            $calculation = [
+                'mode' => 'components',
+                'components' => $components,
+            ];
+        } elseif (($calculationParts[0]['mode'] ?? '') === 'per_head') {
+            $calculation = [
+                'mode' => 'per_head',
+                'per_head' => $calculationParts[0]['per_head'],
+                'multiplier' => $calculationParts[0]['multiplier'],
+            ];
+        } else {
+            $calculation = ['mode' => 'flat'];
+        }
 
         return [
             'label' => self::resolveOrderItemPriceLabel('restaurant', $item),
