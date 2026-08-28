@@ -2023,22 +2023,13 @@
                                                                         const sampleRoom = dmcFilteredRooms.find(room => room.room_type === roomType);
                                                                         
                                                                         if (sampleRoom) {
-                                                                            // Get number of persons for pricing
-                                                                            const numberOfPersonsInput = document.getElementById('number_of_persons_{{ $hotelOrder->booking_id }}');
-                                                                            const numberOfPersons = numberOfPersonsInput ? parseInt(numberOfPersonsInput.value) || 1 : 1;
-                                                                            const isSingleOccupancy = numberOfPersons <= 1;
-                                                                            
-                                                                            // Determine price based on occupancy
-                                                                            let price = 0;
-                                                                            if (isSingleOccupancy) {
-                                                                                price = parseFloat(sampleRoom.weekday_price || 0);
-                                                                            } else {
-                                                                                price = parseFloat(sampleRoom.double_weekday_price || sampleRoom.weekday_price || 0);
-                                                                            }
-                                                                            
+                                                                            const stayTotal = typeof computeRoomTypeStayTotal_{{ $hotelOrder->booking_id }} === 'function'
+                                                                                ? computeRoomTypeStayTotal_{{ $hotelOrder->booking_id }}(sampleRoom)
+                                                                                : 0;
+
                                                                             const option = document.createElement('option');
                                                                             option.value = roomType;
-                                                                            option.textContent = price > 0 ? `${roomType} - ${window.__displayCurrency} ${price.toFixed(2)}` : roomType;
+                                                                            option.textContent = stayTotal > 0 ? `${roomType} - ${window.__displayCurrency} ${stayTotal.toFixed(2)}` : roomType;
                                                                             option.dataset.roomId = sampleRoom.room_id;
                                                                             option.dataset.weekdayPrice = sampleRoom.weekday_price || 0;
                                                                             option.dataset.weekendPrice = sampleRoom.weekend_price || 0;
@@ -2056,7 +2047,7 @@
                                                                                     loadBedTypesForRoom_{{ $hotelOrder->booking_id }}(roomType);
                                                                                     updateHotelPrice_{{ $hotelOrder->booking_id }}();
                                                                                     updateHotelChildPricingVisibility_{{ $hotelOrder->booking_id }}(roomType);
-                                                                                    updateHotelPriceGrid_{{ $hotelOrder->booking_id }}();
+                                                                                    updateHotelPriceGrid_{{ $hotelOrder->booking_id }}(true);
                                                                                 }, 100);
                                                                             }
                                                                             roomTypeSelect.appendChild(option);
@@ -2075,7 +2066,7 @@
                                                                             if (typeof window.updateEditHotelSupplementBreakfastVisibility === 'function') {
                                                                                 window.updateEditHotelSupplementBreakfastVisibility({{ $hotelOrder->booking_id }}, existingRoomType);
                                                                             }
-                                                                            updateHotelPriceGrid_{{ $hotelOrder->booking_id }}();
+                                                                            updateHotelPriceGrid_{{ $hotelOrder->booking_id }}(true);
                                                                         }, 200);
                                                                     }
                                                                 } else {
@@ -2207,7 +2198,7 @@
                                                                     setTimeout(() => {
                                                                         try {
                                                                             updatePaxInfo_{{ $hotelOrder->booking_id }}(document.getElementById('number_of_persons_{{ $hotelOrder->booking_id }}')?.value);
-                                                                            updateHotelPriceGrid_{{ $hotelOrder->booking_id }}(false);
+                                                                            updateHotelPriceGrid_{{ $hotelOrder->booking_id }}(true);
                                                                         } catch (e) {}
                                                                     }, 150);
                                                                     
@@ -2485,7 +2476,7 @@
                                                                 // Auto-update hotel price grid so meal price appears on initial load
                                                                 setTimeout(() => {
                                                                     try {
-                                                                        updateHotelPriceGrid_{{ $hotelOrder->booking_id }}();
+                                                                        updateHotelPriceGrid_{{ $hotelOrder->booking_id }}(true);
                                                                     } catch (e) {
                                                                         console.error('Error updating hotel price grid after meal plan auto-select:', e);
                                                                     }
@@ -2770,9 +2761,91 @@
                                                         };
                                                     }
 
-                                                    // Function to update hotel price breakdown grid (syncInput=true updates Total Price field from calculation)
+                                                    function getHotelStayNightInfo_{{ $hotelOrder->booking_id }}() {
+                                                        const formDiv = document.querySelector('.hotel-edit-form[data-update-url*="{{ $hotelOrder->booking_id }}"]');
+                                                        const checkInInput = formDiv ? formDiv.querySelector('input[name="check_in_date"]') : null;
+                                                        const checkOutInput = formDiv ? formDiv.querySelector('input[name="check_out_date"]') : null;
+                                                        const weekendDays = window.hotelWeekendDays_{{ $hotelOrder->booking_id }} || ['Saturday', 'Sunday'];
+                                                        let weekdayNights = 0;
+                                                        let weekendNights = 0;
+                                                        let nights = 0;
+                                                        if (checkInInput && checkOutInput && checkInInput.value && checkOutInput.value) {
+                                                            const checkIn = new Date(checkInInput.value);
+                                                            const checkOut = new Date(checkOutInput.value);
+                                                            for (let d = new Date(checkIn); d < checkOut; d.setDate(d.getDate() + 1)) {
+                                                                nights++;
+                                                                const dayName = d.toLocaleDateString('en-US', { weekday: 'long' });
+                                                                const isWeekend = weekendDays.some(function(w) { return String(w).toLowerCase() === dayName.toLowerCase(); });
+                                                                if (isWeekend) weekendNights++; else weekdayNights++;
+                                                            }
+                                                        }
+                                                        if (nights <= 0) {
+                                                            nights = 1;
+                                                            weekdayNights = 1;
+                                                        }
+                                                        return { nights, weekdayNights, weekendNights };
+                                                    }
+
+                                                    function computeRoomTypeStayTotal_{{ $hotelOrder->booking_id }}(sampleRoom) {
+                                                        if (!sampleRoom) return 0;
+                                                        const numberOfRoomsInput = document.getElementById('number_of_rooms_{{ $hotelOrder->booking_id }}');
+                                                        const numberOfPersonsInput = document.getElementById('number_of_persons_{{ $hotelOrder->booking_id }}');
+                                                        const numberOfRooms = parseInt(numberOfRoomsInput ? numberOfRoomsInput.value : '1', 10) || 1;
+                                                        const numberOfPersons = parseInt(numberOfPersonsInput ? numberOfPersonsInput.value : '1', 10) || 1;
+                                                        const isSingleOccupancy = numberOfPersons <= 1;
+                                                        const weekdayPricePerNight = isSingleOccupancy
+                                                            ? parseFloat(sampleRoom.weekday_price || 0)
+                                                            : parseFloat(sampleRoom.double_weekday_price || sampleRoom.weekday_price || 0);
+                                                        const weekendPricePerNight = isSingleOccupancy
+                                                            ? parseFloat(sampleRoom.weekend_price || sampleRoom.weekday_price || 0)
+                                                            : parseFloat(sampleRoom.double_weekend_price || sampleRoom.double_weekday_price || sampleRoom.weekday_price || 0);
+                                                        const info = getHotelStayNightInfo_{{ $hotelOrder->booking_id }}();
+                                                        let roomSubtotal = (weekdayPricePerNight * info.weekdayNights + weekendPricePerNight * info.weekendNights) * numberOfRooms;
+                                                        if (roomSubtotal === 0 && info.nights >= 1) {
+                                                            roomSubtotal = weekdayPricePerNight * info.nights * numberOfRooms;
+                                                        }
+                                                        const extraBedCalc = calculateEditHotelExtraBedCost_{{ $hotelOrder->booking_id }}(numberOfPersons, numberOfRooms, info.nights);
+                                                        return roomSubtotal + extraBedCalc.total;
+                                                    }
+
+                                                    function refreshRoomTypeStayPriceLabels_{{ $hotelOrder->booking_id }}(selectedTotal) {
+                                                        const roomTypeSelect = document.getElementById('room_type_{{ $hotelOrder->booking_id }}');
+                                                        if (!roomTypeSelect) return;
+                                                        const roomData = window.roomData_{{ $hotelOrder->booking_id }} || [];
+                                                        const currencyLabel = '{{ trim($displayCurrency) }}';
+                                                        Array.from(roomTypeSelect.options).forEach(function(opt) {
+                                                            if (!opt.value) return;
+                                                            let amount = 0;
+                                                            if (opt.selected && typeof selectedTotal === 'number' && selectedTotal > 0) {
+                                                                amount = selectedTotal;
+                                                            } else {
+                                                                const sampleRoom = roomData.find(function(r) { return r.room_type === opt.value; });
+                                                                amount = computeRoomTypeStayTotal_{{ $hotelOrder->booking_id }}(sampleRoom);
+                                                            }
+                                                            opt.textContent = amount > 0
+                                                                ? (opt.value + ' - ' + currencyLabel + ' ' + amount.toFixed(2))
+                                                                : opt.value;
+                                                        });
+                                                        const selectedOpt = roomTypeSelect.options[roomTypeSelect.selectedIndex];
+                                                        if (selectedOpt && window.jQuery) {
+                                                            const $sel = window.jQuery(roomTypeSelect);
+                                                            if ($sel.data('select2')) {
+                                                                const rendered = $sel.next('.select2-container').find('.select2-selection__rendered');
+                                                                if (rendered.length) {
+                                                                    rendered.text(selectedOpt.textContent);
+                                                                    rendered.attr('title', selectedOpt.textContent);
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+
+                                                    // Function to update hotel price breakdown grid (always syncs Total Price / header / room-type label)
                                                     function updateHotelPriceGrid_{{ $hotelOrder->booking_id }}(syncInput) {
-                                                        syncInput = syncInput === true;
+                                                        syncInput = true;
+                                                        // Keep helper-engine totals after Get Price until the user changes details.
+                                                        if (window.hotelPricedByHelper && window.hotelPricedByHelper[{{ $hotelOrder->booking_id }}]) {
+                                                            return;
+                                                        }
                                                         // If the booking was changed and not re-priced via "Get Price", keep it at 0.
                                                         if (window.hotelNeedsGetPrice && window.hotelNeedsGetPrice[{{ $hotelOrder->booking_id }}]) {
                                                             if (typeof window.zeroOutHotelBookingPrice === 'function') {
@@ -3027,40 +3100,24 @@
                                                         
                                                         gridBody.innerHTML = gridHTML;
                                                         
-                                                        // Calculate and display grand total
+                                                        // Calculate and display the same grand total everywhere
                                                         const grandTotal = roomSubtotal + extraBedSubtotal + mealPlanSubtotal + childWithBedSubtotal + childWithoutBedSubtotal;
-                                                        const currencyLabel = '{{ trim($displayCurrency) }}';
-                                                        grandTotalEl.textContent = currencyLabel + ' ' + grandTotal.toFixed(2);
-                                                        
-                                                        const totalPriceInput = document.getElementById('total_price_{{ $hotelOrder->booking_id }}');
-                                                        const headerTotalEl = document.getElementById('hotel_header_total_{{ $hotelOrder->booking_id }}');
-                                                        let displayTotal = grandTotal;
-
-                                                        if (totalPriceInput) {
-                                                            const isManual = totalPriceInput.dataset.manualEdit === 'true';
-
-                                                            if (syncInput && grandTotal > 0) {
-                                                                totalPriceInput.value = grandTotal.toFixed(2);
-                                                                totalPriceInput.dataset.dbTotal = grandTotal.toFixed(2);
-                                                                totalPriceInput.dataset.manualEdit = 'false';
-                                                                displayTotal = grandTotal;
-                                                            } else if (isManual) {
-                                                                displayTotal = parseFloat(totalPriceInput.value) || 0;
-                                                            } else if (grandTotal > 0) {
-                                                                totalPriceInput.value = grandTotal.toFixed(2);
-                                                                displayTotal = grandTotal;
-                                                            } else {
-                                                                displayTotal = parseFloat(totalPriceInput.value) || parseFloat(totalPriceInput.dataset.dbTotal) || 0;
-                                                            }
+                                                        if (typeof window.syncHotelBookingPriceDisplays === 'function') {
+                                                            window.syncHotelBookingPriceDisplays({{ $hotelOrder->booking_id }}, grandTotal);
+                                                        } else {
+                                                            const currencyLabel = '{{ trim($displayCurrency) }}';
+                                                            grandTotalEl.textContent = currencyLabel + ' ' + grandTotal.toFixed(2);
                                                         }
-
-                                                        if (headerTotalEl) {
-                                                            headerTotalEl.textContent = currencyLabel + ' ' + (displayTotal > 0 ? displayTotal.toFixed(2) : '0.00');
-                                                        }
+                                                        try {
+                                                            refreshRoomTypeStayPriceLabels_{{ $hotelOrder->booking_id }}(grandTotal);
+                                                        } catch (e) {}
                                                     }
                                                     
                                                     // Function to update hotel price based on room type and number of rooms
                                                     function updateHotelPrice_{{ $hotelOrder->booking_id }}(forceUpdate = false) {
+                                                        if (window.hotelPricedByHelper && window.hotelPricedByHelper[{{ $hotelOrder->booking_id }}] && !forceUpdate) {
+                                                            return;
+                                                        }
                                                         // If the booking was changed and not re-priced via "Get Price", keep it at 0.
                                                         if (window.hotelNeedsGetPrice && window.hotelNeedsGetPrice[{{ $hotelOrder->booking_id }}]) {
                                                             if (typeof window.zeroOutHotelBookingPrice === 'function') {
@@ -3068,92 +3125,15 @@
                                                             }
                                                             return;
                                                         }
-                                                        const roomTypeSelect = document.getElementById('room_type_{{ $hotelOrder->booking_id }}');
-                                                        const numberOfRoomsInput = document.getElementById('number_of_rooms_{{ $hotelOrder->booking_id }}');
                                                         const priceInput = document.getElementById('total_price_{{ $hotelOrder->booking_id }}');
-                                                        const numberOfPersonsInput = document.getElementById('number_of_persons_{{ $hotelOrder->booking_id }}');
-                                                        
-                                                        if (!roomTypeSelect || !numberOfRoomsInput || !priceInput) {
+                                                        if (priceInput && priceInput.dataset.manualEdit === 'true' && !forceUpdate) {
                                                             return;
                                                         }
-                                                        
-                                                        // Check if price was manually edited - if so, don't auto-update (unless forced)
-                                                        if (priceInput.dataset.manualEdit === 'true' && !forceUpdate) {
-                                                            return;
-                                                        }
-                                                        
-                                                        // Preserve existing price only when user explicitly edited it (not stale DB per-room values).
-                                                        const currentPrice = parseFloat(priceInput.value) || 0;
-                                                        if (!forceUpdate && priceInput.dataset.manualEdit === 'true') {
-                                                            return;
-                                                        }
-                                                        
-                                                        // If forceUpdate is true (user changed pax/dates/rooms), recalculate and sync input
-                                                        if (forceUpdate) {
+                                                        if (forceUpdate && priceInput) {
                                                             priceInput.dataset.preservedFromDb = 'false';
                                                             priceInput.dataset.manualEdit = 'false';
                                                         }
-                                                        
-                                                        const selectedRoomType = roomTypeSelect.value;
-                                                        const numberOfRooms = parseInt(numberOfRoomsInput.value) || 1;
-                                                        const numberOfPersons = parseInt(numberOfPersonsInput.value) || 1;
-                                                        
-                                                        // Get room data
-                                                        const roomData = window.roomData_{{ $hotelOrder->booking_id }};
-                                                        if (!roomData || !selectedRoomType) {
-                                                            return;
-                                                        }
-                                                        
-                                                        // Find the selected room type
-                                                        const selectedRoom = roomData.find(room => room.room_type === selectedRoomType);
-                                                        if (!selectedRoom) {
-                                                            return;
-                                                        }
-                                                        
-                                                        const isSingleOccupancy = numberOfPersons <= 1;
-                                                        const weekdayPricePerNight = isSingleOccupancy 
-                                                            ? parseFloat(selectedRoom.weekday_price || 0) 
-                                                            : parseFloat(selectedRoom.double_weekday_price || selectedRoom.weekday_price || 0);
-                                                        const weekendPricePerNight = isSingleOccupancy 
-                                                            ? parseFloat(selectedRoom.weekend_price || selectedRoom.weekday_price || 0) 
-                                                            : parseFloat(selectedRoom.double_weekend_price || selectedRoom.double_weekday_price || selectedRoom.weekday_price || 0);
-                                                        
-                                                        const formDiv = document.querySelector('.hotel-edit-form[data-update-url*="{{ $hotelOrder->booking_id }}"]');
-                                                        let totalPrice = 0;
-                                                        let nightCount = 0;
-                                                        if (formDiv) {
-                                                            const checkInInput = formDiv.querySelector('input[name="check_in_date"]');
-                                                            const checkOutInput = formDiv.querySelector('input[name="check_out_date"]');
-                                                            if (checkInInput && checkOutInput && checkInInput.value && checkOutInput.value) {
-                                                                const checkIn = new Date(checkInInput.value);
-                                                                const checkOut = new Date(checkOutInput.value);
-                                                                const weekendDays = window.hotelWeekendDays_{{ $hotelOrder->booking_id }} || ['Saturday', 'Sunday'];
-                                                                for (let d = new Date(checkIn); d < checkOut; d.setDate(d.getDate() + 1)) {
-                                                                    nightCount++;
-                                                                    const dayName = d.toLocaleDateString('en-US', { weekday: 'long' });
-                                                                    const isWeekend = weekendDays.some(function(w) { return String(w).toLowerCase() === dayName.toLowerCase(); });
-                                                                    totalPrice += (isWeekend ? weekendPricePerNight : weekdayPricePerNight) * numberOfRooms;
-                                                                }
-                                                            }
-                                                        }
-                                                        if (totalPrice === 0 && nightCount === 0) {
-                                                            totalPrice = weekdayPricePerNight * 1 * numberOfRooms;
-                                                            nightCount = 1;
-                                                        }
-                                                        const extraBedCalc = calculateEditHotelExtraBedCost_{{ $hotelOrder->booking_id }}(numberOfPersons, numberOfRooms, nightCount || 1);
-                                                        totalPrice += extraBedCalc.total;
-                                                        
-                                                        if (forceUpdate && totalPrice > 0) {
-                                                            priceInput.value = totalPrice.toFixed(2);
-                                                        } else if (priceInput.dataset.manualEdit !== 'true') {
-                                                            if (totalPrice > 0) {
-                                                                priceInput.value = totalPrice.toFixed(2);
-                                                            } else if (currentPrice === 0) {
-                                                                priceInput.value = '0.00';
-                                                            }
-                                                        }
-                                                        
-                                                        updateHotelPriceGrid_{{ $hotelOrder->booking_id }}(forceUpdate);
+                                                        updateHotelPriceGrid_{{ $hotelOrder->booking_id }}(true);
                                                     }
                                                     
                                                     // Track manual price edits - attach event listener immediately
@@ -3162,10 +3142,8 @@
                                                         if (priceInput) {
                                                             // Mark as manually edited when user types
                                                             function syncHotelHeaderTotal_{{ $hotelOrder->booking_id }}() {
-                                                                const headerEl = document.getElementById('hotel_header_total_{{ $hotelOrder->booking_id }}');
-                                                                const val = parseFloat(priceInput.value) || parseFloat(priceInput.dataset.dbTotal) || 0;
-                                                                if (headerEl && val > 0) {
-                                                                    headerEl.textContent = '{{ trim($displayCurrency) }} ' + val.toFixed(2);
+                                                                if (typeof window.syncHotelBookingPriceDisplays === 'function') {
+                                                                    window.syncHotelBookingPriceDisplays({{ $hotelOrder->booking_id }}, priceInput.value);
                                                                 }
                                                             }
 
@@ -20388,6 +20366,45 @@
 
     // Tracks pre-booked hotel rows that were edited and need a fresh "Get Price".
     window.hotelNeedsGetPrice = window.hotelNeedsGetPrice || {};
+    // True after a successful Get Price so the client-side grid does not overwrite helper totals.
+    window.hotelPricedByHelper = window.hotelPricedByHelper || {};
+
+    // Keep header, Total Price field, grid total, and selected room-type label on the same figure.
+    window.syncHotelBookingPriceDisplays = function(bookingId, amount) {
+        const n = parseFloat(amount) || 0;
+        const formatted = n.toFixed(2);
+        const currencyLabel = '{{ trim($displayCurrency) }}';
+        const totalInput = document.getElementById('total_price_' + bookingId);
+        const headerTotalEl = document.getElementById('hotel_header_total_' + bookingId);
+        const grandTotalEl = document.getElementById('hotel_grand_total_' + bookingId);
+        const roomTypeSelect = document.getElementById('room_type_' + bookingId);
+
+        if (totalInput && document.activeElement !== totalInput) {
+            totalInput.value = formatted;
+            totalInput.dataset.dbTotal = formatted;
+        }
+        if (headerTotalEl) headerTotalEl.textContent = currencyLabel + ' ' + formatted;
+        if (grandTotalEl) grandTotalEl.textContent = currencyLabel + ' ' + formatted;
+
+        if (roomTypeSelect && roomTypeSelect.selectedIndex >= 0) {
+            const opt = roomTypeSelect.options[roomTypeSelect.selectedIndex];
+            if (opt && opt.value) {
+                opt.textContent = n > 0
+                    ? (opt.value + ' - ' + currencyLabel + ' ' + formatted)
+                    : opt.value;
+                if (window.jQuery) {
+                    const $sel = window.jQuery(roomTypeSelect);
+                    if ($sel.data('select2')) {
+                        const rendered = $sel.next('.select2-container').find('.select2-selection__rendered');
+                        if (rendered.length) {
+                            rendered.text(opt.textContent);
+                            rendered.attr('title', opt.textContent);
+                        }
+                    }
+                }
+            }
+        }
+    };
 
     // Enable/disable a booking's "Save Changes" button (with a tooltip when blocked).
     window.setHotelSaveBlocked = function(bookingId, blocked) {
@@ -20405,20 +20422,18 @@
 
     // Reset a booking's price (input, pricing-details grid, totals) to zero.
     window.zeroOutHotelBookingPrice = function(bookingId) {
-        const currencyLabel = '{{ trim($displayCurrency) }}';
+        window.hotelPricedByHelper[bookingId] = false;
         const totalInput = document.getElementById('total_price_' + bookingId);
         if (totalInput) {
-            totalInput.value = '0.00';
             totalInput.dataset.manualEdit = 'false';
         }
         const gridBody = document.getElementById('hotel_price_grid_body_' + bookingId);
         if (gridBody) {
             gridBody.innerHTML = '<div class="text-muted text-center py-2" style="font-size: 0.75rem;">Click "Get Price" to calculate the price.</div>';
         }
-        const grandTotalEl = document.getElementById('hotel_grand_total_' + bookingId);
-        if (grandTotalEl) grandTotalEl.textContent = currencyLabel + ' 0.00';
-        const headerTotalEl = document.getElementById('hotel_header_total_' + bookingId);
-        if (headerTotalEl) headerTotalEl.textContent = currencyLabel + ' 0.00';
+        if (typeof window.syncHotelBookingPriceDisplays === 'function') {
+            window.syncHotelBookingPriceDisplays(bookingId, 0);
+        }
     };
 
     // Mark a booking dirty: zero its price and block saving until "Get Price".
@@ -20556,16 +20571,15 @@
                 // Helper grand_total is per single room (room + meals + extra bed).
                 const finalTotal = Number(data.grand_total) * numberOfRooms;
                 if (totalInput) {
-                    totalInput.value = finalTotal.toFixed(2);
-                    // Mark as manual so the auto grid calc won't overwrite it.
-                    totalInput.dataset.manualEdit = 'true';
-                    totalInput.dataset.dbTotal = finalTotal.toFixed(2);
+                    totalInput.dataset.manualEdit = 'false';
                 }
-                const headerTotalEl = document.getElementById('hotel_header_total_' + bookingId);
-                if (headerTotalEl) headerTotalEl.textContent = currencyLabel + ' ' + finalTotal.toFixed(2);
+                window.hotelPricedByHelper[bookingId] = true;
 
                 // Populate the "Hotel Pricing Details" breakdown grid.
                 window.renderBookingHelperGrid(bookingId, data, numberOfRooms, currencyLabel);
+                if (typeof window.syncHotelBookingPriceDisplays === 'function') {
+                    window.syncHotelBookingPriceDisplays(bookingId, finalTotal);
+                }
 
                 // Re-priced via the rate engine: clear the dirty flag and re-enable saving.
                 window.hotelNeedsGetPrice[bookingId] = false;
