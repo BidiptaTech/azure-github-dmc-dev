@@ -5091,120 +5091,6 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
     }
 
     /**
-     * Segregated per-pax columns for hotel / other / package display in quotation views.
-     *
-     * @param  array<string, mixed>  $tourPrices
-     * @return array{
-     *     hotel: array{single: float, double: float, triple: float},
-     *     other: array{single: float, double: float, triple: float},
-     *     package: array{single: float, double: float, triple: float}
-     * }
-     */
-    public static function resolveQuotationSegregatedPerPax(array $tourPrices, bool $isProTour = false): array
-    {
-        $otherSingle = (float) ($tourPrices['other_services_single'] ?? 0);
-        $otherDouble = (float) ($tourPrices['other_services_double'] ?? 0);
-        $singleSharing = (float) ($tourPrices['single_sharing'] ?? 0);
-        $doubleSharing = (float) ($tourPrices['double_sharing'] ?? 0);
-        $tripleSharing = (float) ($tourPrices['triple_sharing'] ?? 0);
-
-        $hotelSingle = max(0.0, $singleSharing - $otherSingle);
-        $hotelDouble = max(0.0, $doubleSharing - $otherDouble);
-        if ($isProTour) {
-            $hotelSingle = $hotelDouble > 0 ? $hotelDouble : $hotelSingle;
-        }
-        $hotelTriple = $tripleSharing > 0 ? max(0.0, $tripleSharing - $otherSingle) : 0.0;
-
-        $otherDoublePerPax = $otherDouble > 0 ? $otherDouble : $otherSingle;
-
-        return [
-            'hotel' => [
-                'single' => $hotelSingle,
-                'double' => $hotelDouble,
-                'triple' => $hotelTriple,
-            ],
-            'other' => [
-                'single' => $otherSingle,
-                'double' => $otherDoublePerPax,
-                'triple' => $otherSingle,
-            ],
-            'package' => [
-                'single' => $singleSharing,
-                'double' => $doubleSharing,
-                'triple' => $tripleSharing > 0 ? $tripleSharing : 0.0,
-            ],
-        ];
-    }
-
-    /**
-     * Hotel occupancy column to highlight for the booked pax count.
-     */
-    public static function resolveQuotationHotelOccupancyKey(int $adults, array $tourPrices): string
-    {
-        $hasTriple = (float) ($tourPrices['triple_sharing'] ?? 0) > 0;
-
-        if ($adults <= 1) {
-            return 'single';
-        }
-
-        if ($adults === 3 && $hasTriple) {
-            return 'triple';
-        }
-
-        return 'double';
-    }
-
-    /**
-     * Hotel per-pax cells with only the active occupancy column populated.
-     *
-     * @return array{active_key: string, single: ?float, double: ?float, triple: ?float}
-     */
-    public static function resolveQuotationHotelDisplayCells(int $adults, array $tourPrices, bool $isProTour = false): array
-    {
-        $hotel = self::resolveQuotationSegregatedPerPax($tourPrices, $isProTour)['hotel'];
-        $activeKey = self::resolveQuotationHotelOccupancyKey($adults, $tourPrices);
-
-        return self::maskQuotationOccupancyCells(
-            $activeKey,
-            (float) ($hotel['single'] ?? 0),
-            (float) ($hotel['double'] ?? 0),
-            (float) ($hotel['triple'] ?? 0)
-        );
-    }
-
-    /**
-     * @return array{active_key: string, single: ?float, double: ?float, triple: ?float}
-     */
-    public static function maskQuotationOccupancyCells(
-        string $activeKey,
-        ?float $single,
-        ?float $double,
-        ?float $triple
-    ): array {
-        $pick = static fn (string $key, ?float $amount) => ($activeKey === $key && $amount !== null && $amount > 0)
-            ? $amount
-            : null;
-
-        return [
-            'active_key' => $activeKey,
-            'single' => $pick('single', $single),
-            'double' => $pick('double', $double),
-            'triple' => $pick('triple', $triple),
-        ];
-    }
-
-    /**
-     * One other-services per-pax price (no single/double/triple split in UI).
-     */
-    public static function resolveQuotationOtherPerPaxPrice(array $tourPrices): float
-    {
-        $otherSingle = (float) ($tourPrices['other_services_single'] ?? 0);
-        $otherDouble = (float) ($tourPrices['other_services_double'] ?? 0);
-
-        return $otherDouble > 0 ? $otherDouble : $otherSingle;
-    }
-
-    /**
      * Human-readable label for a booked order item in price breakdowns.
      *
      * @param  array<string, mixed>  $item
@@ -5241,10 +5127,9 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
 
     /**
      * Segregated quotation price breakdown for PDF / email display.
-     * Uses stored order totals (authoritative booking data), not recalculated per-pax sharing.
+     * Hotels show per-head × pax-in-room (e.g. double rate × 2). Other services show per-head × chargeable adults.
      *
      * @param  array<string, mixed>  $tourPrices
-     * @param  iterable<int, Order>|null  $orders
      * @return array{lines: array<int, array<string, mixed>>, grand_total: float, occupancy_key: string, chargeable_adults: int}
      */
     public static function buildQuotationPriceBreakdown(
@@ -5252,531 +5137,90 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         array $tourPrices,
         int $adults,
         int $children = 0,
-        int $infants = 0,
-        $orders = null
+        int $infants = 0
     ): array {
-        unset($infants, $tourPrices);
+        unset($infants);
 
+        $isProTour = (int) ($tour->is_pro ?? 0) === 1;
         $tourType = strtoupper((string) ($tour->tour_type ?? 'FIT'));
         $focSize = $tourType === 'GROUP' ? max(0, (int) ($tour->foc_size ?? 0)) : 0;
         $chargeableAdults = max(0, $adults - $focSize);
         $occupancyKey = $adults >= 2 ? 'double' : 'single';
-
-        if ($orders === null) {
-            $orders = Order::where('tour_id', $tour->tour_id)
-                ->where('status', 1)
-                ->orderBy('booking_id')
-                ->get();
-        }
+        $hotelPaxInRoom = $occupancyKey === 'double' ? 2 : 1;
 
         $lines = [];
         $grandTotal = 0.0;
 
-        foreach ($orders as $order) {
-            if ((int) ($order->status ?? 0) !== 1) {
+        foreach ($tourPrices['hotel_price_options'] ?? [] as $hotelOption) {
+            if (! is_array($hotelOption)) {
                 continue;
             }
 
-            $rawData = $order->data;
-            if (is_string($rawData)) {
-                $rawData = json_decode($rawData, true);
+            $label = trim((string) ($hotelOption['display_name'] ?? $hotelOption['hotel_name'] ?? 'Hotel'));
+            $single = (float) ($hotelOption['single'] ?? 0);
+            $double = (float) ($hotelOption['double'] ?? 0);
+            if ($isProTour && $double > 0) {
+                $single = $double;
             }
-            if (empty($rawData) || ! is_array($rawData)) {
+
+            $perHead = $occupancyKey === 'double' ? ($double > 0 ? $double : $single) : $single;
+            if ($perHead <= 0) {
                 continue;
             }
 
-            $items = isset($rawData[0]) ? $rawData : [$rawData];
-            $orderType = (string) ($order->type ?? '');
+            $lineTotal = $perHead * $hotelPaxInRoom;
+            $lines[] = [
+                'label' => $label,
+                'category' => 'hotel',
+                'per_head' => $perHead,
+                'multiplier' => $hotelPaxInRoom,
+                'multiplier_label' => (string) $hotelPaxInRoom,
+                'line_total' => $lineTotal,
+                'formula' => 'per_head × pax',
+            ];
+            $grandTotal += $lineTotal;
+        }
 
-            foreach ($items as $item) {
-                if (! is_array($item)) {
-                    continue;
-                }
-
-                $line = self::resolveOrderBreakdownLine($orderType, $item, $tour);
-                if ($line === null || (float) ($line['line_total'] ?? 0) <= 0) {
-                    continue;
-                }
-
-                $lines[] = $line;
-                $grandTotal += (float) $line['line_total'];
+        foreach ($tourPrices['service_price_lines'] ?? [] as $serviceLine) {
+            if (! is_array($serviceLine)) {
+                continue;
             }
+
+            $label = trim((string) ($serviceLine['label'] ?? 'Service'));
+            $single = (float) ($serviceLine['single'] ?? 0);
+            $double = (float) ($serviceLine['double'] ?? 0);
+            $childUnit = (float) ($serviceLine['child_unit'] ?? 0);
+            $perHead = $occupancyKey === 'double' ? ($double > 0 ? $double : $single) : $single;
+
+            if ($perHead <= 0 && $childUnit <= 0) {
+                continue;
+            }
+
+            $adultPart = $perHead * max(1, $chargeableAdults);
+            $childPart = $childUnit * max(0, $children);
+            $lineTotal = $adultPart + $childPart;
+
+            $lines[] = [
+                'label' => $label,
+                'category' => (string) ($serviceLine['type'] ?? 'other'),
+                'per_head' => $perHead,
+                'multiplier' => max(1, $chargeableAdults),
+                'multiplier_label' => (string) max(1, $chargeableAdults),
+                'child_unit' => $childUnit,
+                'child_count' => max(0, $children),
+                'child_part' => $childPart,
+                'line_total' => $lineTotal,
+                'formula' => $childPart > 0 ? 'adult + child' : 'per_head × pax',
+            ];
+            $grandTotal += $lineTotal;
         }
 
         return [
             'lines' => $lines,
             'grand_total' => $grandTotal,
-            'hotel_total' => array_sum(array_map(
-                static fn (array $line) => (float) ($line['line_total'] ?? 0),
-                array_filter($lines, static fn (array $line) => ($line['category'] ?? '') === 'hotel')
-            )),
-            'other_total' => array_sum(array_map(
-                static fn (array $line) => (float) ($line['line_total'] ?? 0),
-                array_filter($lines, static fn (array $line) => ($line['category'] ?? '') !== 'hotel')
-            )),
             'occupancy_key' => $occupancyKey,
             'chargeable_adults' => $chargeableAdults,
         ];
-    }
-
-    /**
-     * Format a breakdown line calculation string for PDF / email views.
-     *
-     * @param  array<string, mixed>  $line
-     */
-    public static function formatQuotationBreakdownCalculation(array $line, callable $formatMoney): string
-    {
-        $calculation = $line['calculation'] ?? null;
-        if (is_array($calculation)) {
-            $mode = (string) ($calculation['mode'] ?? '');
-
-            if ($mode === 'components' && ! empty($calculation['components']) && is_array($calculation['components'])) {
-                $parts = array_map(
-                    static fn ($amount) => $formatMoney($amount),
-                    $calculation['components']
-                );
-
-                return implode(' + ', $parts) . ' = ' . $formatMoney($line['line_total'] ?? 0);
-            }
-
-            if ($mode === 'per_head' && (float) ($calculation['per_head'] ?? 0) > 0) {
-                return $formatMoney($calculation['per_head'])
-                    . ' × '
-                    . (string) ($calculation['multiplier'] ?? 1)
-                    . ' = '
-                    . $formatMoney($line['line_total'] ?? 0);
-            }
-
-            if ($mode === 'flat') {
-                return $formatMoney($line['line_total'] ?? 0);
-            }
-        }
-
-        $multiplierLabel = (string) ($line['multiplier_label'] ?? $line['multiplier'] ?? 1);
-
-        return $formatMoney($line['per_head'] ?? 0)
-            . ' × '
-            . $multiplierLabel
-            . ' = '
-            . $formatMoney($line['line_total'] ?? 0);
-    }
-
-    /**
-     * @param  array<string, mixed>  $item
-     * @return array{adultUnit: float, childUnit: float, adultCount: int, childCount: int}
-     */
-    protected static function resolveOrderUnitPrices(array $item, ?Tour $tour = null): array
-    {
-        $adultUnit = (float) ($item['adultPrice'] ?? $item['adult_price'] ?? 0);
-        $childUnit = (float) ($item['childPrice'] ?? $item['child_price'] ?? 0);
-        $seniorUnit = (float) ($item['seniorPrice'] ?? $item['senior_price'] ?? 0);
-
-        if ($adultUnit <= 0 && isset($item['ticket_details']['adult_price']) && is_numeric($item['ticket_details']['adult_price'])) {
-            $adultUnit = (float) $item['ticket_details']['adult_price'];
-        }
-        if ($childUnit <= 0 && isset($item['ticket_details']['child_price']) && is_numeric($item['ticket_details']['child_price'])) {
-            $childUnit = (float) $item['ticket_details']['child_price'];
-        }
-        if ($seniorUnit <= 0 && isset($item['ticket_details']['senior_price']) && is_numeric($item['ticket_details']['senior_price'])) {
-            $seniorUnit = (float) $item['ticket_details']['senior_price'];
-        }
-
-        $adultCount = max(0, (int) ($item['adultCount'] ?? $item['adults'] ?? $item['adult'] ?? 0));
-        $childCount = max(0, (int) ($item['childCount'] ?? $item['child'] ?? 0));
-        $seniorCount = max(0, (int) ($item['seniorCount'] ?? $item['seniors'] ?? 0));
-        $storedTotal = (float) ($item['totalPrice'] ?? $item['price'] ?? 0);
-
-        if ($adultCount <= 0 && $tour) {
-            $adultCount = max(0, (int) ($tour->adult ?? 0));
-        }
-        if ($childCount <= 0 && $tour) {
-            $childCount = max(0, (int) ($tour->child ?? 0));
-        }
-
-        if ($adultUnit > 0 && $storedTotal > 0) {
-            $computedFromPax = ($adultUnit * $adultCount)
-                + ($childUnit * $childCount)
-                + ($seniorUnit * $seniorCount);
-
-            if ($computedFromPax <= 0 || abs($computedFromPax - $storedTotal) > 1) {
-                if ($childUnit <= 0 && $seniorUnit <= 0) {
-                    $inferredAdults = (int) round($storedTotal / $adultUnit);
-                    if ($inferredAdults > $adultCount) {
-                        $adultCount = $inferredAdults;
-                    }
-                }
-            }
-        }
-
-        if ($tour && $adultUnit > 0 && abs($storedTotal - $adultUnit) < 1) {
-            $tourAdults = max(0, (int) ($tour->adult ?? 0));
-            if ($tourAdults > $adultCount) {
-                $adultCount = $tourAdults;
-            }
-        }
-
-        if ($adultCount <= 0) {
-            $adultCount = 1;
-        }
-
-        return [
-            'adultUnit' => $adultUnit,
-            'childUnit' => $childUnit,
-            'seniorUnit' => $seniorUnit,
-            'adultCount' => $adultCount,
-            'childCount' => $childCount,
-            'seniorCount' => $seniorCount,
-        ];
-    }
-
-    /**
-     * @param  array<string, mixed>  $item
-     * @return array<string, mixed>|null
-     */
-    protected static function resolveOrderBreakdownLine(string $type, array $item, ?Tour $tour = null): ?array
-    {
-        if (! empty($item['supplement'])) {
-            return null;
-        }
-
-        $normalizedType = strtolower(str_replace(' ', '_', trim($type)));
-
-        return match ($normalizedType) {
-            'hotel' => self::resolveHotelOrderBreakdownLine($item),
-            'attraction', 'attraction_package' => self::resolveFlatOrderBreakdownLine($item, 'attraction', $tour),
-            'restaurant' => self::resolveRestaurantOrderBreakdownLine($item, $tour),
-            default => self::resolveGenericOrderBreakdownLine($type, $item),
-        };
-    }
-
-    /**
-     * @param  array<string, mixed>  $item
-     * @return array<string, mixed>|null
-     */
-    protected static function resolveHotelOrderBreakdownLine(array $item): ?array
-    {
-        $lineTotal = (float) ($item['totalPrice'] ?? $item['price'] ?? 0);
-        if ($lineTotal <= 0) {
-            return null;
-        }
-
-        $hotelName = trim((string) ($item['hotelDetails']['hotel_name'] ?? $item['hotelName'] ?? 'Hotel'));
-        $dateRange = self::formatOrderBookingDateRange($item['bookingDate'] ?? null);
-        $label = $hotelName . ($dateRange !== '' ? ' (' . $dateRange . ')' : '');
-
-        $components = [];
-        $headCount = 0;
-
-        foreach ($item['rooms'] ?? [] as $room) {
-            if (! is_array($room)) {
-                continue;
-            }
-
-            $headCount = max(
-                $headCount,
-                (int) ($room['selected_persons'] ?? 0),
-                (int) ($room['number_of_rooms'] ?? 0)
-            );
-
-            foreach ($room['beds'] ?? [] as $bed) {
-                if (! is_array($bed)) {
-                    continue;
-                }
-
-                $headCount = max($headCount, (int) ($bed['head_count'] ?? 0));
-                $roomPrice = (float) ($bed['price'] ?? 0);
-                if ($roomPrice > 0) {
-                    $components[] = $roomPrice;
-                }
-
-                foreach ($bed['selectedMeals'] ?? [] as $meal) {
-                    if (! is_array($meal)) {
-                        continue;
-                    }
-                    $mealPrice = (float) ($meal['price'] ?? 0);
-                    if ($mealPrice > 0) {
-                        $components[] = $mealPrice;
-                    }
-                }
-            }
-        }
-
-        $componentSum = array_sum($components);
-        if (count($components) > 1 && abs($componentSum - $lineTotal) < 1) {
-            $calculation = ['mode' => 'components', 'components' => $components];
-        } elseif ($headCount > 1) {
-            $calculation = [
-                'mode' => 'per_head',
-                'per_head' => $lineTotal / $headCount,
-                'multiplier' => $headCount,
-            ];
-        } else {
-            $calculation = ['mode' => 'flat'];
-        }
-
-        return [
-            'label' => $label,
-            'category' => 'hotel',
-            'line_total' => $lineTotal,
-            'calculation' => $calculation,
-        ];
-    }
-
-    /**
-     * Attraction tickets: unit price × pax when ticket unit price is known.
-     *
-     * @param  array<string, mixed>  $item
-     * @return array<string, mixed>|null
-     */
-    protected static function resolveFlatOrderBreakdownLine(array $item, string $category, ?Tour $tour = null): ?array
-    {
-        $label = self::resolveOrderItemPriceLabel($category, $item);
-        $units = self::resolveOrderUnitPrices($item, $tour);
-        $storedTotal = (float) ($item['totalPrice'] ?? $item['price'] ?? 0);
-
-        $adultUnit = $units['adultUnit'];
-        $childUnit = $units['childUnit'];
-        $seniorUnit = $units['seniorUnit'];
-        $adultCount = $units['adultCount'];
-        $childCount = $units['childCount'];
-        $seniorCount = $units['seniorCount'];
-
-        if ($adultUnit > 0 || $childUnit > 0 || $seniorUnit > 0) {
-            $lineTotal = ($adultUnit * $adultCount)
-                + ($childUnit * $childCount)
-                + ($seniorUnit * $seniorCount);
-
-            $components = [];
-            if ($adultUnit > 0 && $adultCount > 0) {
-                $components[] = $adultUnit * $adultCount;
-            }
-            if ($childUnit > 0 && $childCount > 0) {
-                $components[] = $childUnit * $childCount;
-            }
-            if ($seniorUnit > 0 && $seniorCount > 0) {
-                $components[] = $seniorUnit * $seniorCount;
-            }
-
-            if (count($components) > 1) {
-                $calculation = ['mode' => 'components', 'components' => $components];
-            } elseif ($adultUnit > 0 && $adultCount > 0) {
-                $calculation = [
-                    'mode' => 'per_head',
-                    'per_head' => $adultUnit,
-                    'multiplier' => $adultCount,
-                ];
-            } elseif ($childUnit > 0 && $childCount > 0) {
-                $calculation = [
-                    'mode' => 'per_head',
-                    'per_head' => $childUnit,
-                    'multiplier' => $childCount,
-                ];
-            } else {
-                $calculation = [
-                    'mode' => 'per_head',
-                    'per_head' => $seniorUnit,
-                    'multiplier' => $seniorCount,
-                ];
-            }
-        } elseif ($storedTotal > 0 && $adultCount > 1) {
-            $lineTotal = $storedTotal;
-            $calculation = [
-                'mode' => 'per_head',
-                'per_head' => $storedTotal / $adultCount,
-                'multiplier' => $adultCount,
-            ];
-        } elseif ($storedTotal > 0) {
-            $lineTotal = $storedTotal;
-            $calculation = ['mode' => 'flat'];
-        } else {
-            return null;
-        }
-
-        if ($lineTotal <= 0) {
-            return null;
-        }
-
-        return [
-            'label' => $label,
-            'category' => $category,
-            'line_total' => $lineTotal,
-            'calculation' => $calculation,
-        ];
-    }
-
-    /**
-     * @param  array<string, mixed>  $item
-     * @return array<string, mixed>|null
-     */
-    protected static function resolveRestaurantOrderBreakdownLine(array $item, ?Tour $tour): ?array
-    {
-        $isPro = $tour && (int) ($tour->is_pro ?? 0) === 1;
-        $units = self::resolveOrderUnitPrices($item, $tour);
-        $mealStored = (float) ($item['totalPrice'] ?? $item['mealPrice'] ?? 0);
-        $adultMealUnit = (float) ($item['adult_price'] ?? $item['meal_adult_price'] ?? 0);
-        $childMealUnit = (float) ($item['child_price'] ?? $item['meal_child_price'] ?? 0);
-        $dishPrice = (float) ($item['MealDescription'][0]['price'] ?? 0);
-        $mealQty = max(1, (int) ($item['MealDescription'][0]['quantity'] ?? 1));
-
-        if ($adultMealUnit <= 0 && $dishPrice > 0) {
-            $adultMealUnit = $dishPrice;
-        }
-
-        $adultCount = max(1, $units['adultCount']);
-        $childCount = $units['childCount'];
-        $mealUsesPax = false;
-
-        if ($adultMealUnit > 0 && $mealStored > 0 && $adultCount > 1 && abs($adultMealUnit - $mealStored) < 1) {
-            $adultMealUnit = $mealStored / $adultCount;
-        }
-
-        if ($adultMealUnit > 0 || $childMealUnit > 0) {
-            $mealTotal = ($adultMealUnit * $adultCount) + ($childMealUnit * $childCount);
-            $mealUsesPax = true;
-        } elseif ($dishPrice > 0 && $mealQty > 0) {
-            $mealTotal = $dishPrice * $mealQty;
-            $mealUsesPax = $mealQty > 1;
-            $adultMealUnit = $dishPrice;
-            $adultCount = $mealQty;
-        } else {
-            $mealTotal = $mealStored > 0 ? $mealStored : 0;
-        }
-
-        $transferCost = 0.0;
-        $transfer = $item['transfer_options'] ?? null;
-        if (is_array($transfer) && ! empty($transfer['transfer_required'])) {
-            if ($isPro) {
-                $transferCost = (float) ($transfer['totalPrice'] ?? $transfer['price'] ?? $transfer['cost'] ?? 0);
-            } else {
-                $transferCost = (float) ($transfer['cost'] ?? $transfer['price'] ?? 0);
-            }
-        }
-
-        $guideCost = 0.0;
-        $guide = $item['guide_options'] ?? null;
-        if (is_array($guide) && ! empty($guide['guide_required'])) {
-            $guideCost = (float) ($guide['total_price'] ?? $guide['totalPrice'] ?? 0);
-        }
-
-        $components = [];
-        $calculationParts = [];
-
-        if ($mealTotal > 0) {
-            $components[] = $mealTotal;
-            if ($mealUsesPax && $adultMealUnit > 0 && $adultCount > 0 && $childMealUnit > 0 && $childCount > 0) {
-                $calculationParts[] = [
-                    'mode' => 'components',
-                    'components' => [
-                        $adultMealUnit * $adultCount,
-                        $childMealUnit * $childCount,
-                    ],
-                    'amount' => $mealTotal,
-                ];
-            } elseif ($mealUsesPax && $adultMealUnit > 0 && $adultCount > 0) {
-                $calculationParts[] = [
-                    'mode' => 'per_head',
-                    'per_head' => $adultMealUnit,
-                    'multiplier' => $adultCount,
-                    'amount' => $mealTotal,
-                ];
-            } else {
-                $calculationParts[] = ['mode' => 'flat', 'amount' => $mealTotal];
-            }
-        }
-        if ($transferCost > 0) {
-            $components[] = $transferCost;
-            $calculationParts[] = ['mode' => 'flat', 'amount' => $transferCost];
-        }
-        if ($guideCost > 0) {
-            $components[] = $guideCost;
-            $calculationParts[] = ['mode' => 'flat', 'amount' => $guideCost];
-        }
-
-        $lineTotal = array_sum($components);
-        if ($lineTotal <= 0) {
-            return null;
-        }
-
-        if (count($calculationParts) > 1) {
-            $calculation = [
-                'mode' => 'components',
-                'components' => $components,
-            ];
-        } elseif (($calculationParts[0]['mode'] ?? '') === 'per_head') {
-            $calculation = [
-                'mode' => 'per_head',
-                'per_head' => $calculationParts[0]['per_head'],
-                'multiplier' => $calculationParts[0]['multiplier'],
-            ];
-        } else {
-            $calculation = ['mode' => 'flat'];
-        }
-
-        return [
-            'label' => self::resolveOrderItemPriceLabel('restaurant', $item),
-            'category' => 'restaurant',
-            'line_total' => $lineTotal,
-            'calculation' => $calculation,
-        ];
-    }
-
-    /**
-     * @param  array<string, mixed>  $item
-     * @return array<string, mixed>|null
-     */
-    protected static function resolveGenericOrderBreakdownLine(string $type, array $item): ?array
-    {
-        $lineTotal = (float) ($item['totalPrice'] ?? $item['total_price'] ?? $item['price'] ?? 0);
-        if ($lineTotal <= 0) {
-            return null;
-        }
-
-        $adultCount = max(0, (int) ($item['adultCount'] ?? $item['adults'] ?? $item['adult'] ?? 0));
-        $explicitUnit = (float) ($item['adultPrice'] ?? $item['adult_price'] ?? 0);
-
-        if ($explicitUnit > 0 && $adultCount > 0 && abs($lineTotal - ($explicitUnit * $adultCount)) < 1) {
-            $calculation = [
-                'mode' => 'per_head',
-                'per_head' => $explicitUnit,
-                'multiplier' => $adultCount,
-            ];
-        } else {
-            $calculation = ['mode' => 'flat'];
-        }
-
-        return [
-            'label' => self::resolveOrderItemPriceLabel($type, $item),
-            'category' => strtolower(str_replace(' ', '_', trim($type))),
-            'line_total' => $lineTotal,
-            'calculation' => $calculation,
-        ];
-    }
-
-    /**
-     * @param  mixed  $bookingDate
-     */
-    protected static function formatOrderBookingDateRange($bookingDate): string
-    {
-        if (empty($bookingDate)) {
-            return '';
-        }
-
-        if (is_array($bookingDate) && count($bookingDate) >= 2) {
-            try {
-                $from = Carbon::parse($bookingDate[0])->format('Y-m-d');
-                $to = Carbon::parse($bookingDate[1])->format('Y-m-d');
-
-                return $from . ' to ' . $to;
-            } catch (\Throwable $e) {
-                return '';
-            }
-        }
-
-        if (is_string($bookingDate) && trim($bookingDate) !== '') {
-            return trim($bookingDate);
-        }
-
-        return '';
     }
 
     /**
@@ -7082,14 +6526,6 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         $tourPrices = self::calculateTourPrices($tourId);
         $hotelOptions = self::formatHotelsForPdf($orders, $tour, $tourPrices);
         $countryQuotationGroups = self::buildCountryQuotationGroups($orders, $tour);
-        $priceBreakdown = self::buildQuotationPriceBreakdown(
-            $tour,
-            $tourPrices,
-            (int) ($tour->adult ?? 0),
-            (int) ($tour->child ?? 0),
-            (int) ($tour->infant ?? 0),
-            $orders
-        );
        
         // Get DMC ID - first try from tour, otherwise from current user
         $dmcIdForBankDetails = null;
@@ -7167,7 +6603,6 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             'tourPrices' => $tourPrices,
             'hotelOptions' => $hotelOptions,
             'countryQuotationGroups' => $countryQuotationGroups,
-            'priceBreakdown' => $priceBreakdown,
             'bankDetails' => $bankDetails,
             'termsAndConditions' => $termsAndConditions,
             'exclusions' => $exclusions,
