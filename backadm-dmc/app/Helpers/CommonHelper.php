@@ -5091,6 +5091,52 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
     }
 
     /**
+     * Segregated per-pax columns for hotel / other / package display in quotation views.
+     *
+     * @param  array<string, mixed>  $tourPrices
+     * @return array{
+     *     hotel: array{single: float, double: float, triple: float},
+     *     other: array{single: float, double: float, triple: float},
+     *     package: array{single: float, double: float, triple: float}
+     * }
+     */
+    public static function resolveQuotationSegregatedPerPax(array $tourPrices, bool $isProTour = false): array
+    {
+        $otherSingle = (float) ($tourPrices['other_services_single'] ?? 0);
+        $otherDouble = (float) ($tourPrices['other_services_double'] ?? 0);
+        $singleSharing = (float) ($tourPrices['single_sharing'] ?? 0);
+        $doubleSharing = (float) ($tourPrices['double_sharing'] ?? 0);
+        $tripleSharing = (float) ($tourPrices['triple_sharing'] ?? 0);
+
+        $hotelSingle = max(0.0, $singleSharing - $otherSingle);
+        $hotelDouble = max(0.0, $doubleSharing - $otherDouble);
+        if ($isProTour) {
+            $hotelSingle = $hotelDouble > 0 ? $hotelDouble : $hotelSingle;
+        }
+        $hotelTriple = $tripleSharing > 0 ? max(0.0, $tripleSharing - $otherSingle) : 0.0;
+
+        $otherDoublePerPax = $otherDouble > 0 ? $otherDouble : $otherSingle;
+
+        return [
+            'hotel' => [
+                'single' => $hotelSingle,
+                'double' => $hotelDouble,
+                'triple' => $hotelTriple,
+            ],
+            'other' => [
+                'single' => $otherSingle,
+                'double' => $otherDoublePerPax,
+                'triple' => $otherSingle,
+            ],
+            'package' => [
+                'single' => $singleSharing,
+                'double' => $doubleSharing,
+                'triple' => $tripleSharing > 0 ? $tripleSharing : 0.0,
+            ],
+        ];
+    }
+
+    /**
      * Human-readable label for a booked order item in price breakdowns.
      *
      * @param  array<string, mixed>  $item
