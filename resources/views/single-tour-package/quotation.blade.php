@@ -1177,30 +1177,13 @@
             }
         @endphp
 
-        @if(!empty($priceBreakdown['lines']))
+        @if(!empty($priceBreakdown['grand_total']))
             <div class="overall-price-box" style="margin-top: 10px;">
-                <div class="panel-title" style="margin: 0; border: none; border-bottom: 1px solid #000;">Price Breakdown ({{ $currencyLabel }})</div>
-                <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
-                    <thead>
-                        <tr>
-                            <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: left; width: 45%;">Service</th>
-                            <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 40%;">Calculation</th>
-                            <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 15%;">Amount</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach($priceBreakdown['lines'] as $breakdownLine)
-                            <tr>
-                                <td style="border: 1px solid #000; padding: 6px; vertical-align: top;">{{ $breakdownLine['label'] ?? 'Service' }}</td>
-                                <td style="border: 1px solid #000; padding: 6px; text-align: center; vertical-align: top;">{{ $formatBreakdownLine($breakdownLine) }}</td>
-                                <td style="border: 1px solid #000; padding: 6px; text-align: center; font-weight: bold; vertical-align: top;">{{ $formatMoney($breakdownLine['line_total'] ?? 0) }}</td>
-                            </tr>
-                        @endforeach
-                        <tr>
-                            <td colspan="2" style="border: 1px solid #000; padding: 8px; text-align: right; font-weight: bold;">Total</td>
-                            <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatMoney($priceBreakdown['grand_total'] ?? 0) }}</td>
-                        </tr>
-                    </tbody>
+                <table style="width: 100%; border-collapse: collapse; border: 2px solid #000; table-layout: fixed;">
+                    <tr>
+                        <td style="border: 1px solid #000; padding: 8px; font-weight: bold; background: #f3f3f3;">Total Quotation Price ({{ $currencyLabel }})</td>
+                        <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold; width: 30%;">{{ $formatMoney($priceBreakdown['grand_total'] ?? 0) }}</td>
+                    </tr>
                 </table>
             </div>
         @endif
