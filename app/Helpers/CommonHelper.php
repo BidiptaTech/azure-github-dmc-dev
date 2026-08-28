@@ -5137,6 +5137,74 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
     }
 
     /**
+     * Hotel occupancy column to highlight for the booked pax count.
+     */
+    public static function resolveQuotationHotelOccupancyKey(int $adults, array $tourPrices): string
+    {
+        $hasTriple = (float) ($tourPrices['triple_sharing'] ?? 0) > 0;
+
+        if ($adults <= 1) {
+            return 'single';
+        }
+
+        if ($adults === 3 && $hasTriple) {
+            return 'triple';
+        }
+
+        return 'double';
+    }
+
+    /**
+     * Hotel per-pax cells with only the active occupancy column populated.
+     *
+     * @return array{active_key: string, single: ?float, double: ?float, triple: ?float}
+     */
+    public static function resolveQuotationHotelDisplayCells(int $adults, array $tourPrices, bool $isProTour = false): array
+    {
+        $hotel = self::resolveQuotationSegregatedPerPax($tourPrices, $isProTour)['hotel'];
+        $activeKey = self::resolveQuotationHotelOccupancyKey($adults, $tourPrices);
+
+        return self::maskQuotationOccupancyCells(
+            $activeKey,
+            (float) ($hotel['single'] ?? 0),
+            (float) ($hotel['double'] ?? 0),
+            (float) ($hotel['triple'] ?? 0)
+        );
+    }
+
+    /**
+     * @return array{active_key: string, single: ?float, double: ?float, triple: ?float}
+     */
+    public static function maskQuotationOccupancyCells(
+        string $activeKey,
+        ?float $single,
+        ?float $double,
+        ?float $triple
+    ): array {
+        $pick = static fn (string $key, ?float $amount) => ($activeKey === $key && $amount !== null && $amount > 0)
+            ? $amount
+            : null;
+
+        return [
+            'active_key' => $activeKey,
+            'single' => $pick('single', $single),
+            'double' => $pick('double', $double),
+            'triple' => $pick('triple', $triple),
+        ];
+    }
+
+    /**
+     * One other-services per-pax price (no single/double/triple split in UI).
+     */
+    public static function resolveQuotationOtherPerPaxPrice(array $tourPrices): float
+    {
+        $otherSingle = (float) ($tourPrices['other_services_single'] ?? 0);
+        $otherDouble = (float) ($tourPrices['other_services_double'] ?? 0);
+
+        return $otherDouble > 0 ? $otherDouble : $otherSingle;
+    }
+
+    /**
      * Human-readable label for a booked order item in price breakdowns.
      *
      * @param  array<string, mixed>  $item

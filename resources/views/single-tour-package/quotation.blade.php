@@ -323,6 +323,13 @@
         $hotelPerPax = $segregatedPerPax['hotel'];
         $otherPerPax = $segregatedPerPax['other'];
         $packagePerPax = $segregatedPerPax['package'];
+        $hotelOccupancyKey = \App\Helpers\CommonHelper::resolveQuotationHotelOccupancyKey($adults, $tourPrices);
+        $hotelDisplay = \App\Helpers\CommonHelper::resolveQuotationHotelDisplayCells($adults, $tourPrices, $isProTour);
+        $otherPerPaxPrice = \App\Helpers\CommonHelper::resolveQuotationOtherPerPaxPrice($tourPrices);
+
+        $formatOccupancyCell = function (?float $amount) use ($formatPerPaxMoney) {
+            return ($amount !== null && (float) $amount > 0) ? $formatPerPaxMoney($amount) : '—';
+        };
 
         $formatBreakdownLine = function (array $line) use ($formatMoney) {
             return \App\Helpers\CommonHelper::formatQuotationBreakdownCalculation($line, $formatMoney);
@@ -659,6 +666,10 @@
 
             return $formatNativeMoney($amount, $currency) . ' (Per Pax)';
         };
+
+        $formatNativeOccupancyCell = function (?float $amount, $currency) use ($formatNativePerPaxMoney) {
+            return ($amount !== null && (float) $amount > 0) ? $formatNativePerPaxMoney($amount, $currency) : '—';
+        };
     @endphp
 
     <div class="page">
@@ -976,6 +987,13 @@
                         if ($isProTour) {
                             $shareHotelSingle = $shareHotelDouble > 0 ? $shareHotelDouble : $shareHotelSingle;
                         }
+                        $shareHotelDisplay = \App\Helpers\CommonHelper::maskQuotationOccupancyCells(
+                            $hotelOccupancyKey,
+                            $shareHotelSingle,
+                            $shareHotelDouble,
+                            $shareHotelTriple > 0 ? $shareHotelTriple : null
+                        );
+                        $shareOtherPerPax = $shareOtherDouble > 0 ? $shareOtherDouble : $shareOtherSingle;
                     @endphp
                     <div style="border-top: 1px solid #000;">
                         <div class="country-box-title" style="border-bottom: 1px solid #000;">{{ $shareCountry }} ({{ $shareCurrency }})</div>
@@ -993,9 +1011,9 @@
                                         </thead>
                                         <tbody>
                                             <tr>
-                                                <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatNativePerPaxMoney($shareHotelSingle, $shareCurrency) }}</td>
-                                                <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatNativePerPaxMoney($shareHotelDouble, $shareCurrency) }}</td>
-                                                <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatNativePerPaxMoney($shareHotelTriple, $shareCurrency) }}</td>
+                                                <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatNativeOccupancyCell($shareHotelDisplay['single'], $shareCurrency) }}</td>
+                                                <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatNativeOccupancyCell($shareHotelDisplay['double'], $shareCurrency) }}</td>
+                                                <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatNativeOccupancyCell($shareHotelDisplay['triple'], $shareCurrency) }}</td>
                                             </tr>
                                         </tbody>
                                     </table>
@@ -1005,16 +1023,12 @@
                                     <table style="width: 100%; border-collapse: collapse; border: 1px solid #000; table-layout: fixed;">
                                         <thead>
                                             <tr>
-                                                <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 33.33%;">Single</th>
-                                                <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 33.33%;">Double</th>
-                                                <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 33.33%;">Triple</th>
+                                                <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center;">Price (Per Pax)</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             <tr>
-                                                <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatNativePerPaxMoney($shareOtherSingle, $shareCurrency) }}</td>
-                                                <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatNativePerPaxMoney($shareOtherDouble, $shareCurrency) }}</td>
-                                                <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatNativePerPaxMoney($shareOtherTriple, $shareCurrency) }}</td>
+                                                <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatNativePerPaxMoney($shareOtherPerPax, $shareCurrency) }}</td>
                                             </tr>
                                         </tbody>
                                     </table>
@@ -1150,6 +1164,17 @@
                 $overallOtherDouble = ceil($overallOtherDouble);
                 $overallOtherTriple = ceil($overallOtherTriple);
             }
+
+            if ($overallConvertedOk) {
+                $overallHotelCells = \App\Helpers\CommonHelper::maskQuotationOccupancyCells(
+                    $hotelOccupancyKey,
+                    $overallHotelSingle,
+                    $overallHotelDouble,
+                    $overallHotelTriple > 0 ? $overallHotelTriple : null
+                );
+            } else {
+                $overallHotelCells = $hotelDisplay;
+            }
         @endphp
         <div class="overall-price-box" style="margin-top: 10px;">
             <div class="panel-title" style="margin: 0; border: none; border-bottom: 1px solid #000;">Overall Package Price ({{ $overallDisplayLabel }})</div>
@@ -1168,13 +1193,13 @@
                             <tbody>
                                 <tr>
                                     @if($overallConvertedOk)
-                                        <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatNativePerPaxMoney($overallHotelSingle, $overallDisplayCurrency) }}</td>
-                                        <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatNativePerPaxMoney($overallHotelDouble, $overallDisplayCurrency) }}</td>
-                                        <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatNativePerPaxMoney($overallHotelTriple, $overallDisplayCurrency) }}</td>
+                                        <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatNativeOccupancyCell($overallHotelCells['single'], $overallDisplayCurrency) }}</td>
+                                        <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatNativeOccupancyCell($overallHotelCells['double'], $overallDisplayCurrency) }}</td>
+                                        <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatNativeOccupancyCell($overallHotelCells['triple'], $overallDisplayCurrency) }}</td>
                                     @else
-                                        <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatPerPaxMoney($hotelPerPax['single']) }}</td>
-                                        <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatPerPaxMoney($hotelPerPax['double']) }}</td>
-                                        <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatPerPaxMoney($hotelPerPax['triple']) }}</td>
+                                        <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatOccupancyCell($hotelDisplay['single']) }}</td>
+                                        <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatOccupancyCell($hotelDisplay['double']) }}</td>
+                                        <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatOccupancyCell($hotelDisplay['triple']) }}</td>
                                     @endif
                                 </tr>
                             </tbody>
@@ -1185,32 +1210,16 @@
                         <table style="width: 100%; border-collapse: collapse; border: 1px solid #000; table-layout: fixed;">
                             <thead>
                                 <tr>
-                                    <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 33.33%;">Single</th>
-                                    <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 33.33%;">Double</th>
-                                    <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 33.33%;">Triple</th>
+                                    <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center;">Price (Per Pax)</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr>
                                     <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">
                                         @if($overallConvertedOk)
-                                            {{ $formatNativePerPaxMoney($overallOtherSingle ?? $otherPerPax['single'], $overallDisplayCurrency) }}
+                                            {{ $formatNativePerPaxMoney($overallOtherDouble > 0 ? $overallOtherDouble : $overallOtherSingle, $overallDisplayCurrency) }}
                                         @else
-                                            {{ $formatPerPaxMoney($otherPerPax['single']) }}
-                                        @endif
-                                    </td>
-                                    <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">
-                                        @if($overallConvertedOk)
-                                            {{ $formatNativePerPaxMoney($overallOtherDouble ?? $otherPerPax['double'], $overallDisplayCurrency) }}
-                                        @else
-                                            {{ $formatPerPaxMoney($otherPerPax['double']) }}
-                                        @endif
-                                    </td>
-                                    <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">
-                                        @if($overallConvertedOk)
-                                            {{ $formatNativePerPaxMoney($overallOtherTriple ?? $otherPerPax['triple'], $overallDisplayCurrency) }}
-                                        @else
-                                            {{ $formatPerPaxMoney($otherPerPax['triple']) }}
+                                            {{ $formatPerPaxMoney($otherPerPaxPrice) }}
                                         @endif
                                     </td>
                                 </tr>
@@ -1255,7 +1264,7 @@
             <div class="overall-price-box" style="margin-top: 10px;">
                 <table style="width: 100%; border-collapse: collapse; border: 2px solid #000; table-layout: fixed;">
                     <tr>
-                        <td colspan="3" style="border: 1px solid #000; padding: 8px; font-weight: bold; background: #f3f3f3;">Price (per pax) — {{ $currencyLabel }}</td>
+                        <td colspan="3" style="border: 1px solid #000; padding: 8px; font-weight: bold; background: #f3f3f3;">Price (Per Pax) — {{ $currencyLabel }}</td>
                     </tr>
                     <tr>
                         <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 33.33%;">Single</th>
@@ -1263,9 +1272,9 @@
                         <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 33.33%;">Triple</th>
                     </tr>
                     <tr>
-                        <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatPerPaxMoney($packagePerPax['single']) }}</td>
-                        <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatPerPaxMoney($packagePerPax['double']) }}</td>
-                        <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatPerPaxMoney($packagePerPax['triple']) }}</td>
+                        <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatMoney($packagePerPax['single']) }}</td>
+                        <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatMoney($packagePerPax['double']) }}</td>
+                        <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $packagePerPax['triple'] > 0 ? $formatMoney($packagePerPax['triple']) : '—' }}</td>
                     </tr>
                     <tr>
                         <td colspan="2" style="border: 1px solid #000; padding: 8px; text-align: right; font-weight: bold;">Total Quotation Price ({{ $currencyLabel }})</td>
