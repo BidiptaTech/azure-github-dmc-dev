@@ -2560,11 +2560,16 @@
                                                                     : (parseInt(bedData.max_occupancy, 10) || 0);
                                                                 const pax = parseInt(paxValue, 10) || 0;
                                                                 const extraBedPrice = parseFloat(bedData.extra_bed_price) || 0;
-                                                                const maxWithExtra = bedData.extra_bed ? maxOccupancy + 1 : maxOccupancy;
+                                                                const extraBedEnabled = !!(bedData.extra_bed) && extraBedPrice > 0;
+                                                                const bookedHeadCount = typeof getEditHotelBookedHeadCount_{{ $hotelOrder->booking_id }} === 'function'
+                                                                    ? getEditHotelBookedHeadCount_{{ $hotelOrder->booking_id }}()
+                                                                    : 0;
+                                                                const occupancyBaseline = Math.max(maxOccupancy, bookedHeadCount > 0 ? bookedHeadCount : 0);
+                                                                const maxWithExtra = extraBedEnabled ? occupancyBaseline + 1 : occupancyBaseline;
 
                                                                 if (maxOccupancy) {
                                                                     let info = `Max occupancy: ${maxOccupancy} pax`;
-                                                                    if (bedData.extra_bed && extraBedPrice > 0) {
+                                                                    if (extraBedEnabled) {
                                                                         info += ` | Extra bed: ${window.__displayCurrency} ${extraBedPrice.toFixed(2)}/night`;
                                                                     } else if (bedData.extra_bed) {
                                                                         info += ' | Extra bed available';
@@ -2572,8 +2577,8 @@
                                                                     if (pax > maxWithExtra) {
                                                                         paxInfoEl.textContent = `Warning: Exceeds max ${maxWithExtra} pax (incl. extra bed)`;
                                                                         paxInfoEl.style.color = '#dc3545';
-                                                                    } else if (pax > maxOccupancy && bedData.extra_bed) {
-                                                                        paxInfoEl.textContent = info + ` — extra bed applies (${pax - maxOccupancy} person)`;
+                                                                    } else if (pax > occupancyBaseline && extraBedEnabled) {
+                                                                        paxInfoEl.textContent = info + ` — extra bed applies (${pax - occupancyBaseline} person)`;
                                                                         paxInfoEl.style.color = '#d97706';
                                                                     } else {
                                                                         paxInfoEl.textContent = info;
@@ -2707,6 +2712,23 @@
                                                         };
                                                     }
 
+                                                    function getEditHotelBookedHeadCount_{{ $hotelOrder->booking_id }}() {
+                                                        const originalJsonEl = document.getElementById('original_rooms_json_{{ $hotelOrder->booking_id }}');
+                                                        if (originalJsonEl && originalJsonEl.value) {
+                                                            try {
+                                                                const orig = JSON.parse(originalJsonEl.value);
+                                                                const firstRoom = Array.isArray(orig) ? orig[0] : orig;
+                                                                const firstBed = (firstRoom && firstRoom.beds && firstRoom.beds[0]) ? firstRoom.beds[0] : {};
+                                                                const headCount = parseInt(firstBed.head_count, 10) || 0;
+                                                                if (headCount > 0) {
+                                                                    return headCount;
+                                                                }
+                                                            } catch (e) { /* ignore */ }
+                                                        }
+                                                        const paxInput = document.getElementById('number_of_persons_{{ $hotelOrder->booking_id }}');
+                                                        return paxInput ? (parseInt(paxInput.value, 10) || 0) : 0;
+                                                    }
+
                                                     function getEditHotelBedContext_{{ $hotelOrder->booking_id }}() {
                                                         let maxOccupancy = 0;
                                                         let extraBedPrice = 0;
@@ -2719,26 +2741,18 @@
                                                                     const bedData = JSON.parse(selectedOption.dataset.bed || '{}');
                                                                     maxOccupancy = window.getEditBaseMaxOccupancyFromBedData(bedData);
                                                                     extraBedPrice = parseFloat(bedData.extra_bed_price) || 0;
-                                                                    extraBedAvailable = !!(bedData.extra_bed);
+                                                                    extraBedAvailable = !!(bedData.extra_bed) && extraBedPrice > 0;
                                                                 } catch (e) { /* ignore */ }
                                                             }
                                                         }
-                                                        if (extraBedPrice <= 0 || maxOccupancy <= 0) {
+                                                        if (maxOccupancy <= 0) {
                                                             const originalJsonEl = document.getElementById('original_rooms_json_{{ $hotelOrder->booking_id }}');
                                                             if (originalJsonEl && originalJsonEl.value) {
                                                                 try {
                                                                     const orig = JSON.parse(originalJsonEl.value);
                                                                     const firstRoom = Array.isArray(orig) ? orig[0] : orig;
                                                                     const firstBed = (firstRoom && firstRoom.beds && firstRoom.beds[0]) ? firstRoom.beds[0] : {};
-                                                                    if (maxOccupancy <= 0) {
-                                                                        maxOccupancy = window.getEditBaseMaxOccupancyFromBedData(firstBed);
-                                                                    }
-                                                                    if (extraBedPrice <= 0) {
-                                                                        extraBedPrice = parseFloat(firstBed.extra_bed_price) || 0;
-                                                                    }
-                                                                    if (!extraBedAvailable) {
-                                                                        extraBedAvailable = !!(firstBed.extra_bed);
-                                                                    }
+                                                                    maxOccupancy = window.getEditBaseMaxOccupancyFromBedData(firstBed);
                                                                 } catch (e) { /* ignore */ }
                                                             }
                                                         }
@@ -2750,10 +2764,12 @@
                                                         const pax = parseInt(numberOfPersons, 10) || 1;
                                                         const rooms = parseInt(numberOfRooms, 10) || 1;
                                                         const nights = parseInt(numberOfNights, 10) || 1;
-                                                        if (!ctx.extraBedAvailable || ctx.extraBedPrice <= 0 || pax <= ctx.maxOccupancy) {
+                                                        const bookedHeadCount = getEditHotelBookedHeadCount_{{ $hotelOrder->booking_id }}();
+                                                        const occupancyBaseline = Math.max(ctx.maxOccupancy, bookedHeadCount > 0 ? bookedHeadCount : 0);
+                                                        if (!ctx.extraBedAvailable || ctx.extraBedPrice <= 0 || pax <= occupancyBaseline) {
                                                             return { extraPersons: 0, total: 0, perNightRate: ctx.extraBedPrice };
                                                         }
-                                                        const extraPersons = pax - ctx.maxOccupancy;
+                                                        const extraPersons = pax - occupancyBaseline;
                                                         return {
                                                             extraPersons,
                                                             perNightRate: ctx.extraBedPrice,
