@@ -1227,6 +1227,31 @@
                         </table>
                     </td>
                 </tr>
+                @if(!empty($priceBreakdown['grand_total']))
+                <tr>
+                    <td colspan="2" style="padding: 0; border-top: 2px solid #000;">
+                        <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
+                            <tr>
+                                <td colspan="3" style="border: 1px solid #000; padding: 8px; font-weight: bold; background: #f3f3f3;">Overall Package Price (Per Pax) — {{ $overallDisplayLabel }}</td>
+                            </tr>
+                            <tr>
+                                <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 33.33%;">Single</th>
+                                <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 33.33%;">Double</th>
+                                <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 33.33%;">Triple</th>
+                            </tr>
+                            <tr>
+                                <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatMoney($packagePerPax['single']) }}</td>
+                                <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatMoney($packagePerPax['double']) }}</td>
+                                <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $packagePerPax['triple'] > 0 ? $formatMoney($packagePerPax['triple']) : '—' }}</td>
+                            </tr>
+                            <tr>
+                                <td colspan="2" style="border: 1px solid #000; padding: 8px; text-align: right; font-weight: bold;">Total Quotation Price ({{ $overallDisplayLabel }})</td>
+                                <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatMoney($priceBreakdown['grand_total'] ?? 0) }}</td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+                @endif
             </table>
         </div>
 
@@ -1259,30 +1284,6 @@
                 }
             }
         @endphp
-
-        @if(!empty($priceBreakdown['grand_total']))
-            <div class="overall-price-box" style="margin-top: 10px;">
-                <table style="width: 100%; border-collapse: collapse; border: 2px solid #000; table-layout: fixed;">
-                    <tr>
-                        <td colspan="3" style="border: 1px solid #000; padding: 8px; font-weight: bold; background: #f3f3f3;">Price (Per Pax) — {{ $currencyLabel }}</td>
-                    </tr>
-                    <tr>
-                        <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 33.33%;">Single</th>
-                        <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 33.33%;">Double</th>
-                        <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 33.33%;">Triple</th>
-                    </tr>
-                    <tr>
-                        <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatMoney($packagePerPax['single']) }}</td>
-                        <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatMoney($packagePerPax['double']) }}</td>
-                        <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $packagePerPax['triple'] > 0 ? $formatMoney($packagePerPax['triple']) : '—' }}</td>
-                    </tr>
-                    <tr>
-                        <td colspan="2" style="border: 1px solid #000; padding: 8px; text-align: right; font-weight: bold;">Total Quotation Price ({{ $currencyLabel }})</td>
-                        <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatMoney($priceBreakdown['grand_total'] ?? 0) }}</td>
-                    </tr>
-                </table>
-            </div>
-        @endif
 
         {{-- ── Hotel supplements box ── --}}
         @if(!empty($suppHotels))
