@@ -21,6 +21,7 @@ import { setPriceMode } from "@/slice/hotel/CategorySlice";
 //import { setHotelService } from "@/slice/common/BookingSlice";
 import { setUserInfo, setBookingResponse, clearUserInfo } from "@/slice/common/customerInfo";
 import { setBookingType, setHaveBooking, setIsNavigating } from "@/slice/common/commonSlice";
+import { toCityOnly } from "@/utils/locationFormat";
 
 const Index = () => {
   const location1 = useLocation();
@@ -72,6 +73,15 @@ const Index = () => {
 
   const bookingDate = useSelector((state) => state.hotels.searchState);
   console.log(bookingDate, "boooking date");
+  const selectedCity = useSelector((state) => state.common.selectedCity);
+
+  const resolveBookedCity = () => {
+    const fromSelected = toCityOnly(selectedCity);
+    if (fromSelected) return fromSelected;
+    const fromSearch = toCityOnly(bookingDate?.location);
+    if (fromSearch) return fromSearch;
+    return toCityOnly(tourDetails?.destination) || "";
+  };
 
   const customerInfoRef = useRef(null);
 
@@ -98,6 +108,7 @@ const Index = () => {
     // Don't clear userInfo here - we want to keep it for next booking
     dispatch(setIsNavigating(true));
     console.log("✅ Set isNavigating to TRUE");
+    const bookedCity = resolveBookedCity();
     const payload = {
       ...formData,
       rooms: rooms || [],
@@ -110,7 +121,8 @@ const Index = () => {
         hotel_name: hotelDetails?.hotel_name || "",
         checkInTime: hotelDetails?.check_in_time || "",
         checkOutTime: hotelDetails?.check_out_time || "",
-        location: tourDetails?.destination || "",
+        location: bookedCity || tourDetails?.destination || "",
+        city: bookedCity,
         image: hotelDetails?.image || "",
         cancellation_charge: hotelDetails?.cancellation_charge || "",
       },
@@ -197,6 +209,7 @@ const Index = () => {
     // Don't clear userInfo here - we want to keep it for next booking
     dispatch(setIsNavigating(true));
     // Create a payload with enquiry-specific data
+    const bookedCity = resolveBookedCity();
     const payload = {
       ...formData,
       rooms: rooms || [],
@@ -212,7 +225,8 @@ const Index = () => {
         hotel_name: hotelDetails?.hotel_name || "",
         checkInTime: hotelDetails?.check_in_time || "",
         checkOutTime: hotelDetails?.check_out_time || "",
-        location: tourDetails?.destination || "",
+        location: bookedCity || tourDetails?.destination || "",
+        city: bookedCity,
         image: hotelDetails?.image || "",
         cancellation_charge: hotelDetails?.cancellation_charge || "",
       },

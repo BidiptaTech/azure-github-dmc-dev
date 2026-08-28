@@ -10,13 +10,10 @@ import { useDispatch, useSelector } from "react-redux";
 import { useLocation, useNavigate } from "react-router-dom";
 // import { useSelector } from "react-redux";
 
-const SearchBar = ({ onLocationSelect, hasError, setError }) => {
+const SearchBar = ({ onLocationSelect, hasError, setError, controlledCity = null }) => {
   const selectedCityFromSlice = useSelector((state)=> state.common.selectedCity);
   const initialSelectionRef = useRef(false); // Track if initial selection has been applied
-   
-  // useEffect(() => {
-  //   console.log("Selected city from Redux from hotel:", selectedCityFromSlice);
-  // }, [selectedCityFromSlice]);
+  const lastControlledNameRef = useRef(null);
 
   const [selectedItem, setSelectedItem] = useState(null);
   const [searchValue, setSearchValue] = useState("");
@@ -99,7 +96,55 @@ const SearchBar = ({ onLocationSelect, hasError, setError }) => {
     }
   };
   
+  // Sync when parent drives selection (city chips / auto-select from cityWiseDates)
   useEffect(() => {
+    if (!controlledCity) return;
+
+    const nextName =
+      typeof controlledCity === "string"
+        ? String(controlledCity).split(",")[0].trim()
+        : String(
+            controlledCity?.name ||
+              controlledCity?.address ||
+              controlledCity?.city ||
+              ""
+          )
+            .split(",")[0]
+            .trim();
+
+    if (!nextName) return;
+    if (lastControlledNameRef.current === nextName.toLowerCase()) return;
+
+    lastControlledNameRef.current = nextName.toLowerCase();
+    initialSelectionRef.current = true;
+
+    const matchingCity = transformedCityData.find(
+      (city) =>
+        city.name.toLowerCase() === nextName.toLowerCase() ||
+        city.address.toLowerCase().includes(nextName.toLowerCase())
+    );
+
+    const nextItem =
+      matchingCity ||
+      (typeof controlledCity === "object"
+        ? {
+            id: controlledCity.id || 0,
+            name: nextName,
+            address: controlledCity.address || nextName,
+          }
+        : { id: 0, name: nextName, address: nextName });
+
+    setSelectedItem(nextItem);
+    setSearchValue(nextItem.name);
+    setIsDropdownOpen(false);
+    setUserInteracted(false);
+    if (setError) setError(false);
+  }, [controlledCity, transformedCityData, setError]);
+
+  useEffect(() => {
+    // Skip Redux hydrate when parent already controls the city field
+    if (controlledCity) return;
+
     if (selectedCityFromSlice && !userInteracted && !initialSelectionRef.current) {
       const cityName =
         typeof selectedCityFromSlice === "string"
@@ -141,7 +186,7 @@ const SearchBar = ({ onLocationSelect, hasError, setError }) => {
       }
     }
   // Removed onLocationSelect from dependencies to prevent loops
-  }, [selectedCityFromSlice, userInteracted, transformedCityData, selectedItem]);
+  }, [selectedCityFromSlice, userInteracted, transformedCityData, selectedItem, controlledCity]);
   
   // Close dropdown when clicking outside
   useEffect(() => {

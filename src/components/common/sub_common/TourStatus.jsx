@@ -23,7 +23,15 @@ import PortModal from "@/components/activity-list/activity-list-v2/PickupDropMod
 import LocalTourModal from "@/components/activity-list/activity-list-v3/LocaltourModal";
 import TourguideModal from "@/components/activity-list/activity-list-v1/TourguideModal";
 import HotelModal from "@/components/hotel-list/common/HotelModal";
-import { setHaveBooking, setSelectedCity, setBookingType, setBookingMode, setGuestCounts } from "@/slice/common/commonSlice";
+import {
+  setHaveBooking,
+  setSelectedCity,
+  setBookingType,
+  setBookingMode,
+  setGuestCounts,
+  setCityWiseDates,
+  selectCityWiseDates,
+} from "@/slice/common/commonSlice";
 import { setTourIdd } from "@/slice/common/authSlices";
 import { setTourId1, fetchEditid } from "@/slice/common/EditSlice";
 import { setTourId, hydrateStepsFromSession } from "@/slice/common/stepsSlice";
@@ -203,6 +211,7 @@ export default function TourStatus() {
   const hotelCategoryPriceMode = useSelector((state) => state.category.priceMode);
   const hotelCategoryPriceModeId = useSelector((state) => state.category.priceModeId);
   const selectedCity = useSelector((state) => state.common.selectedCity);
+  const cityWiseDates = useSelector(selectCityWiseDates);
   const cityList = useSelector((state) => state.city?.city || []);
   const userCountry = useSelector((state) => state.auth?.user_country);
   //  console.log(hotelBookings,"hotelBookings");
@@ -358,6 +367,9 @@ export default function TourStatus() {
     if (saved.selectedCity != null) {
       dispatch(setSelectedCity(saved.selectedCity));
     }
+    if (Array.isArray(saved.cityWiseDates) && saved.cityWiseDates.length) {
+      dispatch(setCityWiseDates(saved.cityWiseDates));
+    }
 
     const countryDestination = resolveCountryName(
       (typeof saved.tourdetails?.destination === "string" &&
@@ -508,6 +520,7 @@ export default function TourStatus() {
       // common
       haveBooking: !!haveBooking,
       selectedCity: selectedCity ?? null,
+      cityWiseDates: cityWiseDates || [],
       bookingType: bookingType ?? null,
       bookingMode: bookingMode ?? null,
       guestCounts: guestCounts || null,
@@ -621,6 +634,7 @@ export default function TourStatus() {
     haveBooking,
     searchLocation,
     selectedCity,
+    cityWiseDates,
     cityList,
     guests,
     tourdetails,

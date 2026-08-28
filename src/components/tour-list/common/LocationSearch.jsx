@@ -1,17 +1,17 @@
 import { useState, useEffect, useRef } from "react";
 import { useSelector } from "react-redux";
-// import { selectSelectedCity } from "@/slice/common/commonSlice";
 
-const SearchBar = ({ onLocationSelect, hasError, setError }) => {
+const SearchBar = ({ onLocationSelect, hasError, setError, controlledCity = null }) => {
   const selectedCityFromSlice = useSelector((state)=> state.common.selectedCity);
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
   const [citySelectedManually, setCitySelectedManually] = useState(false);
   const initialSelectionRef = useRef(false);
+  const lastControlledNameRef = useRef(null);
    
   const [selectedItem, setSelectedItem] = useState(null);
   const [searchValue, setSearchValue] = useState("");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [highlightedIndex, setHighlightedIndex] = useState(-1); // Track highlighted item
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const dropdownRef = useRef(null);
 
   const cityData = useSelector((state) => state.city.city);
@@ -36,7 +36,6 @@ const SearchBar = ({ onLocationSelect, hasError, setError }) => {
   );
   
   const handleOptionClick = (item) => {
-    // Only update state if the selection is actually changing
     if (!selectedItem || selectedItem.id !== item.id) {
       setSelectedItem(item);
       setSearchValue(item.name);
@@ -55,10 +54,8 @@ const SearchBar = ({ onLocationSelect, hasError, setError }) => {
     setSearchValue(value);
     setHasUserInteracted(true);
     
-    // Only reset the selection if we actually have a selection
     if (selectedItem) {
       setSelectedItem(null);
-      // Only notify parent when there's an actual change
       onLocationSelect(null);
     }
     
@@ -66,13 +63,11 @@ const SearchBar = ({ onLocationSelect, hasError, setError }) => {
     setCitySelectedManually(false);
     setHighlightedIndex(-1);
 
-    // Only check for city matches if we have some input
     if (value.trim() !== "") {
       const matchesAnyCity = transformedCityData.some(city =>
         city.name.toLowerCase().includes(value.toLowerCase())
       );
       
-      // Only notify parent if we need to clear a selection
       if (!matchesAnyCity && selectedItem) {
         onLocationSelect(null);
       }
@@ -81,8 +76,54 @@ const SearchBar = ({ onLocationSelect, hasError, setError }) => {
     if (setError) setError(false);
   };
 
-  // Effect to handle auto-fill from Redux store
   useEffect(() => {
+    if (!controlledCity) return;
+
+    const nextName =
+      typeof controlledCity === "string"
+        ? String(controlledCity).split(",")[0].trim()
+        : String(
+            controlledCity?.name ||
+              controlledCity?.address ||
+              controlledCity?.city ||
+              ""
+          )
+            .split(",")[0]
+            .trim();
+
+    if (!nextName) return;
+    if (lastControlledNameRef.current === nextName.toLowerCase()) return;
+
+    lastControlledNameRef.current = nextName.toLowerCase();
+    initialSelectionRef.current = true;
+
+    const matchingCity = transformedCityData.find(
+      (city) =>
+        city.name.toLowerCase() === nextName.toLowerCase() ||
+        city.address.toLowerCase().includes(nextName.toLowerCase())
+    );
+
+    const nextItem =
+      matchingCity ||
+      (typeof controlledCity === "object"
+        ? {
+            id: controlledCity.id || 0,
+            name: nextName,
+            address: controlledCity.address || nextName,
+          }
+        : { id: 0, name: nextName, address: nextName });
+
+    setSelectedItem(nextItem);
+    setSearchValue(nextItem.name);
+    setIsDropdownOpen(false);
+    setHasUserInteracted(false);
+    setCitySelectedManually(false);
+    if (setError) setError(false);
+  }, [controlledCity, transformedCityData, setError]);
+
+  useEffect(() => {
+    if (controlledCity) return;
+
     if (!hasUserInteracted && !citySelectedManually && selectedCityFromSlice && !initialSelectionRef.current) {
       const cityName = typeof selectedCityFromSlice === 'object' && selectedCityFromSlice.name
         ? selectedCityFromSlice.name
@@ -93,7 +134,7 @@ const SearchBar = ({ onLocationSelect, hasError, setError }) => {
       );
 
       if (matchingCity) {
-        initialSelectionRef.current = true; // Mark that we've done the initial selection
+        initialSelectionRef.current = true;
         setSelectedItem(matchingCity);
         setSearchValue(matchingCity.name);
         setIsDropdownOpen(false);
@@ -103,13 +144,11 @@ const SearchBar = ({ onLocationSelect, hasError, setError }) => {
         }
       }
     }
-  }, [selectedCityFromSlice, transformedCityData, hasUserInteracted, citySelectedManually, selectedItem]);
+  }, [selectedCityFromSlice, transformedCityData, hasUserInteracted, citySelectedManually, selectedItem, controlledCity]);
 
-  // Effect to clear selection when no matching cities
   useEffect(() => {
     if (searchValue && isDropdownOpen && filteredCities.length === 0) {
       if (selectedItem) {
-        // Only update if we're actually changing the selection
         setSelectedItem(null);
         onLocationSelect(null);
       }
