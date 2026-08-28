@@ -502,24 +502,38 @@ class ExternalApiReceiveController extends Controller
         $mealPlanFields = $this->resolveMealPlanFieldsForOrder($item, $resolvedRoom);
         $mealPlan = $mealPlanFields['key'];
         $mealPlanLabel = $mealPlanFields['label'];
-        $numberOfRooms = max(1, (int) ($item['number_of_rooms'] ?? 1));
-        $adults = max(1, (int) $tour->adult);
-        $occupancy = $adults <= 1 ? 'single' : 'double';
+        $requestedPax = $this->resolveHotelRequestedPax($tour, $item);
+        $bedCapacity = $this->resolveBedCapacity($resolvedBed);
+        $allocation = $this->allocateHotelRoomsByBedCapacity($requestedPax, $bedCapacity);
+        $numberOfRooms = $allocation['number_of_rooms'];
+        $headCount = $allocation['head_count'];
+        $occupancy = $headCount <= 1 ? 'single' : 'double';
 
-        $payloadPrice = (float) ($item['price'] ?? $item['totalPrice'] ?? 0);
+        $payloadPrice = (float) ($item['price'] ?? $item['totalPrice'] ?? $item['total_price'] ?? 0);
+        $packageRoomPrice = (float) ($item['room_price'] ?? 0);
+        $packageBreakfast = (float) ($item['breakfast_price'] ?? 0);
+        $packageLunch = (float) ($item['lunch_price'] ?? 0);
+        $packageDinner = (float) ($item['dinner_price'] ?? 0);
+        $packagePerNight = (float) ($item['price_per_night'] ?? 0);
+        if ($packagePerNight <= 0) {
+            $packagePerNight = $packageRoomPrice + $packageBreakfast + $packageLunch + $packageDinner;
+        }
+
         $price = $payloadPrice;
+        if ($price <= 0 && $packagePerNight > 0) {
+            $price = $packagePerNight * $nights * $numberOfRooms;
+        }
         if ($price <= 0 && $resolvedRoom) {
             $price = $this->calculateHotelTotalPrice(
                 $resolvedRoom,
                 $nights,
                 $numberOfRooms,
-                $adults,
+                $requestedPax,
                 $occupancy,
                 $mealPlan
             );
         }
 
-        $headCount = max(1, (int) ($resolvedBed?->adult_count ?? $resolvedBed?->max_occupancy ?? $adults));
         $bedType = trim((string) (
             $resolvedBed?->room_type
             ?? $item['bed_type']
@@ -533,12 +547,19 @@ class ExternalApiReceiveController extends Controller
             ?? ''
         ));
 
-        $bedPrice = $resolvedRoom
-            ? ($occupancy === 'single'
-                ? (float) ($resolvedRoom->weekday_price ?? 0)
-                : (float) ($resolvedRoom->double_weekday_price ?? $resolvedRoom->weekday_price ?? 0))
-            : 0;
-        $mealPrice = max(0, $price - ($bedPrice * $nights * $numberOfRooms));
+        $bedPrice = $packageRoomPrice > 0
+            ? $packageRoomPrice
+            : ($resolvedRoom
+                ? ($occupancy === 'single'
+                    ? (float) ($resolvedRoom->weekday_price ?? 0)
+                    : (float) ($resolvedRoom->double_weekday_price ?? $resolvedRoom->weekday_price ?? 0))
+                : 0);
+        $mealUnitPrice = $packageBreakfast + $packageLunch + $packageDinner;
+        if ($mealUnitPrice <= 0) {
+            $mealPrice = max(0, $price - ($bedPrice * $nights * $numberOfRooms));
+        } else {
+            $mealPrice = $mealUnitPrice * $nights * $numberOfRooms;
+        }
         $roomId = $resolvedRoom?->room_id ?? ($item['room_id'] ?? $item['roomId'] ?? null);
         $bedId = $resolvedBed?->bed_id ?? ($item['bed_id'] ?? $item['bedId'] ?? null);
 
@@ -574,14 +595,14 @@ class ExternalApiReceiveController extends Controller
                 'room_type' => $roomType,
                 'number_of_rooms' => $numberOfRooms,
                 'occupancy' => $occupancy,
-                'selected_persons' => $adults,
+                'selected_persons' => $requestedPax,
                 'beds' => [[
                     'bed_id' => $bedId !== null ? (string) $bedId : '',
                     'bed_type' => $bedType,
                     'room_type' => $roomType,
                     'baby_cot' => (int) ($resolvedBed?->baby_cot ?? 0),
                     'head_count' => $headCount,
-                    'max_occupancy' => max(1, (int) ($resolvedBed?->max_occupancy ?? $headCount)),
+                    'max_occupancy' => $bedCapacity,
                     'price' => $bedPrice > 0 ? ($bedPrice * $nights * $numberOfRooms) : $price,
                     'meal_plan' => $mealPlan,
                     'mealTypes' => [$mealPlan],
@@ -596,6 +617,11 @@ class ExternalApiReceiveController extends Controller
             'meal_plan' => $mealPlan,
             'mealPlan' => $mealPlanLabel,
             'meal_type' => $mealPlanFields['meal_type'],
+            'room_price' => $bedPrice,
+            'breakfast_price' => $packageBreakfast,
+            'lunch_price' => $packageLunch,
+            'dinner_price' => $packageDinner,
+            'price_per_night' => $packagePerNight > 0 ? $packagePerNight : ($bedPrice + $packageBreakfast + $packageLunch + $packageDinner),
             'totalPrice' => $price,
             'price' => $price,
             'transfer_options' => $transfer,
@@ -682,6 +708,10 @@ class ExternalApiReceiveController extends Controller
         }
         $resolvedTopMealLabel = strtolower($this->mealPlanToLabel($resolvedTopMealPlan));
 
+        $pricing = $this->reconcileHotelOrderPricing($rooms, $hotelData, $tour, $hotelId);
+        $rooms = $pricing['rooms'];
+        $totalPrice = $pricing['totalPrice'];
+
         return [
             'fullName' => $hotelData['fullName'] ?? 'Guest User',
             'email' => $hotelData['email'] ?? 'guest@example.com',
@@ -710,8 +740,8 @@ class ExternalApiReceiveController extends Controller
             'mealPlan' => $resolvedTopMealLabel,
             'meal_type' => (string) ($hotelData['meal_type'] ?? ''),
             'rooms' => $rooms,
-            'totalPrice' => (float) ($hotelData['totalPrice'] ?? 0),
-            'price' => (float) ($hotelData['totalPrice'] ?? $hotelData['price'] ?? 0),
+            'totalPrice' => $totalPrice,
+            'price' => $totalPrice,
             'transfer_options' => $hotelData['transfer_options'] ?? null,
             'child_with_bed' => $hotelData['child_with_bed'] ?? null,
             'child_without_bed' => $hotelData['child_without_bed'] ?? null,
@@ -1013,6 +1043,7 @@ class ExternalApiReceiveController extends Controller
 
         $total = $roomRate * $nights * $numberOfRooms;
         $plan = strtolower($mealPlan);
+        $mealGuests = max(1, $adults);
 
         $includesBreakfast = str_contains($plan, 'breakfast')
             || str_contains($plan, 'bed_&_')
@@ -1022,16 +1053,223 @@ class ExternalApiReceiveController extends Controller
         $includesDinner = str_contains($plan, 'dinner') || str_contains($plan, 'all_inclusive');
 
         if ($includesBreakfast) {
-            $total += (float) ($room->breakfast_price ?? 0) * $adults * $nights * $numberOfRooms;
+            $total += (float) ($room->breakfast_price ?? 0) * $mealGuests * $nights;
         }
         if ($includesLunch) {
-            $total += (float) ($room->lunch_price ?? 0) * $adults * $nights * $numberOfRooms;
+            $total += (float) ($room->lunch_price ?? 0) * $mealGuests * $nights;
         }
         if ($includesDinner) {
-            $total += (float) ($room->dinner_price ?? 0) * $adults * $nights * $numberOfRooms;
+            $total += (float) ($room->dinner_price ?? 0) * $mealGuests * $nights;
         }
 
         return round($total, 2);
+    }
+
+    /**
+     * Demanded hotel pax for AI booking (tour adults + children, or payload override).
+     */
+    protected function resolveHotelRequestedPax(Tour $tour, array $item): int
+    {
+        $fromItem = (int) ($item['adultCount'] ?? $item['adults'] ?? $item['pax'] ?? $item['selected_persons'] ?? 0);
+        $childrenFromItem = (int) ($item['childCount'] ?? $item['children'] ?? 0);
+        if ($fromItem > 0) {
+            return max(1, $fromItem + max(0, $childrenFromItem));
+        }
+
+        foreach ($item['rooms'] ?? [] as $room) {
+            if (! is_array($room)) {
+                continue;
+            }
+            $roomPax = (int) ($room['selected_persons'] ?? $room['selectedPersons'] ?? 0);
+            if ($roomPax > 0) {
+                return max(1, $roomPax);
+            }
+        }
+
+        return max(1, (int) ($tour->adult ?? 0) + (int) ($tour->child ?? 0));
+    }
+
+    /**
+     * Bed max occupancy used as room capacity for AI hotel allocation.
+     */
+    protected function resolveBedCapacity(?Bed $bed): int
+    {
+        if (! $bed) {
+            return 1;
+        }
+
+        return max(1, (int) ($bed->max_occupancy ?: $bed->adult_count ?: 1));
+    }
+
+    /**
+     * Allocate rooms from demanded pax and bed capacity.
+     *
+     * @return array{number_of_rooms: int, head_count: int}
+     */
+    protected function allocateHotelRoomsByBedCapacity(int $requestedPax, int $bedCapacity): array
+    {
+        $requestedPax = max(1, $requestedPax);
+        $bedCapacity = max(1, $bedCapacity);
+        $numberOfRooms = (int) ceil($requestedPax / $bedCapacity);
+        $headCount = min($requestedPax, $bedCapacity);
+
+        return [
+            'number_of_rooms' => max(1, $numberOfRooms),
+            'head_count' => max(1, $headCount),
+        ];
+    }
+
+    protected function resolveHotelStayNights(array $bookingDate, Tour $tour): int
+    {
+        if (is_array($bookingDate) && count($bookingDate) === 2) {
+            try {
+                $start = Carbon::parse($bookingDate[0]);
+                $end = Carbon::parse($bookingDate[1]);
+
+                return max(1, $start->diffInDays($end));
+            } catch (\Throwable $e) {
+                // fall through
+            }
+        }
+
+        if (! empty($tour->check_in_time) && ! empty($tour->check_out_time)) {
+            try {
+                $start = Carbon::parse($tour->check_in_time);
+                $end = Carbon::parse($tour->check_out_time);
+
+                return max(1, $start->diffInDays($end));
+            } catch (\Throwable $e) {
+                // fall through
+            }
+        }
+
+        return 1;
+    }
+
+    /**
+     * Recalculate hotel order line total and sync room/bed price breakdown before persist.
+     *
+     * @param  list<array<string, mixed>>  $rooms
+     * @return array{rooms: list<array<string, mixed>>, totalPrice: float}
+     */
+    protected function reconcileHotelOrderPricing(array $rooms, array $hotelData, Tour $tour, $hotelId = null): array
+    {
+        $nights = $this->resolveHotelStayNights(is_array($hotelData['bookingDate'] ?? null) ? $hotelData['bookingDate'] : [], $tour);
+        $mealPlan = (string) ($hotelData['meal_plan'] ?? 'room_only');
+        $dmcId = (int) ($tour->dmc_id ?? 0);
+        $createdBy = (int) ($tour->created_by ?? 0);
+        $requestedPax = $this->resolveHotelRequestedPax($tour, $hotelData);
+        $grandTotal = 0.0;
+        $hasCalculatedLine = false;
+
+        foreach ($rooms as $roomIndex => $roomPayload) {
+            if (! is_array($roomPayload)) {
+                continue;
+            }
+
+            $roomRecord = null;
+            $roomId = $roomPayload['room_id'] ?? null;
+            if ($roomId !== null && $roomId !== '' && is_numeric($roomId)) {
+                $roomRecord = Room::where('room_id', (int) $roomId)->first();
+            }
+            if (! $roomRecord && $hotelId) {
+                $roomRecord = $this->resolveRoomFromItem($hotelId, $roomPayload, $dmcId, $createdBy);
+            }
+
+            $beds = is_array($roomPayload['beds'] ?? null) ? $roomPayload['beds'] : [];
+            $bedRecord = null;
+            if ($roomRecord) {
+                $bedId = $beds[0]['bed_id'] ?? null;
+                if ($bedId !== null && $bedId !== '' && is_numeric($bedId)) {
+                    $bedRecord = Bed::where('bed_id', (int) $bedId)->first();
+                }
+                if (! $bedRecord) {
+                    $bedRecord = $this->resolveFirstBed($roomRecord);
+                }
+            }
+
+            $bedCapacity = $this->resolveBedCapacity($bedRecord);
+            $selectedPersons = max(1, (int) ($roomPayload['selected_persons'] ?? $roomPayload['selectedPersons'] ?? $requestedPax));
+            $allocation = $this->allocateHotelRoomsByBedCapacity($selectedPersons, $bedCapacity);
+            $numberOfRooms = max(1, (int) ($roomPayload['number_of_rooms'] ?? $roomPayload['no_of_room'] ?? $allocation['number_of_rooms']));
+            if ($numberOfRooms < $allocation['number_of_rooms']) {
+                $numberOfRooms = $allocation['number_of_rooms'];
+            }
+            $headCount = max(1, (int) ($beds[0]['head_count'] ?? $allocation['head_count']));
+            $occupancy = (string) ($roomPayload['occupancy'] ?? ($headCount <= 1 ? 'single' : 'double'));
+            if (! in_array($occupancy, ['single', 'double', 'triple'], true)) {
+                $occupancy = $headCount <= 1 ? 'single' : 'double';
+            }
+            $rateOccupancy = $occupancy === 'triple' ? 'double' : $occupancy;
+
+            $rooms[$roomIndex]['number_of_rooms'] = $numberOfRooms;
+            $rooms[$roomIndex]['selected_persons'] = $selectedPersons;
+            $rooms[$roomIndex]['occupancy'] = $occupancy;
+
+            if ($roomRecord) {
+                $lineTotal = $this->calculateHotelTotalPrice(
+                    $roomRecord,
+                    $nights,
+                    $numberOfRooms,
+                    $selectedPersons,
+                    $rateOccupancy,
+                    $mealPlan
+                );
+                $roomRate = $rateOccupancy === 'single'
+                    ? (float) ($roomRecord->weekday_price ?? 0)
+                    : (float) ($roomRecord->double_weekday_price ?? $roomRecord->weekday_price ?? 0);
+                $bedComponent = $roomRate * $nights * $numberOfRooms;
+                $mealComponent = max(0, $lineTotal - $bedComponent);
+
+                if ($beds !== []) {
+                    $rooms[$roomIndex]['beds'][0]['head_count'] = $headCount;
+                    $rooms[$roomIndex]['beds'][0]['max_occupancy'] = $bedCapacity;
+                    $rooms[$roomIndex]['beds'][0]['price'] = round($bedComponent, 2);
+                    if (isset($rooms[$roomIndex]['beds'][0]['selectedMeals']['meal_1'])) {
+                        $rooms[$roomIndex]['beds'][0]['selectedMeals']['meal_1']['price'] = round($mealComponent, 2);
+                    }
+                }
+
+                $grandTotal += $lineTotal;
+                $hasCalculatedLine = true;
+            } else {
+                foreach ($beds as $bed) {
+                    if (! is_array($bed)) {
+                        continue;
+                    }
+                    $grandTotal += (float) ($bed['price'] ?? 0);
+                    $grandTotal += (float) ($bed['selectedMeals']['meal_1']['price'] ?? 0);
+                }
+            }
+        }
+
+        if (! $hasCalculatedLine) {
+            $breakdownTotal = 0.0;
+            foreach ($rooms as $roomPayload) {
+                if (! is_array($roomPayload)) {
+                    continue;
+                }
+                foreach ($roomPayload['beds'] ?? [] as $bed) {
+                    if (! is_array($bed)) {
+                        continue;
+                    }
+                    $breakdownTotal += (float) ($bed['price'] ?? 0);
+                    $breakdownTotal += (float) ($bed['selectedMeals']['meal_1']['price'] ?? 0);
+                }
+            }
+            if ($breakdownTotal > 0) {
+                $grandTotal = $breakdownTotal;
+            }
+        }
+
+        if ($grandTotal <= 0) {
+            $grandTotal = (float) ($hotelData['totalPrice'] ?? $hotelData['price'] ?? 0);
+        }
+
+        return [
+            'rooms' => $rooms,
+            'totalPrice' => round($grandTotal, 2),
+        ];
     }
 
     /**
