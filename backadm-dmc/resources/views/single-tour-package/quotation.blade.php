@@ -300,6 +300,39 @@
             ? max(0, $tripleSharingTotal - $otherSingleTotal)
             : 0;
 
+        $priceBreakdown = \App\Helpers\CommonHelper::buildQuotationPriceBreakdown(
+            $tour,
+            $tourPrices,
+            $adults,
+            $children,
+            $infants
+        );
+
+        $formatBreakdownLine = function (array $line) use ($formatMoney) {
+            $multiplierLabel = (string) ($line['multiplier_label'] ?? $line['multiplier'] ?? 1);
+            $childPart = (float) ($line['child_part'] ?? 0);
+            $childUnit = (float) ($line['child_unit'] ?? 0);
+            $childCount = (int) ($line['child_count'] ?? 0);
+
+            if ($childPart > 0) {
+                $parts = [];
+                if ((float) ($line['per_head'] ?? 0) > 0) {
+                    $parts[] = $formatMoney($line['per_head']) . ' × ' . $multiplierLabel;
+                }
+                if ($childUnit > 0 && $childCount > 0) {
+                    $parts[] = $formatMoney($childUnit) . ' × ' . $childCount;
+                }
+
+                return implode(' + ', $parts) . ' = ' . $formatMoney($line['line_total'] ?? 0);
+            }
+
+            return $formatMoney($line['per_head'] ?? 0)
+                . ' × '
+                . $multiplierLabel
+                . ' = '
+                . $formatMoney($line['line_total'] ?? 0);
+        };
+
         // Build booked inclusions list from servicesByType (derived from orders for this tour)
         // We intentionally only show the categories requested by the user.
         $bookedAttractionCards = []; // full cards (transfer / guide details for PDF)
@@ -709,8 +742,36 @@
                 </td>
             </tr>
         </table>
-        
 
+        @if(!empty($priceBreakdown['lines']))
+            <div class="overall-price-box" style="margin-bottom: 10px;">
+                <div class="panel-title" style="margin: 0; border: none; border-bottom: 1px solid #000;">Price Breakdown ({{ $currencyLabel }})</div>
+                <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
+                    <thead>
+                        <tr>
+                            <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: left; width: 45%;">Service</th>
+                            <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 40%;">Calculation</th>
+                            <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 15%;">Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($priceBreakdown['lines'] as $breakdownLine)
+                            <tr>
+                                <td style="border: 1px solid #000; padding: 6px; vertical-align: top;">{{ $breakdownLine['label'] ?? 'Service' }}</td>
+                                <td style="border: 1px solid #000; padding: 6px; text-align: center; vertical-align: top;">{{ $formatBreakdownLine($breakdownLine) }}</td>
+                                <td style="border: 1px solid #000; padding: 6px; text-align: center; font-weight: bold; vertical-align: top;">{{ $formatMoney($breakdownLine['line_total'] ?? 0) }}</td>
+                            </tr>
+                        @endforeach
+                        <tr>
+                            <td colspan="2" style="border: 1px solid #000; padding: 8px; text-align: right; font-weight: bold;">Total</td>
+                            <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatMoney($priceBreakdown['grand_total'] ?? 0) }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        @endif
+
+        
         @if(!empty($allCountryKeys))
             @foreach($allCountryKeys as $bucketKey)
                 @php
