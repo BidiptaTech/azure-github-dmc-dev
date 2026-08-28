@@ -898,29 +898,32 @@
                                             </table>
                                         </td>
                                     </tr>
+                                    @if(!empty($priceBreakdown['grand_total']))
+                                    <tr>
+                                        <td colspan="2" style="{{ $cellBorder }} padding:0; vertical-align:top;">
+                                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse; border-top:2px solid #000;">
+                                                <tr>
+                                                    <td colspan="3" style="{{ $panelTitle }}">Overall Package Price (Per Pax) — {{ $currencyLabel ?? $currencyCode }}</td>
+                                                </tr>
+                                                <tr>
+                                                    <th style="{{ $thStyle }} width:33%;">Single</th>
+                                                    <th style="{{ $thStyle }} width:33%;">Double</th>
+                                                    <th style="{{ $thStyle }} width:33%;">Triple</th>
+                                                </tr>
+                                                <tr>
+                                                    <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $formatMoney($packagePerPax['single']) }}</td>
+                                                    <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $formatMoney($packagePerPax['double']) }}</td>
+                                                    <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $packagePerPax['triple'] > 0 ? $formatMoney($packagePerPax['triple']) : '—' }}</td>
+                                                </tr>
+                                                <tr>
+                                                    <td colspan="2" style="{{ $tdStyle }} text-align:right; font-weight:bold;">Total Quotation Price ({{ $currencyLabel ?? $currencyCode }})</td>
+                                                    <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $currencyCode }} {{ number_format((float)($priceBreakdown['grand_total'] ?? 0), 0, '.', ',') }}</td>
+                                                </tr>
+                                            </table>
+                                        </td>
+                                    </tr>
+                                    @endif
                                 </table>
-
-                                @if(!empty($priceBreakdown['grand_total']))
-                                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse; border:2px solid #000; margin-top:14px; margin-bottom:14px;">
-                                        <tr>
-                                            <td colspan="3" style="{{ $panelTitle }}">Price (Per Pax) — {{ $currencyLabel ?? $currencyCode }}</td>
-                                        </tr>
-                                        <tr>
-                                            <th style="{{ $thStyle }} width:33%;">Single</th>
-                                            <th style="{{ $thStyle }} width:33%;">Double</th>
-                                            <th style="{{ $thStyle }} width:33%;">Triple</th>
-                                        </tr>
-                                        <tr>
-                                            <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $formatMoney($packagePerPax['single']) }}</td>
-                                            <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $formatMoney($packagePerPax['double']) }}</td>
-                                            <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $packagePerPax['triple'] > 0 ? $formatMoney($packagePerPax['triple']) : '—' }}</td>
-                                        </tr>
-                                        <tr>
-                                            <td colspan="2" style="{{ $tdStyle }} text-align:right; font-weight:bold;">Total Quotation Price ({{ $currencyLabel ?? $currencyCode }})</td>
-                                            <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $currencyCode }} {{ number_format((float)($priceBreakdown['grand_total'] ?? 0), 0, '.', ',') }}</td>
-                                        </tr>
-                                    </table>
-                                @endif
 
                                 @if(!empty($suppHotels))
                                     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse; margin-top:14px;">
