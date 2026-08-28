@@ -210,6 +210,14 @@
             return $currencyLabel . ' ' . $formatAmount($amount);
         };
 
+        $formatPerPaxMoney = function ($amount) use ($formatMoney) {
+            if (! is_numeric($amount) || (float) $amount <= 0) {
+                return '—';
+            }
+
+            return $formatMoney($amount) . ' (Per Pax)';
+        };
+
         $supplements = $tourPrices['supplyments'] ?? ($tourPrices['supplements'] ?? []);
         $otherSingleTotal = (float)($tourPrices['other_services_single'] ?? 0);
         $otherDoubleTotal = (float)($tourPrices['other_services_double'] ?? 0);
@@ -749,9 +757,9 @@
                                             <th style="{{ $thStyle }} width:33%;">Triple</th>
                                         </tr>
                                         <tr>
-                                            <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $formatMoney($packagePerPax['single']) }}</td>
-                                            <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $formatMoney($packagePerPax['double']) }}</td>
-                                            <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $packagePerPax['triple'] > 0 ? $formatMoney($packagePerPax['triple']) : '—' }}</td>
+                                            <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $formatPerPaxMoney($packagePerPax['single']) }}</td>
+                                            <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $formatPerPaxMoney($packagePerPax['double']) }}</td>
+                                            <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $formatPerPaxMoney($packagePerPax['triple']) }}</td>
                                         </tr>
                                         <tr>
                                             <td colspan="2" style="{{ $tdStyle }} text-align:right; font-weight:bold;">Total Quotation Price ({{ $currencyLabel ?? $currencyCode }})</td>
@@ -888,9 +896,9 @@
                                                     <th style="{{ $thStyle }} width:33%;">Triple</th>
                                                 </tr>
                                                 <tr>
-                                                    <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $formatMoney($hotelPerPax['single']) }}</td>
-                                                    <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $formatMoney($hotelPerPax['double']) }}</td>
-                                                    <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $hotelPerPax['triple'] > 0 ? $formatMoney($hotelPerPax['triple']) : '—' }}</td>
+                                                    <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $formatPerPaxMoney($hotelPerPax['single']) }}</td>
+                                                    <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $formatPerPaxMoney($hotelPerPax['double']) }}</td>
+                                                    <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $formatPerPaxMoney($hotelPerPax['triple']) }}</td>
                                                 </tr>
                                             </table>
                                         </td>
@@ -902,9 +910,9 @@
                                                     <th style="{{ $thStyle }} width:33%;">Triple</th>
                                                 </tr>
                                                 <tr>
-                                                    <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $formatMoney($otherPerPax['single']) }}</td>
-                                                    <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $formatMoney($otherPerPax['double']) }}</td>
-                                                    <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $formatMoney($otherPerPax['triple']) }}</td>
+                                                    <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $formatPerPaxMoney($otherPerPax['single']) }}</td>
+                                                    <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $formatPerPaxMoney($otherPerPax['double']) }}</td>
+                                                    <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $formatPerPaxMoney($otherPerPax['triple']) }}</td>
                                                 </tr>
                                             </table>
                                         </td>
