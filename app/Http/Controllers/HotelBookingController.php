@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Helpers\CommonHelper;
 use App\Models\Tour;
 use App\Models\Hotel;
+use App\Services\HotelSuppliers\MgBedbank\MgBedbankBookingService;
+use App\Services\SupplierEnvService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -1225,6 +1227,11 @@ class HotelBookingController extends Controller
                         'approval_file' => $hotelOrder->approval_file ?? null,
                         // online | offline | null → UI shows Online/Offline Order
                         'order_type' => $hotelOrder->order_type ?? null,
+                        'online_hotel_source' => $booking['onlineHotelSource']
+                            ?? ($booking['onlineHotelBooking']['supplier_code'] ?? null),
+                        'is_online_hotel' => ! empty($booking['isOnlineHotel'])
+                            || ($booking['hotelSourceType'] ?? '') === 'online'
+                            || ($hotelOrder->order_type ?? '') === 'online',
                     ]
                 ]
             ]);
@@ -2549,6 +2556,88 @@ class HotelBookingController extends Controller
     }
 
     /**
+     * Recheck an online hotel booking with the third-party supplier before approval.
+     */
+    public function recheckOnlineHotelBooking(Request $request): JsonResponse
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'tour_id' => 'required|integer',
+                'hotel_order_index' => 'required|integer|min:0',
+                'booking_index' => 'required|integer|min:0',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed: ' . $validator->errors()->first(),
+                    'errors' => $validator->errors(),
+                ], 422);
+            }
+
+            [$hotelOrder, $booking, $bookingIndex] = $this->resolveHotelOrderBooking(
+                (int) $request->tour_id,
+                (int) $request->hotel_order_index,
+                (int) $request->booking_index,
+            );
+
+            if (($hotelOrder->order_type ?? '') !== 'online') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'This hotel order is not an online booking.',
+                ], 422);
+            }
+
+            $supplierCode = $this->resolveOnlineHotelSupplierCode($booking);
+
+            if ($supplierCode !== 'mg_bedbank') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Online supplier "' . $supplierCode . '" is not supported yet.',
+                ], 422);
+            }
+
+            $credentials = app(SupplierEnvService::class)->valuesFor('mg_bedbank');
+            $recheckResult = app(MgBedbankBookingService::class)->recheckFromOrderBooking($booking, $credentials);
+            $token = app(MgBedbankBookingService::class)->cacheRecheckResult(
+                (int) $hotelOrder->id,
+                $bookingIndex,
+                $recheckResult,
+            );
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Hotel availability rechecked successfully.',
+                'recheck_token' => $token,
+                'data' => [
+                    'supplier_code' => $recheckResult['supplier_code'],
+                    'hotel_name' => $recheckResult['hotel_name'],
+                    'room_name' => $recheckResult['room_name'],
+                    'meal_plan_name' => $recheckResult['meal_plan_name'],
+                    'currency' => $recheckResult['currency'],
+                    'check_in' => $recheckResult['check_in'],
+                    'check_out' => $recheckResult['check_out'],
+                    'stored_price' => $recheckResult['stored_price'],
+                    'supplier_net_price' => $recheckResult['supplier_net_price'],
+                    'supplier_gross_price' => $recheckResult['supplier_gross_price'],
+                    'price_changed' => $recheckResult['price_changed'],
+                    'session_id' => $recheckResult['session_id'],
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Online hotel recheck failed', [
+                'error' => $e->getMessage(),
+                'request' => $request->all(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
+        }
+    }
+
+    /**
      * Approve hotel booking and save approval data
      * 
      * This method saves the approval data to the orders table and sets is_approve = true
@@ -2559,7 +2648,6 @@ class HotelBookingController extends Controller
      */
     public function approveHotelBooking(Request $request): JsonResponse
     {
-        //dd($request->all());
         try {
             // Log incoming request for debugging
             Log::info('Hotel approval request received', [
@@ -2575,6 +2663,8 @@ class HotelBookingController extends Controller
                 'actual_due_date' => 'required|date',
                 'display_due_date_days' => 'required|integer|min:1',
                 'display_due_date' => 'required|string|max:255',
+                'confirm_online_booking' => 'nullable|boolean',
+                'recheck_token' => 'nullable|string|max:64',
                 //'reference_file' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240' // 10MB max
             ]);
 
@@ -2594,7 +2684,6 @@ class HotelBookingController extends Controller
             $displayDueDateDays = $request->display_due_date_days;
             $displayDueDate = $request->display_due_date;
             $referenceFile = $request->file('reference_file');
-
             // Find the hotel order in the orders table
             $hotelOrder = DB::table('orders')
                 ->where('tour_id', $tourId)
@@ -2602,7 +2691,7 @@ class HotelBookingController extends Controller
                 // ->orderBy('id')
                 ->skip($hotelOrderIndex)
                 ->first();
-
+                
             // Log the search criteria and result
             Log::info('Searching for hotel order', [
                 'tour_id' => $tourId,
@@ -2616,6 +2705,70 @@ class HotelBookingController extends Controller
                     'success' => false,
                     'message' => 'Hotel order not found'
                 ], 404);
+            }
+
+            $hotelData = json_decode($hotelOrder->data, true);
+
+            if (! is_array($hotelData) || ! isset($hotelData[$bookingIndex])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Hotel booking not found in order data',
+                ], 404);
+            }
+
+            $bookingRow = $hotelData[$bookingIndex];
+            $bookingDetails = null;
+
+            if (($hotelOrder->order_type ?? '') === 'online') {
+                if (! $request->boolean('confirm_online_booking')) {
+                    return response()->json([
+                        'success' => false,
+                        'requires_recheck' => true,
+                        'message' => 'Please recheck availability and confirm the updated supplier price before approving this online hotel booking.',
+                    ], 422);
+                }
+
+                $recheckToken = trim((string) $request->input('recheck_token', ''));
+
+                if ($recheckToken === '') {
+                    return response()->json([
+                        'success' => false,
+                        'requires_recheck' => true,
+                        'message' => 'Recheck token is missing. Please recheck availability again.',
+                    ], 422);
+                }
+
+                $supplierCode = $this->resolveOnlineHotelSupplierCode($bookingRow);
+
+                if ($supplierCode !== 'mg_bedbank') {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Online supplier "' . $supplierCode . '" is not supported yet.',
+                    ], 422);
+                }
+
+                $bookingService = app(MgBedbankBookingService::class);
+                $recheckResult = $bookingService->pullCachedRecheckResult(
+                    (int) $hotelOrder->id,
+                    $bookingIndex,
+                    $recheckToken,
+                );
+
+                if ($recheckResult === null) {
+                    return response()->json([
+                        'success' => false,
+                        'requires_recheck' => true,
+                        'message' => 'The availability check has expired. Please recheck availability and try again.',
+                    ], 422);
+                }
+
+                $credentials = app(SupplierEnvService::class)->valuesFor('mg_bedbank');
+                $bookingDetails = $bookingService->bookFromRecheckResult(
+                    $recheckResult,
+                    $bookingRow,
+                    $referenceId,
+                    $credentials,
+                );
             }
 
             // Handle file upload if provided
@@ -2645,6 +2798,10 @@ class HotelBookingController extends Controller
                 'updated_at' => now()
             ];
 
+            if ($bookingDetails !== null) {
+                $updateData['booking_details'] = json_encode($bookingDetails);
+            }
+
             // Add file path if file was uploaded
             // if ($approvalFilePath) {
             //     $updateData['approval_file'] = $approvalFilePath;
@@ -2668,7 +2825,8 @@ class HotelBookingController extends Controller
                 'hotel_order_id' => $hotelOrder->id,
                 'reference_id' => $referenceId,
                 'actual_due_date' => $actualDueDate,
-                'display_due_date' => $displayDueDate
+                'display_due_date' => $displayDueDate,
+                'online_booking' => $bookingDetails !== null,
             ]);
 
             // Send confirmation email to hotel (hotels.email) using mail-preview style subject/body
@@ -2681,17 +2839,21 @@ class HotelBookingController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Hotel booking approved successfully',
+                'message' => ($hotelOrder->order_type ?? '') === 'online'
+                    ? 'Online hotel booked with supplier and approved successfully'
+                    : 'Hotel booking approved successfully',
                 'email_sent' => $emailResult['sent'] ?? false,
                 'email_message' => $emailResult['message'] ?? null,
                 'hotel_email' => $emailResult['hotel_email'] ?? null,
+                'online_booking' => $bookingDetails !== null,
                 'data' => [
                     'tour_id' => $tourId,
                     'hotel_order_id' => $hotelOrder->id,
                     'reference_id' => $referenceId,
                     'actual_due_date' => $actualDueDate,
                     'display_due_date' => $displayDueDate,
-                    'approval_file' => $approval_file
+                    'approval_file' => $approval_file,
+                    'booking_details' => $bookingDetails,
                 ]
             ]);
 
@@ -5843,5 +6005,43 @@ class HotelBookingController extends Controller
                 'message' => 'An error occurred while uploading files: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * @return array{0: object, 1: array<string, mixed>, 2: int}
+     */
+    private function resolveHotelOrderBooking(int $tourId, int $hotelOrderIndex, int $bookingIndex): array
+    {
+        $hotelOrder = DB::table('orders')
+            ->where('tour_id', $tourId)
+            ->where('type', 'hotel')
+            ->whereNull('deleted_at')
+            ->skip($hotelOrderIndex)
+            ->first();
+
+        if (! $hotelOrder) {
+            throw new \RuntimeException('Hotel order not found');
+        }
+
+        $hotelData = json_decode($hotelOrder->data, true);
+
+        if (! is_array($hotelData) || ! isset($hotelData[$bookingIndex])) {
+            throw new \RuntimeException('Hotel booking not found in order data');
+        }
+
+        return [$hotelOrder, $hotelData[$bookingIndex], $bookingIndex];
+    }
+
+    /**
+     * @param  array<string, mixed>  $booking
+     */
+    private function resolveOnlineHotelSupplierCode(array $booking): string
+    {
+        $code = strtolower(trim((string) (
+            $booking['onlineHotelSource']
+            ?? ($booking['onlineHotelBooking']['supplier_code'] ?? '')
+        )));
+
+        return $code !== '' ? $code : 'mg_bedbank';
     }
 }
