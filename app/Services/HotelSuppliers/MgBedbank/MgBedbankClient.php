@@ -78,6 +78,24 @@ class MgBedbankClient
      * @param  array<string, mixed>  $payload
      * @return array<string, mixed>
      */
+    public function recheckHotel(array $payload): array
+    {
+        return $this->post('RecheckHotel', $payload);
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
+    public function bookHotel(array $payload): array
+    {
+        return $this->post('BookHotel', $payload);
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
     public function post(string $endpoint, array $payload): array
     {
         $baseUrl = rtrim($this->credential('base_url'), '/');
