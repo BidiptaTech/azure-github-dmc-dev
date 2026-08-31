@@ -14,6 +14,108 @@ export function toCityOnly(value) {
 }
 
 /**
+ * Normalize destination to [{ city, country }, ...]
+ */
+export function normalizeDestinationLocations(items) {
+  if (!Array.isArray(items)) return [];
+  return items
+    .map((item) => {
+      if (item && typeof item === "object" && (item.city || item.country)) {
+        return {
+          city: toCityOnly(item.city || item.name || ""),
+          country: String(item.country || "").trim(),
+        };
+      }
+      const city = toCityOnly(item);
+      return city ? { city, country: "" } : null;
+    })
+    .filter(Boolean);
+}
+
+/**
+ * Extract comma-separated city names for hotel /location API.
+ */
+export function extractCityNamesFromLocation(location) {
+  if (!location) return "";
+  if (Array.isArray(location)) {
+    return location
+      .map((item) =>
+        item && typeof item === "object" && item.city
+          ? toCityOnly(item.city)
+          : toCityOnly(item)
+      )
+      .filter(Boolean)
+      .join(",");
+  }
+  if (typeof location === "object" && location.city) {
+    return toCityOnly(location.city);
+  }
+  return toCityOnly(location);
+}
+
+/**
+ * Format destination for display or booking payloads.
+ */
+export function formatDestinationDisplay(location) {
+  if (!location) return "";
+  if (Array.isArray(location)) {
+    return location
+      .map((item) => {
+        if (item && typeof item === "object" && item.city) {
+          return item.country ? `${item.city}, ${item.country}` : item.city;
+        }
+        return toCityOnly(item);
+      })
+      .filter(Boolean)
+      .join(", ");
+  }
+  if (typeof location === "object" && location.city) {
+    return location.country
+      ? `${location.city}, ${location.country}`
+      : location.city;
+  }
+  return String(location);
+}
+
+/**
+ * Extract unique country names for DMC API from destination payload.
+ * Supports [{ city, country }, ...], string[], or a single string.
+ */
+export function extractCountryNamesFromDestination(destination) {
+  if (!destination) return [];
+
+  if (Array.isArray(destination)) {
+    return [
+      ...new Set(
+        destination
+          .map((item) => {
+            if (item && typeof item === "object" && item.country) {
+              return String(item.country).trim();
+            }
+            if (typeof item === "string") {
+              return item.trim();
+            }
+            return "";
+          })
+          .filter(Boolean)
+      ),
+    ];
+  }
+
+  if (typeof destination === "object" && destination.country) {
+    const country = String(destination.country).trim();
+    return country ? [country] : [];
+  }
+
+  if (typeof destination === "string") {
+    const value = destination.trim();
+    return value ? [value] : [];
+  }
+
+  return [];
+}
+
+/**
  * Normalize city list entries to "City, Country" strings for service APIs.
  */
 export function normalizeCityList(payload, countryName = "") {

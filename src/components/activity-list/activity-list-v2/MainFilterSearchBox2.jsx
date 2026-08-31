@@ -1,5 +1,7 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { selectCityWiseDates } from "@/slice/common/commonSlice";
+import { findCityDatesEntry, normalizeYmd } from "@/utils/cityWiseDates";
 import LocationSearch from "./PortLocation";
 import { triggerSearch, clearTriggerSearch } from "@/slice/common/stepsSlice";
 import {
@@ -53,23 +55,7 @@ const MainFilterSearchBox2 = ({ Location }) => {
   );
   const searchLocation = useSelector((state) => state.bookings?.searchLocation);
   const userCountry = useSelector((state) => state.auth?.user_country);
-  const country =
-    (typeof tourDestination === "string" && tourDestination) ||
-    (Array.isArray(searchLocation)
-      ? searchLocation
-          .map((loc) => {
-            const match = (userCountry || []).find(
-              (c) =>
-                c?.code === loc ||
-                c?.code?.toLowerCase() === String(loc).toLowerCase() ||
-                c?.name === loc
-            );
-            return match?.name || loc;
-          })
-          .join(", ")
-      : "") ||
-    "";
-  console.log("country", country);
+  const cityWiseDates = useSelector(selectCityWiseDates);
 
   // Check port city API status
   const portCityStatus = useSelector(
@@ -111,6 +97,38 @@ const MainFilterSearchBox2 = ({ Location }) => {
 
   // State for selected city
   const [selectedCity, setSelectedCity] = useState(null);
+
+  const country = useMemo(() => {
+    const cityName = selectedCity?.name || selectedCity?.city || "";
+    if (cityName && Array.isArray(tourDestination)) {
+      const match = tourDestination.find(
+        (entry) =>
+          entry?.city &&
+          String(entry.city).toLowerCase() === String(cityName).toLowerCase()
+      );
+      if (match?.country) return match.country;
+    }
+
+    if (typeof tourDestination === "string" && tourDestination) {
+      return tourDestination;
+    }
+
+    if (Array.isArray(searchLocation)) {
+      return searchLocation
+        .map((loc) => {
+          const match = (userCountry || []).find(
+            (c) =>
+              c?.code === loc ||
+              c?.code?.toLowerCase() === String(loc).toLowerCase() ||
+              c?.name === loc
+          );
+          return match?.name || loc;
+        })
+        .join(", ");
+    }
+
+    return "";
+  }, [selectedCity, tourDestination, searchLocation, userCountry]);
 
   // Sequential enabling states
   const [isCityEnabled, setIsCityEnabled] = useState(false);
@@ -387,6 +405,32 @@ const MainFilterSearchBox2 = ({ Location }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchTrigger, dispatch]);
 
+  const formatDateForInput = useCallback((value) => normalizeYmd(value) || "", []);
+
+  const cityPickupDate = useMemo(() => {
+    if (!selectedCity?.name) return "";
+    const entry = findCityDatesEntry(cityWiseDates, selectedCity.name);
+    if (!entry) return "";
+
+    if (selectedPort === "Entry Port" && entry.checkIn) {
+      return formatDateForInput(entry.checkIn);
+    }
+    if (selectedPort === "Exit Port" && entry.checkOut) {
+      return formatDateForInput(entry.checkOut);
+    }
+    return "";
+  }, [selectedCity, selectedPort, cityWiseDates, formatDateForInput]);
+
+  useEffect(() => {
+    if (!selectedCity?.name || !cityPickupDate) return;
+
+    if (selectedPort === "Entry Port") {
+      setSelectedDate(cityPickupDate);
+    } else if (selectedPort === "Exit Port") {
+      setSelectedDate1(cityPickupDate);
+    }
+  }, [selectedCity, selectedPort, cityPickupDate]);
+
   // Handle location selection from PortCity
   const handleCitySelect = (city) => {
     setSelectedCity(city);
@@ -417,6 +461,8 @@ const MainFilterSearchBox2 = ({ Location }) => {
                 setValidationTriggered(false); // Reset validation when port type changes
                 setCityError(false); // Reset city error
                 setSelectedCity(null); // Reset selected city when port type changes
+                setSelectedDate("");
+                setSelectedDate1("");
                 // Reset other state affecting location validation
                 setPickupFromAutocomplete(false);
                 setDropoffFromAutocomplete(false);
@@ -607,12 +653,14 @@ const MainFilterSearchBox2 = ({ Location }) => {
               <DateSearch1
                 selectedDate={selectedDate}
                 setSelectedDate={setSelectedDate}
+                cityDate={cityPickupDate}
                 disabled={!isDropoffLocationEnabled}
               />
             ) : (
               <DateSearch2
                 selectedDate1={selectedDate1}
                 setSelectedDate1={setSelectedDate1}
+                cityDate={cityPickupDate}
                 disabled={!isDropoffLocationEnabled}
               />
             )}

@@ -309,13 +309,25 @@ const MainFilterSearchBox = () => {
       return;
     }
 
-    // Multiple city names for destination
+    // Multiple city names for DMC API and URL params
     const destinationName = selectedCities
       .map((city) => city.city)
       .filter(Boolean);
 
+    // City + country pairs for search/tour state
+    const destinationLocations = selectedCities.map((city) => ({
+      city: city.city,
+      country: city.country || "",
+    }));
+
+    const destinationCountries = [
+      ...new Set(
+        selectedCities.map((city) => city.country).filter(Boolean)
+      ),
+    ];
+
     // Check if selected cities share a bookable DMC on the same tour
-    const dmcResult = await dispatch(fetchDMCsByCountry(destinationName));
+    const dmcResult = await dispatch(fetchDMCsByCountry(destinationCountries));
     if (fetchDMCsByCountry.fulfilled.match(dmcResult)) {
       const payload = dmcResult.payload;
       // API may return [] or { data: [] }
@@ -408,7 +420,8 @@ const MainFilterSearchBox = () => {
     const ucheckOutYmd = moment(formattedCheckOut, "DD/MM/YYYY").format("YYYY-MM-DD");
     dispatch(
       updateSearchState({
-        location: destinationName,
+        location: destinationLocations,
+        cityWiseDates: cityWiseDatesPayload,
         ucheckIn: ucheckInYmd,
         ucheckOut: ucheckOutYmd,
         guests: {
@@ -422,7 +435,8 @@ const MainFilterSearchBox = () => {
     // Provide basic tour details for hotel UI that previously relied on API response
     dispatch(
       settourdetails({
-        destination: destinationName,
+        destination: destinationLocations,
+        cityWiseDates: cityWiseDatesPayload,
         adult: guestCounts.Adults,
         child: guestCounts.Children,
         infant: guestCounts.Infants,
