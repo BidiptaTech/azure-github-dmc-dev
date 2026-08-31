@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   FormControl,
   FormLabel,
@@ -22,6 +22,7 @@ import { clearAttractions } from '@/slice/attractions/attractionSlice';
 import { resetguide } from '@/slice/tourguide/guideslice';
 import { clearRestaurants } from '@/slice/restaurant/RestaurantsSlice';
 import { resetVehicles1 } from '@/slice/localtour/Localslice';
+import { extractCountryNamesFromDestination } from '@/utils/locationFormat';
 
 const DmcFilter = () => {
   const dispatch = useDispatch();
@@ -41,6 +42,11 @@ const DmcFilter = () => {
     
     return null;
   });
+
+  const destinationCountries = useMemo(
+    () => extractCountryNamesFromDestination(destination),
+    [destination]
+  );
   
   // Get dmc_id - default to first DMC's userId if dmcs array exists
   const dmc_id = useSelector((state) => {
@@ -54,6 +60,7 @@ const DmcFilter = () => {
   const tourdetails = useSelector((state) => state.hotels?.tourdetails);
   console.log(tourdetails, "tourdetails");
   console.log(destination, "destination");
+  console.log(destinationCountries, "destinationCountries");
   console.log(dmc_id, "dmc_id");
   
   // Get DMC data from Redux
@@ -72,11 +79,10 @@ const DmcFilter = () => {
 
   // Fetch DMCs when destination changes (skip if haveBooking is true)
   useEffect(() => {
-    if (destination && !haveBooking) {
-      console.log('🔍 DMC Filter - Fetching DMCs for destination:', destination);
+    if (destinationCountries.length > 0 && !haveBooking) {
+      console.log('🔍 DMC Filter - Fetching DMCs for countries:', destinationCountries);
       
-      // Dispatch the API call with destination array
-      dispatch(fetchDMCsByCountry(destination))
+      dispatch(fetchDMCsByCountry(destinationCountries))
         .unwrap()
         .then((response) => {
           console.log('✅ DMC Filter - DMCs fetched successfully:', response);
@@ -85,7 +91,7 @@ const DmcFilter = () => {
           console.error('❌ DMC Filter - Error fetching DMCs:', err);
         });
     }
-  }, [destination, dispatch, haveBooking]);
+  }, [destinationCountries, dispatch, haveBooking]);
 
   // Initialize selected DMC when haveBooking is true
   useEffect(() => {
@@ -100,16 +106,11 @@ const DmcFilter = () => {
       const firstDmc = dmcs.data[0];
       const firstDmcId = firstDmc.userId;
       
-      // Get the country from destination or from the DMC data
+      // Get the country from destination countries or from the DMC data
       let selectedCountry = firstDmc.country || 'Unknown Location';
       
-      // Handle destination (could be array or string)
-      if (destination) {
-        if (Array.isArray(destination) && destination.length > 0) {
-          selectedCountry = destination[0];
-        } else if (typeof destination === 'string') {
-          selectedCountry = destination;
-        }
+      if (destinationCountries.length > 0) {
+        selectedCountry = destinationCountries[0];
       }
       
       // Create DMC data object with price_hide and zone_on
@@ -134,7 +135,7 @@ const DmcFilter = () => {
       setLocalSelectedDmc(firstDmcId);
       dispatch(setSelectedDmcId({ dmcId: parseInt(firstDmcId), dmcData }));
     }
-  }, [dmcs, destination, dispatch, dmc_id, localSelectedDmc, haveBooking]);
+  }, [dmcs, destinationCountries, dispatch, dmc_id, localSelectedDmc, haveBooking]);
 
   // Handle DMC selection change
   const handleDmcChange = (event) => {
@@ -150,16 +151,11 @@ const DmcFilter = () => {
     const selectedDmc = dmcs?.data?.find(dmc => dmc.userId === parseInt(dmcId));
     
     if (selectedDmc) {
-      // Get the country from destination or from the DMC data
+      // Get the country from destination countries or from the DMC data
       let selectedCountry = selectedDmc.country || 'Unknown Location';
       
-      // Handle destination (could be array or string)
-      if (destination) {
-        if (Array.isArray(destination) && destination.length > 0) {
-          selectedCountry = destination[0];
-        } else if (typeof destination === 'string') {
-          selectedCountry = destination;
-        }
+      if (destinationCountries.length > 0) {
+        selectedCountry = destinationCountries[0];
       }
       
       // Create DMC data object with price_hide and zone_on

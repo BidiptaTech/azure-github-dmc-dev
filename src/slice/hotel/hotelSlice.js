@@ -11,7 +11,7 @@ import { updateServiceResponse } from "@/slice/common/stepperButtonSlice";
 import { setHaveBooking } from "@/slice/common/commonSlice";
 import { setTourId, updateStepStatus, statusUpdate, setType } from "@/slice/common/stepsSlice";
 import { setTourIdd } from "@/slice/common/authSlices";
-import { toCityOnly } from "@/utils/locationFormat";
+import { toCityOnly, extractCityNamesFromLocation, formatDestinationDisplay, normalizeDestinationLocations } from "@/utils/locationFormat";
 // Note: We no longer ensure/create tour here; tour is created during booking
 
 // Selector to get DMC ID from dmc slice
@@ -30,9 +30,7 @@ export const fetchHotels = createAsyncThunk(
      const { adults, children, infant } = guests;
 
       // Hotel /location API expects city only (not "City, Country")
-      let formattedLocation = Array.isArray(location)
-        ? location.map((item) => toCityOnly(item)).filter(Boolean).join(",")
-        : toCityOnly(location);
+      let formattedLocation = extractCityNamesFromLocation(location);
        const dateRange=[ucheckIn,ucheckOut]
      
    
@@ -177,8 +175,7 @@ export const hottelBookingDataSubmit = createAsyncThunk(
       }
       // Priority 2: Check tourDetails
       else if (root.hotels?.tourdetails?.destination) {
-        const tourDest = root.hotels.tourdetails.destination;
-        destination = Array.isArray(tourDest) ? tourDest.join(", ") : tourDest;
+        destination = formatDestinationDisplay(root.hotels.tourdetails.destination);
       }
       // Priority 3: Check enquiry state
       else if (root.enquiry?.destination) {
@@ -194,8 +191,7 @@ export const hottelBookingDataSubmit = createAsyncThunk(
       }
       // Priority 5: Check searchState location
       else if (root.hotels?.searchState?.location) {
-        const searchStateLoc = root.hotels.searchState.location;
-        destination = Array.isArray(searchStateLoc) ? searchStateLoc.join(", ") : searchStateLoc;
+        destination = formatDestinationDisplay(root.hotels.searchState.location);
       }
 
       // Add destination at root level if we found one
@@ -300,7 +296,8 @@ const hotelSlice = createSlice({
     type: "hotel",
     tourdetails: [],
     searchState: {
-      location: [], // Search location
+      location: [], // [{ city, country }, ...] or legacy city strings
+      cityWiseDates: [], // [{ city, checkIn, checkOut }, ...]
       ucheckIn: null, // Check-in date
       ucheckOut: null, // Check-out date
       guests: { adults: 1, children: 0, infant: 0 }, // Default guest count
@@ -342,15 +339,27 @@ const hotelSlice = createSlice({
     updateSearchState: (state, action) => {
       const updatedState = { ...action.payload };
 
-      // Hotel location must be city only (not "City, Country")
       if (updatedState.location != null) {
         if (Array.isArray(updatedState.location)) {
-          updatedState.location = updatedState.location
-            .map((item) => toCityOnly(item))
-            .filter(Boolean);
+          updatedState.location = normalizeDestinationLocations(
+            updatedState.location
+          );
+        } else if (
+          typeof updatedState.location === "object" &&
+          updatedState.location.city
+        ) {
+          updatedState.location = normalizeDestinationLocations([
+            updatedState.location,
+          ]);
         } else {
           updatedState.location = toCityOnly(updatedState.location);
         }
+      }
+
+      if (updatedState.cityWiseDates != null) {
+        updatedState.cityWiseDates = Array.isArray(updatedState.cityWiseDates)
+          ? updatedState.cityWiseDates
+          : [];
       }
 
       // Handle check-in date

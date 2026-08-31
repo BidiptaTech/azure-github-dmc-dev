@@ -2,7 +2,7 @@ import React, { useEffect } from "react";
 import { useSelector } from "react-redux";
 import { TextField } from "@mui/material";
 
-const DateSearch2 = ({ selectedDate1, setSelectedDate1, disabled = false }) => {
+const DateSearch2 = ({ selectedDate1, setSelectedDate1, disabled = false, cityDate = "" }) => {
   // const checkIn = useSelector(
   //   (state) =>
   //     state.hotels.tourdetails.check_in_time ||
@@ -47,12 +47,16 @@ const DateSearch2 = ({ selectedDate1, setSelectedDate1, disabled = false }) => {
   const formattedCheckOut = formatDateToDDMMYYYY(checkOut);
   console.log("checkOut (formatted):", formattedCheckOut);
 
-  // Automatically update selectedDate1 when checkOut changes
+  // Prefer city-wise check-out; fall back to tour check-out
   useEffect(() => {
+    if (cityDate) {
+      setSelectedDate1(cityDate);
+      return;
+    }
     if (formattedCheckOut) {
       setSelectedDate1(formattedCheckOut);
     }
-  }, [formattedCheckOut, setSelectedDate1]);
+  }, [cityDate, formattedCheckOut, setSelectedDate1]);
 
   return (
     <div className={`text-15 text-light-1 ls-2 lh-16 custom_dual_datepicker ${disabled ? 'opacity-70' : ''}`}>
