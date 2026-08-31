@@ -16,6 +16,7 @@ use App\Models\Room;
 use App\Models\Tax;
 use App\Models\Tour;
 use App\Models\User;
+use App\Models\Vehicle;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -436,6 +437,8 @@ class ExternalApiReceiveController extends Controller
             'hotel' => $this->transformHotelItem($tour, $item, $meta, $customer),
             'attraction' => $this->transformAttractionItem($tour, $item, $meta, $customer),
             'restaurant' => $this->transformRestaurantItem($tour, $item, $meta, $customer),
+            'entry_port' => $this->transformPortTransportItem($tour, $item, $meta, $customer, 'entry_port'),
+            'exit_port' => $this->transformPortTransportItem($tour, $item, $meta, $customer, 'exit_port'),
             default => array_merge($customer, $item, $meta, [
                 'bookingDate' => $meta['bookingDate'] ?? null,
                 'totalPrice' => (float) ($item['price'] ?? $item['totalPrice'] ?? 0),
@@ -1119,6 +1122,229 @@ class ExternalApiReceiveController extends Controller
         ];
     }
 
+    /**
+     * Allocate arrival/departure vehicles from pax and seating capacity.
+     * Example: 14 pax / capacity 5 => 3 vehicles.
+     *
+     * @return array{booked_vehicles: int, passengers: int, seating_capacity: int}
+     */
+    protected function allocateVehiclesBySeatingCapacity(int $requestedPax, int $seatCapacity): array
+    {
+        $requestedPax = max(1, $requestedPax);
+
+        if ($seatCapacity <= 0) {
+            return [
+                'booked_vehicles' => 1,
+                'passengers' => $requestedPax,
+                'seating_capacity' => $requestedPax,
+            ];
+        }
+
+        $seatCapacity = max(1, $seatCapacity);
+
+        return [
+            'booked_vehicles' => max(1, (int) ceil($requestedPax / $seatCapacity)),
+            'passengers' => $requestedPax,
+            'seating_capacity' => $seatCapacity,
+        ];
+    }
+
+    protected function resolveVehicleSeatingCapacity(array $item, ?array $vehicleDetails = null): int
+    {
+        $capacity = (int) (
+            $item['seating_capacity']
+            ?? $item['seats']
+            ?? ($vehicleDetails['seating_capacity'] ?? 0)
+        );
+
+        if ($capacity > 0) {
+            return $capacity;
+        }
+
+        $name = (string) ($item['vehicles_name'] ?? $item['vehicle_name'] ?? $vehicleDetails['vehicle_name'] ?? '');
+        if ($name !== '' && preg_match('/(\d+)\s*seat/i', $name, $matches)) {
+            return max(1, (int) $matches[1]);
+        }
+
+        return 0;
+    }
+
+    /**
+     * @return array{
+     *     booked_vehicles: int,
+     *     vehicle_mismatch_corrected: bool,
+     *     seating_capacity: int,
+     *     passengers: int,
+     *     payload_booked_vehicles: int|null
+     * }
+     */
+    protected function reconcilePortVehicleAllocation(array $item, int $pax, int $seatCapacity): array
+    {
+        $allocation = $this->allocateVehiclesBySeatingCapacity($pax, $seatCapacity);
+        $required = $allocation['booked_vehicles'];
+
+        $payloadBooked = max(0, (int) (
+            $item['booked_vehicles']
+            ?? $item['vehicle_count']
+            ?? $item['vehicles_count']
+            ?? $item['number_of_vehicles']
+            ?? $item['no_of_vehicles']
+            ?? 0
+        ));
+
+        return [
+            'booked_vehicles' => $required,
+            'vehicle_mismatch_corrected' => $payloadBooked > 0 && $payloadBooked !== $required,
+            'seating_capacity' => $allocation['seating_capacity'],
+            'passengers' => $allocation['passengers'],
+            'payload_booked_vehicles' => $payloadBooked > 0 ? $payloadBooked : null,
+        ];
+    }
+
+    /**
+     * @return array{unit_price: float, line_total: float}
+     */
+    protected function resolvePortTransportLineTotal(
+        array $item,
+        Tour $tour,
+        int $pax,
+        int $bookedVehicles,
+        ?int $payloadBookedVehicles,
+        string $serviceType,
+        float $unitPrice,
+        ?array $vehicleDetails = null
+    ): array {
+        $explicitTotal = (float) ($item['totalPrice'] ?? $item['total_price'] ?? $item['price'] ?? 0);
+
+        if ($unitPrice <= 0 && $vehicleDetails) {
+            $unitPrice = in_array(strtolower($serviceType), ['shared', 'sic'], true)
+                ? (float) ($vehicleDetails['shared_price'] ?? 0)
+                : (float) ($vehicleDetails['private_price'] ?? 0);
+        }
+
+        if (in_array(strtolower($serviceType), ['shared', 'sic'], true)) {
+            $childCount = max(0, (int) ($item['childCount'] ?? $item['children'] ?? $item['childQty'] ?? $tour->child ?? 0));
+            $adultCount = max(0, $pax - $childCount);
+            $adultUnit = $unitPrice > 0 ? $unitPrice : (
+                $explicitTotal > 0 && $pax > 0 ? round($explicitTotal / $pax, 2) : 0.0
+            );
+            $childUnit = (float) ($item['childSell'] ?? $item['child_sell'] ?? $adultUnit);
+            $lineTotal = round(($adultUnit * $adultCount) + ($childUnit * $childCount), 2);
+
+            if ($lineTotal <= 0 && $explicitTotal > 0) {
+                $lineTotal = round($explicitTotal, 2);
+                if ($adultUnit <= 0 && $pax > 0) {
+                    $adultUnit = round($explicitTotal / $pax, 2);
+                }
+            }
+
+            return ['unit_price' => $adultUnit, 'line_total' => $lineTotal];
+        }
+
+        if ($unitPrice <= 0 && $explicitTotal > 0) {
+            $divisor = ($payloadBookedVehicles ?? 0) > 0 ? $payloadBookedVehicles : max(1, $bookedVehicles);
+            $unitPrice = round($explicitTotal / max(1, $divisor), 2);
+        }
+
+        $bookedVehicles = max(1, $bookedVehicles);
+        $lineTotal = round($unitPrice * $bookedVehicles, 2);
+
+        if ($explicitTotal > 0 && abs($explicitTotal - $lineTotal) > 0.01) {
+            if ($explicitTotal >= ($unitPrice * $bookedVehicles * 0.9)) {
+                $lineTotal = round($explicitTotal, 2);
+            } elseif (($payloadBookedVehicles ?? 1) === 1 && $bookedVehicles > 1) {
+                $lineTotal = round($unitPrice * $bookedVehicles, 2);
+            }
+        }
+
+        return ['unit_price' => $unitPrice, 'line_total' => $lineTotal];
+    }
+
+    protected function transformPortTransportItem(Tour $tour, array $item, array $meta, array $customer, string $portType): array
+    {
+        $pax = $this->resolveBillablePax($item, $tour);
+        $vehicleRawId = trim((string) ($item['vehicle_id'] ?? $item['vehicles_id'] ?? $item['vehicleId'] ?? ''));
+        $vehicleName = trim((string) ($item['vehicle_name'] ?? $item['vehicles_name'] ?? $item['vehicleName'] ?? ''));
+        $vehicleDetails = $this->resolveVehicleForTransfer($vehicleRawId, $vehicleName);
+
+        if ($vehicleRawId === '' && is_array($vehicleDetails) && ! empty($vehicleDetails['vehicle_id'])) {
+            $vehicleRawId = (string) $vehicleDetails['vehicle_id'];
+        }
+        if ($vehicleName === '' && is_array($vehicleDetails) && ! empty($vehicleDetails['vehicle_name'])) {
+            $vehicleName = (string) $vehicleDetails['vehicle_name'];
+        }
+
+        $seatCapacity = $this->resolveVehicleSeatingCapacity($item, $vehicleDetails);
+        $vehicleAllocation = $this->reconcilePortVehicleAllocation($item, $pax, $seatCapacity);
+        $bookedVehicles = $vehicleAllocation['booked_vehicles'];
+
+        $typeRaw = $item['type'] ?? $item['transferType'] ?? $item['transfer_type'] ?? 'Private';
+        $serviceType = ucfirst(strtolower((string) $typeRaw));
+        if ($serviceType === 'Sic') {
+            $serviceType = 'Shared';
+        }
+        if (! in_array($serviceType, ['Private', 'Shared'], true)) {
+            $serviceType = 'Private';
+        }
+
+        $unitPrice = (float) ($item['adultSell'] ?? $item['adult_sell'] ?? $item['base_price'] ?? $item['basePrice'] ?? $item['cost'] ?? 0);
+        $pricing = $this->resolvePortTransportLineTotal(
+            $item,
+            $tour,
+            $pax,
+            $bookedVehicles,
+            $vehicleAllocation['payload_booked_vehicles'],
+            $serviceType,
+            $unitPrice,
+            $vehicleDetails
+        );
+
+        $bookingDate = $this->parseDate($meta['bookingDate'] ?? $tour->check_in_time, Carbon::today())->toDateString();
+        $pickupTime = trim((string) ($item['entrytime'] ?? $item['exitpickupdate'] ?? $item['time'] ?? $item['pickup_time'] ?? ''));
+
+        $payload = array_merge($customer, [
+            'bookingDate' => $bookingDate,
+            'pickupdate' => $bookingDate,
+            'vehicles_id' => $vehicleRawId,
+            'vehicle_id' => $vehicleRawId,
+            'vehicles_name' => $vehicleName !== '' ? $vehicleName : $vehicleRawId,
+            'vehicle_name' => $vehicleName !== '' ? $vehicleName : $vehicleRawId,
+            'Mode' => 'dmc',
+            'type' => $serviceType,
+            'dmc_id' => (string) ($tour->dmc_id ?? ''),
+            'passengers' => $vehicleAllocation['passengers'],
+            'adults' => max(1, (int) ($item['adults'] ?? $item['adultCount'] ?? $pax)),
+            'children' => max(0, (int) ($item['children'] ?? $item['childCount'] ?? $tour->child ?? 0)),
+            'seating_capacity' => $vehicleAllocation['seating_capacity'],
+            'booked_vehicles' => $bookedVehicles,
+            'vehicle_count' => $bookedVehicles,
+            'vehicle_mismatch_corrected' => $vehicleAllocation['vehicle_mismatch_corrected'],
+            'vehicle_unit_price' => $pricing['unit_price'],
+            'vehicle_type' => is_array($vehicleDetails) ? ($vehicleDetails['vehicle_type'] ?? ($item['vehicle_type'] ?? '')) : ($item['vehicle_type'] ?? ''),
+            'totalPrice' => $pricing['line_total'],
+            'price' => $pricing['line_total'],
+            'travel_type' => $portType,
+            'city' => $item['city'] ?? '',
+            'remarks' => $item['remarks'] ?? null,
+            'supplement' => filter_var($item['supplement'] ?? false, FILTER_VALIDATE_BOOLEAN),
+            'source' => 'external_api',
+        ]);
+
+        if ($portType === 'entry_port') {
+            $payload['entrypickup'] = $item['entrypickup'] ?? $item['pickup'] ?? $item['port_name'] ?? $item['portName'] ?? '';
+            $payload['entrydropoff'] = $item['entrydropoff'] ?? $item['dropoff'] ?? $item['transfer_destination_name'] ?? $item['transferDestinationName'] ?? '';
+            $payload['entrytime'] = $pickupTime;
+            $payload['arrival_flight_no'] = $item['arrival_flight_no'] ?? $item['flight_no'] ?? $item['flightNo'] ?? $item['flight_number'] ?? '';
+        } else {
+            $payload['exitpickup'] = $item['exitpickup'] ?? $item['pickup'] ?? $item['transfer_pickup'] ?? '';
+            $payload['exitdropoff'] = $item['exitdropoff'] ?? $item['dropoff'] ?? $item['port_name'] ?? $item['portName'] ?? '';
+            $payload['exitpickupdate'] = $pickupTime;
+            $payload['departure_flight_no'] = $item['departure_flight_no'] ?? $item['flight_no'] ?? $item['flightNo'] ?? $item['flight_number'] ?? '';
+        }
+
+        return $payload;
+    }
+
     protected function resolveHotelStayNights(array $bookingDate, Tour $tour): int
     {
         if (is_array($bookingDate) && count($bookingDate) === 2) {
@@ -1640,6 +1866,86 @@ class ExternalApiReceiveController extends Controller
         }
 
         return round((float) ($transfer['cost'] ?? $transfer['price'] ?? 0), 2);
+    }
+
+    /**
+     * @return array{vehicle_id: string, vehicle_name: string, vehicle_type?: string, seating_capacity?: int|string}|null
+     */
+    protected function resolveVehicleForTransfer(string $vehicleRawId, string $vehicleName = ''): ?array
+    {
+        $vehicleRawId = trim($vehicleRawId);
+        $vehicleName = trim($vehicleName);
+        $query = Vehicle::withTrashed();
+
+        $vehicle = null;
+        if ($vehicleRawId !== '') {
+            $vehicle = (clone $query)
+                ->where('vehicle_id', $vehicleRawId)
+                ->orderByRaw('CASE WHEN deleted_at IS NULL THEN 0 ELSE 1 END')
+                ->first();
+            if (! $vehicle && ctype_digit($vehicleRawId)) {
+                $vehicle = (clone $query)
+                    ->where('id', (int) $vehicleRawId)
+                    ->orderByRaw('CASE WHEN deleted_at IS NULL THEN 0 ELSE 1 END')
+                    ->first();
+            }
+        }
+
+        $nameLooksLikeId = $vehicleName !== '' && (
+            $vehicleName === $vehicleRawId
+            || (ctype_digit($vehicleName) && $vehicleName === (string) ((int) $vehicleName))
+        );
+        if (! $vehicle && $vehicleName !== '' && ! $nameLooksLikeId) {
+            $vehicle = (clone $query)
+                ->where(function ($q) use ($vehicleName) {
+                    $q->whereRaw('LOWER(TRIM(vehicle_name)) = ?', [strtolower($vehicleName)])
+                        ->orWhereRaw('LOWER(TRIM(vehicle_type)) = ?', [strtolower($vehicleName)]);
+                })
+                ->orderByRaw('CASE WHEN deleted_at IS NULL THEN 0 ELSE 1 END')
+                ->first();
+        }
+
+        if ($vehicle && $vehicle->deleted_at) {
+            $dmcId = (int) ($vehicle->dmc_id ?? 0);
+            $active = null;
+            if ($dmcId > 0) {
+                $active = Vehicle::query()
+                    ->whereNull('deleted_at')
+                    ->where(function ($q) use ($dmcId) {
+                        $q->where('dmc_id', $dmcId)
+                            ->orWhere('dmc_id', (string) $dmcId)
+                            ->orWhereRaw('CAST(dmc_id AS TEXT) = ?', [(string) $dmcId]);
+                    })
+                    ->orderBy('id')
+                    ->first();
+            }
+            if ($active) {
+                $vehicle = $active;
+            }
+        }
+
+        if (! $vehicle) {
+            return null;
+        }
+
+        $name = trim((string) ($vehicle->vehicle_name ?? ''));
+        if ($name === '') {
+            $name = trim((string) ($vehicle->vehicle_type ?? ''));
+        }
+
+        $canonicalId = (string) ($vehicle->vehicle_id ?? $vehicle->id ?? $vehicleRawId);
+        if ($name === '' || $name === $canonicalId || (ctype_digit($name) && (string) ((int) $name) === $name)) {
+            $name = trim((string) ($vehicle->vehicle_type ?? '')) ?: $canonicalId;
+        }
+
+        return [
+            'vehicle_id' => $canonicalId,
+            'vehicle_name' => $name,
+            'vehicle_type' => (string) ($vehicle->vehicle_type ?? ''),
+            'seating_capacity' => $vehicle->seating_capacity ?? '',
+            'private_price' => (string) ($vehicle->base_price ?? $vehicle->private_price ?? '0.00'),
+            'shared_price' => (string) ($vehicle->sharable_base_price ?? $vehicle->shared_price ?? '0.00'),
+        ];
     }
 
     protected function normalizeMealPlan(string $mealPlan): string

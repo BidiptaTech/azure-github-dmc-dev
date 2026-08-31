@@ -5525,6 +5525,146 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
     }
 
     /**
+     * Hotel per-pax rate for quotation display from actual hotel order totalPrice.
+     * Formula: totalPrice / (number_of_rooms × head_count × nights)
+     *
+     * @param  \Illuminate\Support\Collection|array|null  $orders
+     * @return array{per_pax: float, nights: int, rooms: int, head_count: int, hotel_total: float}|null
+     */
+    public static function resolveHotelQuotationPerPaxFromOrders($orders = null, $tour = null, ?string $targetCurrency = null): ?array
+    {
+        $orderList = $orders instanceof \Illuminate\Support\Collection
+            ? $orders
+            : collect($orders ?? []);
+
+        $hotelTotal = 0.0;
+        $totalRooms = 0;
+        $headCountPerRoom = 0;
+        $nights = 0;
+
+        foreach ($orderList as $order) {
+            if ((int) ($order->status ?? 0) !== 1) {
+                continue;
+            }
+            if (strtolower((string) ($order->type ?? '')) !== 'hotel') {
+                continue;
+            }
+
+            $rawData = $order->data;
+            if (is_string($rawData)) {
+                $rawData = json_decode($rawData, true);
+            }
+            if (empty($rawData) || ! is_array($rawData)) {
+                continue;
+            }
+
+            $orderCurrency = strtoupper(trim((string) ($order->currency ?? '')));
+            if ($orderCurrency === '' && $tour) {
+                $orderCurrency = strtoupper(trim((string) ($tour->currency ?? 'SGD')));
+            }
+            if ($orderCurrency === '') {
+                $orderCurrency = strtoupper(trim((string) ($targetCurrency ?? 'SGD')));
+            }
+
+            $items = isset($rawData[0]) && is_array($rawData[0]) ? $rawData : [$rawData];
+            foreach ($items as $item) {
+                if (! is_array($item)) {
+                    continue;
+                }
+
+                $amount = (float) ($item['totalPrice'] ?? $item['price'] ?? 0);
+                if ($amount <= 0) {
+                    continue;
+                }
+
+                if ($targetCurrency !== null && $targetCurrency !== '') {
+                    $converted = CurrencyHelper::convertAmount($amount, $orderCurrency, $targetCurrency);
+                    $hotelTotal += ($converted !== null) ? (float) $converted : $amount;
+                } else {
+                    $hotelTotal += $amount;
+                }
+
+                $nights = max($nights, self::resolveHotelOrderNightCount($item, $tour));
+
+                $rooms = $item['rooms'] ?? [];
+                if (! is_array($rooms)) {
+                    continue;
+                }
+
+                foreach ($rooms as $room) {
+                    if (! is_array($room)) {
+                        continue;
+                    }
+
+                    $noOfRooms = max(1, (int) ($room['number_of_rooms'] ?? $room['no_of_room'] ?? 1));
+                    $totalRooms += $noOfRooms;
+
+                    $beds = isset($room['beds']) && is_array($room['beds']) ? $room['beds'] : [];
+                    if (! empty($beds) && is_array($beds[0] ?? null)) {
+                        $headCountPerRoom = max($headCountPerRoom, max(1, (int) ($beds[0]['head_count'] ?? $beds[0]['headCount'] ?? 1)));
+                    } else {
+                        $selected = (int) ($room['selected_persons'] ?? $room['selectedPersons'] ?? 0);
+                        $headCountPerRoom = max($headCountPerRoom, max(1, $selected > 0 ? $selected : 1));
+                    }
+                }
+            }
+        }
+
+        if ($hotelTotal <= 0 || $totalRooms <= 0) {
+            return null;
+        }
+
+        if ($nights <= 0) {
+            $nights = 1;
+        }
+        if ($headCountPerRoom <= 0) {
+            $headCountPerRoom = 1;
+        }
+
+        $divisor = $totalRooms * $headCountPerRoom * $nights;
+        $perPax = $hotelTotal / max(1, $divisor);
+
+        return [
+            'per_pax' => ceil($perPax),
+            'nights' => $nights,
+            'rooms' => $totalRooms,
+            'head_count' => $headCountPerRoom,
+            'hotel_total' => ceil($hotelTotal),
+        ];
+    }
+
+    /**
+     * Night count for a hotel order item (bookingDate range, else tour dates).
+     */
+    protected static function resolveHotelOrderNightCount(array $item, $tour = null): int
+    {
+        $bookingDate = $item['bookingDate'] ?? null;
+        if (is_array($bookingDate) && count($bookingDate) === 2) {
+            try {
+                $start = Carbon::parse($bookingDate[0]);
+                $end = Carbon::parse($bookingDate[1]);
+
+                return max(1, $start->diffInDays($end));
+            } catch (\Throwable $e) {
+                // fall through
+            }
+        }
+
+        if ($tour && ! empty($tour->check_in_time) && ! empty($tour->check_out_time)) {
+            try {
+                $start = Carbon::parse($tour->check_in_time);
+                $end = Carbon::parse($tour->check_out_time);
+
+                return max(1, $start->diffInDays($end));
+            } catch (\Throwable $e) {
+                // fall through
+            }
+        }
+
+        return 1;
+    }
+
+    /**
      * Resolve a tour for email preview: by tour_id / display_id, or the latest tour with orders.
      */
     public static function findTourForEmailPreview(?string $tourKey = null): ?Tour

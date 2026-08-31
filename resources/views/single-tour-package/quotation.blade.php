@@ -1278,9 +1278,22 @@
             $overallHotelSingleDisplay = $overallConvertedOk ? $overallHotelSingle : $hotelOnlySingleTotal;
             $overallHotelDoubleDisplay = $overallConvertedOk ? $overallHotelDouble : $hotelOnlyDoubleTotal;
             $overallHotelTripleDisplay = $overallConvertedOk ? $overallHotelTriple : $hotelOnlyTripleTotal;
+
+            $hotelPerPaxFromOrders = \App\Helpers\CommonHelper::resolveHotelQuotationPerPaxFromOrders(
+                $orders ?? collect(),
+                $tour,
+                $selectedCurrency
+            );
+            if ($hotelPerPaxFromOrders && ($hotelPerPaxFromOrders['per_pax'] ?? 0) > 0) {
+                $orderHotelPerPax = (float) $hotelPerPaxFromOrders['per_pax'];
+                $overallHotelSingleDisplay = $orderHotelPerPax;
+                $overallHotelDoubleDisplay = $orderHotelPerPax;
+                $overallHotelTripleDisplay = $orderHotelPerPax;
+            }
+
             $overallHotelMoneyFormatter = $overallConvertedOk
-                ? fn ($amount) => $formatNativeMoney($amount, $overallDisplayCurrency)
-                : fn ($amount) => $formatMoney($amount);
+                ? fn ($amount) => $formatNativeMoney($amount, $overallDisplayCurrency) . ' /pax'
+                : fn ($amount) => $formatMoney($amount) . ' /pax';
             [$overallCellSingle, $overallCellDouble, $overallCellTriple] = $formatOccupancyHotelCells(
                 $overallHotelSingleDisplay,
                 $overallHotelDoubleDisplay,
