@@ -314,6 +314,18 @@
             $overallTripleAvailable = $tripleOccupancyAvailable;
         }
 
+        $hotelPerPaxFromOrders = \App\Helpers\CommonHelper::resolveHotelQuotationPerPaxFromOrders(
+            $orders ?? collect(),
+            $tour,
+            $pdfSelectedCurrency
+        );
+        if ($hotelPerPaxFromOrders && ($hotelPerPaxFromOrders['per_pax'] ?? 0) > 0) {
+            $orderHotelPerPax = (float) $hotelPerPaxFromOrders['per_pax'];
+            $overallHotelSingleDisplay = $orderHotelPerPax;
+            $overallHotelDoubleDisplay = $orderHotelPerPax;
+            $overallHotelTripleDisplay = $orderHotelPerPax;
+        }
+
         [$overallCellSingle, $overallCellDouble, $overallCellTriple] = $formatOccupancyHotelCells(
             $overallHotelSingleDisplay,
             $overallHotelDoubleDisplay,

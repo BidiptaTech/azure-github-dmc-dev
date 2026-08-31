@@ -3555,6 +3555,18 @@
                                         $vehicleSavedId = $transportData['vehicles_id'] ?? $transportData['vehicle_id'] ?? '';
                                         $vehicleType = $transportData['type'] ?? '';
                                         $passengers = $transportData['passengers'] ?? '';
+                                        $seatingCapacityStored = (int) ($transportData['seating_capacity'] ?? 0);
+                                        $tourPax = max(1, (int) (($tour->adult ?? 0) + ($tour->child ?? 0)));
+                                        if ($passengers === '' || $passengers === null) {
+                                            $passengers = $tourPax;
+                                        }
+                                        $bookedVehicles = (int) ($transportData['booked_vehicles'] ?? $transportData['vehicle_count'] ?? 0);
+                                        if ($bookedVehicles <= 0 && $seatingCapacityStored > 0 && (int) $passengers > 0) {
+                                            $bookedVehicles = (int) ceil((int) $passengers / $seatingCapacityStored);
+                                        }
+                                        if ($bookedVehicles <= 0) {
+                                            $bookedVehicles = 1;
+                                        }
                                         $availableVehicles = $vehicles ?? collect();
                                         $transportRemarks = $transportData['remarks'] ?? '';
                                         $transportSupplement = ($transportData['supplement'] ?? $transportData['is_supplement'] ?? false);
@@ -3669,7 +3681,7 @@
                                                             $priv = $vehicleOption->private_price ?? $vehicleOption->private ?? '';
                                                             $shared = $vehicleOption->shared_price ?? $vehicleOption->shared ?? '';
                                                         @endphp
-                                                        <option value="{{ $vehicleDisplayName }}" data-private-price="{{ $priv }}" data-shared-price="{{ $shared }}" {{ $isSelected ? 'selected' : '' }}>
+                                                        <option value="{{ $vehicleDisplayName }}" data-private-price="{{ $priv }}" data-shared-price="{{ $shared }}" data-seating-capacity="{{ $vehicleOption->seating_capacity ?? '' }}" {{ $isSelected ? 'selected' : '' }}>
                                                             {{ $vehicleDisplayName }}
                                                             @if(!empty($vehicleOption->vehicle_type))
                                                                 ({{ $vehicleOption->vehicle_type }})
@@ -3689,7 +3701,15 @@
                                                     <option value="Shared" {{ strtolower($vehicleType) === 'shared' ? 'selected' : '' }}>Shared</option>
                                                 </select>
                                             </div>
-                                            <div class="col-md-4">
+                                            <div class="col-md-3">
+                                                <label class="form-label fw-semibold text-muted mb-2"><i class="ri-user-line me-1 text-secondary"></i>Passengers</label>
+                                                <input type="number" class="form-control border-2" id="arrival_passengers_{{ $order->booking_id }}" style="height: 35px;" min="1" value="{{ (int) $passengers }}" readonly>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label class="form-label fw-semibold text-muted mb-2"><i class="ri-car-line me-1 text-info"></i>Booked Vehicles</label>
+                                                <input type="number" class="form-control border-2" id="arrival_booked_vehicles_{{ $order->booking_id }}" style="height: 35px;" min="1" value="{{ $bookedVehicles }}" readonly>
+                                            </div>
+                                            <div class="col-md-3">
                                                 <label class="form-label fw-semibold text-muted mb-2"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price</label>
                                                 <input type="number" class="form-control border-2" id="arrival_total_price_{{ $order->booking_id }}" style="height: 35px;" name="total_price" step="0.01" min="0" value="{{ number_format((float)($transportData['totalPrice'] ?? $transportData['price'] ?? 0), 2, '.', '') }}" placeholder="0.00" readonly>
                                             </div>
@@ -5993,6 +6013,18 @@
                                                     $vehicleSavedId = $transportData['vehicles_id'] ?? $transportData['vehicle_id'] ?? '';
                                                     $vehicleType = $transportData['type'] ?? '';
                                                     $passengers = $transportData['passengers'] ?? '';
+                                                    $seatingCapacityStored = (int) ($transportData['seating_capacity'] ?? 0);
+                                                    $tourPax = max(1, (int) (($tour->adult ?? 0) + ($tour->child ?? 0)));
+                                                    if ($passengers === '' || $passengers === null) {
+                                                        $passengers = $tourPax;
+                                                    }
+                                                    $bookedVehicles = (int) ($transportData['booked_vehicles'] ?? $transportData['vehicle_count'] ?? 0);
+                                                    if ($bookedVehicles <= 0 && $seatingCapacityStored > 0 && (int) $passengers > 0) {
+                                                        $bookedVehicles = (int) ceil((int) $passengers / $seatingCapacityStored);
+                                                    }
+                                                    if ($bookedVehicles <= 0) {
+                                                        $bookedVehicles = 1;
+                                                    }
                                                     $totalPrice = $transportData['totalPrice'] ?? $transportData['price'] ?? 0;
                                                     $availableVehicles = $vehicles ?? collect();
                                                     $transportRemarks = $transportData['remarks'] ?? '';
@@ -6156,6 +6188,7 @@
                                                                             data-private-price="{{ $vehicleOption->base_price ?? $vehicleOption->private_price ?? 0 }}"
                                                                             data-shared-price="{{ $vehicleOption->sharable_base_price ?? $vehicleOption->shared_price ?? 0 }}"
                                                                             data-sharable="{{ $vehicleOption->sharable ?? 0 }}"
+                                                                            data-seating-capacity="{{ $vehicleOption->seating_capacity ?? '' }}"
                                                                             {{ $isSelected ? 'selected' : '' }}>
                                                                         {{ $vehicleDisplayName }}
                                                                         @if(!empty($vehicleOption->vehicle_type))
@@ -6176,7 +6209,15 @@
                                                                 <option value="Shared" {{ strtolower($vehicleType) === 'shared' ? 'selected' : '' }}>Shared</option>
                                                             </select>
                                                         </div>
-                                                        <div class="col-md-4">
+                                                        <div class="col-md-3">
+                                                            <label class="form-label fw-semibold text-muted mb-2"><i class="ri-user-line me-1 text-secondary"></i>Passengers</label>
+                                                            <input type="number" class="form-control border-2" id="departure_passengers_{{ $order->booking_id }}" style="height: 35px;" min="1" value="{{ (int) $passengers }}" readonly>
+                                                        </div>
+                                                        <div class="col-md-3">
+                                                            <label class="form-label fw-semibold text-muted mb-2"><i class="ri-car-line me-1 text-info"></i>Booked Vehicles</label>
+                                                            <input type="number" class="form-control border-2" id="departure_booked_vehicles_{{ $order->booking_id }}" style="height: 35px;" min="1" value="{{ $bookedVehicles }}" readonly>
+                                                        </div>
+                                                        <div class="col-md-3">
                                                             <label class="form-label fw-semibold text-muted mb-2"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price</label>
                                                             <input type="number" class="form-control border-2 departure-total-price" style="height: 35px;" name="total_price" id="departure_price_{{ $order->booking_id }}" step="0.01" min="0" value="{{ number_format((float)$totalPrice, 2, '.', '') }}" placeholder="0.00" readonly>
                                                         </div>
@@ -9837,6 +9878,7 @@
             opt.setAttribute('data-private-price', v.private_price || v.base_price || '');
             opt.setAttribute('data-shared-price', v.shared_price || v.sharable_base_price || '');
             opt.setAttribute('data-sharable', v.sharable || 0);
+            opt.setAttribute('data-seating-capacity', v.seating_capacity || '');
             if (!selected && vehicleMatchesSaved(v, savedName, savedId)) {
                 opt.selected = true;
                 selected = true;
@@ -9922,6 +9964,27 @@
         });
     }
 
+    function resolvePortBookedVehicleCount(prefix, bookingId, vehicleSelect) {
+        const passengersInput = document.getElementById(prefix + '_passengers_' + bookingId);
+        const bookedInput = document.getElementById(prefix + '_booked_vehicles_' + bookingId);
+        const passengers = parseInt(passengersInput?.value, 10) || 1;
+        const selectedOption = vehicleSelect?.options?.[vehicleSelect.selectedIndex];
+        const seatCapacity = parseInt(selectedOption?.getAttribute('data-seating-capacity') || '0', 10);
+        let bookedVehicles = 1;
+
+        if (seatCapacity > 0) {
+            bookedVehicles = Math.max(1, Math.ceil(passengers / seatCapacity));
+        } else if (bookedInput?.value) {
+            bookedVehicles = Math.max(1, parseInt(bookedInput.value, 10) || 1);
+        }
+
+        if (bookedInput) {
+            bookedInput.value = bookedVehicles;
+        }
+
+        return bookedVehicles;
+    }
+
     function updateArrivalRowPrice(bookingId) {
         const vehicleSelect = document.getElementById('arrival_vehicle_' + bookingId);
         const serviceSelect = document.getElementById('arrival_service_type_' + bookingId);
@@ -9936,7 +9999,13 @@
         const privatePrice = parseFloat(opt.getAttribute('data-private-price')) || 0;
         const sharedPrice = parseFloat(opt.getAttribute('data-shared-price')) || 0;
         const serviceType = serviceSelect.value;
-        let total = serviceType === 'Private' ? privatePrice : (serviceType === 'Shared' ? sharedPrice : 0);
+        const bookedVehicles = resolvePortBookedVehicleCount('arrival', bookingId, vehicleSelect);
+        let total = 0;
+        if (serviceType === 'Private') {
+            total = privatePrice * bookedVehicles;
+        } else if (serviceType === 'Shared') {
+            total = sharedPrice;
+        }
         totalInput.value = total.toFixed(2);
     }
 
@@ -29106,10 +29175,11 @@
         
         const privatePrice = parseFloat(selectedVehicle.getAttribute('data-private-price') || 0);
         const sharedPrice = parseFloat(selectedVehicle.getAttribute('data-shared-price') || 0);
+        const bookedVehicles = resolvePortBookedVehicleCount('departure', bookingId, vehicleSelect);
         
         let price = 0;
         if (serviceType === 'Private') {
-            price = privatePrice;
+            price = privatePrice * bookedVehicles;
         } else if (serviceType === 'Shared') {
             price = sharedPrice;
         }
