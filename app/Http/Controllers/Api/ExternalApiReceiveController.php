@@ -369,6 +369,8 @@ class ExternalApiReceiveController extends Controller
                             'hotel' => $day['hotels'] ?? [],
                             'attraction' => $day['attractions'] ?? [],
                             'restaurant' => $hasRestaurantServices ? [] : ($day['restaurants'] ?? []),
+                            'entry_port' => $day['arrivals'] ?? [],
+                            'exit_port' => $day['departures'] ?? [],
                         ];
 
                         foreach ($serviceGroups as $type => $node) {
@@ -467,6 +469,8 @@ class ExternalApiReceiveController extends Controller
             'hotels', 'hotel_booking' => 'hotel',
             'attractions', 'attraction_booking' => 'attraction',
             'restaurants', 'restaurant_booking' => 'restaurant',
+            'arrival', 'arrivals', 'entry', 'entry port', 'entry_port_transfer' => 'entry_port',
+            'departure', 'departures', 'exit', 'exit port', 'exit_port_transfer' => 'exit_port',
             default => $type,
         };
     }
@@ -1280,6 +1284,7 @@ class ExternalApiReceiveController extends Controller
 
     protected function transformPortTransportItem(Tour $tour, array $item, array $meta, array $customer, string $portType): array
     {
+        $item = $this->flattenPortTransportPayload($item, $portType);
         $pax = $this->resolveBillablePax($item, $tour);
         $vehicleRawId = trim((string) ($item['vehicle_id'] ?? $item['vehicles_id'] ?? $item['vehicleId'] ?? ''));
         $vehicleName = trim((string) ($item['vehicle_name'] ?? $item['vehicles_name'] ?? $item['vehicleName'] ?? ''));
@@ -1349,18 +1354,82 @@ class ExternalApiReceiveController extends Controller
         ]);
 
         if ($portType === 'entry_port') {
-            $payload['entrypickup'] = $item['entrypickup'] ?? $item['pickup'] ?? $item['port_name'] ?? $item['portName'] ?? '';
-            $payload['entrydropoff'] = $item['entrydropoff'] ?? $item['dropoff'] ?? $item['transfer_destination_name'] ?? $item['transferDestinationName'] ?? '';
+            $payload['entrypickup'] = $item['entrypickup'] ?? $item['pickup'] ?? $item['pickup_location'] ?? $item['port_name'] ?? $item['portName'] ?? '';
+            $payload['entrydropoff'] = $item['entrydropoff'] ?? $item['dropoff'] ?? $item['drop_location'] ?? $item['transfer_destination_name'] ?? $item['transferDestinationName'] ?? '';
             $payload['entrytime'] = $pickupTime;
             $payload['arrival_flight_no'] = $item['arrival_flight_no'] ?? $item['flight_no'] ?? $item['flightNo'] ?? $item['flight_number'] ?? '';
         } else {
-            $payload['exitpickup'] = $item['exitpickup'] ?? $item['pickup'] ?? $item['transfer_pickup'] ?? '';
-            $payload['exitdropoff'] = $item['exitdropoff'] ?? $item['dropoff'] ?? $item['port_name'] ?? $item['portName'] ?? '';
+            $payload['exitpickup'] = $item['exitpickup'] ?? $item['pickup'] ?? $item['pickup_location'] ?? $item['transfer_pickup'] ?? '';
+            $payload['exitdropoff'] = $item['exitdropoff'] ?? $item['dropoff'] ?? $item['drop_location'] ?? $item['port_name'] ?? $item['portName'] ?? '';
             $payload['exitpickupdate'] = $pickupTime;
             $payload['departure_flight_no'] = $item['departure_flight_no'] ?? $item['flight_no'] ?? $item['flightNo'] ?? $item['flight_number'] ?? '';
         }
 
         return $payload;
+    }
+
+    /**
+     * Blob/day-level arrival & departure items nest vehicle + route under transfer{}.
+     *
+     * @return array<string, mixed>
+     */
+    protected function flattenPortTransportPayload(array $item, string $portType): array
+    {
+        $transfer = is_array($item['transfer'] ?? null) ? $item['transfer'] : [];
+        if ($transfer === []) {
+            return $item;
+        }
+
+        $lineTotal = (float) (
+            $item['total_price']
+            ?? $item['totalPrice']
+            ?? $transfer['transfer_price']
+            ?? $transfer['cost']
+            ?? 0
+        );
+
+        $flattened = array_merge($item, array_filter([
+            'vehicle_id' => $transfer['vehicle_id'] ?? null,
+            'vehicles_id' => $transfer['vehicle_id'] ?? null,
+            'vehicle_name' => $transfer['vehicle_name'] ?? null,
+            'vehicles_name' => $transfer['vehicle_name'] ?? null,
+            'type' => $transfer['type'] ?? null,
+            'transfer_type' => $transfer['transfer_type'] ?? null,
+            'transferType' => $transfer['type'] ?? null,
+            'cost' => $transfer['cost'] ?? $transfer['transfer_price'] ?? null,
+            'price' => $lineTotal > 0 ? $lineTotal : ($transfer['cost'] ?? $transfer['transfer_price'] ?? null),
+            'totalPrice' => $lineTotal > 0 ? $lineTotal : null,
+            'total_price' => $lineTotal > 0 ? $lineTotal : null,
+            'pickup_time' => $transfer['pickup_time'] ?? null,
+            'city' => $item['city'] ?? $transfer['city'] ?? null,
+            'pickup_location' => $transfer['pickup_location'] ?? null,
+            'drop_location' => $transfer['drop_location'] ?? null,
+        ], static fn ($value) => $value !== null && $value !== ''));
+
+        if ($portType === 'entry_port') {
+            $flattened['entrypickup'] = $item['entrypickup']
+                ?? $transfer['pickup_location']
+                ?? $item['pickup']
+                ?? $item['port_name']
+                ?? '';
+            $flattened['entrydropoff'] = $item['entrydropoff']
+                ?? $transfer['drop_location']
+                ?? $item['dropoff']
+                ?? $item['transfer_destination_name']
+                ?? '';
+        } else {
+            $flattened['exitpickup'] = $item['exitpickup']
+                ?? $transfer['pickup_location']
+                ?? $item['pickup']
+                ?? '';
+            $flattened['exitdropoff'] = $item['exitdropoff']
+                ?? $transfer['drop_location']
+                ?? $item['dropoff']
+                ?? $item['port_name']
+                ?? '';
+        }
+
+        return $flattened;
     }
 
     protected function resolveHotelStayNights(array $bookingDate, Tour $tour): int
