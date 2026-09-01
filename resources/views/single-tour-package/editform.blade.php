@@ -2023,22 +2023,13 @@
                                                                         const sampleRoom = dmcFilteredRooms.find(room => room.room_type === roomType);
                                                                         
                                                                         if (sampleRoom) {
-                                                                            // Get number of persons for pricing
-                                                                            const numberOfPersonsInput = document.getElementById('number_of_persons_{{ $hotelOrder->booking_id }}');
-                                                                            const numberOfPersons = numberOfPersonsInput ? parseInt(numberOfPersonsInput.value) || 1 : 1;
-                                                                            const isSingleOccupancy = numberOfPersons <= 1;
-                                                                            
-                                                                            // Determine price based on occupancy
-                                                                            let price = 0;
-                                                                            if (isSingleOccupancy) {
-                                                                                price = parseFloat(sampleRoom.weekday_price || 0);
-                                                                            } else {
-                                                                                price = parseFloat(sampleRoom.double_weekday_price || sampleRoom.weekday_price || 0);
-                                                                            }
-                                                                            
+                                                                            const stayTotal = typeof computeRoomTypeStayTotal_{{ $hotelOrder->booking_id }} === 'function'
+                                                                                ? computeRoomTypeStayTotal_{{ $hotelOrder->booking_id }}(sampleRoom)
+                                                                                : 0;
+
                                                                             const option = document.createElement('option');
                                                                             option.value = roomType;
-                                                                            option.textContent = price > 0 ? `${roomType} - ${window.__displayCurrency} ${price.toFixed(2)}` : roomType;
+                                                                            option.textContent = stayTotal > 0 ? `${roomType} - ${window.__displayCurrency} ${stayTotal.toFixed(2)}` : roomType;
                                                                             option.dataset.roomId = sampleRoom.room_id;
                                                                             option.dataset.weekdayPrice = sampleRoom.weekday_price || 0;
                                                                             option.dataset.weekendPrice = sampleRoom.weekend_price || 0;
@@ -2056,7 +2047,7 @@
                                                                                     loadBedTypesForRoom_{{ $hotelOrder->booking_id }}(roomType);
                                                                                     updateHotelPrice_{{ $hotelOrder->booking_id }}();
                                                                                     updateHotelChildPricingVisibility_{{ $hotelOrder->booking_id }}(roomType);
-                                                                                    updateHotelPriceGrid_{{ $hotelOrder->booking_id }}();
+                                                                                    updateHotelPriceGrid_{{ $hotelOrder->booking_id }}(true);
                                                                                 }, 100);
                                                                             }
                                                                             roomTypeSelect.appendChild(option);
@@ -2075,7 +2066,7 @@
                                                                             if (typeof window.updateEditHotelSupplementBreakfastVisibility === 'function') {
                                                                                 window.updateEditHotelSupplementBreakfastVisibility({{ $hotelOrder->booking_id }}, existingRoomType);
                                                                             }
-                                                                            updateHotelPriceGrid_{{ $hotelOrder->booking_id }}();
+                                                                            updateHotelPriceGrid_{{ $hotelOrder->booking_id }}(true);
                                                                         }, 200);
                                                                     }
                                                                 } else {
@@ -2207,7 +2198,7 @@
                                                                     setTimeout(() => {
                                                                         try {
                                                                             updatePaxInfo_{{ $hotelOrder->booking_id }}(document.getElementById('number_of_persons_{{ $hotelOrder->booking_id }}')?.value);
-                                                                            updateHotelPriceGrid_{{ $hotelOrder->booking_id }}(false);
+                                                                            updateHotelPriceGrid_{{ $hotelOrder->booking_id }}(true);
                                                                         } catch (e) {}
                                                                     }, 150);
                                                                     
@@ -2485,7 +2476,7 @@
                                                                 // Auto-update hotel price grid so meal price appears on initial load
                                                                 setTimeout(() => {
                                                                     try {
-                                                                        updateHotelPriceGrid_{{ $hotelOrder->booking_id }}();
+                                                                        updateHotelPriceGrid_{{ $hotelOrder->booking_id }}(true);
                                                                     } catch (e) {
                                                                         console.error('Error updating hotel price grid after meal plan auto-select:', e);
                                                                     }
@@ -2569,11 +2560,16 @@
                                                                     : (parseInt(bedData.max_occupancy, 10) || 0);
                                                                 const pax = parseInt(paxValue, 10) || 0;
                                                                 const extraBedPrice = parseFloat(bedData.extra_bed_price) || 0;
-                                                                const maxWithExtra = bedData.extra_bed ? maxOccupancy + 1 : maxOccupancy;
+                                                                const extraBedEnabled = !!(bedData.extra_bed) && extraBedPrice > 0;
+                                                                const bookedHeadCount = typeof getEditHotelBookedHeadCount_{{ $hotelOrder->booking_id }} === 'function'
+                                                                    ? getEditHotelBookedHeadCount_{{ $hotelOrder->booking_id }}()
+                                                                    : 0;
+                                                                const occupancyBaseline = Math.max(maxOccupancy, bookedHeadCount > 0 ? bookedHeadCount : 0);
+                                                                const maxWithExtra = extraBedEnabled ? occupancyBaseline + 1 : occupancyBaseline;
 
                                                                 if (maxOccupancy) {
                                                                     let info = `Max occupancy: ${maxOccupancy} pax`;
-                                                                    if (bedData.extra_bed && extraBedPrice > 0) {
+                                                                    if (extraBedEnabled) {
                                                                         info += ` | Extra bed: ${window.__displayCurrency} ${extraBedPrice.toFixed(2)}/night`;
                                                                     } else if (bedData.extra_bed) {
                                                                         info += ' | Extra bed available';
@@ -2581,8 +2577,8 @@
                                                                     if (pax > maxWithExtra) {
                                                                         paxInfoEl.textContent = `Warning: Exceeds max ${maxWithExtra} pax (incl. extra bed)`;
                                                                         paxInfoEl.style.color = '#dc3545';
-                                                                    } else if (pax > maxOccupancy && bedData.extra_bed) {
-                                                                        paxInfoEl.textContent = info + ` — extra bed applies (${pax - maxOccupancy} person)`;
+                                                                    } else if (pax > occupancyBaseline && extraBedEnabled) {
+                                                                        paxInfoEl.textContent = info + ` — extra bed applies (${pax - occupancyBaseline} person)`;
                                                                         paxInfoEl.style.color = '#d97706';
                                                                     } else {
                                                                         paxInfoEl.textContent = info;
@@ -2716,6 +2712,23 @@
                                                         };
                                                     }
 
+                                                    function getEditHotelBookedHeadCount_{{ $hotelOrder->booking_id }}() {
+                                                        const originalJsonEl = document.getElementById('original_rooms_json_{{ $hotelOrder->booking_id }}');
+                                                        if (originalJsonEl && originalJsonEl.value) {
+                                                            try {
+                                                                const orig = JSON.parse(originalJsonEl.value);
+                                                                const firstRoom = Array.isArray(orig) ? orig[0] : orig;
+                                                                const firstBed = (firstRoom && firstRoom.beds && firstRoom.beds[0]) ? firstRoom.beds[0] : {};
+                                                                const headCount = parseInt(firstBed.head_count, 10) || 0;
+                                                                if (headCount > 0) {
+                                                                    return headCount;
+                                                                }
+                                                            } catch (e) { /* ignore */ }
+                                                        }
+                                                        const paxInput = document.getElementById('number_of_persons_{{ $hotelOrder->booking_id }}');
+                                                        return paxInput ? (parseInt(paxInput.value, 10) || 0) : 0;
+                                                    }
+
                                                     function getEditHotelBedContext_{{ $hotelOrder->booking_id }}() {
                                                         let maxOccupancy = 0;
                                                         let extraBedPrice = 0;
@@ -2728,26 +2741,18 @@
                                                                     const bedData = JSON.parse(selectedOption.dataset.bed || '{}');
                                                                     maxOccupancy = window.getEditBaseMaxOccupancyFromBedData(bedData);
                                                                     extraBedPrice = parseFloat(bedData.extra_bed_price) || 0;
-                                                                    extraBedAvailable = !!(bedData.extra_bed);
+                                                                    extraBedAvailable = !!(bedData.extra_bed) && extraBedPrice > 0;
                                                                 } catch (e) { /* ignore */ }
                                                             }
                                                         }
-                                                        if (extraBedPrice <= 0 || maxOccupancy <= 0) {
+                                                        if (maxOccupancy <= 0) {
                                                             const originalJsonEl = document.getElementById('original_rooms_json_{{ $hotelOrder->booking_id }}');
                                                             if (originalJsonEl && originalJsonEl.value) {
                                                                 try {
                                                                     const orig = JSON.parse(originalJsonEl.value);
                                                                     const firstRoom = Array.isArray(orig) ? orig[0] : orig;
                                                                     const firstBed = (firstRoom && firstRoom.beds && firstRoom.beds[0]) ? firstRoom.beds[0] : {};
-                                                                    if (maxOccupancy <= 0) {
-                                                                        maxOccupancy = window.getEditBaseMaxOccupancyFromBedData(firstBed);
-                                                                    }
-                                                                    if (extraBedPrice <= 0) {
-                                                                        extraBedPrice = parseFloat(firstBed.extra_bed_price) || 0;
-                                                                    }
-                                                                    if (!extraBedAvailable) {
-                                                                        extraBedAvailable = !!(firstBed.extra_bed);
-                                                                    }
+                                                                    maxOccupancy = window.getEditBaseMaxOccupancyFromBedData(firstBed);
                                                                 } catch (e) { /* ignore */ }
                                                             }
                                                         }
@@ -2759,10 +2764,12 @@
                                                         const pax = parseInt(numberOfPersons, 10) || 1;
                                                         const rooms = parseInt(numberOfRooms, 10) || 1;
                                                         const nights = parseInt(numberOfNights, 10) || 1;
-                                                        if (!ctx.extraBedAvailable || ctx.extraBedPrice <= 0 || pax <= ctx.maxOccupancy) {
+                                                        const bookedHeadCount = getEditHotelBookedHeadCount_{{ $hotelOrder->booking_id }}();
+                                                        const occupancyBaseline = Math.max(ctx.maxOccupancy, bookedHeadCount > 0 ? bookedHeadCount : 0);
+                                                        if (!ctx.extraBedAvailable || ctx.extraBedPrice <= 0 || pax <= occupancyBaseline) {
                                                             return { extraPersons: 0, total: 0, perNightRate: ctx.extraBedPrice };
                                                         }
-                                                        const extraPersons = pax - ctx.maxOccupancy;
+                                                        const extraPersons = pax - occupancyBaseline;
                                                         return {
                                                             extraPersons,
                                                             perNightRate: ctx.extraBedPrice,
@@ -2770,9 +2777,91 @@
                                                         };
                                                     }
 
-                                                    // Function to update hotel price breakdown grid (syncInput=true updates Total Price field from calculation)
+                                                    function getHotelStayNightInfo_{{ $hotelOrder->booking_id }}() {
+                                                        const formDiv = document.querySelector('.hotel-edit-form[data-update-url*="{{ $hotelOrder->booking_id }}"]');
+                                                        const checkInInput = formDiv ? formDiv.querySelector('input[name="check_in_date"]') : null;
+                                                        const checkOutInput = formDiv ? formDiv.querySelector('input[name="check_out_date"]') : null;
+                                                        const weekendDays = window.hotelWeekendDays_{{ $hotelOrder->booking_id }} || ['Saturday', 'Sunday'];
+                                                        let weekdayNights = 0;
+                                                        let weekendNights = 0;
+                                                        let nights = 0;
+                                                        if (checkInInput && checkOutInput && checkInInput.value && checkOutInput.value) {
+                                                            const checkIn = new Date(checkInInput.value);
+                                                            const checkOut = new Date(checkOutInput.value);
+                                                            for (let d = new Date(checkIn); d < checkOut; d.setDate(d.getDate() + 1)) {
+                                                                nights++;
+                                                                const dayName = d.toLocaleDateString('en-US', { weekday: 'long' });
+                                                                const isWeekend = weekendDays.some(function(w) { return String(w).toLowerCase() === dayName.toLowerCase(); });
+                                                                if (isWeekend) weekendNights++; else weekdayNights++;
+                                                            }
+                                                        }
+                                                        if (nights <= 0) {
+                                                            nights = 1;
+                                                            weekdayNights = 1;
+                                                        }
+                                                        return { nights, weekdayNights, weekendNights };
+                                                    }
+
+                                                    function computeRoomTypeStayTotal_{{ $hotelOrder->booking_id }}(sampleRoom) {
+                                                        if (!sampleRoom) return 0;
+                                                        const numberOfRoomsInput = document.getElementById('number_of_rooms_{{ $hotelOrder->booking_id }}');
+                                                        const numberOfPersonsInput = document.getElementById('number_of_persons_{{ $hotelOrder->booking_id }}');
+                                                        const numberOfRooms = parseInt(numberOfRoomsInput ? numberOfRoomsInput.value : '1', 10) || 1;
+                                                        const numberOfPersons = parseInt(numberOfPersonsInput ? numberOfPersonsInput.value : '1', 10) || 1;
+                                                        const isSingleOccupancy = numberOfPersons <= 1;
+                                                        const weekdayPricePerNight = isSingleOccupancy
+                                                            ? parseFloat(sampleRoom.weekday_price || 0)
+                                                            : parseFloat(sampleRoom.double_weekday_price || sampleRoom.weekday_price || 0);
+                                                        const weekendPricePerNight = isSingleOccupancy
+                                                            ? parseFloat(sampleRoom.weekend_price || sampleRoom.weekday_price || 0)
+                                                            : parseFloat(sampleRoom.double_weekend_price || sampleRoom.double_weekday_price || sampleRoom.weekday_price || 0);
+                                                        const info = getHotelStayNightInfo_{{ $hotelOrder->booking_id }}();
+                                                        let roomSubtotal = (weekdayPricePerNight * info.weekdayNights + weekendPricePerNight * info.weekendNights) * numberOfRooms;
+                                                        if (roomSubtotal === 0 && info.nights >= 1) {
+                                                            roomSubtotal = weekdayPricePerNight * info.nights * numberOfRooms;
+                                                        }
+                                                        const extraBedCalc = calculateEditHotelExtraBedCost_{{ $hotelOrder->booking_id }}(numberOfPersons, numberOfRooms, info.nights);
+                                                        return roomSubtotal + extraBedCalc.total;
+                                                    }
+
+                                                    function refreshRoomTypeStayPriceLabels_{{ $hotelOrder->booking_id }}(selectedTotal) {
+                                                        const roomTypeSelect = document.getElementById('room_type_{{ $hotelOrder->booking_id }}');
+                                                        if (!roomTypeSelect) return;
+                                                        const roomData = window.roomData_{{ $hotelOrder->booking_id }} || [];
+                                                        const currencyLabel = '{{ trim($displayCurrency) }}';
+                                                        Array.from(roomTypeSelect.options).forEach(function(opt) {
+                                                            if (!opt.value) return;
+                                                            let amount = 0;
+                                                            if (opt.selected && typeof selectedTotal === 'number' && selectedTotal > 0) {
+                                                                amount = selectedTotal;
+                                                            } else {
+                                                                const sampleRoom = roomData.find(function(r) { return r.room_type === opt.value; });
+                                                                amount = computeRoomTypeStayTotal_{{ $hotelOrder->booking_id }}(sampleRoom);
+                                                            }
+                                                            opt.textContent = amount > 0
+                                                                ? (opt.value + ' - ' + currencyLabel + ' ' + amount.toFixed(2))
+                                                                : opt.value;
+                                                        });
+                                                        const selectedOpt = roomTypeSelect.options[roomTypeSelect.selectedIndex];
+                                                        if (selectedOpt && window.jQuery) {
+                                                            const $sel = window.jQuery(roomTypeSelect);
+                                                            if ($sel.data('select2')) {
+                                                                const rendered = $sel.next('.select2-container').find('.select2-selection__rendered');
+                                                                if (rendered.length) {
+                                                                    rendered.text(selectedOpt.textContent);
+                                                                    rendered.attr('title', selectedOpt.textContent);
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+
+                                                    // Function to update hotel price breakdown grid (always syncs Total Price / header / room-type label)
                                                     function updateHotelPriceGrid_{{ $hotelOrder->booking_id }}(syncInput) {
-                                                        syncInput = syncInput === true;
+                                                        syncInput = true;
+                                                        // Keep helper-engine totals after Get Price until the user changes details.
+                                                        if (window.hotelPricedByHelper && window.hotelPricedByHelper[{{ $hotelOrder->booking_id }}]) {
+                                                            return;
+                                                        }
                                                         // If the booking was changed and not re-priced via "Get Price", keep it at 0.
                                                         if (window.hotelNeedsGetPrice && window.hotelNeedsGetPrice[{{ $hotelOrder->booking_id }}]) {
                                                             if (typeof window.zeroOutHotelBookingPrice === 'function') {
@@ -3027,46 +3116,24 @@
                                                         
                                                         gridBody.innerHTML = gridHTML;
                                                         
-                                                        // Calculate and display grand total
+                                                        // Calculate and display the same grand total everywhere
                                                         const grandTotal = roomSubtotal + extraBedSubtotal + mealPlanSubtotal + childWithBedSubtotal + childWithoutBedSubtotal;
-                                                        const currencyLabel = '{{ trim($displayCurrency) }}';
-                                                        grandTotalEl.textContent = currencyLabel + ' ' + grandTotal.toFixed(2);
-                                                        
-                                                        const totalPriceInput = document.getElementById('total_price_{{ $hotelOrder->booking_id }}');
-                                                        const headerTotalEl = document.getElementById('hotel_header_total_{{ $hotelOrder->booking_id }}');
-                                                        const dbTotal = totalPriceInput ? (parseFloat(totalPriceInput.dataset.dbTotal) || 0) : 0;
-                                                        let displayTotal = grandTotal;
-
-                                                        if (totalPriceInput) {
-                                                            const currentVal = parseFloat(totalPriceInput.value) || 0;
-                                                            const hasSavedCustom = dbTotal > 0 && Math.abs(dbTotal - grandTotal) > 0.009;
-                                                            const isManual = totalPriceInput.dataset.manualEdit === 'true';
-
-                                                            if (syncInput && grandTotal > 0) {
-                                                                totalPriceInput.value = grandTotal.toFixed(2);
-                                                                displayTotal = grandTotal;
-                                                                totalPriceInput.dataset.manualEdit = 'false';
-                                                            } else if (isManual) {
-                                                                displayTotal = currentVal > 0 ? currentVal : dbTotal;
-                                                            } else if (hasSavedCustom) {
-                                                                totalPriceInput.value = dbTotal.toFixed(2);
-                                                                displayTotal = dbTotal;
-                                                                totalPriceInput.dataset.manualEdit = 'true';
-                                                            } else if (grandTotal > 0) {
-                                                                totalPriceInput.value = grandTotal.toFixed(2);
-                                                                displayTotal = grandTotal;
-                                                            } else {
-                                                                displayTotal = currentVal || dbTotal;
-                                                            }
+                                                        if (typeof window.syncHotelBookingPriceDisplays === 'function') {
+                                                            window.syncHotelBookingPriceDisplays({{ $hotelOrder->booking_id }}, grandTotal);
+                                                        } else {
+                                                            const currencyLabel = '{{ trim($displayCurrency) }}';
+                                                            grandTotalEl.textContent = currencyLabel + ' ' + grandTotal.toFixed(2);
                                                         }
-
-                                                        if (headerTotalEl && displayTotal > 0) {
-                                                            headerTotalEl.textContent = currencyLabel + ' ' + displayTotal.toFixed(2);
-                                                        }
+                                                        try {
+                                                            refreshRoomTypeStayPriceLabels_{{ $hotelOrder->booking_id }}(grandTotal);
+                                                        } catch (e) {}
                                                     }
                                                     
                                                     // Function to update hotel price based on room type and number of rooms
                                                     function updateHotelPrice_{{ $hotelOrder->booking_id }}(forceUpdate = false) {
+                                                        if (window.hotelPricedByHelper && window.hotelPricedByHelper[{{ $hotelOrder->booking_id }}] && !forceUpdate) {
+                                                            return;
+                                                        }
                                                         // If the booking was changed and not re-priced via "Get Price", keep it at 0.
                                                         if (window.hotelNeedsGetPrice && window.hotelNeedsGetPrice[{{ $hotelOrder->booking_id }}]) {
                                                             if (typeof window.zeroOutHotelBookingPrice === 'function') {
@@ -3074,101 +3141,15 @@
                                                             }
                                                             return;
                                                         }
-                                                        const roomTypeSelect = document.getElementById('room_type_{{ $hotelOrder->booking_id }}');
-                                                        const numberOfRoomsInput = document.getElementById('number_of_rooms_{{ $hotelOrder->booking_id }}');
                                                         const priceInput = document.getElementById('total_price_{{ $hotelOrder->booking_id }}');
-                                                        const numberOfPersonsInput = document.getElementById('number_of_persons_{{ $hotelOrder->booking_id }}');
-                                                        
-                                                        if (!roomTypeSelect || !numberOfRoomsInput || !priceInput) {
+                                                        if (priceInput && priceInput.dataset.manualEdit === 'true' && !forceUpdate) {
                                                             return;
                                                         }
-                                                        
-                                                        // Check if price was manually edited - if so, don't auto-update (unless forced)
-                                                        if (priceInput.dataset.manualEdit === 'true' && !forceUpdate) {
-                                                            return;
-                                                        }
-                                                        
-                                                        // Preserve existing price value on initial load if it's already set and valid (from database)
-                                                        // Only auto-calculate if the current value is 0 or empty, or if forceUpdate is true
-                                                        const currentPrice = parseFloat(priceInput.value) || 0;
-                                                        if (!forceUpdate && currentPrice > 0 && priceInput.dataset.preservedFromDb !== 'true') {
-                                                            // Mark as preserved from database to prevent overwriting on initial load
-                                                            priceInput.dataset.preservedFromDb = 'true';
-                                                            return;
-                                                        }
-                                                        
-                                                        // If forceUpdate is true (user changed pax/dates/rooms), recalculate and sync input
-                                                        if (forceUpdate) {
+                                                        if (forceUpdate && priceInput) {
                                                             priceInput.dataset.preservedFromDb = 'false';
                                                             priceInput.dataset.manualEdit = 'false';
                                                         }
-                                                        
-                                                        const selectedRoomType = roomTypeSelect.value;
-                                                        const numberOfRooms = parseInt(numberOfRoomsInput.value) || 1;
-                                                        const numberOfPersons = parseInt(numberOfPersonsInput.value) || 1;
-                                                        
-                                                        // Get room data
-                                                        const roomData = window.roomData_{{ $hotelOrder->booking_id }};
-                                                        if (!roomData || !selectedRoomType) {
-                                                            return;
-                                                        }
-                                                        
-                                                        // Find the selected room type
-                                                        const selectedRoom = roomData.find(room => room.room_type === selectedRoomType);
-                                                        if (!selectedRoom) {
-                                                            return;
-                                                        }
-                                                        
-                                                        const isSingleOccupancy = numberOfPersons <= 1;
-                                                        const weekdayPricePerNight = isSingleOccupancy 
-                                                            ? parseFloat(selectedRoom.weekday_price || 0) 
-                                                            : parseFloat(selectedRoom.double_weekday_price || selectedRoom.weekday_price || 0);
-                                                        const weekendPricePerNight = isSingleOccupancy 
-                                                            ? parseFloat(selectedRoom.weekend_price || selectedRoom.weekday_price || 0) 
-                                                            : parseFloat(selectedRoom.double_weekend_price || selectedRoom.double_weekday_price || selectedRoom.weekday_price || 0);
-                                                        
-                                                        const formDiv = document.querySelector('.hotel-edit-form[data-update-url*="{{ $hotelOrder->booking_id }}"]');
-                                                        let totalPrice = 0;
-                                                        let nightCount = 0;
-                                                        if (formDiv) {
-                                                            const checkInInput = formDiv.querySelector('input[name="check_in_date"]');
-                                                            const checkOutInput = formDiv.querySelector('input[name="check_out_date"]');
-                                                            if (checkInInput && checkOutInput && checkInInput.value && checkOutInput.value) {
-                                                                const checkIn = new Date(checkInInput.value);
-                                                                const checkOut = new Date(checkOutInput.value);
-                                                                const weekendDays = window.hotelWeekendDays_{{ $hotelOrder->booking_id }} || ['Saturday', 'Sunday'];
-                                                                for (let d = new Date(checkIn); d < checkOut; d.setDate(d.getDate() + 1)) {
-                                                                    nightCount++;
-                                                                    const dayName = d.toLocaleDateString('en-US', { weekday: 'long' });
-                                                                    const isWeekend = weekendDays.some(function(w) { return String(w).toLowerCase() === dayName.toLowerCase(); });
-                                                                    totalPrice += (isWeekend ? weekendPricePerNight : weekdayPricePerNight) * numberOfRooms;
-                                                                }
-                                                            }
-                                                        }
-                                                        if (totalPrice === 0 && nightCount === 0) {
-                                                            totalPrice = weekdayPricePerNight * 1 * numberOfRooms;
-                                                            nightCount = 1;
-                                                        }
-                                                        const extraBedCalc = calculateEditHotelExtraBedCost_{{ $hotelOrder->booking_id }}(numberOfPersons, numberOfRooms, nightCount || 1);
-                                                        totalPrice += extraBedCalc.total;
-                                                        
-                                                        if (forceUpdate && totalPrice > 0) {
-                                                            priceInput.value = totalPrice.toFixed(2);
-                                                        } else {
-                                                            const dbTotal = parseFloat(priceInput.dataset.dbTotal) || 0;
-                                                            const hasSavedCustom = dbTotal > 0 && Math.abs(dbTotal - totalPrice) > 0.009;
-                                                            if (!hasSavedCustom && priceInput.dataset.manualEdit !== 'true') {
-                                                                if (totalPrice > 0) {
-                                                                    priceInput.value = totalPrice.toFixed(2);
-                                                                } else if (currentPrice === 0) {
-                                                                    priceInput.value = '0.00';
-                                                                }
-                                                            } else if (dbTotal > 0 && priceInput.dataset.manualEdit !== 'true') {
-                                                                priceInput.value = dbTotal.toFixed(2);
-                                                            }
-                                                        }
-                                                        
-                                                        updateHotelPriceGrid_{{ $hotelOrder->booking_id }}(forceUpdate);
+                                                        updateHotelPriceGrid_{{ $hotelOrder->booking_id }}(true);
                                                     }
                                                     
                                                     // Track manual price edits - attach event listener immediately
@@ -3177,10 +3158,8 @@
                                                         if (priceInput) {
                                                             // Mark as manually edited when user types
                                                             function syncHotelHeaderTotal_{{ $hotelOrder->booking_id }}() {
-                                                                const headerEl = document.getElementById('hotel_header_total_{{ $hotelOrder->booking_id }}');
-                                                                const val = parseFloat(priceInput.value) || parseFloat(priceInput.dataset.dbTotal) || 0;
-                                                                if (headerEl && val > 0) {
-                                                                    headerEl.textContent = '{{ trim($displayCurrency) }} ' + val.toFixed(2);
+                                                                if (typeof window.syncHotelBookingPriceDisplays === 'function') {
+                                                                    window.syncHotelBookingPriceDisplays({{ $hotelOrder->booking_id }}, priceInput.value);
                                                                 }
                                                             }
 
@@ -3209,7 +3188,7 @@
                                                             }
                                                         }
                                                         setTimeout(() => {
-                                                            try { updateHotelPriceGrid_{{ $hotelOrder->booking_id }}(); } catch (e) {}
+                                                            try { updateHotelPriceGrid_{{ $hotelOrder->booking_id }}(true); } catch (e) {}
                                                         }, 600);
 
                                                         if (typeof window.setHotelSaveBlocked === 'function') {
@@ -3353,7 +3332,7 @@
                                                         <i class="ri-money-dollar-circle-line me-1"></i> Get Price
                                                     </button>
                                                 </div>
-                                                <small class="text-muted d-block mt-2" style="font-size: 0.7rem; line-height: 1.7; word-wrap: break-word;">Price per room &amp; rooms</small>
+                                                <small class="text-muted d-block mt-2" style="font-size: 0.7rem; line-height: 1.7; word-wrap: break-word;">Total for all rooms, nights &amp; extra beds</small>
                                             </div>
                                         </div>
                                         
@@ -3576,6 +3555,18 @@
                                         $vehicleSavedId = $transportData['vehicles_id'] ?? $transportData['vehicle_id'] ?? '';
                                         $vehicleType = $transportData['type'] ?? '';
                                         $passengers = $transportData['passengers'] ?? '';
+                                        $seatingCapacityStored = (int) ($transportData['seating_capacity'] ?? 0);
+                                        $tourPax = max(1, (int) (($tour->adult ?? 0) + ($tour->child ?? 0)));
+                                        if ($passengers === '' || $passengers === null) {
+                                            $passengers = $tourPax;
+                                        }
+                                        $bookedVehicles = (int) ($transportData['booked_vehicles'] ?? $transportData['vehicle_count'] ?? 0);
+                                        if ($bookedVehicles <= 0 && $seatingCapacityStored > 0 && (int) $passengers > 0) {
+                                            $bookedVehicles = (int) ceil((int) $passengers / $seatingCapacityStored);
+                                        }
+                                        if ($bookedVehicles <= 0) {
+                                            $bookedVehicles = 1;
+                                        }
                                         $availableVehicles = $vehicles ?? collect();
                                         $transportRemarks = $transportData['remarks'] ?? '';
                                         $transportSupplement = ($transportData['supplement'] ?? $transportData['is_supplement'] ?? false);
@@ -3690,7 +3681,7 @@
                                                             $priv = $vehicleOption->private_price ?? $vehicleOption->private ?? '';
                                                             $shared = $vehicleOption->shared_price ?? $vehicleOption->shared ?? '';
                                                         @endphp
-                                                        <option value="{{ $vehicleDisplayName }}" data-private-price="{{ $priv }}" data-shared-price="{{ $shared }}" {{ $isSelected ? 'selected' : '' }}>
+                                                        <option value="{{ $vehicleDisplayName }}" data-private-price="{{ $priv }}" data-shared-price="{{ $shared }}" data-seating-capacity="{{ $vehicleOption->seating_capacity ?? '' }}" {{ $isSelected ? 'selected' : '' }}>
                                                             {{ $vehicleDisplayName }}
                                                             @if(!empty($vehicleOption->vehicle_type))
                                                                 ({{ $vehicleOption->vehicle_type }})
@@ -3710,7 +3701,15 @@
                                                     <option value="Shared" {{ strtolower($vehicleType) === 'shared' ? 'selected' : '' }}>Shared</option>
                                                 </select>
                                             </div>
-                                            <div class="col-md-4">
+                                            <div class="col-md-3">
+                                                <label class="form-label fw-semibold text-muted mb-2"><i class="ri-user-line me-1 text-secondary"></i>Passengers</label>
+                                                <input type="number" class="form-control border-2" id="arrival_passengers_{{ $order->booking_id }}" style="height: 35px;" min="1" value="{{ (int) $passengers }}" readonly>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label class="form-label fw-semibold text-muted mb-2"><i class="ri-car-line me-1 text-info"></i>Booked Vehicles</label>
+                                                <input type="number" class="form-control border-2" id="arrival_booked_vehicles_{{ $order->booking_id }}" style="height: 35px;" min="1" value="{{ $bookedVehicles }}" readonly>
+                                            </div>
+                                            <div class="col-md-3">
                                                 <label class="form-label fw-semibold text-muted mb-2"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price</label>
                                                 <input type="number" class="form-control border-2" id="arrival_total_price_{{ $order->booking_id }}" style="height: 35px;" name="total_price" step="0.01" min="0" value="{{ number_format((float)($transportData['totalPrice'] ?? $transportData['price'] ?? 0), 2, '.', '') }}" placeholder="0.00" readonly>
                                             </div>
@@ -3864,7 +3863,15 @@
                                                     $bookingDate = $bookingDateRaw;
                                                 }
                                             }
-                                            $timeSlot = $payload['visitTime'] ?? 'N/A';
+                                            $timeSlot = $payload['visitTime']
+                                                ?? $payload['time_slot']
+                                                ?? $payload['visit_time']
+                                                ?? $payload['time']
+                                                ?? '';
+                                            $timeSlot = is_string($timeSlot) ? trim($timeSlot) : '';
+                                            if ($timeSlot === '' || strcasecmp($timeSlot, 'N/A') === 0) {
+                                                $timeSlot = '';
+                                            }
                                             $ticket = $payload['ticketName'] ?? 'N/A';
                                             $adultCount = $payload['adultCount'] ?? 0;
                                             $childCount = $payload['childCount'] ?? 0;
@@ -4029,7 +4036,7 @@
                                                             @endphp
                                                             <option value="{{ $attraction->name }}" {{ $isThisAttractionSelected ? 'selected' : '' }} 
                                                                 data-attraction-id="{{ $attraction->attraction_id ?? '' }}"
-                                                                data-attraction-data="{{ json_encode($attraction) }}">
+                                                                data-attraction-data="{{ json_encode(\App\Helpers\CommonHelper::attractionSelectPayload($attraction)) }}">
                                                                 {{ $attraction->name }}
                                                                 @if(isset($attraction->location) && $attraction->location !== '')
                                                                     - {{ $attraction->location }}
@@ -4127,7 +4134,11 @@
                                                                 $isTicketSelected = $matchedTicketName && strcasecmp(trim((string) $tkName), trim((string) $matchedTicketName)) === 0;
                                                             @endphp
                                                             @if($tkName !== '')
+                                                                @php
+                                                                    $tkId = is_array($tk) ? ($tk['ticket_id'] ?? '') : ($tk->ticket_id ?? '');
+                                                                @endphp
                                                                 <option value="{{ $tkName }}" {{ $isTicketSelected ? 'selected' : '' }}
+                                                                    data-ticket-id="{{ $tkId }}"
                                                                     data-adult-price="{{ number_format((float)$adultP, 2, '.', '') }}"
                                                                     data-child-price="{{ number_format((float)$childP, 2, '.', '') }}"
                                                                     data-senior-price="{{ number_format((float)$seniorP, 2, '.', '') }}"
@@ -4160,104 +4171,42 @@
                                                                     return $attraction->name == $attractionName;
                                                                 });
                                                             }
+                                                            $catalogTimeSlots = $selectedAttraction
+                                                                ? \App\Helpers\CommonHelper::attractionTimeSlots($selectedAttraction)
+                                                                : [];
+                                                            // If saved visitTime is missing/placeholder, prefer first catalog slot
+                                                            if ($catalogTimeSlots !== [] && $timeSlot === '') {
+                                                                $timeSlot = (string) ($catalogTimeSlots[0]['slot'] ?? '');
+                                                            }
                                                         @endphp
-                                                        @if($selectedAttraction && isset($selectedAttraction->time_slots) && is_array($selectedAttraction->time_slots) && count($selectedAttraction->time_slots) > 0)
+                                                        @if($catalogTimeSlots !== [])
                                                             @php $timeSlotsFound = true; @endphp
-                                                            @foreach($selectedAttraction->time_slots as $slotData)
+                                                            @foreach($catalogTimeSlots as $slotData)
                                                                 @php
                                                                     $slotValue = $slotData['slot'] ?? ($slotData['open'] ?? '');
-                                                                    $slotText = $slotData['slot'] ?? ($slotData['open'] . (isset($slotData['close']) ? ' - ' . $slotData['close'] : ''));
-                                                                    $isSelected = ($slotValue == $timeSlot || $slotText == $timeSlot);
+                                                                    $slotText = $slotData['slot'] ?? (($slotData['open'] ?? '') . (isset($slotData['close']) ? ' - ' . $slotData['close'] : ''));
+                                                                    $isSelected = ($slotValue == $timeSlot || $slotText == $timeSlot || ($timeSlot !== '' && str_contains((string) $slotValue, $timeSlot)));
                                                                 @endphp
                                                                 <option value="{{ $slotValue }}" {{ $isSelected ? 'selected' : '' }}>
                                                                     {{ $slotText }}
                                                                 </option>
                                                             @endforeach
-                                                        @elseif($selectedAttraction && $selectedAttraction->open_time && $selectedAttraction->close_time)
-                                                            @php $timeSlotsFound = true; @endphp
-                                                            @php
-                                                                // Parse open_time from database (can be JSON array or string)
-                                                                $openTimes = [];
-                                                                if (is_array($selectedAttraction->open_time)) {
-                                                                    $openTimes = $selectedAttraction->open_time;
-                                                                } elseif (is_string($selectedAttraction->open_time)) {
-                                                                    $decoded = json_decode($selectedAttraction->open_time, true);
-                                                                    $openTimes = is_array($decoded) ? $decoded : [$selectedAttraction->open_time];
-                                                                }
-                                                                
-                                                                // Parse close_time from database (can be JSON array or string)
-                                                                $closeTimes = [];
-                                                                if (is_array($selectedAttraction->close_time)) {
-                                                                    $closeTimes = $selectedAttraction->close_time;
-                                                                } elseif (is_string($selectedAttraction->close_time)) {
-                                                                    $decoded = json_decode($selectedAttraction->close_time, true);
-                                                                    $closeTimes = is_array($decoded) ? $decoded : [$selectedAttraction->close_time];
-                                                                }
-                                                            @endphp
-                                                            @if(!empty($openTimes) && !empty($closeTimes))
-                                                                @foreach($openTimes as $index => $openTime)
-                                                                    @php
-                                                                        $closeTime = $closeTimes[$index] ?? ($closeTimes[0] ?? '');
-                                                                        if ($openTime && $closeTime) {
-                                                                            $slotValue = $openTime . ' - ' . $closeTime;
-                                                                            $isSelected = ($slotValue == $timeSlot || str_contains($slotValue, $timeSlot));
-                                                                    } else {
-                                                                        continue;
-                                                                    }
-                                                                    @endphp
-                                                                    <option value="{{ $slotValue }}" {{ $isSelected ? 'selected' : '' }}>
-                                                                        {{ $slotValue }}
-                                                                    </option>
-                                                                @endforeach
-                                                            @endif
                                                         @endif
                                                         @if(!$timeSlotsFound)
                                                             <option value="" disabled>Select an attraction to see available time slots</option>
                                                         @endif
                                                         @php
-                                                            // Add current time slot as option if it doesn't match any existing options
-                                                            if ($timeSlot && $timeSlot != 'N/A') {
+                                                            // Preserve saved time when it is not in catalog options
+                                                            if ($timeSlot !== '') {
                                                                 $timeSlotExists = false;
-                                                                // Check if time slot already exists in options
-                                                                if ($selectedAttraction && isset($selectedAttraction->time_slots) && is_array($selectedAttraction->time_slots)) {
-                                                                    foreach($selectedAttraction->time_slots as $slotData) {
-                                                                        $slotValue = $slotData['slot'] ?? ($slotData['open'] ?? '');
-                                                                        $slotText = $slotData['slot'] ?? ($slotData['open'] . (isset($slotData['close']) ? ' - ' . $slotData['close'] : ''));
-                                                                        if ($slotValue == $timeSlot || $slotText == $timeSlot) {
-                                                                            $timeSlotExists = true;
-                                                                            break;
-                                                                        }
-                                                                    }
-                                                                } elseif ($selectedAttraction && $selectedAttraction->open_time && $selectedAttraction->close_time) {
-                                                                    // Parse open_time and close_time from database
-                                                                    $openTimes = [];
-                                                                    if (is_array($selectedAttraction->open_time)) {
-                                                                        $openTimes = $selectedAttraction->open_time;
-                                                                    } elseif (is_string($selectedAttraction->open_time)) {
-                                                                        $decoded = json_decode($selectedAttraction->open_time, true);
-                                                                        $openTimes = is_array($decoded) ? $decoded : [$selectedAttraction->open_time];
-                                                                    }
-                                                                    
-                                                                    $closeTimes = [];
-                                                                    if (is_array($selectedAttraction->close_time)) {
-                                                                        $closeTimes = $selectedAttraction->close_time;
-                                                                    } elseif (is_string($selectedAttraction->close_time)) {
-                                                                        $decoded = json_decode($selectedAttraction->close_time, true);
-                                                                        $closeTimes = is_array($decoded) ? $decoded : [$selectedAttraction->close_time];
-                                                                    }
-                                                                    
-                                                                    foreach($openTimes as $index => $openTime) {
-                                                                        $closeTime = $closeTimes[$index] ?? ($closeTimes[0] ?? '');
-                                                                        if ($openTime && $closeTime) {
-                                                                            $slotValue = $openTime . ' - ' . $closeTime;
-                                                                            if ($slotValue == $timeSlot || str_contains($slotValue, $timeSlot)) {
-                                                                                $timeSlotExists = true;
-                                                                                break;
-                                                                            }
-                                                                        }
+                                                                foreach ($catalogTimeSlots as $slotData) {
+                                                                    $slotValue = $slotData['slot'] ?? ($slotData['open'] ?? '');
+                                                                    $slotText = $slotData['slot'] ?? (($slotData['open'] ?? '') . (isset($slotData['close']) ? ' - ' . $slotData['close'] : ''));
+                                                                    if ($slotValue == $timeSlot || $slotText == $timeSlot || str_contains((string) $slotValue, $timeSlot)) {
+                                                                        $timeSlotExists = true;
+                                                                        break;
                                                                     }
                                                                 }
-                                                                // If current time slot doesn't exist in database options, add it to preserve the value
                                                                 if (!$timeSlotExists) {
                                                                     echo '<option value="' . htmlspecialchars($timeSlot) . '" selected>' . htmlspecialchars($timeSlot) . '</option>';
                                                                 }
@@ -4914,25 +4863,122 @@
                                             
                                             // Extract transport options
                                             $transferOptions = $payload['transfer_options'] ?? [];
-                                            $transferRequired = isset($transferOptions['transfer_required']) && $transferOptions['transfer_required'] === true;
+                                            $transferRequiredRaw = $transferOptions['transfer_required'] ?? $transferOptions['required'] ?? false;
+                                            $transferRequired = filter_var($transferRequiredRaw, FILTER_VALIDATE_BOOLEAN)
+                                                || in_array(strtolower(trim((string) $transferRequiredRaw)), ['1', 'yes', 'true', 'on'], true);
                                             $transportType = $transferOptions['type'] ?? '';
                                             
                                             // Get vehicle name from vehicle_details or vehicle_id/vehicle_name
                                             $vehicleDetails = $transferOptions['vehicle_details'] ?? [];
-                                            $transportVehicle = $vehicleDetails['vehicle_name'] ?? $transferOptions['vehicle_name'] ?? $transferOptions['vehicle_id'] ?? '';
-                                            $transportVehicleId = $transferOptions['vehicle_id'] ?? '';
+                                            $transportVehicle = $vehicleDetails['vehicle_name']
+                                                ?? $transferOptions['vehicle_name']
+                                                ?? '';
+                                            $transportVehicleId = (string) ($transferOptions['vehicle_id']
+                                                ?? $vehicleDetails['vehicle_id']
+                                                ?? '');
+                                            if ($transportVehicle === '' && $transportVehicleId !== '') {
+                                                $transportVehicle = $transportVehicleId;
+                                            }
+                                            // AI orders often store vehicles.id (numeric) without vehicle_name — resolve for display.
+                                            if ($transportVehicleId !== '' || $transportVehicle !== '') {
+                                                $resolvedVehicle = \App\Models\Vehicle::withTrashed()
+                                                    ->where(function ($q) use ($transportVehicleId, $transportVehicle) {
+                                                        if ($transportVehicleId !== '') {
+                                                            $q->where('vehicle_id', $transportVehicleId);
+                                                            if (ctype_digit((string) $transportVehicleId)) {
+                                                                $q->orWhere('id', (int) $transportVehicleId);
+                                                            }
+                                                        }
+                                                        if ($transportVehicle !== '' && $transportVehicle !== $transportVehicleId && !ctype_digit((string) $transportVehicle)) {
+                                                            $q->orWhereRaw('LOWER(TRIM(vehicle_name)) = ?', [strtolower(trim($transportVehicle))]);
+                                                        }
+                                                    })
+                                                    ->orderByRaw('CASE WHEN deleted_at IS NULL THEN 0 ELSE 1 END')
+                                                    ->first(['id', 'vehicle_id', 'vehicle_name', 'vehicle_type', 'seating_capacity', 'dmc_id', 'deleted_at']);
+                                                if ($resolvedVehicle && $resolvedVehicle->deleted_at) {
+                                                    $dmcForVehicle = (int) ($resolvedVehicle->dmc_id ?? 0);
+                                                    $activeReplacement = \App\Models\Vehicle::query()
+                                                        ->whereNull('deleted_at')
+                                                        ->when($dmcForVehicle > 0, function ($q) use ($dmcForVehicle) {
+                                                            $q->where(function ($qq) use ($dmcForVehicle) {
+                                                                $qq->where('dmc_id', $dmcForVehicle)
+                                                                    ->orWhere('dmc_id', (string) $dmcForVehicle)
+                                                                    ->orWhereRaw('CAST(dmc_id AS TEXT) = ?', [(string) $dmcForVehicle]);
+                                                            });
+                                                        })
+                                                        ->orderBy('id')
+                                                        ->first(['id', 'vehicle_id', 'vehicle_name', 'vehicle_type', 'seating_capacity']);
+                                                    if ($activeReplacement) {
+                                                        $resolvedVehicle = $activeReplacement;
+                                                    }
+                                                }
+                                                if ($resolvedVehicle) {
+                                                    $transportVehicleId = (string) ($resolvedVehicle->vehicle_id ?? $resolvedVehicle->id ?? $transportVehicleId);
+                                                    $resolvedName = trim((string) ($resolvedVehicle->vehicle_name ?? ''));
+                                                    if ($resolvedName === '') {
+                                                        $resolvedName = trim((string) ($resolvedVehicle->vehicle_type ?? ''));
+                                                    }
+                                                    if ($resolvedName !== '' && !(ctype_digit($resolvedName) && $resolvedName === $transportVehicleId)) {
+                                                        $transportVehicle = $resolvedName;
+                                                    }
+                                                    if (empty($vehicleDetails) || !is_array($vehicleDetails)) {
+                                                        $vehicleDetails = [];
+                                                    }
+                                                    $vehicleDetails['vehicle_id'] = $transportVehicleId;
+                                                    $vehicleDetails['vehicle_name'] = $transportVehicle;
+                                                    $vehicleDetails['seating_capacity'] = $vehicleDetails['seating_capacity']
+                                                        ?? $resolvedVehicle->seating_capacity
+                                                        ?? '';
+                                                }
+                                            }
                                             
-                                            // Get destination from pickup_location_name or destination
-                                            $transportDestination = $transferOptions['pickup_location_name'] ?? $transferOptions['destination'] ?? '';
-                                            $transportDestinationId = $transferOptions['pickup_location_id'] ?? '';
+                                            // Destination / drop-off (edit form "Destination" = drop-off from restaurant)
+                                            $transportDestination = trim((string) (
+                                                $transferOptions['destination']
+                                                ?? $transferOptions['pickup_location_name']
+                                                ?? $transferOptions['drop_location_label']
+                                                ?? $transferOptions['drop_location']
+                                                ?? $transferOptions['pickup_location_label']
+                                                ?? ''
+                                            ));
+                                            $transportDestinationId = (string) (
+                                                $transferOptions['pickup_location_id']
+                                                ?? $transferOptions['destination_id']
+                                                ?? $transferOptions['drop_location_id']
+                                                ?? $transferOptions['drop_location_value']
+                                                ?? $transferOptions['pickup_location_value']
+                                                ?? ''
+                                            );
+                                            if (str_contains($transportDestinationId, ':')) {
+                                                $transportDestinationId = trim((string) substr($transportDestinationId, strpos($transportDestinationId, ':') + 1));
+                                            }
                                             
                                             $transportSeats = $vehicleDetails['seating_capacity'] ?? $transferOptions['seats'] ?? '';
                                             $transportPassengers = $transferOptions['passengers'] ?? '';
-                                            $transportPrice = $transferOptions['cost'] ?? $transferOptions['price'] ?? 0;
+                                            $transportPrice = $transferOptions['cost'] ?? $transferOptions['price'] ?? $transferOptions['transfer_price'] ?? 0;
                                             $transportWay = $transferOptions['way'] ?? 'One Way';
                                             $transportReturn = ($transportWay === 'Two Way');
                                             $restaurantRemarks = $payload['remarks'] ?? $restaurantNotes ?? '';
                                             $restaurantSupplement = ($payload['supplement'] ?? $payload['is_supplement'] ?? false);
+
+                                            $restaurantTransportDestMatches = static function ($name, $id = '') use ($transportDestination, $transportDestinationId): bool {
+                                                $name = trim((string) $name);
+                                                $id = trim((string) $id);
+                                                $savedId = trim((string) $transportDestinationId);
+                                                $savedName = trim((string) $transportDestination);
+                                                if ($savedId !== '' && $id !== '' && (string) $savedId === (string) $id) {
+                                                    return true;
+                                                }
+                                                if ($savedName !== '' && $name !== '') {
+                                                    if (strcasecmp($savedName, $name) === 0) {
+                                                        return true;
+                                                    }
+                                                    if (stripos($savedName, $name) === 0 || stripos($name, $savedName) === 0) {
+                                                        return true;
+                                                    }
+                                                }
+                                                return false;
+                                            };
 
                                             // Geo for multi-city segment filtering (prefer order columns, then JSON, then master restaurant)
                                             $serviceCity = trim((string) ($payload['city'] ?? $payload['location'] ?? ''));
@@ -5157,46 +5203,68 @@
                                                             $destHotels = $hotels ?? collect();
                                                             $destAttractions = $attractions ?? collect();
                                                             $destRestaurants = $restaurants ?? collect();
+                                                            $restaurantDestMatched = false;
                                                         @endphp
-                                                        <select class="form-select border-2 restaurant-transport-destination-select" style="height: 35px;" name="restaurant_transport_destination_{{ $order->booking_id }}" id="restaurant_transport_destination_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}">
+                                                        <select class="form-select border-2 restaurant-transport-destination-select" style="height: 35px;" name="restaurant_transport_destination_{{ $order->booking_id }}" id="restaurant_transport_destination_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}" data-saved-destination="{{ $transportDestination }}" data-saved-destination-id="{{ $transportDestinationId }}" data-saved-vehicle-id="{{ $transportVehicleId }}" data-saved-vehicle-name="{{ $transportVehicle }}">
                                                             <option value="">Search & select destination</option>
                                                             <optgroup label="Hotels">
                                                                 @foreach($destHotels as $h)
+                                                                    @php
+                                                                        $isDestSelected = $restaurantTransportDestMatches($h->name ?? '', $h->hotel_unique_id ?? '');
+                                                                        $restaurantDestMatched = $restaurantDestMatched || $isDestSelected;
+                                                                    @endphp
                                                                     <option value="{{ $h->name ?? '' }}" 
                                                                             data-destination-id="{{ $h->hotel_unique_id ?? '' }}" 
                                                                             data-destination-type="hotel" 
-                                                                            {{ ($transportDestination === ($h->name ?? '')) ? 'selected' : '' }}>
+                                                                            {{ $isDestSelected ? 'selected' : '' }}>
                                                                         {{ $h->name ?? '' }}
                                                                     </option>
                                                                 @endforeach
                                                             </optgroup>
                                                             <optgroup label="Attractions">
                                                                 @foreach($destAttractions as $a)
+                                                                    @php
+                                                                        $isDestSelected = $restaurantTransportDestMatches($a->name ?? '', $a->attraction_id ?? '');
+                                                                        $restaurantDestMatched = $restaurantDestMatched || $isDestSelected;
+                                                                    @endphp
                                                                     <option value="{{ $a->name ?? '' }}" 
                                                                             data-destination-id="{{ $a->attraction_id ?? '' }}" 
                                                                             data-destination-type="attraction" 
-                                                                            {{ ($transportDestination === ($a->name ?? '')) ? 'selected' : '' }}>
+                                                                            {{ $isDestSelected ? 'selected' : '' }}>
                                                                         {{ $a->name ?? '' }}
                                                                     </option>
                                                                 @endforeach
                                                             </optgroup>
                                                             <optgroup label="Restaurants">
                                                                 @foreach($destRestaurants as $r)
+                                                                    @php
+                                                                        $isDestSelected = $restaurantTransportDestMatches($r->name ?? '', $r->restaurant_id ?? '');
+                                                                        $restaurantDestMatched = $restaurantDestMatched || $isDestSelected;
+                                                                    @endphp
                                                                     <option value="{{ $r->name ?? '' }}" 
                                                                             data-destination-id="{{ $r->restaurant_id ?? '' }}" 
                                                                             data-destination-type="restaurant" 
-                                                                            {{ ($transportDestination === ($r->name ?? '')) ? 'selected' : '' }}>
+                                                                            {{ $isDestSelected ? 'selected' : '' }}>
                                                                         {{ $r->name ?? '' }}
                                                                     </option>
                                                                 @endforeach
                                                             </optgroup>
+                                                            @if($transportDestination && !$restaurantDestMatched)
+                                                                <option value="{{ $transportDestination }}"
+                                                                        data-destination-id="{{ $transportDestinationId }}"
+                                                                        data-destination-type="hotel"
+                                                                        selected>
+                                                                    {{ $transportDestination }}
+                                                                </option>
+                                                            @endif
                                                         </select>
                                                     </div>
                                                     <div class="col-md-3">
                                                         <label class="form-label fw-semibold text-muted mb-2">Vehicle (by country)</label>
-                                                        <select class="form-select border-2 restaurant-transport-vehicle-select" style="height: 35px;" name="restaurant_transport_vehicle_{{ $order->booking_id }}" id="restaurant_transport_vehicle_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}">
+                                                        @php $restaurantVehicleMatched = false; @endphp
+                                                        <select class="form-select border-2 restaurant-transport-vehicle-select" style="height: 35px;" name="restaurant_transport_vehicle_{{ $order->booking_id }}" id="restaurant_transport_vehicle_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}" data-saved-vehicle-id="{{ $transportVehicleId }}" data-saved-vehicle-name="{{ $transportVehicle }}">
                                                             <option value="">{{ $transportDestination ? 'Select vehicle' : 'Select destination first' }}</option>
-                                                            @if($transportDestination)
+                                                            @if($transportDestination || $transportVehicleId || $transportVehicle)
                                                                 @if($filteredVehicles && count($filteredVehicles) > 0)
                                                                     @foreach($filteredVehicles as $vehicle)
                                                                         @php
@@ -5204,21 +5272,30 @@
                                                                             $vehicleId = $vehicle->vehicle_id ?? '';
                                                                             $vehicleType = $vehicle->vehicle_type ?? '';
                                                                             $seatingCapacity = $vehicle->seating_capacity ?? '';
-                                                                            // Match by vehicle_id for proper mapping
-                                                                            $isSelected = ($transportVehicleId == $vehicleId || 
-                                                                                           $transportVehicleId == (string)$vehicleId ||
-                                                                                           ($transportVehicle && ($transportVehicle == $vehicleId || $transportVehicle == (string)$vehicleId)));
+                                                                            $isSelected = ($transportVehicleId !== '' && (
+                                                                                    (string) $transportVehicleId === (string) $vehicleId
+                                                                                ))
+                                                                                || ($transportVehicle !== '' && (
+                                                                                    strcasecmp((string) $transportVehicle, (string) $vehicleName) === 0
+                                                                                    || (string) $transportVehicle === (string) $vehicleId
+                                                                                ));
+                                                                            $restaurantVehicleMatched = $restaurantVehicleMatched || $isSelected;
                                                                         @endphp
                                                                         <option value="{{ $vehicleId }}" data-vehicle-id="{{ $vehicleId }}" data-vehicle-name="{{ $vehicleName }}" data-seating-capacity="{{ $seatingCapacity }}" {{ $isSelected ? 'selected' : '' }}>
                                                                             {{ $vehicleName }}
-                                                                            @if($isSelected)
-                                                                                ({{ $vehicleName }})
-                                                                            @endif
                                                                             @if($seatingCapacity)
                                                                                 - {{ $seatingCapacity }} seats
                                                                             @endif
                                                                         </option>
                                                                     @endforeach
+                                                                @endif
+                                                                @if(($transportVehicleId || $transportVehicle) && !$restaurantVehicleMatched)
+                                                                    <option value="{{ $transportVehicleId !== '' ? $transportVehicleId : $transportVehicle }}"
+                                                                            data-vehicle-id="{{ $transportVehicleId }}"
+                                                                            data-vehicle-name="{{ $transportVehicle !== '' ? $transportVehicle : $transportVehicleId }}"
+                                                                            selected>
+                                                                        {{ $transportVehicle !== '' ? $transportVehicle : $transportVehicleId }}
+                                                                    </option>
                                                                 @endif
                                                             @endif
                                                         </select>
@@ -5226,6 +5303,8 @@
                                                             // Ensure selected vehicle is displayed and Select2 is initialized
                                                             $(document).ready(function() {
                                                                 const vehicleSelect = $('#restaurant_transport_vehicle_{{ $order->booking_id }}');
+                                                                const destinationSelect = $('#restaurant_transport_destination_{{ $order->booking_id }}');
+                                                                const savedVehicleId = String(vehicleSelect.data('saved-vehicle-id') || destinationSelect.data('saved-vehicle-id') || '').trim();
                                                                 
                                                                 // Set selected value if exists
                                                                 const selectedOption = vehicleSelect.find('option[selected]');
@@ -5234,6 +5313,8 @@
                                                                     if (selectedValue) {
                                                                         vehicleSelect.val(selectedValue);
                                                                     }
+                                                                } else if (savedVehicleId) {
+                                                                    vehicleSelect.val(savedVehicleId);
                                                                 }
                                                                 
                                                                 // Initialize Select2 if not already initialized
@@ -5241,6 +5322,7 @@
                                                                     if (window.initializeAllSelect2) {
                                                                         setTimeout(function() {
                                                                             window.initializeAllSelect2(vehicleSelect.parent());
+                                                                            window.initializeAllSelect2(destinationSelect.parent());
                                                                         }, 200);
                                                                     }
                                                                 }
@@ -5931,6 +6013,18 @@
                                                     $vehicleSavedId = $transportData['vehicles_id'] ?? $transportData['vehicle_id'] ?? '';
                                                     $vehicleType = $transportData['type'] ?? '';
                                                     $passengers = $transportData['passengers'] ?? '';
+                                                    $seatingCapacityStored = (int) ($transportData['seating_capacity'] ?? 0);
+                                                    $tourPax = max(1, (int) (($tour->adult ?? 0) + ($tour->child ?? 0)));
+                                                    if ($passengers === '' || $passengers === null) {
+                                                        $passengers = $tourPax;
+                                                    }
+                                                    $bookedVehicles = (int) ($transportData['booked_vehicles'] ?? $transportData['vehicle_count'] ?? 0);
+                                                    if ($bookedVehicles <= 0 && $seatingCapacityStored > 0 && (int) $passengers > 0) {
+                                                        $bookedVehicles = (int) ceil((int) $passengers / $seatingCapacityStored);
+                                                    }
+                                                    if ($bookedVehicles <= 0) {
+                                                        $bookedVehicles = 1;
+                                                    }
                                                     $totalPrice = $transportData['totalPrice'] ?? $transportData['price'] ?? 0;
                                                     $availableVehicles = $vehicles ?? collect();
                                                     $transportRemarks = $transportData['remarks'] ?? '';
@@ -6094,6 +6188,7 @@
                                                                             data-private-price="{{ $vehicleOption->base_price ?? $vehicleOption->private_price ?? 0 }}"
                                                                             data-shared-price="{{ $vehicleOption->sharable_base_price ?? $vehicleOption->shared_price ?? 0 }}"
                                                                             data-sharable="{{ $vehicleOption->sharable ?? 0 }}"
+                                                                            data-seating-capacity="{{ $vehicleOption->seating_capacity ?? '' }}"
                                                                             {{ $isSelected ? 'selected' : '' }}>
                                                                         {{ $vehicleDisplayName }}
                                                                         @if(!empty($vehicleOption->vehicle_type))
@@ -6114,7 +6209,15 @@
                                                                 <option value="Shared" {{ strtolower($vehicleType) === 'shared' ? 'selected' : '' }}>Shared</option>
                                                             </select>
                                                         </div>
-                                                        <div class="col-md-4">
+                                                        <div class="col-md-3">
+                                                            <label class="form-label fw-semibold text-muted mb-2"><i class="ri-user-line me-1 text-secondary"></i>Passengers</label>
+                                                            <input type="number" class="form-control border-2" id="departure_passengers_{{ $order->booking_id }}" style="height: 35px;" min="1" value="{{ (int) $passengers }}" readonly>
+                                                        </div>
+                                                        <div class="col-md-3">
+                                                            <label class="form-label fw-semibold text-muted mb-2"><i class="ri-car-line me-1 text-info"></i>Booked Vehicles</label>
+                                                            <input type="number" class="form-control border-2" id="departure_booked_vehicles_{{ $order->booking_id }}" style="height: 35px;" min="1" value="{{ $bookedVehicles }}" readonly>
+                                                        </div>
+                                                        <div class="col-md-3">
                                                             <label class="form-label fw-semibold text-muted mb-2"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price</label>
                                                             <input type="number" class="form-control border-2 departure-total-price" style="height: 35px;" name="total_price" id="departure_price_{{ $order->booking_id }}" step="0.01" min="0" value="{{ number_format((float)$totalPrice, 2, '.', '') }}" placeholder="0.00" readonly>
                                                         </div>
@@ -9775,6 +9878,7 @@
             opt.setAttribute('data-private-price', v.private_price || v.base_price || '');
             opt.setAttribute('data-shared-price', v.shared_price || v.sharable_base_price || '');
             opt.setAttribute('data-sharable', v.sharable || 0);
+            opt.setAttribute('data-seating-capacity', v.seating_capacity || '');
             if (!selected && vehicleMatchesSaved(v, savedName, savedId)) {
                 opt.selected = true;
                 selected = true;
@@ -9860,6 +9964,27 @@
         });
     }
 
+    function resolvePortBookedVehicleCount(prefix, bookingId, vehicleSelect) {
+        const passengersInput = document.getElementById(prefix + '_passengers_' + bookingId);
+        const bookedInput = document.getElementById(prefix + '_booked_vehicles_' + bookingId);
+        const passengers = parseInt(passengersInput?.value, 10) || 1;
+        const selectedOption = vehicleSelect?.options?.[vehicleSelect.selectedIndex];
+        const seatCapacity = parseInt(selectedOption?.getAttribute('data-seating-capacity') || '0', 10);
+        let bookedVehicles = 1;
+
+        if (seatCapacity > 0) {
+            bookedVehicles = Math.max(1, Math.ceil(passengers / seatCapacity));
+        } else if (bookedInput?.value) {
+            bookedVehicles = Math.max(1, parseInt(bookedInput.value, 10) || 1);
+        }
+
+        if (bookedInput) {
+            bookedInput.value = bookedVehicles;
+        }
+
+        return bookedVehicles;
+    }
+
     function updateArrivalRowPrice(bookingId) {
         const vehicleSelect = document.getElementById('arrival_vehicle_' + bookingId);
         const serviceSelect = document.getElementById('arrival_service_type_' + bookingId);
@@ -9874,7 +9999,13 @@
         const privatePrice = parseFloat(opt.getAttribute('data-private-price')) || 0;
         const sharedPrice = parseFloat(opt.getAttribute('data-shared-price')) || 0;
         const serviceType = serviceSelect.value;
-        let total = serviceType === 'Private' ? privatePrice : (serviceType === 'Shared' ? sharedPrice : 0);
+        const bookedVehicles = resolvePortBookedVehicleCount('arrival', bookingId, vehicleSelect);
+        let total = 0;
+        if (serviceType === 'Private') {
+            total = privatePrice * bookedVehicles;
+        } else if (serviceType === 'Shared') {
+            total = sharedPrice;
+        }
         totalInput.value = total.toFixed(2);
     }
 
@@ -10970,7 +11101,12 @@
                         // Save the currently selected vehicle_id before replacing HTML
                         const previouslySelectedValue = vehicleSelect.val();
                         const previouslySelectedOption = vehicleSelect.find('option:selected');
-                        const previouslySelectedVehicleId = previouslySelectedOption.data('vehicle-id') || previouslySelectedOption.attr('value') || previouslySelectedValue;
+                        const previouslySelectedVehicleId = previouslySelectedOption.data('vehicle-id')
+                            || previouslySelectedOption.attr('value')
+                            || previouslySelectedValue
+                            || vehicleSelect.data('saved-vehicle-id')
+                            || destinationSelect.data('saved-vehicle-id')
+                            || '';
                         
                         vehicleSelect.html('<option value="">Select vehicle</option>');
                         
@@ -11013,6 +11149,17 @@
                             
                                 // Calculate price
                                 calculateRestaurantTransportPrice(bookingId);
+                            } else {
+                                // Keep saved vehicle visible even if zone API did not return it
+                                const savedName = String(vehicleSelect.data('saved-vehicle-name') || destinationSelect.data('saved-vehicle-name') || previouslySelectedVehicleId).trim();
+                                const fallback = $('<option></option>')
+                                    .val(String(previouslySelectedVehicleId))
+                                    .attr('data-vehicle-id', String(previouslySelectedVehicleId))
+                                    .attr('data-vehicle-name', savedName)
+                                    .prop('selected', true)
+                                    .text(savedName);
+                                vehicleSelect.append(fallback);
+                                vehicleSelect.val(String(previouslySelectedVehicleId));
                             }
                         }
                         // If no previous selection, don't auto-select - let user choose
@@ -11290,6 +11437,16 @@
                 const bookingId = destinationSelect.data('booking-id');
                 const selectedOption = destinationSelect.find('option:selected');
                 const vehicleSelect = $('#restaurant_transport_vehicle_' + bookingId);
+                const savedVehicleId = String(
+                    vehicleSelect.data('saved-vehicle-id')
+                    || destinationSelect.data('saved-vehicle-id')
+                    || ''
+                ).trim();
+                const savedVehicleName = String(
+                    vehicleSelect.data('saved-vehicle-name')
+                    || destinationSelect.data('saved-vehicle-name')
+                    || ''
+                ).trim();
                 
                 if (selectedOption.val() && selectedOption.val().trim()) {
                     // Check if vehicle select already has options from server-side rendering
@@ -11297,17 +11454,37 @@
                     
                     if (hasVehicleOptions) {
                         // Vehicles are already loaded from server, ensure selected value is displayed
-                        const selectedOption = vehicleSelect.find('option[selected]');
-                        if (selectedOption.length) {
-                            const selectedValue = selectedOption.attr('value');
+                        let selectedVehicleOption = vehicleSelect.find('option[selected]');
+                        if (!selectedVehicleOption.length && savedVehicleId) {
+                            selectedVehicleOption = vehicleSelect.find('option').filter(function() {
+                                return String($(this).val()) === savedVehicleId
+                                    || String($(this).data('vehicle-id') || '') === savedVehicleId;
+                            }).first();
+                        }
+                        if (selectedVehicleOption.length) {
+                            const selectedValue = selectedVehicleOption.attr('value');
                             if (selectedValue) {
-                                vehicleSelect.val(selectedValue);
+                                vehicleSelect.val(selectedValue).trigger('change.select2');
                             }
                         }
                     } else {
                         // No vehicles loaded yet, trigger the change event to load vehicles via AJAX
                         destinationSelect.trigger('change');
                     }
+                } else if (savedVehicleId || savedVehicleName) {
+                    // Destination option missing from list but vehicle was saved — keep showing it
+                    if (vehicleSelect.find('option').filter(function() {
+                        return String($(this).val()) === savedVehicleId || String($(this).data('vehicle-id') || '') === savedVehicleId;
+                    }).length === 0) {
+                        const opt = $('<option></option>')
+                            .val(savedVehicleId || savedVehicleName)
+                            .attr('data-vehicle-id', savedVehicleId)
+                            .attr('data-vehicle-name', savedVehicleName || savedVehicleId)
+                            .prop('selected', true)
+                            .text(savedVehicleName || savedVehicleId);
+                        vehicleSelect.append(opt);
+                    }
+                    vehicleSelect.val(savedVehicleId || savedVehicleName).trigger('change.select2');
                 } else {
                     // No destination selected, clear vehicle dropdown
                     if (vehicleSelect.length) {
@@ -12681,7 +12858,7 @@
                     const slotText = timeSlot.slot || (timeSlot.open + (timeSlot.close ? ' - ' + timeSlot.close : ''));
                     timeOption.value = slotValue;
                     timeOption.textContent = slotText;
-                    if (currentValue && (slotValue === currentValue || slotText === currentValue)) {
+                    if (currentValue && (slotValue === currentValue || slotText === currentValue || (slotValue && slotValue.indexOf(currentValue) !== -1))) {
                         timeOption.selected = true;
                     }
                     timeSlotSelect.appendChild(timeOption);
@@ -12728,6 +12905,37 @@
                         }
                         timeSlotSelect.appendChild(timeOption);
                     });
+                }
+            }
+
+            // Keep a non-catalog saved value visible/selected
+            const normalizedCurrent = (currentValue || '').trim();
+            if (normalizedCurrent && normalizedCurrent.toUpperCase() !== 'N/A') {
+                let matched = false;
+                for (let i = 0; i < timeSlotSelect.options.length; i++) {
+                    if (timeSlotSelect.options[i].selected && timeSlotSelect.options[i].value) {
+                        matched = true;
+                        break;
+                    }
+                }
+                if (!matched) {
+                    const keepOption = document.createElement('option');
+                    keepOption.value = normalizedCurrent;
+                    keepOption.textContent = normalizedCurrent;
+                    keepOption.selected = true;
+                    timeSlotSelect.appendChild(keepOption);
+                    matched = true;
+                }
+            }
+
+            // If still nothing selected, pick the first real slot
+            if (!timeSlotSelect.value) {
+                for (let i = 0; i < timeSlotSelect.options.length; i++) {
+                    const opt = timeSlotSelect.options[i];
+                    if (opt.value && !opt.disabled) {
+                        opt.selected = true;
+                        break;
+                    }
                 }
             }
             
@@ -12798,6 +13006,9 @@
                     ticketOption.dataset.adultPrice = adultPrice;
                     ticketOption.dataset.childPrice = childPrice;
                     ticketOption.dataset.seniorPrice = seniorPrice;
+                    if (ticket.ticket_id !== undefined && ticket.ticket_id !== null) {
+                        ticketOption.dataset.ticketId = String(ticket.ticket_id);
+                    }
                     // Set selected if it matches current value
                     if (!genericTicket && currentValue && (ticketValue === currentValue || ticketText === currentValue)) {
                         ticketOption.selected = true;
@@ -20240,6 +20451,45 @@
 
     // Tracks pre-booked hotel rows that were edited and need a fresh "Get Price".
     window.hotelNeedsGetPrice = window.hotelNeedsGetPrice || {};
+    // True after a successful Get Price so the client-side grid does not overwrite helper totals.
+    window.hotelPricedByHelper = window.hotelPricedByHelper || {};
+
+    // Keep header, Total Price field, grid total, and selected room-type label on the same figure.
+    window.syncHotelBookingPriceDisplays = function(bookingId, amount) {
+        const n = parseFloat(amount) || 0;
+        const formatted = n.toFixed(2);
+        const currencyLabel = '{{ trim($displayCurrency) }}';
+        const totalInput = document.getElementById('total_price_' + bookingId);
+        const headerTotalEl = document.getElementById('hotel_header_total_' + bookingId);
+        const grandTotalEl = document.getElementById('hotel_grand_total_' + bookingId);
+        const roomTypeSelect = document.getElementById('room_type_' + bookingId);
+
+        if (totalInput && document.activeElement !== totalInput) {
+            totalInput.value = formatted;
+            totalInput.dataset.dbTotal = formatted;
+        }
+        if (headerTotalEl) headerTotalEl.textContent = currencyLabel + ' ' + formatted;
+        if (grandTotalEl) grandTotalEl.textContent = currencyLabel + ' ' + formatted;
+
+        if (roomTypeSelect && roomTypeSelect.selectedIndex >= 0) {
+            const opt = roomTypeSelect.options[roomTypeSelect.selectedIndex];
+            if (opt && opt.value) {
+                opt.textContent = n > 0
+                    ? (opt.value + ' - ' + currencyLabel + ' ' + formatted)
+                    : opt.value;
+                if (window.jQuery) {
+                    const $sel = window.jQuery(roomTypeSelect);
+                    if ($sel.data('select2')) {
+                        const rendered = $sel.next('.select2-container').find('.select2-selection__rendered');
+                        if (rendered.length) {
+                            rendered.text(opt.textContent);
+                            rendered.attr('title', opt.textContent);
+                        }
+                    }
+                }
+            }
+        }
+    };
 
     // Enable/disable a booking's "Save Changes" button (with a tooltip when blocked).
     window.setHotelSaveBlocked = function(bookingId, blocked) {
@@ -20257,20 +20507,18 @@
 
     // Reset a booking's price (input, pricing-details grid, totals) to zero.
     window.zeroOutHotelBookingPrice = function(bookingId) {
-        const currencyLabel = '{{ trim($displayCurrency) }}';
+        window.hotelPricedByHelper[bookingId] = false;
         const totalInput = document.getElementById('total_price_' + bookingId);
         if (totalInput) {
-            totalInput.value = '0.00';
             totalInput.dataset.manualEdit = 'false';
         }
         const gridBody = document.getElementById('hotel_price_grid_body_' + bookingId);
         if (gridBody) {
             gridBody.innerHTML = '<div class="text-muted text-center py-2" style="font-size: 0.75rem;">Click "Get Price" to calculate the price.</div>';
         }
-        const grandTotalEl = document.getElementById('hotel_grand_total_' + bookingId);
-        if (grandTotalEl) grandTotalEl.textContent = currencyLabel + ' 0.00';
-        const headerTotalEl = document.getElementById('hotel_header_total_' + bookingId);
-        if (headerTotalEl) headerTotalEl.textContent = currencyLabel + ' 0.00';
+        if (typeof window.syncHotelBookingPriceDisplays === 'function') {
+            window.syncHotelBookingPriceDisplays(bookingId, 0);
+        }
     };
 
     // Mark a booking dirty: zero its price and block saving until "Get Price".
@@ -20408,16 +20656,15 @@
                 // Helper grand_total is per single room (room + meals + extra bed).
                 const finalTotal = Number(data.grand_total) * numberOfRooms;
                 if (totalInput) {
-                    totalInput.value = finalTotal.toFixed(2);
-                    // Mark as manual so the auto grid calc won't overwrite it.
-                    totalInput.dataset.manualEdit = 'true';
-                    totalInput.dataset.dbTotal = finalTotal.toFixed(2);
+                    totalInput.dataset.manualEdit = 'false';
                 }
-                const headerTotalEl = document.getElementById('hotel_header_total_' + bookingId);
-                if (headerTotalEl) headerTotalEl.textContent = currencyLabel + ' ' + finalTotal.toFixed(2);
+                window.hotelPricedByHelper[bookingId] = true;
 
                 // Populate the "Hotel Pricing Details" breakdown grid.
                 window.renderBookingHelperGrid(bookingId, data, numberOfRooms, currencyLabel);
+                if (typeof window.syncHotelBookingPriceDisplays === 'function') {
+                    window.syncHotelBookingPriceDisplays(bookingId, finalTotal);
+                }
 
                 // Re-priced via the rate engine: clear the dirty flag and re-enable saving.
                 window.hotelNeedsGetPrice[bookingId] = false;
@@ -27605,6 +27852,58 @@
             formData.set('totalPrice', totalPriceInput.value || '0');
         }
 
+        // Always send resolved attraction_id / ticket_id so backend can replace stale AI IDs.
+        const attractionSelect = document.getElementById(`attraction_name_${bookingId}`);
+        const ticketSelect = document.getElementById(`ticket_name_${bookingId}`);
+        const visitTimeSelect = document.getElementById(`visit_time_${bookingId}`);
+        if (attractionSelect) {
+            const selectedAttractionOpt = (typeof resolveCatalogAttractionOption === 'function')
+                ? resolveCatalogAttractionOption(attractionSelect)
+                : attractionSelect.options[attractionSelect.selectedIndex];
+            const attractionId = selectedAttractionOpt?.getAttribute('data-attraction-id')
+                || selectedAttractionOpt?.dataset?.attractionId
+                || '';
+            const attractionName = (selectedAttractionOpt?.value || attractionSelect.value || '').trim();
+            if (attractionName) {
+                formData.set('attraction_name', attractionName);
+            }
+            formData.set('attraction_id', attractionId || '');
+            try {
+                const attractionDataRaw = selectedAttractionOpt?.getAttribute('data-attraction-data');
+                if (attractionDataRaw) {
+                    const attractionData = JSON.parse(attractionDataRaw);
+                    if (attractionData && attractionData.name) {
+                        formData.set('attraction_name', attractionData.name);
+                    }
+                    if (!attractionId && attractionData && attractionData.attraction_id) {
+                        formData.set('attraction_id', String(attractionData.attraction_id));
+                    }
+                    if (selectedAttractionOpt?.dataset?.isBundle === '1' || attractionData?.is_bundle) {
+                        formData.set('is_bundle', '1');
+                        formData.set('package_attraction_id', String(attractionData.package_attraction_id || attractionId || ''));
+                    }
+                }
+            } catch (e) {
+                console.warn('Could not parse attraction data for update', e);
+            }
+        }
+        if (ticketSelect) {
+            const selectedTicketOpt = ticketSelect.options[ticketSelect.selectedIndex];
+            formData.set('ticket_name', ticketSelect.value || '');
+            formData.set(
+                'ticket_id',
+                selectedTicketOpt?.dataset?.ticketId
+                    || selectedTicketOpt?.getAttribute('data-ticket-id')
+                    || ''
+            );
+            formData.set('adult_price', selectedTicketOpt?.dataset?.adultPrice || '0');
+            formData.set('child_price', selectedTicketOpt?.dataset?.childPrice || '0');
+            formData.set('senior_price', selectedTicketOpt?.dataset?.seniorPrice || '0');
+        }
+        if (visitTimeSelect) {
+            formData.set('visit_time', visitTimeSelect.value || '');
+        }
+
         // Collect transport data if transport is required
         const needTransportToggle = document.querySelector(`#need_attraction_transport_${bookingId}`);
         if (needTransportToggle && needTransportToggle.checked) {
@@ -28876,10 +29175,11 @@
         
         const privatePrice = parseFloat(selectedVehicle.getAttribute('data-private-price') || 0);
         const sharedPrice = parseFloat(selectedVehicle.getAttribute('data-shared-price') || 0);
+        const bookedVehicles = resolvePortBookedVehicleCount('departure', bookingId, vehicleSelect);
         
         let price = 0;
         if (serviceType === 'Private') {
-            price = privatePrice;
+            price = privatePrice * bookedVehicles;
         } else if (serviceType === 'Shared') {
             price = sharedPrice;
         }
