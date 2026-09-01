@@ -37,9 +37,10 @@ class HotelPriceHelper
      * @param string       $mealPlan       e.g. "room with breakfast + dinner"
      * @param int          $pax            number of guests
      * @param int          $extraBed       number of extra beds selected (extra-bed price is charged per this count, not per pax)
+     * @param int|string|null $dmcId       optional DMC id when Auth is unavailable (e.g. external API)
      * @return array
      */
-    public static function calculatePrice($hotelUniqueId, $roomId, $bedId, array $dates = [], $mealPlan = '', $pax = 1, $extraBed = 0): array
+    public static function calculatePrice($hotelUniqueId, $roomId, $bedId, array $dates = [], $mealPlan = '', $pax = 1, $extraBed = 0, $dmcId = null): array
     {
         try {
             $pax = max(1, (int) $pax);
@@ -100,7 +101,12 @@ class HotelPriceHelper
             $isSelectedBaseRoom = (int) ($room->base_room ?? 0) === 1;
             $baseRoom = null;
             if ($selectedVarient == 0.0 && !$isSelectedBaseRoom) {
-                $dmcId = Auth::check() ? CommonHelper::getDmcId(Auth::user()) : null;
+                if (empty($dmcId) && Auth::check()) {
+                    $dmcId = CommonHelper::getDmcId(Auth::user());
+                }
+                if (empty($dmcId)) {
+                    $dmcId = $room->dmc_id ?? null;
+                }
                 if (empty($dmcId)) {
                     return self::errorResponse('No DMC found for the current user.');
                 }
