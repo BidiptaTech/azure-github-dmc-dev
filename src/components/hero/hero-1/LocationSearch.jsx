@@ -100,9 +100,16 @@ const SearchBar = ({ onLocationSelect }) => {
     if (!onLocationSelect) return;
     const nextCity = cities?.[0];
     onLocationSelect(nextCity?.country || null);
-    if (nextCity?.country_code) {
-      dispatch(setSearchLocation(nextCity.country_code));
-    }
+
+    const countryCodes = [
+      ...new Set(
+        (cities || [])
+          .map((city) => city?.country_code)
+          .filter(Boolean)
+      ),
+    ];
+
+    dispatch(setSearchLocation(countryCodes));
   };
 
   const handleOptionClick = (item, event) => {

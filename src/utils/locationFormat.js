@@ -116,6 +116,48 @@ export function extractCountryNamesFromDestination(destination) {
 }
 
 /**
+ * Resolve country name for a selected city from tour destination payload.
+ * Supports [{ city, country }, ...], legacy string[], or a single string.
+ */
+export function getCountryForCityFromDestination(destination, cityName) {
+  const needle = toCityOnly(cityName).toLowerCase();
+
+  if (Array.isArray(destination)) {
+    if (needle) {
+      const match = destination.find((entry) => {
+        if (entry && typeof entry === "object" && entry.city) {
+          return toCityOnly(entry.city).toLowerCase() === needle;
+        }
+        return toCityOnly(entry).toLowerCase() === needle;
+      });
+      if (match && typeof match === "object" && match.country) {
+        return String(match.country).trim();
+      }
+    }
+
+    const firstWithCountry = destination.find(
+      (entry) => entry && typeof entry === "object" && entry.country
+    );
+    if (firstWithCountry?.country) {
+      return String(firstWithCountry.country).trim();
+    }
+
+    const firstString = destination.find((entry) => typeof entry === "string");
+    if (firstString) return String(firstString).trim();
+  }
+
+  if (typeof destination === "object" && destination?.country) {
+    return String(destination.country).trim();
+  }
+
+  if (typeof destination === "string") {
+    return destination.trim();
+  }
+
+  return "";
+}
+
+/**
  * Normalize city list entries to "City, Country" strings for service APIs.
  */
 export function normalizeCityList(payload, countryName = "") {
