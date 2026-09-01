@@ -604,6 +604,397 @@ class CommonHelper
         }
     }
 
+    /**
+     * Azure AI Search config from services.azure_search / .env.
+     *
+     * @return array{endpoint: string, admin_key: string, index: string, indexer: string, key_field: string, api_version: string}|null
+     */
+    public static function azureSearchConfig(): ?array
+    {
+        $cfg = config('services.azure_search', []);
+        $endpoint = rtrim(trim((string) ($cfg['endpoint'] ?? '')), '/');
+        $adminKey = trim((string) ($cfg['admin_key'] ?? ''));
+        $index = trim((string) ($cfg['index'] ?? ''));
+
+        if ($endpoint === '' || $adminKey === '' || $index === '') {
+            return null;
+        }
+
+        return [
+            'endpoint' => $endpoint,
+            'admin_key' => $adminKey,
+            'index' => $index,
+            'indexer' => trim((string) ($cfg['indexer'] ?? '')),
+            'key_field' => trim((string) ($cfg['key_field'] ?? 'id')) ?: 'id',
+            'api_version' => trim((string) ($cfg['api_version'] ?? '2024-07-01')) ?: '2024-07-01',
+        ];
+    }
+
+    /**
+     * Delete documents from Azure AI Search by key (default field: id = package_id).
+     *
+     * @param  list<string>  $documentKeys
+     * @return array{ok: bool, deleted: list<string>, skipped: bool, error: ?string}
+     */
+    public static function deleteAzureSearchDocumentsByKeys(array $documentKeys): array
+    {
+        $keys = [];
+        foreach ($documentKeys as $key) {
+            $key = trim((string) $key);
+            if ($key !== '') {
+                $keys[$key] = true;
+            }
+        }
+        $keys = array_keys($keys);
+
+        $empty = ['ok' => true, 'deleted' => [], 'skipped' => true, 'error' => null];
+        if ($keys === []) {
+            return $empty;
+        }
+
+        $cfg = self::azureSearchConfig();
+        if ($cfg === null) {
+            Log::warning('Azure Search document delete skipped: AZURE_SEARCH_* not configured');
+
+            return [
+                'ok' => false,
+                'deleted' => [],
+                'skipped' => true,
+                'error' => 'Azure Search not configured',
+            ];
+        }
+
+        $keyField = $cfg['key_field'];
+        $deleted = [];
+        $url = sprintf(
+            '%s/indexes/%s/docs/index?api-version=%s',
+            $cfg['endpoint'],
+            rawurlencode($cfg['index']),
+            rawurlencode($cfg['api_version'])
+        );
+
+        try {
+            foreach (array_chunk($keys, 500) as $chunk) {
+                $value = [];
+                foreach ($chunk as $docKey) {
+                    $value[] = [
+                        '@search.action' => 'delete',
+                        $keyField => $docKey,
+                    ];
+                }
+
+                $response = Http::withHeaders([
+                    'api-key' => $cfg['admin_key'],
+                    'Content-Type' => 'application/json',
+                ])->timeout(60)->post($url, ['value' => $value]);
+
+                if (! $response->successful()) {
+                    Log::error('Azure Search document delete failed', [
+                        'status' => $response->status(),
+                        'body' => $response->body(),
+                        'keys' => $chunk,
+                    ]);
+
+                    return [
+                        'ok' => false,
+                        'deleted' => $deleted,
+                        'skipped' => false,
+                        'error' => 'HTTP ' . $response->status() . ': ' . $response->body(),
+                    ];
+                }
+
+                $deleted = array_merge($deleted, $chunk);
+            }
+
+            Log::info('Azure Search documents deleted by key', [
+                'index' => $cfg['index'],
+                'key_field' => $keyField,
+                'count' => count($deleted),
+                'keys' => $deleted,
+            ]);
+
+            return [
+                'ok' => true,
+                'deleted' => $deleted,
+                'skipped' => false,
+                'error' => null,
+            ];
+        } catch (\Throwable $e) {
+            Log::error('Azure Search document delete exception: ' . $e->getMessage());
+
+            return [
+                'ok' => false,
+                'deleted' => $deleted,
+                'skipped' => false,
+                'error' => $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * List document keys currently in the Azure AI Search index.
+     *
+     * @return list<string>
+     */
+    public static function listAzureSearchDocumentKeys(int $pageSize = 1000): array
+    {
+        $cfg = self::azureSearchConfig();
+        if ($cfg === null) {
+            return [];
+        }
+
+        $keyField = $cfg['key_field'];
+        $keys = [];
+        $skip = 0;
+
+        try {
+            do {
+                $url = sprintf(
+                    '%s/indexes/%s/docs/search?api-version=%s',
+                    $cfg['endpoint'],
+                    rawurlencode($cfg['index']),
+                    rawurlencode($cfg['api_version'])
+                );
+
+                $response = Http::withHeaders([
+                    'api-key' => $cfg['admin_key'],
+                    'Content-Type' => 'application/json',
+                ])->timeout(60)->post($url, [
+                    'search' => '*',
+                    'select' => $keyField,
+                    'top' => $pageSize,
+                    'skip' => $skip,
+                ]);
+
+                if (! $response->successful()) {
+                    Log::warning('Azure Search list keys failed', [
+                        'status' => $response->status(),
+                        'body' => $response->body(),
+                    ]);
+
+                    break;
+                }
+
+                $payload = $response->json();
+                $rows = is_array($payload['value'] ?? null) ? $payload['value'] : [];
+                foreach ($rows as $row) {
+                    if (! is_array($row)) {
+                        continue;
+                    }
+                    $key = trim((string) ($row[$keyField] ?? ''));
+                    if ($key !== '') {
+                        $keys[] = $key;
+                    }
+                }
+
+                $count = count($rows);
+                $skip += $count;
+            } while ($count === $pageSize && $skip < 100000);
+
+            return array_values(array_unique($keys));
+        } catch (\Throwable $e) {
+            Log::error('Azure Search list keys exception: ' . $e->getMessage());
+
+            return $keys;
+        }
+    }
+
+    /**
+     * Remove index docs whose keys are not in the active package id set (stale after blob deletes).
+     *
+     * @param  list<string>  $activePackageIds
+     * @return array{ok: bool, deleted: list<string>, skipped: bool, error: ?string}
+     */
+    public static function purgeAzureSearchOrphansNotIn(array $activePackageIds): array
+    {
+        $cfg = self::azureSearchConfig();
+        if ($cfg === null) {
+            return [
+                'ok' => false,
+                'deleted' => [],
+                'skipped' => true,
+                'error' => 'Azure Search not configured',
+            ];
+        }
+
+        $active = [];
+        foreach ($activePackageIds as $id) {
+            $id = trim((string) $id);
+            if ($id !== '') {
+                $active[$id] = true;
+            }
+        }
+
+        $indexed = self::listAzureSearchDocumentKeys();
+        $orphans = [];
+        foreach ($indexed as $key) {
+            if (! isset($active[$key])) {
+                $orphans[] = $key;
+            }
+        }
+
+        if ($orphans === []) {
+            return [
+                'ok' => true,
+                'deleted' => [],
+                'skipped' => false,
+                'error' => null,
+            ];
+        }
+
+        Log::info('Azure Search orphan purge starting', [
+            'active_count' => count($active),
+            'indexed_count' => count($indexed),
+            'orphan_count' => count($orphans),
+            'orphans' => $orphans,
+        ]);
+
+        return self::deleteAzureSearchDocumentsByKeys($orphans);
+    }
+
+    /**
+     * Reset then run the Azure AI Search indexer so it re-reads current blob JSON.
+     *
+     * @return array{ok: bool, reset: bool, run: bool, skipped: bool, error: ?string}
+     */
+    public static function resetAndRunAzureSearchIndexer(): array
+    {
+        $cfg = self::azureSearchConfig();
+        if ($cfg === null || $cfg['indexer'] === '') {
+            Log::warning('Azure Search indexer reset/run skipped: endpoint/key/index/indexer not configured');
+
+            return [
+                'ok' => false,
+                'reset' => false,
+                'run' => false,
+                'skipped' => true,
+                'error' => 'Azure Search indexer not configured',
+            ];
+        }
+
+        $headers = [
+            'api-key' => $cfg['admin_key'],
+            'Content-Type' => 'application/json',
+        ];
+
+        try {
+            $resetUrl = sprintf(
+                '%s/indexers/%s/reset?api-version=%s',
+                $cfg['endpoint'],
+                rawurlencode($cfg['indexer']),
+                rawurlencode($cfg['api_version'])
+            );
+            $resetResponse = Http::withHeaders($headers)->timeout(60)->post($resetUrl);
+            if (! $resetResponse->successful() && $resetResponse->status() !== 204) {
+                Log::error('Azure Search indexer reset failed', [
+                    'status' => $resetResponse->status(),
+                    'body' => $resetResponse->body(),
+                ]);
+
+                return [
+                    'ok' => false,
+                    'reset' => false,
+                    'run' => false,
+                    'skipped' => false,
+                    'error' => 'Reset HTTP ' . $resetResponse->status() . ': ' . $resetResponse->body(),
+                ];
+            }
+
+            $runUrl = sprintf(
+                '%s/indexers/%s/run?api-version=%s',
+                $cfg['endpoint'],
+                rawurlencode($cfg['indexer']),
+                rawurlencode($cfg['api_version'])
+            );
+            $runResponse = Http::withHeaders($headers)->timeout(60)->post($runUrl);
+            if (! $runResponse->successful() && $runResponse->status() !== 202) {
+                Log::error('Azure Search indexer run failed', [
+                    'status' => $runResponse->status(),
+                    'body' => $runResponse->body(),
+                ]);
+
+                return [
+                    'ok' => false,
+                    'reset' => true,
+                    'run' => false,
+                    'skipped' => false,
+                    'error' => 'Run HTTP ' . $runResponse->status() . ': ' . $runResponse->body(),
+                ];
+            }
+
+            Log::info('Azure Search indexer reset + run triggered', [
+                'indexer' => $cfg['indexer'],
+                'index' => $cfg['index'],
+            ]);
+
+            return [
+                'ok' => true,
+                'reset' => true,
+                'run' => true,
+                'skipped' => false,
+                'error' => null,
+            ];
+        } catch (\Throwable $e) {
+            Log::error('Azure Search indexer reset/run exception: ' . $e->getMessage());
+
+            return [
+                'ok' => false,
+                'reset' => false,
+                'run' => false,
+                'skipped' => false,
+                'error' => $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * After blob JSON sync: delete removed package docs, purge orphans, reset+run indexer.
+     *
+     * @param  list<string>  $deletedPackageIds
+     * @param  list<string>  $activePackageIds
+     * @return array{ok: bool, deleted_keys: list<string>, orphan_deleted: list<string>, indexer: array<string, mixed>, skipped: bool, error: ?string}
+     */
+    public static function syncAzureSearchAfterDayLevelChange(array $deletedPackageIds, array $activePackageIds): array
+    {
+        $result = [
+            'ok' => false,
+            'deleted_keys' => [],
+            'orphan_deleted' => [],
+            'indexer' => [],
+            'skipped' => false,
+            'error' => null,
+        ];
+
+        if (self::azureSearchConfig() === null) {
+            $result['skipped'] = true;
+            $result['error'] = 'Azure Search not configured';
+
+            return $result;
+        }
+
+        $deleteResult = self::deleteAzureSearchDocumentsByKeys($deletedPackageIds);
+        $result['deleted_keys'] = $deleteResult['deleted'] ?? [];
+
+        $orphanResult = self::purgeAzureSearchOrphansNotIn($activePackageIds);
+        $result['orphan_deleted'] = $orphanResult['deleted'] ?? [];
+
+        $indexerResult = self::resetAndRunAzureSearchIndexer();
+        $result['indexer'] = $indexerResult;
+
+        $result['ok'] = (! empty($deleteResult['ok']) || ! empty($deleteResult['skipped']))
+            && (! empty($orphanResult['ok']) || ! empty($orphanResult['skipped']))
+            && (! empty($indexerResult['ok']) || ! empty($indexerResult['skipped']));
+
+        if (! $result['ok']) {
+            $result['error'] = $deleteResult['error']
+                ?? $orphanResult['error']
+                ?? $indexerResult['error']
+                ?? 'Azure Search sync failed';
+        }
+
+        return $result;
+    }
+
     /*
     * Upload file to Azure with dynamic container support
     * Date 16-06-2025
@@ -2551,6 +2942,111 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
     }
 
     /**
+     * Parse open_time / close_time (JSON array string or plain time) into a list.
+     *
+     * @return list<string>
+     */
+    public static function parseAttractionTimeList($value): array
+    {
+        if ($value === null || $value === '') {
+            return [];
+        }
+        if (is_array($value)) {
+            return array_values(array_filter(array_map(
+                static fn ($v) => trim((string) $v),
+                $value
+            )));
+        }
+
+        $raw = trim((string) $value);
+        $decoded = json_decode($raw, true);
+        if (is_array($decoded)) {
+            return array_values(array_filter(array_map(
+                static fn ($v) => trim((string) $v),
+                $decoded
+            )));
+        }
+
+        return $raw !== '' ? [$raw] : [];
+    }
+
+    /**
+     * Build selectable time slots from attraction open/close times.
+     *
+     * @return list<array{open: string, close: string, slot: string}>
+     */
+    public static function attractionTimeSlots($attraction): array
+    {
+        $openTimes = self::parseAttractionTimeList(
+            is_array($attraction) ? ($attraction['open_time'] ?? null) : ($attraction->open_time ?? null)
+        );
+        $closeTimes = self::parseAttractionTimeList(
+            is_array($attraction) ? ($attraction['close_time'] ?? null) : ($attraction->close_time ?? null)
+        );
+        if ($openTimes === [] || $closeTimes === []) {
+            return [];
+        }
+
+        $slots = [];
+        foreach ($openTimes as $index => $openTime) {
+            $closeTime = $closeTimes[$index] ?? $closeTimes[0] ?? '';
+            if ($openTime === '' || $closeTime === '') {
+                continue;
+            }
+            $slots[] = [
+                'open' => $openTime,
+                'close' => $closeTime,
+                'slot' => $openTime . ' - ' . $closeTime,
+            ];
+        }
+
+        return $slots;
+    }
+
+    /**
+     * Compact payload for attraction <option data-attraction-data>.
+     * Avoids embedding the full Eloquent model (which can break JSON in HTML attributes).
+     *
+     * @return array<string, mixed>
+     */
+    public static function attractionSelectPayload($attraction): array
+    {
+        $tickets = collect(is_array($attraction) ? ($attraction['tickets'] ?? []) : ($attraction->tickets ?? []))
+            ->map(function ($ticket) {
+                return [
+                    'ticket_id' => is_array($ticket) ? ($ticket['ticket_id'] ?? null) : ($ticket->ticket_id ?? null),
+                    'name' => is_array($ticket) ? ($ticket['name'] ?? '') : ($ticket->name ?? ''),
+                    'ticket_name' => is_array($ticket) ? ($ticket['name'] ?? $ticket['ticket_name'] ?? '') : ($ticket->name ?? ''),
+                    'adult_price' => is_array($ticket) ? ($ticket['adult_price'] ?? 0) : ($ticket->adult_price ?? 0),
+                    'child_price' => is_array($ticket) ? ($ticket['child_price'] ?? 0) : ($ticket->child_price ?? 0),
+                    'senior_price' => is_array($ticket)
+                        ? ($ticket['senior_price'] ?? $ticket['senior_adult_price'] ?? 0)
+                        : ($ticket->senior_price ?? $ticket->senior_adult_price ?? 0),
+                ];
+            })
+            ->values()
+            ->all();
+
+        $openTimes = self::parseAttractionTimeList(
+            is_array($attraction) ? ($attraction['open_time'] ?? null) : ($attraction->open_time ?? null)
+        );
+        $closeTimes = self::parseAttractionTimeList(
+            is_array($attraction) ? ($attraction['close_time'] ?? null) : ($attraction->close_time ?? null)
+        );
+        $timeSlots = self::attractionTimeSlots($attraction);
+
+        return [
+            'attraction_id' => is_array($attraction) ? ($attraction['attraction_id'] ?? null) : ($attraction->attraction_id ?? null),
+            'name' => is_array($attraction) ? ($attraction['name'] ?? '') : ($attraction->name ?? ''),
+            'location' => is_array($attraction) ? ($attraction['location'] ?? '') : ($attraction->location ?? ''),
+            'open_time' => $openTimes,
+            'close_time' => $closeTimes,
+            'time_slots' => $timeSlots,
+            'tickets' => $tickets,
+        ];
+    }
+
+    /**
      * Match a catalog attraction when AI/day-level names include " - Location"
      * or differ only by case/whitespace.
      *
@@ -2561,6 +3057,37 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         $attractions = collect($attractions);
         $name = trim((string) $name);
         $attractionId = ($attractionId !== null && $attractionId !== '') ? (string) $attractionId : '';
+        $hasUsableName = $name !== '' && strcasecmp($name, 'N/A') !== 0;
+        $target = $hasUsableName ? self::normalizeServiceLabel($name) : '';
+
+        $matchByName = function () use ($attractions, $target, $hasUsableName) {
+            if (! $hasUsableName) {
+                return null;
+            }
+
+            $exact = $attractions->first(function ($attraction) use ($target) {
+                $attrName = is_array($attraction) ? ($attraction['name'] ?? '') : ($attraction->name ?? '');
+
+                return self::normalizeServiceLabel($attrName) === $target;
+            });
+            if ($exact) {
+                return $exact;
+            }
+
+            return $attractions->first(function ($attraction) use ($target) {
+                $label = self::normalizeServiceLabel(self::attractionDisplayLabel($attraction));
+                if ($label === $target) {
+                    return true;
+                }
+
+                $attrName = self::normalizeServiceLabel(is_array($attraction) ? ($attraction['name'] ?? '') : ($attraction->name ?? ''));
+                if ($attrName === '') {
+                    return false;
+                }
+
+                return str_starts_with($target, $attrName . ' - ');
+            });
+        };
 
         if ($attractionId !== '') {
             $byId = $attractions->first(function ($attraction) use ($attractionId) {
@@ -2571,38 +3098,29 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 return (string) $id === $attractionId;
             });
             if ($byId) {
+                // If a name was also provided and does not belong to this ID, prefer name
+                // (stale AttractionId after an edit is a common case).
+                if ($hasUsableName) {
+                    $idName = self::normalizeServiceLabel(
+                        is_array($byId) ? ($byId['name'] ?? '') : ($byId->name ?? '')
+                    );
+                    $idLabel = self::normalizeServiceLabel(self::attractionDisplayLabel($byId));
+                    $nameMatchesId = $target === $idName
+                        || $target === $idLabel
+                        || ($idName !== '' && str_starts_with($target, $idName . ' - '));
+                    if (! $nameMatchesId) {
+                        $byName = $matchByName();
+                        if ($byName) {
+                            return $byName;
+                        }
+                    }
+                }
+
                 return $byId;
             }
         }
 
-        if ($name === '' || strcasecmp($name, 'N/A') === 0) {
-            return null;
-        }
-
-        $target = self::normalizeServiceLabel($name);
-
-        $exact = $attractions->first(function ($attraction) use ($target) {
-            $attrName = is_array($attraction) ? ($attraction['name'] ?? '') : ($attraction->name ?? '');
-
-            return self::normalizeServiceLabel($attrName) === $target;
-        });
-        if ($exact) {
-            return $exact;
-        }
-
-        return $attractions->first(function ($attraction) use ($target) {
-            $label = self::normalizeServiceLabel(self::attractionDisplayLabel($attraction));
-            if ($label === $target) {
-                return true;
-            }
-
-            $attrName = self::normalizeServiceLabel(is_array($attraction) ? ($attraction['name'] ?? '') : ($attraction->name ?? ''));
-            if ($attrName === '') {
-                return false;
-            }
-
-            return str_starts_with($target, $attrName . ' - ');
-        });
+        return $matchByName();
     }
 
     /**
@@ -3137,6 +3655,43 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         }
 
         return null;
+    }
+
+    /**
+     * Resolve lite/pro AI booking mode from DMC user settings (users.ai_response_type).
+     * Falls back to master DMC when the child DMC has no selection.
+     */
+    public static function resolveDmcAiResponseType(?User $dmcUser): ?string
+    {
+        if ($dmcUser === null) {
+            return null;
+        }
+
+        $type = strtolower(trim((string) ($dmcUser->ai_response_type ?? '')));
+        if (in_array($type, ['lite', 'pro'], true)) {
+            return $type;
+        }
+
+        $masterId = (int) ($dmcUser->master_dmc_id ?? 0);
+        if ($masterId > 0 && $masterId !== (int) $dmcUser->userId) {
+            $master = User::where('userId', $masterId)->first();
+            if ($master) {
+                $masterType = strtolower(trim((string) ($master->ai_response_type ?? '')));
+                if (in_array($masterType, ['lite', 'pro'], true)) {
+                    return $masterType;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Map DMC ai_response_type to tours.is_pro (1 = pro, 0 = lite).
+     */
+    public static function resolveTourIsProFromDmc(?User $dmcUser): int
+    {
+        return self::resolveDmcAiResponseType($dmcUser) === 'pro' ? 1 : 0;
     }
 
     public static function normalizeEmailMessageId(?string $messageId): ?string
@@ -4536,6 +5091,139 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
     }
 
     /**
+     * Human-readable label for a booked order item in price breakdowns.
+     *
+     * @param  array<string, mixed>  $item
+     */
+    protected static function resolveOrderItemPriceLabel(string $type, array $item): string
+    {
+        $normalizedType = strtolower(str_replace(' ', '_', trim($type)));
+        $headline = static fn (string $value): string => \Illuminate\Support\Str::headline(
+            str_replace(['_', '-'], ' ', trim($value))
+        );
+
+        $name = trim((string) (
+            $item['AttractionName']
+            ?? $item['attractionName']
+            ?? $item['restaurantName']
+            ?? $item['restaurant_name']
+            ?? $item['hotelName']
+            ?? $item['name']
+            ?? ''
+        ));
+
+        return match ($normalizedType) {
+            'attraction', 'attraction_package' => 'Attraction' . ($name !== '' ? ': ' . $name : ''),
+            'restaurant' => 'Restaurant' . ($name !== '' ? ': ' . $name : ''),
+            'entry_port' => 'Arrival' . ($name !== '' ? ': ' . $name : ''),
+            'exit_port' => 'Departure' . ($name !== '' ? ': ' . $name : ''),
+            'guide' => 'Guide' . ($name !== '' ? ': ' . $name : ''),
+            'travel_point', 'point_to_point' => 'Point to Point' . ($name !== '' ? ': ' . $name : ''),
+            'travel_hourly', 'hourly' => 'Hourly Transfer' . ($name !== '' ? ': ' . $name : ''),
+            'local_transport', 'local_transfer', 'local_transfer_vehicle', 'port_transport' => 'Local Transfer' . ($name !== '' ? ': ' . $name : ''),
+            default => ($name !== '' ? $name : $headline($normalizedType !== '' ? $normalizedType : 'Service')),
+        };
+    }
+
+    /**
+     * Segregated quotation price breakdown for PDF / email display.
+     * Hotels show per-head × pax-in-room (e.g. double rate × 2). Other services show per-head × chargeable adults.
+     *
+     * @param  array<string, mixed>  $tourPrices
+     * @return array{lines: array<int, array<string, mixed>>, grand_total: float, occupancy_key: string, chargeable_adults: int}
+     */
+    public static function buildQuotationPriceBreakdown(
+        Tour $tour,
+        array $tourPrices,
+        int $adults,
+        int $children = 0,
+        int $infants = 0
+    ): array {
+        unset($infants);
+
+        $isProTour = (int) ($tour->is_pro ?? 0) === 1;
+        $tourType = strtoupper((string) ($tour->tour_type ?? 'FIT'));
+        $focSize = $tourType === 'GROUP' ? max(0, (int) ($tour->foc_size ?? 0)) : 0;
+        $chargeableAdults = max(0, $adults - $focSize);
+        $occupancyKey = $adults >= 2 ? 'double' : 'single';
+        $hotelPaxInRoom = $occupancyKey === 'double' ? 2 : 1;
+
+        $lines = [];
+        $grandTotal = 0.0;
+
+        foreach ($tourPrices['hotel_price_options'] ?? [] as $hotelOption) {
+            if (! is_array($hotelOption)) {
+                continue;
+            }
+
+            $label = trim((string) ($hotelOption['display_name'] ?? $hotelOption['hotel_name'] ?? 'Hotel'));
+            $single = (float) ($hotelOption['single'] ?? 0);
+            $double = (float) ($hotelOption['double'] ?? 0);
+            if ($isProTour && $double > 0) {
+                $single = $double;
+            }
+
+            $perHead = $occupancyKey === 'double' ? ($double > 0 ? $double : $single) : $single;
+            if ($perHead <= 0) {
+                continue;
+            }
+
+            $lineTotal = $perHead * $hotelPaxInRoom;
+            $lines[] = [
+                'label' => $label,
+                'category' => 'hotel',
+                'per_head' => $perHead,
+                'multiplier' => $hotelPaxInRoom,
+                'multiplier_label' => (string) $hotelPaxInRoom,
+                'line_total' => $lineTotal,
+                'formula' => 'per_head × pax',
+            ];
+            $grandTotal += $lineTotal;
+        }
+
+        foreach ($tourPrices['service_price_lines'] ?? [] as $serviceLine) {
+            if (! is_array($serviceLine)) {
+                continue;
+            }
+
+            $label = trim((string) ($serviceLine['label'] ?? 'Service'));
+            $single = (float) ($serviceLine['single'] ?? 0);
+            $double = (float) ($serviceLine['double'] ?? 0);
+            $childUnit = (float) ($serviceLine['child_unit'] ?? 0);
+            $perHead = $occupancyKey === 'double' ? ($double > 0 ? $double : $single) : $single;
+
+            if ($perHead <= 0 && $childUnit <= 0) {
+                continue;
+            }
+
+            $adultPart = $perHead * max(1, $chargeableAdults);
+            $childPart = $childUnit * max(0, $children);
+            $lineTotal = $adultPart + $childPart;
+
+            $lines[] = [
+                'label' => $label,
+                'category' => (string) ($serviceLine['type'] ?? 'other'),
+                'per_head' => $perHead,
+                'multiplier' => max(1, $chargeableAdults),
+                'multiplier_label' => (string) max(1, $chargeableAdults),
+                'child_unit' => $childUnit,
+                'child_count' => max(0, $children),
+                'child_part' => $childPart,
+                'line_total' => $lineTotal,
+                'formula' => $childPart > 0 ? 'adult + child' : 'per_head × pax',
+            ];
+            $grandTotal += $lineTotal;
+        }
+
+        return [
+            'lines' => $lines,
+            'grand_total' => $grandTotal,
+            'occupancy_key' => $occupancyKey,
+            'chargeable_adults' => $chargeableAdults,
+        ];
+    }
+
+    /**
      * Trip nights from tour check-in / check-out (minimum 1).
      */
     protected static function resolveTourNightCount(Tour $tour): int
@@ -4698,6 +5386,282 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         }
 
         return $plan;
+    }
+
+    /**
+     * Resolve quotation hotel display occupancy from booked rooming (not total pax).
+     * e.g. 14 pax in 7 double rooms => double occupancy, not triple.
+     *
+     * @param  \Illuminate\Support\Collection|array|null  $orders
+     * @param  array<int, array<string, mixed>>|null  $hotelOptions
+     * @return array{occupancy_key: string, rooming_text: string, room_counts: array{single: int, double: int, triple: int}}
+     */
+    public static function resolveQuotationHotelDisplayOccupancy($orders = null, ?array $hotelOptions = null, int $adults = 0): array
+    {
+        $roomCounts = ['single' => 0, 'double' => 0, 'triple' => 0];
+
+        $orderList = $orders instanceof \Illuminate\Support\Collection
+            ? $orders
+            : collect($orders ?? []);
+
+        foreach ($orderList as $order) {
+            if (strtolower((string) ($order->type ?? '')) !== 'hotel') {
+                continue;
+            }
+
+            $rawData = $order->data;
+            if (is_string($rawData)) {
+                $rawData = json_decode($rawData, true);
+            }
+            if (empty($rawData) || ! is_array($rawData)) {
+                continue;
+            }
+
+            $items = isset($rawData[0]) && is_array($rawData[0]) ? $rawData : [$rawData];
+            foreach ($items as $item) {
+                if (! is_array($item)) {
+                    continue;
+                }
+
+                $rooms = $item['rooms'] ?? [];
+                if (! is_array($rooms)) {
+                    continue;
+                }
+
+                foreach ($rooms as $room) {
+                    if (! is_array($room)) {
+                        continue;
+                    }
+
+                    $noOfRooms = (int) ($room['no_of_room'] ?? $room['number_of_rooms'] ?? 0);
+                    $noOfRooms = $noOfRooms > 0 ? $noOfRooms : 1;
+                    $beds = isset($room['beds']) && is_array($room['beds']) ? $room['beds'] : [];
+
+                    if (! empty($beds)) {
+                        foreach ($beds as $bed) {
+                            if (! is_array($bed)) {
+                                continue;
+                            }
+                            $headCount = (int) ($bed['head_count'] ?? $bed['headCount'] ?? $bed['occupancy'] ?? 0);
+                            if ($headCount >= 3) {
+                                $roomCounts['triple'] += $noOfRooms;
+                            } elseif ($headCount >= 2) {
+                                $roomCounts['double'] += $noOfRooms;
+                            } elseif ($headCount >= 1) {
+                                $roomCounts['single'] += $noOfRooms;
+                            }
+                        }
+                    } else {
+                        $selectedPersons = (int) ($room['selected_persons'] ?? $room['selectedPersons'] ?? 0);
+                        if ($selectedPersons === 3) {
+                            $roomCounts['triple'] += $noOfRooms;
+                        } elseif ($selectedPersons === 2) {
+                            $roomCounts['double'] += $noOfRooms;
+                        } elseif ($selectedPersons === 1) {
+                            $roomCounts['single'] += $noOfRooms;
+                        }
+                    }
+                }
+            }
+        }
+
+        if (($roomCounts['single'] + $roomCounts['double'] + $roomCounts['triple']) === 0 && is_array($hotelOptions)) {
+            foreach ($hotelOptions as $hotel) {
+                if (! is_array($hotel)) {
+                    continue;
+                }
+                $nor = $hotel['no_of_rooms'] ?? [];
+                if (! is_array($nor)) {
+                    continue;
+                }
+                $roomCounts['single'] += (int) ($nor['single'] ?? 0);
+                $roomCounts['double'] += (int) ($nor['double'] ?? 0);
+                $roomCounts['triple'] += (int) ($nor['triple'] ?? 0);
+            }
+        }
+
+        $totalRooms = $roomCounts['single'] + $roomCounts['double'] + $roomCounts['triple'];
+
+        if ($totalRooms > 0) {
+            if ($roomCounts['triple'] > 0
+                && $roomCounts['triple'] >= $roomCounts['double']
+                && $roomCounts['triple'] >= $roomCounts['single']) {
+                $occupancyKey = 'triple';
+            } elseif ($roomCounts['double'] > 0 && $roomCounts['double'] >= $roomCounts['single']) {
+                $occupancyKey = 'double';
+            } else {
+                $occupancyKey = 'single';
+            }
+        } else {
+            $occupancyKey = $adults <= 1 ? 'single' : 'double';
+            $roomCounts[$occupancyKey] = $occupancyKey === 'double'
+                ? max(1, (int) ceil(max(1, $adults) / 2))
+                : 1;
+        }
+
+        $roomingParts = [];
+        if ($roomCounts['single'] > 0) {
+            $roomingParts[] = sprintf('%02d SGL', $roomCounts['single']);
+        }
+        if ($roomCounts['double'] > 0) {
+            $roomingParts[] = sprintf('%02d DBL TWIN', $roomCounts['double']);
+        }
+        if ($roomCounts['triple'] > 0) {
+            $roomingParts[] = sprintf('%02d TRPL', $roomCounts['triple']);
+        }
+        if ($roomingParts === []) {
+            $roomingParts[] = match ($occupancyKey) {
+                'triple' => sprintf('%02d TRPL', max(1, $roomCounts['triple'])),
+                'double' => sprintf('%02d DBL TWIN', max(1, $roomCounts['double'])),
+                default => sprintf('%02d SGL', max(1, $roomCounts['single'])),
+            };
+        }
+
+        return [
+            'occupancy_key' => $occupancyKey,
+            'rooming_text' => implode(' + ', $roomingParts),
+            'room_counts' => $roomCounts,
+        ];
+    }
+
+    /**
+     * Hotel per-pax rate for quotation display from actual hotel order totalPrice.
+     * Formula: totalPrice / (number_of_rooms × head_count × nights)
+     *
+     * @param  \Illuminate\Support\Collection|array|null  $orders
+     * @return array{per_pax: float, nights: int, rooms: int, head_count: int, hotel_total: float}|null
+     */
+    public static function resolveHotelQuotationPerPaxFromOrders($orders = null, $tour = null, ?string $targetCurrency = null): ?array
+    {
+        $orderList = $orders instanceof \Illuminate\Support\Collection
+            ? $orders
+            : collect($orders ?? []);
+
+        $hotelTotal = 0.0;
+        $totalRooms = 0;
+        $headCountPerRoom = 0;
+        $nights = 0;
+
+        foreach ($orderList as $order) {
+            if ((int) ($order->status ?? 0) !== 1) {
+                continue;
+            }
+            if (strtolower((string) ($order->type ?? '')) !== 'hotel') {
+                continue;
+            }
+
+            $rawData = $order->data;
+            if (is_string($rawData)) {
+                $rawData = json_decode($rawData, true);
+            }
+            if (empty($rawData) || ! is_array($rawData)) {
+                continue;
+            }
+
+            $orderCurrency = strtoupper(trim((string) ($order->currency ?? '')));
+            if ($orderCurrency === '' && $tour) {
+                $orderCurrency = strtoupper(trim((string) ($tour->currency ?? 'SGD')));
+            }
+            if ($orderCurrency === '') {
+                $orderCurrency = strtoupper(trim((string) ($targetCurrency ?? 'SGD')));
+            }
+
+            $items = isset($rawData[0]) && is_array($rawData[0]) ? $rawData : [$rawData];
+            foreach ($items as $item) {
+                if (! is_array($item)) {
+                    continue;
+                }
+
+                $amount = (float) ($item['totalPrice'] ?? $item['price'] ?? 0);
+                if ($amount <= 0) {
+                    continue;
+                }
+
+                if ($targetCurrency !== null && $targetCurrency !== '') {
+                    $converted = CurrencyHelper::convertAmount($amount, $orderCurrency, $targetCurrency);
+                    $hotelTotal += ($converted !== null) ? (float) $converted : $amount;
+                } else {
+                    $hotelTotal += $amount;
+                }
+
+                $nights = max($nights, self::resolveHotelOrderNightCount($item, $tour));
+
+                $rooms = $item['rooms'] ?? [];
+                if (! is_array($rooms)) {
+                    continue;
+                }
+
+                foreach ($rooms as $room) {
+                    if (! is_array($room)) {
+                        continue;
+                    }
+
+                    $noOfRooms = max(1, (int) ($room['number_of_rooms'] ?? $room['no_of_room'] ?? 1));
+                    $totalRooms += $noOfRooms;
+
+                    $beds = isset($room['beds']) && is_array($room['beds']) ? $room['beds'] : [];
+                    if (! empty($beds) && is_array($beds[0] ?? null)) {
+                        $headCountPerRoom = max($headCountPerRoom, max(1, (int) ($beds[0]['head_count'] ?? $beds[0]['headCount'] ?? 1)));
+                    } else {
+                        $selected = (int) ($room['selected_persons'] ?? $room['selectedPersons'] ?? 0);
+                        $headCountPerRoom = max($headCountPerRoom, max(1, $selected > 0 ? $selected : 1));
+                    }
+                }
+            }
+        }
+
+        if ($hotelTotal <= 0 || $totalRooms <= 0) {
+            return null;
+        }
+
+        if ($nights <= 0) {
+            $nights = 1;
+        }
+        if ($headCountPerRoom <= 0) {
+            $headCountPerRoom = 1;
+        }
+
+        $divisor = $totalRooms * $headCountPerRoom * $nights;
+        $perPax = $hotelTotal / max(1, $divisor);
+
+        return [
+            'per_pax' => ceil($perPax),
+            'nights' => $nights,
+            'rooms' => $totalRooms,
+            'head_count' => $headCountPerRoom,
+            'hotel_total' => ceil($hotelTotal),
+        ];
+    }
+
+    /**
+     * Night count for a hotel order item (bookingDate range, else tour dates).
+     */
+    protected static function resolveHotelOrderNightCount(array $item, $tour = null): int
+    {
+        $bookingDate = $item['bookingDate'] ?? null;
+        if (is_array($bookingDate) && count($bookingDate) === 2) {
+            try {
+                $start = Carbon::parse($bookingDate[0]);
+                $end = Carbon::parse($bookingDate[1]);
+
+                return max(1, $start->diffInDays($end));
+            } catch (\Throwable $e) {
+                // fall through
+            }
+        }
+
+        if ($tour && ! empty($tour->check_in_time) && ! empty($tour->check_out_time)) {
+            try {
+                $start = Carbon::parse($tour->check_in_time);
+                $end = Carbon::parse($tour->check_out_time);
+
+                return max(1, $start->diffInDays($end));
+            } catch (\Throwable $e) {
+                // fall through
+            }
+        }
+
+        return 1;
     }
 
     /**
@@ -5521,6 +6485,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 'tourPrices' => $tourPrices,
                 'hotelOptions' => $hotelOptions,
                 'countryQuotationGroups' => $countryQuotationGroups,
+                'orders' => $orders,
                 'bankDetails' => $bankDetails,
                 'termsAndConditions' => $termsAndConditions,
                 'exclusions' => $exclusions,
@@ -5567,6 +6532,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                     'tourPrices' => $tourPrices,
                     'hotelOptions' => $hotelOptions,
                     'countryQuotationGroups' => $countryQuotationGroups,
+                    'orders' => $orders,
                     'bankDetails' => $bankDetails,
                     'termsAndConditions' => $termsAndConditions,
                     'exclusions' => $exclusions,
@@ -5915,6 +6881,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             'tourPrices' => $tourPrices,
             'hotelOptions' => $hotelOptions,
             'countryQuotationGroups' => $countryQuotationGroups,
+            'orders' => $orders,
             'bankDetails' => $bankDetails,
             'termsAndConditions' => $termsAndConditions,
             'exclusions' => $exclusions,
@@ -6020,6 +6987,38 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             'local_transport' => ['single' => 0, 'double' => 0],
             'other' => ['single' => 0, 'double' => 0],
         ];
+
+        // Per-service lines for quotation price breakdown (non-hotel, non-supplement)
+        $servicePriceLines = [];
+        $appendServicePriceLine = function (
+            string $type,
+            array $item,
+            float $singleSharing,
+            float $doubleSharing,
+            float $childUnitPrice = 0.0,
+            bool $isSupplementRow = false
+        ) use (&$servicePriceLines): void {
+            if ($isSupplementRow) {
+                return;
+            }
+
+            $normalizedType = strtolower(str_replace(' ', '_', trim($type)));
+            if ($normalizedType === 'hotel') {
+                return;
+            }
+
+            if ($singleSharing <= 0 && $doubleSharing <= 0 && $childUnitPrice <= 0) {
+                return;
+            }
+
+            $servicePriceLines[] = [
+                'label' => self::resolveOrderItemPriceLabel($type, $item),
+                'type' => $normalizedType,
+                'single' => $singleSharing,
+                'double' => $doubleSharing,
+                'child_unit' => $childUnitPrice,
+            ];
+        };
 
         // Supplements: services with "supplement": true (excluded from main total).
         // Non-hotel supplement rows expose full line booking total; hotel supplements use stay totals per rooming.
@@ -6789,6 +7788,14 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                                 $otherServiceSingle += $singleSharing;
                                 $otherServiceDouble += $doubleSharing;
                                 $trackCountryOther((float)$singleSharing, (float)$doubleSharing);
+                                $appendServicePriceLine(
+                                    $type,
+                                    $item,
+                                    (float) $singleSharing,
+                                    (float) $doubleSharing,
+                                    (float) ($childUnitPrice ?? 0),
+                                    $isSupplement
+                                );
                             }
                         }
                         // Handle entry_port and exit_port
@@ -6810,6 +7817,14 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                                 $otherServiceSingle += $singleSharing;
                                 $otherServiceDouble += $doubleSharing;
                                 $trackCountryOther((float)$singleSharing, (float)$doubleSharing);
+                                $appendServicePriceLine(
+                                    $type,
+                                    $item,
+                                    (float) $singleSharing,
+                                    (float) $doubleSharing,
+                                    0.0,
+                                    $isSupplement
+                                );
                             }
                         }
                         // Handle travel_point, travel_hourly, local_transport
@@ -6831,6 +7846,14 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                                 $otherServiceSingle += $singleSharing;
                                 $otherServiceDouble += $doubleSharing;
                                 $trackCountryOther((float)$singleSharing, (float)$doubleSharing);
+                                $appendServicePriceLine(
+                                    $type,
+                                    $item,
+                                    (float) $singleSharing,
+                                    (float) $doubleSharing,
+                                    0.0,
+                                    $isSupplement
+                                );
                             }
                         }
                         // Handle guide: per adult price (totalPrice / Adults)
@@ -6849,6 +7872,14 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                                 $otherServiceSingle += $singleSharing;
                                 $otherServiceDouble += $doubleSharing;
                                 $trackCountryOther((float)$singleSharing, (float)$doubleSharing);
+                                $appendServicePriceLine(
+                                    $type,
+                                    $item,
+                                    (float) $singleSharing,
+                                    (float) $doubleSharing,
+                                    0.0,
+                                    $isSupplement
+                                );
                             }
                         }
                         // Default calculation for other service types
@@ -6873,6 +7904,14 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                                 $otherServiceSingle += $singleSharing;
                                 $otherServiceDouble += $doubleSharing;
                                 $trackCountryOther((float)$singleSharing, (float)$doubleSharing);
+                                $appendServicePriceLine(
+                                    $type,
+                                    $item,
+                                    (float) $singleSharing,
+                                    (float) $doubleSharing,
+                                    0.0,
+                                    $isSupplement
+                                );
                             }
                         }
 
@@ -7140,6 +8179,16 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             return $row;
         }, $supplements);
 
+        $servicePriceLinesFormatted = array_values(array_map(function (array $line) use ($otherFactor) {
+            return [
+                'label' => $line['label'] ?? 'Service',
+                'type' => $line['type'] ?? 'other',
+                'single' => ceil((float) ($line['single'] ?? 0) * $otherFactor),
+                'double' => ceil((float) ($line['double'] ?? 0) * $otherFactor),
+                'child_unit' => ceil((float) ($line['child_unit'] ?? 0) * $otherFactor),
+            ];
+        }, $servicePriceLines));
+
         return [
             // Per-head totals (hotel + other services, supplements excluded)
             'single_sharing'       => ceil($totalSingleSharing),
@@ -7147,6 +8196,8 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             'triple_sharing'       => ceil($totalTripleSharing),
             // Hotel-wise per-head prices (each hotel separately, for rooming scenarios)
             'hotel_price_options'  => $hotelPriceOptions,
+            // Per-service lines for segregated quotation breakdown
+            'service_price_lines'  => $servicePriceLinesFormatted,
             // Other services per-head total (non-hotel, non-supplement)
             'other_services_single' => ceil($otherServiceSingle),
             'other_services_double' => ceil($otherServiceDouble),
@@ -8172,7 +9223,16 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                                     }
                                 }
                             } else {
-                                $totalSingleRooms += $noOfRooms;
+                                $selectedPersons = (int) ($room['selected_persons'] ?? $room['selectedPersons'] ?? 0);
+                                if ($selectedPersons === 3) {
+                                    $totalTripleRooms += $noOfRooms;
+                                } elseif ($selectedPersons === 2) {
+                                    $totalDoubleRooms += $noOfRooms;
+                                } elseif ($selectedPersons === 1) {
+                                    $totalSingleRooms += $noOfRooms;
+                                } else {
+                                    $totalSingleRooms += $noOfRooms;
+                                }
                             }
                         }
                     }
@@ -8238,7 +9298,16 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                                     }
                                 }
                             } else {
-                                $roomSingleCount = $noOfRooms;
+                                $selectedPersons = (int) ($firstRoom['selected_persons'] ?? $firstRoom['selectedPersons'] ?? 0);
+                                if ($selectedPersons === 3) {
+                                    $roomTripleCount += $noOfRooms;
+                                } elseif ($selectedPersons === 2) {
+                                    $roomDoubleCount += $noOfRooms;
+                                } elseif ($selectedPersons === 1) {
+                                    $roomSingleCount += $noOfRooms;
+                                } else {
+                                    $roomSingleCount += $noOfRooms;
+                                }
                             }
                             $totalSingleRooms += $roomSingleCount;
                             $totalDoubleRooms += $roomDoubleCount;

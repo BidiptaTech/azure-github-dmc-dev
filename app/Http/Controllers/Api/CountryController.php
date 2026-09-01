@@ -86,68 +86,37 @@ class CountryController extends Controller
             return response()->json(['error' => 'Agency not found'], 404);
         }
 
-        $agentDmcIds = $agency->dmc_id;
+        $agentDmcIds = $this->parseIdList($agency->dmc_id);
+        $candidates = $this->getAgencyDmcUsers($agentDmcIds, true);
 
-        if (is_string($agentDmcIds) && str_starts_with(trim($agentDmcIds), '[')) {
-            $agentDmcIds = json_decode($agentDmcIds, true);
-        } elseif (is_string($agentDmcIds)) {
-            $agentDmcIds = explode(',', $agentDmcIds);
+        $selectedCities = $this->resolveSelectedCities($request);
+        $requestCountries = $this->countriesFromSelectedCities($selectedCities);
+
+        $matchingUserIds = [];
+        $masterCountriesByUserId = [];
+        foreach ($candidates as $dmcUser) {
+            if ($this->isThirdPartyDmc($dmcUser)) {
+                continue;
+            }
+
+            $dmcCountries = $this->getMasterDmcCountryNamesForDmc((int) $dmcUser->userId);
+            $masterCountriesByUserId[(int) $dmcUser->userId] = $dmcCountries;
+
+            if (!empty($requestCountries) && !$this->masterDmcCoversAllCountries($dmcCountries, $requestCountries)) {
+                continue;
+            }
+
+            $matchingUserIds[] = (int) $dmcUser->userId;
         }
+        $matchingUserIds = array_values(array_unique($matchingUserIds));
 
-        if (!is_array($agentDmcIds)) {
-            $agentDmcIds = $agentDmcIds ? [$agentDmcIds] : [];
-        }
-
-        $agentDmcIds = array_values(array_unique(array_map('intval', array_filter($agentDmcIds, function ($id) {
-            return $id !== null && $id !== '' && (int) $id > 0;
-        }))));
-
-        $dmcColumns = ['userId', 'salutation', 'name', 'company_name', 'email', 'phone', 'country', 'logo', 'address', 'zone_on', 'price_hide'];
+        $dmcColumns = [
+            'userId', 'dmcId', 'salutation', 'name', 'company_name', 'email', 'phone',
+            'country', 'logo', 'address', 'zone_on', 'price_hide', 'thirdparty', 'thirdparty_enabled',
+        ];
         $dmcsQuery = User::select($dmcColumns)
             ->where('role_id', 11)
-            ->whereIn('dmcId', $agentDmcIds ?: [0]);
-
-        $requestCountries = [];
-        if ($request->filled('country')) {
-            $countryParam = $request->country;
-
-            if (is_string($countryParam) && str_starts_with(trim($countryParam), '[')) {
-                $cleanedParam = str_replace(["''", "'"], '"', $countryParam);
-                $requestCountries = json_decode($cleanedParam, true);
-                if (json_last_error() !== JSON_ERROR_NONE) {
-                    return response()->json(['error' => 'Invalid country format'], 400);
-                }
-            } elseif (is_array($countryParam)) {
-                $requestCountries = $countryParam;
-            } else {
-                $requestCountries = [$countryParam];
-            }
-
-            if (!is_array($requestCountries)) {
-                $requestCountries = [$requestCountries];
-            }
-
-            $requestCountries = array_values(array_filter($requestCountries, function ($country) {
-                return $country !== null && trim((string) $country) !== '';
-            }));
-
-            if (empty($requestCountries)) {
-                return response()->json(['error' => 'No valid countries provided'], 400);
-            }
-
-            $normalizedCountries = array_map(function ($country) {
-                return preg_replace('/\s+/', '', (string) $country);
-            }, $requestCountries);
-
-            $quoted = array_map(function ($country) {
-                return '"' . str_replace('"', '\\"', $country) . '"';
-            }, $normalizedCountries);
-
-            $dmcsQuery->whereRaw(
-                "string_to_array(regexp_replace(country, '\\s+', '', 'g'), ',') && ?",
-                ['{' . implode(',', $quoted) . '}']
-            );
-        }
+            ->whereIn('userId', $matchingUserIds ?: [0]);
 
         if ($request->filled('search')) {
             $search = $request->search;
@@ -161,13 +130,22 @@ class CountryController extends Controller
         $page = (int) $request->input('page', 1);
         $dmcs = $dmcsQuery->paginate($perPage, ['*'], 'page', $page);
 
-        $dmcs->getCollection()->transform(function ($dmc) {
+        $dmcs->getCollection()->transform(function ($dmc) use ($masterCountriesByUserId, $selectedCities) {
             $dmc->zone_on = $dmc->zone_on ?? false;
             $dmc->price_hide = $dmc->price_hide ?? false;
+            $dmc->thirdparty = strtolower(trim((string) ($dmc->thirdparty ?? 'no'))) === 'yes' ? 'yes' : 'no';
+            $dmc->thirdparty_enabled = strtolower(trim((string) ($dmc->thirdparty_enabled ?? 'no'))) === 'yes' ? 'yes' : 'no';
+            $dmc->is_third_party = $dmc->thirdparty === 'yes';
+            $dmc->master_countries = $masterCountriesByUserId[(int) $dmc->userId] ?? [];
+            $dmc->selected_cities = $selectedCities;
             return $dmc;
         });
 
-        return response()->json($dmcs);
+        $payload = $dmcs->toArray();
+        $payload['selected_cities'] = $selectedCities;
+        $payload['countries'] = $requestCountries;
+
+        return response()->json($payload);
     }
 
     public function dmcCount(Request $request){
@@ -252,15 +230,7 @@ class CountryController extends Controller
         }
 
         $agentDmcIds = $this->parseIdList($agency->dmc_id);
-        $dmcUsers = collect();
-        if (!empty($agentDmcIds)) {
-            $dmcUsers = User::where('role_id', 11)
-                ->where(function ($q) use ($agentDmcIds) {
-                    $q->whereIn('userId', $agentDmcIds)
-                        ->orWhereIn('dmcId', $agentDmcIds);
-                })
-                ->get();
-        }
+        $dmcUsers = $this->getAgencyDmcUsers($agentDmcIds, true);
 
         $countryNames = [];
         foreach ($dmcUsers as $dmcUser) {
@@ -317,6 +287,371 @@ class CountryController extends Controller
             'results' => $formattedResults,
             'count' => $formattedResults->count(),
         ]);
+    }
+
+    /**
+     * Same rule as Single Tour Lite create form: Multi City is blocked when thirdparty=yes.
+     */
+    private function isThirdPartyDmc(?User $dmcUser): bool
+    {
+        if (!$dmcUser) {
+            return false;
+        }
+
+        return strtolower(trim((string) ($dmcUser->thirdparty ?? 'no'))) === 'yes';
+    }
+
+    /**
+     * @param  array<int, int>  $agentDmcIds
+     * @return \Illuminate\Support\Collection<int, User>
+     */
+    private function getAgencyDmcUsers(array $agentDmcIds, bool $excludeThirdParty = false)
+    {
+        if (empty($agentDmcIds)) {
+            return collect();
+        }
+
+        $query = User::where('role_id', 11)
+            ->where(function ($q) use ($agentDmcIds) {
+                $q->whereIn('userId', $agentDmcIds)
+                    ->orWhereIn('dmcId', $agentDmcIds);
+            });
+
+        if ($excludeThirdParty) {
+            $query->where(function ($q) {
+                $q->whereNull('thirdparty')
+                    ->orWhereRaw("LOWER(TRIM(thirdparty::text)) <> ?", ['yes']);
+            });
+        }
+
+        return $query->get();
+    }
+
+    /**
+     * Resolve frontend-chosen cities into city + country rows for DMC mapping.
+     * Accepts city-country search results, city names, "City (Country)", or city_id.
+     *
+     * @return array<int, array{city_id: mixed, city: string, country: string, formatted: string}>
+     */
+    private function resolveSelectedCities(Request $request): array
+    {
+        $selected = [];
+        $seen = [];
+
+        $add = function (array $row) use (&$selected, &$seen) {
+            $city = trim((string) ($row['city'] ?? ''));
+            $country = trim((string) ($row['country'] ?? ''));
+            $cityId = $row['city_id'] ?? null;
+            if ($city === '' && $country === '' && empty($cityId)) {
+                return;
+            }
+
+            $key = mb_strtolower($city . '|' . $country . '|' . (string) ($cityId ?? ''), 'UTF-8');
+            if (isset($seen[$key])) {
+                return;
+            }
+            $seen[$key] = true;
+
+            $selected[] = [
+                'city_id' => $cityId,
+                'city' => $city,
+                'country' => $country,
+                'formatted' => $country !== ''
+                    ? ($city !== '' ? ($city . ', ' . $country) : $country)
+                    : $city,
+            ];
+        };
+
+        $cityIds = array_merge(
+            $this->parseIdList($request->input('city_id')),
+            $this->parseIdList($request->input('city_ids'))
+        );
+        if (!empty($cityIds)) {
+            foreach (City::whereIn('city_id', $cityIds)->get(['city_id', 'name', 'country']) as $city) {
+                $attrs = $city->getAttributes();
+                $add([
+                    'city_id' => $city->city_id,
+                    'city' => (string) $city->name,
+                    'country' => (string) ($attrs['country'] ?? ''),
+                ]);
+            }
+        }
+
+        foreach (['cities', 'city'] as $key) {
+            if (!$request->filled($key)) {
+                continue;
+            }
+            foreach ($this->normalizeCityInput($request->input($key)) as $item) {
+                if (is_array($item)) {
+                    $cityName = trim((string) ($item['city'] ?? $item['name'] ?? ''));
+                    $countryName = trim((string) ($item['country'] ?? ''));
+                    $text = trim((string) ($item['text'] ?? $item['formatted'] ?? ''));
+                    $itemCityId = $item['city_id'] ?? $item['id'] ?? null;
+
+                    if ($cityName === '' && $text !== '') {
+                        $parsed = $this->parseCityCountryLabel($text);
+                        $cityName = $parsed['city'];
+                        $countryName = $countryName !== '' ? $countryName : $parsed['country'];
+                    } elseif ($cityName !== '' && $countryName === '') {
+                        $parsed = $this->parseCityCountryLabel($cityName);
+                        $cityName = $parsed['city'];
+                        $countryName = $parsed['country'];
+                    }
+
+                    if (!empty($itemCityId) && (int) $itemCityId > 0) {
+                        $fromId = $this->findCityRowById((int) $itemCityId);
+                        if ($fromId) {
+                            $add($fromId);
+                            continue;
+                        }
+                    }
+
+                    $fromName = $this->findCityRowByName($cityName, $countryName);
+                    $add($fromName ?: [
+                        'city_id' => null,
+                        'city' => $cityName,
+                        'country' => $countryName,
+                    ]);
+                    continue;
+                }
+
+                $parsed = $this->parseCityCountryLabel(trim((string) $item));
+                $fromName = $this->findCityRowByName($parsed['city'], $parsed['country']);
+                if ($fromName) {
+                    $add($fromName);
+                    continue;
+                }
+
+                $country = $parsed['country'];
+                if ($country === '' && $parsed['city'] !== '') {
+                    $country = (string) (City::whereRaw('LOWER(name) = ?', [mb_strtolower($parsed['city'], 'UTF-8')])->value('country') ?? '');
+                    if ($country === '') {
+                        $country = $parsed['city'];
+                    }
+                }
+                $add([
+                    'city_id' => null,
+                    'city' => $parsed['city'],
+                    'country' => $country,
+                ]);
+            }
+        }
+
+        if (empty($selected)) {
+            foreach (['country', 'countries'] as $key) {
+                if (!$request->filled($key)) {
+                    continue;
+                }
+                foreach ($this->parseFlexibleList($request->input($key)) as $label) {
+                    $fromCity = $this->findCityRowByName($label, '');
+                    if ($fromCity) {
+                        $add($fromCity);
+                        continue;
+                    }
+                    $add([
+                        'city_id' => null,
+                        'city' => '',
+                        'country' => $label,
+                    ]);
+                }
+            }
+        }
+
+        return array_values($selected);
+    }
+
+    /**
+     * @param  array<int, array{country?: string}>  $selectedCities
+     * @return array<int, string>
+     */
+    private function countriesFromSelectedCities(array $selectedCities): array
+    {
+        $countries = [];
+        foreach ($selectedCities as $row) {
+            $country = trim((string) ($row['country'] ?? ''));
+            if ($country !== '') {
+                $countries[] = $country;
+            }
+        }
+
+        return array_values(array_unique($countries));
+    }
+
+    /**
+     * @param  mixed  $value
+     * @return array<int, mixed>
+     */
+    private function normalizeCityInput($value): array
+    {
+        if (is_string($value) && str_starts_with(trim($value), '[')) {
+            $cleaned = str_replace(["''", "'"], '"', $value);
+            $decoded = json_decode($cleaned, true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                return array_values($decoded);
+            }
+        }
+
+        if (is_array($value)) {
+            return array_values($value);
+        }
+
+        if (!is_string($value) || trim($value) === '') {
+            return [];
+        }
+
+        $labels = $this->expandCityLabels(trim($value));
+        return array_values($labels);
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function expandCityLabels(string $value): array
+    {
+        if (preg_match('/^.+\(.+\)$/', $value)) {
+            return [$value];
+        }
+
+        $parts = array_values(array_filter(array_map('trim', preg_split('/\s*,\s*/', $value) ?: [])));
+        if (count($parts) === 2) {
+            $maybeCountry = mb_strtolower($parts[1], 'UTF-8');
+            $isCountry = Country::whereRaw('LOWER(name) = ?', [$maybeCountry])->exists()
+                || City::whereRaw('LOWER(country) = ?', [$maybeCountry])->exists();
+            if ($isCountry) {
+                return [$value];
+            }
+        }
+
+        return $parts;
+    }
+
+    /**
+     * @return array{city: string, country: string}
+     */
+    private function parseCityCountryLabel(string $label): array
+    {
+        $label = trim($label);
+        if (preg_match('/^(.+?)\s*\((.+)\)$/', $label, $m)) {
+            return ['city' => trim($m[1]), 'country' => trim($m[2])];
+        }
+        if (preg_match('/^(.+?)\s*,\s*(.+)$/', $label, $m)) {
+            return ['city' => trim($m[1]), 'country' => trim($m[2])];
+        }
+
+        return ['city' => $label, 'country' => ''];
+    }
+
+    /**
+     * @return array{city_id: mixed, city: string, country: string}|null
+     */
+    private function findCityRowById(int $cityId): ?array
+    {
+        $city = City::where('city_id', $cityId)->first(['city_id', 'name', 'country']);
+        if (!$city) {
+            return null;
+        }
+
+        $attrs = $city->getAttributes();
+        return [
+            'city_id' => $city->city_id,
+            'city' => (string) $city->name,
+            'country' => (string) ($attrs['country'] ?? ''),
+        ];
+    }
+
+    /**
+     * @return array{city_id: mixed, city: string, country: string}|null
+     */
+    private function findCityRowByName(string $cityName, string $countryName = ''): ?array
+    {
+        $cityName = trim($cityName);
+        if ($cityName === '') {
+            return null;
+        }
+
+        $query = City::query()->whereRaw('LOWER(name) = ?', [mb_strtolower($cityName, 'UTF-8')]);
+        if ($countryName !== '') {
+            $query->whereRaw('LOWER(country) = ?', [mb_strtolower($countryName, 'UTF-8')]);
+        }
+
+        $city = $query->first(['city_id', 'name', 'country']);
+        if (!$city && $countryName !== '') {
+            $city = City::whereRaw('LOWER(name) = ?', [mb_strtolower($cityName, 'UTF-8')])
+                ->first(['city_id', 'name', 'country']);
+        }
+        if (!$city) {
+            return null;
+        }
+
+        $attrs = $city->getAttributes();
+        return [
+            'city_id' => $city->city_id,
+            'city' => (string) $city->name,
+            'country' => (string) ($attrs['country'] ?? ''),
+        ];
+    }
+
+    /**
+     * @param  mixed  $value
+     * @return array<int, string>
+     */
+    private function parseFlexibleList($value): array
+    {
+        if (is_string($value) && str_starts_with(trim($value), '[')) {
+            $cleaned = str_replace(["''", "'"], '"', $value);
+            $decoded = json_decode($cleaned, true);
+            $value = json_last_error() === JSON_ERROR_NONE ? $decoded : $value;
+        } elseif (is_string($value)) {
+            $value = preg_split('/\s*,\s*/', $value) ?: [];
+        }
+
+        if (!is_array($value)) {
+            $value = $value !== null && $value !== '' ? [$value] : [];
+        }
+
+        return array_values(array_filter(array_map(static function ($item) {
+            return trim((string) $item);
+        }, $value), static fn ($item) => $item !== ''));
+    }
+
+    /**
+     * True when every searched city-country exists on this master DMC's country list.
+     *
+     * Example: MDMC1 = Australia,Indonesia,India,Singapore
+     *          MDMC2 = Malaysia,Singapore,Indonesia,India
+     * - Kolkata(India) + Singapore → both MDMCs (common countries)
+     * - Kolkata(India) + Sydney(Australia) → MDMC1 only
+     * - Sydney(Australia) + Malacca(Malaysia) → none (split across MDMCs)
+     *
+     * @param  array<int, string>  $masterCountries
+     * @param  array<int, string>  $requestedCountries
+     */
+    private function masterDmcCoversAllCountries(array $masterCountries, array $requestedCountries): bool
+    {
+        if (empty($requestedCountries)) {
+            return true;
+        }
+
+        if (empty($masterCountries)) {
+            return false;
+        }
+
+        $masterNorm = array_values(array_unique(array_filter(array_map(
+            static fn ($c) => mb_strtolower(trim((string) $c), 'UTF-8'),
+            $masterCountries
+        ), static fn ($c) => $c !== '')));
+
+        foreach ($requestedCountries as $country) {
+            $needle = mb_strtolower(trim((string) $country), 'UTF-8');
+            if ($needle === '') {
+                continue;
+            }
+            if (!in_array($needle, $masterNorm, true)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**

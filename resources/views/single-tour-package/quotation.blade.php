@@ -224,9 +224,14 @@
         // Pro form: hotel single column uses double rate (both columns show the same hotel price).
         $isProTour = (int)($tour->is_pro ?? 0) === 1;
 
-        // Very basic rooming heuristic: if >= 2 adults, show DBL
-        $occupancyKey = $adults >= 2 ? 'double' : 'single';
-        $roomingText = $adults >= 2 ? '01 DBL TWIN' : '01 SGL';
+        $hotelDisplayOccupancy = \App\Helpers\CommonHelper::resolveQuotationHotelDisplayOccupancy(
+            $orders ?? collect(),
+            is_array($hotelOptions ?? null) ? $hotelOptions : null,
+            $adults
+        );
+        $occupancyKey = $hotelDisplayOccupancy['occupancy_key'];
+        $roomingText = $hotelDisplayOccupancy['rooming_text'];
+        $displayOccupancyKey = $occupancyKey;
 
         $baseCurrency = strtoupper($baseCurrency ?? ($tour->currency ?? 'SGD'));
         $selectedCurrency = strtoupper($selectedCurrency ?? $baseCurrency);
@@ -299,6 +304,185 @@
         $hotelOnlyTripleTotal = $tripleSharingTotal > 0
             ? max(0, $tripleSharingTotal - $otherSingleTotal)
             : 0;
+
+        // Triple occupancy is available when extra-bed pricing exists in tour totals.
+        $tripleOccupancyAvailable = $hotelOnlyTripleTotal > 0;
+
+        // Show only the hotel price cell that matches booked room occupancy (others stay blank).
+        $formatOccupancyHotelCells = function ($single, $double, $triple, $tripleAvailable, callable $moneyFormatter) use ($displayOccupancyKey) {
+            $blank = '';
+            $singleCell = $blank;
+            $doubleCell = $blank;
+            $tripleCell = $blank;
+
+            if ($displayOccupancyKey === 'single' && (float) $single > 0) {
+                $singleCell = $moneyFormatter($single);
+            } elseif ($displayOccupancyKey === 'double' && (float) $double > 0) {
+                $doubleCell = $moneyFormatter($double);
+            } elseif ($displayOccupancyKey === 'triple' && $tripleAvailable && (float) $triple > 0) {
+                $tripleCell = $moneyFormatter($triple);
+            }
+
+            return [$singleCell, $doubleCell, $tripleCell];
+        };
+
+        // Sum sell totals from each active order (same rules as negotiation gross).
+        $extractQuotationOrderAmount = function ($order) use ($isProTour) {
+            $data = is_string($order->data ?? null) ? json_decode($order->data, true) : ($order->data ?? null);
+            if (! is_array($data)) {
+                return 0.0;
+            }
+
+            $items = isset($data[0]) ? $data : [$data];
+            $orderType = (string) ($order->type ?? '');
+            $total = 0.0;
+
+            foreach ($items as $item) {
+                if (! is_array($item)) {
+                    continue;
+                }
+
+                $itemPrice = (float) ($item['totalPrice'] ?? $item['price'] ?? 0);
+                $transferPrice = 0.0;
+                if ($orderType !== 'hotel' && isset($item['transfer_options']['cost']) && $item['transfer_options']['cost'] > 0) {
+                    if ($isProTour && isset($item['transfer_options']['totalPrice'])) {
+                        $transferPrice = (float) $item['transfer_options']['totalPrice'];
+                    } else {
+                        $transferPrice = (float) $item['transfer_options']['cost'];
+                    }
+                }
+
+                $guidePrice = 0.0;
+                if (isset($item['guide_options']) && is_array($item['guide_options'])) {
+                    $gv = $item['guide_options']['total_price']
+                        ?? $item['guide_options']['cost']
+                        ?? $item['guide_options']['Cost']
+                        ?? $item['guide_options']['sell']
+                        ?? $item['guide_options']['Sell']
+                        ?? 0;
+                    if ($gv > 0) {
+                        $guidePrice = (float) $gv;
+                    }
+                }
+
+                $total += $itemPrice + $transferPrice + $guidePrice;
+            }
+
+            return $total;
+        };
+
+        $resolveQuotationOrderLabel = function ($order) {
+            $typeLabel = \Illuminate\Support\Str::headline(str_replace('_', ' ', (string) ($order->type ?? 'Order')));
+            $bookingId = $order->booking_id ?? '';
+            $data = is_string($order->data ?? null) ? json_decode($order->data, true) : ($order->data ?? null);
+            $item = is_array($data) ? (isset($data[0]) && is_array($data[0]) ? $data[0] : $data) : [];
+            $name = trim((string) (
+                $item['hotelDetails']['hotel_name']
+                ?? $item['hotelname']
+                ?? $item['AttractionName']
+                ?? $item['attractionName']
+                ?? $item['restaurantName']
+                ?? $item['restaurant_name']
+                ?? ''
+            ));
+
+            $label = $typeLabel;
+            if ($name !== '') {
+                $label .= ' — ' . $name;
+            }
+            if ($bookingId !== '') {
+                $label .= ' (#' . $bookingId . ')';
+            }
+
+            return $label;
+        };
+
+        $quotationOrderRows = [];
+        $overallQuotationTotal = 0.0;
+        $overallQuotationConvertedOk = true;
+
+        foreach (($orders ?? collect()) as $order) {
+            if ((int) ($order->status ?? 0) !== 1) {
+                continue;
+            }
+
+            $amount = $extractQuotationOrderAmount($order);
+            if ($amount <= 0) {
+                continue;
+            }
+
+            $orderCurrency = strtoupper(trim((string) ($order->currency ?? $baseCurrency)));
+            if ($orderCurrency === '') {
+                $orderCurrency = strtoupper((string) $baseCurrency);
+            }
+
+            $convertedAmount = \App\Helpers\CurrencyHelper::convertAmount($amount, $orderCurrency, $selectedCurrency);
+            if ($convertedAmount === null) {
+                if ($orderCurrency === $selectedCurrency) {
+                    $convertedAmount = $amount;
+                } else {
+                    $overallQuotationConvertedOk = false;
+                    $convertedAmount = $amount;
+                }
+            }
+
+            $quotationOrderRows[] = [
+                'label' => $resolveQuotationOrderLabel($order),
+                'amount' => $amount,
+                'currency' => $orderCurrency,
+                'converted_amount' => (float) $convertedAmount,
+            ];
+
+            if ($overallQuotationConvertedOk) {
+                $overallQuotationTotal += (float) $convertedAmount;
+            }
+        }
+
+        if (! $overallQuotationConvertedOk) {
+            $overallQuotationTotal = array_sum(array_column($quotationOrderRows, 'amount'));
+        } else {
+            $overallQuotationTotal = ceil($overallQuotationTotal);
+        }
+
+        // Other-services totals from actual order amounts (not per-pax sharing rates).
+        $otherOrderTotalByBucketKey = [];
+        $overallOtherServicesOrderTotal = 0.0;
+        $overallOtherServicesOrdersConvertedOk = true;
+
+        foreach ($countryQuotationGroups ?? [] as $group) {
+            if (! is_array($group)) {
+                continue;
+            }
+
+            $bucketKey = (string) ($group['key'] ?? '');
+            $otherAmt = (float) ($group['other_total'] ?? 0);
+            if ($bucketKey !== '') {
+                $otherOrderTotalByBucketKey[$bucketKey] = $otherAmt;
+            }
+
+            $groupCurrency = strtoupper(trim((string) ($group['currency'] ?? $baseCurrency)));
+            if ($groupCurrency === '') {
+                $groupCurrency = strtoupper((string) $baseCurrency);
+            }
+
+            $convertedOther = \App\Helpers\CurrencyHelper::convertAmount($otherAmt, $groupCurrency, $selectedCurrency);
+            if ($convertedOther === null) {
+                if ($groupCurrency === $selectedCurrency) {
+                    $overallOtherServicesOrderTotal += $otherAmt;
+                } else {
+                    $overallOtherServicesOrdersConvertedOk = false;
+                }
+            } else {
+                $overallOtherServicesOrderTotal += (float) $convertedOther;
+            }
+        }
+
+        if ($overallOtherServicesOrdersConvertedOk) {
+            $overallOtherServicesOrderTotal = ceil($overallOtherServicesOrderTotal);
+        } else {
+            $overallOtherServicesOrderTotal = array_sum($otherOrderTotalByBucketKey);
+        }
+        $otherServicesDisplayPerPax = $otherTotalForOccupancy;
 
         // Build booked inclusions list from servicesByType (derived from orders for this tour)
         // We intentionally only show the categories requested by the user.
@@ -709,8 +893,9 @@
                 </td>
             </tr>
         </table>
-        
 
+
+        
         @if(!empty($allCountryKeys))
             @foreach($allCountryKeys as $bucketKey)
                 @php
@@ -931,10 +1116,19 @@
                         $shareHotelSingle = (float)($share['hotel_single'] ?? 0);
                         $shareHotelDouble = (float)($share['hotel_double'] ?? 0);
                         $shareHotelTriple = (float)($share['hotel_triple'] ?? 0);
-                        $shareOther = (float)($share['other_services_single'] ?? ($share['other_services_double'] ?? 0));
+                        $shareKey = (string)($share['key'] ?? (mb_strtolower($shareCountry) . '|' . $shareCurrency));
+                        $shareOther = (float)($otherOrderTotalByBucketKey[$shareKey] ?? 0);
                         if ($isProTour) {
                             $shareHotelSingle = $shareHotelDouble > 0 ? $shareHotelDouble : $shareHotelSingle;
                         }
+                        $shareTripleAvailable = $shareHotelTriple > 0;
+                        [$shareCellSingle, $shareCellDouble, $shareCellTriple] = $formatOccupancyHotelCells(
+                            $shareHotelSingle,
+                            $shareHotelDouble,
+                            $shareHotelTriple,
+                            $shareTripleAvailable,
+                            fn ($amount) => $formatNativeMoney($amount, $shareCurrency)
+                        );
                     @endphp
                     <div style="border-top: 1px solid #000;">
                         <div class="country-box-title" style="border-bottom: 1px solid #000;">{{ $shareCountry }} ({{ $shareCurrency }})</div>
@@ -952,9 +1146,9 @@
                                         </thead>
                                         <tbody>
                                             <tr>
-                                                <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatNativeMoney($shareHotelSingle, $shareCurrency) }}</td>
-                                                <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatNativeMoney($shareHotelDouble, $shareCurrency) }}</td>
-                                                <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $shareHotelTriple > 0 ? $formatNativeMoney($shareHotelTriple, $shareCurrency) : '—' }}</td>
+                                                <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $shareCellSingle }}</td>
+                                                <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $shareCellDouble }}</td>
+                                                <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $shareCellTriple }}</td>
                                             </tr>
                                         </tbody>
                                     </table>
@@ -964,7 +1158,7 @@
                                     <table style="width: 100%; border-collapse: collapse; border: 1px solid #000; table-layout: fixed;">
                                         <thead>
                                             <tr>
-                                                <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center;">Price (per pax)</th>
+                                                <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center;">Total Price</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -1077,6 +1271,36 @@
                 $overallHotelTriple = $overallHotelTriple > 0 ? ceil($overallHotelTriple) : 0;
                 $overallOther = ceil($overallOther);
             }
+
+            $overallTripleAvailable = $overallConvertedOk
+                ? ($overallHotelTriple > 0)
+                : ($hotelOnlyTripleTotal > 0);
+            $overallHotelSingleDisplay = $overallConvertedOk ? $overallHotelSingle : $hotelOnlySingleTotal;
+            $overallHotelDoubleDisplay = $overallConvertedOk ? $overallHotelDouble : $hotelOnlyDoubleTotal;
+            $overallHotelTripleDisplay = $overallConvertedOk ? $overallHotelTriple : $hotelOnlyTripleTotal;
+
+            $hotelPerPaxFromOrders = \App\Helpers\CommonHelper::resolveHotelQuotationPerPaxFromOrders(
+                $orders ?? collect(),
+                $tour,
+                $selectedCurrency
+            );
+            if ($hotelPerPaxFromOrders && ($hotelPerPaxFromOrders['per_pax'] ?? 0) > 0) {
+                $orderHotelPerPax = (float) $hotelPerPaxFromOrders['per_pax'];
+                $overallHotelSingleDisplay = $orderHotelPerPax;
+                $overallHotelDoubleDisplay = $orderHotelPerPax;
+                $overallHotelTripleDisplay = $orderHotelPerPax;
+            }
+
+            $overallHotelMoneyFormatter = $overallConvertedOk
+                ? fn ($amount) => $formatNativeMoney($amount, $overallDisplayCurrency) . ' /pax'
+                : fn ($amount) => $formatMoney($amount) . ' /pax';
+            [$overallCellSingle, $overallCellDouble, $overallCellTriple] = $formatOccupancyHotelCells(
+                $overallHotelSingleDisplay,
+                $overallHotelDoubleDisplay,
+                $overallHotelTripleDisplay,
+                $overallTripleAvailable,
+                $overallHotelMoneyFormatter
+            );
         @endphp
         <div class="overall-price-box" style="margin-top: 10px;">
             <div class="panel-title" style="margin: 0; border: none; border-bottom: 1px solid #000;">Overall Package Price ({{ $overallDisplayLabel }})</div>
@@ -1094,15 +1318,9 @@
                             </thead>
                             <tbody>
                                 <tr>
-                                    @if($overallConvertedOk)
-                                        <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatNativeMoney($overallHotelSingle, $overallDisplayCurrency) }}</td>
-                                        <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatNativeMoney($overallHotelDouble, $overallDisplayCurrency) }}</td>
-                                        <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $overallHotelTriple > 0 ? $formatNativeMoney($overallHotelTriple, $overallDisplayCurrency) : '—' }}</td>
-                                    @else
-                                        <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatMoney($hotelOnlySingleTotal) }}</td>
-                                        <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatMoney($hotelOnlyDoubleTotal) }}</td>
-                                        <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatMoney($hotelOnlyTripleTotal) }}</td>
-                                    @endif
+                                    <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $overallCellSingle }}</td>
+                                    <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $overallCellDouble }}</td>
+                                    <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $overallCellTriple }}</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -1112,17 +1330,13 @@
                         <table style="width: 100%; border-collapse: collapse; border: 1px solid #000; table-layout: fixed;">
                             <thead>
                                 <tr>
-                                    <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center;">Price (per pax)</th>
+                                    <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center;">Total Price</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr>
                                     <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">
-                                        @if($overallConvertedOk)
-                                            {{ $formatNativeMoney($overallOther, $overallDisplayCurrency) }}
-                                        @else
-                                            {{ $formatMoney($otherTotalForOccupancy) }}
-                                        @endif
+                                        {{ $formatMoney($otherServicesDisplayPerPax) }} /pax
                                     </td>
                                 </tr>
                             </tbody>
@@ -1131,6 +1345,44 @@
                 </tr>
             </table>
         </div>
+
+        @if(!empty($quotationOrderRows))
+            <div class="overall-price-box" style="margin-top: 10px;">
+                <div class="panel-title" style="margin: 0; border: none; border-bottom: 1px solid #000;">Overall Quotation Price ({{ $currencyLabel }})</div>
+                <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
+                    <thead>
+                        <tr>
+                            <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: left; width: 70%;">Order</th>
+                            <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 30%;">Total Price</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($quotationOrderRows as $orderRow)
+                            <tr>
+                                <td style="border: 1px solid #000; padding: 6px; vertical-align: top;">{{ $orderRow['label'] }}</td>
+                                <td style="border: 1px solid #000; padding: 6px; text-align: center; font-weight: bold;">
+                                    @if($overallQuotationConvertedOk)
+                                        {{ $formatMoney($orderRow['converted_amount']) }}
+                                    @else
+                                        {{ $formatNativeMoney($orderRow['amount'], $orderRow['currency']) }}
+                                    @endif
+                                </td>
+                            </tr>
+                        @endforeach
+                        <tr>
+                            <td style="border: 1px solid #000; padding: 8px; text-align: right; font-weight: bold;">Overall Quotation Price</td>
+                            <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">
+                                @if($overallQuotationConvertedOk)
+                                    {{ $formatMoney($overallQuotationTotal) }}
+                                @else
+                                    {{ $formatNativeMoney($overallQuotationTotal, $selectedCurrency) }}
+                                @endif
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        @endif
 
         
 
@@ -1187,6 +1439,14 @@
                                 if ($isProTour) {
                                     $suppSingle = $suppDouble > 0 ? $suppDouble : $suppSingle;
                                 }
+                                $suppTripleAvailable = $suppTriple > 0;
+                                [$suppCellSingle, $suppCellDouble, $suppCellTriple] = $formatOccupancyHotelCells(
+                                    $suppSingle,
+                                    $suppDouble,
+                                    $suppTriple,
+                                    $suppTripleAvailable,
+                                    fn ($amount) => $formatMoney($amount)
+                                );
                             @endphp
                             <tr>
                                 <td style="border: 1px solid #000; padding: 6px; vertical-align: top;">
@@ -1195,9 +1455,9 @@
                                         <span class="subtle"> ({{ $niceDate }})</span>
                                     @endif
                                 </td>
-                                <td style="border: 1px solid #000; padding: 6px; text-align: center;">{{ $formatMoney($suppSingle) }}</td>
-                                <td style="border: 1px solid #000; padding: 6px; text-align: center;">{{ $formatMoney($suppDouble) }}</td>
-                                <td style="border: 1px solid #000; padding: 6px; text-align: center;">{{ $suppTriple > 0 ? $formatMoney($suppTriple) : '—' }}</td>
+                                <td style="border: 1px solid #000; padding: 6px; text-align: center;">{{ $suppCellSingle }}</td>
+                                <td style="border: 1px solid #000; padding: 6px; text-align: center;">{{ $suppCellDouble }}</td>
+                                <td style="border: 1px solid #000; padding: 6px; text-align: center;">{{ $suppCellTriple }}</td>
                             </tr>
                         @endforeach
                     </tbody>

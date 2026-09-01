@@ -281,6 +281,25 @@
     let onlineSelectedHotelDetail = null;
     let onlineSelectedRoom = null;
     let onlineRoomsRequestId = 0;
+    let onlineRoomsAbortController = null;
+    let onlineRoomsFetchKey = '';
+    let onlineHotelSelectDebounce = null;
+
+    function bindOnlineHotelSelectEvents() {
+        const el = document.getElementById('onlineHotelSelect');
+        if (!el) {
+            return;
+        }
+
+        if (typeof jQuery !== 'undefined' && jQuery.fn.select2) {
+            // Use Select2 events only — native change also fires and causes duplicate room fetches.
+            jQuery(el).off('.onlineHotel');
+            jQuery(el).on('select2:select.onlineHotel select2:clear.onlineHotel', onOnlineHotelSelectChange);
+        } else {
+            el.removeEventListener('change', onOnlineHotelSelectChange);
+            el.addEventListener('change', onOnlineHotelSelectChange);
+        }
+    }
 
     function initOnlineHotelSelect2(disabled) {
         if (typeof jQuery === 'undefined' || !jQuery.fn.select2) {
@@ -304,6 +323,7 @@
         });
 
         $sel.prop('disabled', !!disabled);
+        bindOnlineHotelSelectEvents();
     }
 
     function getOnlineHotelSelectIndex() {
@@ -1031,12 +1051,14 @@
             }
         } else if (typeof jQuery !== 'undefined' && onlineHotelsCache.length > 0) {
             const firstVal = hotelId(onlineHotelsCache[0]) || '0';
-            jQuery('#onlineHotelSelect').val(firstVal).trigger('change');
+            jQuery('#onlineHotelSelect').val(firstVal).trigger('change.select2');
+            handleOnlineHotelSelectChange();
         } else if (onlineHotelsCache.length > 0) {
             sel.selectedIndex = 1;
             populateOnlineRooms(onlineHotelsCache[0]);
         } else if (typeof jQuery !== 'undefined') {
-            jQuery('#onlineHotelSelect').val(null).trigger('change');
+            jQuery('#onlineHotelSelect').val(null).trigger('change.select2');
+            handleOnlineHotelSelectChange();
         }
 
         validateOnlineAddBtn();
@@ -1052,6 +1074,28 @@
             return;
         }
 
+        const paxInfo = onlineHotelLastSearch.paxInfo || buildPaxInfo();
+        const fetchKey = [
+            hotelCode,
+            onlineHotelLastSearch.city,
+            onlineHotelLastSearch.checkIn,
+            onlineHotelLastSearch.checkOut,
+            paxInfo,
+        ].join('|');
+
+        if (onlineRoomsLoading && fetchKey === onlineRoomsFetchKey) {
+            return;
+        }
+
+        onlineRoomsFetchKey = fetchKey;
+
+        if (onlineRoomsAbortController) {
+            try {
+                onlineRoomsAbortController.abort();
+            } catch (e) { /* ignore */ }
+        }
+        onlineRoomsAbortController = typeof AbortController !== 'undefined' ? new AbortController() : null;
+
         const requestId = ++onlineRoomsRequestId;
         onlineSelectedHotelDetail = null;
         onlineSelectedRoom = null;
@@ -1059,7 +1103,7 @@
         setOnlineRoomsLoading(true);
         setOnlineRoomStatus('Checking live availability...');
 
-        fetch(roomsUrl, {
+        const fetchOptions = {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -1071,10 +1115,16 @@
                 city: onlineHotelLastSearch.city,
                 checkIn: onlineHotelLastSearch.checkIn,
                 checkOut: onlineHotelLastSearch.checkOut,
-                paxInfo: onlineHotelLastSearch.paxInfo || buildPaxInfo(),
+                paxInfo: paxInfo,
                 hotelCode: hotelCode
             })
-        })
+        };
+
+        if (onlineRoomsAbortController) {
+            fetchOptions.signal = onlineRoomsAbortController.signal;
+        }
+
+        fetch(roomsUrl, fetchOptions)
         .then(r => r.json())
         .then(data => {
             if (requestId !== onlineRoomsRequestId) {
@@ -1097,6 +1147,7 @@
         })
         .catch(function (err) {
             if (requestId !== onlineRoomsRequestId) return;
+            if (err && err.name === 'AbortError') return;
             console.error(err);
             populateOnlineRooms({ rooms: [] });
             setOnlineRoomStatus('Could not load rooms for this hotel.', 'error');
@@ -1163,6 +1214,13 @@
 
     function resetOnlineHotelFetchResults() {
         onlineRoomsRequestId++;
+        onlineRoomsFetchKey = '';
+        if (onlineRoomsAbortController) {
+            try {
+                onlineRoomsAbortController.abort();
+            } catch (e) { /* ignore */ }
+            onlineRoomsAbortController = null;
+        }
         setOnlineRoomsLoading(false);
         hideOnlineHotelSelectionPanel();
         populateOnlineHotels([]);
@@ -1495,11 +1553,23 @@
     });
 
     function onOnlineHotelSelectChange() {
+        clearTimeout(onlineHotelSelectDebounce);
+        onlineHotelSelectDebounce = setTimeout(handleOnlineHotelSelectChange, 0);
+    }
+
+    function handleOnlineHotelSelectChange() {
         const idx = getOnlineHotelSelectIndex();
         const hotel = (idx >= 0 && onlineHotelSelectHasValue()) ? onlineHotelsCache[idx] : null;
 
         if (!hotel) {
             onlineRoomsRequestId++;
+            onlineRoomsFetchKey = '';
+            if (onlineRoomsAbortController) {
+                try {
+                    onlineRoomsAbortController.abort();
+                } catch (e) { /* ignore */ }
+                onlineRoomsAbortController = null;
+            }
             onlineSelectedHotelDetail = null;
             onlineSelectedRoom = null;
             populateOnlineRooms({ rooms: [] });
@@ -1518,11 +1588,7 @@
         validateOnlineAddBtn();
     }
 
-    if (typeof jQuery !== 'undefined') {
-        jQuery('#onlineHotelSelect').on('change.onlineHotel select2:select.onlineHotel select2:clear.onlineHotel', onOnlineHotelSelectChange);
-    } else {
-        document.getElementById('onlineHotelSelect')?.addEventListener('change', onOnlineHotelSelectChange);
-    }
+    bindOnlineHotelSelectEvents();
 
     document.getElementById('onlineRoomTypeSelect')?.addEventListener('change', function () {
         const opt = this.options[this.selectedIndex];
