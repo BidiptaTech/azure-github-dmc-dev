@@ -44,6 +44,7 @@ class Order extends Model
                     'tour_id' => $order->tour_id ?? null,
                     'type' => $order->type ?? null,
                     'error' => $e->getMessage(),
+                    'sql_state' => $e->getCode(),
                 ]);
             }
         });

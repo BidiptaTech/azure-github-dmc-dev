@@ -703,6 +703,8 @@
             tickets.push({
                 ticketId: sku + '-standard',
                 ticketName: 'Standard Ticket',
+                sku_id: '',
+                synthetic: true,
                 price: { adult: low, child: low }
             });
         }
@@ -710,6 +712,8 @@
             tickets.push({
                 ticketId: sku + '-premium',
                 ticketName: 'Premium Ticket',
+                sku_id: '',
+                synthetic: true,
                 price: { adult: high, child: high }
             });
         }
@@ -717,6 +721,8 @@
             tickets.push({
                 ticketId: sku + '-default',
                 ticketName: 'General Admission',
+                sku_id: '',
+                synthetic: true,
                 price: { adult: 0, child: 0 }
             });
         }
@@ -749,8 +755,26 @@
         return toNumber(p.senior ?? p.seniorPrice ?? ticket.senior_adult_price ?? ticket.seniorPrice ?? 0);
     }
 
+    function ticketSkuId(ticket) {
+        if (!ticket || ticket.synthetic) {
+            return '';
+        }
+        return String(ticket.sku_id || ticket.ticket_sku_id || ticket.item_sku_id || ticket.ticket_sku || '');
+    }
+
     function ticketId(ticket) {
         return String(ticket.ticketId || ticket.ticket_id || ticket.productId || ticket.id || ticket.ratePlanId || '');
+    }
+
+    function providerTicketId(ticket) {
+        if (!ticket || ticket.synthetic) {
+            return '';
+        }
+        const id = String(ticket.ticket_id || ticket.ticketId || ticket.id || '');
+        if (id && /-(standard|premium|default)$/.test(id)) {
+            return '';
+        }
+        return id;
     }
 
     function ticketLabel(ticket) {
@@ -947,6 +971,8 @@
                 opt.dataset.adultPrice = String(ticketAdultPrice(ticket));
                 opt.dataset.childPrice = String(ticketChildPrice(ticket));
                 opt.dataset.seniorPrice = String(ticketSeniorPrice(ticket));
+                opt.dataset.ticketSkuId = ticketSkuId(ticket);
+                opt.dataset.providerTicketId = providerTicketId(ticket);
                 ticketSel.appendChild(opt);
             });
             ticketSel.disabled = false;
@@ -1014,6 +1040,10 @@
         attrOpt.value = payload.attractionId;
         attrOpt.textContent = payload.attractionName;
         attrOpt.dataset.isOnline = '1';
+        attrOpt.dataset.skuId = payload.skuId || payload.attractionId || '';
+        attrOpt.dataset.supplierCode = payload.supplierCode || 'sg_attractions';
+        attrOpt.dataset.lowestTicketPrice = String(payload.lowestTicketPrice || 0);
+        attrOpt.dataset.highestTicketPrice = String(payload.highestTicketPrice || 0);
         attrOpt.dataset.openTime = payload.openTime || '';
         attrOpt.dataset.closeTime = payload.closeTime || '';
         attrOpt.dataset.timeSlots = JSON.stringify(payload.timeSlots || []);
@@ -1041,6 +1071,10 @@
             const ticketOpt = document.createElement('option');
             ticketOpt.value = payload.ticketId;
             ticketOpt.textContent = payload.ticketName;
+            ticketOpt.dataset.isOnline = '1';
+            ticketOpt.dataset.skuId = payload.skuId || payload.attractionId || '';
+            ticketOpt.dataset.ticketSkuId = payload.ticketSkuId || '';
+            ticketOpt.dataset.providerTicketId = payload.providerTicketId || '';
             ticketOpt.dataset.adultPrice = String(payload.adultPrice || 0);
             ticketOpt.dataset.childPrice = String(payload.childPrice || 0);
             ticketOpt.dataset.seniorPrice = String(payload.seniorPrice || 0);
@@ -1212,6 +1246,8 @@
         const payload = {
             cityValue: document.getElementById('onlineAttractionCity')?.value || '',
             attractionId: attractionId(attractionRaw) || ('online-' + Date.now()),
+            skuId: attractionId(attractionRaw) || '',
+            supplierCode: attractionRaw.supplier_code || 'sg_attractions',
             attractionName: attractionLabel(attractionRaw),
             openTime: attractionRaw.openTime || '',
             closeTime: attractionRaw.closeTime || '',
@@ -1220,6 +1256,10 @@
             timeSlotOptions: timeSlotOptions,
             ticketId: ticketOpt?.value || ticketId(onlineCurrentTickets[0] || {}) || ('online-ticket-' + Date.now()),
             ticketName: ticketOpt?.textContent || ticketLabel(onlineCurrentTickets[0] || {}),
+            ticketSkuId: ticketOpt?.dataset?.ticketSkuId || ticketSkuId(onlineCurrentTickets[0] || {}),
+            providerTicketId: ticketOpt?.dataset?.providerTicketId || providerTicketId(onlineCurrentTickets[0] || {}),
+            lowestTicketPrice: attractionRaw.lowest_ticket_price || attractionRaw.lowestPrice || 0,
+            highestTicketPrice: attractionRaw.highest_ticket_price || attractionRaw.highestPrice || 0,
             adultPrice: toNumber(ticketOpt?.dataset?.adultPrice),
             childPrice: toNumber(ticketOpt?.dataset?.childPrice),
             seniorPrice: toNumber(ticketOpt?.dataset?.seniorPrice),

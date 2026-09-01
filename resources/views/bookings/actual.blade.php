@@ -7530,11 +7530,11 @@ function rejectIndividualHotel(tourId, hotelOrderIndex, bookingIndex) {
 }
 
 // Override any previous definitions - this is the correct attraction approve function
-window.approveIndividualAttraction = function(tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr=null) {
-    console.log('🎢 ATTRACTION APPROVE - CORRECT FUNCTION: Approving individual attraction:', { tourId, attractionOrderIndex, bookingIndex, 'actualCancelDateStr': actualCancelDateStr });
+window.approveIndividualAttraction = function(tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr=null, attractionOrderId=null) {
+    console.log('🎢 ATTRACTION APPROVE - CORRECT FUNCTION: Approving individual attraction:', { tourId, attractionOrderIndex, bookingIndex, 'actualCancelDateStr': actualCancelDateStr, attractionOrderId });
     console.log('🎢 This is the CORRECT approve function with full modal support');
     // Create and show the attraction approve modal
-    createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, 'approve', actualCancelDateStr);
+    createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, 'approve', actualCancelDateStr, attractionOrderId);
 }
 
 // Override any previous definitions - this is the correct attraction reject function
@@ -7544,7 +7544,7 @@ window.rejectIndividualAttraction = function(tourId, attractionOrderIndex, booki
     }, tourId);
 }
 
-function createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, action, actualCancelDateStr=null) {
+function createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, action, actualCancelDateStr=null, attractionOrderId=null) {
     console.log('actualCancelDateStr in createAndShowIndividualAttractionModal', actualCancelDateStr);
     try {
         const modalId = `individualAttractionModal_${tourId}_${attractionOrderIndex}_${bookingIndex}_${action}`;
@@ -7570,7 +7570,7 @@ function createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bo
                 buttonText = '<i class="ri-check-line me-2"></i>Confirm Approval';
                 onSubmit = `window.confirmIndividualAttractionApproval ? window.confirmIndividualAttractionApproval(${tourId}, ${attractionOrderIndex}, ${bookingIndex}) : confirmIndividualAttractionApproval(${tourId}, ${attractionOrderIndex}, ${bookingIndex})`;
                 console.log('🎢 Using window.generateApproveAttractionForm for correct form');
-                modalContent = window.generateApproveAttractionForm ? window.generateApproveAttractionForm(tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr) : generateApproveAttractionForm(tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr);
+                modalContent = window.generateApproveAttractionForm ? window.generateApproveAttractionForm(tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr, attractionOrderId) : generateApproveAttractionForm(tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr, attractionOrderId);
                 break;
                 
             case 'reject':
@@ -7659,9 +7659,9 @@ function createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bo
             setTimeout(() => {
                 console.log('🎢 Calling window.loadAttractionDataForApprove for correct data loading');
                 if (window.loadAttractionDataForApprove) {
-                    window.loadAttractionDataForApprove(tourId, attractionOrderIndex, bookingIndex);
+                    window.loadAttractionDataForApprove(tourId, attractionOrderIndex, bookingIndex, attractionOrderId);
                 } else {
-                    loadAttractionDataForApprove(tourId, attractionOrderIndex, bookingIndex);
+                    loadAttractionDataForApprove(tourId, attractionOrderIndex, bookingIndex, attractionOrderId);
                 }
             }, 100);
         }
@@ -7680,13 +7680,15 @@ function closeIndividualAttractionModal(modalId) {
 }
 
 // Override any previous definitions - this is the correct attraction approve form function
-window.generateApproveAttractionForm = function(tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr=null) {
+window.generateApproveAttractionForm = function(tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr=null, attractionOrderId=null) {
     console.log('🎢 ATTRACTION FORM - CORRECT FUNCTION: Generating FULL approve form with all fields', 'actualCancelDateStr', actualCancelDateStr);
     return `
         <form id="approveIndividualAttractionForm_${tourId}_${attractionOrderIndex}_${bookingIndex}">
             <input type="hidden" name="tour_id" value="${tourId}">
             <input type="hidden" name="attraction_order_index" value="${attractionOrderIndex}">
             <input type="hidden" name="booking_index" value="${bookingIndex}">
+            <input type="hidden" name="attraction_order_id" id="attractionOrderId_${tourId}_${attractionOrderIndex}_${bookingIndex}" value="${attractionOrderId || ''}">
+            <input type="hidden" name="online_credits_enough" id="onlineAttractionCreditsEnough_${tourId}_${attractionOrderIndex}_${bookingIndex}" value="1">
             
             <!-- Attraction Information with Image -->
             <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px;">
@@ -7729,6 +7731,16 @@ window.generateApproveAttractionForm = function(tourId, attractionOrderIndex, bo
                 <input type="text" class="form-control form-control-lg" id="referenceId_${tourId}_${attractionOrderIndex}_${bookingIndex}" name="reference_id" required 
                        placeholder="Enter booking reference or confirmation number"
                        style="border-radius: 8px; border: 2px solid #e9ecef;">
+            </div>
+
+            <div class="mb-3 d-none" id="onlineAttractionCreditsWrap_${tourId}_${attractionOrderIndex}_${bookingIndex}">
+                <div class="alert alert-info mb-0" id="onlineAttractionCreditsAlert_${tourId}_${attractionOrderIndex}_${bookingIndex}" style="border-radius: 12px;">
+                    <div class="small text-muted">Provider order ref</div>
+                    <div class="fw-semibold" id="onlineAttractionOrderRef_${tourId}_${attractionOrderIndex}_${bookingIndex}">—</div>
+                    <div class="small text-muted mt-2">Credit balance</div>
+                    <div class="fw-semibold" id="onlineAttractionCreditsBalance_${tourId}_${attractionOrderIndex}_${bookingIndex}">Checking…</div>
+                    <div class="small mt-1" id="onlineAttractionCreditsNote_${tourId}_${attractionOrderIndex}_${bookingIndex}"></div>
+                </div>
             </div>
 
             <div class="mb-3">
@@ -7883,7 +7895,7 @@ window.calculateGuideDisplayDueDate = function(tourId, guideOrderIndex, bookingI
 }
 
 // Override any previous definitions - this is the correct attraction data loading function
-window.loadAttractionDataForApprove = function(tourId, attractionOrderIndex, bookingIndex) {
+window.loadAttractionDataForApprove = function(tourId, attractionOrderIndex, bookingIndex, attractionOrderId=null) {
     try {
         console.log('🔥 APPROVE MODAL - CORRECT FUNCTION: Loading attraction data for approve modal:', { tourId, attractionOrderIndex, bookingIndex });
         
@@ -7909,7 +7921,9 @@ window.loadAttractionDataForApprove = function(tourId, attractionOrderIndex, boo
             body: JSON.stringify({
                 tour_id: tourId,
                 attraction_order_index: attractionOrderIndex,
-                booking_index: bookingIndex
+                booking_index: bookingIndex,
+                attraction_order_id: attractionOrderId || undefined
+            })
             })
         })
         .then(response => response.json())
@@ -7943,6 +7957,71 @@ window.loadAttractionDataForApprove = function(tourId, attractionOrderIndex, boo
                 if (attractionNameElement) {
                     attractionNameElement.textContent = attractionData.attraction_name || 'Attraction Booking';
                 }
+
+                (function prefillAttractionApprovalReferenceId() {
+                    const referenceIdInput = document.getElementById(`referenceId_${tourId}_${attractionOrderIndex}_${bookingIndex}`);
+                    const orderIdInput = document.getElementById(`attractionOrderId_${tourId}_${attractionOrderIndex}_${bookingIndex}`);
+                    if (orderIdInput && attractionData.booking_id) {
+                        orderIdInput.value = attractionData.booking_id;
+                    }
+                    const alreadyApprovedRef = String(attractionData.reference_id || '').trim();
+                    const savedExternalRef = String(
+                        attractionData.order_ref_no ||
+                        attractionData.external_order_ref_id ||
+                        attractionData.attraction_order_ref_id ||
+                        ''
+                    ).trim();
+                    const isPlaceholder = !savedExternalRef || savedExternalRef === '1111111';
+                    const isOnline = !!(
+                        attractionData.is_online_attraction ||
+                        attractionData.order_type === 'online' ||
+                        attractionData.attractionSourceType === 'online'
+                    );
+                    if (referenceIdInput) {
+                        if (alreadyApprovedRef) {
+                            referenceIdInput.value = alreadyApprovedRef;
+                        } else if (isOnline && !isPlaceholder) {
+                            referenceIdInput.value = savedExternalRef;
+                            referenceIdInput.readOnly = true;
+                        }
+                    }
+                    const wrap = document.getElementById(`onlineAttractionCreditsWrap_${tourId}_${attractionOrderIndex}_${bookingIndex}`);
+                    if (!wrap || !isOnline) {
+                        return;
+                    }
+                    wrap.classList.remove('d-none');
+                    const refEl = document.getElementById(`onlineAttractionOrderRef_${tourId}_${attractionOrderIndex}_${bookingIndex}`);
+                    const balEl = document.getElementById(`onlineAttractionCreditsBalance_${tourId}_${attractionOrderIndex}_${bookingIndex}`);
+                    const noteEl = document.getElementById(`onlineAttractionCreditsNote_${tourId}_${attractionOrderIndex}_${bookingIndex}`);
+                    const alertEl = document.getElementById(`onlineAttractionCreditsAlert_${tourId}_${attractionOrderIndex}_${bookingIndex}`);
+                    const enoughInput = document.getElementById(`onlineAttractionCreditsEnough_${tourId}_${attractionOrderIndex}_${bookingIndex}`);
+                    if (refEl) {
+                        refEl.textContent = isPlaceholder ? 'Not created yet — will be created on approve' : savedExternalRef;
+                    }
+                    const balance = attractionData.credits_balance;
+                    const enough = attractionData.credits_enough;
+                    if (balEl) {
+                        balEl.textContent = (balance === 0 || balance) ? String(balance) : (attractionData.credits_message || 'Unavailable');
+                    }
+                    if (noteEl) {
+                        if (enough === false) {
+                            noteEl.textContent = 'Credits balance is not enough. Approval is blocked until credits are available.';
+                        } else if (enough === true) {
+                            noteEl.textContent = 'Credit balance is sufficient. Approving will charge this order ref.';
+                        } else if (isPlaceholder) {
+                            noteEl.textContent = 'Provider order will be created and charged on approve.';
+                        } else {
+                            noteEl.textContent = 'Credit balance will be confirmed when you approve this order ref.';
+                        }
+                    }
+                    if (alertEl) {
+                        alertEl.classList.remove('alert-info', 'alert-warning', 'alert-success');
+                        alertEl.classList.add(enough === false ? 'alert-warning' : (enough === true ? 'alert-success' : 'alert-info'));
+                    }
+                    if (enoughInput) {
+                        enoughInput.value = enough === false ? '0' : '1';
+                    }
+                })();
                 
                 // Set default Free Cancellation Date to today + 7 days
                 const actualDueDateInput = document.getElementById(`actualDueDate_${tourId}_${attractionOrderIndex}_${bookingIndex}`);
@@ -8008,6 +8087,11 @@ window.confirmIndividualAttractionApproval = function(tourId, attractionOrderInd
             alert('Reference ID must be at least 3 characters long.');
             return;
         }
+
+        if (formData.get('online_credits_enough') === '0') {
+            alert('Credits balance is not enough. This booking was not approved.');
+            return;
+        }
         
         // Check for file uploads and show appropriate message
         const fileInput = form.querySelector('input[type="file"]');
@@ -8044,12 +8128,14 @@ window.confirmIndividualAttractionApproval = function(tourId, attractionOrderInd
             },
             signal: controller.signal
         })
-        .then(response => {
+        .then(async response => {
             clearTimeout(timeoutId);
+            const data = await response.json().catch(() => null);
             if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+                const message = (data && data.message) ? data.message : (`HTTP error! status: ${response.status}`);
+                throw new Error(message);
             }
-            return response.json();
+            return data;
         })
         .then(data => {
             hideApprovalProgressOverlay();
@@ -8076,7 +8162,7 @@ window.confirmIndividualAttractionApproval = function(tourId, attractionOrderInd
             } else if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
                 showToast('Network error. Please check your connection and try again.', 'error');
             } else {
-                showToast('Error approving attraction booking. Please try again.', 'error');
+                showToast(error.message || 'Error approving attraction booking. Please try again.', 'error');
             }
         })
         .finally(() => {
@@ -21422,7 +21508,7 @@ function rejectIndividualAttraction(tourId, attractionOrderIndex, bookingIndex, 
     }, tourId);
 }
 
-function createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, action, actualCancelDateStr=null) {
+function createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, action, actualCancelDateStr=null, attractionOrderId=null) {
     try {
         const modalId = `individualAttractionModal_${tourId}_${attractionOrderIndex}_${bookingIndex}_${action}`;
         
@@ -21449,8 +21535,10 @@ function createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bo
                 modalColor = 'linear-gradient(135deg, #28a745 0%, #20c997 100%)';
                 buttonClass = 'btn-success';
                 buttonText = '<i class="ri-check-line me-2"></i>Confirm Approval';
-                onSubmit = `confirmIndividualAttractionApproval(${tourId}, ${attractionOrderIndex}, ${bookingIndex})`;
-                modalContent = generateApproveAttractionForm(tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr);
+                onSubmit = `window.confirmIndividualAttractionApproval ? window.confirmIndividualAttractionApproval(${tourId}, ${attractionOrderIndex}, ${bookingIndex}) : confirmIndividualAttractionApproval(${tourId}, ${attractionOrderIndex}, ${bookingIndex})`;
+                modalContent = window.generateApproveAttractionForm
+                    ? window.generateApproveAttractionForm(tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr, attractionOrderId)
+                    : generateApproveAttractionForm(tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr, attractionOrderId);
                 break;
                 
             case 'reject':
@@ -21533,6 +21621,14 @@ function createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bo
             // Remove modal from DOM
             modalElement.remove();
         }, { once: true });
+
+        if (action === 'approve') {
+            setTimeout(() => {
+                if (window.loadAttractionDataForApprove) {
+                    window.loadAttractionDataForApprove(tourId, attractionOrderIndex, bookingIndex, attractionOrderId);
+                }
+            }, 100);
+        }
         
     } catch (error) {
         console.error('Error creating individual attraction modal:', error);

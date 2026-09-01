@@ -29,6 +29,8 @@ class AttractionResponseNormalizer
 
         if (! is_array($tickets) || $tickets === []) {
             $tickets = $this->buildTicketsFromPrices($skuId, $low, $high);
+        } else {
+            $tickets = array_values(array_filter($tickets, 'is_array'));
         }
 
         $legacy = [
@@ -57,6 +59,8 @@ class AttractionResponseNormalizer
             $tickets[] = [
                 'ticketId' => $skuId . '-standard',
                 'ticketName' => 'Standard Ticket',
+                'sku_id' => '',
+                'synthetic' => true,
                 'price' => [
                     'adult' => $low,
                     'child' => $low,
@@ -68,6 +72,8 @@ class AttractionResponseNormalizer
             $tickets[] = [
                 'ticketId' => $skuId . '-premium',
                 'ticketName' => 'Premium Ticket',
+                'sku_id' => '',
+                'synthetic' => true,
                 'price' => [
                     'adult' => $high,
                     'child' => $high,
@@ -79,6 +85,8 @@ class AttractionResponseNormalizer
             $tickets[] = [
                 'ticketId' => $skuId . '-default',
                 'ticketName' => 'General Admission',
+                'sku_id' => '',
+                'synthetic' => true,
                 'price' => [
                     'adult' => 0,
                     'child' => 0,
