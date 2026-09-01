@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Helpers\CommonHelper;
 use App\Models\Tour;
 use App\Models\Hotel;
+use App\Services\AttractionSuppliers\OnlineAttractionOrderService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -343,7 +344,8 @@ class HotelBookingController extends Controller
             $validator = Validator::make($request->all(), [
                 'tour_id' => 'required|integer',
                 'attraction_order_index' => 'required|integer|min:0',
-                'booking_index' => 'required|integer|min:0'
+                'booking_index' => 'required|integer|min:0',
+                'attraction_order_id' => 'nullable|integer|min:1',
             ]);
 
             if ($validator->fails()) {
@@ -362,13 +364,11 @@ class HotelBookingController extends Controller
             $tour = DB::table('tours')->where('tour_id', $tourId)->first();
             
             // Find the attraction booking
-            $attractionOrder = DB::table('orders')
-                ->where('tour_id', $tourId)
-                ->where('type', 'attraction')
-                // ->orderBy('id')
-                ->whereNull('deleted_at')
-                ->skip($attractionOrderIndex)
-                ->first();
+            $attractionOrder = $this->findTourAttractionOrder(
+                (int) $tourId,
+                $attractionOrderIndex,
+                $request->attraction_order_id
+            );
 
             if (!$attractionOrder) {
                 return response()->json([
@@ -388,19 +388,49 @@ class HotelBookingController extends Controller
 
             $booking = $attractionData[$bookingIndex];
             $orderCurrency = CommonHelper::resolveOrderDisplayCurrency($attractionOrder, null);
-            
+            $isOnline = ((string) ($attractionOrder->order_type ?? '') === 'online')
+                || OnlineAttractionOrderService::isOnlineAttraction(is_array($booking) ? $booking : []);
+            $savedExternalRef = OnlineAttractionOrderService::extractSavedRef(
+                $attractionOrder,
+                is_array($booking) ? $booking : []
+            );
+
             Log::info('Attraction booking data found', [
                 'tour_id' => $tourId,
                 'attraction_order_index' => $attractionOrderIndex,
                 'booking_index' => $bookingIndex,
+                'local_order_id' => $attractionOrder->id,
                 'attraction_name' => $booking['AttractionName'] ?? 'Unknown',
                 'total_price' => $booking['totalPrice'] ?? 0,
                 'booking_date' => $booking['bookingDate'] ?? null,
                 'visit_time' => $booking['visitTime'] ?? null,
                 'currency' => $orderCurrency,
-                'full_booking_keys' => array_keys($booking),
-                'raw_booking_data' => $booking
+                'order_type' => $attractionOrder->order_type ?? null,
+                'is_online_attraction' => $isOnline,
+                'has_external_order_ref_id' => $savedExternalRef !== null,
+                'order_ref_id' => $savedExternalRef,
             ]);
+
+            $creditsBalance = null;
+            $creditsEnough = null;
+            $creditsMessage = null;
+            if ($isOnline) {
+                $credits = app(OnlineAttractionOrderService::class)->getCredits(is_array($booking) ? $booking : []);
+                $creditsBalance = $credits['credits_balance'] ?? null;
+                $creditsMessage = $credits['message'] ?? null;
+                $qty = max(1, (int) ($booking['adultCount'] ?? 0) + (int) ($booking['childCount'] ?? 0));
+                $unit = (float) ($booking['lowest_ticket_price'] ?? 0);
+                if ($creditsBalance !== null && $unit > 0) {
+                    $creditsEnough = ((float) $creditsBalance) >= ($unit * $qty);
+                }
+            }
+
+            if ($isOnline && $savedExternalRef === null) {
+                Log::warning('Attraction approval lookup missing external order_ref_id', [
+                    'tour_id' => $tourId,
+                    'local_order_id' => $attractionOrder->id,
+                ]);
+            }
 
             return response()->json([
                 'success' => true,
@@ -445,7 +475,16 @@ class HotelBookingController extends Controller
                         'reference_id' => $attractionOrder->reference_id ?? null,
                         'actual_due_date' => $attractionOrder->actual_due_date ?? null,
                         'display_due_date' => $attractionOrder->display_due_date ?? null,
-                        'approval_file' => $attractionOrder->approval_file ?? null
+                        'approval_file' => $attractionOrder->approval_file ?? null,
+                        'order_ref_no' => $savedExternalRef,
+                        'external_order_ref_id' => $savedExternalRef,
+                        'attraction_order_ref_id' => $savedExternalRef,
+                        'order_type' => $attractionOrder->order_type ?? null,
+                        'is_online_attraction' => $isOnline,
+                        'attractionSourceType' => $booking['attractionSourceType'] ?? ($isOnline ? 'online' : 'offline'),
+                        'credits_balance' => $creditsBalance,
+                        'credits_enough' => $creditsEnough,
+                        'credits_message' => $creditsMessage,
                     ]
                 ]
             ]);
@@ -3102,7 +3141,8 @@ class HotelBookingController extends Controller
                 'tour_id' => 'required|integer',
                 'attraction_order_index' => 'required|integer|min:0',
                 'booking_index' => 'required|integer|min:0',
-                'reference_id' => 'required|string|max:255',
+                'attraction_order_id' => 'nullable|integer|min:1',
+                'reference_id' => 'nullable|string|max:255',
                 'actual_due_date' => 'required|date',
                 'display_due_date_days' => 'required|integer|min:1',
                 'display_due_date' => 'required|string|max:255'
@@ -3125,13 +3165,11 @@ class HotelBookingController extends Controller
             $displayDueDate = $request->display_due_date;
 
             // Find the attraction order in the orders table
-            $attractionOrder = DB::table('orders')
-                ->where('tour_id', $tourId)
-                ->where('type', 'attraction')
-                // ->orderBy('id')
-                ->whereNull('deleted_at')
-                ->skip($attractionOrderIndex)
-                ->first();
+            $attractionOrder = $this->findTourAttractionOrder(
+                (int) $tourId,
+                $attractionOrderIndex,
+                $request->attraction_order_id
+            );
 
             // Log the search criteria and result
             Log::info('Searching for attraction order', [
@@ -3146,6 +3184,86 @@ class HotelBookingController extends Controller
                     'success' => false,
                     'message' => 'Attraction order not found'
                 ], 404);
+            }
+
+            $attractionData = json_decode($attractionOrder->data, true);
+            $booking = [];
+            if (is_array($attractionData) && isset($attractionData[$bookingIndex]) && is_array($attractionData[$bookingIndex])) {
+                $booking = $attractionData[$bookingIndex];
+            } elseif (is_array($attractionData) && isset($attractionData[0]) && is_array($attractionData[0])) {
+                $booking = $attractionData[0];
+            }
+
+            $isOnline = ((string) ($attractionOrder->order_type ?? '') === 'online')
+                || OnlineAttractionOrderService::isOnlineAttraction($booking);
+            $savedExternalRef = OnlineAttractionOrderService::extractSavedRef($attractionOrder, $booking);
+
+            if ($isOnline) {
+                $orderService = app(OnlineAttractionOrderService::class);
+                $chargedOnCreate = false;
+
+                if ($savedExternalRef === null) {
+                    Log::info('Attraction online approval: creating provider order and checking credits', [
+                        'tour_id' => $tourId,
+                        'local_order_id' => $attractionOrder->id,
+                    ]);
+
+                    $createResult = $orderService->createOrder($booking, (int) $tourId, true);
+                    if (! empty($createResult['credits_insufficient'])) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => $createResult['message'] ?: 'Credits balance is not enough',
+                            'credits_insufficient' => true,
+                        ], 422);
+                    }
+                    if (empty($createResult['success']) || empty($createResult['order_ref_id'])) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => $createResult['message'] ?: 'Failed to create online attraction order.',
+                        ], 422);
+                    }
+
+                    $savedExternalRef = $createResult['order_ref_id'];
+                    $chargedOnCreate = true;
+                    $booking = $orderService->applyRefToAttraction($booking, $savedExternalRef, 'paid');
+                    if (is_array($attractionData) && isset($attractionData[$bookingIndex]) && is_array($attractionData[$bookingIndex])) {
+                        $attractionData[$bookingIndex] = $booking;
+                    } elseif (is_array($attractionData) && isset($attractionData[0]) && is_array($attractionData[0])) {
+                        $attractionData[0] = $booking;
+                    }
+                }
+
+                $referenceId = trim((string) $referenceId) !== '' ? trim((string) $referenceId) : $savedExternalRef;
+
+                if (! $chargedOnCreate) {
+                    Log::info('Attraction online approval: paying saved orders.order_ref_no', [
+                        'tour_id' => $tourId,
+                        'local_order_id' => $attractionOrder->id,
+                        'order_ref_id' => $savedExternalRef,
+                        'create_order_called' => false,
+                    ]);
+
+                    $payResult = $orderService->payOrder($savedExternalRef, $booking);
+                    if (! empty($payResult['credits_insufficient'])) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => $payResult['message'] ?: 'Credits balance is not enough',
+                            'credits_insufficient' => true,
+                        ], 422);
+                    }
+                    if (empty($payResult['success'])) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => $payResult['message'] ?: 'External attraction payment failed. Booking was not approved.',
+                        ], 422);
+                    }
+                }
+            } elseif (trim((string) $referenceId) === '') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed: The reference id field is required.',
+                    'errors' => ['reference_id' => ['The reference id field is required.']]
+                ], 422);
             }
 
             // Handle multiple file uploads if provided with optimized processing
@@ -3226,6 +3344,12 @@ class HotelBookingController extends Controller
                 'upload_files' => $upload_files,
                 'updated_at' => now()
             ];
+            if ($isOnline && $savedExternalRef) {
+                $updateData['order_ref_no'] = $savedExternalRef;
+                if (is_array($attractionData)) {
+                    $updateData['data'] = json_encode($attractionData);
+                }
+            }
 
             // Update the order
             $updated = DB::table('orders')
@@ -5843,5 +5967,27 @@ class HotelBookingController extends Controller
                 'message' => 'An error occurred while uploading files: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Resolve the attraction order shown in Confirmed/Definite/Actual lists.
+     * Prefer orders.id from the modal; fall back to index with a stable order.
+     */
+    private function findTourAttractionOrder(int $tourId, $index, $orderId = null): ?object
+    {
+        $base = DB::table('orders')
+            ->where('tour_id', $tourId)
+            ->where('type', 'attraction')
+            ->whereNull('deleted_at');
+
+        $orderId = (int) $orderId;
+        if ($orderId > 0) {
+            $found = (clone $base)->where('id', $orderId)->first();
+            if ($found) {
+                return $found;
+            }
+        }
+
+        return $base->orderBy('id')->skip((int) $index)->first();
     }
 }
