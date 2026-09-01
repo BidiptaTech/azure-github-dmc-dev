@@ -20843,6 +20843,18 @@ function loadHotelDataForApprove(tourId, hotelOrderIndex, bookingIndex) {
                 const hotelData = data.data.hotel_booking;
                 const tourData = data.data.tour;
                 console.log('Hotel data loaded for approve modal:', hotelData);
+
+                window._hotelApproveContext = window._hotelApproveContext || {};
+                const ctxKey = `${tourId}_${hotelOrderIndex}_${bookingIndex}`;
+                window._hotelApproveContext[ctxKey] = {
+                    isOnline: hotelData.is_online_hotel === true || hotelData.order_type === 'online',
+                    orderType: hotelData.order_type || null,
+                    onlineHotelSource: hotelData.online_hotel_source || null,
+                    storedPrice: parseFloat(hotelData.total_price || 0),
+                    currency: hotelData.currency || 'SGD',
+                    recheckToken: null,
+                    recheckData: null,
+                };
                 
                 // Update hotel image
                 const hotelImageElement = document.getElementById(`approve_hotel_image_${tourId}_${hotelOrderIndex}_${bookingIndex}`);
@@ -21010,100 +21022,16 @@ function confirmIndividualHotelApproval(tourId, hotelOrderIndex, bookingIndex) {
             return;
         }
         
-        // Get form values
-        const referenceId = document.getElementById(`referenceId_${tourId}_${hotelOrderIndex}_${bookingIndex}`).value;
-        const actualDueDate = document.getElementById(`actualDueDate_${tourId}_${hotelOrderIndex}_${bookingIndex}`).value;
-        const displayDueDateDays = document.getElementById(`displayDueDateDays_${tourId}_${hotelOrderIndex}_${bookingIndex}`).value;
-        const displayDueDate = document.getElementById(`displayDueDate_${tourId}_${hotelOrderIndex}_${bookingIndex}`).value;
-        const referenceFile = document.getElementById(`referenceFile_${tourId}_${hotelOrderIndex}_${bookingIndex}`).files[0];
-        
-        if (!referenceId || !actualDueDate || !displayDueDateDays || !displayDueDate) {
-            alert('Please fill in all required fields');
+        const ctxKey = `${tourId}_${hotelOrderIndex}_${bookingIndex}`;
+        const approveCtx = (window._hotelApproveContext && window._hotelApproveContext[ctxKey]) || {};
+        const isOnlineHotel = approveCtx.isOnline === true || approveCtx.orderType === 'online';
+
+        if (isOnlineHotel) {
+            submitOnlineHotelApproval(tourId, hotelOrderIndex, bookingIndex, event);
             return;
         }
-        
-        // Validate Free Cancellation Date is not in the past
-        const selectedDate = new Date(actualDueDate);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        
-        
-        
-        // Show loading state
-        const approveButton = event.target;
-        const originalText = approveButton.innerHTML;
-        approveButton.innerHTML = '<i class="ri-loader-4-line me-2"></i>Approving...';
-        approveButton.disabled = true;
-        
-        // Create FormData for file upload
-        const formData = new FormData();
-        formData.append('tour_id', tourId);
-        formData.append('hotel_order_index', hotelOrderIndex);
-        formData.append('booking_index', bookingIndex);
-        formData.append('reference_id', referenceId);
-        formData.append('actual_due_date', actualDueDate);
-        formData.append('display_due_date_days', displayDueDateDays);
-        formData.append('display_due_date', displayDueDate);
-        
-        if (referenceFile) {
-            formData.append('reference_file', referenceFile);
-        }
-        
-        // Send data to backend API
-        console.log('Sending hotel approval data to server:', {
-            tour_id: tourId,
-            hotel_order_index: hotelOrderIndex,
-            booking_index: bookingIndex,
-            reference_id: referenceId,
-            actual_due_date: actualDueDate,
-            display_due_date_days: displayDueDateDays,
-            display_due_date: displayDueDate,
-            reference_file: referenceFile ? referenceFile.name : 'No file'
-        });
-        
-        // Send to server
-        fetch('{{ url("/booking/approve-hotel-booking") }}', {
-            method: 'POST',
-            headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-            },
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            console.log('Server response:', data);
-            if (data.success) {
-            // Reset button
-            approveButton.innerHTML = originalText;
-            approveButton.disabled = false;
-            
-            alert(`✅ Hotel booking approved successfully!
-                    Reference ID: ${referenceId}
-                    Due Date: ${displayDueDate}
-                    Data saved to database successfully!`);
 
-            // Close modal
-            const modalId = `individualHotelModal_${tourId}_${hotelOrderIndex}_${bookingIndex}_approve`;
-            closeIndividualHotelModal(modalId);
-            
-            // Refresh the page to update button states
-            console.log('Hotel booking approved and saved to orders table - refreshing page');
-            setTimeout(() => {
-                location.reload();
-            }, 1000);
-                
-            } else {
-                throw new Error(data.message || 'Approval failed');
-            }
-        })
-        .catch(error => {
-            console.error('Error approving hotel booking:', error);
-            alert('Error approving booking: ' + error.message);
-            
-            // Reset button
-            approveButton.innerHTML = originalText;
-            approveButton.disabled = false;
-        });
+        submitOfflineHotelApproval(tourId, hotelOrderIndex, bookingIndex, event);
         
     } catch (error) {
         console.error('Error approving individual hotel booking:', error);
@@ -21111,6 +21039,254 @@ function confirmIndividualHotelApproval(tourId, hotelOrderIndex, bookingIndex) {
     }
 }
 
+function submitOfflineHotelApproval(tourId, hotelOrderIndex, bookingIndex, evt) {
+    const referenceId = document.getElementById(`referenceId_${tourId}_${hotelOrderIndex}_${bookingIndex}`).value;
+    const actualDueDate = document.getElementById(`actualDueDate_${tourId}_${hotelOrderIndex}_${bookingIndex}`).value;
+    const displayDueDateDays = document.getElementById(`displayDueDateDays_${tourId}_${hotelOrderIndex}_${bookingIndex}`).value;
+    const displayDueDate = document.getElementById(`displayDueDate_${tourId}_${hotelOrderIndex}_${bookingIndex}`).value;
+    const referenceFile = document.getElementById(`referenceFile_${tourId}_${hotelOrderIndex}_${bookingIndex}`).files[0];
+
+    if (!referenceId || !actualDueDate || !displayDueDateDays || !displayDueDate) {
+        alert('Please fill in all required fields');
+        return;
+    }
+
+    const approveButton = evt && evt.target ? evt.target : null;
+    const originalText = approveButton ? approveButton.innerHTML : '';
+    if (approveButton) {
+        approveButton.innerHTML = '<i class="ri-loader-4-line me-2"></i>Approving...';
+        approveButton.disabled = true;
+    }
+
+    const formData = new FormData();
+    formData.append('tour_id', tourId);
+    formData.append('hotel_order_index', hotelOrderIndex);
+    formData.append('booking_index', bookingIndex);
+    formData.append('reference_id', referenceId);
+    formData.append('actual_due_date', actualDueDate);
+    formData.append('display_due_date_days', displayDueDateDays);
+    formData.append('display_due_date', displayDueDate);
+    if (referenceFile) {
+        formData.append('reference_file', referenceFile);
+    }
+
+    fetch('{{ url("/booking/approve-hotel-booking") }}', {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (approveButton) {
+            approveButton.innerHTML = originalText;
+            approveButton.disabled = false;
+        }
+        if (!data.success) {
+            throw new Error(data.message || 'Approval failed');
+        }
+        alert(`✅ Hotel booking approved successfully!\nReference ID: ${referenceId}\nDue Date: ${displayDueDate}`);
+        const modalId = `individualHotelModal_${tourId}_${hotelOrderIndex}_${bookingIndex}_approve`;
+        closeIndividualHotelModal(modalId);
+        setTimeout(() => location.reload(), 1000);
+    })
+    .catch(error => {
+        console.error('Error approving hotel booking:', error);
+        alert('Error approving booking: ' + error.message);
+        if (approveButton) {
+            approveButton.innerHTML = originalText;
+            approveButton.disabled = false;
+        }
+    });
+}
+
+function submitOnlineHotelApproval(tourId, hotelOrderIndex, bookingIndex, evt) {
+    const referenceId = document.getElementById(`referenceId_${tourId}_${hotelOrderIndex}_${bookingIndex}`).value;
+    const actualDueDate = document.getElementById(`actualDueDate_${tourId}_${hotelOrderIndex}_${bookingIndex}`).value;
+    const displayDueDateDays = document.getElementById(`displayDueDateDays_${tourId}_${hotelOrderIndex}_${bookingIndex}`).value;
+    const displayDueDate = document.getElementById(`displayDueDate_${tourId}_${hotelOrderIndex}_${bookingIndex}`).value;
+    const referenceFile = document.getElementById(`referenceFile_${tourId}_${hotelOrderIndex}_${bookingIndex}`).files[0];
+
+    if (!referenceId || !actualDueDate || !displayDueDateDays || !displayDueDate) {
+        alert('Please fill in all required fields');
+        return;
+    }
+
+    const approveButton = evt && evt.target ? evt.target : null;
+    const originalText = approveButton ? approveButton.innerHTML : '';
+    const ctxKey = `${tourId}_${hotelOrderIndex}_${bookingIndex}`;
+
+    if (approveButton) {
+        approveButton.innerHTML = '<i class="ri-loader-4-line me-2"></i>Checking availability...';
+        approveButton.disabled = true;
+    }
+
+    fetch('{{ url("/booking/recheck-online-hotel-booking") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify({
+            tour_id: tourId,
+            hotel_order_index: hotelOrderIndex,
+            booking_index: bookingIndex
+        })
+    })
+    .then(response => response.json())
+    .then(recheck => {
+        if (approveButton) {
+            approveButton.innerHTML = originalText;
+            approveButton.disabled = false;
+        }
+
+        if (!recheck.success || !recheck.data) {
+            throw new Error(recheck.message || 'Availability recheck failed');
+        }
+
+        window._hotelApproveContext = window._hotelApproveContext || {};
+        window._hotelApproveContext[ctxKey] = Object.assign(window._hotelApproveContext[ctxKey] || {}, {
+            recheckToken: recheck.recheck_token,
+            recheckData: recheck.data
+        });
+
+        const currency = recheck.data.currency || 'SGD';
+        const storedPrice = parseFloat(recheck.data.stored_price || 0).toFixed(2);
+        const supplierPrice = parseFloat(recheck.data.supplier_gross_price || recheck.data.supplier_net_price || 0).toFixed(2);
+        const priceChanged = !!recheck.data.price_changed;
+        const priceNote = priceChanged
+            ? '<div class="alert alert-warning py-2 px-3 small mb-2">Supplier price has changed since enquiry. The booking will be confirmed at the updated supplier price.</div>'
+            : '';
+
+        if (typeof Swal === 'undefined') {
+            if (!confirm(`Confirm online booking with supplier?\nStored: ${currency} ${storedPrice}\nSupplier: ${currency} ${supplierPrice}`)) {
+                return;
+            }
+            finalizeOnlineHotelApproval(tourId, hotelOrderIndex, bookingIndex, recheck.recheck_token, referenceFile, approveButton, originalText);
+            return;
+        }
+
+        Swal.fire({
+            title: 'Confirm online hotel booking?',
+            icon: priceChanged ? 'warning' : 'question',
+            width: '28rem',
+            html:
+                priceNote +
+                '<div class="text-start small">' +
+                    '<div class="mb-2"><strong>' + (recheck.data.hotel_name || 'Hotel') + '</strong></div>' +
+                    '<div class="mb-1">Room: ' + (recheck.data.room_name || '—') + '</div>' +
+                    '<div class="mb-1">Meal plan: ' + (recheck.data.meal_plan_name || '—') + '</div>' +
+                    '<div class="mb-1">Stay: ' + (recheck.data.check_in || '') + ' → ' + (recheck.data.check_out || '') + '</div>' +
+                    '<div class="d-flex justify-content-between border-top pt-2 mt-2">' +
+                        '<span>Stored price</span><strong>' + currency + ' ' + storedPrice + '</strong>' +
+                    '</div>' +
+                    '<div class="d-flex justify-content-between">' +
+                        '<span>Supplier price</span><strong class="text-primary">' + currency + ' ' + supplierPrice + '</strong>' +
+                    '</div>' +
+                    '<div class="text-muted mt-2">This will book with MG Bedbank and then approve the hotel order.</div>' +
+                '</div>',
+            showCancelButton: true,
+            confirmButtonText: 'Confirm booking',
+            confirmButtonColor: '#198754',
+            cancelButtonText: 'Review again',
+            showLoaderOnConfirm: true,
+            preConfirm: () => finalizeOnlineHotelApproval(
+                tourId,
+                hotelOrderIndex,
+                bookingIndex,
+                recheck.recheck_token,
+                referenceFile,
+                null,
+                '',
+                true
+            ),
+            allowOutsideClick: () => !Swal.isLoading()
+        });
+    })
+    .catch(error => {
+        console.error('Online hotel recheck failed:', error);
+        alert('Online availability check failed: ' + error.message);
+        if (approveButton) {
+            approveButton.innerHTML = originalText;
+            approveButton.disabled = false;
+        }
+    });
+}
+
+function finalizeOnlineHotelApproval(tourId, hotelOrderIndex, bookingIndex, recheckToken, referenceFile, approveButton, originalText, returnPromise) {
+    const referenceId = document.getElementById(`referenceId_${tourId}_${hotelOrderIndex}_${bookingIndex}`).value;
+    const actualDueDate = document.getElementById(`actualDueDate_${tourId}_${hotelOrderIndex}_${bookingIndex}`).value;
+    const displayDueDateDays = document.getElementById(`displayDueDateDays_${tourId}_${hotelOrderIndex}_${bookingIndex}`).value;
+    const displayDueDate = document.getElementById(`displayDueDate_${tourId}_${hotelOrderIndex}_${bookingIndex}`).value;
+
+    const formData = new FormData();
+    formData.append('tour_id', tourId);
+    formData.append('hotel_order_index', hotelOrderIndex);
+    formData.append('booking_index', bookingIndex);
+    formData.append('reference_id', referenceId);
+    formData.append('actual_due_date', actualDueDate);
+    formData.append('display_due_date_days', displayDueDateDays);
+    formData.append('display_due_date', displayDueDate);
+    formData.append('confirm_online_booking', '1');
+    formData.append('recheck_token', recheckToken || '');
+    if (referenceFile) {
+        formData.append('reference_file', referenceFile);
+    }
+
+    const request = fetch('{{ url("/booking/approve-hotel-booking") }}', {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (!data.success) {
+            throw new Error(data.message || 'Online booking approval failed');
+        }
+
+        if (approveButton) {
+            approveButton.innerHTML = originalText;
+            approveButton.disabled = false;
+        }
+
+        const modalId = `individualHotelModal_${tourId}_${hotelOrderIndex}_${bookingIndex}_approve`;
+        closeIndividualHotelModal(modalId);
+
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                icon: 'success',
+                title: 'Online hotel booked',
+                text: 'Supplier booking completed and hotel order approved.',
+                timer: 2200,
+                showConfirmButton: false
+            }).then(() => location.reload());
+        } else {
+            alert('Online hotel booked and approved successfully.');
+            setTimeout(() => location.reload(), 1000);
+        }
+
+        return data;
+    })
+    .catch(error => {
+        if (approveButton) {
+            approveButton.innerHTML = originalText;
+            approveButton.disabled = false;
+        }
+
+        if (returnPromise && typeof Swal !== 'undefined') {
+            Swal.showValidationMessage(error.message || 'Booking failed');
+            return false;
+        }
+
+        alert('Online booking failed: ' + error.message);
+        throw error;
+    });
+
+    return returnPromise ? request : undefined;
+}
 
 function confirmIndividualHotelRejection(tourId, hotelOrderIndex, bookingIndex) {
     try {
