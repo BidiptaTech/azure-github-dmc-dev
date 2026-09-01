@@ -8,7 +8,7 @@ import { selectDmcId } from "../dmc/dmcSlice";
 import { updateServiceResponse } from "../common/stepperButtonSlice";
 import { setId } from "@/slice/hotel/hotelSlice";
 import { setTourId, updateStepStatus, statusUpdate, setType as setStepType } from "@/slice/common/stepsSlice";
-import { parseCityCountry } from "@/utils/locationFormat";
+import { parseCityCountry, getCountryForCityFromDestination } from "@/utils/locationFormat";
 
 export const fetchGuides = createAsyncThunk(
   "tourguide/fetchGuides",
@@ -29,7 +29,10 @@ export const fetchGuides = createAsyncThunk(
 
       const tourCountry =
         params?.country ||
-        state.hotels?.tourdetails?.destination ||
+        getCountryForCityFromDestination(
+          state.hotels?.tourdetails?.destination,
+          city
+        ) ||
         state.hotels?.tourdetails?.country ||
         "";
       const { cityName, countryName } = parseCityCountry(city, tourCountry);

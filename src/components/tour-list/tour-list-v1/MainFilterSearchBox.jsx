@@ -10,7 +10,7 @@ import {
 } from "../../../slice/attractions/attractionSlice";
 import { setSelectedCity, selectCityWiseDates } from "@/slice/common/commonSlice";
 import { clearTriggerSearch } from "@/slice/common/stepsSlice";
-import { toCityOnly } from "@/utils/locationFormat";
+import { toCityOnly, getCountryForCityFromDestination } from "@/utils/locationFormat";
 import {
   buildCityChipItems,
   buildLocationFromCityName,
@@ -161,10 +161,22 @@ const MainFilterSearchBox = () => {
     dispatch(setSearchParams(searchData));
     dispatch({ type: "attractions/clearAttractions" });
 
+    const selectedCityName =
+      selectedLocation?.name ||
+      selectedLocation?.address ||
+      selectedLocation;
+    const country =
+      getCountryForCityFromDestination(
+        tourdetails?.destination,
+        selectedCityName
+      ) ||
+      tourdetails?.country ||
+      "";
+
     dispatch(
       fetchAttractions({
         city: selectedLocation?.address || selectedLocation?.name,
-        country: tourdetails?.destination || tourdetails?.country || "",
+        country,
         date: selectedDate ? selectedDate.format("YYYY-MM-DD") : null,
         adults: guestCounts.Adults,
         children: guestCounts.Children,
