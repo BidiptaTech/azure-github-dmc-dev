@@ -5526,10 +5526,10 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
 
     /**
      * Hotel per-pax rate for quotation display from actual hotel order totalPrice.
-     * Formula: totalPrice / (number_of_rooms × head_count × nights)
+     * Formula: totalPrice / (number_of_rooms × head_count)
      *
      * @param  \Illuminate\Support\Collection|array|null  $orders
-     * @return array{per_pax: float, nights: int, rooms: int, head_count: int, hotel_total: float}|null
+     * @return array{per_pax: float, rooms: int, head_count: int, hotel_total: float}|null
      */
     public static function resolveHotelQuotationPerPaxFromOrders($orders = null, $tour = null, ?string $targetCurrency = null): ?array
     {
@@ -5540,7 +5540,6 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         $hotelTotal = 0.0;
         $totalRooms = 0;
         $headCountPerRoom = 0;
-        $nights = 0;
 
         foreach ($orderList as $order) {
             if ((int) ($order->status ?? 0) !== 1) {
@@ -5584,8 +5583,6 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                     $hotelTotal += $amount;
                 }
 
-                $nights = max($nights, self::resolveHotelOrderNightCount($item, $tour));
-
                 $rooms = $item['rooms'] ?? [];
                 if (! is_array($rooms)) {
                     continue;
@@ -5614,19 +5611,15 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             return null;
         }
 
-        if ($nights <= 0) {
-            $nights = 1;
-        }
         if ($headCountPerRoom <= 0) {
             $headCountPerRoom = 1;
         }
 
-        $divisor = $totalRooms * $headCountPerRoom * $nights;
+        $divisor = $totalRooms * $headCountPerRoom;
         $perPax = $hotelTotal / max(1, $divisor);
 
         return [
             'per_pax' => ceil($perPax),
-            'nights' => $nights,
             'rooms' => $totalRooms,
             'head_count' => $headCountPerRoom,
             'hotel_total' => ceil($hotelTotal),
