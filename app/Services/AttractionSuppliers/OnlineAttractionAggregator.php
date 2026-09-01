@@ -72,7 +72,28 @@ class OnlineAttractionAggregator
         ]);
 
         $result = $adapter->fetchAttractions($searchRequest, $credentials);
-        $frontendAttractions = $this->normalizer->forFrontend($result['attractions']);
+        $attractions = $result['attractions'] ?? [];
+        if (method_exists($adapter, 'fetchTickets')) {
+            foreach ($attractions as $index => $attraction) {
+                if (! is_array($attraction)) {
+                    continue;
+                }
+                $existingTickets = $attraction['tickets'] ?? [];
+                if (is_array($existingTickets) && $existingTickets !== []) {
+                    continue;
+                }
+                $sku = trim((string) ($attraction['sku_id'] ?? ''));
+                if ($sku === '') {
+                    continue;
+                }
+                $tickets = $adapter->fetchTickets($sku, $visitDate, $credentials);
+                if ($tickets !== []) {
+                    $attractions[$index]['tickets'] = $tickets;
+                }
+            }
+        }
+
+        $frontendAttractions = $this->normalizer->forFrontend($attractions);
         $frontendAttractions = $this->onlinePricing->applyAttractionMarkups(
             $frontendAttractions,
             $supplier,

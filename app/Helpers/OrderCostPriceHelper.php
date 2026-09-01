@@ -416,7 +416,12 @@ class OrderCostPriceHelper
 
         $ticketId = $item['ticket_id'] ?? $item['ticketId'] ?? ($item['ticket_details']['ticket_id'] ?? null);
         $ticket = null;
-        if (! empty($ticketId)) {
+        $isOnlineAttraction = ! empty($item['isOnlineAttraction'])
+            || strtolower((string) ($item['attractionSourceType'] ?? '')) === 'online';
+
+        // tickets.ticket_id is bigint. Online SKUs such as "SPPARK-premium" are not local ticket IDs.
+        // Querying them inside an open PostgreSQL transaction aborts the txn (SQLSTATE 25P02 on the later orders insert).
+        if (! $isOnlineAttraction && ! empty($ticketId) && self::isNumericDatabaseId($ticketId)) {
             $ticket = Ticket::query()->where('ticket_id', $ticketId)->first();
         }
 
@@ -939,5 +944,23 @@ class OrderCostPriceHelper
         }
 
         return 0.0;
+    }
+
+    /**
+     * Local master IDs (ticket_id, meal_id, etc.) are bigint. Non-numeric supplier SKUs must not be queried.
+     */
+    private static function isNumericDatabaseId(mixed $value): bool
+    {
+        if (is_int($value)) {
+            return $value > 0;
+        }
+
+        if (! is_string($value) && ! is_numeric($value)) {
+            return false;
+        }
+
+        $value = trim((string) $value);
+
+        return $value !== '' && ctype_digit($value);
     }
 }

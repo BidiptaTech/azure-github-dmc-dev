@@ -3456,6 +3456,12 @@
                                     const selectedOption = select.options[select.selectedIndex];
                                     const attractionId = select.value;
                                     const ticketId = ticket;
+                                    const attractionItemEl = document.querySelector(`#day${day}_attractions_container .attraction-item[data-attraction-index="${index}"]`);
+                                    const sourceRadio = document.querySelector(`input[name="attractionSourceType_day${day}_slot${index}"]:checked`);
+                                    const isOnlineAttraction = selectedOption?.dataset?.isOnline === '1'
+                                        || attractionItemEl?.dataset?.isOnlineAttraction === '1'
+                                        || sourceRadio?.value === 'online';
+                                    const skuId = selectedOption?.dataset?.skuId || (isOnlineAttraction ? String(attractionId) : '');
                                     
                                     // Get ticket name from the ticket select element
                                     const ticketSelect = document.getElementById(`day${day}_attraction_${index}_ticket`);
@@ -3564,10 +3570,22 @@
                                         adultCount: guestInfo.adults || 0,
                                         childCount: guestInfo.children || 0,
                                         seniorCount: guestInfo.seniors || 0,
-                                        AttractionId: parseInt(attractionId),
+                                        AttractionId: isOnlineAttraction ? String(attractionId) : (parseInt(attractionId, 10) || attractionId),
                                         AttractionName: selectedOption.text,
-                                        ticketId: parseInt(ticketId) || 10000001,
+                                        ticketId: isOnlineAttraction ? String(ticketId) : (parseInt(ticketId, 10) || 10000001),
                                         ticketName: ticketName,
+                                        sku_id: skuId || null,
+                                        ticket_sku_id: ticketSelect?.options[ticketSelect.selectedIndex]?.dataset?.ticketSkuId || null,
+                                        provider_ticket_id: ticketSelect?.options[ticketSelect.selectedIndex]?.dataset?.providerTicketId || null,
+                                        lowest_ticket_price: parseFloat(selectedOption?.dataset?.lowestTicketPrice || 0) || null,
+                                        highest_ticket_price: parseFloat(selectedOption?.dataset?.highestTicketPrice || 0) || null,
+                                        isOnlineAttraction: !!isOnlineAttraction,
+                                        attractionSourceType: isOnlineAttraction ? 'online' : 'offline',
+                                        supplier_code: selectedOption?.dataset?.supplierCode || (isOnlineAttraction ? 'sg_attractions' : null),
+                                        onlineAttractionRaw: isOnlineAttraction ? {
+                                            lowest_ticket_price: parseFloat(selectedOption?.dataset?.lowestTicketPrice || 0) || 0,
+                                            highest_ticket_price: parseFloat(selectedOption?.dataset?.highestTicketPrice || 0) || 0,
+                                        } : null,
                                         
                                         // Ticket Details (with proper pricing)
                                         ticket_details: {
@@ -3676,6 +3694,7 @@
                         updatePackageTotalPriceDisplay();
                         try { window.scheduleTourSubmitButtonUpdate && window.scheduleTourSubmitButtonUpdate(); } catch (e) { /* ignore */ }
                     }
+                    window.updateAttractionDataField = updateAttractionDataField;
 
                     // Function to collect guide data
                     function updateGuideDataField() {
@@ -6609,6 +6628,7 @@
                                 }
                             } else {
                                 alert('Error saving orders: ' + result.message);
+                                resetSaveButton();
                             }
                         } catch (error) {
                             console.error('Error saving orders:', error);
