@@ -2629,6 +2629,7 @@ class SingleTourPackageController extends Controller
             'checkOut' => 'required|date|after:checkIn',
             'city' => 'required|string|max:255',
             'paxInfo' => 'required|string|max:50',
+            'rooms' => 'nullable|integer|min:1|max:999',
         ]);
 
         try {
@@ -2638,6 +2639,7 @@ class SingleTourPackageController extends Controller
                     $request->input('checkIn'),
                     $request->input('checkOut'),
                     $request->input('paxInfo'),
+                    (int) $request->input('rooms', 1),
                 )
             );
         } catch (\RuntimeException $e) {
@@ -2675,6 +2677,7 @@ class SingleTourPackageController extends Controller
             'city' => 'required|string|max:255',
             'paxInfo' => 'required|string|max:50',
             'hotelCode' => 'required|string|max:100',
+            'rooms' => 'nullable|integer|min:1|max:999',
         ]);
 
         try {
@@ -2685,6 +2688,7 @@ class SingleTourPackageController extends Controller
                     $request->input('checkIn'),
                     $request->input('checkOut'),
                     $request->input('paxInfo'),
+                    (int) $request->input('rooms', 1),
                 )
             );
         } catch (\RuntimeException $e) {

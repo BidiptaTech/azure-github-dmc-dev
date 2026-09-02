@@ -865,9 +865,13 @@
                     && $isMasterDmcViewer
                     && (int) ($user->master_dmc_id ?? 0) === $authUserId;
                 $thirdPartyEnabled = strtolower((string) ($user->thirdparty_enabled ?? 'no')) === 'yes';
+                $showOnlineApiForThisRow = $rowRoleId === 10;
+                $canToggleOnlineApiForThisRow = $showOnlineApiForThisRow
+                    && in_array($authRoleId, [1, 2, 3], true);
+                $onlineApiEnabled = (bool) ($user->online_api ?? false);
                 $showBookingTypeForThisRow = ($authRoleId === 1 && (int) ($user->role_id ?? 0) === 10)
                     || ($authRoleId === 10 && (int) ($user->role_id ?? 0) === 11);
-                $showSettingsCellForThisRow = $showSettingsForThisRow || $showThirdPartyForThisRow || $showBookingTypeForThisRow;
+                $showSettingsCellForThisRow = $showSettingsForThisRow || $showThirdPartyForThisRow || $showBookingTypeForThisRow || $showOnlineApiForThisRow;
                 $bookingOptionsForRow = [
                     1 => 'Lite Form',
                     2 => 'Pro Form',
@@ -950,7 +954,7 @@
 
                 <td class="settings-controls-cell">
                   <div class="users-corp-section-label">Settings</div>
-                  @if($showSettingsForThisRow || $showThirdPartyForThisRow || $showBookingTypeForThisRow)
+                  @if($showSettingsForThisRow || $showThirdPartyForThisRow || $showBookingTypeForThisRow || $showOnlineApiForThisRow)
                   <div class="users-corp-controls">
                     @if($showSettingsForThisRow)
                       <div class="users-corp-control-item">
@@ -1063,6 +1067,25 @@
                                 ? ($thirdPartyEnabled ? 'Third party access on' : 'Third party access off')
                                 : 'Only the Master DMC can change third party access' }}"
                             {{ $canToggleThirdPartyForThisRow ? '' : 'disabled' }}>
+                        </div>
+                      </div>
+                    @endif
+
+                    @if($showOnlineApiForThisRow)
+                      <div class="users-corp-control-item">
+                        <span class="users-corp-label">Online API</span>
+                        <div class="form-check form-switch mb-0">
+                          <input {{ $onlineApiEnabled ? 'checked' : '' }}
+                            class="form-check-input {{ $canToggleOnlineApiForThisRow ? 'online-api-toggle' : '' }}"
+                            data-user-id="{{ $user->userId }}"
+                            type="checkbox"
+                            role="switch"
+                            id="online_api_{{ $user->userId }}"
+                            value="1"
+                            title="{{ $canToggleOnlineApiForThisRow
+                                ? ($onlineApiEnabled ? 'Online API on' : 'Online API off')
+                                : 'Only TravClicks can change Online API access' }}"
+                            {{ $canToggleOnlineApiForThisRow ? '' : 'disabled' }}>
                         </div>
                       </div>
                     @endif
@@ -1555,6 +1578,17 @@
                     uid,
                     u.thirdparty_enabled,
                     !u.can_toggle_third_party
+                ));
+            }
+
+            if (u.show_online_api) {
+                controls.push(controlSwitch(
+                    'Online API',
+                    u.can_toggle_online_api ? 'online-api-toggle' : '',
+                    'modal_online_api_' + uid,
+                    uid,
+                    !!u.online_api,
+                    !u.can_toggle_online_api
                 ));
             }
 
@@ -2242,6 +2276,43 @@ $(document).ready(function() {
                 const msg = xhr.responseJSON && xhr.responseJSON.message
                     ? xhr.responseJSON.message
                     : 'Error updating third party access';
+                toastr.error(msg);
+                console.error(xhr.responseText);
+            }
+        });
+    });
+
+    $(document).on('change', '.online-api-toggle', function() {
+        const $toggle = $(this);
+        const userId = $toggle.data('user-id');
+        const isChecked = $toggle.is(':checked');
+
+        $toggle.prop('disabled', true);
+
+        $.ajax({
+            url: "{{ route('users.update.online-api') }}",
+            type: "POST",
+            data: {
+                user_id: userId,
+                online_api: isChecked ? 1 : 0,
+                _token: "{{ csrf_token() }}"
+            },
+            success: function(response) {
+                $toggle.prop('disabled', false);
+                if (response.success) {
+                    $toggle.attr('title', isChecked ? 'Online API on' : 'Online API off');
+                    toastr.success(response.message || 'Online API access updated successfully');
+                } else {
+                    $toggle.prop('checked', !isChecked);
+                    toastr.error(response.message || 'Error updating Online API access');
+                }
+            },
+            error: function(xhr) {
+                $toggle.prop('disabled', false);
+                $toggle.prop('checked', !isChecked);
+                const msg = xhr.responseJSON && xhr.responseJSON.message
+                    ? xhr.responseJSON.message
+                    : 'Error updating Online API access';
                 toastr.error(msg);
                 console.error(xhr.responseText);
             }

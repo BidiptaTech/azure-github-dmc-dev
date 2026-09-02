@@ -1233,7 +1233,11 @@
                         <div id="hotelAccommodationsSection" class="collapse">
                             <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
                                 <div class="row" id="hotelSection">
-                            <!-- Offline / Online hotel source -->
+                            <!-- Offline / Online hotel source (only when Master DMC has Online API on) -->
+                            @php
+                                $onlineHotelApiEnabled = \App\Helpers\CommonHelper::masterDmcOnlineApiEnabled(auth()->user());
+                            @endphp
+                            @if($onlineHotelApiEnabled)
                             <div class="col-12 mb-3">
                                 <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.85rem;">
                                     <i class="ri-toggle-line me-1"></i>Hotel Source
@@ -1254,6 +1258,7 @@
                                 </div>
                                 <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">Offline uses your DMC hotel inventory. Online opens a live API search popup.</small>
                             </div>
+                            @endif
 
                             <div id="offlineHotelPanel">
                             <!-- Hotel Selection Controls -->
@@ -7032,7 +7037,9 @@
         </div>
     </div>
 </div>
+@if(!empty($onlineHotelApiEnabled))
 @include('single-tour-package.partials.online-hotel-modal')
+@endif
 @include('single-tour-package.partials.online-attraction-modal')
 @endsection
 

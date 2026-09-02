@@ -188,7 +188,7 @@ class MgBedbankHotelAdapter implements TwoStepHotelSupplierAdapter
             'City' => $destination['city'],
             'CheckIn' => $request->checkIn,
             'CheckOut' => $request->checkOut,
-            'Rooms' => ['Room' => $this->buildRooms($occupancy)],
+            'Rooms' => ['Room' => $this->buildRooms($occupancy, $request->roomCount())],
             'Currency' => $client->credential('currency', 'SGD'),
             'Language' => $client->credential('language', 'En'),
             'AvailFlag' => true,
@@ -555,29 +555,40 @@ class MgBedbankHotelAdapter implements TwoStepHotelSupplierAdapter
     }
 
     /**
-     * MG rooms cap at 2 adults / 2 children each, so split larger pax across rooms.
+     * Spreads the pax across the number of rooms the operator asked for.
+     *
+     * MG prices per room block, so the same pax costs roughly twice as much over two
+     * rooms as it does in one. The room count therefore comes from the booking form
+     * rather than being inferred: MG itself accepts as many adults in one room as the
+     * room's occupancy allows, and replies with no availability when it cannot.
+     *
+     * Children are the only hard cap — the payload has just Child1Age/Child2Age, so a
+     * room cannot carry more than two, and the room count grows if that is exceeded.
      *
      * @param  array{adults: int, children: int, child_ages: array<int, int>}  $occupancy
      * @return array<int, array<string, string|bool>>
      */
-    private function buildRooms(array $occupancy): array
+    private function buildRooms(array $occupancy, int $requestedRooms = 1): array
     {
-        $adultsLeft = $occupancy['adults'];
+        $adults = max(1, $occupancy['adults']);
         $agesLeft = $occupancy['child_ages'];
-        $rooms = [];
-        $roomNo = 1;
 
-        while ($adultsLeft > 0 || $agesLeft !== []) {
-            $adults = min(2, max($adultsLeft, 0));
-            if ($adults === 0 && $agesLeft !== []) {
-                $adults = 1; // MG requires at least one adult per room.
-            }
+        // MG needs at least one adult per room, and at most two children in one.
+        $roomCount = max(1, min($requestedRooms, $adults));
+        $roomCount = max($roomCount, (int) ceil(count($agesLeft) / 2));
+
+        $baseAdults = intdiv($adults, $roomCount);
+        $extraAdults = $adults % $roomCount;
+
+        $rooms = [];
+
+        for ($roomNo = 1; $roomNo <= $roomCount; $roomNo++) {
+            $roomAdults = $baseAdults + ($roomNo <= $extraAdults ? 1 : 0);
             $ages = array_splice($agesLeft, 0, 2);
-            $adultsLeft -= $adults;
 
             $rooms[] = [
-                'RoomNo' => (string) $roomNo++,
-                'NoOfAdults' => (string) $adults,
+                'RoomNo' => (string) $roomNo,
+                'NoOfAdults' => (string) $roomAdults,
                 'NoOfChild' => $ages !== [] ? (string) count($ages) : '',
                 'Child1Age' => isset($ages[0]) ? (string) $ages[0] : '',
                 'Child2Age' => isset($ages[1]) ? (string) $ages[1] : '',
@@ -671,6 +682,9 @@ class MgBedbankHotelAdapter implements TwoStepHotelSupplierAdapter
                 'city' => $destination['city'] ?? '',
                 'city_name' => $request?->cityName ?? '',
                 'pax_info' => $request?->paxInfo ?? '',
+                // Recheck must ask for the same number of room blocks or MG quotes a
+                // different total for identical pax.
+                'rooms' => $request?->roomCount() ?? 1,
             ],
             'hotel' => $hotelSummary,
             'static_rooms' => is_array($content['rooms'] ?? null) ? $content['rooms'] : [],

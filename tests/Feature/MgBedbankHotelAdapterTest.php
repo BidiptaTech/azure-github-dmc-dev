@@ -101,32 +101,26 @@ class MgBedbankHotelAdapterTest extends TestCase
         $this->assertTrue($result['hotels'][0]['rooms'][0]['breakfast_included']);
     }
 
-    public function test_it_splits_large_pax_across_rooms_of_two_adults(): void
+    public function test_it_keeps_all_adults_in_one_room_when_one_room_is_requested(): void
     {
-        Http::fake([
-            'https://mg.example/SearchHotel' => Http::response([
-                'status' => true,
-                'currency' => 'SGD',
-                'hotels' => ['hotel' => []],
-            ]),
-        ]);
+        $this->fakeEmptySearch();
 
-        (new MgBedbankHotelAdapter())->fetchHotels(
-            new HotelSearchRequest(
-                cityName: 'Singapore',
-                checkIn: '2026-08-01',
-                checkOut: '2026-08-04',
-                paxInfo: '5|3',
-            ),
-            [
-                'base_url' => 'https://mg.example',
-                'agency_code' => 'agency',
-                'username' => 'user',
-                'password' => 'secret',
-                'country_code' => 'SG',
-                'city_code' => 'SG-SIN',
-            ],
-        );
+        $this->search(paxInfo: '4|0', rooms: 1);
+
+        Http::assertSent(function (Request $request): bool {
+            $rooms = $request->data()['Rooms']['Room'];
+
+            return count($rooms) === 1
+                && $rooms[0]['NoOfAdults'] === '4'
+                && $rooms[0]['NoOfChild'] === '';
+        });
+    }
+
+    public function test_it_spreads_pax_evenly_across_the_requested_rooms(): void
+    {
+        $this->fakeEmptySearch();
+
+        $this->search(paxInfo: '5|3', rooms: 3);
 
         Http::assertSent(function (Request $request): bool {
             $rooms = $request->data()['Rooms']['Room'];
@@ -137,6 +131,69 @@ class MgBedbankHotelAdapterTest extends TestCase
                 && $rooms[2]['NoOfAdults'] === '1' && $rooms[2]['NoOfChild'] === ''
                 && $rooms[2]['RoomNo'] === '3';
         });
+    }
+
+    public function test_it_adds_rooms_when_children_exceed_two_per_room(): void
+    {
+        $this->fakeEmptySearch();
+
+        // MG's payload only carries Child1Age/Child2Age, so three children need two rooms.
+        $this->search(paxInfo: '2|3', rooms: 1);
+
+        Http::assertSent(function (Request $request): bool {
+            $rooms = $request->data()['Rooms']['Room'];
+
+            return count($rooms) === 2
+                && $rooms[0]['NoOfAdults'] === '1' && $rooms[0]['NoOfChild'] === '2'
+                && $rooms[1]['NoOfAdults'] === '1' && $rooms[1]['NoOfChild'] === '1';
+        });
+    }
+
+    public function test_it_never_requests_more_rooms_than_there_are_adults(): void
+    {
+        $this->fakeEmptySearch();
+
+        $this->search(paxInfo: '2|0', rooms: 4);
+
+        Http::assertSent(function (Request $request): bool {
+            $rooms = $request->data()['Rooms']['Room'];
+
+            return count($rooms) === 2
+                && $rooms[0]['NoOfAdults'] === '1'
+                && $rooms[1]['NoOfAdults'] === '1';
+        });
+    }
+
+    private function fakeEmptySearch(): void
+    {
+        Http::fake([
+            'https://mg.example/SearchHotel' => Http::response([
+                'status' => true,
+                'currency' => 'SGD',
+                'hotels' => ['hotel' => []],
+            ]),
+        ]);
+    }
+
+    private function search(string $paxInfo, int $rooms): void
+    {
+        (new MgBedbankHotelAdapter())->fetchHotels(
+            new HotelSearchRequest(
+                cityName: 'Singapore',
+                checkIn: '2026-08-01',
+                checkOut: '2026-08-04',
+                paxInfo: $paxInfo,
+                rooms: $rooms,
+            ),
+            [
+                'base_url' => 'https://mg.example',
+                'agency_code' => 'agency',
+                'username' => 'user',
+                'password' => 'secret',
+                'country_code' => 'SG',
+                'city_code' => 'SG-SIN',
+            ],
+        );
     }
 
     public function test_no_availability_error_returns_empty_hotel_list(): void

@@ -58,6 +58,7 @@ class User extends Authenticatable
         'markup_price_flight' => 'decimal:2',
         'thirdparty' => 'string',
         'thirdparty_enabled' => 'string',
+        'online_api' => 'boolean',
     ];
 
     /**

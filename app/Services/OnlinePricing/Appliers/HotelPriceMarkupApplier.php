@@ -89,6 +89,15 @@ class HotelPriceMarkupApplier
             $room['price'] = $this->markUp((float) $room['price'], $context);
         }
 
+        // Travels with the enquiry into orders.data so the pre-approval recheck can
+        // re-apply this exact stack to the supplier's fresh price. Suppliers that ship a
+        // `booking` block carry it there; for the rest the modal reads `room.markup`.
+        $room['markup'] = $context->toArray();
+
+        if (is_array($room['booking'] ?? null)) {
+            $room['booking']['markup'] = $room['markup'];
+        }
+
         return $room;
     }
 

@@ -24,9 +24,14 @@ class OnlineHotelAggregator
      *
      * @return array<string, mixed>
      */
-    public function search(string $cityName, string $checkIn, string $checkOut, string $paxInfo): array
-    {
-        [$searchRequest, $adapter, $resolved] = $this->prepare($cityName, $checkIn, $checkOut, $paxInfo);
+    public function search(
+        string $cityName,
+        string $checkIn,
+        string $checkOut,
+        string $paxInfo,
+        int $rooms = 1,
+    ): array {
+        [$searchRequest, $adapter, $resolved] = $this->prepare($cityName, $checkIn, $checkOut, $paxInfo, $rooms);
         $twoStep = $adapter instanceof TwoStepHotelSupplierAdapter;
 
         Log::info('Online hotel search', [
@@ -34,6 +39,8 @@ class OnlineHotelAggregator
             'country_id' => $resolved['country_id'],
             'supplier_code' => $resolved['supplier']->code,
             'supplier_name' => $resolved['supplier']->name,
+            'pax_info' => $searchRequest->paxInfo,
+            'rooms' => $searchRequest->roomCount(),
             'two_step' => $twoStep,
         ]);
 
@@ -52,6 +59,7 @@ class OnlineHotelAggregator
             'supplier_name' => $resolved['supplier']->name,
             'country_id' => $resolved['country_id'],
             'city' => $searchRequest->cityName,
+            'rooms' => $searchRequest->roomCount(),
             'request' => $searchRequest->toPayload(),
             'provider' => $result['provider'],
         ];
@@ -68,8 +76,9 @@ class OnlineHotelAggregator
         string $checkIn,
         string $checkOut,
         string $paxInfo,
+        int $rooms = 1,
     ): array {
-        [$searchRequest, $adapter, $resolved] = $this->prepare($cityName, $checkIn, $checkOut, $paxInfo);
+        [$searchRequest, $adapter, $resolved] = $this->prepare($cityName, $checkIn, $checkOut, $paxInfo, $rooms);
 
         if (! $adapter instanceof TwoStepHotelSupplierAdapter) {
             throw new RuntimeException("{$resolved['supplier']->name} returns rates with the hotel list; no room lookup is needed.");
@@ -79,6 +88,8 @@ class OnlineHotelAggregator
             'city' => $searchRequest->cityName,
             'hotel_code' => $hotelCode,
             'supplier_code' => $resolved['supplier']->code,
+            'pax_info' => $searchRequest->paxInfo,
+            'rooms' => $searchRequest->roomCount(),
         ]);
 
         $result = $adapter->fetchHotelRooms($searchRequest, $hotelCode, $resolved['credentials']);
@@ -89,6 +100,7 @@ class OnlineHotelAggregator
                 'hotel' => null,
                 'rooms' => [],
                 'total_rooms' => 0,
+                'room_count' => $searchRequest->roomCount(),
                 'session_id' => $result['session_id'] ?? null,
                 'supplier_code' => $resolved['supplier']->code,
                 'supplier_name' => $resolved['supplier']->name,
@@ -104,6 +116,7 @@ class OnlineHotelAggregator
             'hotel' => $hotel,
             'rooms' => $hotel['rooms'] ?? [],
             'total_rooms' => count($hotel['rooms'] ?? []),
+            'room_count' => $searchRequest->roomCount(),
             'session_id' => $result['session_id'] ?? null,
             'supplier_code' => $resolved['supplier']->code,
             'supplier_name' => $resolved['supplier']->name,
@@ -115,8 +128,13 @@ class OnlineHotelAggregator
     /**
      * @return array{0: HotelSearchRequest, 1: HotelSupplierAdapter, 2: array<string, mixed>}
      */
-    private function prepare(string $cityName, string $checkIn, string $checkOut, string $paxInfo): array
-    {
+    private function prepare(
+        string $cityName,
+        string $checkIn,
+        string $checkOut,
+        string $paxInfo,
+        int $rooms = 1,
+    ): array {
         $resolved = $this->resolver->resolveForCityName($cityName);
 
         $searchRequest = new HotelSearchRequest(
@@ -126,6 +144,7 @@ class OnlineHotelAggregator
             paxInfo: $paxInfo,
             cityId: isset($resolved['city']->city_id) ? (int) $resolved['city']->city_id : null,
             countryId: $resolved['country_id'],
+            rooms: max(1, $rooms),
         );
 
         return [$searchRequest, $this->factory->make($resolved['supplier']->code), $resolved];

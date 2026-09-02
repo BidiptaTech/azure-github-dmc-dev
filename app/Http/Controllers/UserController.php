@@ -989,8 +989,12 @@ class UserController extends Controller
                 $canToggleThirdPartyForThisRow = $showThirdPartyForThisRow
                     && $isMasterDmcViewer
                     && (int) ($u->master_dmc_id ?? 0) === $authUserId;
-                $showSettingsCellForThisRow = $showSettingsForThisRow || $showThirdPartyForThisRow;
+                $showOnlineApiForThisRow = $rowRoleId === 10;
+                $canToggleOnlineApiForThisRow = $showOnlineApiForThisRow
+                    && in_array($authRoleId, [1, 2, 3], true);
+                $showSettingsCellForThisRow = $showSettingsForThisRow || $showThirdPartyForThisRow || $showOnlineApiForThisRow;
                 $thirdPartyEnabled = strtolower((string) ($u->thirdparty_enabled ?? 'no')) === 'yes';
+                $onlineApiEnabled = (bool) ($u->online_api ?? false);
 
                 $showBookingTypeForThisRow = ($authRoleId === 1 && $rowRoleId === 10)
                     || ($authRoleId === 10 && $rowRoleId === 11)
@@ -1050,6 +1054,7 @@ class UserController extends Controller
                     'ai_response_type' => strtolower((string) ($u->ai_response_type ?? '')),
                     'thirdparty' => strtolower((string) ($u->thirdparty ?? 'no')),
                     'thirdparty_enabled' => $thirdPartyEnabled,
+                    'online_api' => $onlineApiEnabled,
                     'master_dmc_id' => (int) ($u->master_dmc_id ?? 0),
                     'is_pro' => (int) ($u->is_pro ?? 1),
                     'show_settings_cell' => $showSettingsCellForThisRow,
@@ -1057,6 +1062,8 @@ class UserController extends Controller
                     'can_edit_settings' => $canEditSettings && $showSettingsForThisRow,
                     'show_third_party' => $showThirdPartyForThisRow,
                     'can_toggle_third_party' => $canToggleThirdPartyForThisRow,
+                    'show_online_api' => $showOnlineApiForThisRow,
+                    'can_toggle_online_api' => $canToggleOnlineApiForThisRow,
                     'show_booking_type' => $showBookingTypeForThisRow,
                     'booking_options' => $bookingOptionsForRow,
                     'selected_booking_type' => $selectedBookingTypeForRow,
@@ -3020,6 +3027,56 @@ class UserController extends Controller
             'message' => "Third party access {$label} successfully.",
             'user_id' => (int) $user->userId,
             'thirdparty_enabled' => (string) $user->thirdparty_enabled,
+        ]);
+    }
+
+    /**
+     * Toggle Online API access for a Master DMC. Only TravClicks (roles 1, 2, 3) may change it.
+     */
+    public function updateOnlineApi(Request $request)
+    {
+        if (! hasPermission('edit users')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You do not have permission to update Online API access.',
+            ], 403);
+        }
+
+        if (! in_array((int) ($this->auth_user->role_id ?? 0), [1, 2, 3], true)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only TravClicks can update Online API access.',
+            ], 403);
+        }
+
+        $request->validate([
+            'user_id' => 'required|integer',
+            'online_api' => 'required|in:0,1',
+        ]);
+
+        $user = User::where('userId', $request->user_id)->first();
+        if (! $user) {
+            return response()->json(['success' => false, 'message' => 'User not found.'], 404);
+        }
+
+        if ((int) $user->role_id !== 10) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Online API access applies to Master DMC users only.',
+            ], 422);
+        }
+
+        $user->online_api = (int) $request->online_api === 1;
+        $user->save();
+
+        $enabled = (bool) $user->online_api;
+        $label = $enabled ? 'enabled' : 'disabled';
+
+        return response()->json([
+            'success' => true,
+            'message' => "Online API access {$label} successfully.",
+            'user_id' => (int) $user->userId,
+            'online_api' => $enabled,
         ]);
     }
 

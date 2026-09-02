@@ -2721,6 +2721,73 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         return null;
     }
 
+    /**
+     * Master DMC for the logged-in user, without walking the sales-role tree in getDmcId().
+     *
+     * The flag we care about (online_api) lives on the Master DMC (role 10).
+     * Prefer the stored master_dmc_id; for a DMC that column is empty, created_by is the master.
+     */
+    public static function resolveMasterDmcId($auth_user = null): ?int
+    {
+        $user = $auth_user ?: Auth::user();
+        if (! $user) {
+            return null;
+        }
+
+        $roleId = (int) ($user->role_id ?? 0);
+
+        if (in_array($roleId, [10, 19], true)) {
+            return (int) $user->userId;
+        }
+
+        $masterId = (int) ($user->master_dmc_id ?? 0);
+        if ($masterId > 0) {
+            return $masterId;
+        }
+
+        if (in_array($roleId, [11, 20], true)) {
+            $createdBy = (int) ($user->created_by ?? 0);
+
+            return $createdBy > 0 ? $createdBy : null;
+        }
+
+        $dmcId = self::getDmcId($user);
+        if (! $dmcId) {
+            return null;
+        }
+
+        $dmc = ((int) $user->userId === (int) $dmcId)
+            ? $user
+            : User::query()->where('userId', $dmcId)->first(['userId', 'master_dmc_id', 'created_by']);
+
+        if (! $dmc) {
+            return null;
+        }
+
+        $masterId = (int) ($dmc->master_dmc_id ?: $dmc->created_by);
+
+        return $masterId > 0 ? $masterId : null;
+    }
+
+    /**
+     * Whether this user's Master DMC has Online API turned on.
+     */
+    public static function masterDmcOnlineApiEnabled($auth_user = null): bool
+    {
+        $user = $auth_user ?: Auth::user();
+        $masterId = self::resolveMasterDmcId($user);
+
+        if (! $masterId) {
+            return false;
+        }
+
+        if ($user && (int) $user->userId === $masterId) {
+            return (bool) $user->online_api;
+        }
+
+        return (bool) User::query()->where('userId', $masterId)->value('online_api');
+    }
+
 
     /**
      * Country used for multi-country tour visibility.

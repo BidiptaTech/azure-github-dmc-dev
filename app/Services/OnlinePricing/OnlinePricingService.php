@@ -58,6 +58,45 @@ class OnlinePricingService
     }
 
     /**
+     * The markup stack an online hotel enquiry was priced with, as recorded by
+     * HotelPriceMarkupApplier. Null for enquiries taken before it was recorded.
+     *
+     * @param  array<string, mixed>  $onlineBooking  orders.data[i].onlineHotelBooking
+     */
+    public function storedHotelMarkupContext(array $onlineBooking): ?MarkupContext
+    {
+        return MarkupContext::fromArray(
+            is_array($onlineBooking['markup'] ?? null) ? $onlineBooking['markup'] : null,
+        );
+    }
+
+    /**
+     * Markup to apply to a live recheck price: the enquiry stamp when present,
+     * otherwise the same admin + DMC stack the hotel search uses today.
+     *
+     * @param  array<string, mixed>  $onlineBooking
+     */
+    public function hotelMarkupContextForRecheck(
+        array $onlineBooking,
+        ?Authenticatable $user = null,
+        ?int $tourDmcId = null,
+    ): ?MarkupContext {
+        $stored = $this->storedHotelMarkupContext($onlineBooking);
+
+        if ($stored) {
+            return $stored;
+        }
+
+        $context = $this->contextFactory->forHotelSupplier(
+            $user ?? Auth::user(),
+            (string) ($onlineBooking['supplier_code'] ?? ''),
+            $tourDmcId,
+        );
+
+        return $context->hasRules() ? $context : null;
+    }
+
+    /**
      * Resolve admin supplier row for attractions by city name (country-scoped).
      */
     public function resolveAttractionSupplierForCity(?string $cityName): ?SupplierMaster

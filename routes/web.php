@@ -609,6 +609,7 @@ Route::get('/clear', function () {
         Route::post('users/update-zone-on', [UserController::class, 'updateZone'])->name('update.zoneon');
         Route::post('users/update-active', [UserController::class, 'updateActive'])->name('users.update.active');
         Route::post('users/update-thirdparty-enabled', [UserController::class, 'updateThirdPartyEnabled'])->name('users.update.thirdparty-enabled');
+        Route::post('users/update-online-api', [UserController::class, 'updateOnlineApi'])->name('users.update.online-api');
         Route::post('users/update-auto-cancel', [UserController::class, 'updateAutoCancel'])->name('update.autocancel');
         Route::post('users/update-guide-pax', [UserController::class, 'updateGuidePax'])->name('update.guidepax');
         Route::post('users/update-ai-response', [UserController::class, 'updateAiResponse'])->name('update.airesponse');
