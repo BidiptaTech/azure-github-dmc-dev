@@ -5,64 +5,39 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Providers\RouteServiceProvider;
-use App\Support\LoginTrace;
 use Illuminate\Foundation\Auth\AuthenticatesUsers;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 class LoginController extends Controller
 {
-    /*
-    |--------------------------------------------------------------------------
-    | Login Controller
-    |--------------------------------------------------------------------------
-    |
-    | This controller handles authenticating users for the application and
-    | redirecting them to your home screen. The controller uses a trait
-    | to conveniently provide its functionality to your applications.
-    |
-    */
-
     use AuthenticatesUsers;
 
-    /**
-     * Where to redirect users after login.
-     *
-     * @var string
-     */
     protected $redirectTo = RouteServiceProvider::HOME;
 
-    /**
-     * Create a new controller instance.
-     *
-     * @return void
-     */
     public function __construct()
     {
         $this->middleware('guest')->except('logout');
     }
 
-    /**
-     * Handle a login request to the application.
-     */
     public function login(Request $request)
     {
-        LoginTrace::traceId($request);
-        LoginTrace::info('controller:login:start', [], $request);
+        $this->logLogin('start', $request);
 
         $this->validateLogin($request);
-        LoginTrace::info('controller:login:validated', [], $request);
+        $this->logLogin('validated', $request);
 
         if (method_exists($this, 'hasTooManyLoginAttempts') &&
             $this->hasTooManyLoginAttempts($request)) {
-            LoginTrace::info('controller:login:lockout', [], $request);
+            $this->logLogin('lockout', $request);
             $this->fireLockoutEvent($request);
 
             return $this->sendLockoutResponse($request);
         }
 
         if ($this->attemptLogin($request)) {
-            LoginTrace::info('controller:login:attempt_success', [], $request);
+            $this->logLogin('success', $request);
 
             if ($request->hasSession()) {
                 $request->session()->put('auth.password_confirmed_at', time());
@@ -71,114 +46,100 @@ class LoginController extends Controller
             return $this->sendLoginResponse($request);
         }
 
-        LoginTrace::info('controller:login:attempt_failed', [], $request);
+        $this->logLogin('failed', $request);
         $this->incrementLoginAttempts($request);
 
         return $this->sendFailedLoginResponse($request);
     }
 
-    /**
-     * Block login for inactive accounts before password check.
-     */
     protected function attemptLogin(Request $request)
     {
-        LoginTrace::info('controller:attemptLogin:start', [], $request);
-
         $email = strtolower(trim((string) $request->input($this->username())));
 
-        LoginTrace::info('controller:attemptLogin:db_lookup_start', [
-            'email' => LoginTrace::maskEmail($email),
-        ], $request);
+        $this->logLogin('db_lookup', $request, ['email' => $this->maskEmail($email)]);
 
         $user = User::where('email', $email)->first();
 
-        LoginTrace::info('controller:attemptLogin:db_lookup_done', [
-            'user_found' => $user !== null,
-            'user_id' => $user?->userId ?? $user?->id,
-            'is_active' => $user?->isAccountActive(),
-        ], $request);
-
         if ($user && ! $user->isAccountActive()) {
-            LoginTrace::info('controller:attemptLogin:inactive_account', [], $request);
+            $this->logLogin('inactive_account', $request, [
+                'user_id' => $user->userId ?? $user->id,
+            ]);
 
             return false;
         }
-
-        LoginTrace::info('controller:attemptLogin:guard_attempt_start', [], $request);
 
         $result = $this->guard()->attempt(
             $this->credentials($request),
             $request->boolean('remember')
         );
 
-        LoginTrace::info('controller:attemptLogin:guard_attempt_done', [
+        $this->logLogin('password_check', $request, [
+            'user_found' => $user !== null,
             'success' => (bool) $result,
-        ], $request);
+        ]);
 
         return $result;
     }
 
-    /**
-     * The user has been authenticated.
-     */
-    protected function authenticated(Request $request, $user)
-    {
-        LoginTrace::info('controller:authenticated', [
-            'user_id' => $user->userId ?? $user->id ?? null,
-            'email' => LoginTrace::maskEmail($user->email ?? null),
-        ], $request);
-    }
-
-    /**
-     * Send the response after the user was authenticated.
-     */
     protected function sendLoginResponse(Request $request)
     {
-        LoginTrace::info('controller:sendLoginResponse:start', [], $request);
-
         $request->session()->regenerate();
-
-        LoginTrace::info('controller:sendLoginResponse:session_regenerated', [
-            'new_session_id' => $request->session()->getId(),
-        ], $request);
-
         $this->clearLoginAttempts($request);
 
-        if ($response = $this->authenticated($request, $this->guard()->user())) {
-            LoginTrace::info('controller:sendLoginResponse:custom_response', [], $request);
+        $this->logLogin('redirect', $request, [
+            'redirect_to' => $this->redirectPath(),
+            'user_id' => $this->guard()->id(),
+        ]);
 
+        if ($response = $this->authenticated($request, $this->guard()->user())) {
             return $response;
         }
-
-        LoginTrace::info('controller:sendLoginResponse:redirect', [
-            'redirect_to' => $this->redirectPath(),
-        ], $request);
 
         return redirect()->intended($this->redirectPath());
     }
 
-    /**
-     * Show a clear message when the account exists but is inactive.
-     */
     protected function sendFailedLoginResponse(Request $request)
     {
-        LoginTrace::info('controller:sendFailedLoginResponse:start', [], $request);
-
         $email = strtolower(trim((string) $request->input($this->username())));
         $user = User::where('email', $email)->first();
 
         if ($user && ! $user->isAccountActive()) {
-            LoginTrace::info('controller:sendFailedLoginResponse:inactive', [], $request);
+            $this->logLogin('inactive_account_response', $request);
 
             throw ValidationException::withMessages([
                 $this->username() => ['This user account is not active. Please contact your administrator.'],
             ]);
         }
 
-        LoginTrace::info('controller:sendFailedLoginResponse:invalid_credentials', [], $request);
+        $this->logLogin('invalid_credentials', $request);
 
         throw ValidationException::withMessages([
             $this->username() => [trans('auth.failed')],
         ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $extra
+     */
+    private function logLogin(string $step, Request $request, array $extra = []): void
+    {
+        Log::info('[Login] '.$step, array_merge([
+            'ip' => $request->ip(),
+            'path' => $request->path(),
+            'email' => $this->maskEmail($request->input('email')),
+        ], $extra));
+    }
+
+    private function maskEmail(mixed $email): ?string
+    {
+        $email = strtolower(trim((string) $email));
+
+        if ($email === '' || ! str_contains($email, '@')) {
+            return null;
+        }
+
+        [$local, $domain] = explode('@', $email, 2);
+
+        return substr($local, 0, min(2, strlen($local))).'***@'.$domain;
     }
 }
