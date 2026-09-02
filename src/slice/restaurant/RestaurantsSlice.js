@@ -32,12 +32,8 @@ export const fetchRestaurants = createAsyncThunk(
 
       const queryParams = new URLSearchParams();
 
-      const tourCountry =
-        country ||
-        state.hotels?.tourdetails?.destination ||
-        state.hotels?.tourdetails?.country ||
-        "";
-      const { cityName, countryName } = parseCityCountry(city, tourCountry);
+
+      const { cityName, countryName } = parseCityCountry(city, country);
 
       if (cityName) queryParams.append("city", cityName);
       if (countryName) queryParams.append("country", countryName);

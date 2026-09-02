@@ -456,21 +456,21 @@ const GuestSearch = ({ onGuestChange, guestCounts }) => {
       <div
         className="shadow-2 dropdown-menu min-width-400"
         style={{
-          maxHeight: '600px',
-          border: 'none',
-          borderRadius: '16px',
-          boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
-          animation: 'fadeIn 0.3s ease-in-out',
+          maxHeight: "min(600px, calc(100vh - 120px))",
+          overflowY: "auto",
+          border: "none",
+          borderRadius: "16px",
+          boxShadow: "0 20px 40px rgba(0,0,0,0.1)",
+          animation: "fadeIn 0.3s ease-in-out",
           zIndex: 10040,
         }}
       >
         <div
           className="bg-white px-30 py-30 rounded-4 counter-box"
           style={{
-            maxHeight: '600px',
-            background: 'linear-gradient(to bottom, #ffffff, #f8f9fa)',
-            borderRadius: '16px',
-            position: 'relative'
+            background: "linear-gradient(to bottom, #ffffff, #f8f9fa)",
+            borderRadius: "16px",
+            position: "relative",
           }}
         >
           <style jsx>{`

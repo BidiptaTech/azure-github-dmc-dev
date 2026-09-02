@@ -1,21 +1,23 @@
 .masthead.-type-1 {
   position: relative;
-  padding-top: 330px;
-  padding-bottom: 210px;
+  padding-top: 280px;
+  padding-bottom: 520px;
   min-height: 100vh;
+  overflow: visible;
 
   @media (min-width: 1200px) and (max-width: 1600px) {
-    padding-top: 235px;
+    padding-top: 200px;
+    padding-bottom: 480px;
   }
 
   @include media-below(lg) {
-    padding-top: 260px;
-    padding-bottom: 180px;
+    padding-top: 220px;
+    padding-bottom: 420px;
   }
 
   @include media-below(sm) {
     padding-top: 130px;
-    padding-bottom: 60px;
+    padding-bottom: 320px;
     height: auto;
   }
 
@@ -51,6 +53,10 @@
 
 .masthead.-type-2 {
   position: relative;
+  min-height: 100vh;
+  padding-bottom: 420px;
+  overflow: visible;
+  background-color: var(--color-dark-1);
 
   .mainSearch {
     position: absolute;
@@ -70,7 +76,7 @@
       top: 0;
       left: 0;
       width: 100%;
-      height: calc(100% - 70px);
+      height: 100%;
 
       @include media-below(xl) {
         height: 100%;

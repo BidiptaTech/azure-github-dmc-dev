@@ -1,98 +1,198 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import DateSearch from "../common/DateSearch";
 import LocationSearch from "./LocationSearch";
+import CityServiceChips from "@/components/common/CityServiceChips";
 import {
   fetchGuides,
   setentrypickup,
-  // setentrydropoff,
   setpickupdate,
-  // setPickupPlaceid,
-  // setDropoffPlaceid,
-  resetguide,
 } from "@/slice/tourguide/guideslice";
-import { triggerSearch, clearTriggerSearch } from "@/slice/common/stepsSlice";
-import moment from "moment";
+import { setSelectedCity, selectCityWiseDates } from "@/slice/common/commonSlice";
+import { clearTriggerSearch } from "@/slice/common/stepsSlice";
+import { toCityOnly } from "@/utils/locationFormat";
+import {
+  buildCityChipItems,
+  buildLocationFromCityName,
+  getCityDateBounds,
+  isCityServiceBooked,
+  normalizeYmd,
+} from "@/utils/cityWiseDates";
 
-const MainFilterSearchBox = ({ Location }) => {
+const MainFilterSearchBox = () => {
   const dispatch = useDispatch();
-  // useEffect(() => {
-  //   dispatch(resetguide());
-  // }, [dispatch]);
 
-  // State for storing the pickup and dropoff locations
+  const tourdetails = useSelector((state) => state.hotels.tourdetails);
+  const cityWiseDates = useSelector(selectCityWiseDates);
+  const cityList = useSelector((state) => state.city?.city || []);
+  const bookedGuides = useSelector((state) => state.tourguide.bookedguide || []);
+
   const [pickUpLocation, setPickUpLocation] = useState("");
-  // const [dropOffLocation, setDropOffLocation] = useState("");
-  // const [pickUpPlaceId, setpickUpPlaceId] = useState(""); // New state for pick-up place_id
-  // const [dropOffPlaceId, setdropOffPlaceId] = useState(""); // New state for drop-off place_id
   const [selectedDate, setSelectedDate] = useState("");
-  const [locationError, setLocationError] = useState(false); // Add this state for tracking validation errors
-  // const Location = Location;
-  // Handler for the button search click event
+  const [dateBounds, setDateBounds] = useState({ minDate: null, maxDate: null });
+  const [locationError, setLocationError] = useState(false);
+  const [controlledCity, setControlledCity] = useState(null);
+  const hasAutoSelectedCity = useRef(false);
+
+  const tourCheckIn = tourdetails?.CheckInTime || tourdetails?.check_in_time;
+  const tourCheckOut = tourdetails?.CheckOutTime || tourdetails?.check_out_time;
+  const hasCityWiseDates =
+    Array.isArray(cityWiseDates) && cityWiseDates.length > 0;
+
+  const applyCityContext = useCallback(
+    (location) => {
+      if (!location) {
+        setPickUpLocation("");
+        setControlledCity(null);
+        setSelectedDate("");
+        return;
+      }
+
+      const cityName = location.name || location.address || location;
+      const bounds = getCityDateBounds(
+        cityWiseDates,
+        cityName,
+        tourCheckIn,
+        tourCheckOut
+      );
+      const minYmd = normalizeYmd(bounds.checkIn);
+      const maxYmd = normalizeYmd(bounds.checkOut);
+      const defaultDate = minYmd || "";
+
+      setPickUpLocation(location.address || location.name || "");
+      setControlledCity(location);
+      setLocationError(false);
+      setDateBounds({ minDate: minYmd, maxDate: maxYmd });
+      setSelectedDate(defaultDate);
+      dispatch(
+        setSelectedCity({
+          id: location.id,
+          name: location.name,
+          address: location.address,
+          city: location.name,
+          country: String(location.address || "")
+            .split(",")
+            .slice(-1)[0]
+            .trim(),
+        })
+      );
+    },
+    [cityWiseDates, tourCheckIn, tourCheckOut, dispatch]
+  );
+
+  useEffect(() => {
+    if (hasCityWiseDates) return;
+    const bounds = getCityDateBounds([], null, tourCheckIn, tourCheckOut);
+    const minYmd = normalizeYmd(bounds.checkIn);
+    const maxYmd = normalizeYmd(bounds.checkOut);
+    setDateBounds({ minDate: minYmd, maxDate: maxYmd });
+    if (minYmd && !selectedDate) {
+      setSelectedDate(minYmd);
+    }
+  }, [hasCityWiseDates, tourCheckIn, tourCheckOut, selectedDate]);
+
+  useEffect(() => {
+    if (hasAutoSelectedCity.current) return;
+    if (!hasCityWiseDates) return;
+    if (pickUpLocation) {
+      hasAutoSelectedCity.current = true;
+      return;
+    }
+
+    const pending =
+      cityWiseDates.find(
+        (entry) => !isCityServiceBooked(entry, bookedGuides)
+      ) || cityWiseDates[0];
+    const location = buildLocationFromCityName(pending.city, cityList);
+    if (location) {
+      hasAutoSelectedCity.current = true;
+      applyCityContext(location);
+    }
+  }, [
+    hasCityWiseDates,
+    cityWiseDates,
+    bookedGuides,
+    pickUpLocation,
+    cityList,
+    applyCityContext,
+  ]);
+
+  const handleCityChipClick = (entry) => {
+    const location = buildLocationFromCityName(entry.city, cityList);
+    if (location) {
+      applyCityContext(location);
+    }
+  };
+
   const buttonsearch = useCallback(() => {
-    // Validate that we have both location and date
-    if (!pickUpLocation || pickUpLocation.trim() === '') {
+    if (!pickUpLocation || pickUpLocation.trim() === "") {
       setLocationError(true);
-      console.log("Please select a valid location from the dropdown");
       return;
     }
 
     if (!selectedDate) {
-      console.log("Please select a date");
       return;
     }
 
     setLocationError(false);
-    
-    // Format the date to match the API requirements
-    const formattedDate = moment(selectedDate).format("YYYY-MM-DD");
 
-    // Update Redux state
     dispatch(setentrypickup(pickUpLocation));
-    dispatch(setpickupdate(formattedDate));
+    dispatch(setpickupdate(selectedDate));
 
-    // Call the fetchGuides API with the required parameters
-    dispatch(fetchGuides({
-      city: pickUpLocation,
-      date: formattedDate,
-      start: 0,
-      limit: 5
-    }));
+    dispatch(
+      fetchGuides({
+        city: pickUpLocation,
+        date: selectedDate,
+        start: 0,
+        limit: 5,
+      })
+    );
   }, [dispatch, pickUpLocation, selectedDate]);
 
-  // Listen for triggerSearch from Redux and call buttonsearch when guide step is triggered
   const searchTrigger = useSelector((state) => state.steps.triggerSearch);
-  
+
   useEffect(() => {
-    if (searchTrigger === 'guide') {
-      console.log('🔍 Guide MainFilterSearchBox - Trigger search received, calling buttonsearch');
+    if (searchTrigger === "guide") {
       buttonsearch();
-      // Clear the trigger after handling
       dispatch(clearTriggerSearch());
     }
-  }, [searchTrigger, dispatch]);
+  }, [searchTrigger, dispatch, buttonsearch]);
+
+  const activeCityName = useMemo(
+    () => toCityOnly(pickUpLocation || controlledCity),
+    [pickUpLocation, controlledCity]
+  );
+
+  const cityChipItems = useMemo(
+    () =>
+      buildCityChipItems({
+        cityWiseDates,
+        activeCityName,
+        bookings: bookedGuides,
+      }),
+    [cityWiseDates, activeCityName, bookedGuides]
+  );
 
   return (
     <>
+      <CityServiceChips
+        items={cityChipItems}
+        onCitySelect={handleCityChipClick}
+      />
+
       <div className="mainSearch -col-2 bg-white px-10 py-10 lg:px-20 lg:pt-5 lg:pb-20 rounded-4 mt-30">
         <div className="button-grid items-center">
-          {/* LocationSearch will update the pickUpLocation and dropOffLocation */}
           <LocationSearch
             pickUpLocation={pickUpLocation}
             setPickUpLocation={setPickUpLocation}
-            // pickUpPlaceId={pickUpPlaceId}
-            // setPickupPlaceid={setpickUpPlaceId}
-            // dropOffLocation={dropOffLocation}
-            // setDropOffLocation={setDropOffLocation}
-            // dropOffPlaceId={dropOffPlaceId}
-            // setDropoffPlaceid={setdropOffPlaceId}
-            // Location={Location}
+            controlledCity={controlledCity}
+            onCitySelect={applyCityContext}
+            hasError={locationError}
+            setError={setLocationError}
           />
-          {/* End Location */}
 
           <div className="searchMenu-date px-30 lg:py-20 lg:px-0 js-form-dd js-calendar">
             <div className="d-flex">
-              {/* Pick Up Date Section */}
               <div className="ml-10">
                 <h4
                   className="text-15 fw-500 ls-2 lh-16"
@@ -103,12 +203,18 @@ const MainFilterSearchBox = ({ Location }) => {
                 <DateSearch
                   selectedDate={selectedDate}
                   setSelectedDate={setSelectedDate}
+                  minDate={dateBounds.minDate}
+                  maxDate={dateBounds.maxDate}
+                  value={selectedDate}
                 />
+                {hasCityWiseDates && pickUpLocation && (
+                  <div className="text-12 text-light-1 mt-5">
+                    Dates within {toCityOnly(pickUpLocation)} stay
+                  </div>
+                )}
               </div>
             </div>
           </div>
-
-          {/* End check-in-out */}
 
           <div className="button-item">
             <button
@@ -119,7 +225,6 @@ const MainFilterSearchBox = ({ Location }) => {
               Search
             </button>
           </div>
-          {/* End search button_item */}
         </div>
       </div>
     </>

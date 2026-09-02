@@ -468,7 +468,7 @@ const MainFilterSearchBox = () => {
   };
 
   return (
-    <div className="position-relative mt-30 md:mt-20 js-tabs-content">
+    <div className="position-relative mt-30 md:mt-20 js-tabs-content hero-search-reserve">
       <div
         className="mainSearch -w-900 -col-city-date-guest bg-white px-10 py-10 lg:px-20 lg:pt-5 lg:pb-20 rounded-100"
         style={{ position: "relative", zIndex: 30 }}

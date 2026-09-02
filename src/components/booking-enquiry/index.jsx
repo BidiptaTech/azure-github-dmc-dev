@@ -221,7 +221,7 @@ const Index = () => {
   };
 
   return (
-    <section className="masthead -type-2 z-2" style={{marginTop: "10px"}}>
+    <section className="masthead -type-2 z-2 enquiry-hero-home">
       {/* Background images for different pages - Hidden on mobile */}
       {currentPage === "search" && (
         <div className="masthead__bg desktop-bg">

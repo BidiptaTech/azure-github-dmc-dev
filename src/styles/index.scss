@@ -376,3 +376,23 @@
 main.main-search-hero {
   overflow: visible;
 }
+
+// Reserve scrollable space below hero search for guest/date dropdowns
+.hero-search-reserve {
+  padding-bottom: 120px;
+
+  @media (max-width: 991px) {
+    padding-bottom: 80px;
+  }
+
+  @media (max-width: 575px) {
+    padding-bottom: 60px;
+  }
+}
+
+// Quick Enquiry (home_2): fill viewport when CallToActions is removed
+.masthead.-type-2.enquiry-hero-home {
+  .masthead__content {
+    padding-bottom: 80px;
+  }
+}
