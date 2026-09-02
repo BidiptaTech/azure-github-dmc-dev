@@ -2,12 +2,13 @@ import React, { useEffect } from "react";
 import { useSelector } from "react-redux";
 import { TextField } from "@mui/material";
 
-const DateSearch = ({ selectedDate, setSelectedDate }) => {
-  // const [dates, setDates] = useState([
-  //   new DateObject().setDay(15),
-  //   new DateObject().setDay(14).add(1, "month"),
-  // ]);
-
+const DateSearch = ({
+  selectedDate,
+  setSelectedDate,
+  minDate = null,
+  maxDate = null,
+  value = null,
+}) => {
   const checkIn = useSelector(
     (state) =>
       state.hotels.tourdetails.check_in_time ||
@@ -18,24 +19,33 @@ const DateSearch = ({ selectedDate, setSelectedDate }) => {
       state.hotels.tourdetails.check_out_time ||
       state.hotels.tourdetails.CheckOutTime
   );
-  const formatDateToDDMMYYYY = (dateString) => {
-    if (!dateString) {
-      // console.error("Invalid date string provided:", dateString);
-      return null; // Return a fallback value or handle it appropriately
-    }
 
-    const [day, month, year] = dateString.split("/");
-    return `${year}-${month}-${day}`;
+  const formatDateToYmd = (dateString) => {
+    if (!dateString) return null;
+    if (String(dateString).includes("-") && !String(dateString).includes("/")) {
+      return String(dateString);
+    }
+    const [day, month, year] = String(dateString).split("/");
+    if (!day || !month || !year) return null;
+    return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
   };
 
-  // Now you can apply it to your `checkIn` and `checkOut`
-  const formattedCheckIn = formatDateToDDMMYYYY(checkIn);
-  const formattedCheckOut = formatDateToDDMMYYYY(checkOut);
+  const formattedCheckIn = formatDateToYmd(checkIn);
+  const formattedCheckOut = formatDateToYmd(checkOut);
+  const effectiveMin = minDate || formattedCheckIn;
+  const effectiveMax = maxDate || formattedCheckOut;
+  const effectiveValue =
+    value || selectedDate || formattedCheckIn || "";
+
   useEffect(() => {
+    if (value && value !== selectedDate) {
+      setSelectedDate(value);
+      return;
+    }
     if (!selectedDate && formattedCheckIn) {
       setSelectedDate(formattedCheckIn);
     }
-  }, [selectedDate, formattedCheckIn, setSelectedDate]);
+  }, [value, selectedDate, formattedCheckIn, setSelectedDate]);
 
   const handleDateChange = (event) => {
     setSelectedDate(event.target.value);
@@ -45,25 +55,24 @@ const DateSearch = ({ selectedDate, setSelectedDate }) => {
     <div className="text-15 text-light-1 ls-2 lh-16 custom_dual_datepicker">
       <TextField
         fullWidth
-        // label="Pickup Date"
         type="date"
         variant="outlined"
-        value={selectedDate || formattedCheckIn}
+        value={effectiveValue}
         onChange={handleDateChange}
         inputProps={{
-          min: formattedCheckIn, // Minimum selectable date
-          max: formattedCheckOut, // Maximum selectable date
+          min: effectiveMin,
+          max: effectiveMax,
         }}
         InputLabelProps={{ shrink: true }}
-        onClick={(e) => e.target.showPicker()} // Open the calendar on click
+        onClick={(e) => e.target.showPicker()}
         sx={{
           backgroundColor: "none",
-          border: "none", // Remove the border
+          border: "none",
           "& .MuiInputBase-root": {
-            borderRadius: "4px", // Optional: set border-radius if you want rounded edges
+            borderRadius: "4px",
           },
           "& .MuiOutlinedInput-notchedOutline": {
-            border: "none", // Remove the outline border
+            border: "none",
           },
         }}
       />
