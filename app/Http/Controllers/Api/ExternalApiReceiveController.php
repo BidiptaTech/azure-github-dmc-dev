@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Helpers\CommonHelper;
+use App\Helpers\HotelPriceHelper;
 use App\Models\Agency;
 use App\Models\Agent;
 use App\Models\Attraction;
@@ -314,7 +315,7 @@ class ExternalApiReceiveController extends Controller
         $tour->dmc_id = $dmcId;
         $tour->auto_cancel_date = $autoCancelDate;
         $tour->taxes = !empty($taxArray) ? $taxArray : null;
-        $tour->reference_id = $this->payloadValue($payload, ['reference_number', 'reference_id', 'Master_DMC_id'], null);
+        $tour->reference_id = $this->payloadValue($payload, ['reference_number', 'reference_id'], null);
         $tour->created_by = $createdBy;
         $tour->mainguest = $this->extractMainGuest($payload);
         $tour->additionalguest = $this->extractAdditionalGuests($payload);
@@ -533,11 +534,28 @@ class ExternalApiReceiveController extends Controller
             $packagePerNight = $packageRoomPrice + $packageBreakfast + $packageLunch + $packageDinner;
         }
 
+        $extraBed = max(0, (int) ($item['extra_bed'] ?? $item['extraBed'] ?? 0));
+        $helperPricing = ($hotelId && $resolvedRoom)
+            ? $this->calculateHotelPriceUsingHelper(
+                (string) $hotelId,
+                $resolvedRoom,
+                $resolvedBed,
+                $checkIn,
+                $nights,
+                $numberOfRooms,
+                $headCount,
+                $mealPlan,
+                $extraBed,
+                $dmcId > 0 ? $dmcId : null
+            )
+            : null;
+
         $price = $payloadPrice;
-        if ($price <= 0 && $packagePerNight > 0) {
+        if ($helperPricing) {
+            $price = $helperPricing['grand_total'];
+        } elseif ($price <= 0 && $packagePerNight > 0) {
             $price = $packagePerNight * $nights * $numberOfRooms;
-        }
-        if ($price <= 0 && $resolvedRoom) {
+        } elseif ($price <= 0 && $resolvedRoom) {
             $price = $this->calculateHotelTotalPrice(
                 $resolvedRoom,
                 $nights,
@@ -563,13 +581,19 @@ class ExternalApiReceiveController extends Controller
 
         $bedPrice = $packageRoomPrice > 0
             ? $packageRoomPrice
-            : ($resolvedRoom
-                ? ($occupancy === 'single'
-                    ? (float) ($resolvedRoom->weekday_price ?? 0)
-                    : (float) ($resolvedRoom->double_weekday_price ?? $resolvedRoom->weekday_price ?? 0))
-                : 0);
+            : ($helperPricing
+                ? ($nights > 0 && $numberOfRooms > 0
+                    ? $helperPricing['room_total'] / ($nights * $numberOfRooms)
+                    : 0)
+                : ($resolvedRoom
+                    ? ($occupancy === 'single'
+                        ? (float) ($resolvedRoom->weekday_price ?? 0)
+                        : (float) ($resolvedRoom->double_weekday_price ?? $resolvedRoom->weekday_price ?? 0))
+                    : 0));
         $mealUnitPrice = $packageBreakfast + $packageLunch + $packageDinner;
-        if ($mealUnitPrice <= 0) {
+        if ($helperPricing) {
+            $mealPrice = $helperPricing['meal_total'];
+        } elseif ($mealUnitPrice <= 0) {
             $mealPrice = max(0, $price - ($bedPrice * $nights * $numberOfRooms));
         } else {
             $mealPrice = $mealUnitPrice * $nights * $numberOfRooms;
@@ -1049,7 +1073,85 @@ class ExternalApiReceiveController extends Controller
     }
 
     /**
-     * Auto price: base room rate + meal add-ons for the resolved meal plan.
+     * Build one date string per night (check-in night through last night, excluding checkout day).
+     *
+     * @return list<string>
+     */
+    protected function buildHotelStayDates(string $checkIn, int $nights): array
+    {
+        try {
+            $start = Carbon::parse($checkIn);
+        } catch (\Throwable $e) {
+            return [];
+        }
+
+        $dates = [];
+        for ($i = 0; $i < max(1, $nights); $i++) {
+            $dates[] = $start->copy()->addDays($i)->toDateString();
+        }
+
+        return $dates;
+    }
+
+    /**
+     * Hotel price via HotelPriceHelper (weekend, season, blackout, fair rates).
+     *
+     * @return array{grand_total: float, room_total: float, meal_total: float, nights: int}|null
+     */
+    protected function calculateHotelPriceUsingHelper(
+        string $hotelUniqueId,
+        Room $room,
+        ?Bed $bed,
+        string $checkIn,
+        int $nights,
+        int $numberOfRooms,
+        int $paxPerRoom,
+        string $mealPlanKey,
+        int $extraBed = 0,
+        ?int $dmcId = null
+    ): ?array {
+        if ($hotelUniqueId === '' || empty($room->room_id)) {
+            return null;
+        }
+
+        $dates = $this->buildHotelStayDates($checkIn, $nights);
+        if ($dates === []) {
+            return null;
+        }
+
+        $result = HotelPriceHelper::calculatePrice(
+            $hotelUniqueId,
+            $room->room_id,
+            $bed?->bed_id ?? '',
+            $dates,
+            $this->mealPlanToLabel($mealPlanKey),
+            max(1, $paxPerRoom),
+            max(0, $extraBed),
+            $dmcId
+        );
+
+        if (! ($result['success'] ?? false)) {
+            Log::warning('External API: HotelPriceHelper pricing failed', [
+                'hotel_unique_id' => $hotelUniqueId,
+                'room_id' => $room->room_id,
+                'message' => $result['message'] ?? '',
+            ]);
+
+            return null;
+        }
+
+        $rooms = max(1, $numberOfRooms);
+
+        return [
+            'grand_total' => round((float) ($result['grand_total'] ?? 0) * $rooms, 2),
+            'room_total' => round((float) ($result['room_total'] ?? 0) * $rooms, 2),
+            'meal_total' => round((float) ($result['meal_total'] ?? 0) * $rooms, 2),
+            'nights' => (int) ($result['nights'] ?? count($dates)),
+        ];
+    }
+
+    /**
+     * Legacy weekday-only fallback when HotelPriceHelper cannot price the stay.
      */
     protected function calculateHotelTotalPrice(
         Room $room,
@@ -1467,11 +1569,16 @@ class ExternalApiReceiveController extends Controller
      */
     protected function reconcileHotelOrderPricing(array $rooms, array $hotelData, Tour $tour, $hotelId = null): array
     {
-        $nights = $this->resolveHotelStayNights(is_array($hotelData['bookingDate'] ?? null) ? $hotelData['bookingDate'] : [], $tour);
+        $bookingDate = is_array($hotelData['bookingDate'] ?? null) ? $hotelData['bookingDate'] : [];
+        $nights = $this->resolveHotelStayNights($bookingDate, $tour);
+        $checkIn = is_array($bookingDate) && ! empty($bookingDate[0])
+            ? (string) $bookingDate[0]
+            : $this->parseDate($tour->check_in_time ?? null, Carbon::today())->toDateString();
         $mealPlan = (string) ($hotelData['meal_plan'] ?? 'room_only');
         $dmcId = (int) ($tour->dmc_id ?? 0);
         $createdBy = (int) ($tour->created_by ?? 0);
         $requestedPax = $this->resolveHotelRequestedPax($tour, $hotelData);
+        $extraBed = max(0, (int) ($hotelData['extra_bed'] ?? $hotelData['extraBed'] ?? 0));
         $grandTotal = 0.0;
         $hasCalculatedLine = false;
 
@@ -1520,19 +1627,40 @@ class ExternalApiReceiveController extends Controller
             $rooms[$roomIndex]['occupancy'] = $occupancy;
 
             if ($roomRecord) {
-                $lineTotal = $this->calculateHotelTotalPrice(
-                    $roomRecord,
-                    $nights,
-                    $numberOfRooms,
-                    $selectedPersons,
-                    $rateOccupancy,
-                    $mealPlan
-                );
-                $roomRate = $rateOccupancy === 'single'
-                    ? (float) ($roomRecord->weekday_price ?? 0)
-                    : (float) ($roomRecord->double_weekday_price ?? $roomRecord->weekday_price ?? 0);
-                $bedComponent = $roomRate * $nights * $numberOfRooms;
-                $mealComponent = max(0, $lineTotal - $bedComponent);
+                $helperPricing = ($hotelId && $checkIn !== '')
+                    ? $this->calculateHotelPriceUsingHelper(
+                        (string) $hotelId,
+                        $roomRecord,
+                        $bedRecord,
+                        $checkIn,
+                        $nights,
+                        $numberOfRooms,
+                        $headCount,
+                        $mealPlan,
+                        $extraBed,
+                        $dmcId > 0 ? $dmcId : null
+                    )
+                    : null;
+
+                if ($helperPricing) {
+                    $lineTotal = $helperPricing['grand_total'];
+                    $bedComponent = $helperPricing['room_total'];
+                    $mealComponent = $helperPricing['meal_total'];
+                } else {
+                    $lineTotal = $this->calculateHotelTotalPrice(
+                        $roomRecord,
+                        $nights,
+                        $numberOfRooms,
+                        $selectedPersons,
+                        $rateOccupancy,
+                        $mealPlan
+                    );
+                    $roomRate = $rateOccupancy === 'single'
+                        ? (float) ($roomRecord->weekday_price ?? 0)
+                        : (float) ($roomRecord->double_weekday_price ?? $roomRecord->weekday_price ?? 0);
+                    $bedComponent = $roomRate * $nights * $numberOfRooms;
+                    $mealComponent = max(0, $lineTotal - $bedComponent);
+                }
 
                 if ($beds !== []) {
                     $rooms[$roomIndex]['beds'][0]['head_count'] = $headCount;
