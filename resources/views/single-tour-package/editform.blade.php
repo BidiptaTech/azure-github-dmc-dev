@@ -1257,14 +1257,6 @@
                             @endphp
 
                             <div class="row g-2 align-items-start tour-header-compact">
-                                <!-- Reference Number -->
-                                <div class="col-md-4">
-                                    <label for="reference_number" class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
-                                        <i class="ri-hashtag me-1" style="color: #667eea;"></i>Reference Number
-                                    </label>
-                                    <input type="text" name="reference_number" id="reference_number" class="form-control modern-input" style="height: 40px; border-radius: 8px; border: 1px solid #dee2e6; font-size: 0.9rem;" placeholder="Enter reference number" value="{{ old('reference_number', $tour->reference_id ?? '') }}" readonly>
-                                </div>
-
                                 <input type="hidden" name="display_id" id="display_id" value="{{ $tour->display_id ?? '' }}">
                                 <input type="hidden" id="tour_id" name="tour_id" value="{{ $tour->tour_id ?? '' }}">
 
@@ -28646,9 +28638,6 @@
         formData.append('female', femaleCountEl ? femaleCountEl.value : '0');
         formData.append('agent_id', agentIdEl ? agentIdEl.value : '');
         formData.append('agency_id', agencyIdEl ? agencyIdEl.value : '');
-        const referenceNumberEl = document.getElementById('reference_number');
-        formData.append('reference_number', referenceNumberEl ? referenceNumberEl.value || '' : '');
-        
         // Collect child ages - try multiple sources
         let childAges = '';
         
