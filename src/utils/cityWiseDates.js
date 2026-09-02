@@ -106,6 +106,8 @@ export const getCityDateBounds = (
 const extractBookingCity = (booking) => {
   const locationRaw =
     booking?.city ||
+    booking?.entrypickup ||
+    booking?.userInfo?.city ||
     booking?.hotelDetails?.city ||
     booking?.hotelDetails?.location ||
     booking?.service_details?.city ||
