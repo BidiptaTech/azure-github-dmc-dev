@@ -315,7 +315,7 @@ class ExternalApiReceiveController extends Controller
         $tour->dmc_id = $dmcId;
         $tour->auto_cancel_date = $autoCancelDate;
         $tour->taxes = !empty($taxArray) ? $taxArray : null;
-        $tour->reference_id = $this->payloadValue($payload, ['reference_number', 'reference_id', 'Master_DMC_id'], null);
+        $tour->reference_id = $this->payloadValue($payload, ['reference_number', 'reference_id'], null);
         $tour->created_by = $createdBy;
         $tour->mainguest = $this->extractMainGuest($payload);
         $tour->additionalguest = $this->extractAdditionalGuests($payload);
