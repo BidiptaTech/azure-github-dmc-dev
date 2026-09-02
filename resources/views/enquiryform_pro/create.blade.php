@@ -1581,6 +1581,10 @@
                     <thead>
                         <tr>
                             <th><input type="checkbox" id="selectAllTransfers" onchange="toggleSelectAllTransfers()"></th>
+                            <th>Date/Time</th>
+                            <th>Service</th>
+                            <th>Mode</th>
+                            <th>Vehicle</th>
                             <th>Type</th>
                             <th>Way</th>
                             <th>Adults</th>
@@ -2762,7 +2766,7 @@
                                     </select>
                                 </td>
                                 <td style="padding: 2px 8px; text-align: center;">
-                                    <input type="checkbox" class="form-check-input attraction-is-pickup" data-attr-id="{{ $attr->id }}">
+                                    <input type="checkbox" class="form-check-input attraction-is-pickup" data-attr-id="{{ $attr->id }}" {{ !$isAttraction ? 'checked' : '' }}>
                                 </td>
                                 <td style="padding: 2px 8px;">
                                     <select class="form-select form-select-sm attraction-vehicle-type" data-attr-id="{{ $attr->id }}" style="font-size: 10px; padding: 2px 4px;">
@@ -4190,9 +4194,26 @@
     }
 
     /* Transfer table styling */
+    #transferTable {
+        width: 100%;
+        table-layout: auto;
+    }
+
+    #transferTable th,
+    #transferTable td {
+        vertical-align: middle;
+        white-space: nowrap;
+    }
+
+    #transferTable td:nth-child(3) {
+        white-space: normal;
+        min-width: 140px;
+    }
+
     #transferTable input[type="number"],
     #transferTable input[type="text"],
-    #transferTable input[type="checkbox"] {
+    #transferTable input[type="checkbox"],
+    #transferTable input[type="datetime-local"] {
         padding: 1px 3px;
         border: 1px solid #ced4da;
         border-radius: 2px;
@@ -17527,7 +17548,7 @@
                                             </select>
                                         </td>
                                         <td style="padding: 2px 8px; text-align: center;">
-                                            <input type="checkbox" class="form-check-input attraction-is-pickup" data-attr-id="${attr.id}" data-ticket-id="${ticket.ticket_id}" data-unique-id="${uniqueId}">
+                                            <input type="checkbox" class="form-check-input attraction-is-pickup" data-attr-id="${attr.id}" data-ticket-id="${ticket.ticket_id}" data-unique-id="${uniqueId}" ${!isAttraction ? 'checked' : ''}>
                                         </td>
                                         <td style="padding: 2px 8px;">
                                             <select class="form-select form-select-sm attraction-vehicle-type" data-attr-id="${attr.id}" data-ticket-id="${ticket.ticket_id}" data-unique-id="${uniqueId}" style="font-size: 10px; padding: 2px 4px;">
@@ -17604,7 +17625,7 @@
                                         </select>
                                     </td>
                                     <td style="padding: 2px 8px; text-align: center;">
-                                        <input type="checkbox" class="form-check-input attraction-is-pickup" data-attr-id="${attr.id}" data-ticket-id="0" data-unique-id="${attr.id}_0">
+                                        <input type="checkbox" class="form-check-input attraction-is-pickup" data-attr-id="${attr.id}" data-ticket-id="0" data-unique-id="${attr.id}_0" ${!isAttraction ? 'checked' : ''}>
                                     </td>
                                     <td style="padding: 2px 8px;">
                                         <select class="form-select form-select-sm attraction-vehicle-type" data-attr-id="${attr.id}" data-ticket-id="0" data-unique-id="${attr.id}_0" style="font-size: 10px; padding: 2px 4px;">
