@@ -478,6 +478,11 @@ const DashboardLayout = () => {
   // Ensure dashboard content appears ONLY on the exact dashboard route
   const isDashboardPage = location.pathname === "/dashboard/db-dashboard";
 
+  // Book Tour / Quick Enquiry hero pages: allow expanded search to grow past viewport
+  const isBookTourHeroPage =
+    location.pathname.includes("/home_1") ||
+    location.pathname.includes("/home_2");
+
   // Leaving ProtectedRoutetour / booking module → clear session + Redux
   useEffect(() => {
     const path = location.pathname || "";
@@ -560,7 +565,7 @@ const DashboardLayout = () => {
     <>
       <div className="header-margin"></div>
       <Header1 />
-      <main>
+      <main className={isBookTourHeroPage ? "main-search-hero" : undefined}>
         <Outlet /> {/* This renders the nested routes */}
         {isDashboardPage && (
           <DashboardEntrance>
@@ -1867,7 +1872,7 @@ const DashboardLayout = () => {
           </DashboardEntrance>
         )}
       </main>
-      <DefaultFooter />
+      {!isBookTourHeroPage && <DefaultFooter />}
     </>
   );
 };

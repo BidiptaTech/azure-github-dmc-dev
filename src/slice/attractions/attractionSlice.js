@@ -50,12 +50,8 @@ export const fetchAttractions = createAsyncThunk(
       }
 
       // Prefer tour destination as country when caller didn't pass one
-      const tourCountry =
-        country ||
-        state.hotels?.tourdetails?.destination ||
-        state.hotels?.tourdetails?.country ||
-        "";
-      const { cityName, countryName } = parseCityCountry(city, tourCountry);
+     
+      const { cityName, countryName } = parseCityCountry(city, country);
 
       console.log("🌍 Attraction API params:", { cityName, countryName, date, tour_id });
 

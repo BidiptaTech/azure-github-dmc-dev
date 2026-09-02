@@ -399,7 +399,7 @@ const ActivityListPage1 = () => {
           </div>
         </div>
       </section>
-      <CallToActions />
+      {/* <CallToActions /> */}
       {/* <DefaultFooter /> */}
       <style jsx>{`
         .filter-mobile-section {

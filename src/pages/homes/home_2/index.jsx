@@ -1,7 +1,5 @@
 import Hero2 from "@/components/booking-enquiry";
 
-import CallToActions from "@/components/common/CallToActions";
-
 import MetaComponent from "@/components/common/MetaComponent";
 
 const metadata = {
@@ -21,9 +19,7 @@ const home_2 = () => {
       <Hero2 />
       {/* End Hero 1 */}
 
-      <CallToActions />
-
-      {/* End Call To Actions Section */}
+      {/* <CallToActions /> — removed; hero now fills viewport via masthead -type-2 */}
 
       {/* <DefaultFooter /> */}
       {/* End Footer Section */}

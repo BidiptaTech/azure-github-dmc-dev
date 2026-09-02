@@ -62,7 +62,7 @@ const BookingPage = () => {
       </section>
       {/* End stepper */}
 
-      <CallToActions />
+      {/* <CallToActions /> */}
       {/* End Call To Actions Section */}
     </>
   );
