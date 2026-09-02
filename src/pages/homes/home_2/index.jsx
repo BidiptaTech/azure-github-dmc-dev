@@ -21,7 +21,7 @@ const home_2 = () => {
       <Hero2 />
       {/* End Hero 1 */}
 
-      <CallToActions />
+      {/* <CallToActions /> */}
 
       {/* End Call To Actions Section */}
 

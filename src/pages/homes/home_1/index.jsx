@@ -21,7 +21,7 @@ const Home_1 = () => {
       <Hero1 />
       {/* End Hero 1 */}
 
-      <CallToActions />
+      {/* <CallToActions /> */}
       {/* End Call To Actions Section */}
 
       {/* <DefaultFooter /> */}

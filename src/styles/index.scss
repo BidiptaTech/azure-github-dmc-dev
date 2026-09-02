@@ -371,3 +371,8 @@
     transform: none !important;
   }
 }
+
+// Book Tour / Quick Enquiry: let expanded hero search extend without clipping
+main.main-search-hero {
+  overflow: visible;
+}

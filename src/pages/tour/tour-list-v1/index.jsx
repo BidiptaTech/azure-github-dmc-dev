@@ -204,7 +204,7 @@ const TourListPage1 = () => {
         </div>
       </section>
 
-      <CallToActions />
+      {/* <CallToActions /> */}
       {/* <DefaultFooter /> */}
     </>
   );

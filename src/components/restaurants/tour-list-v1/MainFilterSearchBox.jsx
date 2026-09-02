@@ -172,7 +172,7 @@ const MainFilterSearchBox = () => {
       ) ||
       tourdetails?.country ||
       "";
-
+console.log("country", country);
     dispatch(
       fetchRestaurants({
         city: selectedLocation?.address || selectedLocation?.name,

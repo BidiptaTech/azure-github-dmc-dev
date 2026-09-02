@@ -453,7 +453,7 @@ const ActivityListPage2 = () => {
       </section>
       {/* End layout for listing sidebar and content */}
 
-      <CallToActions />
+      {/* <CallToActions /> */}
       {/* End Call To Actions Section */}
 
       {/* <DefaultFooter /> */}

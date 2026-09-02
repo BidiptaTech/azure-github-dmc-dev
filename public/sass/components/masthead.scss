@@ -2,7 +2,7 @@
   position: relative;
   padding-top: 330px;
   padding-bottom: 210px;
-  height: 100vh;
+  min-height: 100vh;
 
   @media (min-width: 1200px) and (max-width: 1600px) {
     padding-top: 235px;

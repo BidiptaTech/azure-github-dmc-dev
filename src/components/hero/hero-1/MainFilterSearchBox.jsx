@@ -510,7 +510,7 @@ const MainFilterSearchBox = () => {
       {showCityDateRows && selectedCities.length > 0 && (
         <div
           className="mainSearch -w-900 bg-white px-20 py-20 mt-15 rounded-24"
-          style={{ position: "relative", zIndex: 1 }}
+          style={{ position: "relative", zIndex: 30 }}
         >
           <div className="text-14 text-light-1 mb-15">
             Set city-wise dates within your total trip dates
