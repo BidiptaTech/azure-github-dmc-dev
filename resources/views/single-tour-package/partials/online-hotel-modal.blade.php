@@ -273,6 +273,7 @@
     let onlineSelectedNights = [];
     let onlineCurrentRooms = [];
     let onlineLastSupplierCode = '';
+    let onlineLastApiEnvironment = '';
     let onlineHotelLastSearch = { checkIn: '', checkOut: '', city: '', paxInfo: '' };
     let onlineGuestState = { male: 1, female: 0, children: 0, infants: 0, childAges: [] };
     // Two-step suppliers (MG Bedbank) list their whole catalogue first, then price one hotel on demand.
@@ -1151,6 +1152,10 @@
                 return;
             }
 
+            if (data.api_environment) {
+                onlineLastApiEnvironment = data.api_environment;
+            }
+
             // Keep the catalogue content (images, description) that the live response lacks.
             onlineSelectedHotelDetail = Object.assign({}, hotel, data.hotel);
             onlineSelectedHotelDetail.sessionId = data.session_id || null;
@@ -1421,6 +1426,12 @@
             remarks: selection.remarks || ''
         };
 
+        record.api_environment = onlineLastApiEnvironment
+            || record.api_environment
+            || hotel.api_environment
+            || (room && room.api_environment)
+            || '';
+
         return record;
     }
 
@@ -1565,6 +1576,7 @@
         .then(data => {
             if (data && data.success) {
                 onlineLastSupplierCode = data.supplier_code || data.supplier_name || '';
+                onlineLastApiEnvironment = data.api_environment || onlineLastApiEnvironment || '';
                 onlineTwoStep = !!data.two_step;
                 const hotels = extractHotelsFromResponse(data);
                 populateOnlineHotels(hotels);
@@ -1747,6 +1759,7 @@
             onlineHotelSource: onlineLastSupplierCode || hotelRaw.supplier_code || 'online',
             onlineHotelRaw: hotelRaw,
             onlineHotelBooking: booking,
+            api_environment: (booking && booking.api_environment) || onlineLastApiEnvironment || hotelRaw.api_environment || '',
             city: cityName,
             pricePerNight: nightNumbers.length ? price / nightNumbers.length : price
         };

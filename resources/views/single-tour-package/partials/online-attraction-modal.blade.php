@@ -214,6 +214,7 @@
 
     let onlineAttractionsCache = [];
     let onlineCurrentTickets = [];
+    let onlineLastApiEnvironment = '';
     let onlineAttractionTarget = { day: 1, index: 1 };
     let onlineAttractionGuestState = { male: 1, female: 0, children: 0, infants: 0, childAges: [] };
 
@@ -305,6 +306,12 @@
     }
 
     window.buildAttractionSlotSourceToggleHtml = function (day, index) {
+        const offlinePanel = '<div class="attraction-slot-offline-panel" id="day' + day + '_attraction_' + index + '_offline_panel">';
+
+        if (!window.onlineApiEnabled) {
+            return offlinePanel;
+        }
+
         return '<div class="mb-3 attraction-slot-source-block">' +
             '<label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.85rem;"><i class="ri-toggle-line me-1"></i>Attraction Source · Slot #' + index + '</label>' +
             '<div class="d-flex flex-wrap gap-4">' +
@@ -322,7 +329,7 @@
             '<div class="attraction-slot-online-hint d-none alert alert-info py-2 mb-3" id="day' + day + '_attraction_' + index + '_online_hint" style="font-size: 0.8rem;">' +
             '<i class="ri-global-line me-1"></i>Use the popup to fetch and select an online attraction for this slot.' +
             '</div>' +
-            '<div class="attraction-slot-offline-panel" id="day' + day + '_attraction_' + index + '_offline_panel">';
+            offlinePanel;
     };
 
     function setSlotAttractionSource(day, index, source) {
@@ -1042,6 +1049,7 @@
         attrOpt.dataset.isOnline = '1';
         attrOpt.dataset.skuId = payload.skuId || payload.attractionId || '';
         attrOpt.dataset.supplierCode = payload.supplierCode || 'sg_attractions';
+        attrOpt.dataset.apiEnvironment = payload.apiEnvironment || '';
         attrOpt.dataset.lowestTicketPrice = String(payload.lowestTicketPrice || 0);
         attrOpt.dataset.highestTicketPrice = String(payload.highestTicketPrice || 0);
         attrOpt.dataset.openTime = payload.openTime || '';
@@ -1088,6 +1096,9 @@
         const item = document.querySelector('#day' + day + '_attractions_container .attraction-item[data-attraction-index="' + index + '"]');
         if (item) {
             item.dataset.isOnlineAttraction = '1';
+            if (payload.apiEnvironment) {
+                item.dataset.apiEnvironment = payload.apiEnvironment;
+            }
         }
 
         if (typeof window.updateAttractionPricing === 'function') {
@@ -1164,6 +1175,7 @@
         .then(function (r) { return r.json(); })
         .then(function (data) {
             if (data && data.success) {
+                onlineLastApiEnvironment = data.api_environment || onlineLastApiEnvironment || '';
                 const attractions = extractAttractionsFromResponse(data);
                 populateOnlineAttractions(attractions);
                 if (attractions.length > 0) {
@@ -1248,6 +1260,7 @@
             attractionId: attractionId(attractionRaw) || ('online-' + Date.now()),
             skuId: attractionId(attractionRaw) || '',
             supplierCode: attractionRaw.supplier_code || 'sg_attractions',
+            apiEnvironment: attractionRaw.api_environment || onlineLastApiEnvironment || '',
             attractionName: attractionLabel(attractionRaw),
             openTime: attractionRaw.openTime || '',
             closeTime: attractionRaw.closeTime || '',

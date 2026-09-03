@@ -992,9 +992,17 @@ class UserController extends Controller
                 $showOnlineApiForThisRow = $rowRoleId === 10;
                 $canToggleOnlineApiForThisRow = $showOnlineApiForThisRow
                     && in_array($authRoleId, [1, 2, 3], true);
-                $showSettingsCellForThisRow = $showSettingsForThisRow || $showThirdPartyForThisRow || $showOnlineApiForThisRow;
+                $showDemoApiForThisRow = $rowRoleId === 10;
+                $canToggleDemoApiForThisRow = $showDemoApiForThisRow
+                    && in_array($authRoleId, [1, 2, 3], true);
+                $showLiveApiForThisRow = $rowRoleId === 10;
+                $canToggleLiveApiForThisRow = $showLiveApiForThisRow
+                    && in_array($authRoleId, [1, 2, 3], true);
+                $showSettingsCellForThisRow = $showSettingsForThisRow || $showThirdPartyForThisRow || $showOnlineApiForThisRow || $showDemoApiForThisRow || $showLiveApiForThisRow;
                 $thirdPartyEnabled = strtolower((string) ($u->thirdparty_enabled ?? 'no')) === 'yes';
                 $onlineApiEnabled = (bool) ($u->online_api ?? false);
+                $demoApiEnabled = (bool) ($u->demo_api ?? false);
+                $liveApiEnabled = (bool) ($u->live_api ?? false);
 
                 $showBookingTypeForThisRow = ($authRoleId === 1 && $rowRoleId === 10)
                     || ($authRoleId === 10 && $rowRoleId === 11)
@@ -1055,6 +1063,8 @@ class UserController extends Controller
                     'thirdparty' => strtolower((string) ($u->thirdparty ?? 'no')),
                     'thirdparty_enabled' => $thirdPartyEnabled,
                     'online_api' => $onlineApiEnabled,
+                    'demo_api' => $demoApiEnabled,
+                    'live_api' => $liveApiEnabled,
                     'master_dmc_id' => (int) ($u->master_dmc_id ?? 0),
                     'is_pro' => (int) ($u->is_pro ?? 1),
                     'show_settings_cell' => $showSettingsCellForThisRow,
@@ -1064,6 +1074,10 @@ class UserController extends Controller
                     'can_toggle_third_party' => $canToggleThirdPartyForThisRow,
                     'show_online_api' => $showOnlineApiForThisRow,
                     'can_toggle_online_api' => $canToggleOnlineApiForThisRow,
+                    'show_demo_api' => $showDemoApiForThisRow,
+                    'can_toggle_demo_api' => $canToggleDemoApiForThisRow,
+                    'show_live_api' => $showLiveApiForThisRow,
+                    'can_toggle_live_api' => $canToggleLiveApiForThisRow,
                     'show_booking_type' => $showBookingTypeForThisRow,
                     'booking_options' => $bookingOptionsForRow,
                     'selected_booking_type' => $selectedBookingTypeForRow,
@@ -3077,6 +3091,114 @@ class UserController extends Controller
             'message' => "Online API access {$label} successfully.",
             'user_id' => (int) $user->userId,
             'online_api' => $enabled,
+        ]);
+    }
+
+    /**
+     * Toggle Demo API access for a Master DMC. Only TravClicks (roles 1, 2, 3) may change it.
+     */
+    public function updateDemoApi(Request $request)
+    {
+        if (! hasPermission('edit users')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You do not have permission to update Demo API access.',
+            ], 403);
+        }
+
+        if (! in_array((int) ($this->auth_user->role_id ?? 0), [1, 2, 3], true)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only TravClicks can update Demo API access.',
+            ], 403);
+        }
+
+        $request->validate([
+            'user_id' => 'required|integer',
+            'demo_api' => 'required|in:0,1',
+        ]);
+
+        $user = User::where('userId', $request->user_id)->first();
+        if (! $user) {
+            return response()->json(['success' => false, 'message' => 'User not found.'], 404);
+        }
+
+        if ((int) $user->role_id !== 10) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Demo API access applies to Master DMC users only.',
+            ], 422);
+        }
+
+        $user->demo_api = (int) $request->demo_api === 1;
+        if ($user->demo_api) {
+            $user->live_api = false;
+        }
+        $user->save();
+
+        $enabled = (bool) $user->demo_api;
+        $label = $enabled ? 'enabled' : 'disabled';
+
+        return response()->json([
+            'success' => true,
+            'message' => "Demo API access {$label} successfully.",
+            'user_id' => (int) $user->userId,
+            'demo_api' => $enabled,
+            'live_api' => (bool) $user->live_api,
+        ]);
+    }
+
+    /**
+     * Toggle Live/production API access for a Master DMC. Only TravClicks (roles 1, 2, 3) may change it.
+     */
+    public function updateLiveApi(Request $request)
+    {
+        if (! hasPermission('edit users')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You do not have permission to update Live API access.',
+            ], 403);
+        }
+
+        if (! in_array((int) ($this->auth_user->role_id ?? 0), [1, 2, 3], true)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only TravClicks can update Live API access.',
+            ], 403);
+        }
+
+        $request->validate([
+            'user_id' => 'required|integer',
+            'live_api' => 'required|in:0,1',
+        ]);
+
+        $user = User::where('userId', $request->user_id)->first();
+        if (! $user) {
+            return response()->json(['success' => false, 'message' => 'User not found.'], 404);
+        }
+
+        if ((int) $user->role_id !== 10) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Live API access applies to Master DMC users only.',
+            ], 422);
+        }
+
+        $user->live_api = (int) $request->live_api === 1;
+        if ($user->live_api) {
+            $user->demo_api = false;
+        }
+        $user->save();
+
+        $enabled = (bool) $user->live_api;
+        $label = $enabled ? 'enabled' : 'disabled';
+
+        return response()->json([
+            'success' => true,
+            'message' => "Live API access {$label} successfully.",
+            'user_id' => (int) $user->userId,
+            'live_api' => $enabled,
+            'demo_api' => (bool) $user->demo_api,
         ]);
     }
 

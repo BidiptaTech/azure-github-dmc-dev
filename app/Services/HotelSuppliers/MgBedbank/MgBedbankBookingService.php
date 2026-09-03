@@ -114,6 +114,7 @@ class MgBedbankBookingService implements OnlineHotelBookingService
 
         return $comparison + [
             'supplier_code' => 'mg_bedbank',
+            'api_environment' => $credentials['api_environment'] ?? 'demo',
             'session_id' => (string) ($recheckBody['sessionID'] ?? $sessionId),
             'currency' => (string) ($recheckBody['currency'] ?? $context['currency']),
             'check_in' => (string) ($recheckBody['checkIn'] ?? $context['check_in']),
@@ -212,6 +213,7 @@ class MgBedbankBookingService implements OnlineHotelBookingService
 
         return [
             'supplier_code' => 'mg_bedbank',
+            'api_environment' => $recheckResult['api_environment'] ?? ($credentials['api_environment'] ?? 'demo'),
             'agency_booking_id' => $agencyBookingId,
             'book_payload' => $bookPayload,
             'book_response' => $bookBody,
@@ -227,7 +229,7 @@ class MgBedbankBookingService implements OnlineHotelBookingService
 
     public function cacheRecheckResult(int $orderId, int $bookingIndex, array $recheckResult): string
     {
-        $token = bin2hex(random_bytes(16));
+        $token = ($recheckResult['api_environment'] ?? 'demo') . '.' . bin2hex(random_bytes(16));
         $key = $this->cacheKey($orderId, $bookingIndex, $token);
 
         Cache::put($key, $recheckResult, now()->addMinutes(20));

@@ -59,6 +59,8 @@ class User extends Authenticatable
         'thirdparty' => 'string',
         'thirdparty_enabled' => 'string',
         'online_api' => 'boolean',
+        'demo_api' => 'boolean',
+        'live_api' => 'boolean',
     ];
 
     /**

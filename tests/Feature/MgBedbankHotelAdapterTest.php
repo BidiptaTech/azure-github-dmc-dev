@@ -13,6 +13,14 @@ class MgBedbankHotelAdapterTest extends TestCase
     public function test_it_searches_and_normalizes_mg_bedbank_hotels(): void
     {
         Http::fake([
+            'https://mg.example/GetHotelList' => Http::response([
+                'status' => true,
+                'hotels' => [
+                    'hotel' => [
+                        ['code' => 'SG10000002', 'name' => 'Amara Singapore'],
+                    ],
+                ],
+            ]),
             'https://mg.example/SearchHotel' => Http::response([
                 'status' => true,
                 'sessionID' => 'session-1',
@@ -78,6 +86,8 @@ class MgBedbankHotelAdapterTest extends TestCase
                 'language' => 'En',
                 'detail_level' => 'Basic',
                 'timeout' => '30',
+                'hotel_list_ttl' => '0',
+                'api_environment' => 'demo',
             ],
         );
 
@@ -107,9 +117,7 @@ class MgBedbankHotelAdapterTest extends TestCase
 
         $this->search(paxInfo: '4|0', rooms: 1);
 
-        Http::assertSent(function (Request $request): bool {
-            $rooms = $request->data()['Rooms']['Room'];
-
+        $this->assertSearchRooms(function (array $rooms): bool {
             return count($rooms) === 1
                 && $rooms[0]['NoOfAdults'] === '4'
                 && $rooms[0]['NoOfChild'] === '';
@@ -122,9 +130,7 @@ class MgBedbankHotelAdapterTest extends TestCase
 
         $this->search(paxInfo: '5|3', rooms: 3);
 
-        Http::assertSent(function (Request $request): bool {
-            $rooms = $request->data()['Rooms']['Room'];
-
+        $this->assertSearchRooms(function (array $rooms): bool {
             return count($rooms) === 3
                 && $rooms[0]['NoOfAdults'] === '2' && $rooms[0]['NoOfChild'] === '2'
                 && $rooms[1]['NoOfAdults'] === '2' && $rooms[1]['NoOfChild'] === '1'
@@ -140,9 +146,7 @@ class MgBedbankHotelAdapterTest extends TestCase
         // MG's payload only carries Child1Age/Child2Age, so three children need two rooms.
         $this->search(paxInfo: '2|3', rooms: 1);
 
-        Http::assertSent(function (Request $request): bool {
-            $rooms = $request->data()['Rooms']['Room'];
-
+        $this->assertSearchRooms(function (array $rooms): bool {
             return count($rooms) === 2
                 && $rooms[0]['NoOfAdults'] === '1' && $rooms[0]['NoOfChild'] === '2'
                 && $rooms[1]['NoOfAdults'] === '1' && $rooms[1]['NoOfChild'] === '1';
@@ -155,9 +159,7 @@ class MgBedbankHotelAdapterTest extends TestCase
 
         $this->search(paxInfo: '2|0', rooms: 4);
 
-        Http::assertSent(function (Request $request): bool {
-            $rooms = $request->data()['Rooms']['Room'];
-
+        $this->assertSearchRooms(function (array $rooms): bool {
             return count($rooms) === 2
                 && $rooms[0]['NoOfAdults'] === '1'
                 && $rooms[1]['NoOfAdults'] === '1';
@@ -167,6 +169,14 @@ class MgBedbankHotelAdapterTest extends TestCase
     private function fakeEmptySearch(): void
     {
         Http::fake([
+            'https://mg.example/GetHotelList' => Http::response([
+                'status' => true,
+                'hotels' => [
+                    'hotel' => [
+                        ['code' => 'SG10000002', 'name' => 'Amara Singapore'],
+                    ],
+                ],
+            ]),
             'https://mg.example/SearchHotel' => Http::response([
                 'status' => true,
                 'currency' => 'SGD',
@@ -192,6 +202,8 @@ class MgBedbankHotelAdapterTest extends TestCase
                 'password' => 'secret',
                 'country_code' => 'SG',
                 'city_code' => 'SG-SIN',
+                'hotel_list_ttl' => '0',
+                'api_environment' => 'demo',
             ],
         );
     }
@@ -199,6 +211,14 @@ class MgBedbankHotelAdapterTest extends TestCase
     public function test_no_availability_error_returns_empty_hotel_list(): void
     {
         Http::fake([
+            'https://mg.example/GetHotelList' => Http::response([
+                'status' => true,
+                'hotels' => [
+                    'hotel' => [
+                        ['code' => 'SG10000002', 'name' => 'Amara Singapore'],
+                    ],
+                ],
+            ]),
             'https://mg.example/SearchHotel' => Http::response([
                 'status' => false,
                 'errorCode' => 'JRVXML060',
@@ -220,9 +240,25 @@ class MgBedbankHotelAdapterTest extends TestCase
                 'password' => 'secret',
                 'country_code' => 'SG',
                 'city_code' => 'SG-SIN',
+                'hotel_list_ttl' => '0',
+                'api_environment' => 'demo',
             ],
         );
 
         $this->assertSame([], $result['hotels']);
+    }
+
+    /**
+     * @param  callable(array<int, array<string, mixed>>): bool  $callback
+     */
+    private function assertSearchRooms(callable $callback): void
+    {
+        Http::assertSent(function (Request $request) use ($callback): bool {
+            if (! str_ends_with($request->url(), '/SearchHotel')) {
+                return false;
+            }
+
+            return $callback($request->data()['Rooms']['Room'] ?? []);
+        });
     }
 }

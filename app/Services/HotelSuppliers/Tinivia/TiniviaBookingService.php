@@ -80,6 +80,7 @@ class TiniviaBookingService implements OnlineHotelBookingService
 
         return $comparison + [
             'supplier_code' => 'tinivia',
+            'api_environment' => $credentials['api_environment'] ?? 'demo',
             'session_id' => null,
             'room_rate_key' => $rateKey,
             'currency' => (string) ($hotel['currency'] ?? $context['currency']),
@@ -151,6 +152,7 @@ class TiniviaBookingService implements OnlineHotelBookingService
 
         return [
             'supplier_code' => 'tinivia',
+            'api_environment' => $recheckResult['api_environment'] ?? ($credentials['api_environment'] ?? 'demo'),
             'agency_booking_id' => $agencyBookingId,
             'supplier_booking_reference' => $this->extractSupplierReference($bookBody, $agencyBookingId),
             'book_payload' => $bookPayload,
@@ -170,7 +172,7 @@ class TiniviaBookingService implements OnlineHotelBookingService
      */
     public function cacheRecheckResult(int $orderId, int $bookingIndex, array $recheckResult): string
     {
-        $token = bin2hex(random_bytes(16));
+        $token = ($recheckResult['api_environment'] ?? 'demo') . '.' . bin2hex(random_bytes(16));
         $key = $this->cacheKey($orderId, $bookingIndex, $token);
 
         Cache::put($key, $recheckResult, now()->addMinutes(20));

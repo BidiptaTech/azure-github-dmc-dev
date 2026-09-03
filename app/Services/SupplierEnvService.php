@@ -27,11 +27,7 @@ class SupplierEnvService
      */
     public function definitions(): array
     {
-        if (is_file(config_path('suppliers.php'))) {
-            return require config_path('suppliers.php');
-        }
-
-        return config('suppliers', []);
+        return app(SupplierConfigResolver::class)->definitions();
     }
 
     /**
@@ -45,109 +41,34 @@ class SupplierEnvService
     /**
      * @return array<string, string|null>
      */
-    public function valuesFor(string $code): array
+    public function valuesFor(string $code, string $environment = ApiEnvironmentResolver::DEMO): array
     {
-        $definition = $this->definitions()[$code] ?? null;
-
-        if (! is_array($definition)) {
-            return [];
-        }
-
-        $values = [];
-
-        foreach ($definition['fields'] ?? [] as $fieldKey => $field) {
-            $envKey = $field['env'] ?? null;
-
-            if (! $envKey) {
-                continue;
-            }
-
-            $values[$fieldKey] = env($envKey, $field['default'] ?? null);
-        }
-
-        return $values;
+        return app(SupplierConfigResolver::class)->valuesFor($code, $environment);
     }
 
-    public function isConfigured(string $code): bool
+    public function isConfigured(string $code, string $environment = ApiEnvironmentResolver::DEMO): bool
     {
-        $values = $this->valuesFor($code);
-
-        if ($code === 'mg_bedbank') {
-            if (filled($values['base_url'] ?? null)
-                && filled($values['agency_code'] ?? null)
-                && filled($values['username'] ?? null)
-                && filled($values['password'] ?? null)) {
-                return true;
-            }
-        } elseif (in_array($code, ['hotelbeds', 'mybeds'], true)) {
-            if (filled($values['base_url'] ?? null)
-                && filled($values['api_key'] ?? null)
-                && filled($values['api_secret'] ?? null)) {
-                return true;
-            }
-        } elseif (filled($values['base_url'] ?? null) && filled($values['api_key'] ?? null)) {
-            return true;
-        }
-
-        // Fallback when .env values are cached under config/services.php (e.g. tinivia → tiniva).
-        if ($code === 'tinivia') {
-            return filled(config('services.tiniva.base_url')) && filled(config('services.tiniva.api_key'));
-        }
-
-        if ($code === 'hotelbeds') {
-            return filled(config('services.hotelbeds.base_url'))
-                && filled(config('services.hotelbeds.api_key'))
-                && filled(config('services.hotelbeds.api_secret'));
-        }
-
-        if ($code === 'mg_bedbank') {
-            return filled(config('services.mg_bedbank.base_url'))
-                && filled(config('services.mg_bedbank.agency_code'))
-                && filled(config('services.mg_bedbank.username'))
-                && filled(config('services.mg_bedbank.password'));
-        }
-
-        if ($code === 'sg_attractions') {
-            return $this->isSgAttractionsConfigured($values);
-        }
-
-        return false;
+        return app(SupplierConfigResolver::class)->isConfigured($code, $environment);
     }
 
     /**
-     * @param  array<string, string|null>  $values
+     * @return array<string, array<string, mixed>>
      */
-    private function isSgAttractionsConfigured(array $values): bool
+    public function fieldsFor(string $code, string $environment = ApiEnvironmentResolver::DEMO): array
     {
-        $baseUrl = $values['base_url'] ?? config('services.sg_attractions.base_url');
-        $apiKey = $values['api_key'] ?? config('services.sg_attractions.api_key');
-        $secretKey = $values['secret_key'] ?? config('services.sg_attractions.secret_key');
-        $bearerToken = $values['bearer_token'] ?? config('services.sg_attractions.bearer_token');
-
-        if (! filled($baseUrl)) {
-            return false;
-        }
-
-        if (filled($bearerToken)) {
-            return true;
-        }
-
-        return filled($apiKey) && filled($secretKey);
+        return app(SupplierConfigResolver::class)->fieldsFor($code, $environment);
     }
 
     /**
      * @return array<string, string>
      */
-    public function validationRules(string $code): array
+    public function validationRules(string $code, string $environment = ApiEnvironmentResolver::DEMO): array
     {
-        $definition = $this->definitions()[$code] ?? null;
-        $rules = [];
+        $rules = [
+            'environment' => ['nullable', 'in:demo,live'],
+        ];
 
-        if (! is_array($definition)) {
-            return $rules;
-        }
-
-        foreach ($definition['fields'] ?? [] as $fieldKey => $field) {
+        foreach ($this->fieldsFor($code, $environment) as $fieldKey => $field) {
             $rules[$fieldKey] = ['nullable', 'string', 'max:2000'];
         }
 
@@ -156,15 +77,20 @@ class SupplierEnvService
 
     public function updateFromRequest(string $code, Request $request): void
     {
-        $definition = $this->definitions()[$code] ?? null;
+        $definitions = $this->definitions();
 
-        if (! is_array($definition)) {
+        if (! isset($definitions[$code]) || ! is_array($definitions[$code])) {
             throw new \InvalidArgumentException("Unknown supplier code [{$code}].");
+        }
+
+        $environment = strtolower(trim((string) $request->input('environment', ApiEnvironmentResolver::DEMO)));
+        if (! in_array($environment, [ApiEnvironmentResolver::DEMO, ApiEnvironmentResolver::LIVE], true)) {
+            $environment = ApiEnvironmentResolver::DEMO;
         }
 
         $envUpdates = [];
 
-        foreach ($definition['fields'] ?? [] as $fieldKey => $field) {
+        foreach ($this->fieldsFor($code, $environment) as $fieldKey => $field) {
             $envKey = $field['env'] ?? null;
 
             if (! $envKey) {

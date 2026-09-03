@@ -296,8 +296,9 @@ class MgBedbankHotelAdapter implements TwoStepHotelSupplierAdapter
     private function hotelCatalogue(MgBedbankClient $client, array $destination): array
     {
         $ttl = (int) $client->credential('hotel_list_ttl', '1440');
+        $environment = $client->credential('api_environment', 'demo') ?: 'demo';
         // Bump the version segment whenever the cached entry shape changes.
-        $key = "mg_bedbank:hotel_list:v2:{$destination['country']}:{$destination['city']}";
+        $key = "mg_bedbank:hotel_list:v2:{$environment}:{$destination['country']}:{$destination['city']}";
 
         if ($ttl <= 0) {
             return $this->fetchHotelCatalogue($client, $destination);

@@ -36,6 +36,7 @@ use App\Models\Tax;
 use App\Models\Guest;
 use App\Models\MultiRestaurant;
 use App\Models\PackagedAttraction;
+use App\Services\ApiEnvironmentResolver;
 use App\Services\HotelSuppliers\OnlineHotelAggregator;
 use App\Services\AttractionSuppliers\OnlineAttractionAggregator;
 use App\Services\AttractionSuppliers\OnlineAttractionOrderService;
@@ -4540,7 +4541,13 @@ class SingleTourPackageController extends Controller
                                         'onlineHotelBooking' => is_array($hotelBooking['onlineHotelBooking'] ?? null)
                                             ? $hotelBooking['onlineHotelBooking']
                                             : null,
+                                        'api_environment' => $this->resolveStoredApiEnvironment($hotelBooking),
                                     ];
+
+                                    if (is_array($enhancedHotelData['onlineHotelBooking'])) {
+                                        $enhancedHotelData['onlineHotelBooking']['api_environment']
+                                            = $enhancedHotelData['api_environment'];
+                                    }
 
                                     [$enhancedHotelData, $hotelGeo] = $this->applyOrderGeoToServiceRow($enhancedHotelData, $request, $tourId);
                                     
@@ -4613,6 +4620,9 @@ class SingleTourPackageController extends Controller
                                 $attraction['isOnlineAttraction'] = (bool) ($attraction['isOnlineAttraction'] ?? false);
                                 $attraction['attractionSourceType'] = $attraction['attractionSourceType']
                                     ?? (! empty($attraction['isOnlineAttraction']) ? 'online' : 'offline');
+                                if (! empty($attraction['isOnlineAttraction'])) {
+                                    $attraction['api_environment'] = $this->resolveStoredApiEnvironment($attraction);
+                                }
                                 
                                 // Process transfer_options if it exists
                                 if (isset($attraction['transfer_options']) && is_array($attraction['transfer_options']) && !empty($attraction['transfer_options'])) {
@@ -6529,6 +6539,30 @@ class SingleTourPackageController extends Controller
         }
 
         return 'offline';
+    }
+
+    /**
+     * @param  array<string, mixed>  $item
+     */
+    private function resolveStoredApiEnvironment(array $item): ?string
+    {
+        $resolver = app(ApiEnvironmentResolver::class);
+        $stored = $resolver->storedEnvironment($item);
+
+        if ($stored !== null) {
+            return $stored;
+        }
+
+        if (empty($item['isOnlineHotel']) && ($item['hotelSourceType'] ?? '') !== 'online'
+            && empty($item['isOnlineAttraction']) && ($item['attractionSourceType'] ?? '') !== 'online') {
+            return null;
+        }
+
+        try {
+            return $resolver->resolve();
+        } catch (\RuntimeException) {
+            return $resolver->normalize('demo');
+        }
     }
 
     /**

@@ -23,11 +23,13 @@ class TiniviaClient
 
     public function credential(string $key, string $default = ''): string
     {
-        $value = trim((string) ($this->credentials[$key] ?? ''));
+        if (array_key_exists($key, $this->credentials)) {
+            $value = trim((string) $this->credentials[$key]);
 
-        if ($value === '') {
-            $value = trim((string) config("services.tiniva.{$key}", ''));
+            return $value !== '' ? $value : $default;
         }
+
+        $value = trim((string) config("services.tiniva.{$key}", ''));
 
         if ($value === '') {
             $value = trim((string) config("services.tinivia.{$key}", ''));

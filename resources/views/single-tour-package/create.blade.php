@@ -3587,6 +3587,7 @@
                                         isOnlineAttraction: !!isOnlineAttraction,
                                         attractionSourceType: isOnlineAttraction ? 'online' : 'offline',
                                         supplier_code: selectedOption?.dataset?.supplierCode || (isOnlineAttraction ? 'sg_attractions' : null),
+                                        api_environment: selectedOption?.dataset?.apiEnvironment || attractionItemEl?.dataset?.apiEnvironment || null,
                                         onlineAttractionRaw: isOnlineAttraction ? {
                                             lowest_ticket_price: parseFloat(selectedOption?.dataset?.lowestTicketPrice || 0) || 0,
                                             highest_ticket_price: parseFloat(selectedOption?.dataset?.highestTicketPrice || 0) || 0,
@@ -7039,8 +7040,8 @@
 </div>
 @if(!empty($onlineHotelApiEnabled))
 @include('single-tour-package.partials.online-hotel-modal')
-@endif
 @include('single-tour-package.partials.online-attraction-modal')
+@endif
 @endsection
 
 @section('scripts')
@@ -7062,6 +7063,7 @@
     <script>
         window.TOUR_PACKAGE_CURRENCY = @json($dmcCurrency);
         window.COUNTRY_CURRENCY_MAP = @json($countryCurrencyMap);
+        window.onlineApiEnabled = @json(\App\Helpers\CommonHelper::masterDmcOnlineApiEnabled(auth()->user()));
         window.getTourCurrency = function () {
             const el = document.getElementById('tour_package_currency');
             return (el && el.value) ? el.value : (window.TOUR_PACKAGE_CURRENCY || 'SGD');
@@ -19191,6 +19193,7 @@
                                         <div class="attractions-container" id="day${day}_attractions_container">
                                 <div class="card border-0 shadow-sm attraction-item mb-4 overflow-hidden" data-attraction-index="1" style="border-radius: 12px;">
                                 <div class="card-body bg-white p-4">
+                                    ${window.onlineApiEnabled ? `
                                     <div class="mb-3 attraction-slot-source-block">
                                         <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.85rem;"><i class="ri-toggle-line me-1"></i>Attraction Source · Slot #1</label>
                                         <div class="d-flex flex-wrap gap-4">
@@ -19206,6 +19209,7 @@
                                         <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">Offline uses DMC inventory. Online opens live API search for this slot.</small>
                                     </div>
                                     <div class="attraction-slot-online-hint d-none alert alert-info py-2 mb-3" id="day${day}_attraction_1_online_hint" style="font-size: 0.8rem;"><i class="ri-global-line me-1"></i>Use the popup to fetch and select an online attraction for this slot.</div>
+                                    ` : ''}
                                     <div class="attraction-slot-offline-panel" id="day${day}_attraction_1_offline_panel">
                                     
                                     ${hasEnquiryLayout ? `

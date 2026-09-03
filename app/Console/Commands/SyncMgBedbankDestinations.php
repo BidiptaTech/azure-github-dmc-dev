@@ -4,7 +4,8 @@ namespace App\Console\Commands;
 
 use App\Models\City;
 use App\Services\HotelSuppliers\MgBedbank\MgBedbankClient;
-use App\Services\SupplierEnvService;
+use App\Services\SupplierConfigResolver;
+use App\Services\ApiEnvironmentResolver;
 use Illuminate\Console\Command;
 use RuntimeException;
 
@@ -50,7 +51,9 @@ class SyncMgBedbankDestinations extends Command
 
     public function handle(): int
     {
-        $client = new MgBedbankClient(app(SupplierEnvService::class)->valuesFor('mg_bedbank'));
+        $client = new MgBedbankClient(
+            app(SupplierConfigResolver::class)->valuesFor('mg_bedbank', ApiEnvironmentResolver::DEMO)
+        );
         $since = (string) ($this->option('since') ?: MgBedbankClient::EPOCH);
         $continent = trim((string) $this->option('continent'));
         $dryRun = (bool) $this->option('dry-run');

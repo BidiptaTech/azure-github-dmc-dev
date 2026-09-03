@@ -56,39 +56,51 @@
             @forelse($supplierDefinitions as $code => $definition)
                 @php
                     $values = $credentialValues[$code] ?? [];
-                    $configured = app(\App\Services\SupplierEnvService::class)->isConfigured($code);
                 @endphp
                 <div class="card mb-3 border" id="cred-{{ $code }}">
                     <div class="card-header d-flex justify-content-between align-items-center py-2">
                         <strong>{{ $definition['label'] ?? $code }}</strong>
-                        <span class="badge {{ $configured ? 'bg-success' : 'bg-warning text-dark' }}">
-                            {{ $configured ? 'Configured in .env' : 'Not set yet' }}
+                        @php
+                            $demoConfigured = app(\App\Services\SupplierConfigResolver::class)->isConfigured($code, 'demo');
+                            $liveConfigured = app(\App\Services\SupplierConfigResolver::class)->isConfigured($code, 'live');
+                        @endphp
+                        <span>
+                            <span class="badge {{ $demoConfigured ? 'bg-success' : 'bg-warning text-dark' }}">Demo {{ $demoConfigured ? 'configured' : 'not set' }}</span>
+                            <span class="badge {{ $liveConfigured ? 'bg-success' : 'bg-secondary' }}">Live {{ $liveConfigured ? 'configured' : 'not set' }}</span>
                         </span>
                     </div>
                     <div class="card-body">
-                        <form action="{{ route('suppliers.credentials.update', $code) }}" method="POST" class="row g-3">
-                            @csrf
-                            @foreach($definition['fields'] ?? [] as $fieldKey => $field)
-                                <div class="col-md-6">
-                                    <label class="form-label">
-                                        {{ $field['label'] }}
-                                        <small class="text-muted d-block">{{ $field['env'] }}</small>
-                                    </label>
-                                    <input
-                                        type="{{ $field['type'] === 'password' ? 'password' : ($field['type'] === 'number' ? 'number' : 'text') }}"
-                                        name="{{ $fieldKey }}"
-                                        class="form-control"
-                                        value="{{ $field['type'] === 'password' ? '' : ($values[$fieldKey] ?? $field['default'] ?? '') }}"
-                                        placeholder="{{ $field['type'] === 'password' ? 'Leave blank to keep current value' : '' }}"
-                                    >
+                        @foreach (['demo' => 'Demo', 'live' => 'Live / Production'] as $environment => $environmentLabel)
+                            @php
+                                $envFields = $definition[$environment]['fields'] ?? $definition['fields'] ?? [];
+                                $envValues = $values[$environment] ?? [];
+                            @endphp
+                            <h6 class="mt-{{ $environment === 'demo' ? '0' : '4' }} mb-3">{{ $environmentLabel }} credentials</h6>
+                            <form action="{{ route('suppliers.credentials.update', $code) }}" method="POST" class="row g-3 mb-2">
+                                @csrf
+                                <input type="hidden" name="environment" value="{{ $environment }}">
+                                @foreach($envFields as $fieldKey => $field)
+                                    <div class="col-md-6">
+                                        <label class="form-label">
+                                            {{ $field['label'] }}
+                                            <small class="text-muted d-block">{{ $field['env'] }}</small>
+                                        </label>
+                                        <input
+                                            type="{{ $field['type'] === 'password' ? 'password' : ($field['type'] === 'number' ? 'number' : ($field['type'] === 'url' ? 'url' : 'text')) }}"
+                                            name="{{ $fieldKey }}"
+                                            class="form-control"
+                                            value="{{ $field['type'] === 'password' ? '' : ($envValues[$fieldKey] ?? $field['default'] ?? '') }}"
+                                            placeholder="{{ $field['type'] === 'password' ? 'Leave blank to keep current value' : '' }}"
+                                        >
+                                    </div>
+                                @endforeach
+                                <div class="col-12">
+                                    <button type="submit" class="btn btn-primary">
+                                        Save {{ $definition['label'] ?? $code }} {{ $environmentLabel }} to .env
+                                    </button>
                                 </div>
-                            @endforeach
-                            <div class="col-12">
-                                <button type="submit" class="btn btn-primary">
-                                    Save {{ $definition['label'] ?? $code }} to .env
-                                </button>
-                            </div>
-                        </form>
+                            </form>
+                        @endforeach
                     </div>
                 </div>
             @empty

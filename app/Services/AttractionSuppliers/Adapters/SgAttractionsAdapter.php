@@ -287,7 +287,9 @@ class SgAttractionsAdapter implements AttractionSupplierAdapter
             return [];
         }
 
-        $cacheKey = 'sg_attractions_tickets_' . md5($skuId . '|' . (string) $visitDate);
+        $cacheKey = 'sg_attractions_tickets_' . md5(
+            ($credentials['api_environment'] ?? 'demo') . '|' . $skuId . '|' . (string) $visitDate
+        );
         $cached = Cache::get($cacheKey);
         if (is_array($cached)) {
             return $cached;
@@ -573,16 +575,16 @@ class SgAttractionsAdapter implements AttractionSupplierAdapter
         $secretKey = trim((string) ($credentials['secret_key'] ?? ''));
         $staticBearer = trim((string) ($credentials['bearer_token'] ?? ''));
 
-        if ($baseUrl === '') {
+        if ($baseUrl === '' && ! array_key_exists('base_url', $credentials)) {
             $baseUrl = rtrim((string) config('services.sg_attractions.base_url', ''), '/');
         }
-        if ($apiKey === '') {
+        if ($apiKey === '' && ! array_key_exists('api_key', $credentials)) {
             $apiKey = trim((string) config('services.sg_attractions.api_key', ''));
         }
-        if ($secretKey === '') {
+        if ($secretKey === '' && ! array_key_exists('secret_key', $credentials)) {
             $secretKey = trim((string) config('services.sg_attractions.secret_key', ''));
         }
-        if ($staticBearer === '') {
+        if ($staticBearer === '' && ! array_key_exists('bearer_token', $credentials)) {
             $staticBearer = trim((string) config('services.sg_attractions.bearer_token', ''));
         }
 
@@ -738,7 +740,7 @@ class SgAttractionsAdapter implements AttractionSupplierAdapter
             return ['success' => true, 'token' => $staticBearer];
         }
 
-        $cacheKey = 'sg_attractions_bearer_token_' . md5($apiKey);
+        $cacheKey = 'sg_attractions_bearer_token_' . md5($baseUrl . '|' . $apiKey);
         $cachedToken = Cache::get($cacheKey);
         if (is_string($cachedToken) && $cachedToken !== '') {
             return ['success' => true, 'token' => $cachedToken];

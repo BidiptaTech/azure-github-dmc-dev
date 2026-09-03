@@ -37,7 +37,10 @@ class SupplierMasterController extends Controller
 
         $credentialValues = [];
         foreach (array_keys($supplierDefinitions) as $code) {
-            $credentialValues[$code] = $this->supplierEnv->valuesFor($code);
+            $credentialValues[$code] = [
+                'demo' => $this->supplierEnv->valuesFor($code, 'demo'),
+                'live' => $this->supplierEnv->valuesFor($code, 'live'),
+            ];
         }
 
         return view('suppliers.index', compact(
@@ -109,7 +112,8 @@ class SupplierMasterController extends Controller
             abort(404);
         }
 
-        $request->validate($this->supplierEnv->validationRules($code));
+        $environment = strtolower(trim((string) $request->input('environment', 'demo')));
+        $request->validate($this->supplierEnv->validationRules($code, $environment));
 
         try {
             $this->supplierEnv->updateFromRequest($code, $request);
