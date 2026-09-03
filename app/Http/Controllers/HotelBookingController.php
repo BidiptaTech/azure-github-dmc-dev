@@ -5,8 +5,9 @@ namespace App\Http\Controllers;
 use App\Helpers\CommonHelper;
 use App\Models\Tour;
 use App\Models\Hotel;
-use App\Services\HotelSuppliers\MgBedbank\MgBedbankBookingService;
-use App\Services\SupplierEnvService;
+use App\Services\ApiEnvironmentResolver;
+use App\Services\HotelSuppliers\OnlineHotelBookingServiceFactory;
+use App\Services\SupplierConfigResolver;
 use App\Services\AttractionSuppliers\OnlineAttractionOrderService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -2628,21 +2629,32 @@ class HotelBookingController extends Controller
             }
 
             $supplierCode = $this->resolveOnlineHotelSupplierCode($booking);
+            $factory = app(OnlineHotelBookingServiceFactory::class);
+            $bookingService = $factory->make($supplierCode);
 
-            if ($supplierCode !== 'mg_bedbank') {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Online supplier "' . $supplierCode . '" is not supported yet.',
-                ], 422);
-            }
+            $credentials = $this->onlineHotelCredentials($supplierCode, $booking);
 
-            $credentials = app(SupplierEnvService::class)->valuesFor('mg_bedbank');
-            $recheckResult = app(MgBedbankBookingService::class)->recheckFromOrderBooking($booking, $credentials);
-            $token = app(MgBedbankBookingService::class)->cacheRecheckResult(
+            $recheckResult = $bookingService->recheckFromOrderBooking($booking, $credentials, [
+                'tour_id' => (int) $hotelOrder->tour_id,
+            ]);
+            $token = $bookingService->cacheRecheckResult(
                 (int) $hotelOrder->id,
                 $bookingIndex,
                 $recheckResult,
             );
+
+            Log::info('Online hotel recheck priced', [
+                'order_id' => $hotelOrder->id,
+                'booking_index' => $bookingIndex,
+                'supplier_code' => $recheckResult['supplier_code'],
+                'supplier_price' => $recheckResult['supplier_gross_price'] ?: $recheckResult['supplier_net_price'],
+                'customer_price' => $recheckResult['customer_price'],
+                'stored_price' => $recheckResult['stored_price'],
+                'markup_rules' => $recheckResult['markup_rules'],
+                'comparison_basis' => $recheckResult['comparison_basis'],
+                'price_changed' => $recheckResult['price_changed'],
+                'api_environment' => $recheckResult['api_environment'] ?? null,
+            ]);
 
             return response()->json([
                 'success' => true,
@@ -2650,6 +2662,7 @@ class HotelBookingController extends Controller
                 'recheck_token' => $token,
                 'data' => [
                     'supplier_code' => $recheckResult['supplier_code'],
+                    'supplier_label' => $this->onlineHotelSupplierLabel($recheckResult['supplier_code']),
                     'hotel_name' => $recheckResult['hotel_name'],
                     'room_name' => $recheckResult['room_name'],
                     'meal_plan_name' => $recheckResult['meal_plan_name'],
@@ -2657,10 +2670,15 @@ class HotelBookingController extends Controller
                     'check_in' => $recheckResult['check_in'],
                     'check_out' => $recheckResult['check_out'],
                     'stored_price' => $recheckResult['stored_price'],
+                    'stored_supplier_price' => $recheckResult['stored_supplier_price'],
                     'supplier_net_price' => $recheckResult['supplier_net_price'],
                     'supplier_gross_price' => $recheckResult['supplier_gross_price'],
+                    'customer_price' => $recheckResult['customer_price'],
+                    'markup_applied' => $recheckResult['markup_applied'],
+                    'comparison_basis' => $recheckResult['comparison_basis'],
                     'price_changed' => $recheckResult['price_changed'],
-                    'session_id' => $recheckResult['session_id'],
+                    'session_id' => $recheckResult['session_id'] ?? null,
+                    'api_environment' => $recheckResult['api_environment'] ?? null,
                 ],
             ]);
         } catch (\Throwable $e) {
@@ -2778,15 +2796,17 @@ class HotelBookingController extends Controller
                 }
 
                 $supplierCode = $this->resolveOnlineHotelSupplierCode($bookingRow);
+                $factory = app(OnlineHotelBookingServiceFactory::class);
 
-                if ($supplierCode !== 'mg_bedbank') {
+                try {
+                    $bookingService = $factory->make($supplierCode);
+                } catch (\RuntimeException $e) {
                     return response()->json([
                         'success' => false,
-                        'message' => 'Online supplier "' . $supplierCode . '" is not supported yet.',
+                        'message' => $e->getMessage(),
                     ], 422);
                 }
 
-                $bookingService = app(MgBedbankBookingService::class);
                 $recheckResult = $bookingService->pullCachedRecheckResult(
                     (int) $hotelOrder->id,
                     $bookingIndex,
@@ -2801,7 +2821,8 @@ class HotelBookingController extends Controller
                     ], 422);
                 }
 
-                $credentials = app(SupplierEnvService::class)->valuesFor('mg_bedbank');
+                $credentials = $this->onlineHotelCredentials($supplierCode, $bookingRow);
+
                 $bookingDetails = $bookingService->bookFromRecheckResult(
                     $recheckResult,
                     $bookingRow,
@@ -6167,6 +6188,31 @@ class HotelBookingController extends Controller
         )));
 
         return $code !== '' ? $code : 'mg_bedbank';
+    }
+
+    /**
+     * @param  array<string, mixed>  $booking
+     * @return array<string, string|null>
+     */
+    private function onlineHotelCredentials(string $supplierCode, array $booking): array
+    {
+        $code = app(OnlineHotelBookingServiceFactory::class)->credentialCode($supplierCode);
+        $environment = app(ApiEnvironmentResolver::class)->resolveForRecord($booking);
+
+        $resolver = app(SupplierConfigResolver::class);
+
+        if (! $resolver->isConfigured($code, $environment)) {
+            throw new \RuntimeException($resolver->missingCredentialsMessage($code, $environment));
+        }
+
+        return $resolver->valuesFor($code, $environment);
+    }
+
+    private function onlineHotelSupplierLabel(string $supplierCode): string
+    {
+        $code = app(OnlineHotelBookingServiceFactory::class)->credentialCode($supplierCode);
+
+        return (string) config("suppliers.{$code}.label", $code);
     }
 
     /**

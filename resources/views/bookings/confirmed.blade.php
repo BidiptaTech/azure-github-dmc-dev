@@ -21152,15 +21152,60 @@ function submitOnlineHotelApproval(tourId, hotelOrderIndex, bookingIndex, evt) {
         });
 
         const currency = recheck.data.currency || 'SGD';
-        const storedPrice = parseFloat(recheck.data.stored_price || 0).toFixed(2);
-        const supplierPrice = parseFloat(recheck.data.supplier_gross_price || recheck.data.supplier_net_price || 0).toFixed(2);
+        const supplierLabel = recheck.data.supplier_label || recheck.data.supplier_code || 'the supplier';
+        const money = value => currency + ' ' + parseFloat(value || 0).toFixed(2);
+
+        const storedPrice = parseFloat(recheck.data.stored_price || 0);
+        const supplierPrice = parseFloat(recheck.data.supplier_gross_price || recheck.data.supplier_net_price || 0);
+        const storedSupplierPrice = recheck.data.stored_supplier_price;
+        const customerPrice = recheck.data.customer_price;
+        const markupApplied = !!recheck.data.markup_applied;
         const priceChanged = !!recheck.data.price_changed;
-        const priceNote = priceChanged
-            ? '<div class="alert alert-warning py-2 px-3 small mb-2">Supplier price has changed since enquiry. The booking will be confirmed at the updated supplier price.</div>'
+
+        // Compare like with like: the stored price carries the enquiry's markups, so the
+        // recheck re-applies the same stack before anything is put in front of the agent.
+        let priceRows =
+            '<div class="d-flex justify-content-between border-top pt-2 mt-2">' +
+                '<span>Quoted to customer</span><strong>' + money(storedPrice) + '</strong>' +
+            '</div>';
+
+        if (markupApplied) {
+            priceRows +=
+                '<div class="d-flex justify-content-between">' +
+                    '<span>Customer price now</span>' +
+                    '<strong class="' + (priceChanged ? 'text-warning' : 'text-primary') + '">' + money(customerPrice) + '</strong>' +
+                '</div>'
+        } else {
+            priceRows +=
+                '<div class="d-flex justify-content-between">' +
+                    '<span>Supplier price now</span>' +
+                    '<strong class="' + (priceChanged ? 'text-warning' : 'text-primary') + '">' + money(supplierPrice) + '</strong>' +
+                '</div>';
+
+            if (storedSupplierPrice) {
+                priceRows +=
+                    '<div class="d-flex justify-content-between text-muted" style="font-size: 0.8rem;">' +
+                        '<span>Supplier price at enquiry</span><span>' + money(storedSupplierPrice) + '</span>' +
+                    '</div>';
+            }
+        }
+
+        let priceNote = priceChanged
+            ? '<div class="alert alert-warning py-2 px-3 small mb-2">Price has changed since enquiry. The booking will be confirmed at the supplier\'s current rate.</div>'
             : '';
 
+        if (!markupApplied) {
+            priceNote +=
+                '<div class="alert alert-secondary py-2 px-3 small mb-2">' +
+                'No markup rules were found, so the figure above is the supplier price before markup.' +
+                '</div>';
+        }
+
         if (typeof Swal === 'undefined') {
-            if (!confirm(`Confirm online booking with supplier?\nStored: ${currency} ${storedPrice}\nSupplier: ${currency} ${supplierPrice}`)) {
+            const comparisonLine = markupApplied
+                ? `Customer price now: ${money(customerPrice)}`
+                : `Supplier price now: ${money(supplierPrice)}`;
+            if (!confirm(`Confirm online booking with supplier?\nQuoted to customer: ${money(storedPrice)}\n${comparisonLine}`)) {
                 return;
             }
             finalizeOnlineHotelApproval(tourId, hotelOrderIndex, bookingIndex, recheck.recheck_token, referenceFile, approveButton, originalText);
@@ -21178,13 +21223,7 @@ function submitOnlineHotelApproval(tourId, hotelOrderIndex, bookingIndex, evt) {
                     '<div class="mb-1">Room: ' + (recheck.data.room_name || '—') + '</div>' +
                     '<div class="mb-1">Meal plan: ' + (recheck.data.meal_plan_name || '—') + '</div>' +
                     '<div class="mb-1">Stay: ' + (recheck.data.check_in || '') + ' → ' + (recheck.data.check_out || '') + '</div>' +
-                    '<div class="d-flex justify-content-between border-top pt-2 mt-2">' +
-                        '<span>Stored price</span><strong>' + currency + ' ' + storedPrice + '</strong>' +
-                    '</div>' +
-                    '<div class="d-flex justify-content-between">' +
-                        '<span>Supplier price</span><strong class="text-primary">' + currency + ' ' + supplierPrice + '</strong>' +
-                    '</div>' +
-                    '<div class="text-muted mt-2">This will book with MG Bedbank and then approve the hotel order.</div>' +
+                    priceRows +
                 '</div>',
             showCancelButton: true,
             confirmButtonText: 'Confirm booking',

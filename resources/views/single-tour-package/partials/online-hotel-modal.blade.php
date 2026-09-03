@@ -68,6 +68,10 @@
                                 </select>
                             </div>
                             <div class="col-md-3">
+                                <label class="form-label fw-semibold mb-1" style="font-size: 0.8rem;"><i class="ri-hotel-bed-2-line me-1"></i>Number of Rooms</label>
+                                <input type="number" class="form-control form-control-sm" id="onlineNumberOfRooms" value="1" min="1" max="999">
+                            </div>
+                            <div class="col-md-3">
                                 <label class="form-label fw-semibold mb-1 d-flex align-items-center gap-1" style="font-size: 0.8rem;">
                                     <i class="ri-door-open-line me-1"></i>Room Type
                                     <span class="spinner-border spinner-border-sm text-primary d-none" id="onlineRoomLoadingSpinner" role="status" aria-hidden="true" style="width: 0.7rem; height: 0.7rem;"></span>
@@ -87,8 +91,7 @@
                                 <label class="form-label fw-semibold mb-1" style="font-size: 0.8rem;"><i class="ri-group-line me-1"></i>Number of Persons</label>
                                 <input type="number" class="form-control form-control-sm" id="onlineSelectedPersons" value="1" min="1" max="99">
                             </div>
-                        </div>
-                        <div class="row g-2 mb-3">
+                        
                             <div class="col-md-3">
                                 <label class="form-label fw-semibold mb-1" style="font-size: 0.8rem;"><i class="ri-restaurant-line me-1"></i>Meal Plan</label>
                                 <select class="form-select form-select-sm" id="onlineMealPlanSelect">
@@ -100,10 +103,7 @@
                                     <option value="room with all meals (breakfast + lunch + dinner)">Room with All Meals</option>
                                 </select>
                             </div>
-                            <div class="col-md-3">
-                                <label class="form-label fw-semibold mb-1" style="font-size: 0.8rem;"><i class="ri-hotel-bed-2-line me-1"></i>Number of Rooms</label>
-                                <input type="number" class="form-control form-control-sm" id="onlineNumberOfRooms" value="1" min="1" max="999">
-                            </div>
+                            
                             <div class="col-md-3">
                                 <label class="form-label fw-semibold mb-1" style="font-size: 0.8rem;"><i class="ri-money-dollar-circle-line me-1"></i>Price</label>
                                 <div class="input-group input-group-sm">
@@ -273,6 +273,7 @@
     let onlineSelectedNights = [];
     let onlineCurrentRooms = [];
     let onlineLastSupplierCode = '';
+    let onlineLastApiEnvironment = '';
     let onlineHotelLastSearch = { checkIn: '', checkOut: '', city: '', paxInfo: '' };
     let onlineGuestState = { male: 1, female: 0, children: 0, infants: 0, childAges: [] };
     // Two-step suppliers (MG Bedbank) list their whole catalogue first, then price one hotel on demand.
@@ -490,6 +491,16 @@
     function buildPaxInfo() {
         const { adults, children } = getAdultsChildren();
         return adults + '|' + children;
+    }
+
+    /**
+     * Suppliers that quote per room block (MG Bedbank) charge roughly double for the same
+     * pax over two rooms, so the agent's "Number of Rooms" choice has to reach the API
+     * instead of being guessed from the guest counts.
+     */
+    function selectedRoomCount() {
+        const rooms = parseInt(document.getElementById('onlineNumberOfRooms')?.value, 10);
+        return rooms > 0 ? rooms : 1;
     }
 
     function renderOnlineGuestModalCounters() {
@@ -1075,12 +1086,14 @@
         }
 
         const paxInfo = onlineHotelLastSearch.paxInfo || buildPaxInfo();
+        const roomCount = selectedRoomCount();
         const fetchKey = [
             hotelCode,
             onlineHotelLastSearch.city,
             onlineHotelLastSearch.checkIn,
             onlineHotelLastSearch.checkOut,
             paxInfo,
+            roomCount,
         ].join('|');
 
         if (onlineRoomsLoading && fetchKey === onlineRoomsFetchKey) {
@@ -1088,6 +1101,7 @@
         }
 
         onlineRoomsFetchKey = fetchKey;
+        onlineHotelLastSearch.rooms = roomCount;
 
         if (onlineRoomsAbortController) {
             try {
@@ -1116,6 +1130,7 @@
                 checkIn: onlineHotelLastSearch.checkIn,
                 checkOut: onlineHotelLastSearch.checkOut,
                 paxInfo: paxInfo,
+                rooms: roomCount,
                 hotelCode: hotelCode
             })
         };
@@ -1137,13 +1152,23 @@
                 return;
             }
 
+            if (data.api_environment) {
+                onlineLastApiEnvironment = data.api_environment;
+            }
+
             // Keep the catalogue content (images, description) that the live response lacks.
             onlineSelectedHotelDetail = Object.assign({}, hotel, data.hotel);
             onlineSelectedHotelDetail.sessionId = data.session_id || null;
             populateOnlineRooms(onlineSelectedHotelDetail);
 
             const count = data.total_rooms || (data.rooms || []).length;
-            setOnlineRoomStatus(count > 0 ? count + ' room option(s) available.' : 'No rooms available for these dates.', count > 0 ? 'success' : 'error');
+            const quotedFor = data.room_count || roomCount;
+            setOnlineRoomStatus(
+                count > 0
+                    ? count + ' room option(s) available, priced for ' + quotedFor + ' room(s).'
+                    : 'No rooms available for ' + quotedFor + ' room(s) on these dates.',
+                count > 0 ? 'success' : 'error'
+            );
         })
         .catch(function (err) {
             if (requestId !== onlineRoomsRequestId) return;
@@ -1209,6 +1234,40 @@
         resetOnlineHotelFetchResults();
         if (!document.getElementById('onlineHotelSelectionPanel')?.classList.contains('d-none')) {
             generateOnlineNightButtons(false);
+        }
+    }
+
+    /**
+     * The rates on screen were quoted for the previous room count, so re-price rather
+     * than let the agent add a booking at a total the supplier never gave.
+     */
+    function onOnlineRoomCountChange() {
+        const input = document.getElementById('onlineNumberOfRooms');
+        if (input && selectedRoomCount() !== parseInt(input.value, 10)) {
+            input.value = String(selectedRoomCount());
+        }
+
+        if (onlineHotelLastSearch.rooms === selectedRoomCount()) {
+            return;
+        }
+
+        const idx = getOnlineHotelSelectIndex();
+        const hotel = (idx >= 0 && onlineHotelSelectHasValue()) ? onlineHotelsCache[idx] : null;
+
+        if (!hotel) {
+            return;
+        }
+
+        if (onlineTwoStep) {
+            loadOnlineHotelRooms(hotel);
+            return;
+        }
+
+        // One-step suppliers price inside the hotel list, so the whole list is now stale.
+        resetOnlineHotelFetchResults();
+        const statusEl = document.getElementById('onlineHotelFetchStatus');
+        if (statusEl) {
+            statusEl.textContent = 'Room count changed — fetch hotels again for updated rates.';
         }
     }
 
@@ -1324,7 +1383,8 @@
                 check_out: onlineHotelLastSearch.checkOut,
                 search: {
                     city_name: onlineHotelLastSearch.city,
-                    pax_info: onlineHotelLastSearch.paxInfo || buildPaxInfo()
+                    pax_info: onlineHotelLastSearch.paxInfo || buildPaxInfo(),
+                    rooms: onlineHotelLastSearch.rooms || selectedRoomCount()
                 },
                 hotel: {
                     code: hotelId(hotel),
@@ -1347,6 +1407,12 @@
                 fetched_at: new Date().toISOString()
             };
 
+        // The markup stack this room was priced with, so the pre-approval recheck can
+        // re-apply it to the supplier's fresh price instead of guessing.
+        if (room && room.markup && !record.markup) {
+            record.markup = room.markup;
+        }
+
         record.selection = {
             room_type: selection.roomType || '',
             bed_type: selection.bedType || '',
@@ -1359,6 +1425,12 @@
             stay_check_out: selection.checkOut || '',
             remarks: selection.remarks || ''
         };
+
+        record.api_environment = onlineLastApiEnvironment
+            || record.api_environment
+            || hotel.api_environment
+            || (room && room.api_environment)
+            || '';
 
         return record;
     }
@@ -1486,7 +1558,8 @@
         setOnlineHotelFetchLoading(true);
         if (statusEl) statusEl.textContent = '';
 
-        onlineHotelLastSearch = { checkIn: checkIn, checkOut: checkOut, city: city, paxInfo: paxInfo };
+        const roomCount = selectedRoomCount();
+        onlineHotelLastSearch = { checkIn: checkIn, checkOut: checkOut, city: city, paxInfo: paxInfo, rooms: roomCount };
         const fetchedNightPlan = { start: checkIn, nights: countDaysBetween(checkIn, checkOut) };
 
         fetch(fetchUrl, {
@@ -1497,12 +1570,13 @@
                 'Accept': 'application/json',
                 'X-Requested-With': 'XMLHttpRequest'
             },
-            body: JSON.stringify({ checkIn: checkIn, checkOut: checkOut, city: city, paxInfo: paxInfo })
+            body: JSON.stringify({ checkIn: checkIn, checkOut: checkOut, city: city, paxInfo: paxInfo, rooms: roomCount })
         })
         .then(r => r.json())
         .then(data => {
             if (data && data.success) {
                 onlineLastSupplierCode = data.supplier_code || data.supplier_name || '';
+                onlineLastApiEnvironment = data.api_environment || onlineLastApiEnvironment || '';
                 onlineTwoStep = !!data.two_step;
                 const hotels = extractHotelsFromResponse(data);
                 populateOnlineHotels(hotels);
@@ -1551,6 +1625,8 @@
     ['onlineHotelCity', 'onlineHotelCheckIn', 'onlineHotelCheckOut'].forEach(function (id) {
         document.getElementById(id)?.addEventListener('change', onOnlineHotelSearchCriteriaChange);
     });
+
+    document.getElementById('onlineNumberOfRooms')?.addEventListener('change', onOnlineRoomCountChange);
 
     function onOnlineHotelSelectChange() {
         clearTimeout(onlineHotelSelectDebounce);
@@ -1683,6 +1759,7 @@
             onlineHotelSource: onlineLastSupplierCode || hotelRaw.supplier_code || 'online',
             onlineHotelRaw: hotelRaw,
             onlineHotelBooking: booking,
+            api_environment: (booking && booking.api_environment) || onlineLastApiEnvironment || hotelRaw.api_environment || '',
             city: cityName,
             pricePerNight: nightNumbers.length ? price / nightNumbers.length : price
         };

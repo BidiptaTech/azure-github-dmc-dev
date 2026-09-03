@@ -3,25 +3,33 @@
 namespace App\Services\HotelSuppliers\MgBedbank;
 
 use App\Services\HotelSuppliers\Adapters\MgBedbankHotelAdapter;
+use App\Services\HotelSuppliers\Contracts\OnlineHotelBookingService;
 use App\Services\HotelSuppliers\HotelSearchRequest;
+use App\Services\HotelSuppliers\RecheckPriceComparison;
 use Illuminate\Support\Facades\Cache;
 use RuntimeException;
 
 /**
  * Confirms MG Bedbank online hotel orders: SearchHotel → RecheckHotel → BookHotel.
  */
-class MgBedbankBookingService
+class MgBedbankBookingService implements OnlineHotelBookingService
 {
     public function __construct(
+        private RecheckPriceComparison $priceComparison,
         private MgBedbankHotelAdapter $adapter = new MgBedbankHotelAdapter(),
     ) {}
+
+    public function supplierCode(): string
+    {
+        return 'mg_bedbank';
+    }
 
     /**
      * @param  array<string, mixed>  $booking  Single hotel booking row from orders.data
      * @param  array<string, string|null>  $credentials
      * @return array<string, mixed>
      */
-    public function recheckFromOrderBooking(array $booking, array $credentials): array
+    public function recheckFromOrderBooking(array $booking, array $credentials, array $options = []): array
     {
         $context = $this->resolveBookingContext($booking);
         $searchRequest = new HotelSearchRequest(
@@ -29,6 +37,7 @@ class MgBedbankBookingService
             checkIn: $context['check_in'],
             checkOut: $context['check_out'],
             paxInfo: $context['pax_info'],
+            rooms: $context['rooms'],
         );
 
         $searchResult = $this->adapter->fetchHotelRooms(
@@ -85,6 +94,7 @@ class MgBedbankBookingService
         ];
 
         $recheckBody = $client->recheckHotel($recheckPayload);
+        
 
         if ($reason = $client->failureReason($recheckBody)) {
             throw new RuntimeException('MG Bedbank recheck failed: ' . $reason);
@@ -94,10 +104,17 @@ class MgBedbankBookingService
         $recheckAllocations = $this->normalizeAllocations($roomDetails['rooms']['room'] ?? []);
         $supplierNet = (float) ($roomDetails['netPrice'] ?? 0);
         $supplierGross = (float) ($roomDetails['grossPrice'] ?? 0);
-        $storedPrice = (float) ($booking['totalPrice'] ?? $booking['price'] ?? 0);
 
-        return [
+        $comparison = $this->priceComparison->compare(
+            $booking,
+            $supplierGross > 0 ? $supplierGross : $supplierNet,
+            $context['stored_supplier_price'],
+            $options,
+        );
+
+        return $comparison + [
             'supplier_code' => 'mg_bedbank',
+            'api_environment' => $credentials['api_environment'] ?? 'demo',
             'session_id' => (string) ($recheckBody['sessionID'] ?? $sessionId),
             'currency' => (string) ($recheckBody['currency'] ?? $context['currency']),
             'check_in' => (string) ($recheckBody['checkIn'] ?? $context['check_in']),
@@ -113,8 +130,6 @@ class MgBedbankBookingService
             'avail_flag' => (bool) ($roomDetails['availFlag'] ?? true),
             'supplier_net_price' => $supplierNet,
             'supplier_gross_price' => $supplierGross,
-            'stored_price' => $storedPrice,
-            'price_changed' => $storedPrice > 0 && abs($supplierGross - $storedPrice) > 0.01,
             'allocations' => $recheckAllocations,
             'recheck_payload' => $recheckPayload,
             'recheck_response' => $recheckBody,
@@ -198,6 +213,7 @@ class MgBedbankBookingService
 
         return [
             'supplier_code' => 'mg_bedbank',
+            'api_environment' => $recheckResult['api_environment'] ?? ($credentials['api_environment'] ?? 'demo'),
             'agency_booking_id' => $agencyBookingId,
             'book_payload' => $bookPayload,
             'book_response' => $bookBody,
@@ -213,7 +229,7 @@ class MgBedbankBookingService
 
     public function cacheRecheckResult(int $orderId, int $bookingIndex, array $recheckResult): string
     {
-        $token = bin2hex(random_bytes(16));
+        $token = ($recheckResult['api_environment'] ?? 'demo') . '.' . bin2hex(random_bytes(16));
         $key = $this->cacheKey($orderId, $bookingIndex, $token);
 
         Cache::put($key, $recheckResult, now()->addMinutes(20));
@@ -280,6 +296,7 @@ class MgBedbankBookingService
             'check_in' => $checkIn,
             'check_out' => $checkOut,
             'pax_info' => $paxInfo !== '' ? $paxInfo : '2|0',
+            'rooms' => $this->storedRoomCount($online, $booking),
             'hotel_code' => $hotelCode,
             'hotel_name' => (string) ($hotel['name'] ?? $hotelDetails['hotel_name'] ?? ''),
             'country' => $country,
@@ -292,7 +309,37 @@ class MgBedbankBookingService
             'meal_plan_name' => (string) ($storedRoom['meal_plan_name'] ?? ''),
             'cancellation_policy_type' => (string) ($storedRoom['cancellation_policy_type'] ?? ''),
             'package_rate' => (bool) ($storedRoom['package_rate'] ?? false),
+            'stored_supplier_price' => $this->storedSupplierPrice($online),
         ];
+    }
+
+    /**
+     * What MG charged when the enquiry was taken.
+     *
+     * The markup appliers rewrite the presented room's `price` block but never touch
+     * `raw_room`, so the stored raw room is the only markup-free record of MG's own price.
+     *
+     * @param  array<string, mixed>  $online
+     */
+    private function storedSupplierPrice(array $online): ?float
+    {
+        $rawRoom = is_array($online['raw_room'] ?? null) ? $online['raw_room'] : [];
+        $storedRoom = is_array($online['room'] ?? null) ? $online['room'] : [];
+
+        $candidates = [
+            $rawRoom['grossPrice'] ?? null,
+            $rawRoom['netPrice'] ?? null,
+            $storedRoom['gross_price'] ?? null,
+            $storedRoom['net_price'] ?? null,
+        ];
+
+        foreach ($candidates as $candidate) {
+            if ((float) $candidate > 0) {
+                return (float) $candidate;
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -387,6 +434,36 @@ class MgBedbankBookingService
             'Child2Age' => (int) ($allocation['child2Age'] ?? 0),
             'ExtraBed' => (bool) ($allocation['extraBed'] ?? false),
         ];
+    }
+
+    /**
+     * How many room blocks the enquiry was priced for.
+     *
+     * Recorded on the stored search by the adapter; older orders predate that field, so
+     * fall back to the operator's room count from the booking form and finally to one.
+     *
+     * @param  array<string, mixed>  $online
+     * @param  array<string, mixed>  $booking
+     */
+    private function storedRoomCount(array $online, array $booking): int
+    {
+        $search = is_array($online['search'] ?? null) ? $online['search'] : [];
+        $selection = is_array($online['selection'] ?? null) ? $online['selection'] : [];
+
+        $candidates = [
+            $search['rooms'] ?? null,
+            $selection['number_of_rooms'] ?? null,
+            $booking['numberOfRooms'] ?? null,
+            is_array($booking['rooms'] ?? null) ? count($booking['rooms']) : null,
+        ];
+
+        foreach ($candidates as $candidate) {
+            if ((int) $candidate > 0) {
+                return (int) $candidate;
+            }
+        }
+
+        return 1;
     }
 
     /**

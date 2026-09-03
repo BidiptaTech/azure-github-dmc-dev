@@ -2721,6 +2721,73 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         return null;
     }
 
+    /**
+     * Master DMC for the logged-in user, without walking the sales-role tree in getDmcId().
+     *
+     * The flag we care about (online_api) lives on the Master DMC (role 10).
+     * Prefer the stored master_dmc_id; for a DMC that column is empty, created_by is the master.
+     */
+    public static function resolveMasterDmcId($auth_user = null): ?int
+    {
+        $user = $auth_user ?: Auth::user();
+        if (! $user) {
+            return null;
+        }
+
+        $roleId = (int) ($user->role_id ?? 0);
+
+        if (in_array($roleId, [10, 19], true)) {
+            return (int) $user->userId;
+        }
+
+        $masterId = (int) ($user->master_dmc_id ?? 0);
+        if ($masterId > 0) {
+            return $masterId;
+        }
+
+        if (in_array($roleId, [11, 20], true)) {
+            $createdBy = (int) ($user->created_by ?? 0);
+
+            return $createdBy > 0 ? $createdBy : null;
+        }
+
+        $dmcId = self::getDmcId($user);
+        if (! $dmcId) {
+            return null;
+        }
+
+        $dmc = ((int) $user->userId === (int) $dmcId)
+            ? $user
+            : User::query()->where('userId', $dmcId)->first(['userId', 'master_dmc_id', 'created_by']);
+
+        if (! $dmc) {
+            return null;
+        }
+
+        $masterId = (int) ($dmc->master_dmc_id ?: $dmc->created_by);
+
+        return $masterId > 0 ? $masterId : null;
+    }
+
+    /**
+     * Whether this user's Master DMC has Online API turned on.
+     */
+    public static function masterDmcOnlineApiEnabled($auth_user = null): bool
+    {
+        $user = $auth_user ?: Auth::user();
+        $masterId = self::resolveMasterDmcId($user);
+
+        if (! $masterId) {
+            return false;
+        }
+
+        if ($user && (int) $user->userId === $masterId) {
+            return (bool) $user->online_api;
+        }
+
+        return (bool) User::query()->where('userId', $masterId)->value('online_api');
+    }
+
 
     /**
      * Country used for multi-country tour visibility.
@@ -5526,10 +5593,10 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
 
     /**
      * Hotel per-pax rate for quotation display from actual hotel order totalPrice.
-     * Formula: totalPrice / (number_of_rooms × head_count × nights)
+     * Formula: totalPrice / (number_of_rooms × head_count)
      *
      * @param  \Illuminate\Support\Collection|array|null  $orders
-     * @return array{per_pax: float, nights: int, rooms: int, head_count: int, hotel_total: float}|null
+     * @return array{per_pax: float, rooms: int, head_count: int, hotel_total: float}|null
      */
     public static function resolveHotelQuotationPerPaxFromOrders($orders = null, $tour = null, ?string $targetCurrency = null): ?array
     {
@@ -5540,7 +5607,6 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         $hotelTotal = 0.0;
         $totalRooms = 0;
         $headCountPerRoom = 0;
-        $nights = 0;
 
         foreach ($orderList as $order) {
             if ((int) ($order->status ?? 0) !== 1) {
@@ -5584,8 +5650,6 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                     $hotelTotal += $amount;
                 }
 
-                $nights = max($nights, self::resolveHotelOrderNightCount($item, $tour));
-
                 $rooms = $item['rooms'] ?? [];
                 if (! is_array($rooms)) {
                     continue;
@@ -5614,19 +5678,15 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             return null;
         }
 
-        if ($nights <= 0) {
-            $nights = 1;
-        }
         if ($headCountPerRoom <= 0) {
             $headCountPerRoom = 1;
         }
 
-        $divisor = $totalRooms * $headCountPerRoom * $nights;
+        $divisor = $totalRooms * $headCountPerRoom;
         $perPax = $hotelTotal / max(1, $divisor);
 
         return [
             'per_pax' => ceil($perPax),
-            'nights' => $nights,
             'rooms' => $totalRooms,
             'head_count' => $headCountPerRoom,
             'hotel_total' => ceil($hotelTotal),

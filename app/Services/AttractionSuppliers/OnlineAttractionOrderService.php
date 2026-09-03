@@ -3,6 +3,8 @@
 namespace App\Services\AttractionSuppliers;
 
 use App\Models\Tour;
+use App\Services\ApiEnvironmentResolver;
+use App\Services\SupplierConfigResolver;
 use App\Services\SupplierEnvService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -23,6 +25,8 @@ class OnlineAttractionOrderService
         private AttractionSupplierResolver $resolver,
         private AttractionSupplierFactory $factory,
         private SupplierEnvService $supplierEnv,
+        private ApiEnvironmentResolver $apiEnvironment,
+        private SupplierConfigResolver $supplierConfig,
     ) {}
 
     public static function isPlaceholderRef(?string $ref): bool
@@ -123,6 +127,7 @@ class OnlineAttractionOrderService
             'currency' => $payload['currency'] ?? null,
             'use_credits' => $payload['use_credits'] ?? null,
             'charge_credits' => $chargeCredits,
+            'api_environment' => $attraction['api_environment'] ?? null,
             'has_email' => ! empty($payload['customer_email']),
             'has_mobile' => ! empty($payload['customer_mobile']),
             'has_name' => ! empty($payload['customer_name']),
@@ -157,6 +162,7 @@ class OnlineAttractionOrderService
                     'order_ref_id' => $ref,
                     'external_status' => $result['external_status'] ?? null,
                     'supplier_code' => $supplierCode,
+                    'api_environment' => $credentials['api_environment'] ?? null,
                     'charge_credits' => $chargeCredits,
                 ]);
             } else {
@@ -354,24 +360,28 @@ class OnlineAttractionOrderService
             $supplierCode = self::DEFAULT_SUPPLIER_CODE;
         }
 
+        $environment = $this->apiEnvironment->resolveForRecord($attraction);
+
         $cityName = trim((string) ($attraction['city'] ?? ''));
         if ($cityName !== '') {
             try {
                 $resolved = $this->resolver->resolveForCityName($cityName);
-
-                return [
-                    $resolved['supplier']->code ?? $supplierCode,
-                    $resolved['credentials'] ?? [],
-                ];
+                $supplierCode = $resolved['supplier']->code ?? $supplierCode;
             } catch (Throwable $e) {
-                Log::warning('Attraction supplier resolve by city failed; using default credentials', [
+                Log::warning('Attraction supplier resolve by city failed; using stored supplier code', [
                     'supplier_code' => $supplierCode,
                     'message' => $e->getMessage(),
                 ]);
             }
         }
 
-        return [$supplierCode, $this->supplierEnv->valuesFor($supplierCode)];
+        if (! $this->supplierConfig->isConfigured($supplierCode, $environment)) {
+            throw new \RuntimeException(
+                $this->supplierConfig->missingCredentialsMessage($supplierCode, $environment)
+            );
+        }
+
+        return [$supplierCode, $this->supplierConfig->valuesFor($supplierCode, $environment)];
     }
 
     /**
@@ -808,6 +818,7 @@ class OnlineAttractionOrderService
 
         return 'sg_attractions_pending_order_ref:' . md5(implode('|', [
             (string) ($tourId ?? 0),
+            (string) ($attraction['api_environment'] ?? 'demo'),
             $sku,
             $date,
             $adults,

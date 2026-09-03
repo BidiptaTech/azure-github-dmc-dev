@@ -2,8 +2,9 @@
 
 namespace App\Services\AttractionSuppliers;
 
+use App\Services\ApiEnvironmentResolver;
 use App\Services\OnlinePricing\OnlinePricingService;
-use App\Services\SupplierEnvService;
+use App\Services\SupplierConfigResolver;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
@@ -17,7 +18,8 @@ class OnlineAttractionAggregator
         private AttractionSupplierFactory $factory,
         private AttractionResponseNormalizer $normalizer,
         private OnlinePricingService $onlinePricing,
-        private SupplierEnvService $supplierEnv,
+        private ApiEnvironmentResolver $apiEnvironment,
+        private SupplierConfigResolver $supplierConfig,
     ) {}
 
     /**
@@ -35,6 +37,7 @@ class OnlineAttractionAggregator
         $countryId = null;
         $resolvedCityName = $cityName !== '' ? $cityName : null;
         $credentials = [];
+        $environment = $this->apiEnvironment->resolve();
 
         if ($cityName !== '') {
             $resolved = $this->resolver->resolveForCityName($cityName);
@@ -43,14 +46,17 @@ class OnlineAttractionAggregator
             $resolvedCityName = $resolved['city']->name;
             $credentials = $resolved['credentials'];
             $supplierCode = $supplier->code;
+            $environment = $resolved['api_environment'] ?? $environment;
         } else {
             $supplierCode = self::DEFAULT_SUPPLIER_CODE;
 
-            if (! $this->supplierEnv->isConfigured($supplierCode)) {
-                throw new RuntimeException('SG Attractions API credentials are not configured. Set them in Supplier Master → API Credentials or .env.');
+            if (! $this->supplierConfig->isConfigured($supplierCode, $environment)) {
+                throw new RuntimeException(
+                    $this->supplierConfig->missingCredentialsMessage($supplierCode, $environment)
+                );
             }
 
-            $credentials = $this->supplierEnv->valuesFor($supplierCode);
+            $credentials = $this->supplierConfig->valuesFor($supplierCode, $environment);
         }
 
         $searchRequest = new AttractionSearchRequest(
@@ -69,6 +75,7 @@ class OnlineAttractionAggregator
             'country_id' => $countryId,
             'supplier_code' => $supplierCode,
             'supplier_name' => $supplier?->name,
+            'api_environment' => $environment,
         ]);
 
         $result = $adapter->fetchAttractions($searchRequest, $credentials);
@@ -100,6 +107,16 @@ class OnlineAttractionAggregator
             Auth::user(),
         );
 
+        $frontendAttractions = array_map(function ($attraction) use ($environment) {
+            if (! is_array($attraction)) {
+                return $attraction;
+            }
+
+            $attraction['api_environment'] = $environment;
+
+            return $attraction;
+        }, $frontendAttractions);
+
         return [
             'success' => true,
             'attractions' => $frontendAttractions,
@@ -108,6 +125,7 @@ class OnlineAttractionAggregator
             'supplier_name' => $supplier?->name ?? config('suppliers.' . $supplierCode . '.label', $supplierCode),
             'country_id' => $countryId,
             'city' => $resolvedCityName,
+            'api_environment' => $environment,
             'request' => $searchRequest->toPayload(),
             'provider' => $result['provider'],
         ];
