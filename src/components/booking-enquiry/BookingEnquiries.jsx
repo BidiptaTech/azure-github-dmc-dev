@@ -1807,7 +1807,7 @@ const BookingEnquiries = ({
           sx={{ 
             fontWeight: 600,
             fontSize: { xs: '1.5rem', sm: '2rem', md: '2.5rem' },
-            color: 'text.primary',
+            color: '#ffffff',
             mb: 1
           }}
         >

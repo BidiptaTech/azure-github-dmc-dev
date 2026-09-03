@@ -37,6 +37,7 @@ import {
 import dayjs from "dayjs";
 import { setDateService } from "@/slice/common/dateServicesSlice";
 import { setbookingImage, setbookingType } from "@/slice/tourguide/guideslice";
+import { addToCart } from "@/slice/cart/carSlice";
 
 const Index1Zone = () => {
   const pickUpLocation = useSelector((state) => state.pickupDrop.entrypickup);
@@ -205,12 +206,15 @@ const Index1Zone = () => {
     };
 
     dispatch(setentrydata(details));
-    navigate(`/dashboard/db-dashboard/CheckOut`, {
-      state: { vehicles: vehicles },
-    });
-    // setMappedData(data);
-    // setIsModalOpen(true);
-    // console.log("Submitted Data:", data);
+    dispatch(
+      addToCart({
+        bookingType: "entryport",
+        item: details,
+        tourDetails,
+      })
+    );
+    toast.success("Added to cart successfully.");
+    navigate(`/dashboard/db-dashboard/cart`);
   };
 
  
@@ -268,7 +272,7 @@ const Index1Zone = () => {
           }`}
           disabled={!isBookNowEnabled}
         >
-          Check Out
+          Add to Cart
         </button>
 
         {/* Night charges warning message */}

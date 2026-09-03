@@ -27,6 +27,7 @@ const BOOKING_FLOW_PATHS = [
   "/attraction-thank-you",
   "/CheckOut",
   "/ThankYou",
+  "/cart",
 ];
 
 const ProtectedRoutetour = ({ children }) => {

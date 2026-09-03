@@ -5,6 +5,7 @@ import {
   FaCompass,
   FaEnvelopeOpenText,
   FaBoxOpen,
+  FaShoppingCart,
 } from "react-icons/fa";
 import { useSelector, useDispatch } from "react-redux";
 import {
@@ -16,6 +17,7 @@ import {
   Typography,
   Box,
   IconButton,
+  Badge,
 } from "@mui/material";
 import {
   Close as CloseIcon,
@@ -27,6 +29,7 @@ import LocationSearch from "../hero/hero-2/LocationSearch";
 import { fetchDMCCount } from "../../slice/dmc/dmcSlice";
 import { resetPackages } from "../../slice/tour-packages/prePackagesSlice";
 import * as commonActions from "../../slice/common/commonSlice";
+import { selectCartItemCount } from "@/slice/cart/carSlice";
 
 // Styled components for the location modal
 const StyledDialog = styled(Dialog)(({ theme }) => ({
@@ -88,6 +91,7 @@ const MainMenu = ({ style = "" }) => {
   const selectedDmcId = useSelector((state) => state.dmc.dmcId);
   const selectedDmcData = useSelector((state) => state.dmc.selectedDmcData);
   const selectedCountries = useSelector((state) => state.dmc.selectedCountries);
+  const cartItemCount = useSelector(selectCartItemCount);
 
   // Automatically fetch DMC count when component mounts
   useEffect(() => {
@@ -214,6 +218,11 @@ const MainMenu = ({ style = "" }) => {
     navigate(packagesPath);
   };
 
+  const handleCartClick = (e) => {
+    e.preventDefault();
+    navigate("/dashboard/db-dashboard/cart");
+  };
+
   return (
     <>
     <nav className="menu js-navList  lg:d-block">
@@ -326,6 +335,7 @@ const MainMenu = ({ style = "" }) => {
             className={`menu-item ${
               pathname === packagesPath ? "current" : ""
             }`}
+            style={menuItemStyle}
           >
                        <a
                href="#"
@@ -349,6 +359,55 @@ const MainMenu = ({ style = "" }) => {
                   </span>
                 </div>
              </a>
+          </li>
+        )}
+
+        {!isManagerOrSalesHead && (
+          <li
+            className={`menu-item ${
+              pathname === "/dashboard/db-dashboard/cart" ? "current" : ""
+            }`}
+          >
+            <a
+              href="#"
+              onClick={handleCartClick}
+              className="d-flex items-center px-20 py-15 text-decoration-none hover:bg-green-1/5 rounded-4 transition-all"
+              style={{ flexDirection: "column", alignItems: "flex-start" }}
+              title="View Cart"
+            >
+              <div style={{ display: "flex", alignItems: "center" }}>
+                <Badge
+                  badgeContent={cartItemCount}
+                  color="error"
+                  max={99}
+                  overlap="circular"
+                  sx={{
+                    mr: 1.5,
+                    "& .MuiBadge-badge": {
+                      fontSize: "0.65rem",
+                      minWidth: 18,
+                      height: 18,
+                      fontWeight: 700,
+                    },
+                  }}
+                >
+                  <FaShoppingCart
+                    className="text-28 text-green-1"
+                    title="View Cart"
+                  />
+                </Badge>
+                <span
+                  className={`fw-700 text-18 ${
+                    pathname === "/dashboard/db-dashboard/cart"
+                      ? "text-green-1"
+                      : ""
+                  }`}
+                  title="View Cart"
+                >
+                  Cart
+                </span>
+              </div>
+            </a>
           </li>
         )}
       </ul>
