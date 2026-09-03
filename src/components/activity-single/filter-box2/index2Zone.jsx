@@ -37,6 +37,7 @@ import { setDateService } from "@/slice/common/dateServicesSlice";
 import PriceMode from "./PriceMode1";
 import Pickuptime1 from "./Pickuptime1";
 import { setbookingImage, setbookingType } from "@/slice/tourguide/guideslice";
+import { addToCart } from "@/slice/cart/carSlice";
 
 const Index2Zone = () => {
   // const pickUpLocation = useSelector((state) => state.pickupDrop.entrypickup);
@@ -293,12 +294,15 @@ const Index2Zone = () => {
       // totalPrice: totalPrice,
     };
     dispatch(setexitdata(details));
-    navigate(`/dashboard/db-dashboard/CheckOut`, {
-      state: { vehicles: vehicles },
-    });
-    // setMappedData(data); // Update state with final values
-    // setIsModalOpen(true);
-    // console.log("Submitted Data:", data); // Debugging: Check final values before submission
+    dispatch(
+      addToCart({
+        bookingType: "exitport",
+        item: details,
+        tourDetails,
+      })
+    );
+    toast.success("Added to cart successfully.");
+    navigate(`/dashboard/db-dashboard/cart`);
   };
 
   // const handleFinalSubmit = async () => {
@@ -450,7 +454,7 @@ const Index2Zone = () => {
           }`}
           disabled={!isBookNowEnabled} // Disable button if not enabled
         >
-          Check Out
+          Add to Cart
         </button>
         {/* {isNight && (
           <div className="text-14 mt-10" style={{ color: "#E53935" }}>

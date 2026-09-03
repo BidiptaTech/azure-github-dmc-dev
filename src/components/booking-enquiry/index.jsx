@@ -146,7 +146,7 @@ const Index = () => {
             />
             <div className="navigation-buttons mt-15 d-flex justify-between">
               <button 
-                className="button -md -blue-1 bg-blue-1-05 text-blue-1 border-blue-1 responsive-nav-button" 
+                className="button -md -blue-1 bg-blue-1-05 text-white border-white responsive-nav-button" 
                 onClick={goToSearch}
               >
                 <i className="icon-arrow-left text-20 mr-10"></i>

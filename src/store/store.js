@@ -133,6 +133,7 @@ import prePackagesReducer from "../slice/tour-packages/prePackagesSlice";
 import profileReducer from "../slice/common/profileSlice";
 import dmcReducer from "../slice/dmc/dmcSlice";
 import stepperButtonReducer from "../slice/common/stepperButtonSlice";
+import cartReducer from "../slice/cart/carSlice";
 import { loadTourSession } from "@/utils/tourSession";
 import { resolveCountryName } from "@/utils/locationFormat";
 
@@ -170,6 +171,7 @@ export const store = configureStore({
     profile: profileReducer,
     dmc: dmcReducer,
     stepperButton: stepperButtonReducer,
+    cart: cartReducer,
   },
 });
 
