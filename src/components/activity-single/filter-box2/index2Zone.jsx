@@ -78,6 +78,9 @@ const Index2Zone = () => {
   // Fetch values from Redux
   const tourDetails = useSelector((state) => state.hotels?.tourdetails);
   console.log("Tour details:", tourDetails);
+  const searchLocation = useSelector(
+    (state) => state.bookings?.searchLocation || []
+  );
 
   const adultsMax = tourDetails?.adult ?? 1; // Use optional chaining with fallback
   console.log("Adults Max:", adultsMax);
@@ -299,7 +302,10 @@ const Index2Zone = () => {
       addToCart({
         bookingType: "exitport",
         item: details,
-        tourDetails: tourDetails,
+        tourDetails: {
+          ...(tourDetails || {}),
+          searchLocation,
+        },
       })
     );
     const cartError = store.getState().cart?.lastActionError;

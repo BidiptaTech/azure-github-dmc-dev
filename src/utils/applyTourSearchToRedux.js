@@ -3,6 +3,7 @@ import {
   setCheckIn,
   setCheckOut,
   setGuest,
+  setSearchLocation,
 } from "@/slice/common/BookingSlice";
 import {
   setId,
@@ -113,6 +114,11 @@ export const applyTourSearchToRedux = (dispatch, payload = {}) => {
     payload.country ||
     destinationLocations.find((loc) => loc.country)?.country ||
     "";
+  const searchLocation = Array.isArray(payload.searchLocation)
+    ? payload.searchLocation.filter(Boolean)
+    : Array.isArray(payload.countryCodes)
+      ? payload.countryCodes.filter(Boolean)
+      : [];
 
   const ucheckIn = checkIn
     ? moment(checkIn, "DD/MM/YYYY").format("YYYY-MM-DD")
@@ -125,6 +131,9 @@ export const applyTourSearchToRedux = (dispatch, payload = {}) => {
   dispatch(setCityWiseDates(cityWiseDates));
   dispatch(setCheckIn(checkIn));
   dispatch(setCheckOut(checkOut));
+  if (searchLocation.length) {
+    dispatch(setSearchLocation(searchLocation));
+  }
 
   const guestPayload = {
     adults,
@@ -160,6 +169,7 @@ export const applyTourSearchToRedux = (dispatch, payload = {}) => {
       CheckOutTime: checkOut,
       tour_id: tourId,
       country: primaryCountry,
+      searchLocation,
       ...(adultGenders ? { adultGenders } : {}),
       ...(childrenAges ? { childrenAges } : {}),
     })
