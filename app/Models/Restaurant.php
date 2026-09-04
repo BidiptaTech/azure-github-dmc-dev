@@ -119,9 +119,15 @@ class Restaurant extends Model
     public function getZoneForDmc($dmcId)
     {
         $assignments = $this->zone_assignments ?? [];
+        if (is_array($assignments) && (isset($assignments['dmc_id']) || isset($assignments['zone_id']))) {
+            $assignments = [$assignments];
+        }
         
         foreach ($assignments as $assignment) {
-            if (isset($assignment['dmc_id']) && $assignment['dmc_id'] == $dmcId) {
+            if (!is_array($assignment)) {
+                continue;
+            }
+            if (isset($assignment['dmc_id']) && (string) $assignment['dmc_id'] === (string) $dmcId) {
                 return $assignment['zone_id'] ?? null;
             }
         }
@@ -138,6 +144,9 @@ class Restaurant extends Model
             $ids[] = (string) $preferred;
         }
         foreach ($this->zone_assignments ?? [] as $assignment) {
+            if (!is_array($assignment)) {
+                continue;
+            }
             $zid = $assignment['zone_id'] ?? null;
             if ($zid === null || $zid === '') {
                 continue;
