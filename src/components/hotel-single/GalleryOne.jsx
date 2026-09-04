@@ -2,8 +2,10 @@ import ModalVideo from "react-modal-video";
 import { Gallery, Item } from "react-photoswipe-gallery";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import React, { useCallback, useState } from "react";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
+import { toast } from "react-toastify";
 import { Button, Typography, Box } from "@mui/material";
+import { addHotelBookingToCart } from "@/utils/addHotelToCart";
 import travClikImage from "../../../public/Images/hotel/travclick.jpg";
 // import travClikImage from "../../../public/Images/travclicklogo.jpeg";
 
@@ -12,8 +14,11 @@ import travClikImage from "../../../public/Images/hotel/travclick.jpg";
 
 export default function GalleryOne({ hotel }) {
   const [isOpen, setOpen] = useState(false);
+  const dispatch = useDispatch();
   const totalPrice = useSelector((state) => state.hoteldetails.totalPrice);
   const bookingArray = useSelector((state) => state.hoteldetails.bookingArray);
+  const tourDetails = useSelector((state) => state.hotels?.tourdetails);
+  const searchState = useSelector((state) => state.hotels?.searchState);
 
   const bookingDetails = useSelector((state) => state.hoteldetails.bookingDetails);
   console.log("GalleryOne - Full booking details:", bookingDetails);
@@ -64,15 +69,41 @@ export default function GalleryOne({ hotel }) {
 
   const displayImages = getDisplayImages();
 
-  const handleCheckoutPage = useCallback(() => {
-    navigate("/dashboard/db-dashboard/hotel-checkout", { 
-      state: { 
-        bookingArray, 
-        totalPrice,
-        priceMode 
-      } 
+  const handleAddToCart = useCallback(() => {
+    const cartError = addHotelBookingToCart(dispatch, {
+      bookingArray,
+      totalPrice,
+      priceMode,
+      hotelDetails: {
+        hotel_id,
+        hotel_name,
+        location,
+        address,
+        image,
+      },
+      tourDetails,
+      searchState,
     });
-  }, [bookingArray, totalPrice, priceMode, navigate]);
+    if (cartError) {
+      toast.error(cartError);
+      return;
+    }
+    toast.success("Added to cart successfully.");
+    navigate("/dashboard/db-dashboard/cart");
+  }, [
+    address,
+    bookingArray,
+    dispatch,
+    hotel_id,
+    hotel_name,
+    image,
+    location,
+    navigate,
+    priceMode,
+    searchState,
+    totalPrice,
+    tourDetails,
+  ]);
 
   return (
     <>
@@ -159,10 +190,10 @@ export default function GalleryOne({ hotel }) {
                   }
                   <div className="col-auto">
                     <Button
-                      onClick={handleCheckoutPage}
+                      onClick={handleAddToCart}
                       className="button h-50 px-24 -dark-1 bg-blue-1 text-white"
                     >
-                      Checkout <div className="icon-arrow-top-right ml-15" />
+                      Add to Cart <div className="icon-arrow-top-right ml-15" />
                     </Button>
                   </div>
                 </div>
