@@ -63,6 +63,7 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
     Route::post('/create-tour', 'App\Http\Controllers\Api\TourController@createTour');
     Route::get('/edit-tour', 'App\Http\Controllers\Api\TourController@editTour');
     Route::post('/create-booking', 'App\Http\Controllers\Api\TourController@createBooking');
+    Route::post('/book-all', 'App\Http\Controllers\Api\TourController@bookAll');
     Route::post('/cancel-booking', 'App\Http\Controllers\Api\TourController@CancelBooking');
     Route::post('/update-enquiry', 'App\Http\Controllers\Api\TourController@updateEnquiry');
     Route::get('/enquiry-status', 'App\Http\Controllers\Api\TourController@enquiryStatus');

@@ -62,6 +62,24 @@
         padding-top: 0.35rem !important;
         padding-bottom: 0.35rem !important;
     }
+    /* Master list: hide × only for cities locked by tours.destination */
+    #multiCityMasterField .select2-selection__choice.mc-destination-locked .select2-selection__choice__remove,
+    #multi_cities + .select2-container .select2-selection__choice.mc-destination-locked .select2-selection__choice__remove {
+        display: none !important;
+        visibility: hidden !important;
+        width: 0 !important;
+        height: 0 !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        overflow: hidden !important;
+        pointer-events: none !important;
+        opacity: 0 !important;
+    }
+    #multiCityMasterField .select2-selection__choice.mc-destination-locked,
+    #multi_cities + .select2-container .select2-selection__choice.mc-destination-locked {
+        padding-left: 0.55rem !important;
+        cursor: default !important;
+    }
     #multiCityControls .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__rendered {
         padding: 0.25rem 0.5rem !important;
     }
@@ -1444,7 +1462,7 @@
                                             </option>
                                         @endforeach
                                     </select>
-                                    <small class="text-muted" style="font-size:0.72rem;">Pick cities you will use, then add one <strong>city plan</strong> per stay.</small>
+                                    <small class="text-muted" style="font-size:0.72rem;">Pick cities you will use, then add one <strong>city plan</strong> per stay. Cities already in destination cannot be removed.</small>
                                 </div>
                                 <!-- Agency Company -->
                                 <div class="col-md-4" id="agencyCol">
@@ -12243,6 +12261,7 @@
     // This makes all select boxes searchable without breaking existing functionality
     $(document).ready(function() {
         initializeAllSelect2();
+        lockMultiCitiesDeselect();
         initializeTravelDateValidation();
         initializeTravelDateRangePicker();
         initializeInlineTransportToggles();
@@ -12258,8 +12277,157 @@
             if (typeof window.lockSingleCityFieldIfNeeded === 'function') {
                 window.lockSingleCityFieldIfNeeded();
             }
+            lockMultiCitiesDeselect();
         }, 50);
     });
+
+    /**
+     * Master city list: lock remove/deselect only for cities present in tours.destination
+     * (#user_country). Other master-list cities can still be removed.
+     */
+    function getTourDestinationLockTokens() {
+        const raw = (document.getElementById('user_country')?.value || '').toString().trim();
+        if (!raw) return [];
+        return raw.split(',').map(function (p) {
+            return p.toString().trim().toLowerCase();
+        }).filter(Boolean);
+    }
+
+    function normalizeCityLabel(v) {
+        return (v || '').toString().replace(/\s*\([^)]*\)\s*$/, '').trim().toLowerCase();
+    }
+
+    function isMasterCityLockedByDestination(cityValue, countryHint) {
+        const tokens = getTourDestinationLockTokens();
+        if (!tokens.length) return false;
+
+        const $opt = $('#multi_cities option').filter(function () {
+            return String($(this).val()) === String(cityValue);
+        }).first();
+
+        const cityName = normalizeCityLabel(cityValue);
+        const country = normalizeCityLabel(
+            countryHint != null && String(countryHint).trim() !== ''
+                ? countryHint
+                : ($opt.attr('data-country') || '')
+        );
+
+        for (let i = 0; i < tokens.length; i++) {
+            const t = tokens[i];
+            if (cityName && t === cityName) return true;
+            if (country && t === country) return true;
+        }
+        return false;
+    }
+
+    function refreshMultiCitiesLockUI() {
+        const $mc = $('#multi_cities');
+        if (!$mc.length) return;
+
+        const $choices = $('#multiCityMasterField .select2-selection__choice, #multi_cities + .select2-container .select2-selection__choice');
+        $choices.removeClass('mc-destination-locked');
+
+        $mc.find('option:selected').each(function () {
+            const val = $(this).val();
+            const text = ($(this).text() || '').trim();
+            const locked = isMasterCityLockedByDestination(val, $(this).attr('data-country'));
+            if (!locked) return;
+
+            $choices.filter(function () {
+                const title = (($(this).attr('title') || '') + '').trim();
+                const display = ($(this).find('.select2-selection__choice__display').text() || $(this).text() || '')
+                    .replace(/×/g, '')
+                    .trim();
+                return title === text || display === text || normalizeCityLabel(title) === normalizeCityLabel(val) || normalizeCityLabel(display) === normalizeCityLabel(val);
+            }).addClass('mc-destination-locked');
+        });
+    }
+
+    function lockMultiCitiesDeselect() {
+        const $mc = $('#multi_cities');
+        if (!$mc.length || typeof $mc.select2 !== 'function') return;
+
+        $mc.off('.lockMaster');
+        $(document).off('mousedown.lockMaster click.lockMaster', '#multiCityMasterField .select2-selection__choice__remove');
+        $(document).off('mousedown.lockMaster click.lockMaster', '#multi_cities + .select2-container .select2-selection__choice__remove');
+
+        function unselectDataFromEvent(e) {
+            try {
+                if (e.params && e.params.args && e.params.args.data) return e.params.args.data;
+                if (e.params && e.params.data) return e.params.data;
+            } catch (err) { /* ignore */ }
+            return null;
+        }
+
+        $mc.on('select2:unselecting.lockMaster', function (e) {
+            const data = unselectDataFromEvent(e);
+            const id = data && data.id != null ? data.id : null;
+            if (id == null) return;
+            if (!isMasterCityLockedByDestination(id, data.element ? $(data.element).attr('data-country') : null)) {
+                return; // allow remove
+            }
+            e.preventDefault();
+            if (e.stopPropagation) e.stopPropagation();
+            if (typeof showToastr === 'function') {
+                showToastr('error', 'This city is in the tour destination and cannot be removed.');
+            }
+            setTimeout(refreshMultiCitiesLockUI, 0);
+            return false;
+        });
+
+        $mc.on('select2:clearing.lockMaster', function (e) {
+            // Block full clear when any selected city is destination-locked
+            const vals = ($mc.val() || []);
+            const anyLocked = vals.some(function (v) {
+                return isMasterCityLockedByDestination(v);
+            });
+            if (!anyLocked) return;
+            e.preventDefault();
+            if (typeof showToastr === 'function') {
+                showToastr('error', 'Cities in the tour destination cannot be removed.');
+            }
+            return false;
+        });
+
+        $mc.on('select2:unselect.lockMaster', function (e) {
+            const data = unselectDataFromEvent(e);
+            if (!data || data.id == null) return;
+            if (!isMasterCityLockedByDestination(data.id, data.element ? $(data.element).attr('data-country') : null)) {
+                setTimeout(refreshMultiCitiesLockUI, 0);
+                return;
+            }
+            // Restore if something still removed a locked city
+            try {
+                const vals = ($mc.val() || []).map(String);
+                if (vals.indexOf(String(data.id)) === -1) {
+                    vals.push(String(data.id));
+                    $mc.val(vals).trigger('change.select2');
+                }
+            } catch (err) { /* ignore */ }
+            setTimeout(refreshMultiCitiesLockUI, 0);
+        });
+
+        $mc.on('select2:select.lockMaster select2:open.lockMaster change.lockMaster', function () {
+            setTimeout(refreshMultiCitiesLockUI, 0);
+        });
+
+        // Block × click only on destination-locked chips
+        $(document).on('mousedown.lockMaster click.lockMaster', '#multiCityMasterField .select2-selection__choice.mc-destination-locked .select2-selection__choice__remove, #multi_cities + .select2-container .select2-selection__choice.mc-destination-locked .select2-selection__choice__remove', function (e) {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            if (typeof showToastr === 'function') {
+                showToastr('error', 'This city is in the tour destination and cannot be removed.');
+            }
+            return false;
+        });
+
+        refreshMultiCitiesLockUI();
+        setTimeout(refreshMultiCitiesLockUI, 50);
+        setTimeout(refreshMultiCitiesLockUI, 250);
+    }
+    window.lockMultiCitiesDeselect = lockMultiCitiesDeselect;
+    window.refreshMultiCitiesLockUI = refreshMultiCitiesLockUI;
+    window.isMasterCityLockedByDestination = isMasterCityLockedByDestination;
 
     function initializeTravelDateRangePicker() {
         const rangeInput = document.getElementById('travel_dates_range');
@@ -12500,10 +12668,18 @@
                 select2Options.templateResult = window.formatAttractionBundleOption;
                 select2Options.templateSelection = window.formatAttractionBundleOption;
             }
+            // Master cities: never allow clear / remove chips
+            if (id === 'multi_cities') {
+                select2Options.allowClear = false;
+            }
             $select.select2(select2Options);
             
             // Mark as initialized to avoid re-initialization
             $select.attr('data-select2-initialized', 'true');
+
+            if (id === 'multi_cities' && typeof window.lockMultiCitiesDeselect === 'function') {
+                window.lockMultiCitiesDeselect();
+            }
         });
     }
 
@@ -28566,6 +28742,9 @@
             if (userCountryEl && dest !== '') {
                 userCountryEl.value = dest;
             }
+            if (typeof window.refreshMultiCitiesLockUI === 'function') {
+                window.refreshMultiCitiesLockUI();
+            }
         } catch (e) { /* ignore */ }
         return data;
     }
@@ -28926,6 +29105,9 @@
                 const dest = data && data.data && data.data.destination != null ? String(data.data.destination) : '';
                 if (userCountryEl && dest !== '') {
                     userCountryEl.value = dest;
+                }
+                if (typeof window.refreshMultiCitiesLockUI === 'function') {
+                    window.refreshMultiCitiesLockUI();
                 }
             } catch (e) { /* ignore */ }
             
@@ -29513,6 +29695,12 @@
             if (mcMaster) mcMaster.classList.toggle('d-none', !isMulti);
             // Discount amount is single-city only
             if (discountCol) discountCol.classList.toggle('d-none', isMulti);
+
+            if (isMulti && typeof window.lockMultiCitiesDeselect === 'function') {
+                setTimeout(function () {
+                    window.lockMultiCitiesDeselect();
+                }, 0);
+            }
 
             // No stretching needed: in multi-city we show master cities in the 6-col slot.
 
@@ -30362,17 +30550,19 @@
                     const st = normalizeDateToISO((startEl && startEl.value ? startEl.value : '').trim());
                     const en = normalizeDateToISO((endEl && endEl.value ? endEl.value : '').trim());
 
-                    // If it's already saved in DB, call backend to remove it + soft delete services
+                    // If already saved in DB, call backend to remove city plan (+ destination when safe)
                     if (isSaved) {
                         const form = document.getElementById('singleTourPackageForm');
                         const url = form && form.dataset ? form.dataset.removeCityUrl : '';
                         if (!url) throw new Error('Remove URL not found');
                         if (!st || !en) throw new Error('Stay dates not found');
 
-                        // Confirm: removing a saved city plan also removes services for this date range
+                        // Confirm: city plan JSON always removed; destination only if no active orders
                         const confirmMsg =
                             `Remove this city plan${cityDisplay ? ` (${cityDisplay})` : ''}?\n\n` +
-                            `This will also remove (soft delete) ALL services booked between:\n${st} → ${en}\n\n` +
+                            `Stay: ${st} → ${en}\n\n` +
+                            `• The city will be removed from the city plan.\n` +
+                            `• Destination is removed only if this tour has no active order for that destination.\n\n` +
                             `Do you want to continue?`;
                         if (!window.confirm(confirmMsg)) return;
 
@@ -30403,8 +30593,7 @@
                             }
                         } catch (e) { /* ignore */ }
                         if (typeof showToastr === 'function') {
-                            const dc = (data.data && typeof data.data.deleted_services_count !== 'undefined') ? data.data.deleted_services_count : null;
-                            showToastr('success', dc !== null ? `City plan removed. ${dc} service(s) removed.` : 'City plan removed.');
+                            showToastr('success', (data && data.message) ? data.message : 'City plan removed.');
                         }
                         // Reload so soft-deleted services disappear from the edit form
                         setTimeout(function () {
@@ -30451,17 +30640,15 @@
                     const cityVal = (citySel && citySel.value ? citySel.value : (cityInp && cityInp.value ? cityInp.value : '')).trim();
                     const st = normalizeDateToISO((startEl && startEl.value ? startEl.value : '').trim());
                     const en = normalizeDateToISO((endEl && endEl.value ? endEl.value : '').trim());
-                    // A city can be saved on its own with a blank date range — the date range
-                    // can be added and saved later without needing to re-add the city.
                     if (!cityVal) {
                         if (typeof showToastr === 'function') showToastr('error', 'Please select a City.');
                         return;
                     }
-                    if ((st || en) && !(st && en)) {
-                        if (typeof showToastr === 'function') showToastr('error', 'Please provide both Stay from and Stay until, or leave both blank.');
+                    if (!st || !en) {
+                        if (typeof showToastr === 'function') showToastr('error', 'Please choose date');
                         return;
                     }
-                    if (st && en && segmentHasOverlap(seg)) {
+                    if (segmentHasOverlap(seg)) {
                         if (typeof showToastr === 'function') showToastr('error', 'These dates are already booked in another city plan.');
                         return;
                     }
