@@ -6,6 +6,7 @@ import { createSlice, current } from "@reduxjs/toolkit";
  *   {
  *     tripId, check_in, check_out, destination, adult, child, infant, tour_id,
  *     cityWiseDates: [{ city, checkIn, checkOut }, ...],
+ *     searchLocation: ["SG", "ID"], // country codes from bookings.searchLocation
  *     bookings: [
  *       { type: "entryport", cartItemId, ... },
  *       { type: "exitport", cartItemId, ... },
@@ -83,12 +84,18 @@ export const buildTourMeta = (tourDetails = {}) => {
     (Array.isArray(destination) &&
       destination.find((d) => d?.country)?.country) ||
     "";
+  const searchLocation = Array.isArray(tourDetails.searchLocation)
+    ? tourDetails.searchLocation.filter(Boolean)
+    : Array.isArray(tourDetails.countryCodes)
+      ? tourDetails.countryCodes.filter(Boolean)
+      : [];
 
   return {
     check_in,
     check_out,
     destination,
     country,
+    searchLocation,
     adult,
     child,
     infant,
@@ -157,6 +164,9 @@ const cartSlice = createSlice({
         state.cart[existingIndex].destination = meta.destination;
         if (meta.country) {
           state.cart[existingIndex].country = meta.country;
+        }
+        if (meta.searchLocation?.length) {
+          state.cart[existingIndex].searchLocation = meta.searchLocation;
         }
         if (meta.cityWiseDates?.length) {
           state.cart[existingIndex].cityWiseDates = meta.cityWiseDates;

@@ -97,6 +97,7 @@ const CartPage = () => {
     applyTourSearchToRedux(dispatch, {
       destination: trip.destination,
       country: trip.country,
+      searchLocation: trip.searchLocation,
       cityWiseDates: trip.cityWiseDates,
       check_in: trip.check_in,
       check_out: trip.check_out,
@@ -111,10 +112,20 @@ const CartPage = () => {
 
   const handleEditTrip = (trip) => {
     restoreTripToRedux(trip);
+    const locationLabel = Array.isArray(trip.destination)
+      ? trip.destination
+          .map((d) => (typeof d === "object" ? d?.city : d))
+          .filter(Boolean)
+          .join(",")
+      : trip.destination || "";
     const searchParams = new URLSearchParams({
-      location: trip.destination.join(","),
+      location: locationLabel,
       dates: [trip.check_in, trip.check_out].join(","),
-      guests: JSON.stringify(trip.guestCounts),
+      guests: JSON.stringify({
+        Adults: trip.adult || 1,
+        Children: trip.child || 0,
+        Infants: trip.infant || 0,
+      }),
     });
     navigate(`/dashboard/db-dashboard/view-hotel-search/0?${searchParams}`, {
       state: {
