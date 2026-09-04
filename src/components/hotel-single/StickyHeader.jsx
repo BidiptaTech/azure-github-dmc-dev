@@ -1,8 +1,10 @@
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useCallback, useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { toast } from "react-toastify";
 import { Button, Switch, Typography } from "@mui/material";
 import { Box } from "@mui/material";
+import { addHotelBookingToCart } from "@/utils/addHotelToCart";
 
 const StickyHeader = ({ hotel }) => {
 
@@ -35,6 +37,9 @@ const usdCurrencyCode = useSelector((state) => state.auth.usdCurrencyCode);
   const dispatch = useDispatch();
   const totalPrice = useSelector((state) => state.hoteldetails.totalPrice);
   const bookingArray = useSelector((state) => state.hoteldetails.bookingArray);
+  const hotelDetails = useSelector((state) => state.hoteldetails.bookingDetails);
+  const tourDetails = useSelector((state) => state.hotels?.tourdetails);
+  const searchState = useSelector((state) => state.hotels?.searchState);
 
   const convertedPrice = Math.ceil(totalPrice * exchangeRate);
   const usdPrice = Math.ceil(totalPrice * usdExchangeRate);
@@ -52,15 +57,31 @@ const usdCurrencyCode = useSelector((state) => state.auth.usdCurrencyCode);
     window.addEventListener("scroll", changeBackground);
   }, []);
 
-  const handleCheckoutPage = useCallback(() => {
-    navigate("/dashboard/db-dashboard/hotel-checkout", { 
-      state: { 
-        bookingArray, 
-        totalPrice,
-        priceMode 
-      } 
+  const handleAddToCart = useCallback(() => {
+    const cartError = addHotelBookingToCart(dispatch, {
+      bookingArray,
+      totalPrice,
+      priceMode,
+      hotelDetails,
+      tourDetails,
+      searchState,
     });
-  }, [bookingArray, totalPrice]);
+    if (cartError) {
+      toast.error(cartError);
+      return;
+    }
+    toast.success("Added to cart successfully.");
+    navigate("/dashboard/db-dashboard/cart");
+  }, [
+    bookingArray,
+    dispatch,
+    hotelDetails,
+    navigate,
+    priceMode,
+    searchState,
+    totalPrice,
+    tourDetails,
+  ]);
 
   return (
     <div className={`singleMenu js-singleMenu ${header ? "-is-active" : ""}`}>
@@ -121,11 +142,10 @@ const usdCurrencyCode = useSelector((state) => state.auth.usdCurrencyCode);
                  }
                  <div className="col-auto">
                    <Button
-                    // to="/dashboard/hotel-checkout"
                      className="button h-50 px-24 -dark-1 bg-blue-1 text-white"
-                     onClick={handleCheckoutPage}
+                     onClick={handleAddToCart}
                    >
-                    Checkout <div className="icon-arrow-top-right ml-15" />
+                    Add to Cart <div className="icon-arrow-top-right ml-15" />
                    </Button>
                  </div>
                </div>

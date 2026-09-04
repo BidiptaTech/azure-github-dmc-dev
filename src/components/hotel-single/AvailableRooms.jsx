@@ -8,7 +8,9 @@ import {
 } from "@/slice/hotel/HotelDetailsSlice";
 import RenderRoomCards from "./RenderRoomCards";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
 import { Button, Switch, Typography, Stack, Paper, Divider, Card, CardContent } from "@mui/material";
+import { addHotelBookingToCart } from "@/utils/addHotelToCart";
 import { FaBed, FaPlus, FaTimes } from "react-icons/fa";
 import { IoPersonSharp } from "react-icons/io5";
 //import { GiKingBed, GiQueenBed, GiBunkBeds, GiSingleBed } from "react-icons/gi";
@@ -95,6 +97,8 @@ const usdPrice = Math.ceil(totalPrice * usdExchangeRate);
   //console.log(priceMode,"priceMdee");
   
   const bookingArray = useSelector((state) => state.hoteldetails.bookingArray);
+  const hotelDetails = useSelector((state) => state.hoteldetails.bookingDetails);
+  const tourDetails = useSelector((state) => state.hotels?.tourdetails);
 
   // Clear booking-related data but preserve hotel details when component mounts
   useEffect(() => {
@@ -270,24 +274,31 @@ const handleBabyCot = (e) => {
   const navigate = useNavigate();
 
 
-  const handleCheckoutPage = useCallback(() => {
-    if (bookingArray.length === 0) {
-      // Show error or alert if no rooms are selected
+  const handleAddToCart = useCallback(() => {
+    const cartError = addHotelBookingToCart(dispatch, {
+      bookingArray,
+      totalPrice,
+      priceMode,
+      hotelDetails,
+      tourDetails,
+      searchState,
+    });
+    if (cartError) {
+      toast.error(cartError);
       return;
     }
-    
-    // Navigate to checkout page with relevant state data
-    // Using replace: false ensures that when we navigate back, 
-    // we come back to this component and it mounts again
-    navigate("/dashboard/db-dashboard/hotel-checkout", { 
-      state: { 
-        bookingArray, 
-        totalPrice,
-        priceMode 
-      },
-      replace: false
-    });
-  }, [bookingArray, totalPrice, priceMode, navigate]);
+    toast.success("Added to cart successfully.");
+    navigate("/dashboard/db-dashboard/cart");
+  }, [
+    bookingArray,
+    dispatch,
+    hotelDetails,
+    navigate,
+    priceMode,
+    searchState,
+    totalPrice,
+    tourDetails,
+  ]);
   //  console.log(occupancyArray,"grand Parent");
   
   // console.log(bookingArray,"booking array");
@@ -1241,14 +1252,14 @@ const handleBabyCot = (e) => {
                  
                   </div>
                   <Button
-                   onClick={handleCheckoutPage}
+                   onClick={handleAddToCart}
                   
                     className="button h-50 px-24 -dark-1 bg-blue-1 text-white mt-10"
                   >
-                    Checkout <div className="icon-arrow-top-right ml-15" />
+                    Add to Cart <div className="icon-arrow-top-right ml-15" />
                   </Button>
                   <div className="text-15 fw-500 mt-30">
-                    You&lsquo;ll be taken to the next step
+                    You&lsquo;ll be taken to the cart
                   </div>
                   {/* <ul className="list-disc y-gap-4 pt-5">
                     <li className="text-14">Confirmation is immediate</li>

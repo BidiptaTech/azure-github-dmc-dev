@@ -14,9 +14,10 @@ import {
 import GuestSearch from "./GuestSearch";
 import DateSearch from "./DateSearch";
 // import TransportModal from "./TransportModal";
-import {  ToastContainer } from "react-toastify";
+import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useNavigate } from "react-router-dom";
+import { addRestaurantBookingToCart } from "@/utils/addRestaurantToCart";
 // import { useParams } from "react-router-dom";
 // import { fetchRestaurantsDetails } from "@/slice/restaurant/RestaurantsSlice";
 import isSameOrAfter from "dayjs/plugin/isSameOrAfter";
@@ -747,11 +748,21 @@ const Index = () => {
       type: "restaurant",
     };
 
-    // Dispatch booking details to Redux
+    // Dispatch booking details to Redux (legacy checkout hydration)
     dispatch(addRestaurantBooking(bookingDetails));
 
-    // Navigate to checkout page
-    navigate("/dashboard/db-dashboard/restaurants-checkout");
+    const cartError = addRestaurantBookingToCart(dispatch, {
+      bookingDetails,
+      restaurant,
+      restaurantsDetails,
+      tourDetails: tourdetails,
+    });
+    if (cartError) {
+      toast.error(cartError);
+      return;
+    }
+    toast.success("Added to cart successfully.");
+    navigate("/dashboard/db-dashboard/cart");
   };
   
   const handleMealSelection = (e) => {
@@ -1526,7 +1537,7 @@ const Index = () => {
               e.currentTarget.style.boxShadow = "0 4px 10px rgba(53, 84, 209, 0.25)";
             }}
           >
-            Check Out
+            Add to Cart
           </button>
           
           {/* Only display price information if PriceHide is "0" */}

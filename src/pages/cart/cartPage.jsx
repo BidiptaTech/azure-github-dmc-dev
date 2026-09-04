@@ -17,6 +17,9 @@ import {
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import ShoppingCartOutlinedIcon from "@mui/icons-material/ShoppingCartOutlined";
 import DirectionsCarFilledOutlinedIcon from "@mui/icons-material/DirectionsCarFilledOutlined";
+import HotelOutlinedIcon from "@mui/icons-material/HotelOutlined";
+import AttractionsOutlinedIcon from "@mui/icons-material/AttractionsOutlined";
+import RestaurantOutlinedIcon from "@mui/icons-material/RestaurantOutlined";
 import PlaceOutlinedIcon from "@mui/icons-material/PlaceOutlined";
 import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined";
 import AccessTimeOutlinedIcon from "@mui/icons-material/AccessTimeOutlined";
@@ -40,6 +43,9 @@ import {
 const BOOKING_TYPE_LABELS = {
   entryport: "Entry Port",
   exitport: "Exit Port",
+  hotel: "Hotel",
+  attraction: "Attraction",
+  restaurant: "Restaurant",
 };
 
 const formatPrice = (value) => {
@@ -59,9 +65,29 @@ const getDropoff = (item) =>
   item.entrydropoff || item.exitdropoff || item.dropoff || "—";
 
 const getDate = (item) =>
-  item.bookingDate || item.pickupdate || item.exitpickupdate || "—";
+  item.bookingDate || item.pickupdate || item.exitpickupdate || item.check_in || "—";
 
 const getTime = (item) => item.entrytime || item.exittime || "—";
+
+const getHotelStay = (item) => {
+  if (item.check_in && item.check_out) {
+    return `${item.check_in} → ${item.check_out}`;
+  }
+  return getDate(item);
+};
+
+const getHotelRooms = (item) => {
+  if (item.room_summary) return item.room_summary;
+  if (item.roomCount) {
+    return `${item.roomCount} room${item.roomCount === 1 ? "" : "s"}`;
+  }
+  const rooms = Array.isArray(item.bookingArray) ? item.bookingArray : [];
+  if (!rooms.length) return "—";
+  return rooms
+    .map((room) => room.room_type)
+    .filter(Boolean)
+    .join(", ");
+};
 
 const CartPage = () => {
   const dispatch = useDispatch();
@@ -175,7 +201,7 @@ const CartPage = () => {
             Your cart is empty
           </Typography>
           <Typography color="text.secondary" mb={3}>
-            Add transfers for a trip. You can keep up to {MAX_CART_TRIPS} trips
+            Add hotels, attractions, restaurants, or transfers for a trip. You can keep up to {MAX_CART_TRIPS} trips
             in the cart. Use Edit on a trip to add more products.
           </Typography>
           <Button
@@ -390,7 +416,12 @@ const CartPage = () => {
                                 <Avatar
                                   variant="rounded"
                                   src={item.image}
-                                  alt={item.vehicles_name}
+                                  alt={
+                                    item.restaurantName ||
+                                    item.AttractionName ||
+                                    item.hotel_name ||
+                                    item.vehicles_name
+                                  }
                                   sx={{
                                     width: 72,
                                     height: 72,
@@ -398,7 +429,15 @@ const CartPage = () => {
                                     borderRadius: 2,
                                   }}
                                 >
-                                  <DirectionsCarFilledOutlinedIcon />
+                                  {item.type === "hotel" ? (
+                                    <HotelOutlinedIcon />
+                                  ) : item.type === "attraction" ? (
+                                    <AttractionsOutlinedIcon />
+                                  ) : item.type === "restaurant" ? (
+                                    <RestaurantOutlinedIcon />
+                                  ) : (
+                                    <DirectionsCarFilledOutlinedIcon />
+                                  )}
                                 </Avatar>
                                 <Box flex={1}>
                                   <Stack
@@ -409,7 +448,13 @@ const CartPage = () => {
                                     mb={0.75}
                                   >
                                     <Typography fontWeight={700} color="#0f172a">
-                                      {item.vehicles_name || "Vehicle"}
+                                      {item.type === "hotel"
+                                        ? item.hotel_name || "Hotel"
+                                        : item.type === "attraction"
+                                          ? item.AttractionName || "Attraction"
+                                          : item.type === "restaurant"
+                                            ? item.restaurantName || "Restaurant"
+                                            : item.vehicles_name || "Vehicle"}
                                     </Typography>
                                     <Chip
                                       size="small"
@@ -424,16 +469,257 @@ const CartPage = () => {
                                         fontWeight: 600,
                                       }}
                                     />
-                                    {(item.pricemode || item.Mode) && (
+                                    {(item.pricemode || item.Mode || item.priceMode) && (
                                       <Chip
                                         size="small"
-                                        label={item.pricemode || item.Mode}
+                                        label={
+                                          item.pricemode ||
+                                          item.Mode ||
+                                          item.priceMode
+                                        }
                                         variant="outlined"
                                         sx={{ fontWeight: 500 }}
                                       />
                                     )}
                                   </Stack>
 
+                                  {item.type === "hotel" ? (
+                                    <Stack spacing={0.75}>
+                                      <Stack
+                                        direction="row"
+                                        spacing={1}
+                                        alignItems="flex-start"
+                                      >
+                                        <PlaceOutlinedIcon
+                                          sx={{
+                                            fontSize: 18,
+                                            color: "#64748b",
+                                            mt: "2px",
+                                          }}
+                                        />
+                                        <Typography
+                                          variant="body2"
+                                          color="text.secondary"
+                                        >
+                                          {item.address || item.location || "—"}
+                                        </Typography>
+                                      </Stack>
+                                      <Stack
+                                        direction="row"
+                                        spacing={2}
+                                        flexWrap="wrap"
+                                      >
+                                        <Stack
+                                          direction="row"
+                                          spacing={0.75}
+                                          alignItems="center"
+                                        >
+                                          <CalendarMonthOutlinedIcon
+                                            sx={{ fontSize: 16, color: "#64748b" }}
+                                          />
+                                          <Typography
+                                            variant="body2"
+                                            color="text.secondary"
+                                          >
+                                            {getHotelStay(item)}
+                                            {item.nights
+                                              ? ` · ${item.nights} night${
+                                                  item.nights === 1 ? "" : "s"
+                                                }`
+                                              : ""}
+                                          </Typography>
+                                        </Stack>
+                                        <Stack
+                                          direction="row"
+                                          spacing={0.75}
+                                          alignItems="center"
+                                        >
+                                          <HotelOutlinedIcon
+                                            sx={{ fontSize: 16, color: "#64748b" }}
+                                          />
+                                          <Typography
+                                            variant="body2"
+                                            color="text.secondary"
+                                          >
+                                            {getHotelRooms(item)}
+                                          </Typography>
+                                        </Stack>
+                                        <Stack
+                                          direction="row"
+                                          spacing={0.75}
+                                          alignItems="center"
+                                        >
+                                          <PeopleOutlineIcon
+                                            sx={{ fontSize: 16, color: "#64748b" }}
+                                          />
+                                          <Typography
+                                            variant="body2"
+                                            color="text.secondary"
+                                          >
+                                            {item.adults || 0} adults,{" "}
+                                            {item.children || 0} children
+                                          </Typography>
+                                        </Stack>
+                                      </Stack>
+                                    </Stack>
+                                  ) : item.type === "attraction" ? (
+                                    <Stack spacing={0.75}>
+                                      <Stack
+                                        direction="row"
+                                        spacing={1}
+                                        alignItems="flex-start"
+                                      >
+                                        <PlaceOutlinedIcon
+                                          sx={{
+                                            fontSize: 18,
+                                            color: "#64748b",
+                                            mt: "2px",
+                                          }}
+                                        />
+                                        <Typography
+                                          variant="body2"
+                                          color="text.secondary"
+                                        >
+                                          {item.address || item.location || "—"}
+                                          {item.ticketName
+                                            ? ` · ${item.ticketName}`
+                                            : ""}
+                                        </Typography>
+                                      </Stack>
+                                      <Stack
+                                        direction="row"
+                                        spacing={2}
+                                        flexWrap="wrap"
+                                      >
+                                        <Stack
+                                          direction="row"
+                                          spacing={0.75}
+                                          alignItems="center"
+                                        >
+                                          <CalendarMonthOutlinedIcon
+                                            sx={{ fontSize: 16, color: "#64748b" }}
+                                          />
+                                          <Typography
+                                            variant="body2"
+                                            color="text.secondary"
+                                          >
+                                            {item.bookingDate || getDate(item)}
+                                          </Typography>
+                                        </Stack>
+                                        <Stack
+                                          direction="row"
+                                          spacing={0.75}
+                                          alignItems="center"
+                                        >
+                                          <AccessTimeOutlinedIcon
+                                            sx={{ fontSize: 16, color: "#64748b" }}
+                                          />
+                                          <Typography
+                                            variant="body2"
+                                            color="text.secondary"
+                                          >
+                                            {item.visitTime || getTime(item)}
+                                          </Typography>
+                                        </Stack>
+                                        <Stack
+                                          direction="row"
+                                          spacing={0.75}
+                                          alignItems="center"
+                                        >
+                                          <PeopleOutlineIcon
+                                            sx={{ fontSize: 16, color: "#64748b" }}
+                                          />
+                                          <Typography
+                                            variant="body2"
+                                            color="text.secondary"
+                                          >
+                                            {item.adults || 0} adults,{" "}
+                                            {item.children || 0} children
+                                            {item.seniorCount
+                                              ? `, ${item.seniorCount} seniors`
+                                              : ""}
+                                          </Typography>
+                                        </Stack>
+                                      </Stack>
+                                    </Stack>
+                                  ) : item.type === "restaurant" ? (
+                                    <Stack spacing={0.75}>
+                                      <Stack
+                                        direction="row"
+                                        spacing={1}
+                                        alignItems="flex-start"
+                                      >
+                                        <PlaceOutlinedIcon
+                                          sx={{
+                                            fontSize: 18,
+                                            color: "#64748b",
+                                            mt: "2px",
+                                          }}
+                                        />
+                                        <Typography
+                                          variant="body2"
+                                          color="text.secondary"
+                                        >
+                                          {item.address || item.location || "—"}
+                                          {item.meal_summary
+                                            ? ` · ${item.meal_summary}`
+                                            : ""}
+                                        </Typography>
+                                      </Stack>
+                                      <Stack
+                                        direction="row"
+                                        spacing={2}
+                                        flexWrap="wrap"
+                                      >
+                                        <Stack
+                                          direction="row"
+                                          spacing={0.75}
+                                          alignItems="center"
+                                        >
+                                          <CalendarMonthOutlinedIcon
+                                            sx={{ fontSize: 16, color: "#64748b" }}
+                                          />
+                                          <Typography
+                                            variant="body2"
+                                            color="text.secondary"
+                                          >
+                                            {item.bookingDate || getDate(item)}
+                                          </Typography>
+                                        </Stack>
+                                        <Stack
+                                          direction="row"
+                                          spacing={0.75}
+                                          alignItems="center"
+                                        >
+                                          <AccessTimeOutlinedIcon
+                                            sx={{ fontSize: 16, color: "#64748b" }}
+                                          />
+                                          <Typography
+                                            variant="body2"
+                                            color="text.secondary"
+                                          >
+                                            {item.visitTime || getTime(item)}
+                                          </Typography>
+                                        </Stack>
+                                        <Stack
+                                          direction="row"
+                                          spacing={0.75}
+                                          alignItems="center"
+                                        >
+                                          <PeopleOutlineIcon
+                                            sx={{ fontSize: 16, color: "#64748b" }}
+                                          />
+                                          <Typography
+                                            variant="body2"
+                                            color="text.secondary"
+                                          >
+                                            {item.adults || 0} adults,{" "}
+                                            {item.children || 0} children
+                                          </Typography>
+                                        </Stack>
+                                      </Stack>
+                                    </Stack>
+                                  ) : (
                                   <Stack spacing={0.75}>
                                     <Stack
                                       direction="row"
@@ -510,6 +796,7 @@ const CartPage = () => {
                                       </Stack>
                                     </Stack>
                                   </Stack>
+                                  )}
                                 </Box>
                               </Stack>
 
