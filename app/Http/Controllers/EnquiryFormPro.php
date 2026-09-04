@@ -2924,6 +2924,28 @@ class EnquiryFormPro extends Controller
             $pickupType = $request->input('pickup_type'); // hotel, attraction, restaurant, port
             $dropType = $request->input('drop_type'); // hotel, attraction, restaurant, port
             $dmcId = $request->input('dmc_id'); // DMC ID for zone_assignments lookup
+            $pickupZoneIdParam = trim((string) $request->input('pickup_zone_id', ''));
+            $dropZoneIdParam = trim((string) $request->input('drop_zone_id', ''));
+
+            $parseLocationToken = function ($id, $type) {
+                $id = trim((string) $id);
+                $type = strtolower(trim((string) $type));
+                $known = ['hotel', 'port', 'attraction', 'restaurant', 'zone'];
+                if (str_contains($id, ':')) {
+                    $pos = strpos($id, ':');
+                    $maybeType = strtolower(trim(substr($id, 0, $pos)));
+                    $maybeId = trim(substr($id, $pos + 1));
+                    if (in_array($maybeType, $known, true) && $maybeId !== '') {
+                        if ($type === '') {
+                            $type = $maybeType;
+                        }
+                        $id = $maybeId;
+                    }
+                }
+                return [$id, $type];
+            };
+            [$pickupId, $pickupType] = $parseLocationToken($pickupId, $pickupType);
+            [$dropId, $dropType] = $parseLocationToken($dropId, $dropType);
             
             if (!$vehicleId || !$pickupId || !$dropId) {
                 return response()->json([
@@ -3028,11 +3050,19 @@ class EnquiryFormPro extends Controller
                 $toZoneCandidates = [(string) $dropId];
             }
 
-            // Keep only numeric zone/port IDs for vehicle_zone_mappings lookup
+            if ($pickupZoneIdParam !== '') {
+                $fromZoneCandidates = array_values(array_unique(array_merge([$pickupZoneIdParam], $fromZoneCandidates)));
+            }
+            if ($dropZoneIdParam !== '') {
+                $toZoneCandidates = array_values(array_unique(array_merge([$dropZoneIdParam], $toZoneCandidates)));
+            }
+
+            // Keep usable zone/port IDs. Reject leftover "attraction:12" tokens.
+            // Allow alphanumeric zone_id values used by older createId() zones.
             $onlyZoneIds = function (array $ids) {
                 return array_values(array_filter(array_map('strval', $ids), function ($id) {
                     $id = trim($id);
-                    return $id !== '' && ctype_digit($id);
+                    return $id !== '' && !str_contains($id, ':');
                 }));
             };
             $fromZoneCandidates = $onlyZoneIds($fromZoneCandidates);
@@ -3175,8 +3205,8 @@ class EnquiryFormPro extends Controller
                         $mappedFrom = $fromCand;
                         $mappedTo = $toCand;
                     }
-                    $pp = (float) ($candidate->private_price ?? 0);
-                    $sp = (float) ($candidate->shared_price ?? 0);
+                    $pp = max((float) ($candidate->private_price ?? 0), (float) ($candidate->private_cost_price ?? 0));
+                    $sp = max((float) ($candidate->shared_price ?? 0), (float) ($candidate->shared_cost_price ?? 0));
                     if ($pp > 0 || $sp > 0) {
                         $pricedMapping = $candidate;
                         $pricedFrom = $fromCand;
@@ -3216,6 +3246,23 @@ class EnquiryFormPro extends Controller
                 ]);
             }
             
+            $privateSell = (float) ($mapping->private_price ?? 0);
+            $privateCost = (float) ($mapping->private_cost_price ?? 0);
+            $sharedSell = (float) ($mapping->shared_price ?? 0);
+            $sharedCost = (float) ($mapping->shared_cost_price ?? 0);
+            if ($privateSell <= 0 && $privateCost > 0) {
+                $privateSell = $privateCost;
+            }
+            if ($sharedSell <= 0 && $sharedCost > 0) {
+                $sharedSell = $sharedCost;
+            }
+            if ($privateCost <= 0 && $privateSell > 0) {
+                $privateCost = $privateSell;
+            }
+            if ($sharedCost <= 0 && $sharedSell > 0) {
+                $sharedCost = $sharedSell;
+            }
+
             \Log::info('Vehicle zone mapping found', [
                 'mapping_id' => $mapping->mapping_id,
                 'vehicle_id' => $vehicleId,
@@ -3223,8 +3270,10 @@ class EnquiryFormPro extends Controller
                 'to_zone_id' => $mapping->to_zone_id,
                 'from_zone_type' => $mapping->from_zone_type,
                 'to_zone_type' => $mapping->to_zone_type,
-                'private_price' => $mapping->private_price,
-                'shared_price' => $mapping->shared_price
+                'private_price' => $privateSell,
+                'shared_price' => $sharedSell,
+                'private_cost_price' => $privateCost,
+                'shared_cost_price' => $sharedCost,
             ]);
             
             return response()->json([
@@ -3238,8 +3287,10 @@ class EnquiryFormPro extends Controller
                     'to_zone_id' => $mapping->to_zone_id ?? $toZoneId,
                     'from_zone_type' => $mapping->from_zone_type ?? null,
                     'to_zone_type' => $mapping->to_zone_type ?? null,
-                    'private_price' => $mapping->private_price ?? 0,
-                    'shared_price' => $mapping->shared_price ?? 0
+                    'private_price' => $privateSell,
+                    'shared_price' => $sharedSell,
+                    'private_cost_price' => $privateCost,
+                    'shared_cost_price' => $sharedCost,
                 ]
             ]);
             

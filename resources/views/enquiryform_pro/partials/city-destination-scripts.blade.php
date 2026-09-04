@@ -881,11 +881,15 @@
         const $sel = window.jQuery(select);
         if (!$sel.length || !$sel.hasClass('select2-hidden-accessible')) return;
         const val = $sel.val();
-        const opt = select.querySelector('option[value="' + escapeCssAttr(String(val || '')) + '"]');
+        const opt = typeof findOptionByExactValue === 'function'
+            ? findOptionByExactValue(select, val)
+            : null;
         if (val && opt && (opt.disabled || opt.hidden)) {
             $sel.val('').trigger('change');
+        } else if (val) {
+            $sel.val(val).trigger('change');
         } else {
-            $sel.trigger('change.select2');
+            $sel.trigger('change');
         }
     }
 
@@ -970,7 +974,7 @@
     }
 
     /** Build Ports/Hotels/Attractions/Restaurants optgroups for one city (single-city dropoff logic). */
-    function buildTransferDestinationOptionsHTML(forCity) {
+    function buildTransferDestinationOptionsHTML(forCity, extraOpts) {
         const catalog = window.transferDestinationCatalog || {};
         const city = String(forCity || '').trim();
         const cities = city ? [city] : (typeof getActiveServiceCityNames === 'function' ? getActiveServiceCityNames() : []);
@@ -983,12 +987,22 @@
             return transferItemMatchesCityScope(Object.assign({}, item, { type: type }), cities, cityIds, countries) === true;
         }
 
+        const opts = extraOpts || {};
+        const prefixTypes = !!opts.prefixLocationTypes;
+        function locValue(type, id) {
+            const raw = String(id == null ? '' : id);
+            if (!raw) return '';
+            if (!prefixTypes || type === 'hotel') return raw;
+            if (raw.indexOf(type + ':') === 0) return raw;
+            return type + ':' + raw;
+        }
+
         let html = '';
         const ports = catalogItemsArray(catalog.ports).filter(function (p) { return keep(p, 'port'); });
         if (ports.length) {
             html += '<optgroup label="Ports">';
             ports.forEach(function (p) {
-                html += '<option value="' + escapeHtmlAttr(p.id) + '" data-name="' + escapeHtmlAttr(p.name) + '" data-type="port" data-port-id="' + escapeHtmlAttr(p.id) + '" data-city-id="' + escapeHtmlAttr(p.city_id || '') + '" data-country="' + escapeHtmlAttr(p.country || '') + '">' + escapeHtmlAttr(p.name) + '</option>';
+                html += '<option value="' + escapeHtmlAttr(locValue('port', p.id)) + '" data-name="' + escapeHtmlAttr(p.name) + '" data-type="port" data-port-id="' + escapeHtmlAttr(p.id) + '" data-city-id="' + escapeHtmlAttr(p.city_id || '') + '" data-country="' + escapeHtmlAttr(p.country || '') + '">' + escapeHtmlAttr(p.name) + '</option>';
             });
             html += '</optgroup>';
         }
@@ -1006,7 +1020,7 @@
         if (attractions.length) {
             html += '<optgroup label="Attractions">';
             attractions.forEach(function (a) {
-                html += '<option value="' + escapeHtmlAttr(a.id) + '" data-name="' + escapeHtmlAttr(a.name) + '" data-type="attraction" data-attraction-id="' + escapeHtmlAttr(a.id) + '" data-zone-id="' + escapeHtmlAttr(a.zone_id || '') + '" data-location="' + escapeHtmlAttr(a.location || '') + '" data-country="' + escapeHtmlAttr(a.country || '') + '">' + escapeHtmlAttr(a.name) + '</option>';
+                html += '<option value="' + escapeHtmlAttr(locValue('attraction', a.id)) + '" data-name="' + escapeHtmlAttr(a.name) + '" data-type="attraction" data-attraction-id="' + escapeHtmlAttr(a.id) + '" data-zone-id="' + escapeHtmlAttr(a.zone_id || '') + '" data-location="' + escapeHtmlAttr(a.location || '') + '" data-country="' + escapeHtmlAttr(a.country || '') + '">' + escapeHtmlAttr(a.name) + '</option>';
             });
             html += '</optgroup>';
         }
@@ -1015,7 +1029,7 @@
         if (restaurants.length) {
             html += '<optgroup label="Restaurants">';
             restaurants.forEach(function (r) {
-                html += '<option value="' + escapeHtmlAttr(r.id) + '" data-name="' + escapeHtmlAttr(r.name) + '" data-type="restaurant" data-restaurant-id="' + escapeHtmlAttr(r.id) + '" data-zone-id="' + escapeHtmlAttr(r.zone_id || '') + '" data-city="' + escapeHtmlAttr(r.city || '') + '" data-country="' + escapeHtmlAttr(r.country || '') + '">' + escapeHtmlAttr(r.name) + '</option>';
+                html += '<option value="' + escapeHtmlAttr(locValue('restaurant', r.id)) + '" data-name="' + escapeHtmlAttr(r.name) + '" data-type="restaurant" data-restaurant-id="' + escapeHtmlAttr(r.id) + '" data-zone-id="' + escapeHtmlAttr(r.zone_id || '') + '" data-city="' + escapeHtmlAttr(r.city || '') + '" data-country="' + escapeHtmlAttr(r.country || '') + '">' + escapeHtmlAttr(r.name) + '</option>';
             });
             html += '</optgroup>';
         }
@@ -1249,11 +1263,10 @@
             departureCities.length ? departureCities : scopeCities
         );
 
-        // Other transfer pickers use hotel/header scope
-        const otherCities = scopeCities;
-        ['localPickup', 'localDrop', 'hotelTransferDestination'].forEach(function (id) {
-            filterSelectOptionsByCityScope(document.getElementById(id), otherCities);
-        });
+        // Hotel transfer dropoff uses hotel/header scope.
+        // Local pickup/drop are owned by applyLocalTransferCityFilters — filtering
+        // them here wipes prefixed values and Select2 restore.
+        filterSelectOptionsByCityScope(document.getElementById('hotelTransferDestination'), scopeCities);
 
         // Attraction / restaurant modal dropoffs: use that modal's destination city when set
         const tourCity = String(document.getElementById('tourDestination')?.value || '').trim();
@@ -1285,13 +1298,17 @@
     function filterModalTransferDestinationsByCity(cityName, selector) {
         const city = String(cityName || '').trim();
         const sel = selector || '.attraction-transfer-destination, #restaurantTransferDestination';
-        const optionsHtml = buildTransferDestinationOptionsHTML(city);
+        const isLocalTransfer = /#localPickup|#localDrop/.test(String(sel));
+        const optionsHtml = buildTransferDestinationOptionsHTML(city, { prefixLocationTypes: isLocalTransfer });
 
         document.querySelectorAll(sel).forEach(function (select) {
             if (!select) return;
             const prevValue = select.value;
-            select.innerHTML = '<option value="">Select Dropoff</option>' + optionsHtml;
-            if (prevValue && select.querySelector('option[value="' + escapeCssAttr(prevValue) + '"]')) {
+            const placeholder = isLocalTransfer
+                ? (select.id === 'localPickup' ? 'Select Pickup Location' : 'Select Drop Location')
+                : 'Select Dropoff';
+            select.innerHTML = '<option value="">' + placeholder + '</option>' + optionsHtml;
+            if (prevValue && findOptionByExactValue(select, prevValue)) {
                 select.value = prevValue;
             } else {
                 select.value = '';
@@ -1809,7 +1826,8 @@
         ['#localPickup', '#localDrop'].forEach(function (sel) {
             const $el = jQuery(sel);
             if (!$el.length) return;
-            const val = $el.val();
+            const el = $el.get(0);
+            const val = el ? String(el.value || '') : String($el.val() || '');
             if ($el.hasClass('select2-hidden-accessible')) {
                 $el.select2('destroy');
             }
@@ -1821,10 +1839,404 @@
                 width: '100%',
                 dropdownParent: $modal.length ? $modal : jQuery(document.body)
             });
-            if (val) $el.val(val).trigger('change.select2');
+            if (val) {
+                $el.val(val).trigger('change');
+            }
         });
     }
     window.reinitLocalPickupDropSelect2 = reinitLocalPickupDropSelect2;
+
+    /**
+     * Parse local transfer tokens like attraction:12 / restaurant:8 / port:3.
+     * Hotels stay as hotel_unique_id (no prefix).
+     */
+    function parseTransferLocationValue(value, fallbackType) {
+        const raw = String(value || '').trim();
+        const fallback = String(fallbackType || '').toLowerCase();
+        if (!raw) return { type: fallback, id: '' };
+        const known = ['hotel', 'port', 'attraction', 'restaurant', 'zone'];
+        const colon = raw.indexOf(':');
+        if (colon > 0) {
+            const type = raw.slice(0, colon).toLowerCase();
+            if (known.indexOf(type) !== -1) {
+                return { type: type, id: raw.slice(colon + 1) };
+            }
+        }
+        return { type: fallback, id: raw };
+    }
+    window.parseTransferLocationValue = parseTransferLocationValue;
+
+    function findOptionByExactValue(select, value) {
+        if (!select) return null;
+        const raw = String(value ?? '');
+        if (!raw) return null;
+        return Array.from(select.options).find(function (opt) {
+            return String(opt.value) === raw;
+        }) || null;
+    }
+    window.findOptionByExactValue = findOptionByExactValue;
+
+    function stripTransferLocationPrefix(value, fallbackType) {
+        const parsed = parseTransferLocationValue(String(value || ''), fallbackType || '');
+        return parsed.id || String(value || '');
+    }
+    window.stripTransferLocationPrefix = stripTransferLocationPrefix;
+
+    /**
+     * Resolve local pickup/drop to entity + zone ids without CSS selectors
+     * (option values like attraction:12 break querySelector).
+     */
+    function resolveSelectLocationForZonePrice(select, rawValue, hintedType) {
+        const parsed = parseTransferLocationValue(String(rawValue || ''), hintedType || '');
+        let type = String(parsed.type || hintedType || '').toLowerCase();
+        let id = parsed.id || '';
+        let zoneId = '';
+        if (!select) {
+            return { type: type, id: String(id || ''), zoneId: '' };
+        }
+        let option = findOptionByExactValue(select, rawValue);
+        if (!option && parsed.type && parsed.id) {
+            option = findOptionByExactValue(select, parsed.type + ':' + parsed.id)
+                || findOptionByExactValue(select, parsed.id);
+        }
+        if (!option && parsed.id) {
+            const attrMap = {
+                hotel: 'data-hotel-unique-id',
+                port: 'data-port-id',
+                attraction: 'data-attraction-id',
+                restaurant: 'data-restaurant-id'
+            };
+            const attr = attrMap[parsed.type] || attrMap[type];
+            if (attr) {
+                option = Array.from(select.options).find(function (opt) {
+                    return String(opt.getAttribute(attr) || '') === String(parsed.id);
+                }) || null;
+            }
+        }
+        if (!option && select.selectedIndex >= 0) {
+            const selected = select.options[select.selectedIndex];
+            if (selected && selected.value) option = selected;
+        }
+        if (option) {
+            type = String(option.getAttribute('data-type') || type || '').toLowerCase();
+            zoneId = String(option.getAttribute('data-zone-id') || '').trim();
+            if (type === 'hotel') {
+                id = option.getAttribute('data-hotel-unique-id') || option.value || id;
+            } else if (type === 'port') {
+                id = option.getAttribute('data-port-id') || id;
+            } else if (type === 'attraction') {
+                id = option.getAttribute('data-attraction-id') || id;
+            } else if (type === 'restaurant') {
+                id = option.getAttribute('data-restaurant-id') || id;
+            }
+        }
+        const cleaned = parseTransferLocationValue(String(id || ''), type);
+        if (cleaned.type && ['hotel', 'port', 'attraction', 'restaurant', 'zone'].indexOf(cleaned.type) !== -1 && cleaned.id) {
+            if (cleaned.type !== 'hotel') {
+                type = cleaned.type;
+                id = cleaned.id;
+            }
+        }
+        return { type: type, id: String(id || ''), zoneId: String(zoneId || '') };
+    }
+    window.resolveSelectLocationForZonePrice = resolveSelectLocationForZonePrice;
+
+    function resolveLocalTransferZoneLookup(pickupId, pickupType, dropId, dropType) {
+        const pickupSelect = document.getElementById('localPickup');
+        const dropSelect = document.getElementById('localDrop');
+        let actualPickupId = pickupId;
+        let actualDropId = dropId;
+        let actualPickupType = pickupType;
+        let actualDropType = dropType;
+        let pickupZoneId = '';
+        let dropZoneId = '';
+
+        const pickupRaw = String(pickupId || '');
+        const dropRaw = String(dropId || '');
+        const pickupMatchesLocal = pickupSelect && pickupSelect.value
+            && (String(pickupSelect.value) === pickupRaw || pickupRaw.indexOf(':') > 0);
+        const dropMatchesLocal = dropSelect && dropSelect.value
+            && (String(dropSelect.value) === dropRaw || dropRaw.indexOf(':') > 0);
+
+        if (pickupMatchesLocal) {
+            const resolved = resolveSelectLocationForZonePrice(pickupSelect, pickupRaw || pickupSelect.value, pickupType);
+            if (resolved.id) actualPickupId = resolved.id;
+            if (resolved.type) actualPickupType = resolved.type;
+            pickupZoneId = resolved.zoneId;
+        } else {
+            const parsed = parseTransferLocationValue(pickupRaw, pickupType);
+            if (parsed.id) actualPickupId = parsed.id;
+            if (parsed.type) actualPickupType = parsed.type;
+        }
+        if (dropMatchesLocal) {
+            const resolved = resolveSelectLocationForZonePrice(dropSelect, dropRaw || dropSelect.value, dropType);
+            if (resolved.id) actualDropId = resolved.id;
+            if (resolved.type) actualDropType = resolved.type;
+            dropZoneId = resolved.zoneId;
+        } else {
+            const parsed = parseTransferLocationValue(dropRaw, dropType);
+            if (parsed.id) actualDropId = parsed.id;
+            if (parsed.type) actualDropType = parsed.type;
+        }
+
+        return {
+            actualPickupId: actualPickupId,
+            actualPickupType: actualPickupType,
+            actualDropId: actualDropId,
+            actualDropType: actualDropType,
+            pickupZoneId: pickupZoneId,
+            dropZoneId: dropZoneId
+        };
+    }
+    window.resolveLocalTransferZoneLookup = resolveLocalTransferZoneLookup;
+
+    function resolveTransferLocationIdsForZoneFetch(transfer) {
+        if (!transfer) return { pickupId: '', dropId: '', pickupType: 'hotel', dropType: 'hotel' };
+        return {
+            pickupId: transfer.pickupId || transfer.fromZoneId || '',
+            dropId: transfer.dropId || transfer.dropoffId || transfer.toZoneId || '',
+            pickupType: transfer.pickupType || 'hotel',
+            dropType: transfer.dropType || transfer.dropoffType || 'hotel'
+        };
+    }
+    window.resolveTransferLocationIdsForZoneFetch = resolveTransferLocationIdsForZoneFetch;
+
+    function splitLocalTransferRoute(text) {
+        const s = String(text || '').trim();
+        if (!s) return { pickup: '', drop: '' };
+        const parts = s.split(/\s*(?:→|->|\/)\s*/);
+        return {
+            pickup: String(parts[0] || '').trim(),
+            drop: String(parts.slice(1).join(' / ') || '').trim()
+        };
+    }
+    window.splitLocalTransferRoute = splitLocalTransferRoute;
+
+    function prefixedLocalTransferValue(type, id) {
+        const t = String(type || '').toLowerCase();
+        const raw = String(id == null ? '' : id);
+        if (!raw) return '';
+        if (!t || t === 'hotel') return raw;
+        if (raw.indexOf(t + ':') === 0) return raw;
+        return t + ':' + raw;
+    }
+
+    function findCatalogTransferLocation(type, id, name) {
+        const catalog = window.transferDestinationCatalog || {};
+        const groups = [
+            { type: 'attraction', items: catalogItemsArray(catalog.attractions) },
+            { type: 'restaurant', items: catalogItemsArray(catalog.restaurants) },
+            { type: 'port', items: catalogItemsArray(catalog.ports) },
+            { type: 'hotel', items: catalogItemsArray(catalog.hotels) }
+        ];
+        const wantType = String(type || '').toLowerCase();
+        const wantId = String(id || '').trim();
+        const wantName = String(name || '').trim().toLowerCase();
+        if (!wantId && !wantName) return null;
+
+        function search(items, t) {
+            if (!items || !items.length) return null;
+            if (wantId) {
+                for (let i = 0; i < items.length; i++) {
+                    const item = items[i];
+                    if (item && String(item.id) === wantId) return Object.assign({ type: t }, item);
+                }
+            }
+            if (wantName) {
+                for (let i = 0; i < items.length; i++) {
+                    const item = items[i];
+                    if (item && String(item.name || '').trim().toLowerCase() === wantName) {
+                        return Object.assign({ type: t }, item);
+                    }
+                }
+            }
+            return null;
+        }
+
+        if (wantType) {
+            const typed = groups.find(function (g) { return g.type === wantType; });
+            if (typed) {
+                const hit = search(typed.items, typed.type);
+                if (hit) return hit;
+            }
+        }
+        for (let g = 0; g < groups.length; g++) {
+            const hit = search(groups[g].items, groups[g].type);
+            if (hit) return hit;
+        }
+        return null;
+    }
+    window.findCatalogTransferLocation = findCatalogTransferLocation;
+
+    function injectLocalTransferLocationOption(select, loc) {
+        if (!select || !loc) return '';
+        const type = String(loc.type || '').toLowerCase();
+        const id = String(loc.id || '').trim();
+        const value = loc.value || prefixedLocalTransferValue(type, id) || String(loc.name || '');
+        if (!value) return '';
+        const existing = findOptionByExactValue(select, value);
+        if (existing) return value;
+        const opt = document.createElement('option');
+        const label = loc.name || value;
+        opt.value = value;
+        opt.textContent = label;
+        opt.setAttribute('data-name', label);
+        if (type) opt.setAttribute('data-type', type);
+        if (loc.zone_id) opt.setAttribute('data-zone-id', loc.zone_id);
+        const fallbackCity = String(document.getElementById('localDestination')?.value || '');
+        const city = loc.city || (type !== 'attraction' ? fallbackCity : '');
+        const location = loc.location || (type === 'attraction' ? fallbackCity : '');
+        if (city) opt.setAttribute('data-city', city);
+        if (location) opt.setAttribute('data-location', location);
+        if (loc.country) opt.setAttribute('data-country', loc.country);
+        if (type === 'hotel') opt.setAttribute('data-hotel-unique-id', id || value);
+        if (type === 'port') opt.setAttribute('data-port-id', id);
+        if (type === 'attraction') opt.setAttribute('data-attraction-id', id);
+        if (type === 'restaurant') opt.setAttribute('data-restaurant-id', id);
+        select.appendChild(opt);
+        return value;
+    }
+
+    function setLocalTransferLocationSelect(selectSelector, rawId, locType, displayName) {
+        if (typeof jQuery === 'undefined') return;
+        const $el = jQuery(selectSelector);
+        if (!$el.length) return;
+        const el = $el.get(0);
+        const parsed = parseTransferLocationValue(rawId, locType);
+        const type = String(parsed.type || locType || '').toLowerCase();
+        const name = String(displayName || '').trim();
+        const candidates = [];
+        if (type && parsed.id && type !== 'hotel') {
+            candidates.push(type + ':' + parsed.id);
+        }
+        if (rawId) candidates.push(String(rawId));
+        if (parsed.id) candidates.push(String(parsed.id));
+
+        let matched = '';
+        for (let i = 0; i < candidates.length; i++) {
+            const c = String(candidates[i]);
+            let $opts = $el.find('option').filter(function () {
+                return String(this.value) === c;
+            });
+            if (type && $opts.length > 1) {
+                const $typed = $opts.filter('[data-type="' + type + '"]');
+                if ($typed.length) $opts = $typed;
+            }
+            if ($opts.length) {
+                matched = $opts.first().val();
+                break;
+            }
+        }
+        if (!matched && type && parsed.id) {
+            const attrMap = {
+                hotel: 'data-hotel-unique-id',
+                port: 'data-port-id',
+                attraction: 'data-attraction-id',
+                restaurant: 'data-restaurant-id'
+            };
+            const attr = attrMap[type];
+            if (attr) {
+                const $byAttr = $el.find('option').filter(function () {
+                    return String(this.getAttribute(attr) || '') === String(parsed.id);
+                });
+                if ($byAttr.length) matched = $byAttr.first().val();
+            }
+        }
+        if (!matched && name) {
+            const nameLc = name.toLowerCase();
+            const $byName = $el.find('option').filter(function () {
+                if (!this.value) return false;
+                const n = String(this.getAttribute('data-name') || this.textContent || '').trim().toLowerCase();
+                return n === nameLc;
+            });
+            if ($byName.length) {
+                if (type) {
+                    const $typed = $byName.filter('[data-type="' + type + '"]');
+                    matched = ($typed.length ? $typed : $byName).first().val();
+                } else {
+                    matched = $byName.first().val();
+                }
+            }
+        }
+        if (!matched) {
+            const catalogHit = findCatalogTransferLocation(type, parsed.id, name);
+            if (catalogHit) {
+                matched = injectLocalTransferLocationOption(el, catalogHit);
+            }
+        }
+        if (!matched && (parsed.id || rawId || name)) {
+            matched = injectLocalTransferLocationOption(el, {
+                type: type,
+                id: parsed.id,
+                value: (type && type !== 'hotel' && parsed.id)
+                    ? (type + ':' + parsed.id)
+                    : String(rawId || parsed.id || ''),
+                name: name || String(rawId || parsed.id || '')
+            });
+        }
+        if (matched) {
+            const opt = findOptionByExactValue(el, matched);
+            if (opt) opt.selected = true;
+            el.value = matched;
+            $el.val(matched);
+            if ($el.hasClass('select2-hidden-accessible')) {
+                $el.trigger('change');
+            }
+        }
+    }
+    window.setLocalTransferLocationSelect = setLocalTransferLocationSelect;
+
+    /** Only copy drop → pickup when pickup is still empty (never overwrite attraction→restaurant). */
+    function bindLocalPickupDropSync() {
+        if (typeof jQuery === 'undefined') return;
+        jQuery('#localDrop').off('change.localPickupSync').on('change.localPickupSync', function () {
+            const dropValue = jQuery(this).val();
+            const pickupVal = jQuery('#localPickup').val();
+            if (dropValue && !pickupVal) {
+                jQuery('#localPickup').val(dropValue).trigger('change');
+            }
+        });
+    }
+    window.bindLocalPickupDropSync = bindLocalPickupDropSync;
+
+    function applyQueuedLocalTransferLocationRestore() {
+        const state = window._localTransferRestoreState;
+        if (!state) return;
+        window._localTransferRestoreLock = true;
+        if (typeof jQuery !== 'undefined') {
+            jQuery('#localDrop').off('change.localPickupSync');
+        }
+        setLocalTransferLocationSelect('#localPickup', state.pickupId, state.pickupType, state.pickupName);
+        setLocalTransferLocationSelect('#localDrop', state.dropId, state.dropType, state.dropName);
+        reinitLocalPickupDropSelect2();
+        bindLocalPickupDropSync();
+        window._localTransferRestoreLock = false;
+    }
+    window.applyQueuedLocalTransferLocationRestore = applyQueuedLocalTransferLocationRestore;
+
+    function bindTransferModalLocationRestore() {
+        const modal = document.getElementById('transferModal');
+        if (!modal || modal.dataset.localRestoreBound === '1') return !!modal;
+        modal.dataset.localRestoreBound = '1';
+        modal.addEventListener('shown.bs.modal', function () {
+            if (!window._localTransferRestoreState) return;
+            applyQueuedLocalTransferLocationRestore();
+            setTimeout(function () {
+                if (window._localTransferRestoreState) {
+                    applyQueuedLocalTransferLocationRestore();
+                }
+            }, 80);
+        });
+        modal.addEventListener('hidden.bs.modal', function () {
+            window._localTransferRestoreState = null;
+            window._localTransferRestoreLock = false;
+        });
+        return true;
+    }
+    window.bindTransferModalLocationRestore = bindTransferModalLocationRestore;
+    if (!bindTransferModalLocationRestore()) {
+        document.addEventListener('DOMContentLoaded', bindTransferModalLocationRestore);
+    }
 
     /**
      * Local Transfer modal: filter pickup/drop/vehicle/guide by city + apply defaults.
@@ -1839,20 +2251,62 @@
             window.resolveActiveDefaultValues(city);
         }
 
-        Promise.resolve(
+        return Promise.resolve(
             city && typeof ensureTransferCatalogForCity === 'function'
                 ? ensureTransferCatalogForCity(city)
                 : null
         ).then(function () {
+            ['#localPickup', '#localDrop'].forEach(function (sel) {
+                const $el = (typeof jQuery !== 'undefined') ? jQuery(sel) : null;
+                if ($el && $el.length && $el.hasClass('select2-hidden-accessible') && jQuery.fn.select2) {
+                    $el.select2('destroy');
+                }
+            });
             if (typeof filterModalTransferDestinationsByCity === 'function') {
                 filterModalTransferDestinationsByCity(city, '#localPickup, #localDrop');
             }
-            reinitLocalPickupDropSelect2();
 
-            if (!opts.skipDefaults && city && typeof applyDefaultTransferDropoffHotel === 'function') {
+            if (typeof jQuery !== 'undefined') {
+                jQuery('#localDrop').off('change.localPickupSync');
+            }
+
+            if (opts.restorePickup || opts.restoreDrop) {
+                window._localTransferRestoreState = {
+                    pickupId: (opts.restorePickup && opts.restorePickup.id) || '',
+                    pickupType: (opts.restorePickup && opts.restorePickup.type) || '',
+                    pickupName: (opts.restorePickup && opts.restorePickup.name) || '',
+                    dropId: (opts.restoreDrop && opts.restoreDrop.id) || '',
+                    dropType: (opts.restoreDrop && opts.restoreDrop.type) || '',
+                    dropName: (opts.restoreDrop && opts.restoreDrop.name) || ''
+                };
+            }
+
+            if (opts.restorePickup) {
+                setLocalTransferLocationSelect(
+                    '#localPickup',
+                    opts.restorePickup.id,
+                    opts.restorePickup.type,
+                    opts.restorePickup.name
+                );
+            }
+            if (opts.restoreDrop) {
+                setLocalTransferLocationSelect(
+                    '#localDrop',
+                    opts.restoreDrop.id,
+                    opts.restoreDrop.type,
+                    opts.restoreDrop.name
+                );
+            }
+
+            if (!opts.deferSelect2) {
+                reinitLocalPickupDropSelect2();
+            }
+
+            if (!opts.skipDefaults && !window._localTransferRestoreState && city && typeof applyDefaultTransferDropoffHotel === 'function') {
                 const dropEl = document.getElementById('localDrop');
+                const pickupEl = document.getElementById('localPickup');
                 applyDefaultTransferDropoffHotel(dropEl, city);
-                if (dropEl && dropEl.value && typeof jQuery !== 'undefined') {
+                if (dropEl && dropEl.value && pickupEl && !pickupEl.value && typeof jQuery !== 'undefined') {
                     jQuery('#localPickup').val(dropEl.value).trigger('change');
                 }
             }
@@ -2077,7 +2531,12 @@
         }
 
         if ((ctx === 'local' || ctx === 'all') && typeof applyLocalTransferCityFilters === 'function') {
-            applyLocalTransferCityFilters(city, { skipDefaults: ctx === 'all' });
+            const restoringLocal = !!(window._localTransferRestoreState || window._localTransferRestoreLock);
+            const editingLocal = typeof enquiryProIsEditingContext === 'function'
+                && enquiryProIsEditingContext('local');
+            if (!restoringLocal && !editingLocal) {
+                applyLocalTransferCityFilters(city, { skipDefaults: ctx === 'all' });
+            }
         }
 
         return defaults;

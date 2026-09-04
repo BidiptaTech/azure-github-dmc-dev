@@ -1413,6 +1413,34 @@
                                 // Payable = Gross + Markup − Discount (business calculation), rounded up.
                                 $netNegotiationBase = max(0, ceil($grossTourAmount + $tourMarkupMoney - $tourDiscountMoney));
 
+                                // Prefer city-wise currency_markups already applied on country groups.
+                                $countryGroupsForMarkup = $tour->negotiation_country_groups ?? [];
+                                if (is_array($countryGroupsForMarkup) && $countryGroupsForMarkup !== []) {
+                                    $tourMarkupMoney = 0.0;
+                                    $tourDiscountMoney = 0.0;
+                                    $groupCurrencies = [];
+                                    foreach ($countryGroupsForMarkup as $cg) {
+                                        $tourMarkupMoney += (float) ($cg['markup'] ?? 0);
+                                        $tourDiscountMoney += (float) ($cg['discount'] ?? 0);
+                                        if (! empty($cg['currency'])) {
+                                            $groupCurrencies[] = (string) $cg['currency'];
+                                        }
+                                    }
+                                    $tourMarkupMoney = max(0, $tourMarkupMoney);
+                                    $tourDiscountMoney = max(0, $tourDiscountMoney);
+                                    $firstGroup = $countryGroupsForMarkup[0];
+                                    $tourMarkupType = $firstGroup['markup_type'] ?? $tourMarkupType;
+                                    $tourMarkupRaw = (float) ($firstGroup['markup_raw'] ?? $tourMarkupRaw);
+                                    $tourDiscountType = $firstGroup['discount_type'] ?? $tourDiscountType;
+                                    $tourDiscountRaw = (float) ($firstGroup['discount_raw'] ?? $tourDiscountRaw);
+                                    if (count(array_unique($groupCurrencies)) <= 1) {
+                                        $netNegotiationBase = max(0, ceil(array_sum(array_map(
+                                            static fn ($cg) => (float) ($cg['payable'] ?? 0),
+                                            $countryGroupsForMarkup
+                                        ))));
+                                    }
+                                }
+
                                 // Aliases kept for the existing data attributes / JS (now hold money values).
                                 $tourDiscountAmount = $tourDiscountMoney;
                                 $discount = $tourDiscountMoney;
@@ -3291,6 +3319,21 @@ function showFilterResetMessage() {
             return parts.length ? parts.join(' · ') : null;
         }
 
+        function negotiationAdjustmentLabels(group) {
+            const markupType = group && group.markup_type ? group.markup_type : '';
+            const markupRaw = group && group.markup_raw != null ? group.markup_raw : '';
+            const discountType = group && group.discount_type ? group.discount_type : '';
+            const discountRaw = group && group.discount_raw != null ? group.discount_raw : '';
+            return {
+                markup: (typeof buildAdjustmentLabel === 'function')
+                    ? buildAdjustmentLabel('Markup', markupType, markupRaw)
+                    : 'Markup',
+                discount: (typeof buildAdjustmentLabel === 'function')
+                    ? buildAdjustmentLabel('Discount', discountType, discountRaw)
+                    : 'Discount'
+            };
+        }
+
         function renderFollowupNegotiationCountryBlocks(countryGroups, agentOffers, fallbackPrice) {
             const blocksEl = document.getElementById('followupCountryBlocks');
             const warningMessage = document.getElementById('followup-warning-message');
@@ -3310,6 +3353,7 @@ function showFilterResetMessage() {
                 const gross = Number(group.gross || 0);
                 const markup = Number(group.markup || 0);
                 const discount = Number(group.discount || 0);
+                const adjLabels = negotiationAdjustmentLabels(group);
                 const agentOffer = findAgentOfferForGroup(agentOffers, group);
                 const agentAmount = agentOffer ? parseFloat(agentOffer.amount) : NaN;
                 const defaultCounter = Number.isFinite(agentAmount) && agentAmount > 0
@@ -3325,8 +3369,8 @@ function showFilterResetMessage() {
                     '</div>' +
                     '<div class="row g-2 mb-2">' +
                         '<div class="col-6 col-md-3"><span class="negotiation-label">Gross</span><div class="negotiation-value">' + currency + ' ' + formatNegotiationAmount(gross) + '</div></div>' +
-                        '<div class="col-6 col-md-3"><span class="negotiation-label">Markup</span><div class="negotiation-value text-info">' + (markup > 0 ? ('+' + currency + ' ' + formatNegotiationAmount(markup)) : (currency + ' 0.00')) + '</div></div>' +
-                        '<div class="col-6 col-md-3"><span class="negotiation-label">Discount</span><div class="negotiation-value">' + (discount > 0 ? ('−' + currency + ' ' + formatNegotiationAmount(discount)) : (currency + ' 0.00')) + '</div></div>' +
+                        '<div class="col-6 col-md-3"><span class="negotiation-label">' + adjLabels.markup + '</span><div class="negotiation-value text-info">' + (markup > 0 ? ('+' + currency + ' ' + formatNegotiationAmount(markup)) : (currency + ' 0.00')) + '</div></div>' +
+                        '<div class="col-6 col-md-3"><span class="negotiation-label">' + adjLabels.discount + '</span><div class="negotiation-value">' + (discount > 0 ? ('−' + currency + ' ' + formatNegotiationAmount(discount)) : (currency + ' 0.00')) + '</div></div>' +
                         '<div class="col-6 col-md-3"><span class="negotiation-label">Payable</span><div class="negotiation-value">' + currency + ' ' + formatNegotiationAmount(payable) + '</div></div>' +
                     '</div>' +
                     '<div class="mb-2"><span class="negotiation-label">Last Negotiated Amount</span>' +
@@ -3538,6 +3582,7 @@ function showFilterResetMessage() {
                         const gross = Number(group.gross || 0);
                         const markup = Number(group.markup || 0);
                         const discount = Number(group.discount || 0);
+                        const adjLabels = negotiationAdjustmentLabels(group);
                         const lastOfferMatch = findAgentOfferForGroup(lastOffers, group);
                         const lastOfferAmount = lastOfferMatch ? parseFloat(lastOfferMatch.amount) : NaN;
                         const defaultOffer = resolveNegotiationOfferAmount(lastOffers, group, payable);
@@ -3550,8 +3595,8 @@ function showFilterResetMessage() {
                             '</div>' +
                             '<div class="row g-2 mb-2">' +
                                 '<div class="col-6 col-md-3"><span class="negotiation-label">Gross</span><div class="negotiation-value">' + currency + ' ' + formatNegotiationAmount(gross) + '</div></div>' +
-                                '<div class="col-6 col-md-3"><span class="negotiation-label">Markup</span><div class="negotiation-value text-info">' + (markup > 0 ? ('+' + currency + ' ' + formatNegotiationAmount(markup)) : (currency + ' 0.00')) + '</div></div>' +
-                                '<div class="col-6 col-md-3"><span class="negotiation-label">Discount</span><div class="negotiation-value">' + (discount > 0 ? ('−' + currency + ' ' + formatNegotiationAmount(discount)) : (currency + ' 0.00')) + '</div></div>' +
+                                '<div class="col-6 col-md-3"><span class="negotiation-label">' + adjLabels.markup + '</span><div class="negotiation-value text-info">' + (markup > 0 ? ('+' + currency + ' ' + formatNegotiationAmount(markup)) : (currency + ' 0.00')) + '</div></div>' +
+                                '<div class="col-6 col-md-3"><span class="negotiation-label">' + adjLabels.discount + '</span><div class="negotiation-value">' + (discount > 0 ? ('−' + currency + ' ' + formatNegotiationAmount(discount)) : (currency + ' 0.00')) + '</div></div>' +
                                 '<div class="col-6 col-md-3"><span class="negotiation-label">Payable</span><div class="negotiation-value">' + currency + ' ' + formatNegotiationAmount(payable) + '</div></div>' +
                             '</div>' +
                             '<div class="mb-2"><span class="negotiation-label">Last Negotiated Amount</span>' +
