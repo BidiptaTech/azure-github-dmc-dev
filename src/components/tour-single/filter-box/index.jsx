@@ -20,6 +20,7 @@ import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useNavigate } from "react-router-dom";
 import { setBookingMode } from '../../../slice/common/commonSlice';
+import { addAttractionBookingToCart } from "@/utils/addAttractionToCart";
 
 const index = () => {
   const navigate = useNavigate();
@@ -387,11 +388,21 @@ const index = () => {
       type: "attraction",
     };
 
-    // Dispatch booking details to Redux
+    // Dispatch booking details to Redux (legacy checkout hydration)
     dispatch(addAttractionBookings(bookingDetails));
 
-    // Navigate to checkout page
-    navigate('/dashboard/db-dashboard/attraction-checkout');
+    const cartError = addAttractionBookingToCart(dispatch, {
+      bookingDetails,
+      attraction,
+      attractionDetails,
+      tourDetails: tourdetails,
+    });
+    if (cartError) {
+      toast.error(cartError);
+      return;
+    }
+    toast.success("Added to cart successfully.");
+    navigate("/dashboard/db-dashboard/cart");
   };
 
   // Format price in different currencies
@@ -617,7 +628,7 @@ const index = () => {
             }
           }}
         >
-          {isBookingReady ? "Check Out" : "Complete all selections to proceed"}
+          {isBookingReady ? "Add to Cart" : "Complete all selections to proceed"}
         </button>
       </div>
      
