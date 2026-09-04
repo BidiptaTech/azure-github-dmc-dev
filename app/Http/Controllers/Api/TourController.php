@@ -2587,6 +2587,135 @@ class TourController extends Controller
         }
     }
 
+    /*
+    * Book all services at once.
+    * Date 03-09-2026
+    */
+    public function bookAll(Request $request)
+    {
+        $input = $request->json()->all();
+        if (empty($input)) {
+            $input = $request->all();
+        }
+
+        if (isset($input['services']) && is_array($input['services'])) {
+            $services = $input['services'];
+        } elseif (isset($input['bookings']) && is_array($input['bookings'])) {
+            $services = $input['bookings'];
+        } else {
+            $services = $input;
+        }
+
+        if (!is_array($services) || empty($services)) {
+            return response()->json([
+                'message' => 'Services data is required. Send a JSON array of booking objects.',
+            ], 400);
+        }
+
+        // Single createBooking payload posted to this endpoint
+        if (isset($services['type']) && array_key_exists('data', $services)) {
+            $services = [$services];
+        }
+
+        if (!array_is_list($services)) {
+            return response()->json([
+                'message' => 'Services data must be a JSON array of booking objects.',
+            ], 400);
+        }
+
+        $results = [];
+        $resolvedTourId = null;
+        $successCount = 0;
+
+        foreach ($services as $index => $serviceData) {
+            if (!is_array($serviceData)) {
+                $results[] = [
+                    'message' => 'Invalid service payload at index ' . $index,
+                ];
+                continue;
+            }
+
+            // Reuse tour created by an earlier service in this batch
+            if ($resolvedTourId && (empty($serviceData['tour_id']) || $serviceData['tour_id'] == 0)) {
+                $serviceData['tour_id'] = $resolvedTourId;
+            }
+
+            $jsonPayload = json_encode($serviceData);
+            $server = $request->server->all();
+            $server['CONTENT_TYPE'] = 'application/json';
+            $server['HTTP_CONTENT_TYPE'] = 'application/json';
+            $server['CONTENT_LENGTH'] = strlen($jsonPayload);
+
+            $serviceRequest = Request::create(
+                $request->getUri(),
+                'POST',
+                [],
+                $request->cookies->all(),
+                [],
+                $server,
+                $jsonPayload
+            );
+            $serviceRequest->headers->replace($request->headers->all());
+            $serviceRequest->headers->set('Content-Type', 'application/json');
+            $serviceRequest->setUserResolver($request->getUserResolver());
+            $serviceRequest->setRouteResolver($request->getRouteResolver());
+            if ($request->hasSession()) {
+                $serviceRequest->setLaravelSession($request->session());
+            }
+
+            try {
+                $response = $this->createBooking($serviceRequest);
+                $status = $response->getStatusCode();
+                $payload = json_decode($response->getContent(), true);
+                $success = $status >= 200 && $status < 300;
+
+                if ($success) {
+                    $successCount++;
+                    if (!empty($payload['tour_data']['tour_id'])) {
+                        $resolvedTourId = $payload['tour_data']['tour_id'];
+                    } elseif (!empty($payload['order']['tour_id'])) {
+                        $resolvedTourId = $payload['order']['tour_id'];
+                    } elseif (!empty($serviceData['tour_id']) && $serviceData['tour_id'] != 0) {
+                        $resolvedTourId = $serviceData['tour_id'];
+                    }
+                }
+
+                $results[] = $payload;
+            } catch (\Illuminate\Validation\ValidationException $e) {
+                $results[] = [
+                    'message' => 'Validation failed',
+                    'errors' => $e->errors(),
+                ];
+            } catch (\Throwable $e) {
+                $results[] = [
+                    'message' => $e->getMessage(),
+                ];
+            }
+        }
+
+        $failedCount = count($results) - $successCount;
+
+        if ($failedCount === 0) {
+            $message = 'All services booked successfully.';
+            $httpStatus = 201;
+        } elseif ($successCount === 0) {
+            $message = 'Failed to book services.';
+            $httpStatus = 409;
+        } else {
+            $message = 'Some services failed to book.';
+            $httpStatus = 207;
+        }
+
+        return response()->json([
+            'message' => $message,
+            'tour_id' => $resolvedTourId,
+            'total' => count($results),
+            'success_count' => $successCount,
+            'failed_count' => $failedCount,
+            'results' => $results,
+        ], $httpStatus);
+    }
+
     /* 
     *Update Enquiry 
     * Date 24-03-2025

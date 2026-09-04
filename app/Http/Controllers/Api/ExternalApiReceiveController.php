@@ -1961,13 +1961,20 @@ class ExternalApiReceiveController extends Controller
             'transfer_type' => $transfer['transfer_type'] ?? null,
             'transferType' => $transfer['type'] ?? null,
             'cost' => $transfer['cost'] ?? $transfer['transfer_price'] ?? null,
+            'transfer_price' => $transfer['transfer_price'] ?? $transfer['cost'] ?? null,
+            'private_cost' => $transfer['private_cost'] ?? $transfer['private_price'] ?? null,
+            'shared_cost' => $transfer['shared_cost'] ?? $transfer['shared_price'] ?? null,
             'price' => $lineTotal > 0 ? $lineTotal : ($transfer['cost'] ?? $transfer['transfer_price'] ?? null),
             'totalPrice' => $lineTotal > 0 ? $lineTotal : null,
             'total_price' => $lineTotal > 0 ? $lineTotal : null,
             'pickup_time' => $transfer['pickup_time'] ?? null,
             'city' => $item['city'] ?? $transfer['city'] ?? null,
             'pickup_location' => $transfer['pickup_location'] ?? null,
+            'pickup_location_id' => $transfer['pickup_location_id'] ?? $transfer['pickup_location_value'] ?? null,
+            'pickup_location_value' => $transfer['pickup_location_value'] ?? $transfer['pickup_location_id'] ?? null,
             'drop_location' => $transfer['drop_location'] ?? null,
+            'drop_location_id' => $transfer['drop_location_id'] ?? $transfer['drop_location_value'] ?? null,
+            'drop_location_value' => $transfer['drop_location_value'] ?? $transfer['drop_location_id'] ?? null,
         ], static fn ($value) => $value !== null && $value !== ''));
 
         if ($portType === 'entry_port') {
@@ -2006,23 +2013,11 @@ class ExternalApiReceiveController extends Controller
      */
     protected function normalizeProPortOrderPayload(array $portData, Tour $tour, string $portType, array $item): array
     {
+        $transfer = is_array($item['transfer'] ?? null) ? $item['transfer'] : [];
+        $serviceType = $this->resolveProTransferServiceType($item, $transfer, (string) ($portData['type'] ?? 'Private'));
         $item = $this->flattenPortTransportPayload($item, $portType);
         $customer = $this->customerContextFromTour($tour);
         $isArrival = $portType === 'entry_port';
-
-        $typeRaw = (string) ($item['type']
-            ?? $item['transferType']
-            ?? $item['transfer_type']
-            ?? $portData['type']
-            ?? 'Private');
-        $serviceType = ucfirst(strtolower(trim($typeRaw)));
-        if (in_array($serviceType, ['S', 'Sic', 'Shared'], true) || in_array(strtolower($typeRaw), ['s', 'sic', 'shared'], true)) {
-            $serviceType = 'Shared';
-        } elseif (in_array($serviceType, ['P', 'Private'], true) || in_array(strtolower($typeRaw), ['p', 'private'], true)) {
-            $serviceType = 'Private';
-        } else {
-            $serviceType = 'Private';
-        }
         $isShared = $serviceType === 'Shared';
         $transferTypeCode = $isShared ? 'S' : 'P';
 
@@ -2033,7 +2028,7 @@ class ExternalApiReceiveController extends Controller
         $vehicleRawId = trim((string) ($portData['vehicle_id'] ?? $item['vehicle_id'] ?? $item['vehicles_id'] ?? $item['vehicleId'] ?? ''));
         $vehicleName = trim((string) ($portData['vehicles_name'] ?? $item['vehicle_name'] ?? $item['vehicles_name'] ?? $item['vehicleName'] ?? ''));
         $vehicleDetails = $this->resolveVehicleForTransfer($vehicleRawId, $vehicleName);
-        if ($vehicleRawId === '' && is_array($vehicleDetails) && ! empty($vehicleDetails['vehicle_id'])) {
+        if (is_array($vehicleDetails) && ! empty($vehicleDetails['vehicle_id'])) {
             $vehicleRawId = (string) $vehicleDetails['vehicle_id'];
         }
         if ($vehicleName === '' && is_array($vehicleDetails) && ! empty($vehicleDetails['vehicle_name'])) {
@@ -2114,25 +2109,35 @@ class ExternalApiReceiveController extends Controller
         $entrytime = $this->formatProPortClock12($clock);
 
         $dmcId = (int) ($tour->dmc_id ?? 0);
+        $payloadUnit = $this->sanitizeProTransferUnitAgainstVehicleBase(
+            $this->resolveProDayLevelTransferUnit($item, $isShared),
+            $vehicleDetails
+        );
         $zonePrices = $this->resolveProPortZonePrices($vehicleRawId, $portType, $port, $linkedHotel, $dmcId);
-        $vehiclePrivate = is_array($vehicleDetails) ? (float) ($vehicleDetails['private_price'] ?? 0) : 0.0;
-        $vehicleShared = is_array($vehicleDetails) ? (float) ($vehicleDetails['shared_price'] ?? 0) : 0.0;
-        $unitPrice = $isShared
-            ? (float) ($zonePrices['shared_price'] ?: $vehicleShared)
-            : (float) ($zonePrices['private_price'] ?: $vehiclePrivate);
-        if ($unitPrice <= 0) {
-            $unitPrice = (float) ($item['adultSell'] ?? $item['adult_sell'] ?? $portData['vehicle_unit_price'] ?? $portData['adultSell'] ?? 0);
+        if ((float) ($zonePrices['private_price'] ?? 0) <= 0 && (float) ($zonePrices['shared_price'] ?? 0) <= 0) {
+            $fromToken = $this->firstLocationToken([$item, $transfer], [
+                'pickup_location_id', 'pickup_location_value', 'pickup_location',
+            ]);
+            $toToken = $this->firstLocationToken([$item, $transfer], [
+                'drop_location_id', 'drop_location_value', 'drop_location',
+            ]);
+            $zonePrices = $this->resolveProVehicleZonePrices(
+                $vehicleRawId,
+                $this->resolveProZoneIdsFromLocationToken($fromToken, $dmcId),
+                $this->resolveProZoneIdsFromLocationToken($toToken, $dmcId)
+            );
         }
-        $unitPrice = $this->roundProPrice2($unitPrice);
-        $childUnit = (float) ($item['childSell'] ?? $item['child_sell'] ?? $unitPrice);
-        if ($childUnit <= 0) {
-            $childUnit = $unitPrice;
-        }
-        $childUnit = $this->roundProPrice2($childUnit);
-
-        $totalPrice = $isShared
-            ? $this->roundProPrice2(($unitPrice * $adults) + ($childUnit * $children))
-            : $unitPrice;
+        $priced = $this->resolveProTransferStoredPrices(
+            $isShared,
+            $zonePrices,
+            $payloadUnit,
+            $adults,
+            $children,
+            1
+        );
+        $unitPrice = $priced['unit'];
+        $totalPrice = $priced['total'];
+        $childUnit = $unitPrice;
 
         $cityHint = $this->firstNonEmptyString([$item, $portData, is_array($linkedHotel) ? $linkedHotel : []], [
             'city', 'destination',
@@ -2228,6 +2233,11 @@ class ExternalApiReceiveController extends Controller
             'basePrice' => $unitPrice,
             'base_price' => $unitPrice,
             'totalPrice' => $totalPrice,
+            'price' => $totalPrice,
+            'private_price' => $priced['private_price'],
+            'shared_price' => $priced['shared_price'],
+            'zonePrivatePrice' => $priced['private_price'],
+            'zoneSharedPrice' => $priced['shared_price'],
             'discount' => (int) ($item['discount'] ?? 0),
             'discount_amount' => (float) ($item['discount_amount'] ?? 0),
             'Tax' => 0,
@@ -2473,30 +2483,11 @@ class ExternalApiReceiveController extends Controller
         }
 
         $isArrival = $portType === 'entry_port';
-        foreach ($hotelZones as $hotelZone) {
-            $from = $isArrival ? $portZone : (string) $hotelZone;
-            $to = $isArrival ? (string) $hotelZone : $portZone;
-            $map = VehicleZoneMapping::query()
-                ->where('vehicle_id', $vehicleId)
-                ->where('from_zone_id', $from)
-                ->where('to_zone_id', $to)
-                ->first();
-            if (! $map) {
-                $map = VehicleZoneMapping::query()
-                    ->where('vehicle_id', $vehicleId)
-                    ->where('from_zone_id', $to)
-                    ->where('to_zone_id', $from)
-                    ->first();
-            }
-            if ($map) {
-                return [
-                    'private_price' => (float) ($map->private_price ?? 0),
-                    'shared_price' => (float) ($map->shared_price ?? 0),
-                ];
-            }
-        }
+        $portZones = [$portZone];
+        $from = $isArrival ? $portZones : $hotelZones;
+        $to = $isArrival ? $hotelZones : $portZones;
 
-        return $empty;
+        return $this->resolveProVehicleZonePrices($vehicleId, $from, $to);
     }
 
     /**
@@ -2573,6 +2564,228 @@ class ExternalApiReceiveController extends Controller
         }
 
         return '';
+    }
+
+    /**
+     * Day-level transfer unit for the selected type (private vs shared).
+     * Uses package transfer.cost / transfer_price — not ticket/meal price.
+     *
+     * @param  array<string, mixed>  $item
+     * @param  array<string, mixed>|null  $transfer
+     */
+    protected function resolveProDayLevelTransferUnit(array $item, bool $isShared, ?array $transfer = null): float
+    {
+        // When a nested transfer block is supplied (attraction/restaurant), never use
+        // the service ticket/meal cost as a transfer price.
+        if (is_array($transfer)) {
+            $sources = [$transfer];
+        } else {
+            $nested = is_array($item['transfer'] ?? null) ? $item['transfer'] : [];
+            $sources = $nested !== [] ? [$nested, $item] : [$item];
+        }
+
+        $typedKeys = $isShared
+            ? ['shared_cost', 'shared_price', 'sharable_base_price']
+            : ['private_cost', 'private_price'];
+        foreach ($sources as $src) {
+            if (! is_array($src)) {
+                continue;
+            }
+            foreach ($typedKeys as $key) {
+                $value = (float) ($src[$key] ?? 0);
+                if ($value > 0) {
+                    return $this->roundProPrice2($value);
+                }
+            }
+        }
+
+        foreach ($sources as $src) {
+            if (! is_array($src)) {
+                continue;
+            }
+            foreach (['transfer_price', 'cost'] as $key) {
+                $value = (float) ($src[$key] ?? 0);
+                if ($value > 0) {
+                    return $this->roundProPrice2($value);
+                }
+            }
+        }
+
+        return 0.0;
+    }
+
+    /**
+     * AI often copies vehicles.base_price (e.g. 24) into transfer.cost.
+     * Discard only that vehicle base — never discard a real shared zone amount
+     * just because it matches vehicles.sharable_base_price.
+     *
+     * @param  array<string, mixed>|null  $vehicleDetails
+     */
+    protected function sanitizeProTransferUnitAgainstVehicleBase(float $payloadUnit, ?array $vehicleDetails): float
+    {
+        if ($payloadUnit <= 0) {
+            return 0.0;
+        }
+        if (! is_array($vehicleDetails)) {
+            return $this->roundProPrice2($payloadUnit);
+        }
+
+        $vehicleBase = (float) ($vehicleDetails['private_price'] ?? 0);
+        if ($vehicleBase > 0 && abs($payloadUnit - $vehicleBase) < 0.009) {
+            return 0.0;
+        }
+
+        return $this->roundProPrice2($payloadUnit);
+    }
+
+    /**
+     * Shared / Private from the AI booking — ignore day-level transfer.type=private
+     * and labels like Arrival / Attraction Transfer.
+     *
+     * @param  array<string, mixed>  $item
+     * @param  array<string, mixed>  $transfer
+     */
+    protected function resolveProTransferServiceType(array $item, array $transfer = [], string $fallback = 'Private'): string
+    {
+        $candidates = [
+            $item['transferType'] ?? null,
+            $item['type'] ?? null,
+            $item['transfer_type'] ?? null,
+            $transfer['type'] ?? null,
+            $transfer['transfer_type'] ?? null,
+            $fallback,
+        ];
+        foreach ($candidates as $raw) {
+            $value = strtolower(trim((string) $raw));
+            if (in_array($value, ['s', 'shared', 'sic'], true)) {
+                return 'Shared';
+            }
+            if (in_array($value, ['p', 'private'], true)) {
+                return 'Private';
+            }
+        }
+
+        return 'Private';
+    }
+
+    /**
+     * Pro order JSON: zone mapping by type first.
+     * Shared totalPrice = unit × pax. Private totalPrice = unit (fixed).
+     *
+     * @param  array{private_price?: float, shared_price?: float}  $zonePrices
+     * @return array{unit: float, total: float, private_price: float, shared_price: float}
+     */
+    protected function resolveProTransferStoredPrices(
+        bool $isShared,
+        array $zonePrices,
+        float $payloadUnit,
+        int $adults,
+        int $children,
+        int $wayMultiplier = 1
+    ): array {
+        $zonePrivate = $this->roundProPrice2((float) ($zonePrices['private_price'] ?? 0));
+        $zoneShared = $this->roundProPrice2((float) ($zonePrices['shared_price'] ?? 0));
+        $zoneUnit = $isShared ? $zoneShared : $zonePrivate;
+
+        if ($zoneUnit > 0) {
+            $unit = $this->roundProPrice2($zoneUnit * max(1, $wayMultiplier));
+        } else {
+            $unit = $this->roundProPrice2($payloadUnit);
+        }
+
+        $pax = max(0, $adults) + max(0, $children);
+        $total = $isShared
+            ? $this->roundProPrice2($unit * max(1, $pax))
+            : $unit;
+
+        return [
+            'unit' => $unit,
+            'total' => $total,
+            'private_price' => $zonePrivate,
+            'shared_price' => $zoneShared,
+        ];
+    }
+
+    /**
+     * Prefer port: / hotel: tokens over human labels when resolving zones.
+     *
+     * @param  list<array<string, mixed>>  $sources
+     * @param  list<string>  $keys
+     */
+    protected function firstLocationToken(array $sources, array $keys): string
+    {
+        foreach ($sources as $src) {
+            if (! is_array($src)) {
+                continue;
+            }
+            foreach ($keys as $key) {
+                $value = trim((string) ($src[$key] ?? ''));
+                if ($value === '') {
+                    continue;
+                }
+                if (str_contains($value, ':') || ctype_digit($value)) {
+                    return $value;
+                }
+            }
+        }
+
+        return '';
+    }
+
+    /**
+     * Zone IDs from day-level tokens like port:44, hotel:{unique}, attraction:id, restaurant:id, zone:id.
+     *
+     * @return list<string>
+     */
+    protected function resolveProZoneIdsFromLocationToken(string $token, int $dmcId): array
+    {
+        $token = trim($token);
+        if ($token === '') {
+            return [];
+        }
+
+        $type = '';
+        $id = $token;
+        if (str_contains($token, ':')) {
+            $pos = strpos($token, ':');
+            $type = strtolower(trim(substr($token, 0, $pos)));
+            $id = trim(substr($token, $pos + 1));
+        }
+
+        $ids = [];
+        if ($type === 'port' || $type === 'zone') {
+            $ids[] = $id;
+        } elseif ($type === 'hotel') {
+            $hotel = Hotel::where('hotel_unique_id', $id)->first();
+            $ids = $hotel ? $hotel->getZoneCandidatesForDmc($dmcId) : [];
+        } elseif ($type === 'attraction') {
+            $attraction = Attraction::where('attraction_id', $id)->first();
+            $ids = $attraction ? $attraction->getZoneCandidatesForDmc($dmcId) : [];
+        } elseif ($type === 'restaurant') {
+            $restaurant = Restaurant::where('restaurant_id', $id)->first();
+            $ids = $restaurant ? $restaurant->getZoneCandidatesForDmc($dmcId) : [];
+        } elseif (ctype_digit($id)) {
+            $ids[] = $id;
+        }
+
+        return $this->numericZoneIds($ids);
+    }
+
+    /**
+     * @param  list<mixed>  $ids
+     * @return list<string>
+     */
+    protected function numericZoneIds(array $ids): array
+    {
+        $out = [];
+        foreach ($ids as $id) {
+            $id = trim((string) $id);
+            if ($id !== '' && ctype_digit($id) && ! in_array($id, $out, true)) {
+                $out[] = $id;
+            }
+        }
+
+        return $out;
     }
 
     protected function formatProPortClock12(string $clock24): string
@@ -3591,22 +3804,22 @@ class ExternalApiReceiveController extends Controller
             return null;
         }
 
-        $typeRaw = (string) ($transfer['type'] ?? $transfer['transfer_type'] ?? $item['transfer_type'] ?? 'Shared');
-        $isShared = in_array(strtolower($typeRaw), ['s', 'shared', 'sic'], true);
-        $serviceType = $isShared ? 'Shared' : 'Private';
+        $typeRaw = (string) ($item['type'] ?? $item['transferType'] ?? $item['transfer_type'] ?? '');
+        $serviceType = $this->resolveProTransferServiceType($item, $transfer, $typeRaw !== '' ? $typeRaw : 'Private');
+        $isShared = $serviceType === 'Shared';
         $typeCode = $isShared ? 'S' : 'P';
 
-        $wayRaw = strtolower((string) ($transfer['way'] ?? $item['transfer_way'] ?? $defaultWay));
+        $wayRaw = strtolower(trim((string) ($transfer['way'] ?? $item['transfer_way'] ?? '')));
         $isBothWay = in_array($wayRaw, ['both-way', 'both way', 'two way', 'two-way', '2way', 'return'], true);
         $way = $isBothWay ? 'both-way' : 'one-way';
         $wayMultiplier = $isBothWay ? 2 : 1;
 
         $vehicleDetails = $this->resolveVehicleForTransfer($vehicleRawId, $vehicleName);
-        if ($vehicleRawId === '' && is_array($vehicleDetails)) {
-            $vehicleRawId = (string) ($vehicleDetails['vehicle_id'] ?? '');
+        if (is_array($vehicleDetails) && ! empty($vehicleDetails['vehicle_id'])) {
+            $vehicleRawId = (string) $vehicleDetails['vehicle_id'];
         }
-        if ($vehicleName === '' && is_array($vehicleDetails)) {
-            $vehicleName = (string) ($vehicleDetails['vehicle_name'] ?? '');
+        if ($vehicleName === '' && is_array($vehicleDetails) && ! empty($vehicleDetails['vehicle_name'])) {
+            $vehicleName = (string) $vehicleDetails['vehicle_name'];
         }
         $seating = is_array($vehicleDetails) ? (int) ($vehicleDetails['seating_capacity'] ?? 0) : 0;
         $vehicleType = is_array($vehicleDetails) ? (string) ($vehicleDetails['vehicle_type'] ?? '') : '';
@@ -3634,14 +3847,33 @@ class ExternalApiReceiveController extends Controller
         }
 
         $zonePrices = $this->resolveProVehicleZonePrices($vehicleRawId, $hotelZones, $destZones);
-        $vehiclePrivate = is_array($vehicleDetails) ? (float) ($vehicleDetails['private_price'] ?? 0) : 0.0;
-        $vehicleShared = is_array($vehicleDetails) ? (float) ($vehicleDetails['shared_price'] ?? 0) : 0.0;
-        $unit = $isShared
-            ? (float) ($zonePrices['shared_price'] ?: $vehicleShared)
-            : (float) ($zonePrices['private_price'] ?: $vehiclePrivate);
-        $unit = $this->roundProPrice2($unit * $wayMultiplier);
-        $totalPax = max(1, $adults + $children);
-        $totalPrice = $isShared ? $this->roundProPrice2($unit * $totalPax) : $unit;
+        if ((float) ($zonePrices['private_price'] ?? 0) <= 0 && (float) ($zonePrices['shared_price'] ?? 0) <= 0) {
+            $fromToken = $this->firstLocationToken([$transfer, $item], [
+                'pickup_location_id', 'pickup_location_value', 'pickup_location',
+            ]);
+            $toToken = $this->firstLocationToken([$transfer, $item], [
+                'drop_location_id', 'drop_location_value', 'drop_location',
+            ]);
+            $zonePrices = $this->resolveProVehicleZonePrices(
+                $vehicleRawId,
+                $this->resolveProZoneIdsFromLocationToken($fromToken, (int) ($tour->dmc_id ?? 0)),
+                $this->resolveProZoneIdsFromLocationToken($toToken, (int) ($tour->dmc_id ?? 0))
+            );
+        }
+        $payloadUnit = $this->sanitizeProTransferUnitAgainstVehicleBase(
+            $this->resolveProDayLevelTransferUnit($item, $isShared, $transfer),
+            $vehicleDetails
+        );
+        $priced = $this->resolveProTransferStoredPrices(
+            $isShared,
+            $zonePrices,
+            $payloadUnit,
+            $adults,
+            $children,
+            $wayMultiplier
+        );
+        $unit = $priced['unit'];
+        $totalPrice = $priced['total'];
 
         $pickupName = $this->firstNonEmptyString([$transfer, $item], [
             'pickup_location_label', 'pickup_location', 'pickup',
@@ -3673,6 +3905,8 @@ class ExternalApiReceiveController extends Controller
                 'cost' => $unit,
                 'sell' => $unit,
                 'totalPrice' => $totalPrice,
+                'private_price' => $priced['private_price'],
+                'shared_price' => $priced['shared_price'],
                 'discount' => 0,
                 'discount_amount' => 0,
                 'adults' => $adults,
@@ -3695,6 +3929,8 @@ class ExternalApiReceiveController extends Controller
                 'cost' => $unit,
                 'sell' => $unit,
                 'totalPrice' => $totalPrice,
+                'private_price' => $priced['private_price'],
+                'shared_price' => $priced['shared_price'],
                 'adults' => $adults,
                 'child' => $children,
             ],
@@ -3855,31 +4091,57 @@ class ExternalApiReceiveController extends Controller
     {
         $empty = ['private_price' => 0.0, 'shared_price' => 0.0];
         $vehicleId = trim($vehicleId);
+        $fromZones = $this->numericZoneIds($fromZones);
+        $toZones = $this->numericZoneIds($toZones);
         if ($vehicleId === '' || $fromZones === [] || $toZones === []) {
             return $empty;
         }
-        foreach ($fromZones as $from) {
-            foreach ($toZones as $to) {
-                if ($from === '' || $to === '') {
-                    continue;
+
+        $vehicleKeys = [$vehicleId];
+        $vehicle = Vehicle::withTrashed()
+            ->where(function ($q) use ($vehicleId) {
+                $q->where('vehicle_id', $vehicleId);
+                if (ctype_digit($vehicleId)) {
+                    $q->orWhere('id', (int) $vehicleId);
                 }
-                $map = VehicleZoneMapping::query()
-                    ->where('vehicle_id', $vehicleId)
-                    ->where('from_zone_id', $from)
-                    ->where('to_zone_id', $to)
-                    ->first();
-                if (! $map) {
+            })
+            ->orderByRaw('CASE WHEN deleted_at IS NULL THEN 0 ELSE 1 END')
+            ->first();
+        if ($vehicle) {
+            $canonical = trim((string) ($vehicle->vehicle_id ?? ''));
+            if ($canonical !== '') {
+                $vehicleKeys[] = $canonical;
+            }
+            if (! empty($vehicle->id)) {
+                $vehicleKeys[] = (string) $vehicle->id;
+            }
+        }
+        $vehicleKeys = array_values(array_unique(array_filter($vehicleKeys)));
+
+        foreach ($vehicleKeys as $vid) {
+            foreach ($fromZones as $from) {
+                foreach ($toZones as $to) {
+                    if ($from === '' || $to === '') {
+                        continue;
+                    }
                     $map = VehicleZoneMapping::query()
-                        ->where('vehicle_id', $vehicleId)
-                        ->where('from_zone_id', $to)
-                        ->where('to_zone_id', $from)
+                        ->where('vehicle_id', $vid)
+                        ->where('from_zone_id', $from)
+                        ->where('to_zone_id', $to)
                         ->first();
-                }
-                if ($map) {
-                    return [
-                        'private_price' => (float) ($map->private_price ?? 0),
-                        'shared_price' => (float) ($map->shared_price ?? 0),
-                    ];
+                    if (! $map) {
+                        $map = VehicleZoneMapping::query()
+                            ->where('vehicle_id', $vid)
+                            ->where('from_zone_id', $to)
+                            ->where('to_zone_id', $from)
+                            ->first();
+                    }
+                    if ($map) {
+                        return [
+                            'private_price' => (float) ($map->private_price ?? 0),
+                            'shared_price' => (float) ($map->shared_price ?? 0),
+                        ];
+                    }
                 }
             }
         }

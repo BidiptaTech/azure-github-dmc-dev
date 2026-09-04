@@ -1531,26 +1531,31 @@ class EditTourController extends Controller
                         ->first();
                 }
 
-                $guestData = [
-                    'guest_name' => $fullName ?: 'Guest',
-                    'email' => $email ?: null,
-                    'country_code' => $countryCode ?: null,
-                    'contact' => $phone ?: null,
-                    'whatsapp_no' => $phone ?: null,
-                    'passport' => $passport,
-                    'passport_exp' => $passportExp,
-                    'salutation' => $salutation,
-                ];
-
                 if ($existing) {
-                    $existing->update($guestData);
+                    $existing->guest_name = $fullName ?: 'Guest';
+                    $existing->email = $email ?: null;
+                    $existing->country_code = $countryCode ?: null;
+                    $existing->contact = $phone ?: null;
+                    $existing->whatsapp_no = $phone ?: null;
+                    $existing->passport = $passport;
+                    $existing->passport_exp = $passportExp;
+                    $existing->salutation = $salutation;
+                    $existing->save();
                     if (!$existing->hasTourId($tourIdInt)) {
                         $existing->addTourId($tourIdInt);
                     }
                 } else {
-                    $guestData['guest_id'] = $nextGuestId();
-                    $guestData['tour_id'] = [$tourIdInt];
-                    Guest::create($guestData);
+                    $guest = new Guest();
+                    $guest->tour_id = [$tourIdInt];
+                    $guest->guest_name = $fullName ?: 'Guest';
+                    $guest->email = $email ?: null;
+                    $guest->country_code = $countryCode ?: null;
+                    $guest->contact = $phone ?: null;
+                    $guest->whatsapp_no = $phone ?: null;
+                    $guest->passport = $passport;
+                    $guest->passport_exp = $passportExp;
+                    $guest->salutation = $salutation;
+                    $guest->save();
                 }
             }
 
@@ -1589,26 +1594,31 @@ class EditTourController extends Controller
                             ->first();
                     }
 
-                    $guestData = [
-                        'guest_name' => $name ?: 'Guest',
-                        'email' => $email ?: null,
-                        'country_code' => $countryCode ?: null,
-                        'contact' => $contact ?: null,
-                        'whatsapp_no' => $contact ?: null,
-                        'passport' => $passport,
-                        'passport_exp' => $passportExp,
-                        'salutation' => $salutation,
-                    ];
-
                     if ($existing) {
-                        $existing->update($guestData);
+                        $existing->guest_name = $name ?: 'Guest';
+                        $existing->email = $email ?: null;
+                        $existing->country_code = $countryCode ?: null;
+                        $existing->contact = $contact ?: null;
+                        $existing->whatsapp_no = $contact ?: null;
+                        $existing->passport = $passport;
+                        $existing->passport_exp = $passportExp;
+                        $existing->salutation = $salutation;
+                        $existing->save();
                         if (!$existing->hasTourId($tourIdInt)) {
                             $existing->addTourId($tourIdInt);
                         }
                     } else {
-                        $guestData['guest_id'] = $nextGuestId();
-                        $guestData['tour_id'] = [$tourIdInt];
-                        Guest::create($guestData);
+                        $guest = new Guest();
+                        $guest->tour_id = [$tourIdInt];
+                        $guest->guest_name = $name ?: 'Guest';
+                        $guest->email = $email ?: null;
+                        $guest->country_code = $countryCode ?: null;
+                        $guest->contact = $contact ?: null;
+                        $guest->whatsapp_no = $contact ?: null;
+                        $guest->passport = $passport;
+                        $guest->passport_exp = $passportExp;
+                        $guest->salutation = $salutation;
+                        $guest->save();
                     }
                 }
             }
