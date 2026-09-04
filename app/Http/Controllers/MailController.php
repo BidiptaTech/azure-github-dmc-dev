@@ -5,10 +5,12 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\EmailTemplate;
 use App\Models\Setting;
+use App\Models\EmailsSetup;
 use App\Helpers\CommonHelper;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Auth;
 use App\Mail\DmcMail;
 use Illuminate\Support\Facades\Log;
 
@@ -713,22 +715,44 @@ class MailController extends Controller
      */
     public function settings()
     {
-        // You can load existing settings from database if you have them
-        $settings = (object)[
-            'smtp_host' => env('MAIL_HOST', 'smtp.mailtrap.io'),
-            'smtp_port' => env('MAIL_PORT', 2525),
-            'smtp_encryption' => env('MAIL_ENCRYPTION', 'tls'),
-            'smtp_username' => env('MAIL_USERNAME', ''),
-            'smtp_password' => env('MAIL_PASSWORD', ''),
-            'from_email' => env('MAIL_FROM_ADDRESS', 'noreply@example.com'),
-            'from_name' => env('MAIL_FROM_NAME', config('app.name')),
-            'support_email' => 'support@example.com',
-            'support_phone' => '+1 (555) 123-4567',
-            'facebook_url' => 'https://facebook.com/yourcompany',
-            'twitter_url' => 'https://twitter.com/yourcompany',
-            'instagram_url' => 'https://instagram.com/yourcompany',
-            'linkedin_url' => 'https://linkedin.com/company/yourcompany',
-            'footer_text' => '© ' . date('Y') . ' ' . config('app.name') . '. All rights reserved.'
+        $user = Auth::user();
+        if (!$user || !in_array((int) $user->role_id, [1, 11], true)) {
+            abort(403, 'You do not have permission to access email settings.');
+        }
+
+        $dmcId = CommonHelper::getDmcId($user);
+        if ((int) $user->role_id === 1) {
+            $dmcId = 1;
+        }
+
+        $setup = null;
+
+        if (!empty($dmcId)) {
+            $setup = EmailsSetup::where('dmcId', $dmcId)
+                ->where('created_By', $user->userId)
+                ->first();
+        }
+
+        $settings = (object) [
+            'smtp_host' => $setup->SMTP_Host ?? '',
+            'smtp_port' => $setup->SMTP_Port ?? '',
+            'smtp_encryption' => $setup->SMTP_Encrypt ?? 'tls',
+            'smtp_username' => $setup->SMTP_User ?? '',
+            'smtp_password' => $setup->SMTP_Pass ?? '',
+            'imap_host' => $setup->IMAP_Host ?? '',
+            'imap_port' => $setup->IMAP_Port ?? '',
+            'imap_encryption' => $setup->IMAP_Encrypt ?? 'ssl',
+            'imap_username' => $setup->IMAP_User ?? '',
+            'imap_password' => $setup->IMAP_Pass ?? '',
+            'from_email' => $setup->From_Email ?? '',
+            'from_name' => $setup->From_Name ?? '',
+            'support_email' => $setup->support_email ?? '',
+            'support_phone' => $setup->support_phone ?? '',
+            'facebook_url' => (int) $user->role_id === 1 ? 'https://facebook.com/yourcompany' : '',
+            'twitter_url' => (int) $user->role_id === 1 ? 'https://twitter.com/yourcompany' : '',
+            'instagram_url' => (int) $user->role_id === 1 ? 'https://instagram.com/yourcompany' : '',
+            'linkedin_url' => (int) $user->role_id === 1 ? 'https://linkedin.com/company/yourcompany' : '',
+            'footer_text' => $setup->email_footer ?? '',
         ];
 
         return view('mails.settings', compact('settings'));
@@ -739,27 +763,84 @@ class MailController extends Controller
      */
     public function saveSettings(Request $request)
     {
-        // Validate the request
-        $validated = $request->validate([
+        $user = Auth::user();
+        if (!$user || !in_array((int) $user->role_id, [1, 11], true)) {
+            abort(403, 'You do not have permission to save email settings.');
+        }
+
+        $dmcId = CommonHelper::getDmcId($user);
+        if ((int) $user->role_id === 1) {
+            $dmcId = 1;
+        }
+
+        if (empty($dmcId)) {
+            return redirect()->route('mail.settings')
+                ->with('error', 'DMC ID not found for the current user. Unable to save email settings.');
+        }
+
+        $rules = [
             'smtp_host' => 'required|string|max:255',
             'smtp_port' => 'required|numeric',
             'smtp_encryption' => 'required|string|in:tls,ssl,none',
             'smtp_username' => 'required|string|max:255',
             'smtp_password' => 'required|string|max:255',
+            'imap_host' => 'nullable|string|max:255',
+            'imap_port' => 'nullable|numeric',
+            'imap_encryption' => 'nullable|string|in:tls,ssl,none',
+            'imap_username' => 'nullable|string|max:255',
+            'imap_password' => 'nullable|string|max:255',
             'from_email' => 'required|email|max:255',
             'from_name' => 'required|string|max:255',
             'support_email' => 'required|email|max:255',
             'support_phone' => 'required|string|max:255',
-            'facebook_url' => 'nullable|url|max:255',
-            'twitter_url' => 'nullable|url|max:255',
-            'instagram_url' => 'nullable|url|max:255',
-            'linkedin_url' => 'nullable|url|max:255',
             'footer_text' => 'nullable|string',
-        ]);
+        ];
 
-        // Save settings to database or update env file
-        // This is a placeholder - you'll need to implement the actual saving logic
-        
+        if ((int) $user->role_id === 1) {
+            $rules['facebook_url'] = 'nullable|url|max:255';
+            $rules['twitter_url'] = 'nullable|url|max:255';
+            $rules['instagram_url'] = 'nullable|url|max:255';
+            $rules['linkedin_url'] = 'nullable|url|max:255';
+        }
+
+        $validated = $request->validate($rules);
+
+        $setup = EmailsSetup::where('dmcId', $dmcId)
+            ->where('created_By', $user->userId)
+            ->first();
+
+        $imapHost = trim((string) ($validated['imap_host'] ?? ''));
+        $imapPassword = $validated['imap_password'] ?? '';
+        if ($imapHost !== '' && $imapPassword === '' && $setup) {
+            $imapPassword = $setup->IMAP_Pass;
+        }
+
+        $payload = [
+            'dmcId' => (int) $dmcId,
+            'From_Email' => $validated['from_email'],
+            'From_Name' => $validated['from_name'],
+            'SMTP_Host' => $validated['smtp_host'],
+            'SMTP_Port' => (int) $validated['smtp_port'],
+            'SMTP_Encrypt' => $validated['smtp_encryption'],
+            'SMTP_User' => $validated['smtp_username'],
+            'SMTP_Pass' => $validated['smtp_password'],
+            'IMAP_Host' => $imapHost !== '' ? $imapHost : null,
+            'IMAP_Port' => $imapHost !== '' && !empty($validated['imap_port']) ? (int) $validated['imap_port'] : null,
+            'IMAP_Encrypt' => $imapHost !== '' ? ($validated['imap_encryption'] ?? 'ssl') : null,
+            'IMAP_User' => $imapHost !== '' ? ($validated['imap_username'] ?? null) : null,
+            'IMAP_Pass' => $imapHost !== '' && $imapPassword !== '' ? $imapPassword : null,
+            'support_email' => $validated['support_email'],
+            'support_phone' => $validated['support_phone'],
+            'email_footer' => $validated['footer_text'] ?? null,
+            'created_By' => (int) $user->userId,
+        ];
+
+        if ($setup) {
+            $setup->update($payload);
+        } else {
+            EmailsSetup::create($payload);
+        }
+
         return redirect()->route('mail.settings')->with('success', 'Mail settings updated successfully.');
     }
 
@@ -768,7 +849,14 @@ class MailController extends Controller
      */
     public function testEmail(Request $request)
     {
-        // Validate the request
+        $user = Auth::user();
+        if (!$user || (int) $user->role_id !== 1) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only admin can send test emails.',
+            ], 403);
+        }
+
         $validated = $request->validate([
             'email' => 'required|email',
             'smtp_host' => 'required|string',
@@ -781,12 +869,34 @@ class MailController extends Controller
         ]);
 
         try {
-            // Here you would implement the actual test email sending
-            // For now we'll just simulate success
-            
-            return response()->json(['success' => true, 'message' => 'Test email sent successfully to ' . $request->email]);
+            CommonHelper::applyRuntimeMailConfig([
+                'host' => $validated['smtp_host'],
+                'port' => $validated['smtp_port'],
+                'encryption' => $validated['smtp_encryption'],
+                'username' => $validated['smtp_username'],
+                'password' => $validated['smtp_password'],
+                'from_email' => $validated['from_email'],
+                'from_name' => $validated['from_name'],
+            ]);
+
+            $html = '<!DOCTYPE html><html><body><div class="email-container"><p>This is a test email from your mail configuration settings.</p></div></body></html>';
+            Mail::to($validated['email'])->send(new DmcMail(
+                $html,
+                'Test Email Configuration',
+                $validated['from_email'],
+                $validated['from_name']
+            ));
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Test email sent successfully to ' . $request->email,
+            ]);
         } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => 'Failed to send test email: ' . $e->getMessage()], 500);
+            Log::error('Test email failed: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to send test email: ' . $e->getMessage(),
+            ], 500);
         }
     }
 

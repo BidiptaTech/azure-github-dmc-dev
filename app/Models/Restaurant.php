@@ -119,14 +119,44 @@ class Restaurant extends Model
     public function getZoneForDmc($dmcId)
     {
         $assignments = $this->zone_assignments ?? [];
+        if (is_array($assignments) && (isset($assignments['dmc_id']) || isset($assignments['zone_id']))) {
+            $assignments = [$assignments];
+        }
         
         foreach ($assignments as $assignment) {
-            if (isset($assignment['dmc_id']) && $assignment['dmc_id'] == $dmcId) {
+            if (!is_array($assignment)) {
+                continue;
+            }
+            if (isset($assignment['dmc_id']) && (string) $assignment['dmc_id'] === (string) $dmcId) {
                 return $assignment['zone_id'] ?? null;
             }
         }
         
         return null;
+    }
+
+    /** Zone IDs to try for pricing: DMC-specific first, then other assigned zones. */
+    public function getZoneCandidatesForDmc($dmcId): array
+    {
+        $ids = [];
+        $preferred = $this->getZoneForDmc($dmcId);
+        if ($preferred !== null && $preferred !== '') {
+            $ids[] = (string) $preferred;
+        }
+        foreach ($this->zone_assignments ?? [] as $assignment) {
+            if (!is_array($assignment)) {
+                continue;
+            }
+            $zid = $assignment['zone_id'] ?? null;
+            if ($zid === null || $zid === '') {
+                continue;
+            }
+            $zid = (string) $zid;
+            if (!in_array($zid, $ids, true)) {
+                $ids[] = $zid;
+            }
+        }
+        return $ids;
     }
 
     /**

@@ -4,14 +4,40 @@
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
 <link href="{{ URL::asset('build/plugins/datatable/css/dataTables.bootstrap5.min.css') }}" rel="stylesheet" />
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/css/bootstrap.min.css" rel="stylesheet">
+<style>
+    .room-occupancy-pricing-row > .col-md-6 {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .room-occupancy-pricing-row fieldset {
+        height: 100%;
+        margin-bottom: 0;
+    }
+
+    .room-price-pair .form-text {
+        min-height: 1.25rem;
+        margin-top: 0.25rem;
+        margin-bottom: 0;
+    }
+</style>
 @endsection
 @section('content')
 
 <div class="content-wrapper">
+    <x-alert />
     <div class="container-xxl flex-grow-1 container-p-y">
         <div class="card mb-6">
             <h5 class="card-header d-flex justify-content-between align-items-center">
-                Edit Room Category
+                <span class="d-flex align-items-center flex-wrap gap-2">
+                    Edit Room Category
+                    @php
+                        $editRoomHotel = is_iterable($hotel ?? null)
+                            ? collect($hotel)->firstWhere('hotel_unique_id', $room->hotel_id)
+                            : ($hotel ?? null);
+                    @endphp
+                    <x-currency-price-note :country="$editRoomHotel->country ?? null" />
+                </span>
                 <a href="javascript:history.back()" class="btn btn-sm btn-outline-danger">
                     <i class="mdi mdi-arrow-left"></i> Back
                 </a>
@@ -107,10 +133,29 @@
                         @endif
                         <small class="validation-message text-danger" id="dimension_input-validation-message"></small>
                     </div>
+                </div>
 
+                <div class="mb-3 row align-items-end g-2" id="room-profit-helper-row">
+                    <div class="col-md-3 mb-3">
+                        <label for="room_profit_margin" class="form-label"><strong>Profit (margin)</strong></label>
+                        <select id="room_profit_margin" class="form-select js-room-profit-type">
+                            <option value="percentage" selected>%</option>
+                            <option value="flat">Flat</option>
+                        </select>
+                        <small class="text-muted">Helper only — not saved</small>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label for="room_profit_amount" class="form-label"><strong>Profit amount</strong></label>
+                        <input type="number" id="room_profit_amount" class="form-control js-room-profit-amount"
+                               value="0" min="0" step="0.01" placeholder="Enter profit amount">
+                        <small class="text-muted">Auto-fills Sell from Cost</small>
+                    </div>
+                </div>
+
+                <div class="mb-3 row room-child-pricing-row g-2">
                     <!-- Children Price -->
-                    <div class="mb-3 col-md-3">
-                        <label for="children_breakfast_price" class="form-label"><strong>Meal
+                    <div class="col mb-3">
+                        <label for="children_breakfast_price" class="form-label"><strong>Meal 
                                 Children Price</strong></label>
                         <select name="children_price" id="children_breakfast_price" class="form-control">
                             <option value="">Please Select One</option>
@@ -122,25 +167,55 @@
                                 Price</option>
                         </select>
                     </div>
+                    <!-- Child with bed: Cost then Sell -->
+                    <div class="col mb-3">
+                        <label for="child_with_bed_cost" class="form-label"><strong>Child with Bed Price(Cost)</strong></label>
+                        <input type="number" name="child_with_bed_cost" id="child_with_bed_cost" class="form-control js-room-cost" data-sell-target="child_with_bed" placeholder="Enter Cost Price" min="0" step="0.01" value="{{ $room->child_with_bed_cost ?? '' }}">
+                    </div>
+                    <div class="col mb-3">
+                        <label for="child_with_bed" class="form-label"><strong>Child with Bed Price(Sell)</strong></label>
+                        <input type="number" name="child_with_bed" id="child_with_bed" class="form-control js-room-sell" placeholder="Enter Sell Price" min="0" step="0.01" value="{{ $room->child_with_bed ?? '' }}">
+                    </div>
+                    <!-- Child without bed: Cost then Sell -->
+                    <div class="col mb-3">
+                        <label for="child_without_bed_cost" class="form-label"><strong>Child without Bed Price(Cost)</strong></label>
+                        <input type="number" name="child_without_bed_cost" id="child_without_bed_cost" class="form-control js-room-cost" data-sell-target="child_without_bed" placeholder="Enter Cost Price" min="0" step="0.01" value="{{ $room->child_without_bed_cost ?? '' }}">
+                    </div>
+                    <div class="col mb-3">
+                        <label for="child_without_bed" class="form-label"><strong>Child without Bed Price(Sell)</strong></label>
+                        <input type="number" name="child_without_bed" id="child_without_bed" class="form-control js-room-sell" placeholder="Enter Sell Price" min="0" step="0.01" value="{{ $room->child_without_bed ?? '' }}">
+                    </div>
+                </div>
 
+                <div id="room-pricing-alert" class="mb-3"></div>
+
+                <div class="mb-3 row room-occupancy-pricing-row" id="variant_pricing_row" style="display: none;">
                     <!-- Single weekday weekend price -->
-                    <div class="col-md-6" id="single_price" style="display: none;">
+                    <div class="col-md-6" id="single_price">
                         <div class="mb-3">
                             <fieldset class="border p-1 position-relative">
                                 <legend>Single</legend>
                                 <div class="row g-2">
                                     <div class="col-md-6 form-floating">
-                                        <input type="text" id="singleWeekdayPrice" name="singleWeekdayPrice" class="form-control" placeholder=" ">
-                                        <label for="singleWeekdayPrice">Weekday Price</label>
+                                        <input type="text" id="singleWeekdayCostPrice" name="singleWeekdayCostPrice" class="form-control js-room-cost" data-sell-target="singleWeekdayPrice" placeholder=" " value="{{ $room->weekday_cost_price ?? '' }}">
+                                        <label for="singleWeekdayCostPrice">Weekday Price(Cost)</label>
+                                    </div>
+                                    <div class="col-md-6 form-floating">
+                                        <input type="text" id="singleWeekdayPrice" name="singleWeekdayPrice" class="form-control js-room-sell" placeholder=" ">
+                                        <label for="singleWeekdayPrice">Weekday Price(Sell)</label>
                                         @if($auth_user->user_type == 2)
-                                        <span class="text-primary">Your calculated price: <span id="totalSingleWeekdayPrice">{{ $single_weekday_price }}</span></span>
+                                        <span class="text-primary" style="font-size: 10px;">calculated price: <span id="totalSingleWeekdayPrice">{{ $single_weekday_price }}</span></span>
                                         @endif
                                     </div>
                                     <div class="col-md-6 form-floating">
-                                        <input type="text" id="singleWeekendPrice" name="singleWeekendPrice" class="form-control" placeholder=" ">
-                                        <label for="singleWeekendPrice">Weekend Price</label>
+                                        <input type="text" id="singleWeekendCostPrice" name="singleWeekendCostPrice" class="form-control js-room-cost" data-sell-target="singleWeekendPrice" placeholder=" " value="{{ $room->weekend_cost_price ?? '' }}">
+                                        <label for="singleWeekendCostPrice">Weekend Price(Cost)</label>
+                                    </div>
+                                    <div class="col-md-6 form-floating">
+                                        <input type="text" id="singleWeekendPrice" name="singleWeekendPrice" class="form-control js-room-sell" placeholder=" ">
+                                        <label for="singleWeekendPrice">Weekend Price(Sell)</label>
                                         @if($auth_user->user_type == 2)
-                                        <span class="text-primary">Your calculated price: <span id="totalSingleWeekendPrice">{{ $single_weekend_price }}</span></span>
+                                        <span class="text-primary" style="font-size: 10px;">calculated price: <span id="totalSingleWeekendPrice">{{ $single_weekend_price }}</span></span>
                                         @endif
                                     </div>
                                 </div>
@@ -149,50 +224,68 @@
                     </div>
 
                     <!-- Double weekday weekend price -->
-                    <div class="col-md-6" id="double_price" style="display: none;">
+                    <div class="col-md-6" id="double_price">
                         <div class="mb-3">
                             <fieldset class="border p-1 position-relative">
                                 <legend>Double</legend>
                                 <div class="row g-2">
                                     <div class="col-md-6 form-floating">
-                                        <input type="text" id="doubleWeekdayPrice" name="doubleWeekdayPrice" class="form-control" placeholder=" ">
-                                        <label for="doubleWeekdayPrice">Weekday Price</label>
+                                        <input type="text" id="doubleWeekdayCostPrice" name="doubleWeekdayCostPrice" class="form-control js-room-cost" data-sell-target="doubleWeekdayPrice" placeholder=" " value="{{ $room->double_weekday_cost_price ?? '' }}">
+                                        <label for="doubleWeekdayCostPrice">Weekday Price(Cost)</label>
+                                    </div>
+                                    <div class="col-md-6 form-floating">
+                                        <input type="text" id="doubleWeekdayPrice" name="doubleWeekdayPrice" class="form-control js-room-sell" placeholder=" ">
+                                        <label for="doubleWeekdayPrice">Weekday Price(Sell)</label>
                                         @if($auth_user->user_type == 2)
-                                        <span class="text-primary">Your calculated price: <span id="totalSingleWeekdayPrice">{{ $double_weekday_price }}</span></span>
+                                        <span class="text-primary" style="font-size: 10px;">calculated price: <span id="totalDoubleWeekdayPrice">{{ $double_weekday_price }}</span></span>
                                         @endif
                                         
                                     </div>
                                     <div class="col-md-6 form-floating">
-                                        <input type="text" id="doubleWeekendPrice" name="doubleWeekendPrice" class="form-control" placeholder=" ">
-                                        <label for="doubleWeekendPrice">Weekend Price</label>
+                                        <input type="text" id="doubleWeekendCostPrice" name="doubleWeekendCostPrice" class="form-control js-room-cost" data-sell-target="doubleWeekendPrice" placeholder=" " value="{{ $room->double_weekend_cost_price ?? '' }}">
+                                        <label for="doubleWeekendCostPrice">Weekend Price(Cost)</label>
+                                    </div>
+                                    <div class="col-md-6 form-floating">
+                                        <input type="text" id="doubleWeekendPrice" name="doubleWeekendPrice" class="form-control js-room-sell" placeholder=" ">
+                                        <label for="doubleWeekendPrice">Weekend Price(Sell)</label>
                                         @if($auth_user->user_type == 2)
-                                        <span class="text-primary">Your calculated price: <span id="totalDoubleWeekendPrice">{{ $double_weekend_price }}</span></span>
+                                        <span class="text-primary" style="font-size: 10px;">calculated price: <span id="totalDoubleWeekendPrice">{{ $double_weekend_price }}</span></span>
                                         @endif
                                     </div>
                                 </div>
                             </fieldset>
                         </div>
                     </div>
+                </div>
 
+                <div class="mb-3 row room-occupancy-pricing-row" id="base_pricing_row">
                     <!-- Base Single weekday weekend -->
-                    <div class="col-md-6" id="base_single_price" style="display: none;">
+                    <div class="col-md-6" id="base_single_price">
                         <div class="mb-3">
                             <fieldset class="border p-1 position-relative">
                                 <legend>Single</legend>
                                 <div class="row g-2">
                                     <div class="col-md-6 form-floating">
-                                        <input type="text" id="baseSingleWeekdayPrice" name="baseSingleWeekdayPrice" class="form-control" placeholder=" ">
-                                        <label for="baseSingleWeekdayPrice">Base Weekday Price</label>
+                                        <input type="text" id="baseSingleWeekdayCostPrice" name="baseSingleWeekdayCostPrice" class="form-control js-room-cost" data-sell-target="baseSingleWeekdayPrice" placeholder=" " value="{{ $room->weekday_cost_price ?? '' }}">
+                                        <label for="baseSingleWeekdayCostPrice">Base Weekday Price(Cost)</label>
+                                    </div>
+                                    <div class="col-md-6 form-floating">
+                                        <input type="text" id="baseSingleWeekdayPrice" name="baseSingleWeekdayPrice" class="form-control js-room-sell" placeholder=" ">
+                                        <label for="baseSingleWeekdayPrice">Base Weekday Price(Sell)</label>
                                         @if($auth_user->user_type == 2)
-                                        <span class="text-primary">Your calculated price: <span id="totalWeekdayPrice"> {{ $single_weekday_price }}</span></span>
+                                        <span class="text-primary" style="font-size: 10px;">calculated price: <span id="totalWeekdayPrice"> {{ $single_weekday_price }}</span></span>
                                         @endif
                                         
                                     </div>
                                     <div class="col-md-6 form-floating">
-                                        <input type="text" id="baseSingleWeekendPrice" name="baseSingleWeekendPrice" class="form-control" placeholder=" ">
-                                        <label for="baseSingleWeekendPrice">Base Weekend Price</label>
+                                        <input type="text" id="baseSingleWeekendCostPrice" name="baseSingleWeekendCostPrice" class="form-control js-room-cost" data-sell-target="baseSingleWeekendPrice" placeholder=" " value="{{ $room->weekend_cost_price ?? '' }}">
+                                        <label for="baseSingleWeekendCostPrice">Base Weekend Price(Cost)</label>
+                                    </div>
+                                    <div class="col-md-6 form-floating">
+                                        <input type="text" id="baseSingleWeekendPrice" name="baseSingleWeekendPrice" class="form-control js-room-sell" placeholder=" ">
+                                        <label for="baseSingleWeekendPrice">Base Weekend Price(Sell)</label>
                                         @if($auth_user->user_type == 2)
-                                        <span class="text-primary">Your calculated price: <span id="totalWeekendPrice">{{ $single_weekend_price }}</span></span>
+                                        <span class="text-primary" style="font-size: 10px;">calculated price: <span id="totalWeekendPrice">{{ $single_weekend_price }}</span></span>
                                         @endif
                                       
                                     </div>
@@ -202,32 +295,41 @@
                     </div>
 
                     <!-- Base Double weekday weekend -->
-                    <div class="col-md-6" id="base_double_price" style="display: none;">
+                    <div class="col-md-6" id="base_double_price">
                         <div class="mb-3">
                             <fieldset class="border p-1 position-relative">
                                 <legend>Double</legend>
                                 <div class="row g-2">
                                     <div class="col-md-6 form-floating">
-                                        <input type="text" id="baseDoubleWeekdayPrice" name="baseDoubleWeekdayPrice" class="form-control" placeholder=" ">
-                                        <label for="baseDoubleWeekdayPrice">Base Weekday Price</label>
+                                        <input type="text" id="baseDoubleWeekdayCostPrice" name="baseDoubleWeekdayCostPrice" class="form-control js-room-cost" data-sell-target="baseDoubleWeekdayPrice" placeholder=" " value="{{ $room->double_weekday_cost_price ?? '' }}">
+                                        <label for="baseDoubleWeekdayCostPrice">Base Weekday Price(Cost)</label>
+                                    </div>
+                                    <div class="col-md-6 form-floating">
+                                        <input type="text" id="baseDoubleWeekdayPrice" name="baseDoubleWeekdayPrice" class="form-control js-room-sell" placeholder=" ">
+                                        <label for="baseDoubleWeekdayPrice">Base Weekday Price(Sell)</label>
                                         @if($auth_user->user_type == 2)
-                                        <span class="text-primary">Your calculated price: <span id="totalBaseDoubleWeekdayPrice">{{ $double_weekday_price }}</span></span>
+                                        <span class="text-primary" style="font-size: 10px;">calculated price: <span id="totalBaseDoubleWeekdayPrice">{{ $double_weekday_price }}</span></span>
                                         @endif
                                     </div>
                                     <div class="col-md-6 form-floating">
-                                        <input type="text" id="baseDoubleWeekendPrice" name="baseDoubleWeekendPrice" class="form-control" placeholder=" ">
-                                        <label for="baseDoubleWeekendPrice">Base Weekend Price</label>
+                                        <input type="text" id="baseDoubleWeekendCostPrice" name="baseDoubleWeekendCostPrice" class="form-control js-room-cost" data-sell-target="baseDoubleWeekendPrice" placeholder=" " value="{{ $room->double_weekend_cost_price ?? '' }}">
+                                        <label for="baseDoubleWeekendCostPrice">Base Weekend Price(Cost)</label>
+                                    </div>
+                                    <div class="col-md-6 form-floating">
+                                        <input type="text" id="baseDoubleWeekendPrice" name="baseDoubleWeekendPrice" class="form-control js-room-sell" placeholder=" ">
+                                        <label for="baseDoubleWeekendPrice">Base Weekend Price(Sell)</label>
                                         @if($auth_user->user_type == 2)
-                                        <span class="text-primary">Your calculated price: <span id="totalBaseDoubleWeekendPrice">{{ $double_weekend_price }}</span></span>
+                                        <span class="text-primary" style="font-size: 10px;">calculated price: <span id="totalBaseDoubleWeekendPrice">{{ $double_weekend_price }}</span></span>
                                         @endif
                                     </div>
                                 </div>
                             </fieldset>
                         </div>
                     </div>
+                </div>
 
-                    <!-- Meal Options Section -->
-                    <div class="mb-3 row">
+                <!-- Meal Options Section -->
+                <div class="mb-3 row">
                         <!-- Breakfast Toggle -->
                         <div class="col-md-3 mb-3">
                             <label for="breakfast_included" class="form-label"><strong>Breakfast Included</strong></label>
@@ -248,11 +350,18 @@
                             </select>
                         </div>
                         
-                        <!-- Breakfast Price - Shows when breakfast is included -->
+                        <!-- Breakfast Price - Shows when breakfast is included (Cost then Sell) -->
                         <div class="col-md-3 mb-3 breakfast-options" style="display: none;">
-                            <label for="breakfast_price" class="form-label"><strong>Breakfast Price</strong><span class="text-danger">*</span></label>
-                            <input type="number" name="breakfast_price" id="breakfast_price" class="form-control" 
-                                   placeholder="Enter Price" min="0" step="0.01" 
+                            <label for="breakfast_cost_price" class="form-label"><strong>Breakfast Cost Price</strong></label>
+                            <input type="number" name="breakfast_cost_price" id="breakfast_cost_price" class="form-control js-room-cost"
+                                   data-sell-target="breakfast_price"
+                                   placeholder="Enter Cost Price" min="0" step="0.01"
+                                   value="{{ $room->breakfast_cost_price }}">
+                        </div>
+                        <div class="col-md-3 mb-3 breakfast-options" style="display: none;">
+                            <label for="breakfast_price" class="form-label"><strong>Breakfast Sell Price</strong><span class="text-danger">*</span></label>
+                            <input type="number" name="breakfast_price" id="breakfast_price" class="form-control js-room-sell" 
+                                   placeholder="Enter Sell Price" min="0" step="0.01" 
                                    value="{{ $room->breakfast_price }}">
                         </div>
                         
@@ -276,11 +385,18 @@
                             </select>
                         </div>
                         
-                        <!-- Lunch Price - Shows when lunch is included -->
+                        <!-- Lunch Price - Shows when lunch is included (Cost then Sell) -->
                         <div class="col-md-3 mb-3 lunch-options" style="display: none;">
-                            <label for="lunch_price" class="form-label"><strong>Lunch Price</strong><span class="text-danger">*</span></label>
-                            <input type="number" name="lunch_price" id="lunch_price" class="form-control" 
-                                   placeholder="Enter Price" min="0" step="0.01" 
+                            <label for="lunch_cost_price" class="form-label"><strong>Lunch Cost Price</strong></label>
+                            <input type="number" name="lunch_cost_price" id="lunch_cost_price" class="form-control js-room-cost"
+                                   data-sell-target="lunch_price"
+                                   placeholder="Enter Cost Price" min="0" step="0.01"
+                                   value="{{ $room->lunch_cost_price }}">
+                        </div>
+                        <div class="col-md-3 mb-3 lunch-options" style="display: none;">
+                            <label for="lunch_price" class="form-label"><strong>Lunch Sell Price</strong><span class="text-danger">*</span></label>
+                            <input type="number" name="lunch_price" id="lunch_price" class="form-control js-room-sell" 
+                                   placeholder="Enter Sell Price" min="0" step="0.01" 
                                    value="{{ $room->lunch_price }}">
                         </div>
                         
@@ -304,11 +420,18 @@
                             </select>
                         </div>
                         
-                        <!-- Dinner Price - Shows when dinner is included -->
+                        <!-- Dinner Price - Shows when dinner is included (Cost then Sell) -->
                         <div class="col-md-3 mb-3 dinner-options" style="display: none;">
-                            <label for="dinner_price" class="form-label"><strong>Dinner Price</strong><span class="text-danger">*</span></label>
-                            <input type="number" name="dinner_price" id="dinner_price" class="form-control" 
-                                   placeholder="Enter Price" min="0" step="0.01" 
+                            <label for="dinner_cost_price" class="form-label"><strong>Dinner Cost Price</strong></label>
+                            <input type="number" name="dinner_cost_price" id="dinner_cost_price" class="form-control js-room-cost"
+                                   data-sell-target="dinner_price"
+                                   placeholder="Enter Cost Price" min="0" step="0.01"
+                                   value="{{ $room->dinner_cost_price }}">
+                        </div>
+                        <div class="col-md-3 mb-3 dinner-options" style="display: none;">
+                            <label for="dinner_price" class="form-label"><strong>Dinner Sell Price</strong><span class="text-danger">*</span></label>
+                            <input type="number" name="dinner_price" id="dinner_price" class="form-control js-room-sell" 
+                                   placeholder="Enter Sell Price" min="0" step="0.01" 
                                    value="{{ $room->dinner_price }}">
                         </div>
                         
@@ -335,7 +458,8 @@
                                 <div id="master-drop-area" class="form-control"
                                     style="padding: 20px; border: 2px dashed #007bff; text-align: center; height: 80px;">
                                     Drag & Drop your files here or click to upload.
-                                    <input type="file" id="master_image" name="master_image" multiple
+                                    <input type="file" id="master_image" name="master_image"
+                                        accept="image/jpeg,image/png,image/webp,image/gif"
                                         style="display: none;">
                                 </div>
                             </div>
@@ -355,6 +479,9 @@
                                 </div>
                             </div>
                             @endif
+                            @error('master_image')
+                            <div class="text-danger mt-1">{{ $message }}</div>
+                            @enderror
                         </div>
 
                         <!-- Additional Image drop -->
@@ -365,7 +492,7 @@
                                 <div id="drop-area" class="form-control"
                                     style="padding: 20px; border: 2px dashed #007bff; text-align: center; height: 80px;">
                                     Drag & Drop your files here or click to upload.
-                                    <input type="file" id="images" name="images[]" multiple style="display: none;">
+                                    <input type="file" id="images" multiple accept="image/jpeg,image/png,image/webp,image/gif" style="display: none;">
                                 </div>
 
                                 <div id="preview-container" class="mb-3 mt-3 d-flex flex-wrap gap-2"
@@ -376,6 +503,9 @@
                             <div class="existing-image-preview-container d-flex flex-wrap gap-2">
                                 @php
                                 $images = json_decode($room->images, true);
+                                if (!is_array($images)) {
+                                    $images = [];
+                                }
                                 @endphp
                                 @foreach($images as $img)
                                 <!-- Hidden input to hold existing image path -->
@@ -391,7 +521,7 @@
                                 </div>
                                 @endforeach
                             </div>
-                            <input type="file" name="all_images[]" id="all-images" style="display: none;">
+                            <input type="file" name="all_images[]" id="all-images" multiple accept="image/jpeg,image/png,image/webp,image/gif" style="display: none;">
 
                             @error('images')
                             <div class="text-danger mt-1">{{ $message }}</div>
@@ -409,7 +539,6 @@
                         Image management is only available for admin users.
                     </div>
                     @endif
-                </div>
 
                 <!-- Status -->
                 <div class="form-check form-switch">
@@ -468,11 +597,8 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('room_type').style.display = "block";
         document.getElementById('room_type_input').value = room.room_type;
 
-        document.getElementById('base_single_price').style.display = "none";
-        document.getElementById('base_double_price').style.display = "none";
-
-        document.getElementById('single_price').style.display = "block";
-        document.getElementById('double_price').style.display = "block";
+        document.getElementById('variant_pricing_row').style.display = "";
+        document.getElementById('base_pricing_row').style.display = "none";
 
         const singleWeekdayPrice = document.getElementById('singleWeekdayPrice');
         const singleWeekendPrice = document.getElementById('singleWeekendPrice');
@@ -491,6 +617,15 @@ document.addEventListener('DOMContentLoaded', function() {
         doubleWeekendPrice.value = room.double_weekend_price || 0;
         doubleWeekdayPrice.value = room.double_weekday_price || 0;
 
+        const singleWeekdayCostPrice = document.getElementById('singleWeekdayCostPrice');
+        const singleWeekendCostPrice = document.getElementById('singleWeekendCostPrice');
+        const doubleWeekdayCostPrice = document.getElementById('doubleWeekdayCostPrice');
+        const doubleWeekendCostPrice = document.getElementById('doubleWeekendCostPrice');
+        if (singleWeekdayCostPrice) singleWeekdayCostPrice.value = room.weekday_cost_price ?? '';
+        if (singleWeekendCostPrice) singleWeekendCostPrice.value = room.weekend_cost_price ?? '';
+        if (doubleWeekdayCostPrice) doubleWeekdayCostPrice.value = room.double_weekday_cost_price ?? '';
+        if (doubleWeekendCostPrice) doubleWeekendCostPrice.value = room.double_weekend_cost_price ?? '';
+
         // Update prices dynamically based on variance price
         varientPriceInput.addEventListener('input', function() {
             const varientValue = parseFloat(varientPriceInput.value) ||
@@ -506,22 +641,27 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     } else {
         // Show base room divs if no room data is available
-        document.getElementById('single_price').style.display = "none";
-        document.getElementById('double_price').style.display = "none";
+        document.getElementById('variant_pricing_row').style.display = "none";
+        document.getElementById('base_pricing_row').style.display = "";
 
         const baseRoomType = document.getElementById('base_room_type');
         baseRoomType.style.display = "block";
         const baseRoomTypeInput = document.getElementById('base_room_type_input');
         baseRoomTypeInput.value = room.room_type;
 
-        const baseSinglePrice = document.getElementById('base_single_price');
-        baseSinglePrice.style.display = "block";
-        const baseDoublePrice = document.getElementById('base_double_price').style.display = "block";
-
         document.getElementById('baseSingleWeekdayPrice').value = room.weekday_price;
         document.getElementById('baseSingleWeekendPrice').value = room.weekend_price;
         document.getElementById('baseDoubleWeekdayPrice').value = room.double_weekday_price;
         document.getElementById('baseDoubleWeekendPrice').value = room.double_weekend_price;
+
+        const baseSingleWeekdayCostPrice = document.getElementById('baseSingleWeekdayCostPrice');
+        const baseSingleWeekendCostPrice = document.getElementById('baseSingleWeekendCostPrice');
+        const baseDoubleWeekdayCostPrice = document.getElementById('baseDoubleWeekdayCostPrice');
+        const baseDoubleWeekendCostPrice = document.getElementById('baseDoubleWeekendCostPrice');
+        if (baseSingleWeekdayCostPrice) baseSingleWeekdayCostPrice.value = room.weekday_cost_price ?? '';
+        if (baseSingleWeekendCostPrice) baseSingleWeekendCostPrice.value = room.weekend_cost_price ?? '';
+        if (baseDoubleWeekdayCostPrice) baseDoubleWeekdayCostPrice.value = room.double_weekday_cost_price ?? '';
+        if (baseDoubleWeekendCostPrice) baseDoubleWeekendCostPrice.value = room.double_weekend_cost_price ?? '';
 
     }
 });
@@ -529,21 +669,22 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <!-- Additional Image drop down -->
 <script>
+(function () {
     const dropArea = document.getElementById('drop-area');
     const fileInput = document.getElementById('images');
     const fileList = document.getElementById('preview-container');
-    const allImagesInput = document.getElementById('all-images'); // Hidden input
-    let files = []; // Store all files manually
-    const MAX_VISIBLE_IMAGES = 3; // Maximum number of visible images
-    let showAllImages = false; // Toggle for showing all images
+    const allImagesInput = document.getElementById('all-images');
+    if (!dropArea || !fileInput || !fileList || !allImagesInput) {
+        return;
+    }
 
-    // Trigger file input on click
+    let files = [];
+    const MAX_VISIBLE_IMAGES = 3;
+    let showAllImages = false;
+
     dropArea.addEventListener('click', () => fileInput.click());
-
-    // Handle file input change
     fileInput.addEventListener('change', () => handleFiles(fileInput.files));
 
-    // Handle drag-and-drop events
     dropArea.addEventListener('dragover', (e) => {
         e.preventDefault();
         dropArea.style.borderColor = '#000';
@@ -650,13 +791,17 @@ document.addEventListener('DOMContentLoaded', function() {
             fileList.appendChild(moreBadge);
         }
     }
+})();
 </script>
 
 <!-- delete existing additional Image -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Use event delegation for dynamically added elements
-    document.querySelector('.existing-image-preview-container').addEventListener('click', function(e) {
+    const existingContainer = document.querySelector('.existing-image-preview-container');
+    if (!existingContainer) {
+        return;
+    }
+    existingContainer.addEventListener('click', function(e) {
         if (e.target.classList.contains('delete-image-btn')) {
             e.preventDefault(); // Prevent form submission
             e.stopPropagation(); // Stop event propagation
@@ -682,8 +827,11 @@ document.addEventListener('DOMContentLoaded', function() {
 <!-- delete existing master Image -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Use event delegation for dynamically added elements
-    document.querySelector('.existing-master-image-preview-container').addEventListener('click', function(e) {
+    const existingMasterContainer = document.querySelector('.existing-master-image-preview-container');
+    if (!existingMasterContainer) {
+        return;
+    }
+    existingMasterContainer.addEventListener('click', function(e) {
         if (e.target.classList.contains('delete-image-btn')) {
             e.preventDefault(); // Prevent form submission
             e.stopPropagation(); // Stop event propagation
@@ -708,9 +856,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <!-- Master Image drop down -->
 <script>
+(function () {
 const masterDropArea = document.getElementById('master-drop-area');
 const masterFileInput = document.getElementById('master_image');
 const masterPreviewContainer = document.getElementById('master-preview-container');
+if (!masterDropArea || !masterFileInput || !masterPreviewContainer) {
+    return;
+}
 let masterFileCounter = 0; // Track total uploaded files
 const MASTER_MAX_VISIBLE_IMAGES = 1; // Show only 1 image
 
@@ -730,33 +882,45 @@ masterDropArea.addEventListener('dragleave', () => {
 masterDropArea.addEventListener('drop', (e) => {
     e.preventDefault();
     masterDropArea.style.backgroundColor = 'white';
-    masterHandleFiles(e.dataTransfer.files);
+    masterHandleFiles(e.dataTransfer.files, true);
 });
 
 // Handle file input change
 masterFileInput.addEventListener('change', () => {
-    masterHandleFiles(masterFileInput.files);
+    masterHandleFiles(masterFileInput.files, false);
 });
 
+function isLikelyImageFile(file) {
+    if (!file) return false;
+    if (file.type && file.type.indexOf('image/') === 0) return true;
+    return /\.(jpe?g|png|webp|gif|bmp)$/i.test(file.name || '');
+}
+
 // Process and display files
-function masterHandleFiles(files) {
-    Array.from(files).forEach(file => {
-        if (file.type.startsWith('image/')) {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                // If an image already exists, remove it before adding the new one
-                if (masterFileCounter > 0) {
-                    masterPreviewContainer.innerHTML = ''; // Clear the existing preview
-                    masterFileCounter = 0; // Reset the file counter
-                }
-                masterFileCounter++;
-                masterImagePreview(e.target.result);
-            };
-            reader.readAsDataURL(file);
-        } else {
-            alert(`${file.name} is not a valid image file.`);
-        }
-    });
+function masterHandleFiles(files, fromDrop) {
+    if (!files || !files.length) {
+        return;
+    }
+
+    const file = files[0];
+    if (!isLikelyImageFile(file)) {
+        alert('Please choose a JPEG, PNG, WEBP or GIF image.');
+        return;
+    }
+
+    if (fromDrop && masterFileInput.files !== files) {
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(file);
+        masterFileInput.files = dataTransfer.files;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        masterPreviewContainer.innerHTML = '';
+        masterFileCounter = 1;
+        masterImagePreview(e.target.result);
+    };
+    reader.readAsDataURL(file);
 }
 
 // Add image preview with limited visibility and a "more" badge
@@ -830,6 +994,7 @@ function updateMoreBadge() {
         masterPreviewContainer.appendChild(moreMasterBadge);
     }
 }
+})();
 </script>
 
 <!-- Food availabity -->
@@ -1240,5 +1405,142 @@ function updateMoreBadge() {
             }
         });
     });
+</script>
+
+<script>
+(function () {
+    function round2(n) {
+        return Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+    }
+
+    function calcSellFromCost(cost, type, amount) {
+        const costVal = parseFloat(cost);
+        const amtVal = parseFloat(amount);
+        const c = isNaN(costVal) ? 0 : costVal;
+        const a = isNaN(amtVal) ? 0 : amtVal;
+        if (c <= 0) return 0;
+        if (type === 'flat') return round2(c + a);
+        return round2(c + (c * a / 100));
+    }
+
+    function getProfitSettings() {
+        const typeEl = document.querySelector('.js-room-profit-type');
+        const amountEl = document.querySelector('.js-room-profit-amount');
+        return {
+            type: typeEl ? typeEl.value : 'percentage',
+            amount: amountEl ? amountEl.value : 0
+        };
+    }
+
+    function updateSellFromCost(costEl, force) {
+        if (!costEl) return;
+        const sellId = costEl.getAttribute('data-sell-target');
+        if (!sellId) return;
+        const sellEl = document.getElementById(sellId);
+        if (!sellEl) return;
+        if (!force && sellEl.dataset.userEdited === '1') return;
+        const g = getProfitSettings();
+        sellEl.value = calcSellFromCost(costEl.value, g.type, g.amount);
+        sellEl.dataset.userEdited = '';
+        if (typeof calculatePrice === 'function') {
+            try { calculatePrice(); } catch (e) {}
+        }
+    }
+
+    function recalculateAll(force) {
+        document.querySelectorAll('.js-room-cost[data-sell-target]').forEach(function (costEl) {
+            updateSellFromCost(costEl, force);
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('.js-room-cost[data-sell-target]').forEach(function (costEl) {
+            costEl.addEventListener('input', function () {
+                updateSellFromCost(costEl, true);
+            });
+        });
+
+        document.querySelectorAll('.js-room-sell').forEach(function (sellEl) {
+            sellEl.addEventListener('input', function () {
+                sellEl.dataset.userEdited = '1';
+            });
+        });
+
+        document.querySelectorAll('.js-room-profit-type, .js-room-profit-amount').forEach(function (el) {
+            el.addEventListener('input', function () { recalculateAll(true); });
+            el.addEventListener('change', function () { recalculateAll(true); });
+        });
+    });
+})();
+</script>
+
+<script>
+(function () {
+    function sanitizePriceInputValue(value) {
+        value = String(value || '').replace(/[^0-9.]/g, '');
+        const firstDot = value.indexOf('.');
+        if (firstDot !== -1) {
+            value = value.slice(0, firstDot + 1) + value.slice(firstDot + 1).replace(/\./g, '');
+        }
+        return value;
+    }
+
+    function isRoomPriceInput(el) {
+        if (!el || el.tagName !== 'INPUT') {
+            return false;
+        }
+        if (el.type === 'checkbox' || el.type === 'radio' || el.type === 'hidden' || el.type === 'file') {
+            return false;
+        }
+        if (el.classList.contains('js-room-cost')
+            || el.classList.contains('js-room-sell')
+            || el.classList.contains('js-room-profit-amount')) {
+            return true;
+        }
+        if (el.id === 'varient_price_input' || el.name === 'varient_price') {
+            return true;
+        }
+        const key = ((el.name || '') + ' ' + (el.id || '')).toLowerCase();
+        if (!/(price|cost)/.test(key)) {
+            return false;
+        }
+        // Exclude non-price controls that may include those words
+        if (/(children_price|children_breakfast|total_rooms|no_of_room|dimension)/.test(key)) {
+            return false;
+        }
+        return true;
+    }
+
+    function enforcePriceNumeric(el) {
+        if (!isRoomPriceInput(el)) {
+            return;
+        }
+        const sanitized = sanitizePriceInputValue(el.value);
+        if (el.value !== sanitized) {
+            const start = el.selectionStart;
+            const end = el.selectionEnd;
+            el.value = sanitized;
+            if (typeof start === 'number' && typeof end === 'number' && el.setSelectionRange) {
+                try {
+                    el.setSelectionRange(Math.min(start, sanitized.length), Math.min(end, sanitized.length));
+                } catch (e) {}
+            }
+        }
+    }
+
+    document.addEventListener('input', function (e) {
+        enforcePriceNumeric(e.target);
+    }, true);
+
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('input').forEach(function (el) {
+            if (isRoomPriceInput(el)) {
+                el.setAttribute('inputmode', 'decimal');
+                el.setAttribute('autocomplete', 'off');
+                enforcePriceNumeric(el);
+            }
+        });
+    });
+})();
 </script>
 @endsection

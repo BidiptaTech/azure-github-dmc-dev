@@ -29,6 +29,97 @@ use Illuminate\Support\Facades\Hash;
 
 class DriverController extends Controller
 {
+    /**
+     * Resolve DMC id for the logged-in user (same hierarchy as other product modules).
+     */
+    private function resolveDmcIdForUser(?User $user): ?int
+    {
+        if (!$user) {
+            return null;
+        }
+        $roleId = (int) ($user->role_id ?? 0);
+        if (in_array($roleId, [11, 20], true)) {
+            return (int) $user->userId;
+        }
+        if (in_array($roleId, [35, 130, 132, 133, 135, 136, 137, 138], true)) {
+            return $user->created_by ? (int) $user->created_by : null;
+        }
+        if (in_array($roleId, [76, 139], true)) {
+            $productHead = User::where('userId', $user->created_by)->first();
+            return $productHead && $productHead->created_by ? (int) $productHead->created_by : null;
+        }
+        if (in_array($roleId, [111, 140], true)) {
+            $productManager = User::where('userId', $user->created_by)->first();
+            $productHead = $productManager ? User::where('userId', $productManager->created_by)->first() : null;
+            return $productHead && $productHead->created_by ? (int) $productHead->created_by : null;
+        }
+        return null;
+    }
+
+    /**
+     * Master DMC country list (comma-separated on users.country).
+     */
+    private function getMasterDmcCountryNamesForDmc(int $dmcId): array
+    {
+        $dmcUser = User::where('userId', $dmcId)->first();
+        if (!$dmcUser) {
+            return [];
+        }
+
+        $masterDmcId = $dmcUser->master_dmc_id ?? null;
+        if (empty($masterDmcId)) {
+            $visited = [];
+            $candidateId = $dmcUser->created_by ?? null;
+            $safety = 0;
+            while (!empty($candidateId) && $safety < 8 && !in_array($candidateId, $visited, true)) {
+                $visited[] = $candidateId;
+                $candidate = User::where('userId', $candidateId)->first();
+                if (!$candidate) {
+                    break;
+                }
+                if ((int) ($candidate->role_id ?? 0) === 3) {
+                    $masterDmcId = $candidate->userId;
+                    break;
+                }
+                $candidateId = $candidate->created_by ?? null;
+                $safety++;
+            }
+        }
+
+        $masterDmc = User::where('userId', $masterDmcId ?: $dmcId)->first();
+        if ($masterDmc && !empty($masterDmc->country)) {
+            return array_values(array_filter(array_map(
+                static fn ($c) => trim($c),
+                preg_split('/\s*,\s*/', (string) $masterDmc->country)
+            )));
+        }
+
+        if (!empty($dmcUser->country)) {
+            return array_values(array_filter(array_map(
+                static fn ($c) => trim($c),
+                preg_split('/\s*,\s*/', (string) $dmcUser->country)
+            )));
+        }
+
+        return [];
+    }
+
+    /**
+     * Countries available for driver forms: master-DMC scoped for DMC users, all active for admins.
+     */
+    private function getScopedCountriesForUser(User $user, ?int $dmcId = null)
+    {
+        $dmcId = $dmcId ?: $this->resolveDmcIdForUser($user);
+        $masterNames = $dmcId ? $this->getMasterDmcCountryNamesForDmc($dmcId) : [];
+
+        $query = Country::where('is_active', 1)->orderBy('name');
+        if (!empty($masterNames) && !in_array((int) $user->role_id, [1, 2, 3, 20, 23], true)) {
+            $query->whereIn('name', $masterNames);
+        }
+
+        return $query->get();
+    }
+
     /*
     * Display a listing of the Category.
     * Date 06-11-2024
@@ -261,11 +352,11 @@ class DriverController extends Controller
             return redirect()->route('driver.approval', ['driver' => $driver->driver_id])
                 ->with('error', 'Driver Declined successfully');
         } elseif ($isSaved) {
-            LogActivityService::log('edit_driver', 'App\Models\Driver', $driver->driver_id, $driver);
+            // LogActivityService::log('edit_driver', 'App\Models\Driver', $driver->driver_id, $driver);
             return redirect()->route('driver.approval', ['driver' => $driver->driver_id])
                 ->with('success', 'Driver Approved successfully');
         } else {
-            LogActivityService::log('edit_driver_failed', 'App\Models\Driver', $driver->driver_id, $driver);
+            // LogActivityService::log('edit_driver_failed', 'App\Models\Driver', $driver->driver_id, $driver);
             return redirect()->route('driver.approval')->with('error', 'Failed to approve driver');
         }
     }
@@ -312,15 +403,21 @@ class DriverController extends Controller
             $dmcs = User::where('role_id', 11)->get();
         }
 
-        if(in_array($authuser->role_id, [11, 35, 76, 111, 139, 140])){
-            $userCountry = User::where('userId', $authuser->userId)->first()->country;
-            $cities = City::where('country', $userCountry)->get();
-        }
-        else{
+        if (in_array($authuser->role_id, [11, 35, 76, 111, 130, 132, 133, 135, 136, 137, 138, 139, 140])) {
+            $dmcId = $this->resolveDmcIdForUser($authuser);
+            $masterNames = $dmcId ? $this->getMasterDmcCountryNamesForDmc($dmcId) : [];
+            $userCountry = $masterNames[0] ?? '';
+            $cities = $userCountry ? City::where('country', $userCountry)->orderBy('name')->get() : collect();
+        } else {
             $userCountry = '';
-            $cities = [];
+            $cities = collect();
         }
-        return view('drivers.add-drivers', compact('countries', 'vehicles', 'driverUsers', 'dmcs', 'country', 'userCountry', 'cities'));
+
+        $masterDmcCountries = $this->getScopedCountriesForUser($authuser);
+        // Prefer master-scoped list for the country dropdown
+        $country = $masterDmcCountries->isNotEmpty() ? $masterDmcCountries : $country;
+
+        return view('drivers.add-drivers', compact('countries', 'vehicles', 'driverUsers', 'dmcs', 'country', 'userCountry', 'cities', 'masterDmcCountries'));
     }
 
     public function getUserDetails($id)
@@ -347,7 +444,6 @@ class DriverController extends Controller
     */
     public function store(Request $request)
     {
-        
         // Validate the incoming request data
         $validated = $request->validate([
             'salutation' => 'required|in:Mr,Mrs,Miss,Dear',
@@ -357,7 +453,12 @@ class DriverController extends Controller
             'state' => 'nullable|string|max:255',
             'city' => 'required|string|max:255',
             'name' => 'required|string',
-            'email' => 'required|email|max:255',
+            'email' => [
+                'required',
+                'email',
+                'max:255',
+                Rule::unique('drivers', 'email')->whereNull('deleted_at'),
+            ],
             'phone' => 'required|string|min:8|max:15',
             'license_no' => 'required',
             'license_exp_date' => 'required',
@@ -370,15 +471,17 @@ class DriverController extends Controller
             'bank_code' => 'nullable|string|max:50',
             'swift_code' => 'nullable|string|max:50',
             'master_image' => 'required|nullable|mimes:jpg,jpeg,png,bmp,gif,svg,webp,avif',
+        ], [
+            'email.unique' => 'This email is already registered for another driver.',
         ]);
 
         // Generate unique driver ID
-        $lastDriver = Driver::withTrashed()->orderBy('created_at', 'desc')->first();
-        $driver_max_id = $lastDriver->driver_id ?? 0;
-        $driverId = CommonHelper::createId($driver_max_id);
-        while (Driver::where('driver_id', $driverId)->exists()) {
-            $driverId = CommonHelper::createId($driverId);
-        }
+        // $lastDriver = Driver::withTrashed()->orderBy('created_at', 'desc')->first();
+        // $driver_max_id = $lastDriver->driver_id ?? 0;
+        // $driverId = CommonHelper::createId($driver_max_id);
+        // while (Driver::where('driver_id', $driverId)->exists()) {
+        //     $driverId = CommonHelper::createId($driverId);
+        // }
 
         $master_image = '';
         if ($request->hasFile('master_image')) {
@@ -482,7 +585,7 @@ class DriverController extends Controller
                 
                 $deletedDriver->update($updateData);
         
-                LogActivityService::log('restore_driver', 'App\Models\Driver', $deletedDriver->id, $deletedDriver);
+                // LogActivityService::log('restore_driver', 'App\Models\Driver', $deletedDriver->id, $deletedDriver);
         
                 // if (in_array($auth_user->role_id, [11, 4, 3, 35, 76, 111])) {
                 //     return view('drivers.thankyou');
@@ -496,7 +599,7 @@ class DriverController extends Controller
             $plainPassword = $request->app_password;
             
             $driver = new Driver();
-            $driver->driver_id = $driverId;
+                // $driver->driver_id = $driverId;
             $driver->salutation = $request->salutation;
             $driver->driver_gender = $request->driver_gender;
             $driver->name = $request->name;
@@ -523,9 +626,11 @@ class DriverController extends Controller
             $driver->created_by = $auth_user->userId;
             $driver->dmc_id = $dmc_id ?? 0;
             $driver->app_password = $plainPassword ? Hash::make($plainPassword) : null;
-        
+            
             if ($driver->save()) {
-                LogActivityService::log('create_driver', 'App\Models\Driver', $driver->driver_id, $driver);
+                $driver->refresh();
+                $driverId = $driver->driver_id;
+                // LogActivityService::log('create_driver', 'App\Models\Driver', $driver->driver_id, $driver);
         
                 // Send credentials email if email is provided
                 if ($driver->email && $plainPassword) {
@@ -543,7 +648,7 @@ class DriverController extends Controller
         
                 return redirect()->route('driver.index')->with('success', 'Driver added successfully!');
             } else {
-                LogActivityService::log('create_driver_failed', 'App\Models\Driver', $driverId, 'An error occurred while saving the driver details.');
+                // LogActivityService::log('create_driver_failed', 'App\Models\Driver', $driverId, 'An error occurred while saving the driver details.');
                 return redirect()->back()->with('error', 'An error occurred while saving the driver details.');
             }
     }
@@ -562,8 +667,15 @@ class DriverController extends Controller
         $vehicles = Vehicle::all();
         $driver = Driver::where('driver_id',$driverId)->first();
         $countries = OperationalCountry::all();
-        $country = Country::where('is_active', 1)->get();
-        $city = City::where('country', $driver->country)->get();
+        $dmcId = $driver->dmc_id ? (int) $driver->dmc_id : $this->resolveDmcIdForUser($authuser = auth()->user());
+        $masterDmcCountries = $this->getScopedCountriesForUser(auth()->user(), $dmcId);
+        $country = $masterDmcCountries->isNotEmpty()
+            ? $masterDmcCountries
+            : Country::where('is_active', 1)->orderBy('name')->get();
+        $selectedCountry = old('country', $driver->country);
+        $city = $selectedCountry
+            ? City::where('country', $selectedCountry)->orderBy('name')->get()
+            : collect();
         $dmc = User::where('userId', $driver->dmc_id)->first();
 
         $authuser = auth()->user();
@@ -575,7 +687,7 @@ class DriverController extends Controller
             $dmcs = User::where('role_id', 11)->get();
         }
 
-        return view('drivers.edit-drivers', compact('driver', 'countries', 'driverUsers', 'vehicles', 'country', 'city','dmcs', 'dmc'));
+        return view('drivers.edit-drivers', compact('driver', 'countries', 'driverUsers', 'vehicles', 'country', 'city','dmcs', 'dmc', 'masterDmcCountries', 'selectedCountry'));
     }
     /*
     * Update the specified role.
@@ -613,7 +725,14 @@ class DriverController extends Controller
             'state' => 'nullable|string|max:255',
             'city' => 'required|string|max:255',
             'name' => 'required|string',
-            'email' => 'required|string',
+            'email' => [
+                'required',
+                'email',
+                'max:255',
+                Rule::unique('drivers', 'email')
+                    ->whereNull('deleted_at')
+                    ->ignore($driver->id),
+            ],
             'phone' => 'required|string|min:8|max:15',
             // 'license_no' => [
             //                     'required',
@@ -627,8 +746,10 @@ class DriverController extends Controller
             'bank_name' => 'nullable|string|max:255',
             'bank_code' => 'nullable|string|max:50',
             'swift_code' => 'nullable|string|max:50',
+            'app_password' => 'nullable|string|max:255',
         ],[
-        'license_no.unique' => 'This license number is already taken by another driver.',
+            'license_no.unique' => 'This license number is already taken by another driver.',
+            'email.unique' => 'This email is already registered for another driver.',
         ]);
 
         $lastDriver = Driver::withTrashed()->orderBy('created_at', 'desc')->first();
@@ -642,7 +763,7 @@ class DriverController extends Controller
             }
         }
 
-        $plainPassword = $request->app_password;
+        $plainPassword = trim((string) $request->input('app_password', ''));
 
         $driver->salutation = $validated['salutation'];
         $driver->driver_gender = $validated['driver_gender'];
@@ -665,13 +786,22 @@ class DriverController extends Controller
         $driver->bank_code = $request->input('bank_code');
         $driver->swift_code = $request->input('swift_code');
         $driver->image = $master_image;
-        $driver->app_password = $plainPassword ? Hash::make($plainPassword) : null;
+
+        if ($plainPassword !== '') {
+            $driver->app_password = Hash::make($plainPassword);
+
+            // Invalidate all tokens for this driver (id and/or driver_id)
+            CommonHelper::invalidateAccessTokens(Driver::class, [
+                $driver->id,
+                $driver->driver_id,
+            ]);
+        }
 
         if ($driver->save()) {
-            LogActivityService::log('edit_driver', 'App\Models\Driver', $driver->driver_id, $driver);
+            // LogActivityService::log('edit_driver', 'App\Models\Driver', $driver->driver_id, $driver);
 
             // Send credentials email if email is provided
-            if ($driver->email && $plainPassword) {
+            if ($driver->email && $plainPassword !== '') {
                 try {
                     $this->sendDriverCredentialsEmail($driver, $plainPassword);
                 } catch (\Exception $e) {
@@ -681,7 +811,7 @@ class DriverController extends Controller
             }
             return redirect()->route('driver.index')->with('success', 'Driver updated successfully!');
         } else {
-            LogActivityService::log('edit_driver_failed', 'App\Models\driver', $driver_max_id,'An error occurred while saving the driver details.');
+            // LogActivityService::log('edit_driver_failed', 'App\Models\driver', $driver_max_id,'An error occurred while saving the driver details.');
             return redirect()->back()
                 ->with('error', 'An error occurred while saving the driver details.');
         }
@@ -734,7 +864,7 @@ class DriverController extends Controller
 
     public function driverCalendar($driver_id)
     {
-        $driver = Driver::where('driver_id', $driver_id)->first();
+        $driver = Driver::where('driver_id', Crypt::decrypt($driver_id))->first();
         $close_days = $driver->close_days;
         $close_dates = $driver->close_dates;
         return view('drivers.calendar', compact('driver_id', 'driver', 'close_days', 'close_dates'));

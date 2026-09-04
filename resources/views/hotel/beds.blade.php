@@ -215,7 +215,10 @@
     <div class="container-xxl flex-grow-1 container-p-y">
         <div class="card mb-6">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Manage Beds for {{ $hotel->name }}</h5>
+                <span class="d-flex align-items-center flex-wrap gap-2">
+                    <h5 class="mb-0">Manage Beds for {{ $hotel->name }}</h5>
+                    <x-currency-price-note :country="$hotel->country ?? null" :watch-dmc="in_array($auth_user->role_id, [1, 20])" />
+                </span>
                 <a href="javascript:history.back()" class="btn btn-sm btn-outline-danger">
                     <i class="mdi mdi-arrow-left"></i> Back
                 </a>
@@ -230,14 +233,14 @@
                             <i class="ri-add-line me-1"></i>Add Single Bed
                         </button>
                     </li>
-                    {{-- @if($auth_user->role_id == 11) <!-- Only DMC users can see bulk upload -->
+                    @if($auth_user->role_id == 11) <!-- Only DMC users can see bulk upload -->
                         <li class="nav-item" role="presentation">
                         <button class="nav-link" id="bulk-upload-tab" data-bs-toggle="tab" data-bs-target="#bulk-upload" 
                                 type="button" role="tab" aria-controls="bulk-upload" aria-selected="false">
                             <i class="ri-upload-cloud-2-line me-1"></i>Bulk Upload
                         </button>
                     </li>
-                    @endif --}}
+                    @endif
                 </ul>
                 
                 <div class="tab-content" id="bedsTabContent">
@@ -245,7 +248,7 @@
                     <div class="tab-pane fade show active" id="add-single" role="tabpanel" aria-labelledby="add-single-tab">
                         <div class="p-4">
             <form id="hotelForm" method="POST" action="{{ route('storebed') }}"
-                enctype="multipart/form-data" class="card-body">
+                enctype="multipart/form-data" class="card-body js-submit-loader-form" data-loader-message="Saving...">
                 @csrf
                 <input type="hidden" class="form-control" name="hotel_id" id="hotel_id"
                     value="{{ $hotel->hotel_unique_id }}">
@@ -267,7 +270,7 @@
                         <select id="dmc_selection" class="form-control" name="dmc_id" required>
                             <option value="">Select DMC</option>
                             @foreach($dmcUsers as $dmc)
-                                <option value="{{ $dmc->userId }}">{{ $dmc->company_name }} ({{ $dmc->name }})</option>
+                                <option value="{{ $dmc->userId }}" data-currency="{{ $dmc->currency ?? '' }}">{{ $dmc->company_name }} ({{ $dmc->name }})</option>
                             @endforeach
                         </select>
                         <small class="text-muted">
@@ -321,6 +324,22 @@
                                 <label for="max-occupancy" class="form-label"><strong>Maximum Occupancy</strong></label>
                                 <input type="number" id="max-occupancy" name="max_occupancy" class="form-control" readonly>
                             </div>
+
+                            <div class="col-md-3 mb-3">
+                                <label for="bed_profit_margin" class="form-label"><strong>Profit (margin)</strong></label>
+                                <select id="bed_profit_margin" class="form-select js-bed-profit-type">
+                                    <option value="percentage" selected>%</option>
+                                    <option value="flat">Flat</option>
+                                </select>
+                                <small class="text-muted">Helper only — not saved</small>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label for="bed_profit_amount" class="form-label"><strong>Profit amount</strong></label>
+                                <input type="number" id="bed_profit_amount" class="form-control js-bed-profit-amount"
+                                       value="0" min="0" step="0.01" placeholder="Enter profit amount">
+                                <small class="text-muted">Auto-fills Sell from Cost</small>
+                            </div>
+
                             <!-- extra bed -->
                             <div class="col-md-3 mb-3">
                                 <label for="extra_bed" class="form-label"><strong>Extra
@@ -347,12 +366,19 @@
                                 </select>
                             </div>
 
-                            <!-- extra bed price -->
+                            <!-- extra bed price: Cost then Sell -->
+                            <div class="col-md-3 mb-3 extra_bed_price" style="display: none;">
+                                <label for="extra_bed_cost_price" class="form-label"><strong>Extra Bed
+                                        Price(Cost)</strong><span class="text-danger">*</span></label>
+                                <input type="number" name="extra_bed_cost_price" id="extra_bed_cost_price"
+                                    class="form-control js-bed-cost" data-sell-target="extra_bed_price"
+                                    placeholder="Enter Cost Price" min="0" step="0.01">
+                            </div>
                             <div class="col-md-3 mb-3 extra_bed_price" style="display: none;">
                                 <label for="extra_bed_price" class="form-label"><strong>Extra Bed
-                                        Price</strong><span class="text-danger">*</span></label>
+                                        Price(Sell)</strong><span class="text-danger">*</span></label>
                                 <input type="number" name="extra_bed_price" id="extra_bed_price"
-                                    class="form-control" placeholder="Enter Price">
+                                    class="form-control js-bed-sell" placeholder="Enter Sell Price" min="0" step="0.01">
                             </div>
 
                             <div class="mb-3 col-md-3">
@@ -381,12 +407,19 @@
                                 </select>
                             </div>
 
-                            <!-- baby cot price -->
+                            <!-- baby cot price: Cost then Sell -->
+                            <div class="col-md-3 mb-3 baby_cot_price" style="display: none;">
+                                <label for="baby_cot_cost_price" class="form-label"><strong>Baby Cot
+                                        Price(Cost)</strong><span class="text-danger">*</span></label>
+                                <input type="number" name="baby_cot_cost_price" id="baby_cot_cost_price"
+                                    class="form-control js-bed-cost" data-sell-target="baby_cot_price"
+                                    placeholder="Enter Cost Price" min="0" step="0.01">
+                            </div>
                             <div class="col-md-3 mb-3 baby_cot_price" style="display: none;">
                                 <label for="baby_cot_price" class="form-label"><strong>Baby Cot
-                                        Price</strong><span class="text-danger">*</span></label>
+                                        Price(Sell)</strong><span class="text-danger">*</span></label>
                                 <input type="number" name="baby_cot_price" id="baby_cot_price"
-                                    class="form-control" placeholder="Enter Price">
+                                    class="form-control js-bed-sell" placeholder="Enter Sell Price" min="0" step="0.01">
                             </div>
                             <hr>
                         </div>
@@ -426,7 +459,13 @@
 
                             <!-- Submit Buttons -->
                             <div class="d-flex gap-3">
-                                <button type="submit" class="btn btn-primary px-4">Save</button>
+                                <button type="submit" class="btn btn-primary px-4 js-submit-loader-btn">
+                                    <span class="js-submit-loader-btn-text">Save</span>
+                                    <span class="js-submit-loader-btn-loading d-none">
+                                        <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                                        Saving...
+                                    </span>
+                                </button>
                                 <!-- <a href="{{ route('policy', $hotel->hotel_unique_id) }}"
                                     class="btn btn-success px-4">Save</a> -->
                             </div>
@@ -586,7 +625,7 @@
                                 <td>{{$bed->is_active == 1 ? 'Yes' : 'No'}}</td>
                                 <td >
                                     <div style="display:flex; flex-direction:row; gap:5px">
-                                        <a href="{{ route('bed.edit', ['id' => $bed->bed_id, 'hotel_id' => $hotel->hotel_unique_id]) }}"
+                                        <a href="{{ route('bed.edit', ['id' => Crypt::encrypt($bed->bed_id), 'hotel_id' => $hotel->hotel_unique_id]) }}"
                                             class="btn btn-primary btn-sm d-flex align-items-center justify-content-center rounded-circle" style="width: 28px; height: 28px; padding: 0;">
                                             <svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="12px" fill="#ffffff">
                                                     <path d="M200-200h57l391-391-57-57-391 391v57Zm-80 80v-170l528-527q12-11 26.5-17t30.5-6q16 0 31 6t26 18l55 56q12 11 17.5 26t5.5 30q0 16-5.5 30.5T817-647L290-120H120Zm640-584-56-56 56 56Zm-141 85-28-29 57 57-29-28Z"/>
@@ -598,7 +637,7 @@
                                                 style="width: 28px; height: 28px; padding: 0;" 
                                                 data-toggle="modal" 
                                                 data-target="#deleteModal" 
-                                                onclick="setDeleteForm('{{ route('bed.destroy', ['hotelId' => $hotel->hotel_unique_id, 'bedId' => $bed->bed_id]) }}')">
+                                                onclick="setDeleteForm('{{ route('bed.destroy', ['hotelId' => $hotel->hotel_unique_id, 'bedId' => Crypt::encrypt($bed->bed_id)]) }}')">
                                             <svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="#ffffff">
                                                 <path d="M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z"/>
                                             </svg>
@@ -636,6 +675,7 @@
         </div>
     </div>
 </div>
+<x-form-submit-loader message="Saving..." />
 @endsection
 
 @section('scripts')
@@ -761,6 +801,10 @@
         $('#dmc_selection').on('change', function() {
             const selectedDmcId = $(this).val();
             const hotelId = $('#hotel_id').val();
+
+            if (typeof updateCurrencyPriceNoteFromDmc === 'function') {
+                updateCurrencyPriceNoteFromDmc(this);
+            }
             
             if (selectedDmcId) {
                 // Enable room dropdown and fetch DMC-specific rooms
@@ -898,15 +942,24 @@
     });
 </script>
 <script>
-    // Function to toggle the visibility of the baby cot price field
+    // Function to toggle the visibility of the baby cot price fields
     const toggleBabyCotPrice = () => {
         const babyCotDropdown = document.getElementById("baby_cot");
-        const babyCotPriceField = document.querySelector(`.baby_cot_price`);
+        const babyCotPriceFields = document.querySelectorAll(`.baby_cot_price`);
+        const sellInput = document.getElementById('baby_cot_price');
+        const costInput = document.getElementById('baby_cot_cost_price');
+        const isYes = babyCotDropdown.value === "1";
 
-        if (babyCotDropdown.value === "1") {
-            babyCotPriceField.style.display = "block"; // Show price field if "Yes" is selected
-        } else {
-            babyCotPriceField.style.display = "none"; // Hide price field if "No" or nothing is selected
+        babyCotPriceFields.forEach(function(field) {
+            field.style.display = isYes ? "block" : "none";
+        });
+        if (sellInput) {
+            sellInput.required = isYes;
+            if (!isYes) sellInput.value = "";
+        }
+        if (costInput) {
+            costInput.required = isYes;
+            if (!isYes) costInput.value = "";
         }
     };
 
@@ -924,16 +977,25 @@
     function toggleExtraBedField() {
         const extraBedSelect = document.getElementById('extra_bed');
         const extraBedTypeDiv = document.querySelector('.extra_bed_type');
-        const extraBedPriceDiv = document.querySelector('.extra_bed_price');
+        const extraBedPriceDivs = document.querySelectorAll('.extra_bed_price');
+        const typeEl = document.getElementById('extra_bed_type');
+        const priceEl = document.getElementById('extra_bed_price');
+        const costEl = document.getElementById('extra_bed_cost_price');
+        const isYes = extraBedSelect.value === "1";
 
-        if (extraBedSelect.value === "1") {
-            extraBedTypeDiv.style.display = "block";
-            extraBedPriceDiv.style.display = "block";
-        } else {
-            extraBedTypeDiv.style.display = "none";
-            extraBedPriceDiv.style.display = "none";
-            document.getElementById('extra_bed_type').value = ""; // Clear the type field
-            document.getElementById('extra_bed_price').value = ""; // Clear the price field
+        if (extraBedTypeDiv) extraBedTypeDiv.style.display = isYes ? "block" : "none";
+        extraBedPriceDivs.forEach(function(div) { div.style.display = isYes ? "block" : "none"; });
+        if (typeEl) {
+            typeEl.required = isYes;
+            if (!isYes) typeEl.value = "";
+        }
+        if (priceEl) {
+            priceEl.required = isYes;
+            if (!isYes) priceEl.value = "";
+        }
+        if (costEl) {
+            costEl.required = isYes;
+            if (!isYes) costEl.value = "";
         }
     }
 </script>
@@ -1082,4 +1144,66 @@
         });
     });
 </script>
+<script>
+(function () {
+    function round2(n) {
+        return Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+    }
+
+    function calcSellFromCost(cost, type, amount) {
+        const c = parseFloat(cost);
+        const a = parseFloat(amount);
+        const costVal = isNaN(c) ? 0 : c;
+        const amtVal = isNaN(a) ? 0 : a;
+        if (costVal <= 0) return 0;
+        if (type === 'flat') return round2(costVal + amtVal);
+        return round2(costVal + (costVal * amtVal / 100));
+    }
+
+    function getProfitSettings() {
+        const typeEl = document.querySelector('.js-bed-profit-type');
+        const amountEl = document.querySelector('.js-bed-profit-amount');
+        return {
+            type: typeEl ? typeEl.value : 'percentage',
+            amount: amountEl ? amountEl.value : 0
+        };
+    }
+
+    function updateSellFromCost(costEl, force) {
+        if (!costEl) return;
+        const sellId = costEl.getAttribute('data-sell-target');
+        if (!sellId) return;
+        const sellEl = document.getElementById(sellId);
+        if (!sellEl) return;
+        if (!force && sellEl.dataset.userEdited === '1') return;
+        const g = getProfitSettings();
+        sellEl.value = calcSellFromCost(costEl.value, g.type, g.amount);
+        sellEl.dataset.userEdited = '';
+    }
+
+    function recalculateAll(force) {
+        document.querySelectorAll('.js-bed-cost[data-sell-target]').forEach(function (costEl) {
+            updateSellFromCost(costEl, force);
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('.js-bed-cost[data-sell-target]').forEach(function (costEl) {
+            costEl.addEventListener('input', function () {
+                updateSellFromCost(costEl, true);
+            });
+        });
+        document.querySelectorAll('.js-bed-sell').forEach(function (sellEl) {
+            sellEl.addEventListener('input', function () {
+                sellEl.dataset.userEdited = '1';
+            });
+        });
+        document.querySelectorAll('.js-bed-profit-type, .js-bed-profit-amount').forEach(function (el) {
+            el.addEventListener('input', function () { recalculateAll(true); });
+            el.addEventListener('change', function () { recalculateAll(true); });
+        });
+    });
+})();
+</script>
+@include('components.currency-price-note-dmc-script')
 @endsection

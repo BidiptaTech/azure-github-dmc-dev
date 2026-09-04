@@ -18,153 +18,157 @@
 <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet">
 
 <style>
-/* DMC Filter Styles */
-#dmcFilter {
-    border: 1px solid #d9dee3;
-    border-radius: 0.375rem;
-    padding: 0.5rem 0.75rem;
-    font-size: 0.875rem;
-    background-color: #fff;
-    color: #566a7f;
-    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
-}
+    /* DMC Filter Styles */
+    #dmcFilter {
+        border: 1px solid #d9dee3;
+        border-radius: 0.375rem;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.875rem;
+        background-color: #fff;
+        color: #566a7f;
+        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    }
 
-#dmcFilter:focus {
-    border-color: #696cff;
-    box-shadow: 0 0 0 0.2rem rgba(105, 108, 255, 0.25);
-    outline: 0;
-}
+    #dmcFilter:focus {
+        border-color: #696cff;
+        box-shadow: 0 0 0 0.2rem rgba(105, 108, 255, 0.25);
+        outline: 0;
+    }
 
-/* DMC Badge Styles */
-.badge.bg-primary {
-    background-color: #696cff !important;
-}
+    /* DMC Badge Styles */
+    .badge.bg-primary {
+        background-color: #696cff !important;
+    }
 
-.badge.bg-secondary {
-    background-color: #8592a3 !important;
-}
+    .badge.bg-secondary {
+        background-color: #8592a3 !important;
+    }
 
-/* Filter Info Text */
-.filter-info {
-    font-size: 0.875rem;
-    color: #6c757d;
-    font-style: italic;
-}
+    /* Filter Info Text */
+    .filter-info {
+        font-size: 0.875rem;
+        color: #6c757d;
+        font-style: italic;
+    }
 
-/* Select2 Custom Styles */
-.select2-container .select2-selection--single {
-    height: 50px !important;
-    line-height: 38px !important;
-    padding: 0 12px;
-    border: 1px solid #d9dee3;
-    border-radius: 0.375rem;
-}
+    /* Select2 Custom Styles */
+    .select2-container .select2-selection--single {
+        height: 50px !important;
+        line-height: 38px !important;
+        padding: 0 12px;
+        border: 1px solid #d9dee3;
+        border-radius: 0.375rem;
+    }
 
-.select2-container--default .select2-selection--single .select2-selection__rendered {
-    line-height: 38px !important;
-    padding-left: 0;
-}
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: 38px !important;
+        padding-left: 0;
+    }
 
-.select2-container--default .select2-selection--single .select2-selection__arrow {
-    height: 36px !important;
-}
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 36px !important;
+    }
 
-/* Increase the height of the dropdown items */
-.select2-container .select2-results__option {
-    padding: 8px 12px;
-}
+    /* Increase the height of the dropdown items */
+    .select2-container .select2-results__option {
+        padding: 8px 12px;
+    }
 
-/* Focus state */
-.select2-container--default.select2-container--focus .select2-selection--single,
-.select2-container--default.select2-container--open .select2-selection--single {
-    border-color: #696cff;
-    box-shadow: 0 0 0 0.2rem rgba(105, 108, 255, 0.25);
-}
+    /* Focus state */
+    .select2-container--default.select2-container--focus .select2-selection--single,
+    .select2-container--default.select2-container--open .select2-selection--single {
+        border-color: #696cff;
+        box-shadow: 0 0 0 0.2rem rgba(105, 108, 255, 0.25);
+    }
 
-/* Dropdown styling */
-.select2-dropdown {
-    border: 1px solid #d9dee3;
-    border-radius: 0.375rem;
-    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
-}
+    /* Dropdown styling */
+    .select2-dropdown {
+        border: 1px solid #d9dee3;
+        border-radius: 0.375rem;
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    }
 
-/* Search box styling */
-.select2-search--dropdown .select2-search__field {
-    border: 1px solid #d9dee3;
-    border-radius: 0.375rem;
-    padding: 6px 12px;
-    outline: none;
-}
+    /* Search box styling */
+    .select2-search--dropdown .select2-search__field {
+        border: 1px solid #d9dee3;
+        border-radius: 0.375rem;
+        padding: 6px 12px;
+        outline: none;
+    }
 
-.select2-search--dropdown .select2-search__field:focus {
-    border-color: #696cff;
-    box-shadow: 0 0 0 0.2rem rgba(105, 108, 255, 0.25);
-}
+    .select2-search--dropdown .select2-search__field:focus {
+        border-color: #696cff;
+        box-shadow: 0 0 0 0.2rem rgba(105, 108, 255, 0.25);
+    }
 
-/* Highlighted option */
-.select2-container--default .select2-results__option--highlighted[aria-selected] {
-    background-color: #696cff;
-    color: white;
-}
+    /* Highlighted option */
+    .select2-container--default .select2-results__option--highlighted[aria-selected] {
+        background-color: #696cff;
+        color: white;
+    }
 
-/* Selected option */
-.select2-container--default .select2-results__option[aria-selected=true] {
-    background-color: #e7e7ff;
-    color: #696cff;
-}
+    /* Selected option */
+    .select2-container--default .select2-results__option[aria-selected=true] {
+        background-color: #e7e7ff;
+        color: #696cff;
+    }
 
-/* Dropdown width */
-.select2-container {
-    width: 100% !important;
-}
+    /* Dropdown width */
+    .select2-container {
+        width: 100% !important;
+    }
 
-/* DataTable Responsive Styles */
-.dataTables_wrapper .dataTables_filter input {
-    padding: 0.4rem 0.75rem;
-    border-radius: 0.375rem;
-    border: 1px solid #d9dee3;
-}
+    /* DataTable Responsive Styles */
+    .dataTables_wrapper .dataTables_filter input {
+        padding: 0.4rem 0.75rem;
+        border-radius: 0.375rem;
+        border: 1px solid #d9dee3;
+    }
 
-.dataTables_wrapper .dataTables_paginate .paginate_button {
-    padding: 0.5rem 0.75rem;
-    margin: 0 0.125rem;
-    border: 1px solid #d9dee3;
-    border-radius: 0.375rem;
-    background-color: #fff;
-}
+    .dataTables_wrapper .dataTables_paginate .paginate_button {
+        padding: 0.5rem 0.75rem;
+        margin: 0 0.125rem;
+        border: 1px solid #d9dee3;
+        border-radius: 0.375rem;
+        background-color: #fff;
+    }
 
-.dataTables_wrapper .dataTables_paginate .paginate_button.current {
-    background-color: #696cff;
-    border-color: #696cff;
-    color: #fff !important;
-}
+    .dataTables_wrapper .dataTables_paginate .paginate_button.current {
+        background-color: #696cff;
+        border-color: #696cff;
+        color: #fff !important;
+    }
 
-.dataTables_wrapper .dataTables_paginate .paginate_button:hover {
-    background-color: #e7e7ff;
-    border-color: #696cff;
-    color: #696cff !important;
-}
+    .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+        background-color: #e7e7ff;
+        border-color: #696cff;
+        color: #696cff !important;
+    }
 
-/* Table Styles */
-.table> :not(caption)>*>* {
-    padding: 0.75rem;
-}
+    /* Table Styles */
+    .table> :not(caption)>*>* {
+        padding: 0.75rem;
+    }
 
-/* Button Styles */
-.btn-icon {
-    width: 32px;
-    height: 32px;
-    padding: 0;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-}
+    /* Button Styles */
+    .btn-icon {
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
 </style>
 <div class="content-wrapper">
     <div class="container-xxl flex-grow-1 container-p-y">
+        @if($canManageHotelRates ?? true)
         <div class="card mb-6">
             <h5 class="card-header d-flex justify-content-between align-items-center">
-            Add Seasons
+                <span class="d-flex align-items-center flex-wrap gap-2">
+                    Add Seasons
+                    <x-currency-price-note :country="$hotel->country ?? null" :watch-dmc="in_array($auth_user->role_id, [1, 20])" />
+                </span>
                 <a href="javascript:history.back()" class="btn btn-sm btn-outline-danger">
                     <i class="mdi mdi-arrow-left"></i> Back
                 </a>
@@ -241,7 +245,7 @@
                        <select id="dmc_selection" class="form-control" name="dmc_id" required>
                            <option value="">Select DMC</option>
                            @foreach($dmcUsers as $dmc)
-                               <option value="{{ $dmc->userId }}">{{ $dmc->company_name }} ({{ $dmc->name }})</option>
+                               <option value="{{ $dmc->userId }}" data-currency="{{ $dmc->currency ?? '' }}">{{ $dmc->company_name }} ({{ $dmc->name }})</option>
                            @endforeach
                        </select>
                        <small class="text-muted">
@@ -264,12 +268,37 @@
                            @enderror
                         </div>
                         <input name="event_type" type="hidden" value="Season">
-                     
 
-                        <!-- Single Weekday -->
+                        <div class="col-md-3 mb-3">
+                           <label for="season_profit_margin" class="form-label"><strong>Profit (margin)</strong></label>
+                           <select id="season_profit_margin" class="form-select js-season-profit-type">
+                              <option value="percentage" selected>%</option>
+                              <option value="flat">Flat</option>
+                           </select>
+                           <small class="text-muted">Helper only — not saved</small>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                           <label for="season_profit_amount" class="form-label"><strong>Profit amount</strong></label>
+                           <input type="number" id="season_profit_amount" class="form-control js-season-profit-amount"
+                                  value="0" min="0" step="0.01" placeholder="Enter profit amount">
+                           <small class="text-muted">Auto-fills Sell from Cost</small>
+                        </div>
+
+                        <!-- Single Weekday: Cost then Sell -->
+                        <div class="mb-3 col-md-3">
+                           <label for="weekday_cost_price" class="form-label">
+                              <strong>Single Base Weekday Price(Cost)</strong>
+                              <span class="text-danger">*</span>
+                           </label>
+                           <input type="number" id="weekday_cost_price" name="weekday_cost_price" class="form-control js-season-cost" data-sell-target="weekday_price" placeholder="Enter Cost Price" min="0" step="0.01">
+                           @error('weekday_cost_price')
+                              <div class="text-danger mt-1">{{ $message }}</div>
+                           @enderror
+                        </div>
+
                         <div class="mb-3 col-md-3" id="base_weekday_price">
                            <label for="weekday_price" class="form-label">
-                              <strong>Single Base Weekday Price</strong>
+                              <strong>Single Base Weekday Price(sell)</strong>
                               <span class="text-danger">*</span>
                               <sup>
                                     <button type="button" 
@@ -282,15 +311,23 @@
                                     </button>
                                     </sup>
                            </label>
-                           <input type="number" name="weekday_price" class="form-control" placeholder="Enter Base weekday price">
-                           @error('hotel_owner_company_name')
+                           <input type="number" id="weekday_price" name="weekday_price" class="form-control js-season-sell" placeholder="Enter Sell Price" min="0" step="0.01">
+                           @error('weekday_price')
                               <div class="text-danger mt-1">{{ $message }}</div>
                            @enderror
                         </div>
 
-                        <!-- Single Weekend Price -->
+                        <!-- Single Weekend: Cost then Sell -->
+                        <div class="mb-3 col-md-3">
+                           <label for="weekend_cost_price" class="form-label"><strong>Single Base Weekend Price(Cost)</strong><span class="text-danger">*</span></label>
+                           <input type="number" id="weekend_cost_price" name="weekend_cost_price" class="form-control js-season-cost" data-sell-target="weekend_price" placeholder="Enter Cost Price" min="0" step="0.01">
+                           @error('weekend_cost_price')
+                              <div class="text-danger mt-1">{{ $message }}</div>
+                           @enderror
+                        </div>
+
                         <div class="mb-3 col-md-3" id="base_weekend_price">
-                           <label for="weekend_price" class="form-label"><strong>Single Base Weekend Price</strong><span class="text-danger">*</span>
+                           <label for="weekend_price" class="form-label"><strong>Single Base Weekend Price(sell)</strong><span class="text-danger">*</span>
                               <sup>
                                  <button type="button" 
                                     class="info-button" 
@@ -302,16 +339,27 @@
                                  </button>
                               </sup>
                            </label>
-                              <input type="number" name="weekend_price" class="form-control" placeholder="Enter Base weekend price">
-                              @error('hotel_owner_company_name')
+                              <input type="number" id="weekend_price" name="weekend_price" class="form-control js-season-sell" placeholder="Enter Sell Price" min="0" step="0.01">
+                              @error('weekend_price')
                                  <div class="text-danger mt-1">{{ $message }}</div>
                               @enderror
                         </div>
 
-                        <!-- Double Weekday -->
-                        <div class="mb-3 col-md-3" id="base_weekday_price">
-                           <label for="weekday_price" class="form-label">
-                              <strong>Double Base Weekday Price</strong>
+                        <!-- Double Weekday: Cost then Sell -->
+                        <div class="mb-3 col-md-3">
+                           <label for="double_weekday_cost_price" class="form-label">
+                              <strong>Double Base Weekday Price(Cost)</strong>
+                              <span class="text-danger">*</span>
+                           </label>
+                           <input type="number" id="double_weekday_cost_price" name="double_weekday_cost_price" class="form-control js-season-cost" data-sell-target="double_weekday_price" placeholder="Enter Cost Price" min="0" step="0.01">
+                           @error('double_weekday_cost_price')
+                              <div class="text-danger mt-1">{{ $message }}</div>
+                           @enderror
+                        </div>
+
+                        <div class="mb-3 col-md-3">
+                           <label for="double_weekday_price" class="form-label">
+                              <strong>Double Base Weekday Price(sell)</strong>
                               <span class="text-danger">*</span>
                               <sup>
                                     <button type="button" 
@@ -324,15 +372,23 @@
                                     </button>
                                     </sup>
                            </label>
-                           <input type="number" name="double_weekday_price" class="form-control" placeholder="Enter Base weekday price">
-                           @error('hotel_owner_company_name')
+                           <input type="number" id="double_weekday_price" name="double_weekday_price" class="form-control js-season-sell" placeholder="Enter Sell Price" min="0" step="0.01">
+                           @error('double_weekday_price')
                               <div class="text-danger mt-1">{{ $message }}</div>
                            @enderror
                         </div>
 
-                        <!-- Double Weekend Price -->
-                        <div class="mb-3 col-md-3" id="base_weekend_price">
-                           <label for="weekend_price" class="form-label"><strong>Double Base Weekend Price</strong><span class="text-danger">*</span>
+                        <!-- Double Weekend: Cost then Sell -->
+                        <div class="mb-3 col-md-3">
+                           <label for="double_weekend_cost_price" class="form-label"><strong>Double Base Weekend Price(Cost)</strong><span class="text-danger">*</span></label>
+                           <input type="number" id="double_weekend_cost_price" name="double_weekend_cost_price" class="form-control js-season-cost" data-sell-target="double_weekend_price" placeholder="Enter Cost Price" min="0" step="0.01">
+                           @error('double_weekend_cost_price')
+                              <div class="text-danger mt-1">{{ $message }}</div>
+                           @enderror
+                        </div>
+
+                        <div class="mb-3 col-md-3">
+                           <label for="double_weekend_price" class="form-label"><strong>Double Base Weekend Price(sell)</strong><span class="text-danger">*</span>
                               <sup>
                                  <button type="button" 
                                     class="info-button" 
@@ -344,10 +400,94 @@
                                  </button>
                               </sup>
                            </label>
-                              <input type="number" name="double_weekend_price" class="form-control" placeholder="Enter Base weekend price">
-                              @error('hotel_owner_company_name')
+                              <input type="number" id="double_weekend_price" name="double_weekend_price" class="form-control js-season-sell" placeholder="Enter Sell Price" min="0" step="0.01">
+                              @error('double_weekend_price')
                                  <div class="text-danger mt-1">{{ $message }}</div>
                               @enderror
+                        </div>
+
+                        <!-- Breakfast: Cost then Sell -->
+                        <div class="mb-3 col-md-3">
+                           <label for="breakfast_cost_price" class="form-label"><strong>Breakfast Price(Cost)</strong></label>
+                           <input type="number" step="0.01" min="0" id="breakfast_cost_price" name="breakfast_cost_price" class="form-control js-season-cost" data-sell-target="breakfast_price" placeholder="Enter Cost Price">
+                           @error('breakfast_cost_price')
+                              <div class="text-danger mt-1">{{ $message }}</div>
+                           @enderror
+                        </div>
+
+                        <div class="mb-3 col-md-3">
+                           <label for="breakfast_price" class="form-label"><strong>Breakfast Sell Price</strong>
+                              <sup>
+                                 <button type="button" 
+                                    class="info-button" 
+                                    data-bs-toggle="tooltip" 
+                                    data-bs-placement="top" 
+                                    title="Price for breakfast."
+                                    style="border: none;">
+                                    <i class="bi bi-info-circle"></i>
+                                 </button>
+                              </sup>
+                           </label>
+                           <input type="number" step="0.01" min="0" id="breakfast_price" name="breakfast_price" class="form-control js-season-sell" placeholder="Enter Sell Price">
+                           @error('breakfast_price')
+                              <div class="text-danger mt-1">{{ $message }}</div>
+                           @enderror
+                        </div>
+
+                        <!-- Lunch: Cost then Sell -->
+                        <div class="mb-3 col-md-3">
+                           <label for="lunch_cost_price" class="form-label"><strong>Lunch Price(Cost)</strong></label>
+                           <input type="number" step="0.01" min="0" id="lunch_cost_price" name="lunch_cost_price" class="form-control js-season-cost" data-sell-target="lunch_price" placeholder="Enter Cost Price">
+                           @error('lunch_cost_price')
+                              <div class="text-danger mt-1">{{ $message }}</div>
+                           @enderror
+                        </div>
+
+                        <div class="mb-3 col-md-3">
+                           <label for="lunch_price" class="form-label"><strong>Lunch Sell Price</strong>
+                              <sup>
+                                 <button type="button" 
+                                    class="info-button" 
+                                    data-bs-toggle="tooltip" 
+                                    data-bs-placement="top" 
+                                    title="Price for lunch."
+                                    style="border: none;">
+                                    <i class="bi bi-info-circle"></i>
+                                 </button>
+                              </sup>
+                           </label>
+                           <input type="number" step="0.01" min="0" id="lunch_price" name="lunch_price" class="form-control js-season-sell" placeholder="Enter Sell Price">
+                           @error('lunch_price')
+                              <div class="text-danger mt-1">{{ $message }}</div>
+                           @enderror
+                        </div>
+
+                        <!-- Dinner: Cost then Sell -->
+                        <div class="mb-3 col-md-3">
+                           <label for="dinner_cost_price" class="form-label"><strong>Dinner Price(Cost)</strong></label>
+                           <input type="number" step="0.01" min="0" id="dinner_cost_price" name="dinner_cost_price" class="form-control js-season-cost" data-sell-target="dinner_price" placeholder="Enter Cost Price">
+                           @error('dinner_cost_price')
+                              <div class="text-danger mt-1">{{ $message }}</div>
+                           @enderror
+                        </div>
+
+                        <div class="mb-3 col-md-3">
+                           <label for="dinner_price" class="form-label"><strong>Dinner Sell Price</strong>
+                              <sup>
+                                 <button type="button" 
+                                    class="info-button" 
+                                    data-bs-toggle="tooltip" 
+                                    data-bs-placement="top" 
+                                    title="Price for dinner."
+                                    style="border: none;">
+                                    <i class="bi bi-info-circle"></i>
+                                 </button>
+                              </sup>
+                           </label>
+                           <input type="number" step="0.01" min="0" id="dinner_price" name="dinner_price" class="form-control js-season-sell" placeholder="Enter Sell Price">
+                           @error('dinner_price')
+                              <div class="text-danger mt-1">{{ $message }}</div>
+                           @enderror
                         </div>
 
                         <!-- Start Date, End date DateRange -->
@@ -489,6 +629,7 @@
             <!-- End Non-DMC Content -->
             @endif
       </div>
+        @endif
    </div>
 </div>
 
@@ -657,6 +798,12 @@
             placeholder: "Search and Select DMC",
             allowClear: true,
             width: '100%'
+        });
+
+        $('#dmc_selection').on('change', function () {
+            if (typeof updateCurrencyPriceNoteFromDmc === 'function') {
+                updateCurrencyPriceNoteFromDmc(this);
+            }
         });
         @endif
 
@@ -835,5 +982,68 @@
     });
 </script> --}}
 
+@include('components.currency-price-note-dmc-script')
+
+<script>
+(function () {
+    function round2(n) {
+        return Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+    }
+
+    function calcSellFromCost(cost, type, amount) {
+        const c = parseFloat(cost);
+        const a = parseFloat(amount);
+        const costVal = isNaN(c) ? 0 : c;
+        const amtVal = isNaN(a) ? 0 : a;
+        if (costVal <= 0) return 0;
+        if (type === 'flat') return round2(costVal + amtVal);
+        return round2(costVal + (costVal * amtVal / 100));
+    }
+
+    function getProfitSettings() {
+        const typeEl = document.querySelector('.js-season-profit-type');
+        const amountEl = document.querySelector('.js-season-profit-amount');
+        return {
+            type: typeEl ? typeEl.value : 'percentage',
+            amount: amountEl ? amountEl.value : 0
+        };
+    }
+
+    function updateSellFromCost(costEl, force) {
+        if (!costEl) return;
+        const sellId = costEl.getAttribute('data-sell-target');
+        if (!sellId) return;
+        const sellEl = document.getElementById(sellId);
+        if (!sellEl) return;
+        if (!force && sellEl.dataset.userEdited === '1') return;
+        const g = getProfitSettings();
+        sellEl.value = calcSellFromCost(costEl.value, g.type, g.amount);
+        sellEl.dataset.userEdited = '';
+    }
+
+    function recalculateAll(force) {
+        document.querySelectorAll('.js-season-cost[data-sell-target]').forEach(function (costEl) {
+            updateSellFromCost(costEl, force);
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('.js-season-cost[data-sell-target]').forEach(function (costEl) {
+            costEl.addEventListener('input', function () {
+                updateSellFromCost(costEl, true);
+            });
+        });
+        document.querySelectorAll('.js-season-sell').forEach(function (sellEl) {
+            sellEl.addEventListener('input', function () {
+                sellEl.dataset.userEdited = '1';
+            });
+        });
+        document.querySelectorAll('.js-season-profit-type, .js-season-profit-amount').forEach(function (el) {
+            el.addEventListener('input', function () { recalculateAll(true); });
+            el.addEventListener('change', function () { recalculateAll(true); });
+        });
+    });
+})();
+</script>
 
 @endsection

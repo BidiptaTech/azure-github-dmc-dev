@@ -1,729 +1,62 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <link rel="stylesheet" href="{{ asset('css/style.css') }}">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>Document</title>
 </head>
-<style>
-    /* Modern Sidebar Styling */
-    .layout-menu {
-        background: #ffffff;
-        border-right: 1px solid rgba(0,0,0,0.05);
-        transition: all 0.3s ease;
-        box-shadow: 0 0 20px rgba(0,0,0,0.05);
-    }
-    
-    /* Logo area styling */
-    .app-brand {
-        padding: 1.25rem 1.5rem;
-        height: 70px;
-        background: linear-gradient(135deg, #6366f1, #8b5cf6); 
-        margin-bottom: 1rem;
-        box-shadow: 0 4px 12px rgba(107, 114, 241, 0.2);
-    }
-    
-    .app-brand-text {
-        color: white !important;
-        font-weight: 700 !important;
-        text-shadow: 0 1px 2px rgba(0,0,0,0.1);
-    }
-    
-    /* Menu header styling */
-    .menu-header {
-        margin-top: 1.5rem !important;
-        padding: 0.5rem 1.5rem !important;
-    }
-    
-    .menu-header-text {
-        color: #6366f1 !important;
-        font-size: 0.85rem !important;
-        font-weight: 600 !important;
-        letter-spacing: 0.5px;
-        text-transform: uppercase;
-        background: linear-gradient(90deg, #6366f1, #8b5cf6);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-    }
-    
-    /* Menu item styling */
-    .menu-item {
-        margin: 6px 8px;
-        border-radius: 12px;
-        transition: all 0.3s ease;
-        overflow: hidden;
-    }
-    
-    .menu-item.active {
-        background: linear-gradient(118deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1));
-        box-shadow: 0 2px 10px rgba(99, 102, 241, 0.12);
-    }
-    
-    .menu-link {
-        padding: 0.8rem 1.5rem;
-        border-radius: 12px;
-        transition: all 0.3s ease;
-    }
-    
-    .menu-link:hover {
-        background-color: rgba(99, 102, 241, 0.04);
-        transform: translateX(4px);
-    }
-    
-    .menu-item.active .menu-link {
-        box-shadow: none;
-        color: #ffffff !important;
-    }
-    
-    .menu-item.active .menu-link div {
-        color: #ffffff !important;
-        font-weight: 600;
-    }
-    
-    /* Colorful Icon styling */
-    .menu-icon {
-        margin-right: 0.75rem;
-        font-size: 1.25rem !important;
-        transition: all 0.3s ease;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 8px;
-        border-radius: 10px;
-        background: #f9fafb;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-    }
-    
-    /* Individual icon colors */
-    .ri-dashboard-3-line {
-        color: #f97316 !important; /* Orange */
-        background: rgba(249, 115, 22, 0.1);
-    }
-    
-    .ri-ship-line {
-        color: #0ea5e9 !important; /* Sky blue */
-        background: rgba(14, 165, 233, 0.1);
-    }
-    
-    .ri-map-pin-user-line {
-        color: #ec4899 !important; /* Pink */
-        background: rgba(236, 72, 153, 0.1);
-    }
-    
-    .ri-route-line {
-        color: #14b8a6 !important; /* Teal */
-        background: rgba(20, 184, 166, 0.1);
-    }
-    
-    .ri-bookmark-3-line {
-        color: #8b5cf6 !important; /* Purple */
-        background: rgba(139, 92, 246, 0.1);
-    }
-    
-    .ri-questionnaire-line {
-        color: #f43f5e !important; /* Rose */
-        background: rgba(244, 63, 94, 0.1);
-    }
-    
-    .ri-hotel-bed-line {
-        color: #10b981 !important; /* Emerald */
-        background: rgba(16, 185, 129, 0.1);
-    }
-    
-    .ri-shield-check-line {
-        color: #6366f1 !important; /* Indigo */
-        background: rgba(99, 102, 241, 0.1);
-    }
-    
-    .ri-function-line {
-        color: #0284c7 !important; /* Blue */
-        background: rgba(2, 132, 199, 0.1);
-    }
-    
-    .ri-hotel-line {
-        color: #0d9488 !important; /* Teal */
-        background: rgba(13, 148, 136, 0.1);
-    }
-    
-    .ri-camera-3-line {
-        color: #8b5cf6 !important; /* Purple */
-        background: rgba(139, 92, 246, 0.1);
-    }
-    
-    .ri-stack-line {
-        color: #10b981 !important; /* Emerald */
-        background: rgba(16, 185, 129, 0.1);
-    }
-    
-    .ri-restaurant-2-line {
-        color: #ea580c !important; /* Orange */
-        background: rgba(234, 88, 12, 0.1);
-    }
-    
-    .ri-compass-3-line {
-        color: #0369a1 !important; /* Blue */
-        background: rgba(3, 105, 161, 0.1);
-    }
-    
-    .ri-steering-2-line {
-        color: #4f46e5 !important; /* Indigo */
-        background: rgba(79, 70, 229, 0.1);
-    }
-    
-    .ri-task-line {
-        color: #be123c !important; /* Rose */
-        background: rgba(190, 18, 60, 0.1);
-    }
-    
-    .ri-user-line {
-        color: #7c3aed !important; /* Violet */
-        background: rgba(124, 58, 237, 0.1);
-    }
-    
-    .ri-settings-3-line {
-        color: #3b82f6 !important; /* Blue */
-        background: rgba(59, 130, 246, 0.1);
-    }
-
-    .ri-mail-send-line {
-        color: #39c262 !important; /* Blue */
-        background: rgba(59, 130, 246, 0.1);
-    }
-    
-    .ri-earth-line {
-        color: #059669 !important; /* Emerald */
-        background: rgba(5, 150, 105, 0.1);
-    }
-    
-    .ri-bar-chart-box-line {
-        color: #7c2d12 !important; 
-        background: rgba(124, 45, 18, 0.1);
-    }
-
-    .ri-file-list-3-line {
-        color: #2c54a0 !important; /* Amber */
-        background: rgba(124, 45, 18, 0.1);
-    }
-    
-    .ri-hand-heart-line {
-        color: #e11d48 !important; /* Rose */
-        background: rgba(225, 29, 72, 0.1);
-    }
-    
-    /* Active icon state with shine effect */
-    .menu-item.active .menu-icon {
-        color: white !important;
-        background: linear-gradient(135deg, #6366f1, #8b5cf6);
-        box-shadow: 0 3px 10px rgba(99, 102, 241, 0.3);
-        transform: translateY(-2px);
-    }
-
-    /* Pro Badge - Top Right Corner Like Verified Badge */
-    .pro-badge {
-        position: absolute !important;
-        top: 8px;
-        right: 12px;
-        display: inline-flex !important;
-        align-items: center;
-        justify-content: center;
-        background: linear-gradient(135deg, #FFD700, #FFA500) !important;
-        color: #ffffff !important;
-        padding: 3px 8px;
-        border-radius: 10px;
-        font-size: 8px;
-        font-weight: 800;
-        letter-spacing: 0.5px;
-        text-transform: uppercase;
-        box-shadow: 0 2px 8px rgba(255, 215, 0, 0.5);
-        z-index: 10;
-        animation: pulse-star 2s ease-in-out infinite;
-    }
-    
-    .menu-item.active .pro-badge {
-        background: linear-gradient(135deg, #FFD700, #FFA500) !important;
-        color: #ffffff !important;
-        box-shadow: 0 2px 12px rgba(255, 215, 0, 0.6);
-    }
-    
-    .menu-item:hover .pro-badge {
-        transform: scale(1.05);
-        box-shadow: 0 3px 15px rgba(255, 215, 0, 0.7);
-    }
-    
-    @keyframes pulse-star {
-        0%, 100% {
-            box-shadow: 0 2px 8px rgba(255, 215, 0, 0.5);
-        }
-        50% {
-            box-shadow: 0 2px 15px rgba(255, 215, 0, 0.8);
-        }
-    }
-    
-    /* Submenu styling */
-    .menu-sub {
-        padding-left: 3.35rem !important;
-        margin-top: 0.5rem;
-        margin-bottom: 0.5rem;
-    }
-    
-    .menu-sub .menu-link {
-        padding: 0.6rem 1.5rem;
-        color: #000;
-        font-size: 0.92rem;
-    }
-    
-    .menu-sub .menu-link:hover {
-        color: #6366f1;
-    }
-    
-    /* Menu toggle icon animation */
-    .menu-toggle:after {
-        transition: all 0.4s cubic-bezier(0.68, -0.55, 0.27, 1.55);
-        color: #94a3b8;
-    }
-    
-    .menu-item.open > .menu-toggle:after {
-        transform: rotate(90deg);
-        color: #6366f1;
-    }
-    
-    /* Menu section hover effect */
-    .menu-item.open {
-        background-color: rgba(99, 102, 241, 0.04);
-        border-radius: 12px;
-    }
-    
-    /* Custom scrollbar */
-    .menu-inner::-webkit-scrollbar {
-        width: 5px;
-    }
-    
-    .menu-inner::-webkit-scrollbar-track {
-        background: transparent;
-    }
-    
-    .menu-inner::-webkit-scrollbar-thumb {
-        background-color: rgba(99, 102, 241, 0.2);
-        border-radius: 10px;
-    }
-    
-    .menu-inner::-webkit-scrollbar-thumb:hover {
-        background-color: rgba(99, 102, 241, 0.4);
-    }
-    
-    /* Smooth hover transitions */
-    .menu-link, .menu-icon {
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-    
-    /* Reset parent menu color */
-    .menu-item.open > .menu-link {
-        color: #6366f1 !important; /* Keep parent menu normal color */
-    }
-    
-    .menu-item.open > .menu-link div {
-        color: #6366f1 !important;
-    }
-    
-    /* Only make the specific active item white */
-    .menu-item.active:not(.open) > .menu-link {
-        color: #ffffff !important;
-    }
-    
-    .menu-item.active:not(.open) > .menu-link div {
-        color: #ffffff !important;
-    }
-    
-    /* For submenu items that are active */
-    .menu-sub .menu-item.active .menu-link {
-        color: #ffffff !important;
-        /* background: linear-gradient(118deg, #4bbca5, #725aab); */
-        background: linear-gradient(25deg, #c851ec, #566ee4);
-        box-shadow: 0 2px 10px rgba(99, 102, 241, 0.3);
-    }
-    
-    .menu-sub .menu-item.active .menu-link div {
-        color: #ffffff !important;
-    }
-    
-    /* Ensure other submenu items are not white */
-    .menu-sub .menu-item:not(.active) .menu-link {
-        color: #000 !important;
-    }
-    
-    .menu-sub .menu-item:not(.active) .menu-link div {
-        color: #000 !important;
-    }
-
-    .menu-vertical .menu-item .menu-link{
-        font-weight: bold;
-    }
-
-    /* Ensure menu items show full text without truncation */
-    .menu-vertical .menu-item .menu-link > div:not(.badge) {
-        overflow: visible !important;
-        text-overflow: inherit !important;
-        white-space: wrap !important;
-        word-wrap: break-word !important;
-        line-height: 1.467;
-        hyphens: auto;
-    }
-
-    /* Additional override for menu text in tooltips */
-    .menu-tooltip div[data-i18n] {
-        overflow: visible !important;
-        text-overflow: inherit !important;
-        white-space: wrap !important;
-        word-wrap: break-word !important;
-    }
-
-    /* Override any ellipsis display in menu items */
-    .menu-item .menu-link div,
-    .menu-item .menu-link span.menu-text-with-tooltip {
-        overflow: visible !important;
-        text-overflow: inherit !important;
-        white-space: wrap !important;
-        word-wrap: break-word !important;
-        text-overflow: initial !important;
-    }
-
-    #template-customizer .template-customizer-open-btn{
-        display: none !important;
-    }
-
-    /* 3D Menu Toggle Icon Styling */
-    .layout-menu-toggle {
-        position: relative;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin-right: 10px;
-    }
-
-    .layout-menu-toggle .menu-icon {
-        padding: 10px;
-        border-radius: 12px;
-        background: linear-gradient(145deg, #ffffff, #f0f0f0);
-        box-shadow: 4px 4px 8px rgba(0,0,0,0.1), 
-                    -4px -4px 8px rgba(255,255,255,0.9);
-        color: #6366f1 !important;
-        font-size: 1.4rem !important;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        border: 1px solid rgba(99, 102, 241, 0.1);
-    }
-
-    .layout-menu-toggle:hover .menu-icon {
-        transform: translateY(-3px) rotate(180deg);
-        box-shadow: 6px 6px 10px rgba(0,0,0,0.15), 
-                    -6px -6px 10px rgba(255,255,255,0.95);
-        background: linear-gradient(145deg, #6366f1, #8b5cf6);
-        color: white !important;
-    }
-
-    .layout-menu-toggle:active .menu-icon {
-        transform: translateY(1px);
-        box-shadow: 2px 2px 5px rgba(0,0,0,0.1), 
-                    -2px -2px 5px rgba(255,255,255,0.8);
-    }
-
-    .rounded-logo {
-        width: 55px;
-        height: 55px;
-        object-fit: cover;
-        border-radius: 50%; /* Makes it a perfect circle */
-        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2),
-                    inset 0 0 10px rgba(255, 255, 255, 0.2); /* 3D inner & outer */
-        border: 3px solid #ffffff;
-        background-color: #f9f9f9;
-        transition: transform 0.3s ease;
-        }
-
-        .rounded-logo:hover {
-        transform: scale(1.05) rotate(1deg);
-        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.25),
-                    inset 0 0 12px rgba(255, 255, 255, 0.3);
-        }
-
-    /* Improved Animated Ellipsis */
-    .animated-ellipsis {
-        display: inline-flex;
-        margin-left: 2px;
-        position: relative;
-        top: -1px;
-    }
-
-    .animated-ellipsis span {
-        animation: waveEffect 1.8s infinite;
-        animation-fill-mode: both;
-        font-weight: bold;
-        color: white;
-        font-size: 16px;
-        margin-left: 1px;
-        text-shadow: 0 1px 2px rgba(0,0,0,0.2);
-    }
-
-    .animated-ellipsis span:nth-child(2) {
-        animation-delay: 0.2s;
-    }
-
-    .animated-ellipsis span:nth-child(3) {
-        animation-delay: 0.4s;
-    }
-
-    @keyframes waveEffect {
-        0%, 100% {
-            transform: translateY(0);
-        }
-        25% {
-            transform: translateY(-4px);
-        }
-        50% {
-            transform: translateY(0);
-        }
-        75% {
-            transform: translateY(4px);
-        }
-    }
-    .small-brand-text {
-        font-size: 1.1rem;
-        letter-spacing: 0.5px;
-    }
-
-    .ri-gift-line {
-        color: #f59e0b !important; /* Amber */
-        background: rgba(245, 158, 11, 0.1);
-    }
-    
-    .ri-service-line {
-        color: #06b6d4 !important; /* Cyan */
-        background: rgba(6, 182, 212, 0.1);
-    }
-    
-    .ri-building-line {
-        color: #7c3aed !important; /* Violet */
-        background: rgba(124, 58, 237, 0.1);
-    }
-    
-    .ri-car-line {
-        color: #dc2626 !important; /* Red */
-        background: rgba(220, 38, 38, 0.1);
-    }
-    
-    .ri-percent-line {
-        color: #16a34a !important; /* Green */
-        background: rgba(22, 163, 74, 0.1);
-    }
-    
-    .roadmap-icon:hover {
-  color: #2ecc71;
-  transform: scale(1.1);
-  transition: 0.3s;
- }
-
-    /* Menu Text with Full Display */
-    .menu-text-with-tooltip {
-        white-space: wrap;
-        overflow: visible;
-        text-overflow: inherit;
-        max-width: 100%;
-        position: relative;
-        word-wrap: break-word;
-        line-height: 1.3;
-    }
-
-    /* Tooltip Container */
-    .menu-tooltip {
-        position: relative;
-        display: inline-block;
-        width: 100%;
-    }
-
-    /* Tooltip Text */
-    .menu-tooltip .tooltip-text {
-        visibility: hidden;
-        opacity: 0;
-        background: linear-gradient(135deg, #1f2937, #374151);
-        color: white;
-        text-align: left;
-        border-radius: 8px;
-        padding: 10px 15px;
-        position: fixed;
-        z-index: 999999;
-        font-size: 14px;
-        font-weight: 500;
-        white-space: nowrap;
-        min-width: max-content;
-        max-width: 350px;
-        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
-        border: 2px solid rgba(255, 255, 255, 0.2);
-        transition: all 0.3s ease;
-        transform: scale(0.8);
-        pointer-events: none;
-        left: 280px;
-        top: 100px;
-    }
-
-    /* Tooltip Arrow */
-    .menu-tooltip .tooltip-text::before {
-        content: "";
-        position: absolute;
-        top: 50%;
-        left: -8px;
-        transform: translateY(-50%);
-        border-top: 8px solid transparent;
-        border-bottom: 8px solid transparent;
-        border-right: 8px solid #1f2937;
-        filter: drop-shadow(-2px 0 4px rgba(0, 0, 0, 0.1));
-    }
-
-    /* Show Tooltip on Hover */
-    .menu-tooltip:hover .tooltip-text {
-        visibility: visible;
-        opacity: 1;
-        transform: translateX(0);
-    }
-
-    /* Prevent tooltip from interfering with menu functionality */
-    .menu-tooltip .tooltip-text {
-        user-select: none;
-    }
-
-    /* Force tooltip visibility on hover - CSS fallback */
-    .menu-tooltip:hover .tooltip-text {
-        visibility: visible !important;
-        opacity: 1 !important;
-        transform: scale(1) !important;
-        display: block !important;
-    }
-
-    /* Responsive tooltip positioning */
-    @media (max-width: 768px) {
-        .menu-tooltip .tooltip-text {
-            font-size: 12px;
-            padding: 6px 10px;
-            margin-left: 10px;
-        }
-    }
-
-    /* Better tooltip positioning for smaller screens */
-    @media (max-width: 1200px) {
-        .menu-tooltip .tooltip-text {
-            left: 100%;
-            margin-left: 10px;
-        }
-    }
-
-    /* Special styling for truncated text */
-    .truncated-text {
-        position: relative;
-    }
-
-    .truncated-text:hover {
-        cursor: help;
-    }
-
-    /* Debug styles - add red border to see tooltip areas */
-    .menu-tooltip {
-        position: relative;
-    }
-    
-    /* Ensure proper z-index stacking */
-    .layout-menu .menu-tooltip .tooltip-text {
-        z-index: 99999 !important;
-    }
-
-    /* Booking Count Badge Styling */
-    .menu-link .badge {
-        font-size: 0.65rem !important;
-        padding: 0.25rem 0.5rem !important;
-        font-weight: 600 !important;
-        min-width: 1.5rem;
-        height: 1.5rem;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        line-height: 1 !important;
-        border: 2px solid rgba(255, 255, 255, 0.2);
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        animation: pulseCount 2s infinite;
-    }
-
-    @keyframes pulseCount {
-        0%, 100% {
-            transform: scale(1);
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-        50% {
-            transform: scale(1.05);
-            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
-        }
-    }
-
-    /* Active menu item badge styling */
-    .menu-item.active .menu-link .badge {
-        background-color: rgba(255, 255, 255, 0.9) !important;
-        color: #dc3545 !important;
-        border-color: rgba(255, 255, 255, 0.5);
-    }
-
-    /* Submenu badge styling */
-    .menu-sub .menu-link .badge {
-        font-size: 0.6rem !important;
-        padding: 0.2rem 0.4rem !important;
-        min-width: 1.2rem;
-        height: 1.2rem;
-    }
-
-    /* Prevent badge from interfering with hover effects */
-    .menu-link .badge {
-        pointer-events: none;
-        flex-shrink: 0;
-    }
-
-    /* Ensure proper spacing in menu items with badges */
-    .menu-link .d-flex {
-        width: 100%;
-        min-height: 1.5rem;
-        align-items: center;
-    }
-</style>
-        <body>
-            <div class="layout-wrapper layout-content-navbar  ">
+<body>
+    <div class="layout-wrapper layout-content-navbar  ">
     <div class="layout-container">
         <!-- Menu -->
-        <aside id="layout-menu" class="layout-menu menu-vertical menu bg-menu-theme">
-            <div class="app-brand demo ">
-                <a href="{{ route('dashboard') }}" class="app-brand-link">
+        <aside id="layout-menu" class="layout-menu layout-menu1 menu-vertical menu bg-menu-theme">
+            <div class="app-brand demo">
+                @php
+                $currentUser = Auth::user();
+                $brandUser = $currentUser;
+
+                // Resolve DMC branding for hierarchical roles (sales/finance/product/ops etc.).
+                if ($currentUser) {
+                    $dmcId = \App\Helpers\CommonHelper::getDmcId($currentUser);
+                    if (!empty($dmcId)) {
+                        $dmcUser = \App\Models\User::where('userId', $dmcId)->first();
+                        if ($dmcUser) {
+                            $brandUser = $dmcUser;
+                        }
+                    }
+                }
+
+                $masterLogo = \App\Helpers\CommonHelper::masterSettingsName('logo')['master_value'] ?? '';
+                $masterName = \App\Helpers\CommonHelper::masterSettingsName('name')['master_value'] ?? 'Dashboard';
+
+                $brandName = trim((string) ($brandUser->company_name ?? ''));
+                if ($brandName === '') {
+                    $brandName = $masterName;
+                }
+
+                $brandLogo = trim((string) ($brandUser->logo ?? ''));
+                if ($brandLogo === '') {
+                    $brandLogo = $masterLogo;
+                }
+
+                if ($brandLogo !== '' && !preg_match('/^(https?:\/\/|data:image\/)/i', $brandLogo)) {
+                    $brandLogo = asset(ltrim($brandLogo, '/'));
+                }
+                @endphp
+                <a href="{{ route('dashboard') }}" class="app-brand-link" title="{{ $brandName }}">
                     <span class="app-brand-logo demo">
-                        @php
-                        $logoSetting = \App\Helpers\CommonHelper::masterSettingsName('logo');
-                        $fileStorage = \App\Helpers\CommonHelper::masterSettingsName('file_storage')['master_value']
-                        ?? 'local'; // Default to local if not set
-                        @endphp
-                        <div class="logo-icon">
-                            <img src="{{ $logoSetting['master_value'] }}" class="logo-img rounded-logo" alt="Logo">
-                        </div>
-                        {{-- <div class="logo-name flex-grow-1">
-                            <h5 class="mb-0 text-white">
-                                {{ \App\Helpers\CommonHelper::masterSettingsName('name')['master_value'] }}</h5>
-                        </div> --}}
+                        <span class="sidebar-brand-logo-box" aria-hidden="true">
+                            <img src="{{ $brandLogo }}" class="logo-img rounded-logo" alt="">
+                        </span>
                     </span>
-                    </span>
-                    <span class="app-brand-text demo menu-text fw-semibold ms-2">
-                        @php
-                            $name = \App\Helpers\CommonHelper::masterSettingsName('name')['master_value'];
-                            $limit = 10;
-                            $displayName = strlen($name) > $limit ? substr($name, 0, $limit) : $name;
-                        @endphp
-                        <span class="small-brand-text" title="{{ $name }}">{{ $displayName }}</span>
-                        @if(strlen($name) > $limit)
-                            <span class="animated-ellipsis"><span>.</span><span>.</span><span>.</span></span>
-                        @endif
+                    <span class="app-brand-text demo menu-text">
+                        <span class="sidebar-brand-name">{{ $brandName }}</span>
                     </span>
                 </a>
-                <a href="javascript:void(0);" class="layout-menu-toggle menu-link text-large ms-auto">
-                    <i class="menu-icon tf-icons ri-menu-fold-line" style="margin-left: 10px"></i>
+                <a href="javascript:void(0);" class="layout-menu-toggle sidebar-menu-toggle" aria-label="Toggle navigation">
+                    <i class="menu-icon tf-icons ri-menu-fold-line"></i>
                 </a>
             </div>
             <div class="menu-inner-shadow"></div>
@@ -757,22 +90,45 @@
 
         
 
-        <li class="menu-item @if(Request::is('enquiry-form-pro/create')) active @endif" style="position: relative;">
-            <a href="javascript:void(0);" class="menu-link" id="createSingleTourProBtn">
-                <i class="menu-icon tf-icons ri-file-list-3-line"></i>
-                <div data-i18n="Create Single Tour">Create Single Tour</div>
-                <span class="pro-badge">Pro</span>
-            </a>
-        </li> 
-
         @if(in_array(auth()->user()->role_id, [33, 37, 38, 128, 129, 130, 134, 135, 136, 138]))
+            @php
+                $dmcCanLiteForm = \App\Helpers\CommonHelper::dmcCanAccessLiteForm(auth()->user());
+                $dmcCanProForm = \App\Helpers\CommonHelper::dmcCanAccessProForm(auth()->user());
+            @endphp
+            @if($dmcCanProForm)
+            <li class="menu-item @if(Request::is('enquiry-form-pro/create')) active @endif" style="position: relative;">
+                <a href="#" class="menu-link" id="createSingleTourProBtn" data-enquiry-pro-create-url="{{ route('enquiry-form-pro.create') }}">
+                    <i class="menu-icon tf-icons ri-file-list-3-line"></i>
+                    <div data-i18n="Create Tour">Create Tour</div>
+                    <span class="badge-pro">Pro</span>
+                </a>
+            </li>
+            @endif
+
+            @if($dmcCanLiteForm)
             <!-- Single Tour Package for DMCs -->
-            <li class="menu-item @if(Request::is('single-tour-package/create')) active @endif">
+            <li class="menu-item @if(Request::is('single-tour-package/create')) active @endif" style="position: relative;">
                 <a href="{{ route('single-tour-package.create') }}" class="menu-link">
                     <i class="menu-icon tf-icons ri-route-line"></i>
-                    <div data-i18n="Create Tour Package">Create Tour Package</div>
+                    <div data-i18n="Create Tour">Create Tour</div>
+                    <span class="badge-lite">Lite</span>
                 </a>
-            </li> 
+            </li>
+            @endif
+
+            <li class="menu-item @if(Request::is('packages/booking/create')) active @endif" style="position: relative;">
+                <a href="{{ route('packages.booking.create') }}" class="menu-link">
+                    <i class="menu-icon tf-icons ri-route-line"></i>
+                    <div data-i18n="Prebuilt Packages">Prebuilt Packages</div>
+                </a>
+            </li>
+
+            {{-- <li class="menu-item @if(Request::is('day-level*')) active @endif">
+                <a href="{{ route('day-level.index') }}" class="menu-link">
+                    <i class="menu-icon tf-icons ri-calendar-2-line"></i>
+                    <div data-i18n="Day Level Packages">Day Level Packages</div>
+                </a>
+            </li> --}}
         @endif
 
         <!-- End Tour -->
@@ -785,12 +141,43 @@
             <span class="menu-header-text" data-i18n="Bookings">Bookings</span>
         </li>
         
-        <li class="menu-item @if(Request::is('bookings/*') && !Request::is('bookings/tentative') || Request::is('predefined-package-booking-list') || Request::is('enquirylist')) open active @endif">
+        <li class="menu-item @if((Request::is('bookings/*') && !Request::is('bookings/tentative')) || Request::is('package-bookings/*') || Request::is('predefined-package-booking-list') || Request::is('enquirylist') || Request::is('custom-packages/*')) open active @endif">
             <a href="#" class="menu-link menu-toggle">
                 <i class="menu-icon tf-icons ri-bookmark-3-line"></i>
                 <div data-i18n="Bookings">Bookings</div>
             </a>
             <ul class="menu-sub">
+                @php
+                    $isPackageBookingView = Request::is('package-bookings/*');
+                    $sidebarCounts = $isPackageBookingView ? ($packageBookingCounts ?? []) : ($bookingCounts ?? []);
+                    $routeFor = function (string $key) use ($isPackageBookingView) {
+                        if ($isPackageBookingView) {
+                            return match ($key) {
+                                'new_enquiries' => route('package-bookings.new-enquiries'),
+                                'follow_ups' => route('package-bookings.follow-ups'),
+                                'confirmed' => route('package-bookings.confirmed'),
+                                'definite' => route('package-bookings.definite'),
+                                'actual' => route('package-bookings.actual'),
+                                'cancelled' => route('package-bookings.cancelled'),
+                                'refunds' => route('package-bookings.refunds'),
+                                default => '#',
+                            };
+                        }
+                        return match ($key) {
+                            'new_enquiries' => route('bookings.new-enquiries'),
+                            'follow_ups' => route('bookings.follow-ups'),
+                            'confirmed' => route('bookings.confirmed'),
+                            'definite' => route('bookings.definite'),
+                            'actual' => route('bookings.actual'),
+                            'cancelled' => route('bookings.cancelled'),
+                            'refunds' => route('bookings.refunds'),
+                            default => '#',
+                        };
+                    };
+                    $activeFor = function (string $toursPath, string $pkgPath) use ($isPackageBookingView) {
+                        return $isPackageBookingView ? Request::is($pkgPath) : Request::is($toursPath);
+                    };
+                @endphp
                 @if(in_array(auth()->user()->role_id, [1, 2, 11, 33,  12, 37, 38, 128, 129, 130, 134, 135, 136, 138]))
                     <li class="menu-item @if(Request::is('enquirylist') && !Request::is('enquiries*')) active @endif">
                         <a href="{{ route('enquirylist.index') }}" class="menu-link">
@@ -798,56 +185,57 @@
                         </a>
                     </li>
                 
-                    <li class="menu-item @if(Request::is('bookings/new-enquiries')) active @endif">
-                        <a href="{{ route('bookings.new-enquiries') }}" class="menu-link" >
-                            <div class="d-flex justify-content-between align-items-center">
+                    <li class="menu-item @if($activeFor('bookings/new-enquiries', 'package-bookings/new-enquiries')) active @endif">
+                        <a href="{{ $routeFor('new_enquiries') }}" class="menu-link">
+                            <div class="d-flex justify-content-between align-items-center w-100">
                                 <span data-i18n="Enquiries">Enquiries</span>
-                                @if(isset($bookingCounts) && $bookingCounts['new_enquiries'] > 0)
-                                    <span class="badge bg-danger rounded-pill text-white ms-2">{{ $bookingCounts['new_enquiries'] }}</span>
+                                @if(($sidebarCounts['new_enquiries'] ?? 0) > 0)
+                                    <span class="badge bg-danger rounded-pill text-white ms-2">{{ $sidebarCounts['new_enquiries'] }}</span>
                                 @endif
                             </div>
                         </a>
                     </li>
                     <!-- Show Booking -->
-                    <li class="menu-item @if(Request::is('bookings/follow-ups')) active @endif">
-                        <a href="{{ route('bookings.follow-ups') }}" class="menu-link" title="Follow Ups">
+                    <li class="menu-item @if($activeFor('bookings/follow-ups', 'package-bookings/follow-ups')) active @endif">
+                        <a href="{{ $routeFor('follow_ups') }}" class="menu-link">
                             <div class="d-flex justify-content-between align-items-center">
                                 <span data-i18n="Follow Ups">Follow Ups</span>
-                                @if(isset($bookingCounts) && $bookingCounts['follow_ups'] > 0)
-                                    <span class="badge bg-danger rounded-pill text-white ms-2">{{ $bookingCounts['follow_ups'] }}</span>
+                                @if(($sidebarCounts['follow_ups'] ?? 0) > 0)
+                                    <span class="badge bg-danger rounded-pill text-white ms-2">{{ $sidebarCounts['follow_ups'] }}</span>
                                 @endif
                             </div>
                         </a>
                     </li>
                 @endif
                 @if(in_array(auth()->user()->role_id, [1,2,11,12,26,33,34,36,37,38,49,50,51,52,53,64,65,66,67,68,69,70,71,72,73,80,81,87,89,90,96,98,99,105,107,108,114,116,117,123,124,125,126,127,128,129,131,132,133,134,135,136,137,138]))
-                    <li class="menu-item @if(Request::is('bookings/confirmed')) active @endif">
-                        <a href="{{ route('bookings.confirmed') }}" class="menu-link" title="Confirmed Bookings">
+                    <li class="menu-item @if($activeFor('bookings/confirmed', 'package-bookings/confirmed')) active @endif">
+                        <a href="{{ $routeFor('confirmed') }}" class="menu-link">
                             <div class="d-flex justify-content-between align-items-center">
                                 <span data-i18n="Confirmed">Confirmed</span>
-                                @if(isset($bookingCounts) && $bookingCounts['confirmed'] > 0) 
-                                    <span class="badge bg-danger rounded-pill text-white ms-2">{{ $bookingCounts['confirmed'] }}</span>
+                                @if(($sidebarCounts['confirmed'] ?? 0) > 0) 
+                                    <span class="badge bg-danger rounded-pill text-white ms-2">{{ $sidebarCounts['confirmed'] }}</span>
                                 @endif
                             </div>
                         </a>
                     </li>
                 
-                    <li class="menu-item @if(Request::is('bookings/definite')) active @endif">
-                        <a href="{{ route('bookings.definite') }}" class="menu-link" title="Definite Bookings">
+                    <li class="menu-item @if($activeFor('bookings/definite', 'package-bookings/definite')) active @endif">
+                        <a href="{{ $routeFor('definite') }}" class="menu-link">
                             <div class="d-flex justify-content-between align-items-center">
                                 <span data-i18n="Definite">Definite</span>
-                                @if(isset($bookingCounts) && $bookingCounts['definite'] > 0)
-                                    <span class="badge bg-danger rounded-pill text-white ms-2">{{ $bookingCounts['definite'] }}</span>
+                                @if(($sidebarCounts['definite'] ?? 0) > 0)
+                                    <span class="badge bg-danger rounded-pill text-white ms-2">{{ $sidebarCounts['definite'] }}</span>
                                 @endif
                             </div>
                         </a>
                     </li>
-                    <li class="menu-item @if(Request::is('bookings/actual')) active @endif">
-                        <a href="{{ route('bookings.actual') }}" class="menu-link" title="Actual Bookings">
+                    
+                    <li class="menu-item @if($activeFor('bookings/actual', 'package-bookings/actual')) active @endif">
+                        <a href="{{ $routeFor('actual') }}" class="menu-link">
                             <div class="d-flex justify-content-between align-items-center">
                                 <span data-i18n="Actual">Actual</span>
-                                @if(isset($bookingCounts) && $bookingCounts['actual'] > 0)
-                                    <span class="badge bg-danger rounded-pill text-white ms-2">{{ $bookingCounts['actual'] }}</span>
+                                @if(($sidebarCounts['actual'] ?? 0) > 0)
+                                    <span class="badge bg-danger rounded-pill text-white ms-2">{{ $sidebarCounts['actual'] }}</span>
                                 @endif
                             </div>
                         </a>
@@ -863,22 +251,22 @@
                             </div>
                         </a>
                         <ul class="menu-sub"> --}}
-                            <li class="menu-item @if(Request::is('bookings/cancelled')) active @endif">
-                                <a href="{{ route('bookings.cancelled') }}" class="menu-link" title="Cancelled Bookings">
+                            <li class="menu-item @if($activeFor('bookings/cancelled', 'package-bookings/cancelled')) active @endif">
+                                <a href="{{ $routeFor('cancelled') }}" class="menu-link">
                                     <div class="d-flex justify-content-between align-items-center">
                                         <span data-i18n="Cancelled">Cancelled</span>
-                                        @if(isset($bookingCounts) && $bookingCounts['cancelled'] > 0)
-                                            <span class="badge bg-danger rounded-pill text-white ms-2">{{ $bookingCounts['cancelled'] }}</span>
+                                        @if(($sidebarCounts['cancelled'] ?? 0) > 0)
+                                            <span class="badge bg-danger rounded-pill text-white ms-2">{{ $sidebarCounts['cancelled'] }}</span>
                                         @endif
                                     </div>
                                 </a>
                             </li>
-                            <li class="menu-item @if(Request::is('bookings/refunds')) active @endif">
-                                <a href="{{ route('bookings.refunds') }}" class="menu-link" title="Refunds">
+                            <li class="menu-item @if($activeFor('bookings/refunds', 'package-bookings/refunds')) active @endif">
+                                <a href="{{ $routeFor('refunds') }}" class="menu-link">
                                     <div class="d-flex justify-content-between align-items-center">
                                         <span data-i18n="Refunds">Refunds</span>
-                                        @if(isset($bookingCounts) && $bookingCounts['refunds'] > 0)
-                                            <span class="badge bg-danger rounded-pill text-white ms-2">{{ $bookingCounts['refunds'] }}</span>
+                                        @if(($sidebarCounts['refunds'] ?? 0) > 0)
+                                            <span class="badge bg-danger rounded-pill text-white ms-2">{{ $sidebarCounts['refunds'] }}</span>
                                         @endif
                                     </div>
                                 </a>
@@ -900,6 +288,7 @@
                         </a>
                     </li>
                 @endif
+                
             </ul>
         </li>  
     @endif
@@ -986,7 +375,7 @@
                     <span class="menu-header-text" data-i18n="All Products">All Products</span>
                 </li>
 
-            <li class="menu-item @if(Request::is('packages*') || Request::is('packaged-attractions*') || Request::is('hotels*') || Request::is('attraction*') || Request::is('restaurant*') || Request::is('guide*') || Request::is('vehicle*') || Request::is('driver*') || Request::is('category*') || Request::is('facility*') || Request::is('ports*') || Request::is('single-tour-package*') || Request::is('zones*')) open active @endif">
+            <li class="menu-item @if(Request::is('packages*') || Request::is('packaged-attractions*') || Request::is('hotels*') || Request::is('attraction*') || Request::is('restaurant*') || Request::is('multiRestaurant*') || Request::is('guide*') || Request::is('vehicle*') || Request::is('driver*')) open active @endif">
                 <a href="#" class="menu-link menu-toggle">
                     <i class="menu-icon tf-icons ri-stack-line" style="color: #3565bd"></i>
                     <div data-i18n="All Products">All Products</div>
@@ -999,15 +388,7 @@
                     <div data-i18n="Packages">Packages</div>
                 </a>
                 <ul class="menu-sub"> --}}
-                    <li class="menu-item @if(Request::is('packages') && !Request::is('packaged-attractions*')) active @endif">
-                        <a href="{{ route('packages.index') }}" class="menu-link" title="Packages">
-                            {{-- <i class="menu-icon tf-icons ri-gift-line"></i> --}}
-                            <div data-i18n="Packages" class="menu-tooltip">
-                                <span class="menu-text-with-tooltip">Packages</span>
-                                <span class="tooltip-text">Packages</span>
-                            </div>
-                        </a>
-                    </li>
+                    
                     {{-- <li class="menu-item @if(Request::is('packages/create')) active @endif">
                         <a href="{{ route('packages.create') }}" class="menu-link">
                             <div data-i18n="Create Package" class="menu-tooltip">
@@ -1119,14 +500,14 @@
                 </li>
                 @endif
 
-                <!-- Restaurant & Dining -->
-                {{-- @if(hasPermission('view restaurant') || hasPermission('create restaurant'))
-                <li class="menu-item @if(Request::is('restaurant*') && !Request::is('restaurants/restaurant-approval*')) open active @endif">
-                    <a href="javascript:void(0);" class="menu-link menu-toggle">
-                        <i class="menu-icon tf-icons ri-restaurant-2-line"></i>
-                        <div data-i18n="Restaurant & Dining">Restaurant & Dining</div>
+                <!-- Restaurant -->
+                @if(hasPermission('view restaurant') || hasPermission('create restaurant'))
+                <li class="menu-item @if((Request::is('restaurant*') && !Request::is('restaurants/restaurant-approval*')) || Request::is('multiRestaurant*')) open @endif">
+                    <a href="#" class="menu-link menu-toggle">
+                        {{-- <i class="menu-icon tf-icons ri-restaurant-2-line"></i> --}}
+                        <div data-i18n="Restaurant">Restaurant</div>
                     </a>
-                    <ul class="menu-sub"> --}}
+                    <ul class="menu-sub">
                         @if(hasPermission('view restaurant'))
                         <li class="menu-item @if(Request::is('restaurant')) active @endif">
                             <a href="{{ route('restaurant.index') }}" class="menu-link" title="Restaurant & Dining" >
@@ -1138,18 +519,20 @@
                             </a>
                         </li>
                         @endif
-                        {{-- @if(auth()->user()->role_id == 1 || auth()->user()->role_id == 20)
-                        @if(hasPermission('create restaurant'))
-                        <li class="menu-item @if(Request::is('restaurant/create')) active @endif">
-                            <a href="{{ route('restaurant.create') }}" class="menu-link">
-                                <div data-i18n="Create Restaurant">Create Restaurant</div>
+                        @if(auth()->check() && in_array(auth()->user()->role_id, [1, 11, 20]))
+                        <li class="menu-item @if(Request::is('multiRestaurant*')) active @endif">
+                            <a href="{{ route('multiResturant.index') }}" class="menu-link" title="Multi Restaurants">
+                                {{-- <i class="menu-icon tf-icons ri-restaurant-2-line"></i> --}}
+                                <div data-i18n="Multi Restaurants" class="menu-tooltip">
+                                    <span class="menu-text-with-tooltip">Multi Restaurants</span>
+                                    <span class="tooltip-text">Multi Restaurants</span>
+                                </div>
                             </a>
                         </li>
                         @endif
-                        @endif
                     </ul>
                 </li>
-                @endif --}}
+                @endif
 
                 <!-- Tour Guides -->
                 {{-- @if(hasPermission('view guide') || hasPermission('create guide'))
@@ -1241,10 +624,58 @@
                 </li>
                 @endif --}}
 
-                <!-- Product Configuration -->
-            
-                @if(hasPermission('view facility') || hasPermission('view category') || Auth::user()->role_id == 11 || Auth::user()->role_id == 35 || Auth::user()->role_id == 76 || Auth::user()->role_id == 111 || Auth::user()->role_id == 139 || Auth::user()->role_id == 140 || Auth::user()->role_id == 130 || Auth::user()->role_id == 132 || Auth::user()->role_id == 133 || Auth::user()->role_id == 135 || Auth::user()->role_id == 136 || Auth::user()->role_id == 137 || Auth::user()->role_id == 138)
-                <li class="menu-item @if(Request::is('category*') || Request::is('facility*') || Request::is('zones*') || Request::is('ports*') || Request::is('miscellaneous*')) open @endif">
+                <li class="menu-item @if(Request::is('packages') && !Request::is('packaged-attractions*')) active @endif">
+                    <a href="{{ route('packages.index') }}" class="menu-link" title="Prebuilt Fix Packages">
+                        {{-- <i class="menu-icon tf-icons ri-gift-line"></i> --}}
+                        <div data-i18n="Prebuilt Fix Packages" class="menu-tooltip">
+                            <span class="menu-text-with-tooltip">Prebuilt Fix Packages</span>
+                            <span class="tooltip-text">Prebuilt Fix Packages</span>
+                        </div>
+                    </a>
+                </li>
+            </ul>
+        </li>
+
+                <!-- Predefined Packages Booking List -->
+                {{-- @if(in_array(auth()->user()->role_id, [1,2,11, 33, 128, 129, 130, 134, 135, 136, 138, 34, 36, 37, 38]))
+                    <li class="menu-header mt-5">
+                        <span class="menu-header-text" data-i18n="Predefined Packages Booking List">Predefined Packages Booking List</span>
+                    </li>
+                    
+                    <li class="menu-item @if(Request::is('predefined-package-booking-list*')) open active @endif">
+                        <a href="#" class="menu-link menu-toggle">
+                        <i class="menu-icon tf-icons ri-suitcase-line" style="color: #1E90FF;"></i>
+
+                            <div data-i18n="Predefined Packages Booking List">Predefined Packages Booking List</div>
+                        </a>
+                        <ul class="menu-sub">
+                            <!-- Show Booking -->
+                            <li class="menu-item @if(Request::is('predefined-package-booking-list')) active @endif">
+                                <a href="{{ route('predefined.package.booking.list') }}" class="menu-link">
+                                    <div data-i18n="Predefined Packages Booking List">Predefined Packages Booking List</div>
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+                @endif --}}
+                <!-- End Predefined Packages Booking List -->
+            @endif
+
+            @if(in_array(auth()->user()->role_id, [1,2,3,4,11,19,20,44,45,46,47,48,25,59,60,61,62,63,83,101,110,119, 35,74,75,76,77,78,84,93,102,111,120,130, 132, 133, 135, 136, 137, 138,139,140]))
+
+                <!-- Products Section -->
+                <li class="menu-header mt-5">
+                    <span class="menu-header-text" data-i18n="Product Settings">Product Settings</span>
+                </li>
+
+            <li class="menu-item @if(Request::is('category*') || Request::is('facility*') || Request::is('ports*') || Request::is('single-tour-package*') || Request::is('zones*') || Request::is('miscellaneous*') || Request::is('default-values*') || Request::is('services/*'))  open active @endif">
+                <a href="#" class="menu-link menu-toggle">
+                    <i class="menu-icon tf-icons ri-stack-line" style="color: #3565bd"></i>
+                    <div data-i18n="Product Settings">Product Settings</div>
+                </a>
+                <ul class="menu-sub">
+                    @if(hasPermission('view facility') || hasPermission('view category') || Auth::user()->role_id == 11 || Auth::user()->role_id == 35 || Auth::user()->role_id == 139 || Auth::user()->role_id == 140 || Auth::user()->role_id == 130 || Auth::user()->role_id == 132 || Auth::user()->role_id == 133 || Auth::user()->role_id == 135 || Auth::user()->role_id == 136 || Auth::user()->role_id == 137 || Auth::user()->role_id == 138)
+                <li class="menu-item @if(Request::is('category*') || Request::is('facility*') || Request::is('zones*') || Request::is('default-values*') || Request::is('ports*') || Request::is('miscellaneous*')) open @endif">
                     <a href="#" class="menu-link menu-toggle" title="Product Configuration">
                         {{-- <i class="menu-icon tf-icons ri-function-line"></i> --}}
                         <div data-i18n="Product Configuration">Product Configuration</div>
@@ -1296,18 +727,90 @@
                         @endif
 
                     <!-- Zones (hard-coded link under Product Configuration) -->
-                    @if(Auth::user()->role_id == 11 || Auth::user()->role_id == 35 || Auth::user()->role_id == 76 || Auth::user()->role_id == 111 || Auth::user()->role_id == 139 || Auth::user()->role_id == 140 || Auth::user()->role_id == 130 || Auth::user()->role_id == 132 || Auth::user()->role_id == 133 || Auth::user()->role_id == 135 || Auth::user()->role_id == 136 || Auth::user()->role_id == 137 || Auth::user()->role_id == 138)
+                    @if(Auth::user()->role_id == 1 || Auth::user()->role_id == 11 || Auth::user()->role_id == 35 || Auth::user()->role_id == 76 || Auth::user()->role_id == 111 || Auth::user()->role_id == 139 || Auth::user()->role_id == 140 || Auth::user()->role_id == 130 || Auth::user()->role_id == 132 || Auth::user()->role_id == 133 || Auth::user()->role_id == 135 || Auth::user()->role_id == 136 || Auth::user()->role_id == 137 || Auth::user()->role_id == 138)
                     <li class="menu-item @if(Request::is('zones')) active @endif">
                         <a href="{{ route('zones.index') }}" class="menu-link" title="Zones">
                                 <div data-i18n="Zones" class="menu-tooltip">
-                                    <span class="menu-text-with-tooltip">Zones</span>
-                                    <span class="tooltip-text">Zones</span>
+                                    <span class="menu-text-with-tooltip">Zone Mapping</span>
+                                    <span class="tooltip-text">Zone Mapping</span>
                                 </div>
                             </a>
                         </li>
+                    @endif
+
+                    @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 35 || auth()->user()->role_id == 130 || auth()->user()->role_id == 132 || auth()->user()->role_id == 133 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
+                    <!-- Default Value (same permissions as Zones) -->
+                    <li class="menu-item @if(Request::is('default-values') || Request::is('default-values/*')) active @endif">
+                        <a href="{{ route('default-values.index') }}" class="menu-link" title="Default Product Mapping">
+                                <div data-i18n="Default Product Mapping" class="menu-tooltip">
+                                    <span class="menu-text-with-tooltip">Default Product Mapping</span>
+                                    <span class="tooltip-text">Default Product Mapping</span>
+                                </div>
+                        </a>
+                    </li>
                         @endif
-                    </ul>
-                </li>
+                </ul>
+            </li>
+
+                    <!-- Select Products (Services Management moved under Product Configuration) -->
+                    @php
+                        $allowedRoles = [11, 35, 74, 77, 78, 84, 93, 120, 130, 132, 133, 135, 136, 137, 138, 139, 140];
+                    @endphp
+                    @if(in_array(Auth::user()->role_id, $allowedRoles))
+                        <li class="menu-item @if(Request::is('services/*')) open @endif">
+                            <a href="javascript:void(0);" class="menu-link menu-toggle" title="Select Products">
+                                <div data-i18n="Select Products">Select Products</div>
+                            </a>
+                            <ul class="menu-sub">
+                                @php
+                                    $allowedRoles = [11, 35, 77, 84, 130, 132, 133, 135, 136, 137, 138, 139, 140];
+                                @endphp
+                                @if(in_array(Auth::user()->role_id, $allowedRoles))
+                                    <li class="menu-item @if(Request::is('services/hotels')) active @endif">
+                                        <a href="{{ route('services.hotels') }}" class="menu-link">
+                                            <div data-i18n="Hotels & Acco.">Hotels & Acco.</div>
+                                        </a>
+                                    </li>
+                                @endif
+
+                                @php
+                                    $allowedRoles = [11, 35,74, 93, 130, 132, 133, 135, 136, 137, 138, 139, 140];
+                                @endphp
+                                @if(in_array(Auth::user()->role_id, $allowedRoles))
+                                <li class="menu-item @if(Request::is('services/attractions')) active @endif">
+                                    <a href="{{ route('services.attractions') }}" class="menu-link">
+                                        <div data-i18n="Attractions">Attractions</div>
+                                    </a>
+                                </li>
+                                @endif
+
+                                @php
+                                    $allowedRoles = [11, 35, 78, 120, 130, 132, 133, 135, 136, 137, 138, 139, 140];
+                                @endphp
+                                @if(in_array(Auth::user()->role_id, $allowedRoles))
+                                <li class="menu-item @if(Request::is('services/restaurants')) active @endif">
+                                    <a href="{{ route('services.restaurants') }}" class="menu-link">
+                                        <div data-i18n="Restaurants & Dining">Restaurants & Dining</div>
+                                    </a>
+                                </li>
+                                @endif
+
+                                @php
+                                    $allowedRoles = [11, 35, 77, 78, 84, 120, 130, 132, 133, 135, 136, 137, 138, 139, 140];
+                                @endphp
+                                @if(in_array(Auth::user()->role_id, $allowedRoles))
+                                <li class="menu-item @if(Request::is('services/miscellaneous')) active @endif">
+                                    <a href="{{ route('services.miscellaneous') }}" class="menu-link">
+                                        <div data-i18n="Miscellaneous">Miscellaneous</div>
+                                    </a>
+                                </li>
+                                @endif
+                            </ul>
+                        </li>
+                    @endif
+
+                    {{-- </ul>
+                </li> --}}
                 @endif
 
                 <!-- Ports -->
@@ -1328,60 +831,144 @@
                     </ul>
                 </li>
                 @endif --}}
-                    </ul>
+                </ul>
                 </li>
-
-                <!-- Predefined Packages Booking List -->
-                {{-- @if(in_array(auth()->user()->role_id, [1,2,11, 33, 128, 129, 130, 134, 135, 136, 138, 34, 36, 37, 38]))
-                    <li class="menu-header mt-5">
-                        <span class="menu-header-text" data-i18n="Predefined Packages Booking List">Predefined Packages Booking List</span>
-                    </li>
-                    
-                    <li class="menu-item @if(Request::is('predefined-package-booking-list*')) open active @endif">
-                        <a href="#" class="menu-link menu-toggle">
-                        <i class="menu-icon tf-icons ri-suitcase-line" style="color: #1E90FF;"></i>
-
-                            <div data-i18n="Predefined Packages Booking List">Predefined Packages Booking List</div>
-                        </a>
-                        <ul class="menu-sub">
-                            <!-- Show Booking -->
-                            <li class="menu-item @if(Request::is('predefined-package-booking-list')) active @endif">
-                                <a href="{{ route('predefined.package.booking.list') }}" class="menu-link">
-                                    <div data-i18n="Predefined Packages Booking List">Predefined Packages Booking List</div>
-                                </a>
-                            </li>
-                        </ul>
-                    </li>
-                @endif --}}
-                <!-- End Predefined Packages Booking List -->
+                <!-- End Products Section -->
             @endif
-            @if(in_array(auth()->user()->role_id, [1,2,3,4,10,11,19,20,33,37,38,128, 129, 130, 134, 135, 136, 138]))
+
+            @if(in_array(auth()->user()->role_id, [1,2,3,4,10,11,19,20,33,36,37,38,126,127,128, 129, 130, 134, 135, 136, 138]))
               <!-- Reports -->
                 <li class="menu-header mt-5">
                     <span class="menu-header-text" data-i18n="View Reports">View Reports</span>
                 </li>
-                <li class="menu-item @if(Request::is('reports/sales-revenue*') || Request::is('reports/ledger') || Request::is('reports/balance-sheet*')) open active @endif">
+                <li class="menu-item @if(Request::is('reports/sales-revenue*') || Request::is('reports/ledger') || Request::is('reports/balance-sheet*') || Request::is('booking-list/daily-arrival')) open active @endif">
                     <a href="#" class="menu-link menu-toggle">
                         <i class="menu-icon tf-icons ri-bar-chart-box-line"></i>
-                        <div data-i18n="Reports">Reports</div>
+                        <div data-i18n="Reports & Analytics">Reports & Analytics</div>
                     </a>
                     <ul class="menu-sub">
-                        <li class="menu-item @if(Request::is('reports/sales-revenue')) active @endif">
-                            <a href="{{ route('reports.sales-revenue') }}" class="menu-link">
-                                
-                                <div data-i18n="Sales & Revenue">Sales & Revenue</div>
-                            </a>
-                        </li>
-                        <li class="menu-item @if(Request::is('reports/ledger')) active @endif">
-                            <a href="{{ route('reports.ledger') }}" class="menu-link">
-                                <div data-i18n="Ledger">Ledger</div>
-                            </a>
-                        </li>
+                        @if(in_array(auth()->user()->role_id, [1,2,3,4,10,11,19,20,33,37,38,128, 129, 130, 134, 135, 136, 138]))
+                            <li class="menu-item @if(Request::is('reports/sales-revenue')) active @endif">
+                                <a href="{{ route('reports.sales-revenue') }}" class="menu-link">
+                                    
+                                    <div data-i18n="Sales & Revenue Report">Sales & Revenue Report</div>
+                                </a>
+                            </li>
+                            <li class="menu-item @if(Request::is('reports/ledger')) active @endif">
+                                <a href="{{ route('reports.ledger') }}" class="menu-link">
+                                    <div data-i18n="Ledger Report">Ledger Report</div>
+                                </a>
+                            </li>
+                        @endif
                         {{-- <li class="menu-item @if(Request::is('reports/balance-sheet')) active @endif">
                             <a href="{{ route('reports.balance-sheet') }}" class="menu-link">
                                 <div data-i18n="Balance Sheet & P&L">Balance Sheet & P&L</div>
                             </a>
                         </li> --}}
+                        @if(in_array(auth()->user()->role_id, [11, 36, 126,127]))
+                            <li class="menu-item @if(Request::is('booking-list/daily-arrival')) active @endif">
+                                <a href="{{ route('booking-list.daily-arrival') }}" class="menu-link">
+                                    <div data-i18n="Daily Arrival">Daily Arrival</div>
+                                </a>
+                            </li>
+                        @endif
+
+                        <li class="menu-item">
+                            <a href="javascript:void(0);" class="menu-link menu-toggle">
+                                <div data-i18n="Analytical Report (upcoming)">Analytical Report (upcoming)</div>
+                            </a>
+                            <ul class="menu-sub">
+                                <li class="menu-item disabled">
+                                    <a href="javascript:void(0);" class="menu-link" style="pointer-events:none;opacity:.55;cursor:not-allowed;">
+                                        <div data-i18n="Market Analysis">Market Analysis</div>
+                                    </a>
+                                </li>
+                                <li class="menu-item disabled">
+                                    <a href="javascript:void(0);" class="menu-link" style="pointer-events:none;opacity:.55;cursor:not-allowed;">
+                                        <div data-i18n="TA Revenue Analysis">TA Revenue Analysis</div>
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
+
+                        <li class="menu-item">
+                            <a href="javascript:void(0);" class="menu-link menu-toggle">
+                                <div data-i18n="Supplier Payables">Supplier Payables</div>
+                            </a>
+                            <ul class="menu-sub">
+                                <li class="menu-item disabled">
+                                    <a href="javascript:void(0);" class="menu-link" style="pointer-events:none;opacity:.55;cursor:not-allowed;">
+                                        <div data-i18n="Hotels & Accomodations">Hotels & Accomodations</div>
+                                    </a>
+                                </li>
+                                <li class="menu-item disabled">
+                                    <a href="javascript:void(0);" class="menu-link" style="pointer-events:none;opacity:.55;cursor:not-allowed;">
+                                        <div data-i18n="Attractions">Attractions</div>
+                                    </a>
+                                </li>
+                                <li class="menu-item disabled">
+                                    <a href="javascript:void(0);" class="menu-link" style="pointer-events:none;opacity:.55;cursor:not-allowed;">
+                                        <div data-i18n="Tour Guide">Tour Guide</div>
+                                    </a>
+                                </li>
+                                <li class="menu-item disabled">
+                                    <a href="javascript:void(0);" class="menu-link" style="pointer-events:none;opacity:.55;cursor:not-allowed;">
+                                        <div data-i18n="Drivers">Drivers</div>
+                                    </a>
+                                </li>
+                                <li class="menu-item disabled">
+                                    <a href="javascript:void(0);" class="menu-link" style="pointer-events:none;opacity:.55;cursor:not-allowed;">
+                                        <div data-i18n="Restaurants">Restaurants</div>
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
+
+                        {{-- <li class="menu-item">
+                            <a href="javascript:void(0);" class="menu-link menu-toggle">
+                                <div data-i18n="P & L Report (Coming up)">P & L Report (Coming up)</div>
+                            </a>
+                            <ul class="menu-sub">
+                                <li class="menu-item disabled">
+                                    <a href="javascript:void(0);" class="menu-link" style="pointer-events:none;opacity:.55;cursor:not-allowed;">
+                                        <div data-i18n="Hotels & Accomodations">Hotels & Accomodations</div>
+                                    </a>
+                                </li>
+                                <li class="menu-item disabled">
+                                    <a href="javascript:void(0);" class="menu-link" style="pointer-events:none;opacity:.55;cursor:not-allowed;">
+                                        <div data-i18n="Attractions">Attractions</div>
+                                    </a>
+                                </li>
+                                <li class="menu-item disabled">
+                                    <a href="javascript:void(0);" class="menu-link" style="pointer-events:none;opacity:.55;cursor:not-allowed;">
+                                        <div data-i18n="Tour Guide">Tour Guide</div>
+                                    </a>
+                                </li>
+                                <li class="menu-item disabled">
+                                    <a href="javascript:void(0);" class="menu-link" style="pointer-events:none;opacity:.55;cursor:not-allowed;">
+                                        <div data-i18n="Drivers">Drivers</div>
+                                    </a>
+                                </li>
+                                <li class="menu-item disabled">
+                                    <a href="javascript:void(0);" class="menu-link" style="pointer-events:none;opacity:.55;cursor:not-allowed;">
+                                        <div data-i18n="Restaurants">Restaurants</div>
+                                    </a>
+                                </li>
+                            </ul>
+                        </li> --}}
+
+                        <li class="menu-item disabled">
+                            <a href="javascript:void(0);" class="menu-link"
+                            style="pointer-events:none;opacity:.55;cursor:not-allowed;">
+                                <div data-i18n="P & L Report (Coming up)">P & L Report (Coming up)</div>
+                            </a>
+                        </li>
+
+                        <li class="menu-item disabled">
+                            <a href="javascript:void(0);" class="menu-link" style="pointer-events:none;opacity:.55;cursor:not-allowed;">
+                                <div data-i18n="Sales Report (Account Mgmt)">Sales Report (Account Mgmt)</div>
+                            </a>
+                        </li>
                     </ul>
                 </li>
                 <!-- End Reports -->
@@ -1453,69 +1040,77 @@
                     <li class="menu-header small text-uppercase">
                         <span class="menu-header-text">Service Delivery</span>
                     </li>
-                    <li class="menu-item @if(Request::is('jobsheet/view') || Request::is('jobsheet/create-guide-jobsheet') || Request::is('jobsheet/create-driver-jobsheet') || Request::is('jobsheet/drivers') || Request::is('jobsheet/guides')) open @endif">
+                    <li class="menu-item @if(Request::is('jobsheet/view') || Request::is('jobsheet/create-guide-jobsheet') || Request::is('jobsheet/create-driver-jobsheet') || Request::is('jobsheet/drivers') || Request::is('jobsheet/guides') || Request::is('lost-found*')) open @endif">
                         <a href="javascript:void(0);" class="menu-link menu-toggle">
                         <i class="menu-icon tf-icons ri-file-list-3-line"></i>
 
                         <div data-i18n="Service Delivery">Service Delivery</div>
                         </a>
+                        
                         <ul class="menu-sub">
-                            <li class="menu-item @if(Request::is('jobsheet/view') || Request::is('jobsheet/create-guide-jobsheet') || Request::is('jobsheet/create-driver-jobsheet')) open @endif">
+                            @if(in_array(auth()->user()->role_id, [34, 128, 131, 132, 134, 135, 137, 138]))
+                                <li class="menu-item @if(Request::is('bookings/today')) active @endif">
+                                    <a href="{{ route('bookings.today') }}" class="menu-link" title="Trip Logs">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <span data-i18n="Trip Logs">Trip Logs</span>
+                                        </div>
+                                    </a>
+                                </li>
+                                <li class="menu-item @if(Request::is('lost-found*')) active @endif">
+                                    <a href="{{ route('lost-found.index') }}" class="menu-link" title="Lost & Found and Incident Management">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <span data-i18n="Lost & Found and Incident Management">Lost & Found and Incident Management</span>
+                                        </div>
+                                    </a>
+                                </li>
+                            @endif
+                            <li class="menu-item @if(Request::is('jobsheet/create-guide-jobsheet') || Request::is('jobsheet/create-driver-jobsheet') || Request::is('jobsheet/drivers') || Request::is('jobsheet/guides')) open @endif">
                                 <a href="javascript:void(0);" class="menu-link menu-toggle">
-                                {{-- <i class="menu-icon tf-icons ri-file-list-3-line"></i> --}}
-        
-                                <div data-i18n="Jobsheets">Jobsheets</div>
+                                    <div data-i18n="Jobs">Jobs</div>
                                 </a>
                                 <ul class="menu-sub">
-                            {{-- <li class="menu-item @if(Request::is('jobsheet/view')) active @endif">
-                                <a href="{{ route('jobsheet.view') }}" class="menu-link">
-                                    <div data-i18n="View Jobsheets">View Jobsheets</div>
-                                </a>
-                            </li> --}}
-                            <li class="menu-item @if(Request::is('jobsheet/create-guide-jobsheet')) active @endif">
-                                <a href="{{ route('jobsheet.create.guide') }}" class="menu-link">
-                                    <div data-i18n="Assign Guide">Assign Guide</div>
-                                </a>
-                            </li>
-                            <li class="menu-item @if(Request::is('jobsheet/create-driver-jobsheet')) active @endif">
-                                <a href="{{ route('jobsheet.create.driver') }}" class="menu-link">
-                                    <div data-i18n="Assign Driver">Assign Driver</div>
-                                </a>
-                            </li>
-                            </ul>
-                            </li>
-                            @if(in_array(Auth::user()->role_id, [1 ,7,14,97,8,15,106, 10, 11, 26, 50, 98,51,107, 34,65, 99, 66, 108, 128, 131, 132, 134, 135, 137, 138]))
-                    {{-- <li class="menu-header mt-5">
-                        <span class="menu-header-text" data-i18n="Assigned Job">Assigned Job</span>
-                    </li> --}}
+                                    <li class="menu-item @if(Request::is('jobsheet/drivers') || Request::is('jobsheet/guides')) open @endif">
+                                        <a href="javascript:void(0);" class="menu-link menu-toggle">
+                                            <div data-i18n="Assign Jobs">Assign Jobs</div>
+                                        </a>
+                                        <ul class="menu-sub">
+                                            @if(in_array(Auth::user()->role_id, [1, 2,7,14,97,8,15,106, 10, 11, 26, 51,107, 34, 66, 108, 128, 131, 132, 134, 135, 137, 138]))
+                                            <li class="menu-item @if(Request::is('jobsheet/drivers')) active @endif">
+                                                <a href="{{ route('jobsheet.drivers') }}" class="menu-link">
+                                                    <div data-i18n="Drivers">Drivers</div>
+                                                </a>
+                                            </li>
+                                            @endif
 
-                    <li class="menu-item @if(Request::is('jobsheet/drivers') || Request::is('jobsheet/guides')) open @endif">
-                        <a href="javascript:void(0);" class="menu-link menu-toggle">
-                            {{-- <i class="menu-icon tf-icons ri-task-line"></i> --}}
-                            <div data-i18n="Assigned Jobs">Assigned Jobs</div>
-                        </a>
-                        <ul class="menu-sub">
-                            @if(in_array(Auth::user()->role_id, [1, 2,7,14,97,8,15,106, 10, 11, 26, 51,107, 34, 66, 108, 128, 131, 132, 134, 135, 137, 138]))
-                            <!-- Driver Jobs -->
-                            <li class="menu-item @if(Request::is('jobsheet/drivers')) active @endif">
-                                <a href="{{ route('jobsheet.drivers') }}" class="menu-link">
-                                    <div data-i18n="Driver Jobs">Driver Jobs</div>
-                                </a>
-                            </li>
-                            @endif
+                                            @if(in_array(Auth::user()->role_id, [1, 2,7,14,97, 10, 11, 26, 50, 98, 34, 65, 99, 128, 131, 132, 134, 135, 137, 138]))
+                                            <li class="menu-item @if(Request::is('jobsheet/guides')) active @endif">
+                                                <a href="{{ route('jobsheet.guides') }}" class="menu-link">
+                                                    <div data-i18n="Guides">Guides</div>
+                                                </a>
+                                            </li>
+                                            @endif
+                                        </ul>
+                                    </li>
 
-                            @if(in_array(Auth::user()->role_id, [1, 2,7,14,97, 10, 11, 26, 50, 98, 34, 65, 99, 128, 131, 132, 134, 135, 137, 138]))
-                            <!-- Guide Jobs -->
-                            <li class="menu-item @if(Request::is('jobsheet/guides')) active @endif">
-                                <a href="{{ route('jobsheet.guides') }}" class="menu-link">
-                                    <div data-i18n="Guide Jobs">Guide Jobs</div>
-                                </a>
+                                    <li class="menu-item @if(Request::is('jobsheet/create-driver-jobsheet') || Request::is('jobsheet/create-guide-jobsheet')) open @endif">
+                                        <a href="javascript:void(0);" class="menu-link menu-toggle">
+                                            <div data-i18n="Job Sheets">Job Sheets</div>
+                                        </a>
+                                        <ul class="menu-sub">
+                                            <li class="menu-item @if(Request::is('jobsheet/create-driver-jobsheet')) active @endif">
+                                                <a href="{{ route('jobsheet.create.driver') }}" class="menu-link">
+                                                    <div data-i18n="Driver Jobsheet">Driver Jobsheet</div>
+                                                </a>
+                                            </li>
+                                            <li class="menu-item @if(Request::is('jobsheet/create-guide-jobsheet')) active @endif">
+                                                <a href="{{ route('jobsheet.create.guide') }}" class="menu-link">
+                                                    <div data-i18n="Guide Jobsheet">Guide Jobsheet</div>
+                                                </a>
+                                            </li>
+                                        </ul>
+                                    </li>
+                                </ul>
                             </li>
-
-                            @endif
-                        </ul>
-                    </li>
-                @endif
                         </ul>
                     </li>
                 @endif
@@ -1587,83 +1182,7 @@
             @endif --}}
             <!-- End Zone -->
 
-            <!-- Services Management for DMC -->
-            @php
-                $allowedRoles = [11, 33, 37, 38, 128, 129, 130, 134, 135, 136, 138, 35, 74, 77, 78, 84, 93, 120, 132, 133, 139, 140];
-            @endphp
-
-            @if(in_array(Auth::user()->role_id, $allowedRoles))
-                <li class="menu-header mt-5">
-                    <span class="menu-header-text" data-i18n="Services Management">Services Management</span>
-                </li>
-
-                <li class="menu-item @if(Request::is('services/*')) open active @endif">
-                    <a href="#" class="menu-link menu-toggle">
-                        <i class="menu-icon tf-icons ri-service-line"></i>
-                        <div data-i18n="Services">Services</div>
-                    </a>
-                    <ul class="menu-sub">
-                        <!-- DMC Hotels Selection -->
-                        @php
-                            $allowedRoles = [11, 35, 77, 84, 130, 132, 133, 135, 136, 137, 138, 139, 140];
-                        @endphp
-                        @if(in_array(Auth::user()->role_id, $allowedRoles))
-                            <li class="menu-item @if(Request::is('services/hotels')) active @endif">
-                                <a href="{{ route('services.hotels') }}" class="menu-link">
-                                    <div data-i18n="Select Hotels">Select Hotels</div>
-                                </a>
-                            </li>
-                        @endif 
-                        <!-- DMC Attractions Selection -->
-                        @php
-                            $allowedRoles = [11, 35,74, 93, 130, 132, 133, 135, 136, 137, 138, 139, 140];
-                        @endphp
-                        @if(in_array(Auth::user()->role_id, $allowedRoles))
-                        <li class="menu-item @if(Request::is('services/attractions')) active @endif">
-                            <a href="{{ route('services.attractions') }}" class="menu-link">
-                                <div data-i18n="Select Attractions">Select Attractions</div>
-                            </a>
-                        </li>
-                        @endif
-                        
-                        <!-- DMC Restaurants Selection -->
-                        @php
-                            $allowedRoles = [11, 35, 78, 120, 130, 132, 133, 135, 136, 137, 138, 139, 140];
-                        @endphp
-                        @if(in_array(Auth::user()->role_id, $allowedRoles))
-                        <li class="menu-item @if(Request::is('services/restaurants')) active @endif">
-                            <a href="{{ route('services.restaurants') }}" class="menu-link">
-                                <div data-i18n="Select Restaurants">Select Restaurants</div>
-                            </a>
-                        </li>
-                        @endif
-                        <!-- DMC Agencies Selection -->
-                        @php
-                            $allowedRoles = [11, 33, 37, 38, 128, 129, 130, 134, 135, 136, 138];
-                        @endphp
-                        @if(in_array(Auth::user()->role_id, $allowedRoles))
-                        <li class="menu-item @if(Request::is('services/agencies')) active @endif">
-                            <a href="{{ route('services.agencies') }}" class="menu-link">
-                                <div data-i18n="Select Agencies">Select Agencies</div>
-                            </a>
-                        </li>
-                        @endif
-                        
-                        <!-- DMC Miscellaneous Selection -->
-                        @php
-                            $allowedRoles = [11, 35, 77, 78, 84, 120, 130, 132, 133, 135, 136, 137, 138, 139, 140];
-                        @endphp
-                        @if(in_array(Auth::user()->role_id, $allowedRoles))
-                        <li class="menu-item @if(Request::is('services/miscellaneous')) active @endif">
-                            <a href="{{ route('services.miscellaneous') }}" class="menu-link">
-                                <div data-i18n="Select Miscellaneous">Select Miscellaneous</div>
-                            </a>
-                        </li>
-                        @endif
-                    </ul>
-                </li>
-            @endif
-            <!-- End Services Management -->
+            {{-- Services Management moved under Product Settings -> Product Configuration -> Select Products --}}
 
             <!-- Booking -->
             {{-- @if(auth()->user()->role_id == 21||auth()->user()->role_id == 26 || auth()->user()->role_id == 34 || auth()->user()->role_id == 124 
@@ -1758,18 +1277,39 @@
                     <span class="menu-header-text" data-i18n="Agency Management">Agency Management</span>
                 </li>
 
-                <li class="menu-item @if(Request::is('agency*')) open active @endif">
+                <li class="menu-item @if(Request::is('agencies*') || Request::is('agents*') || Request::is('services/agencies')) open active @endif">
                     <a href="javascript:void(0);" class="menu-link menu-toggle">
                         <i class="menu-icon tf-icons ri-building-line"></i>
                         <div data-i18n="Agency Management">Agency Management</div>
                     </a>
                     <ul class="menu-sub">
+                        @if(in_array(Auth::user()->role_id, [1, 20]))
                         <!-- List Agencies -->
                         <li class="menu-item @if(Request::is('agencies')) active @endif">
                             <a href="{{ route('agencies.index') }}" class="menu-link">
-                                <div data-i18n="Agencies">Agencies</div>
+                                <div data-i18n="Add Agencies">Add Agencies</div>
                             </a>
                         </li>
+                        @endif
+                        <!-- DMC Agencies Selection -->
+                        @php
+                            $allowedRoles = [11, 33, 37, 38, 128, 129, 130, 134, 135, 136, 138];
+                        @endphp
+                        @if(in_array(Auth::user()->role_id, $allowedRoles))
+                        <li class="menu-item @if(Request::is('services/agencies')) active @endif">
+                            <a href="{{ route('services.agencies') }}" class="menu-link">
+                                <div data-i18n="Select Agencies">Select Agencies</div>
+                            </a>
+                        </li>
+                        @endif
+
+                        @if(hasPermission('view agent') && Auth::user()->role_id != 1)
+                        <li class="menu-item @if(Request::is('agents')) active @endif">
+                            <a href="{{ route('agents.index') }}" class="menu-link">
+                                <div data-i18n="Add TA Contacts">Add TA Contacts</div>
+                            </a>
+                        </li>
+                        @endif
 
                         <!-- Create Agency -->
                         <!-- <li class="menu-item @if(Request::is('agencies/create')) active @endif">
@@ -1791,24 +1331,31 @@
                         <span class="menu-header-text" data-i18n="Tax Management">Tax Management</span>
                     </li>
 
-                    <li class="menu-item @if(Request::is('tax*')) open active @endif">
+                    <li class="menu-item @if(Request::is('tax') || Request::is('tax/*')) open @endif">
                         <a href="javascript:void(0);" class="menu-link menu-toggle">
                             <i class="menu-icon tf-icons ri-percent-line"></i>
                             <div data-i18n="Tax Management">Tax Management</div>
                         </a>
                         <ul class="menu-sub">
-                            <!-- Tax Settings -->
-                            <li class="menu-item @if(Request::is('tax/settings')) active @endif">
-                                <a href="{{ route('tax.settings') }}" class="menu-link">
-                                    <div data-i18n="Tax Settings">Tax Settings</div>
+                            <li class="menu-item @if(Request::is('tax') || Request::is('tax/*')) open @endif">
+                                <a href="javascript:void(0);" class="menu-link menu-toggle">
+                                    <div data-i18n="Settings">Settings</div>
                                 </a>
-                            </li>
+                                <ul class="menu-sub">
+                                    <!-- Add Tax -->
+                                    <li class="menu-item @if((Request::is('tax') || Request::is('tax/*')) && !Request::is('tax/settings')) active @endif">
+                                        <a href="{{ route('tax.index') }}" class="menu-link">
+                                            <div data-i18n="Add Tax">Add Tax</div>
+                                        </a>
+                                    </li>
 
-                            <!-- Tax List -->
-                            <li class="menu-item @if(Request::is('tax')) active @endif">
-                                <a href="{{ route('tax.index') }}" class="menu-link">
-                                    <div data-i18n="All Taxes">All Taxes</div>
-                                </a>
+                                    <!-- Tax Settings -->
+                                    <li class="menu-item @if(Request::is('tax/settings')) active @endif">
+                                        <a href="{{ route('tax.settings') }}" class="menu-link">
+                                            <div data-i18n="Tax Settings">Tax Settings</div>
+                                        </a>
+                                    </li>
+                                </ul>
                             </li>
                         </ul>
                     </li>
@@ -1852,11 +1399,11 @@
                 
                 <!-- User Role Management -->
                 @if( !( (auth()->user()->role_id >= 79 && auth()->user()->role_id <= 123) || in_array(auth()->user()->role_id, [125, 127, 140]) ) )
-                @if(hasPermission('view users') || hasPermission('view roles') || hasPermission('view features') || hasPermission('view agent') || $auth_user->role_id == 124)
+                @if(hasPermission('view users') || hasPermission('view roles') || hasPermission('view features') || $auth_user->role_id == 124)
                 <li class="menu-header mt-5">
                     <span class="menu-header-text" data-i18n="User Management">User Management</span>
                 </li>
-                <li class="menu-item @if(Request::is('users*', 'agents*', 'roles*', 'features*')) open @endif">
+                <li class="menu-item @if(Request::is('users*', 'roles*', 'features*', 'bank-details*')) open @endif">
                     <a href="#" class="menu-link menu-toggle">
                         <i class="menu-icon tf-icons ri-user-line"></i>
                         <div data-i18n="All Users">All Users</div>
@@ -1875,13 +1422,7 @@
                         @endif
                        
 
-                        @if(hasPermission('view agent'))
-                        <li class="menu-item @if(Request::is('agents')) active @endif">
-                            <a href="{{ route('agents.index') }}" class="menu-link">
-                                <div data-i18n="Travel Agents">Travel Agents</div>
-                            </a>
-                        </li>
-                        @endif
+                        
 
                         <!-- Registered Agents View -->
                          {{-- @if(auth()->user()->role_id == 20 || auth()->user()->role_id == 19 || auth()->user()->role_id == 1 || auth()->user()->role_id == 2 || auth()->user()->role_id == 3 || auth()->user()->role_id == 4)
@@ -1927,6 +1468,27 @@
                 </li>
                 @endif
                 @endif
+
+                @php
+                    $smartNotificationRoles = [1, 21, 11, 34, 128, 131, 132, 134, 135, 137, 138];
+                @endphp
+                @if(in_array(auth()->user()->role_id, $smartNotificationRoles))
+                <li class="menu-header mt-5">
+                    <span class="menu-header-text" data-i18n="Smart App Notification">Smart Notification</span>
+                </li>
+                <li class="menu-item @if(Request::is('smart-notification') && !Request::is('smart-notification/history*')) active @endif">
+                    <a href="{{ route('smart-notification.index') }}" class="menu-link">
+                        <i class="menu-icon tf-icons ri-notification-3-line"></i>
+                        <div data-i18n="Send Notification">Send Notification</div>
+                    </a>
+                </li>
+                <li class="menu-item @if(Request::is('smart-notification/history*')) active @endif">
+                    <a href="{{ route('smart-notification.history') }}" class="menu-link">
+                        <i class="menu-icon tf-icons ri-history-line"></i>
+                        <div data-i18n="Notification History">Notification History</div>
+                    </a>
+                </li>
+                @endif
                 <!-- End User Role Management -->   
 
                 {{-- <!-- Settings -->
@@ -1943,20 +1505,63 @@
                 </li>
                 @endif --}}
 
+
+                @php
+                    $aiConfigurationRoles = [1, 11,33, 37, 38, 128, 129, 130, 134, 135, 136, 138];
+                @endphp
+                @if(in_array(auth()->user()->role_id, $aiConfigurationRoles))
+                <li class="menu-header mt-5">
+                    <span class="menu-header-text" data-i18n="AI Management">AI Management</span>
+                </li>
+                @php
+                    $aiKeywordsRoles = [1];
+                @endphp
+                @if(in_array(auth()->user()->role_id, $aiKeywordsRoles))
+                <li class="menu-item @if(Request::is('ai-key-words*')) active @endif">
+                    <a href="{{ route('ai-key-words.index') }}" class="menu-link">
+                            <i class="menu-icon tf-icons ri-key-line"></i>
+                            <div data-i18n="AI Keywords">AI Keywords</div>
+                        </a>
+                    </li>
+                @endif
+                @php
+                    $dayLevelRoles = [11, 33, 37, 38, 128, 129, 130, 134, 135, 136, 138];
+                @endphp
+                @if(in_array(auth()->user()->role_id, $dayLevelRoles))
+                <li class="menu-item @if(Request::is('day-level*')) active @endif">
+                    <a href="{{ route('day-level.index') }}" class="menu-link">
+                        <i class="menu-icon tf-icons ri-calendar-2-line"></i>
+                        <div data-i18n="AI Definition Tool">AI Definition Tool</div>
+                    </a>
+                </li>
+                @endif
+                @endif
+
                     <!-- Settings -->
-                    @if(in_array(Auth::user()->role_id, [1]))
-                    @if(hasPermission('settings') || hasPermission('edit settings') || hasPermission('view country'))
+                    @php
+                        $sidebarRoleId = Auth::user()->role_id;
+                        $sidebarIsAdmin = in_array($sidebarRoleId, [1]);
+                        $sidebarIsDmc = in_array($sidebarRoleId, [11]);
+                        $sidebarIsOperational = in_array($sidebarRoleId, [34, 124,125]);
+                        $sidebarIsFinance = in_array($sidebarRoleId, [36, 126,127]);
+                        $sidebarIsLimitedGeneralSettings = $sidebarIsDmc || $sidebarIsOperational || $sidebarIsFinance;
+                    @endphp
+                    @if(
+                        ($sidebarIsAdmin && (hasPermission('settings') || hasPermission('edit settings') || hasPermission('view country')))
+                        || ($sidebarIsLimitedGeneralSettings)
+                    )
                     <li class="menu-header mt-5">
                         <span class="menu-header-text" data-i18n="Setting">Setting</span>
                     </li>
                     
-                    <li class="menu-item @if(Request::is('master-setting*', 'country*', 'countries*', 'mail/settings*')) open @endif">
+                    <li class="menu-item @if(Request::is('master-setting*', 'country*', 'countries*', 'mail/settings*', 'guide-languages*', 'suppliers*', 'cities*', 'app-management*', 'dmc-func-app*', 'itinerary_settings.pdf', 'quotation_settings.pdf')) open @endif">
                         <a href="#" class="menu-link menu-toggle">
                             <i class="menu-icon tf-icons ri-settings-3-line"></i>
                             <div data-i18n="General Settings">General Settings</div>
                         </a>
 
                         <ul class="menu-sub">
+                            @if($sidebarIsAdmin)
                             @if(hasPermission('settings') && hasPermission('edit settings'))
                             <li class="menu-item @if(Request::is('master-setting')) active @endif">
                                 <a href="{{ route('master-setting') }}" class="menu-link">
@@ -1965,45 +1570,86 @@
                             </li>
                             @endif
 
-                        <!-- List City -->
-                        <li class="menu-item @if(Request::is('country')) active @endif">
+                            <!-- List City -->
                             @if(hasPermission('view country'))
-                            <a href="{{ route('country.index') }}" class="menu-link">
-                                <div data-i18n="City Charges">City Charges</div>
-                            </a>
+                            <li class="menu-item @if(Request::is('country')) active @endif">
+                                <a href="{{ route('country.index') }}" class="menu-link">
+                                    <div data-i18n="City Charges">City Charges</div>
+                                </a>
+                            </li>
                             @endif
-                        </li>
 
-                        <!-- Cities -->
-                        <li class="menu-item @if(Request::is('cities*')) active @endif">
-                            <a href="{{ route('cities.index') }}" class="menu-link">
-                                <div data-i18n="Cities">Cities</div>
-                            </a>
-                        </li>
+                            <!-- Cities -->
+                            <li class="menu-item @if(Request::is('cities*')) active @endif">
+                                <a href="{{ route('cities.index') }}" class="menu-link">
+                                    <div data-i18n="Cities">Cities</div>
+                                </a>
+                            </li>
+                            @endif
 
                         <!-- Countries -->
-                        <li class="menu-item @if(Request::is('countries')) active @endif">
-                            <a href="{{ route('countries.index') }}" class="menu-link">
-                                <div data-i18n="Countries">Countries</div>
-                            </a>
-                        </li>
+                        @if(hasPermission('view country') || $sidebarIsLimitedGeneralSettings)
+                            <li class="menu-item @if(Request::is('countries')) active @endif">
+                                <a href="{{ route('countries.index') }}" class="menu-link">
+                                    <div data-i18n="Countries">Countries</div>
+                                </a>
+                            </li>
+                        @endif
 
-                        <!-- Email Settings -->
-                        <li class="menu-item @if(Request::is('mail/settings')) active @endif">
-                            <a href="{{ route('mail.settings') }}" class="menu-link">
-                                <div data-i18n="Email Settings">Email Settings</div>
-                            </a>
-                        </li>
+                        @if($sidebarIsAdmin || $sidebarIsDmc)
+                            <!-- Email Settings -->
+                            <li class="menu-item @if(Request::is('mail/settings')) active @endif">
+                                <a href="{{ route('mail.settings') }}" class="menu-link">
+                                    <div data-i18n="Email Settings">Email Settings</div>
+                                </a>
+                            </li>
+                        @endif
 
-                        <!-- App Settings -->
-                        <li class="menu-item @if(Request::is('app-management')) active @endif">
-                            <a href="{{ route('app-management.index') }}" class="menu-link">
-                                <div data-i18n="App Management Settings">App Management Settings</div>
-                            </a>
-                        </li>
+                        @if($sidebarIsAdmin)
+                            <!-- App Settings -->
+                            <li class="menu-item @if(Request::is('app-management')) active @endif">
+                                <a href="{{ route('app-management.index') }}" class="menu-link">
+                                    <div data-i18n="App Management Settings">App Management Settings</div>
+                                </a>
+                            </li>
+
+                            <li class="menu-item @if(Request::is('dmc-func-app*')) active @endif">
+                                <a href="{{ route('dmc-func-app.index') }}" class="menu-link">
+                                    <div data-i18n="DMC Func App">DMC Func App</div>
+                                </a>
+                            </li>
+
+                            <!-- Guide Languages -->
+                            <li class="menu-item @if(Request::is('guide-languages*')) active @endif">
+                                <a href="{{ route('guide-languages.index') }}" class="menu-link">
+                                    <div data-i18n="Guide Languages">Guide Languages</div>
+                                </a>
+                            </li>
+
+                            @if(hasPermission('settings') || hasPermission('edit settings'))
+                            <li class="menu-item @if(Request::is('suppliers*')) active @endif">
+                                <a href="{{ route('suppliers.index') }}" class="menu-link">
+                                    <div data-i18n="Online Api Master">Online Api Master</div>
+                                </a>
+                            </li>
+                            @endif
+                        @endif
+                        @if(in_array(auth()->user()->role_id, [11, 33,34,37,38, 77, 84, 128, 131, 132, 134, 135, 137, 138]))
+                            <li class="menu-item @if(Request::is('itinerary_settings.pdf')) active @endif">
+                                <a href="{{ route('itinerary_settings.pdf') }}" class="menu-link">
+                                    <div data-i18n="Itinerary Settings">Itinerary Settings</div>
+                                </a>
+                            </li>
+                            <li class="menu-item @if(Request::is('quotation_settings.pdf')) active @endif">
+                                <a href="{{ route('quotation_settings.pdf') }}" class="menu-link">
+                                    <div data-i18n="Quotation Settings">Quotation Settings</div>
+                                </a>
+                            </li>
+                        @endif
+
+                        
                     </ul>
                 </li>
-                @endif
                 @endif
                 <!-- End Settings -->
 
@@ -2145,134 +1791,124 @@
            
         </aside>
 
-        <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Enhanced tooltip functionality
-            const tooltips = document.querySelectorAll('.menu-tooltip');
-            
-            tooltips.forEach((tooltip, index) => {
-                const tooltipText = tooltip.querySelector('.tooltip-text');
-                const menuText = tooltip.querySelector('.menu-text-with-tooltip');
-                
-                if (tooltipText && menuText) {
-                    // Always show tooltip on hover
-                    tooltipText.style.display = 'block';
-                    
-                    // Add hover events for dynamic positioning
-                    tooltip.addEventListener('mouseenter', function(e) {
-                        // Get the position of the hovered menu item
-                        const rect = this.getBoundingClientRect();
-                        
-                        // Position tooltip to the right of the menu item
-                        tooltipText.style.left = (rect.right + 10) + 'px';
-                        tooltipText.style.top = (rect.top + (rect.height / 2) - 20) + 'px';
-                        
-                        // Show tooltip
-                        tooltipText.style.visibility = 'visible';
-                        tooltipText.style.opacity = '1';
-                        tooltipText.style.transform = 'scale(1)';
-                        tooltipText.style.display = 'block';
-                    });
-                    
-                    tooltip.addEventListener('mouseleave', function() {
-                        tooltipText.style.visibility = 'hidden';
-                        tooltipText.style.opacity = '0';
-                        tooltipText.style.transform = 'scale(0.8)';
-                    });
-                    
-                    // Ensure tooltip positioning works on different screen sizes
-                    function adjustTooltipPosition() {
-                        const rect = tooltip.getBoundingClientRect();
-                        const tooltipRect = tooltipText.getBoundingClientRect();
-                        
-                        // If tooltip would go off screen, position it to the left
-                        if (rect.right + tooltipRect.width + 20 > window.innerWidth) {
-                            tooltipText.style.left = 'auto';
-                            tooltipText.style.right = '100%';
-                            tooltipText.style.marginLeft = '0';
-                            tooltipText.style.marginRight = '15px';
-                            
-                            // Update arrow direction
-                            const arrow = tooltipText.querySelector('::before');
-                            if (arrow) {
-                                tooltipText.style.setProperty('--arrow-direction', 'right');
-                            }
-                        }
-                    }
-                    
-                    // Adjust position on window resize
-                    window.addEventListener('resize', adjustTooltipPosition);
-                    adjustTooltipPosition();
-                }
-            });
-            
-            // Enhanced menu interactions
-            const menuItems = document.querySelectorAll('.menu-item');
-            menuItems.forEach(item => {
-                item.addEventListener('mouseenter', function() {
-                    if (!this.classList.contains('active')) {
-                        this.style.transform = 'translateX(2px)';
-                    }
-                });
-                
-                item.addEventListener('mouseleave', function() {
-                    if (!this.classList.contains('active')) {
-                        this.style.transform = 'translateX(0)';
-                    }
-                });
-            });
-        });
-        </script>        
-
+        <!-- Submenu Modal (for ul.menu-sub items) -->
+        <div class="modal fade" id="submenuModal" tabindex="-1" aria-label="Submenu options" aria-hidden="true">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-body submenu-modal-body" id="submenuModalBody">
+                        <!-- Filled dynamically -->
+                    </div>
+                </div>
+            </div>
+        </div>
+<style>
+    #createTourProModal .select2-container--default .select2-selection--single {
+        height: 31px;
+        min-height: 31px;
+        border: 1px solid #dee2e6;
+        border-radius: 0.25rem;
+        font-size: 10px;
+    }
+    #createTourProModal .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: 29px;
+        padding-left: 8px;
+        font-size: 10px;
+    }
+    #createTourProModal .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 29px;
+    }
+    #createTourProModal .select2-container {
+        width: 100% !important;
+    }
+    .select2-container--open .select2-dropdown--below {
+        z-index: 1065;
+    }
+</style>
 <!-- Modal for Create Single Tour Pro Initial Information -->
 <div class="modal fade" id="createTourProModal" tabindex="-1" aria-labelledby="createTourProModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered" style="max-width: 800px;">
-        <div class="modal-content">
-            <div class="modal-header bg-primary text-white py-2">
-                <h6 class="modal-title mb-0" id="createTourProModalLabel">
-                    <i class="ri-file-list-3-line me-2"></i>Create Single Tour Pro
+    <div class="modal-dialog modal-dialog-centered modal-lg" style="max-width: 860px;">
+        <div class="modal-content" style="border: none; border-radius: 10px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.15);">
+            <div class="modal-header text-white py-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none;">
+                <h6 class="modal-title mb-0 text-white d-flex align-items-center" id="createTourProModalLabel">
+                    <span class="d-inline-flex align-items-center justify-content-center me-2" style="width:28px;height:28px;background:rgba(255,255,255,0.2);border-radius:6px;"><i class="ri-file-list-3-line"></i></span>
+                    Create Single Tour Pro
                 </h6>
                 <button type="button" class="btn-close btn-close-white btn-sm" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form id="createTourProForm" method="POST" action="{{ route('enquiry-form-pro.initialize') }}">
+            <form id="createTourProForm" method="POST" action="{{ route('enquiry-form-pro.initialize') }}" novalidate>
                 @csrf
+                @php
+                    // Tour cannot start today — earliest selectable start is tomorrow.
+                    $ctpMinStartDate = \Carbon\Carbon::now()->addDay()->format('Y-m-d');
+                    $ctpMinEndDate = \Carbon\Carbon::now()->addDays(2)->format('Y-m-d');
+                @endphp
                 <div class="modal-body" style="padding: 10px 15px;">
-                    <!-- Row 1: Tour Type (Radio), Dates, Pax -->
+                    <!-- Row 1: Tour Type + dates -->
                     <div class="row g-2 mb-1">
-                        <div class="col-2">
+                        <div class="col-md-3 col-6">
                             <label class="form-label small mb-0" style="font-size: 10px;">Type <span class="text-danger">*</span></label>
                             <div class="d-flex gap-2 mt-1">
                                 <div class="form-check form-check-inline">
-                                    <input class="form-check-input" type="radio" name="tour_type" id="tourTypeFIT" value="FIT" checked required>
+                                    <input class="form-check-input" type="radio" name="tour_type" id="tourTypeFIT" value="FIT" checked>
                                     <label class="form-check-label small" for="tourTypeFIT" style="font-size: 10px;">FIT</label>
                                 </div>
                                 <div class="form-check form-check-inline">
-                                    <input class="form-check-input" type="radio" name="tour_type" id="tourTypeGroup" value="Group" required>
+                                    <input class="form-check-input" type="radio" name="tour_type" id="tourTypeGroup" value="GROUP">
                                     <label class="form-check-label small" for="tourTypeGroup" style="font-size: 10px;">Group</label>
                                 </div>
                             </div>
                         </div>
-                        <div class="col-2">
+                        <div class="col-md-3 col-6">
                             <label class="form-label small mb-0" style="font-size: 10px;">Start <span class="text-danger">*</span></label>
-                            <input type="date" class="form-control form-control-sm" id="tourStartDate" name="tour_start_date" required style="font-size: 10px;">
+                            <input type="date" class="form-control form-control-sm" id="tourStartDate" name="tour_start_date" required min="{{ $ctpMinStartDate }}" value="{{ $ctpMinStartDate }}" style="font-size: 10px;">
                         </div>
-                        <div class="col-2">
+                        <div class="col-md-3 col-6">
                             <label class="form-label small mb-0" style="font-size: 10px;">End <span class="text-danger">*</span></label>
-                            <input type="date" class="form-control form-control-sm" id="tourEndDate" name="tour_end_date" required style="font-size: 10px;">
-                        </div>
-                        <div class="col-2">
-                            <label class="form-label small mb-0" style="font-size: 10px;">Adult <span class="text-danger">*</span></label>
-                            <input type="number" class="form-control form-control-sm" id="adultCount" name="adult_count" min="0" value="1" required style="font-size: 10px;">
-                        </div>
-                        <div class="col-2">
-                            <label class="form-label small mb-0" style="font-size: 10px;">Child</label>
-                            <input type="number" class="form-control form-control-sm" id="childCount" name="child_count" min="0" value="0" style="font-size: 10px;">
-                        </div>
-                        <div class="col-2">
-                            <label class="form-label small mb-0" style="font-size: 10px;">Infant</label>
-                            <input type="number" class="form-control form-control-sm" id="infantCount" name="infant_count" min="0" value="0" style="font-size: 10px;">
+                            <input type="date" class="form-control form-control-sm" id="tourEndDate" name="tour_end_date" required min="{{ $ctpMinEndDate }}" value="{{ $ctpMinEndDate }}" style="font-size: 10px;">
                         </div>
                     </div>
+
+                    <!-- FIT: Adult / Child / Infant (unchanged behaviour) -->
+                    <div class="row g-2 mb-1 d-none" id="tourProFitPaxRow">
+                        <div class="col-md-2 col-4">
+                            <label class="form-label small mb-0" style="font-size: 10px;">Adult <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control form-control-sm" id="adultCount" min="1" value="1" style="font-size: 10px;">
+                        </div>
+                        <div class="col-md-2 col-4">
+                            <label class="form-label small mb-0" style="font-size: 10px;">Child</label>
+                            <input type="number" class="form-control form-control-sm" id="childCount" min="0" value="0" style="font-size: 10px;">
+                        </div>
+                        <div class="col-md-2 col-4">
+                            <label class="form-label small mb-0" style="font-size: 10px;">Infant</label>
+                            <input type="number" class="form-control form-control-sm" id="infantCount" min="0" value="0" style="font-size: 10px;">
+                        </div>
+                    </div>
+
+                    <!-- FIT & GROUP: guest modal (GROUP shows FOC section inside modal) -->
+                    <div class="row g-2 mb-1" id="tourProGuestsRow">
+                        <div class="col-12">
+                            <label class="form-label small mb-0" style="font-size: 10px;">Guests <span class="text-danger">*</span></label>
+                            <div class="d-flex align-items-center flex-wrap gap-2 p-2 border rounded" style="background:#f8f9fa;font-size:10px;">
+                                <span id="tourProGuestSummary" class="text-muted">Click “Select tour guests” to set passengers…</span>
+                                <button type="button" class="btn btn-sm text-white ms-auto" id="tourProOpenGuestModalBtn" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); font-size: 10px; padding: 4px 10px;">
+                                    <i class="ri-group-line me-1"></i>Select tour guests
+                                </button>
+                            </div>
+                            <small id="tourProGuestsHelper" class="text-muted" style="font-size:9px;">Set adults (male + female), children, and infants. Infants do not use a pax slot.</small>
+                        </div>
+                    </div>
+
+                    <input type="hidden" name="adult_count" id="ctp_hidden_adult_count" value="1">
+                    <input type="hidden" name="child_count" id="ctp_hidden_child_count" value="0">
+                    <input type="hidden" name="infant_count" id="ctp_hidden_infant_count" value="0">
+                    <input type="hidden" name="male" id="ctp_hidden_male" value="1">
+                    <input type="hidden" name="female" id="ctp_hidden_female" value="0">
+                    <input type="hidden" name="group_size" id="ctp_hidden_group_size" value="0">
+                    <input type="hidden" name="foc_size" id="ctp_hidden_foc_size" value="0">
+                    <input type="hidden" name="paying_pax" id="ctp_hidden_paying_pax" value="0">
+                    <input type="hidden" name="discount" id="ctp_hidden_discount" value="0">
+                    <input type="hidden" name="auto_foc" id="ctp_hidden_auto_foc" value="0">
+                    <input type="hidden" name="child_ages" id="ctp_hidden_child_ages" value="[]">
 
                     <!-- Row 2: Destination (moved before Agency) -->
                     <div class="row g-2 mb-1">
@@ -2291,8 +1927,8 @@
                     <div class="row g-2 mb-1" id="singleDestinationDiv">
                         <div class="col-12">
                             <div class="position-relative">
-                                <input type="text" class="form-control form-control-sm" id="destinationSingle" placeholder="Type to search destination..." autocomplete="off" style="font-size: 10px;" readonly onfocus="this.removeAttribute('readonly');">
-                                <div id="destinationSuggestionsSingle" class="list-group position-absolute w-100" style="z-index: 1050; max-height: 120px; overflow-y: auto; display: none; box-shadow: 0 2px 8px rgba(0,0,0,0.15); font-size: 10px;"></div>
+                                <input type="text" class="form-control form-control-sm" id="destinationSingle" placeholder="Type to search city..." autocomplete="off" style="font-size: 10px;" readonly onfocus="this.removeAttribute('readonly');">
+                                <div id="destinationSuggestionsSingle" class="list-group position-absolute w-100" style="z-index: 1050; max-height: 120px; overflow-y: auto; display: none; box-shadow: 0 2px 8px rgba(0,0,0,0.15); font-size: 10px; background-color: white; border: 1px solid #dee2e6;"></div>
                             </div>
                             <input type="hidden" id="destinationSingleValue" name="destination_single">
                         </div>
@@ -2302,8 +1938,8 @@
                     <div class="row g-2 mb-1" id="multipleDestinationDiv" style="display: none;">
                         <div class="col-12">
                             <div class="position-relative">
-                                <input type="text" class="form-control form-control-sm" id="destinationMultiple" placeholder="Type to search and select multiple destinations..." autocomplete="off" style="font-size: 10px;" readonly onfocus="this.removeAttribute('readonly');">
-                                <div id="destinationSuggestions" class="list-group position-absolute w-100" style="z-index: 1050; max-height: 120px; overflow-y: auto; display: none; box-shadow: 0 2px 8px rgba(0,0,0,0.15); font-size: 10px;"></div>
+                                <input type="text" class="form-control form-control-sm" id="destinationMultiple" placeholder="Type to search and select multiple cities..." autocomplete="off" style="font-size: 10px;" readonly onfocus="this.removeAttribute('readonly');">
+                                <div id="destinationSuggestions" class="list-group position-absolute w-100" style="z-index: 1050; max-height: 120px; overflow-y: auto; display: none; box-shadow: 0 2px 8px rgba(0,0,0,0.15); font-size: 10px; background-color: white; border: 1px solid #dee2e6;"></div>
                             </div>
                             <div id="selectedDestinations" class="mt-1"></div>
                             <input type="hidden" id="destinationsArray" name="destinations">
@@ -2314,50 +1950,63 @@
                     <div class="row g-2 mb-1">
                         <div class="col-6">
                             <label class="form-label small mb-0" style="font-size: 10px;">Agency <span class="text-danger">*</span></label>
-                            <div class="position-relative">
-                                <input type="text" class="form-control form-control-sm" id="agencySelectModal" placeholder="Select destination first..." autocomplete="off" style="font-size: 10px;" disabled readonly onfocus="this.removeAttribute('readonly');">
-                                <div id="agencySuggestions" class="list-group position-absolute w-100" style="z-index: 1050; max-height: 150px; overflow-y: auto; display: none; box-shadow: 0 2px 8px rgba(0,0,0,0.15); font-size: 10px;"></div>
-                            </div>
-                            <input type="hidden" id="agencyIdValue" name="agency_id" required>
+                            <select class="form-select form-select-sm" id="ctpAgencySelect" style="font-size: 10px;">
+                                <option value="">Choose agency...</option>
+                            </select>
+                            <input type="hidden" id="agencyIdValue" name="agency_id">
                         </div>
                         <div class="col-6">
                             <label class="form-label small mb-0" style="font-size: 10px;">Agent <span class="text-danger">*</span></label>
-                            <div class="position-relative">
-                                <input type="text" class="form-control form-control-sm" id="agentSelectModal" placeholder="Select agency first..." autocomplete="off" style="font-size: 10px;" disabled readonly onfocus="this.removeAttribute('readonly');">
-                                <div id="agentSuggestions" class="list-group position-absolute w-100" style="z-index: 1050; max-height: 150px; overflow-y: auto; display: none; box-shadow: 0 2px 8px rgba(0,0,0,0.15); font-size: 10px;"></div>
-                            </div>
-                            <input type="hidden" id="agentIdValue" name="agent_id" required>
+                            <select class="form-select form-select-sm" id="ctpAgentSelect" style="font-size: 10px;" disabled>
+                                <option value="">Choose agent...</option>
+                            </select>
+                            <input type="hidden" id="agentIdValue" name="agent_id">
                         </div>
                     </div>
 
                     <!-- Row 4: Customer Details -->
                     <div class="row g-2 mb-1">
-                        <div class="col-1">
-                            <label class="form-label small mb-0" style="font-size: 10px;">Sal. <span class="text-danger">*</span></label>
-                            <select class="form-select form-select-sm" id="salutation" name="salutation" required style="font-size: 10px;">
-                                <option value="">--</option>
+                        <div class="col-2">   <!-- Increased from col-1 -->
+                            <label class="form-label small mb-0" style="font-size: 10px;">
+                                Sal. <span class="text-danger">*</span>
+                            </label>
+                            <select class="form-select form-select-sm" id="salutation" name="salutation" required>
                                 <option value="Mr">Mr</option>
                                 <option value="Mrs">Mrs</option>
                                 <option value="Ms">Ms</option>
                                 <option value="Dr">Dr</option>
                             </select>
                         </div>
-                        <div class="col-6">
-                            <label class="form-label small mb-0" style="font-size: 10px;">Customer Name <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control form-control-sm" id="customerName" name="customer_name" required style="font-size: 10px;">
+                    
+                        <div class="col-5">   <!-- Reduced from col-6 -->
+                            <label class="form-label small mb-0" style="font-size: 10px;">
+                                Customer Name <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" class="form-control form-control-sm" id="customerName" name="customer_name" required>
                         </div>
+                    
                         <div class="col-5">
-                            <label class="form-label small mb-0" style="font-size: 10px;">Contact Number</label>
-                            <input type="text" class="form-control form-control-sm" id="contactNumber" name="contact_number" style="font-size: 10px;">
+                            <label class="form-label small mb-0" style="font-size: 10px;">
+                                Contact Number
+                            </label>
+                            <input type="text" class="form-control form-control-sm" id="contactNumber" name="contact_number">
                         </div>
                     </div>
+
+                    <!-- Row 5: Email (optional) -->
+                    <div class="row g-2 mb-1">
+                        <div class="col-12">
+                            <label class="form-label small mb-0" style="font-size: 10px;">Email</label>
+                            <input type="text" class="form-control form-control-sm" id="customerEmail" name="email" placeholder="Optional" inputmode="email" autocomplete="email" style="font-size: 10px;">
+                        </div>
+                    </div>                    
 
                 </div>
                 <div class="modal-footer py-1" style="padding: 8px 15px;">
                     <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal" style="font-size: 11px; padding: 4px 12px;">
                         <i class="ri-close-line me-1"></i>Cancel
                     </button>
-                    <button type="submit" class="btn btn-success btn-sm" id="submitTourProBtn" style="font-size: 11px; padding: 4px 12px;">
+                    <button type="submit" class="btn btn-success btn-sm" id="submitTourProBtn" disabled style="font-size: 11px; padding: 4px 12px; opacity: 0.55; cursor: not-allowed;" title="Fill all required fields (contact and email are optional).">
                         <i class="ri-check-line me-1"></i>Continue
                     </button>
                 </div>
@@ -2366,509 +2015,1460 @@
     </div>
 </div>
 
+<!-- Select Tour Guests + FOC (Group — Create Lite parity) -->
+<div class="modal fade" id="tourProGuestModal" tabindex="-1" aria-labelledby="tourProGuestModalLabel" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-md modal-dialog-centered">
+        <div class="modal-content" style="border: none; border-radius: 10px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.15);">
+            <div class="modal-header text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 1rem 1.25rem;">
+                <h5 class="modal-title fw-bold d-flex align-items-center mb-0 text-white" id="tourProGuestModalLabel" style="font-size: 1.05rem;">
+                    <span class="d-inline-flex align-items-center justify-content-center me-2" style="width:32px;height:32px;background:rgba(255,255,255,0.2);border-radius:8px;"><i class="ri-group-line"></i></span>
+                    Select Tour Guests
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" style="padding: 1.25rem; background: #ffffff;">
+                <div class="p-2 border rounded mb-3" id="ctpProGroupDetailsSection" style="background:#ffffff;border-color:#e9ecef !important;border-radius:10px;">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <div class="fw-semibold" style="color:#495057; font-size:0.82rem;"><i class="ri-group-2-line me-1 text-primary"></i>Group Details</div>
+                        <span class="badge" style="background:#e7f1ff;color:#0d6efd;border-radius:6px;font-size:0.7rem;">FOC</span>
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <label class="form-label fw-semibold mb-1" style="color:#495057; font-size:0.74rem;">Group Size</label>
+                            <div class="input-group input-group-sm">
+                                <input type="number" min="0" step="1" class="form-control" id="pro_group_size_display" value="1" style="border-radius:8px 0 0 8px;">
+                                <span class="input-group-text" style="border-radius:0 8px 8px 0;">pax</span>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-semibold mb-1" for="pro_foc_size" style="color:#495057; font-size:0.74rem;">FOC Size</label>
+                            <div class="input-group input-group-sm">
+                                <input type="number" min="0" step="1" class="form-control" id="pro_foc_size" value="0" style="border-radius:8px 0 0 8px;">
+                                <span class="input-group-text" style="border-radius:0 8px 8px 0;">pax</span>
+                            </div>
+                        </div>
+                        <div class="col-12" id="pro_includeFOCInPriceRow">
+                            <div class="form-check d-flex align-items-center gap-2" style="margin-top:2px;">
+                                <input class="form-check-input" type="checkbox" id="pro_include_foc_in_group_price">
+                                <label class="form-check-label" for="pro_include_foc_in_group_price" style="color:#495057; font-size:0.74rem;">Treat FOC pax as discount (free)</label>
+                                <i class="ri-information-line text-dark fw-bold ctp-foc-info" style="font-size:1.05rem; cursor: help;" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-html="true" title="<div style='text-align:left;'><div class='fw-semibold mb-1'>Note:</div><div><span class='text-warning fw-semibold'>☑</span> FOC cost is discounted in paying pax.</div><div><span class='text-warning fw-semibold'>☐</span> FOC cost is included in paying pax.</div></div>"></i>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-semibold mb-1" style="color:#495057; font-size:0.74rem;">Paying Pax</label>
+                            <div class="input-group input-group-sm">
+                                <input type="number" class="form-control" id="pro_paying_pax" value="1" readonly style="background:#f8f9fa;border-radius:8px 0 0 8px;">
+                                <span class="input-group-text" style="border-radius:0 8px 8px 0;">pax</span>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-semibold mb-1" style="color:#495057; font-size:0.74rem;">Total Pax</label>
+                            <div class="input-group input-group-sm">
+                                <input type="text" class="form-control" id="pro_total_pax_display" value="1" readonly style="background:#f8f9fa;border-radius:8px 0 0 8px;">
+                                <span class="input-group-text" style="border-radius:0 8px 8px 0;">pax</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="card" style="border: 1px solid #e9ecef; border-radius: 8px;">
+                            <div class="card-header py-2" style="background:#f8f9fa;border:none;border-bottom:1px solid #e9ecef;">
+                                <h6 class="mb-0 fw-semibold" style="color:#495057;font-size:0.875rem;"><i class="ri-user-line me-2 text-primary"></i>Adults</h6>
+                            </div>
+                            <div class="card-body py-2">
+                                <div class="mb-3 text-center">
+                                    <label class="form-label fw-semibold d-block small">Adults</label>
+                                    <div class="d-flex align-items-center justify-content-center">
+                                        <button type="button" class="btn btn-sm border" onclick="window.ctpGuestAdultsDelta(-1)" style="width:36px;height:36px;"><i class="ri-subtract-line"></i></button>
+                                        <span class="mx-3 fw-bold fs-5" id="ctpModalAdults">1</span>
+                                        <button type="button" class="btn btn-sm border" onclick="window.ctpGuestAdultsDelta(1)" style="width:36px;height:36px;"><i class="ri-add-line"></i></button>
+                                    </div>
+                                </div>
+                                <div class="mb-2 text-center">
+                                    <label class="form-label fw-semibold d-block small"><i class="ri-men-line text-primary"></i> Male</label>
+                                    <div class="d-flex align-items-center justify-content-center">
+                                        <button type="button" class="btn btn-sm border" onclick="window.ctpGuestDelta('male',-1)" style="width:36px;height:36px;"><i class="ri-subtract-line"></i></button>
+                                        <span class="mx-3 fw-bold fs-5" id="ctpModalMale">1</span>
+                                        <button type="button" class="btn btn-sm border" onclick="window.ctpGuestDelta('male',1)" style="width:36px;height:36px;"><i class="ri-add-line"></i></button>
+                                    </div>
+                                </div>
+                                <div class="text-center">
+                                    <label class="form-label fw-semibold d-block small"><i class="ri-women-line text-primary"></i> Female</label>
+                                    <div class="d-flex align-items-center justify-content-center">
+                                        <button type="button" class="btn btn-sm border" onclick="window.ctpGuestFemaleDelta(-1)" style="width:36px;height:36px;"><i class="ri-subtract-line"></i></button>
+                                        <span class="mx-3 fw-bold fs-5" id="ctpModalFemale">0</span>
+                                        <button type="button" class="btn btn-sm border" onclick="window.ctpGuestFemaleDelta(1)" style="width:36px;height:36px;"><i class="ri-add-line"></i></button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card" style="border: 1px solid #e9ecef; border-radius: 8px;">
+                            <div class="card-header py-2" style="background:#f8f9fa;border:none;border-bottom:1px solid #e9ecef;">
+                                <h6 class="mb-0 fw-semibold" style="color:#495057;font-size:0.875rem;"><i class="ri-user-smile-line me-2 text-primary"></i>Children &amp; Infants</h6>
+                            </div>
+                            <div class="card-body py-2">
+                                <div class="mb-3 text-center">
+                                    <label class="form-label fw-semibold d-block small">Children <small class="text-muted d-block fw-normal">Ages 1–17</small></label>
+                                    <div class="d-flex align-items-center justify-content-center">
+                                        <button type="button" class="btn btn-sm border" onclick="window.ctpGuestDelta('children',-1)" style="width:36px;height:36px;"><i class="ri-subtract-line"></i></button>
+                                        <span class="mx-3 fw-bold fs-5" id="ctpModalChildren">0</span>
+                                        <button type="button" class="btn btn-sm border" onclick="window.ctpGuestDelta('children',1)" style="width:36px;height:36px;"><i class="ri-add-line"></i></button>
+                                    </div>
+                                    <div id="ctpChildAgesSection" class="mt-2 text-start" style="display:none;">
+                                        <label class="form-label small fw-semibold">Child ages</label>
+                                        <div id="ctpChildAgeDropdowns" class="d-flex flex-column gap-1"></div>
+                                    </div>
+                                </div>
+                                <div class="text-center">
+                                    <label class="form-label fw-semibold d-block small">Infants <small class="text-muted d-block fw-normal">Under 1 year</small></label>
+                                    <div class="d-flex align-items-center justify-content-center">
+                                        <button type="button" class="btn btn-sm border" onclick="window.ctpGuestDelta('infants',-1)" style="width:36px;height:36px;"><i class="ri-subtract-line"></i></button>
+                                        <span class="mx-3 fw-bold fs-5" id="ctpModalInfants">0</span>
+                                        <button type="button" class="btn btn-sm border" onclick="window.ctpGuestDelta('infants',1)" style="width:36px;height:36px;"><i class="ri-add-line"></i></button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="border-top:1px solid #e9ecef;background:#f8f9fa;">
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-sm text-white" id="tourProGuestApplyBtn" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);"><i class="ri-check-line me-1"></i>Apply Selection</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Open modal when Create Single Tour Pro is clicked
-    const createTourBtn = document.getElementById('createSingleTourProBtn');
-    if (createTourBtn) {
-        createTourBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            const modal = new bootstrap.Modal(document.getElementById('createTourProModal'));
-            modal.show();
-            loadDestinations();
-        });
-    }
-
-    // Store agencies list globally for autocomplete
-    let availableAgencies = [];
-    
-    // Load Agencies by single destination
-    function loadAgenciesByDestination(destination) {
-        const agencyInput = document.getElementById('agencySelectModal');
-        agencyInput.value = 'Loading agencies...';
-        agencyInput.disabled = true;
+    document.addEventListener('DOMContentLoaded', function() {
+        // Enhanced tooltip functionality
+        const tooltips = document.querySelectorAll('.menu-tooltip');
         
-        // Reset agency and agent
-        document.getElementById('agencyIdValue').value = '';
-        const agentInput = document.getElementById('agentSelectModal');
-        agentInput.value = '';
-        agentInput.placeholder = 'Select agency first...';
-        agentInput.disabled = true;
-        document.getElementById('agentIdValue').value = '';
-        
-        fetch('{{ route("enquiry-form-pro.get-agencies") }}?destination=' + encodeURIComponent(destination))
-            .then(response => response.json())
-            .then(data => {
-                console.log('Agencies loaded for destination:', destination, 'DMC ID:', data.dmc_id, 'Count:', data.count);
-                if (data.success && data.agencies.length > 0) {
-                    availableAgencies = data.agencies;
-                    agencyInput.value = '';
-                    agencyInput.placeholder = 'Type to search agency...';
-                    agencyInput.disabled = false;
-                } else {
-                    availableAgencies = [];
-                    agencyInput.value = '';
-                    agencyInput.placeholder = 'No agencies available (filtered by destination & DMC)';
-                }
-            })
-            .catch(error => {
-                console.error('Error loading agencies:', error);
-                availableAgencies = [];
-                agencyInput.value = '';
-                agencyInput.placeholder = 'Error loading agencies';
-            });
-    }
-
-    // Load Agencies by multiple destinations
-    function loadAgenciesByDestinations() {
-        if (selectedDestinations.length === 0) return;
-        
-        const agencyInput = document.getElementById('agencySelectModal');
-        agencyInput.value = 'Loading agencies...';
-        agencyInput.disabled = true;
-        
-        // Reset agency and agent
-        document.getElementById('agencyIdValue').value = '';
-        const agentInput = document.getElementById('agentSelectModal');
-        agentInput.value = '';
-        agentInput.placeholder = 'Select agency first...';
-        agentInput.disabled = true;
-        document.getElementById('agentIdValue').value = '';
-        
-        const destinations = selectedDestinations.join(',');
-        
-        fetch('{{ route("enquiry-form-pro.get-agencies") }}?destinations=' + encodeURIComponent(destinations))
-            .then(response => response.json())
-            .then(data => {
-                console.log('Agencies loaded for destinations:', destinations, 'DMC ID:', data.dmc_id, 'Count:', data.count);
-                if (data.success && data.agencies.length > 0) {
-                    availableAgencies = data.agencies;
-                    agencyInput.value = '';
-                    agencyInput.placeholder = 'Type to search agency...';
-                    agencyInput.disabled = false;
-                } else {
-                    availableAgencies = [];
-                    agencyInput.value = '';
-                    agencyInput.placeholder = 'No agencies available (filtered by destinations & DMC)';
-                }
-            })
-            .catch(error => {
-                console.error('Error loading agencies:', error);
-                availableAgencies = [];
-                agencyInput.value = '';
-                agencyInput.placeholder = 'Error loading agencies';
-            });
-    }
-
-    // Agency autocomplete
-    const agencyInput = document.getElementById('agencySelectModal');
-    const agencySuggestions = document.getElementById('agencySuggestions');
-    const agencyIdValue = document.getElementById('agencyIdValue');
-
-    agencyInput.addEventListener('input', function() {
-        const query = this.value.toLowerCase().trim();
-        
-        if (query.length < 1) {
-            agencySuggestions.style.display = 'none';
-            return;
-        }
-
-        const filtered = availableAgencies.filter(agency => 
-            agency.agency_name.toLowerCase().includes(query)
-        );
-
-        if (filtered.length > 0) {
-            agencySuggestions.innerHTML = '';
-            filtered.forEach(agency => {
-                const item = document.createElement('a');
-                item.href = 'javascript:void(0);';
-                item.className = 'list-group-item list-group-item-action';
-                item.style.padding = '6px 10px';
-                item.style.fontSize = '10px';
-                item.style.cursor = 'pointer';
-                item.textContent = agency.agency_name;
-                item.addEventListener('click', function() {
-                    agencyInput.value = agency.agency_name;
-                    agencyIdValue.value = agency.agency_id;
-                    agencySuggestions.style.display = 'none';
-                    // Load agents for this agency
-                    loadAgentsByAgency(agency.agency_id);
-                });
-                agencySuggestions.appendChild(item);
-            });
-            agencySuggestions.style.display = 'block';
-        } else {
-            agencySuggestions.style.display = 'none';
-        }
-    });
-
-    // Store agents list globally for autocomplete
-    let availableAgents = [];
-
-    // Load agents by agency
-    function loadAgentsByAgency(agencyId) {
-        const agentInput = document.getElementById('agentSelectModal');
-        agentInput.value = 'Loading agents...';
-        agentInput.disabled = true;
-        document.getElementById('agentIdValue').value = '';
-
-        fetch('{{ route("enquiry-form-pro.get-agents") }}?agency_id=' + agencyId)
-            .then(response => response.json())
-            .then(data => {
-                if (data.success && data.agents.length > 0) {
-                    availableAgents = data.agents;
-                    agentInput.value = '';
-                    agentInput.placeholder = 'Type to search agent...';
-                    agentInput.disabled = false;
-                } else {
-                    availableAgents = [];
-                    agentInput.value = '';
-                    agentInput.placeholder = 'No agents available';
-                }
-            })
-            .catch(error => {
-                console.error('Error loading agents:', error);
-                availableAgents = [];
-                agentInput.value = '';
-                agentInput.placeholder = 'Error loading agents';
-            });
-    }
-
-    // Agent autocomplete
-    const agentInput = document.getElementById('agentSelectModal');
-    const agentSuggestions = document.getElementById('agentSuggestions');
-    const agentIdValue = document.getElementById('agentIdValue');
-
-    agentInput.addEventListener('input', function() {
-        const query = this.value.toLowerCase().trim();
-        
-        if (query.length < 1) {
-            agentSuggestions.style.display = 'none';
-            return;
-        }
-
-        const filtered = availableAgents.filter(agent => 
-            agent.name.toLowerCase().includes(query)
-        );
-
-        if (filtered.length > 0) {
-            agentSuggestions.innerHTML = '';
-            filtered.forEach(agent => {
-                const item = document.createElement('a');
-                item.href = 'javascript:void(0);';
-                item.className = 'list-group-item list-group-item-action';
-                item.style.padding = '6px 10px';
-                item.style.fontSize = '10px';
-                item.style.cursor = 'pointer';
-                item.textContent = agent.name;
-                item.addEventListener('click', function() {
-                    agentInput.value = agent.name;
-                    agentIdValue.value = agent.agent_id;
-                    agentSuggestions.style.display = 'none';
-                });
-                agentSuggestions.appendChild(item);
-            });
-            agentSuggestions.style.display = 'block';
-        } else {
-            agentSuggestions.style.display = 'none';
-        }
-    });
-
-    // Multiple destination checkbox toggle
-    const multipleDestCheckbox = document.getElementById('multipleDestination');
-    const singleDestDiv = document.getElementById('singleDestinationDiv');
-    const multipleDestDiv = document.getElementById('multipleDestinationDiv');
-    const destinationSingle = document.getElementById('destinationSingle');
-    const destinationMultiple = document.getElementById('destinationMultiple');
-
-    multipleDestCheckbox.addEventListener('change', function() {
-        if (this.checked) {
-            // Switch to multiple mode
-            singleDestDiv.style.display = 'none';
-            multipleDestDiv.style.display = 'block';
-            // Clear single destination
-            destinationSingleInput.value = '';
-            destinationSingleValue.value = '';
-        } else {
-            // Switch to single mode
-            singleDestDiv.style.display = 'block';
-            multipleDestDiv.style.display = 'none';
-            // Clear multiple destinations
-            destinationInput.value = '';
-            selectedDestinations = [];
-            updateSelectedDestinations();
-        }
-        
-        // Reset agency and agent when switching modes
-        const agencyInputReset = document.getElementById('agencySelectModal');
-        agencyInputReset.value = '';
-        agencyInputReset.placeholder = 'Select destination first...';
-        agencyInputReset.disabled = true;
-        document.getElementById('agencyIdValue').value = '';
-        availableAgencies = [];
-        
-        const agentInputReset = document.getElementById('agentSelectModal');
-        agentInputReset.value = '';
-        agentInputReset.placeholder = 'Select agency first...';
-        agentInputReset.disabled = true;
-        document.getElementById('agentIdValue').value = '';
-        availableAgents = [];
-    });
-
-    // Load destinations
-    let allDestinations = [];
-    function loadDestinations() {
-        fetch('{{ route("enquiry-form-pro.get-destinations") }}')
-            .then(response => response.json())
-            .then(data => {
-                if (data.success && data.destinations.length > 0) {
-                    allDestinations = data.destinations;
-                }
-            })
-            .catch(error => {
-                console.error('Error loading destinations:', error);
-            });
-    }
-
-    // Single destination autocomplete
-    const destinationSingleInput = document.getElementById('destinationSingle');
-    const suggestionBoxSingle = document.getElementById('destinationSuggestionsSingle');
-    const destinationSingleValue = document.getElementById('destinationSingleValue');
-
-    destinationSingleInput.addEventListener('input', function() {
-        const query = this.value.toLowerCase().trim();
-        
-        if (query.length < 1) {
-            suggestionBoxSingle.style.display = 'none';
-            return;
-        }
-
-        const filtered = allDestinations.filter(dest => 
-            dest.name.toLowerCase().includes(query)
-        );
-
-        if (filtered.length > 0) {
-            suggestionBoxSingle.innerHTML = '';
-            filtered.forEach(dest => {
-                const item = document.createElement('a');
-                item.href = 'javascript:void(0);';
-                item.className = 'list-group-item list-group-item-action';
-                item.style.padding = '6px 10px';
-                item.style.fontSize = '10px';
-                item.style.cursor = 'pointer';
-                item.textContent = dest.name;
-                item.addEventListener('click', function() {
-                    destinationSingleInput.value = dest.name;
-                    destinationSingleValue.value = dest.name;
-                    suggestionBoxSingle.style.display = 'none';
-                    // Load agencies for this destination
-                    loadAgenciesByDestination(dest.name);
-                });
-                suggestionBoxSingle.appendChild(item);
-            });
-            suggestionBoxSingle.style.display = 'block';
-        } else {
-            suggestionBoxSingle.style.display = 'none';
-        }
-    });
-
-    // Multiple destination autocomplete
-    const destinationInput = document.getElementById('destinationMultiple');
-    const suggestionBox = document.getElementById('destinationSuggestions');
-    const selectedDestinationsDiv = document.getElementById('selectedDestinations');
-    let selectedDestinations = [];
-
-    destinationInput.addEventListener('input', function() {
-        const query = this.value.toLowerCase().trim();
-        
-        if (query.length < 1) {
-            suggestionBox.style.display = 'none';
-            return;
-        }
-
-        const filtered = allDestinations.filter(dest => 
-            dest.name.toLowerCase().includes(query) && 
-            !selectedDestinations.includes(dest.name)
-        );
-
-        if (filtered.length > 0) {
-            suggestionBox.innerHTML = '';
-            filtered.forEach(dest => {
-                const item = document.createElement('a');
-                item.href = 'javascript:void(0);';
-                item.className = 'list-group-item list-group-item-action';
-                item.style.padding = '6px 10px';
-                item.style.fontSize = '10px';
-                item.style.cursor = 'pointer';
-                item.textContent = dest.name;
-                item.addEventListener('click', function() {
-                    addDestination(dest.name);
-                    destinationInput.value = '';
-                    suggestionBox.style.display = 'none';
-                });
-                suggestionBox.appendChild(item);
-            });
-            suggestionBox.style.display = 'block';
-        } else {
-            suggestionBox.style.display = 'none';
-        }
-    });
-
-    function addDestination(name) {
-        if (!selectedDestinations.includes(name)) {
-            selectedDestinations.push(name);
-            updateSelectedDestinations();
-            // Load agencies for selected destinations
-            loadAgenciesByDestinations();
-        }
-    }
-
-    function removeDestination(name) {
-        selectedDestinations = selectedDestinations.filter(d => d !== name);
-        updateSelectedDestinations();
-        // Reload agencies based on remaining destinations
-        if (selectedDestinations.length > 0) {
-            loadAgenciesByDestinations();
-        } else {
-            // Reset agency if no destinations selected
-            const agencyInputReset = document.getElementById('agencySelectModal');
-            agencyInputReset.value = '';
-            agencyInputReset.placeholder = 'Select destination first...';
-            agencyInputReset.disabled = true;
-            document.getElementById('agencyIdValue').value = '';
-            availableAgencies = [];
-            // Also reset agent
-            const agentInputReset = document.getElementById('agentSelectModal');
-            agentInputReset.value = '';
-            agentInputReset.placeholder = 'Select agency first...';
-            agentInputReset.disabled = true;
-            document.getElementById('agentIdValue').value = '';
-            availableAgents = [];
-        }
-    }
-
-    function updateSelectedDestinations() {
-        selectedDestinationsDiv.innerHTML = '';
-        selectedDestinations.forEach(dest => {
-            const badge = document.createElement('span');
-            badge.className = 'badge bg-info me-1 mb-1 d-inline-flex align-items-center';
-            badge.style.fontSize = '11px';
-            badge.style.padding = '4px 8px';
-            badge.innerHTML = `${dest} <i class="ri-close-line ms-1" style="cursor: pointer; font-size: 14px;"></i>`;
-            badge.querySelector('i').addEventListener('click', function() {
-                removeDestination(dest);
-            });
-            selectedDestinationsDiv.appendChild(badge);
-        });
-
-        // Update hidden input
-        document.getElementById('destinationsArray').value = JSON.stringify(selectedDestinations);
-    }
-
-    // Set min date for start date (today)
-    const tourStartDateInput = document.getElementById('tourStartDate');
-    const tourEndDateInput = document.getElementById('tourEndDate');
-    
-    if (tourStartDateInput && tourEndDateInput) {
-        const today = new Date().toISOString().split('T')[0];
-        tourStartDateInput.setAttribute('min', today);
-        tourStartDateInput.value = today;
-        
-        // Set end date to tomorrow by default and set min
-        const tomorrow = new Date();
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        const tomorrowStr = tomorrow.toISOString().split('T')[0];
-        tourEndDateInput.value = tomorrowStr;
-        tourEndDateInput.setAttribute('min', tomorrowStr);
-        
-        // Update end date min when start date changes
-        tourStartDateInput.addEventListener('change', function() {
-            const startDate = new Date(this.value);
-            const minEndDate = new Date(startDate);
-            minEndDate.setDate(minEndDate.getDate() + 1);
-            const minEndDateStr = minEndDate.toISOString().split('T')[0];
-            tourEndDateInput.setAttribute('min', minEndDateStr);
+        tooltips.forEach((tooltip, index) => {
+            const tooltipText = tooltip.querySelector('.tooltip-text');
+            const menuText = tooltip.querySelector('.menu-text-with-tooltip');
             
-            // If end date is less than start date + 1, update it
-            if (new Date(tourEndDateInput.value) <= startDate) {
-                tourEndDateInput.value = minEndDateStr;
+            if (tooltipText && menuText) {
+                // Always show tooltip on hover
+                tooltipText.style.display = 'block';
+                
+                // Add hover events for dynamic positioning
+                tooltip.addEventListener('mouseenter', function(e) {
+                    // Get the position of the hovered menu item
+                    const rect = this.getBoundingClientRect();
+                    
+                    // Position tooltip to the right of the menu item
+                    tooltipText.style.left = (rect.right + 10) + 'px';
+                    tooltipText.style.top = (rect.top + (rect.height / 2) - 20) + 'px';
+                    
+                    // Show tooltip
+                    tooltipText.style.visibility = 'visible';
+                    tooltipText.style.opacity = '1';
+                    tooltipText.style.transform = 'scale(1)';
+                    tooltipText.style.display = 'block';
+                });
+                
+                tooltip.addEventListener('mouseleave', function() {
+                    tooltipText.style.visibility = 'hidden';
+                    tooltipText.style.opacity = '0';
+                    tooltipText.style.transform = 'scale(0.8)';
+                });
+                
+                // Ensure tooltip positioning works on different screen sizes
+                function adjustTooltipPosition() {
+                    const rect = tooltip.getBoundingClientRect();
+                    const tooltipRect = tooltipText.getBoundingClientRect();
+                    
+                    // If tooltip would go off screen, position it to the left
+                    if (rect.right + tooltipRect.width + 20 > window.innerWidth) {
+                        tooltipText.style.left = 'auto';
+                        tooltipText.style.right = '100%';
+                        tooltipText.style.marginLeft = '0';
+                        tooltipText.style.marginRight = '15px';
+                        
+                        // Update arrow direction
+                        const arrow = tooltipText.querySelector('::before');
+                        if (arrow) {
+                            tooltipText.style.setProperty('--arrow-direction', 'right');
+                        }
+                    }
+                }
+                
+                // Adjust position on window resize
+                window.addEventListener('resize', adjustTooltipPosition);
+                adjustTooltipPosition();
             }
         });
-    }
-    
-    // Form validation
-    document.getElementById('createTourProForm').addEventListener('submit', function(e) {
-        const multipleDestChecked = document.getElementById('multipleDestination').checked;
+
+        // Open sidebar submenus in a floating modal instead of expanding inline.
+        // Disabled to keep all nested arrows working inside sidebar.
+        const enableFloatingSubmenuModal = false;
+        const submenuModalEl = document.getElementById('submenuModal');
+        const submenuModalTitleEl = document.getElementById('submenuModalLabel'); // Optional: header may be removed
+        const submenuModalBodyEl = document.getElementById('submenuModalBody');
+
+        if (enableFloatingSubmenuModal && submenuModalEl && window.bootstrap && window.bootstrap.Modal) {
+            const submenuModal = new window.bootstrap.Modal(submenuModalEl, {
+                backdrop: false,
+                focus: false
+            });
+            let currentModalTrigger = null;
+            let hoverSuppressedTrigger = null;
+
+            const isSubmenuModalOpen = () =>
+                submenuModalEl.classList.contains('show') ||
+                submenuModalEl.style.display === 'block' ||
+                submenuModalEl.getAttribute('aria-hidden') === 'false';
+            let modalSubmenuStack = [];
+
+            const closeSubmenuModal = () => {
+                if (!isSubmenuModalOpen()) return;
+                hoverSuppressedTrigger = currentModalTrigger;
+                currentModalTrigger = null;
+                modalSubmenuStack = [];
+                submenuModal.hide();
+            };
+
+            const renderSubmenuInModal = (submenu, title) => {
+                if (!submenu || !submenuModalBodyEl) return;
+
+                submenuModalBodyEl.innerHTML = '';
+                const list = document.createElement('ul');
+                list.className = 'submenu-modal-list';
+
+                if (modalSubmenuStack.length > 1) {
+                    const backLi = document.createElement('li');
+                    backLi.className = 'menu-item submenu-modal-back';
+                    backLi.innerHTML = '<a href="#" class="menu-link submenu-modal-back-link" data-submenu-back="1"><div class="d-flex align-items-center"><i class="ri-arrow-left-line me-2"></i><div data-i18n="Back">Back</div></div></a>';
+                    list.appendChild(backLi);
+                }
+
+                const directLis = Array.from(submenu.children).filter(el => el && el.matches && el.matches('li.menu-item'));
+                (directLis.length ? directLis : Array.from(submenu.querySelectorAll('li.menu-item'))).forEach(li => {
+                    const liClone = li.cloneNode(true);
+
+                    // Add a left-side arrow icon before every nested submenu label inside the modal.
+                    const modalAnchor = liClone.querySelector('a.menu-link');
+                    if (modalAnchor && !modalAnchor.querySelector('.submenu-modal-item-icon')) {
+                        // Avoid adding if the original item already has some icon/graphic.
+                        if (!modalAnchor.querySelector('i') && !modalAnchor.querySelector('svg')) {
+                            const labelNode = modalAnchor.querySelector('[data-i18n]') || modalAnchor.querySelector('div') || modalAnchor.querySelector('span');
+                            const iconEl = document.createElement('i');
+                            iconEl.className = 'ri-arrow-right-double-fill submenu-modal-item-icon';
+                            iconEl.setAttribute('aria-hidden', 'true');
+                            if (labelNode && labelNode.parentElement === modalAnchor) {
+                                modalAnchor.insertBefore(iconEl, labelNode);
+                            } else {
+                                modalAnchor.prepend(iconEl);
+                            }
+                        }
+                    }
+
+                    // Keep nested submenu DOM so a second-level modal can be opened from modal items.
+                    liClone.querySelectorAll('ul.menu-sub').forEach(nested => {
+                        nested.style.display = 'none';
+                    });
+                    list.appendChild(liClone);
+                });
+
+                submenuModalBodyEl.appendChild(list);
+                if (submenuModalTitleEl) submenuModalTitleEl.textContent = (title || 'Options').trim();
+            };
+
+            const layoutMenuEl = document.getElementById('layout-menu');
+            if (layoutMenuEl) {
+                // Use event delegation so submenu triggers inside any `menu-header` group open reliably.
+                layoutMenuEl.addEventListener('click', function(e) {
+                    const trigger = e.target.closest('a.menu-toggle');
+                    if (!trigger || !layoutMenuEl.contains(trigger)) return;
+
+                    const parentItem = trigger.closest('.menu-item');
+                    const submenu = parentItem ? parentItem.querySelector('ul.menu-sub') : null;
+                    if (!submenu) return;
+
+                    // Requirement: only nested submenu should open in modal.
+                    // If this menu-toggle is NOT inside another submenu container, keep the default inline behavior.
+                    // (Example: "Restaurant" should stay inline; "Enquiries" inside "Bookings" should open modal.)
+                    const isNestedSubmenuTrigger = !!trigger.closest('ul.menu-sub');
+                    if (!isNestedSubmenuTrigger) return;
+
+                    // Prevent theme inline submenu toggle; we render it inside modal instead.
+                    e.preventDefault();
+                    e.stopPropagation();
+                    // Some sidebar themes also bind their own click handlers on the same element.
+                    // This prevents inline submenu expansion from happening right after our modal opens.
+                    e.stopImmediatePropagation();
+
+                    // Modal title from the trigger's i18n label/text.
+                    const i18nNode = trigger.querySelector('[data-i18n]');
+                    const title = i18nNode ? i18nNode.textContent.trim() : (trigger.textContent || 'Options');
+                    if (submenuModalTitleEl) submenuModalTitleEl.textContent = title.trim() || 'Options';
+
+                    currentModalTrigger = trigger;
+                    // Clicking a nested submenu should re-enable hover reopening for other triggers.
+                    hoverSuppressedTrigger = null;
+                    modalSubmenuStack = [];
+
+                    modalSubmenuStack.push({
+                        submenu,
+                        title
+                    });
+                    renderSubmenuInModal(submenu, title);
+
+                    // Close any expanded inline state if theme added it already.
+                    parentItem.classList.remove('open');
+                    // Hide nested inline submenu levels under the clicked trigger.
+                    // This ensures only the modal shows nested options.
+                    parentItem.querySelectorAll('ul.menu-sub').forEach(u => {
+                        u.style.display = 'none';
+                    });
+
+                    // Position modal next to the clicked menu item (responsive fallback for small screens).
+                    const rect = trigger.getBoundingClientRect();
+                    const dialog = submenuModalEl.querySelector('.modal-dialog');
+                    if (window.innerWidth < 768) {
+                        dialog.style.left = '40%';
+                        dialog.style.top = '50%';
+                        dialog.style.transform = 'translate(-50%, -50%)';
+                        dialog.style.width = '90vw';
+                        dialog.style.maxWidth = '540px';
+                    } else {
+                        dialog.style.transform = 'none';
+                        dialog.style.width = '280px';
+                        dialog.style.maxWidth = '280px';
+                        dialog.style.left = `${rect.right + 14}px`;
+                        dialog.style.top = `${Math.max(10, rect.top)}px`;
+                    }
+
+                    submenuModal.show();
+
+                    // If modal overflows the viewport horizontally, clamp it.
+                    requestAnimationFrame(() => {
+                        const dRect = dialog.getBoundingClientRect();
+                        if (window.innerWidth >= 768) {
+                            if (dRect.right > window.innerWidth - 8) {
+                                const newLeft = Math.max(8, window.innerWidth - dRect.width - 8);
+                                dialog.style.left = `${newLeft}px`;
+                            }
+                            if (dRect.bottom > window.innerHeight - 8) {
+                                const newTop = Math.max(8, window.innerHeight - dRect.height - 8);
+                                dialog.style.top = `${newTop}px`;
+                            }
+                        }
+                    });
+                }, true);
+            }
+
+            // Hide modal after user clicks a link inside it (navigation will happen anyway).
+            submenuModalBodyEl.addEventListener('click', function(e) {
+                const backLink = e.target.closest('[data-submenu-back="1"]');
+                if (backLink) {
+                    e.preventDefault();
+                    if (modalSubmenuStack.length > 1) {
+                        modalSubmenuStack.pop();
+                        const prev = modalSubmenuStack[modalSubmenuStack.length - 1];
+                        renderSubmenuInModal(prev.submenu, prev.title);
+                    }
+                    return;
+                }
+
+                const toggleLink = e.target.closest('a.menu-toggle');
+                if (toggleLink) {
+                    const li = toggleLink.closest('li.menu-item');
+                    const nested = li ? li.querySelector(':scope > ul.menu-sub') : null;
+                    if (nested) {
+                        e.preventDefault();
+                        const i18nNode = toggleLink.querySelector('[data-i18n]');
+                        const nestedTitle = i18nNode ? i18nNode.textContent.trim() : (toggleLink.textContent || 'Options');
+                        modalSubmenuStack.push({
+                            submenu: nested,
+                            title: nestedTitle
+                        });
+                        renderSubmenuInModal(nested, nestedTitle);
+                        return;
+                    }
+                }
+
+                const link = e.target.closest('a');
+                if (link) {
+                    // Close modal after selection; keep it closed even if the cursor stays hovered on the trigger.
+                    closeSubmenuModal();
+                }
+            });
+
+            // Reliable close when user clicks the modal wrapper (outside `.modal-content`).
+            submenuModalEl.addEventListener('click', function(e) {
+                if (e.target === submenuModalEl) {
+                    closeSubmenuModal();
+                }
+            }, true);
+
+            // Close modal when clicking/tapping outside (reliable: use pointerdown).
+            document.addEventListener('pointerdown', function(e) {
+                if (!isSubmenuModalOpen()) return;
+
+                // IMPORTANT: `.modal` wrapper covers the whole screen, so we must only treat clicks
+                // inside `.modal-content` as "inside". Everything else should close the modal.
+                const modalContent = submenuModalEl.querySelector('.modal-content');
+                if (modalContent && modalContent.contains(e.target)) return;
+
+                closeSubmenuModal();
+            }, true);
+
+        }
         
-        // Validate destination based on mode
-        if (multipleDestChecked) {
-            if (selectedDestinations.length === 0) {
+        // Enhanced menu interactions
+        // Scope hover animation to the real sidebar only; modal items are cloned `.menu-item`s too.
+        const menuItems = document.querySelectorAll('#layout-menu .menu-item');
+        menuItems.forEach(item => {
+            item.addEventListener('mouseenter', function() {
+                if (!this.classList.contains('active')) {
+                    this.style.transform = 'translateX(2px)';
+                }
+            });
+            
+            item.addEventListener('mouseleave', function() {
+                if (!this.classList.contains('active')) {
+                    this.style.transform = 'translateX(0)';
+                }
+            });
+        });
+    });
+</script> 
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Open modal when Create Single Tour Pro is clicked
+        const createTourBtn = document.getElementById('createSingleTourProBtn');
+        if (createTourBtn) {
+            createTourBtn.addEventListener('click', function(e) {
                 e.preventDefault();
-                alert('Please select at least one destination');
+                const modalEl = document.getElementById('createTourProModal');
+                const modal = new bootstrap.Modal(modalEl);
+                modal.show();
+                loadDestinations();
+                if (modalEl) {
+                    modalEl.addEventListener('shown.bs.modal', function onCtpShown() {
+                        modalEl.removeEventListener('shown.bs.modal', onCtpShown);
+                        ctpBindAgencyAgentHandlers();
+                        loadAgenciesForDmc();
+                        ctpInitTourProSelect2();
+                        if (typeof window.ctpApplyTourStartFloor === 'function') window.ctpApplyTourStartFloor();
+                        if (typeof ctpUpdateSubmitButtonState === 'function') ctpUpdateSubmitButtonState();
+                    });
+                }
+            });
+        }
+
+        // Create Tour Pro — FIT pax vs Group (FOC + guest modal, Create Lite parity)
+        window.tourProGuestConfigured = false;
+        let selectedDestinations = [];
+        let allDestinations = [];
+        let availableAgencies = [];
+        let availableAgents = [];
+
+        function ctpSafeInt(v) {
+            const n = parseInt(String(v ?? '').trim(), 10);
+            return Number.isFinite(n) ? n : 0;
+        }
+        function ctpIsGroup() {
+            const r = document.getElementById('tourTypeGroup');
+            return !!(r && r.checked);
+        }
+
+        /** Enable Continue when required fields are set. Contact number and email are optional. */
+        function ctpUpdateSubmitButtonState() {
+            const btn = document.getElementById('submitTourProBtn');
+            if (!btn) return;
+            let ok = true;
+
+            const start = (document.getElementById('tourStartDate')?.value || '').trim();
+            const end = (document.getElementById('tourEndDate')?.value || '').trim();
+            if (!start || !end) ok = false;
+
+            const multipleDestChecked = document.getElementById('multipleDestination')?.checked === true;
+            if (multipleDestChecked) {
+                if (!selectedDestinations.length) ok = false;
+            } else {
+                const singleDest = (document.getElementById('destinationSingleValue')?.value || '').trim();
+                if (!singleDest) ok = false;
+            }
+
+            if (!(document.getElementById('agencyIdValue')?.value || '').trim()) ok = false;
+            if (!(document.getElementById('agentIdValue')?.value || '').trim()) ok = false;
+
+            const custName = (document.getElementById('customerName')?.value || '').trim();
+            if (!custName) ok = false;
+
+            if (!window.tourProGuestConfigured) ok = false;
+
+            btn.disabled = !ok;
+            btn.style.opacity = ok ? '1' : '0.55';
+            btn.style.cursor = ok ? 'pointer' : 'not-allowed';
+            btn.title = ok
+                ? 'Continue to enquiry form'
+                : 'Fill all required fields (destination, agency, agent, customer name, guests). Contact and email are optional.';
+        }
+        window.ctpUpdateSubmitButtonState = ctpUpdateSubmitButtonState;
+
+        function loadDestinations() {
+            fetch('{{ route("enquiry-form-pro.get-destinations") }}')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.destinations.length > 0) {
+                        allDestinations = data.destinations;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading destinations:', error);
+                });
+        }
+
+        function ctpSetHidden(id, val) {
+            const el = document.getElementById(id);
+            if (el) el.value = String(val);
+        }
+        function ctpSyncFitHiddenPax() {
+            if (ctpIsGroup()) return;
+            const elA = document.getElementById('adultCount');
+            const elC = document.getElementById('childCount');
+            const elI = document.getElementById('infantCount');
+            const a = Math.max(0, ctpSafeInt(elA ? elA.value : 0));
+            const c = Math.max(0, ctpSafeInt(elC ? elC.value : 0));
+            const i = Math.max(0, ctpSafeInt(elI ? elI.value : 0));
+            ctpSetHidden('ctp_hidden_adult_count', a);
+            ctpSetHidden('ctp_hidden_child_count', c);
+            ctpSetHidden('ctp_hidden_infant_count', i);
+            ctpSetHidden('ctp_hidden_male', 0);
+            ctpSetHidden('ctp_hidden_female', 0);
+            ctpSetHidden('ctp_hidden_group_size', 0);
+            ctpSetHidden('ctp_hidden_foc_size', 0);
+            ctpSetHidden('ctp_hidden_paying_pax', 0);
+            ctpSetHidden('ctp_hidden_discount', 0);
+            ctpSetHidden('ctp_hidden_auto_foc', 0);
+            ctpSetHidden('ctp_hidden_child_ages', '[]');
+        }
+        function ctpInitDefaultGroupHidden() {
+            ctpSetHidden('ctp_hidden_group_size', 1);
+            ctpSetHidden('ctp_hidden_foc_size', 0);
+            ctpSetHidden('ctp_hidden_paying_pax', 1);
+            ctpSetHidden('ctp_hidden_discount', 0);
+            ctpSetHidden('ctp_hidden_auto_foc', 0);
+            ctpSetHidden('ctp_hidden_adult_count', 1);
+            ctpSetHidden('ctp_hidden_child_count', 0);
+            ctpSetHidden('ctp_hidden_infant_count', 0);
+            ctpSetHidden('ctp_hidden_male', 1);
+            ctpSetHidden('ctp_hidden_female', 0);
+            ctpSetHidden('ctp_hidden_child_ages', '[]');
+        }
+        function ctpInitDefaultFitHidden() {
+            ctpSetHidden('ctp_hidden_group_size', 0);
+            ctpSetHidden('ctp_hidden_foc_size', 0);
+            ctpSetHidden('ctp_hidden_paying_pax', 0);
+            ctpSetHidden('ctp_hidden_discount', 0);
+            ctpSetHidden('ctp_hidden_auto_foc', 0);
+            ctpSetHidden('ctp_hidden_adult_count', 1);
+            ctpSetHidden('ctp_hidden_child_count', 0);
+            ctpSetHidden('ctp_hidden_infant_count', 0);
+            ctpSetHidden('ctp_hidden_male', 1);
+            ctpSetHidden('ctp_hidden_female', 0);
+            ctpSetHidden('ctp_hidden_child_ages', '[]');
+        }
+        function ctpRefreshTourTypeUI() {
+            const helper = document.getElementById('tourProGuestsHelper');
+            const g = ctpIsGroup();
+            if (helper) {
+                helper.textContent = g
+                    ? 'Group size = paying pax; FOC adds to total pax. Adults + children must match total pax (male + female = adults). Infants are extra.'
+                    : 'Set adults (male + female), children, and infants. Infants do not use a pax slot.';
+            }
+            window.tourProGuestConfigured = false;
+            if (g) ctpInitDefaultGroupHidden();
+            else ctpInitDefaultFitHidden();
+            ctpRenderGuestSummary();
+            ctpUpdateSubmitButtonState();
+        }
+        document.querySelectorAll('input[name="tour_type"]').forEach(function(r) {
+            r.addEventListener('change', function() {
+                ctpRefreshTourTypeUI();
+            });
+        });
+        const ctpCustomerNameEl = document.getElementById('customerName');
+        if (ctpCustomerNameEl) {
+            ctpCustomerNameEl.addEventListener('input', ctpUpdateSubmitButtonState);
+        }
+        function ctpUpdateFOCFieldsInModal() {
+            const gsd = document.getElementById('pro_group_size_display');
+            const focEl = document.getElementById('pro_foc_size');
+            const gs = Math.max(0, ctpSafeInt(gsd ? gsd.value : 0));
+            const foc = Math.max(0, ctpSafeInt(focEl ? focEl.value : 0));
+            const row = document.getElementById('pro_includeFOCInPriceRow');
+            const cb = document.getElementById('pro_include_foc_in_group_price');
+            const total = gs + foc;
+            const pp = document.getElementById('pro_paying_pax');
+            const tp = document.getElementById('pro_total_pax_display');
+            if (pp) pp.value = String(gs);
+            if (tp) tp.value = String(total);
+            if (row) row.classList.toggle('d-none', foc <= 0);
+            if (cb) {
+                cb.disabled = foc <= 0;
+                if (foc <= 0) cb.checked = false;
+            }
+        }
+        function ctpModalTourCap() {
+            const gsd = document.getElementById('pro_group_size_display');
+            const focEl = document.getElementById('pro_foc_size');
+            const gs = Math.max(0, ctpSafeInt(gsd ? gsd.value : 0));
+            const foc = Math.max(0, ctpSafeInt(focEl ? focEl.value : 0));
+            return gs + foc;
+        }
+        /** Total tour pax = group + FOC. Infants do not count toward this cap; children do. */
+        function ctpSyncModalGuestsToCap() {
+            ctpUpdateFOCFieldsInModal();
+            const cap = ctpModalTourCap();
+            const childEl = document.getElementById('ctpModalChildren');
+            const infEl = document.getElementById('ctpModalInfants');
+            const maleEl = document.getElementById('ctpModalMale');
+            const femaleEl = document.getElementById('ctpModalFemale');
+            const adEl = document.getElementById('ctpModalAdults');
+            if (!childEl || !infEl || !maleEl || !femaleEl) return;
+            let ch = ctpSafeInt(childEl.textContent);
+            if (ch > cap) {
+                ch = cap;
+                childEl.textContent = String(ch);
+                window.ctpUpdateChildAgeDropdownsPro(ch);
+            }
+            let m = ctpSafeInt(maleEl.textContent);
+            let f = ctpSafeInt(femaleEl.textContent);
+            const rem = Math.max(0, cap - ch);
+            if (m + f > rem) {
+                f = Math.min(f, rem);
+                m = rem - f;
+                if (m < 0) {
+                    m = 0;
+                    f = rem;
+                }
+            } else if (m + f < rem) {
+                m = rem - f;
+            }
+            maleEl.textContent = String(m);
+            femaleEl.textContent = String(f);
+            if (adEl) adEl.textContent = String(m + f);
+        }
+        function ctpRebalanceHeadcountToTotal() {
+            ctpSyncModalGuestsToCap();
+        }
+        document.addEventListener('input', function(e) {
+            if (!e.target) return;
+            if (e.target.id === 'pro_group_size_display' || e.target.id === 'pro_foc_size') {
+                ctpRebalanceHeadcountToTotal();
+            }
+        }, true);
+        document.addEventListener('change', function(e) {
+            if (e.target && e.target.id === 'pro_include_foc_in_group_price') {
+                ctpUpdateFOCFieldsInModal();
+            }
+        }, true);
+        window.ctpGuestDelta = function(type, change) {
+            const maleEl = document.getElementById('ctpModalMale');
+            const femaleEl = document.getElementById('ctpModalFemale');
+            const childEl = document.getElementById('ctpModalChildren');
+            const infEl = document.getElementById('ctpModalInfants');
+            const adEl = document.getElementById('ctpModalAdults');
+            if (!maleEl || !femaleEl || !childEl || !infEl) return;
+            let m = ctpSafeInt(maleEl.textContent);
+            let f = ctpSafeInt(femaleEl.textContent);
+            let c = ctpSafeInt(childEl.textContent);
+            let inf = ctpSafeInt(infEl.textContent);
+            const isGroup = ctpIsGroup();
+            const cap = isGroup ? ctpModalTourCap() : Infinity;
+
+            if (type === 'male' || type === 'female') {
+                if (isGroup) {
+                    if (type === 'male') {
+                        if (change > 0) {
+                            if (f <= 0) return;
+                            m++;
+                            f--;
+                        } else if (change < 0) {
+                            if (m <= 0) return;
+                            m--;
+                            f++;
+                        }
+                    } else {
+                        if (change > 0) {
+                            if (m <= 0) return;
+                            f++;
+                            m--;
+                        } else if (change < 0) {
+                            if (f <= 0) return;
+                            f--;
+                            m++;
+                        }
+                    }
+                    if (m + f < 1) return;
+                    if (m + f + c > cap) return;
+                } else {
+                    const cur = type === 'male' ? m : f;
+                    const nv = Math.max(0, cur + change);
+                    if (type === 'male') m = nv; else f = nv;
+                    if (m + f < 1) return;
+                }
+                maleEl.textContent = String(m);
+                femaleEl.textContent = String(f);
+                if (adEl) adEl.textContent = String(m + f);
+                return;
+            }
+            if (type === 'children') {
+                const nv = c + change;
+                if (nv < 0) return;
+                if (isGroup && m + f + nv > cap) return;
+                c = nv;
+                childEl.textContent = String(c);
+                window.ctpUpdateChildAgeDropdownsPro(c);
+                if (adEl) adEl.textContent = String(m + f);
+                if (isGroup) ctpSyncModalGuestsToCap();
+                return;
+            }
+            if (type === 'infants') {
+                const nv = inf + change;
+                if (nv < 0) return;
+                infEl.textContent = String(nv);
+            }
+        };
+        window.ctpGuestAdultsDelta = function(change) {
+            const maleEl = document.getElementById('ctpModalMale');
+            const femaleEl = document.getElementById('ctpModalFemale');
+            const childEl = document.getElementById('ctpModalChildren');
+            const adEl = document.getElementById('ctpModalAdults');
+            if (!maleEl || !femaleEl || !childEl) return;
+            let m = ctpSafeInt(maleEl.textContent);
+            let f = ctpSafeInt(femaleEl.textContent);
+            const c = ctpSafeInt(childEl.textContent);
+
+            if (!ctpIsGroup()) {
+                let adults = m + f;
+                let newAdults = Math.max(0, adults + change);
+                const currentAdults = m + f;
+                if (newAdults > currentAdults) {
+                    m += newAdults - currentAdults;
+                } else if (newAdults < currentAdults) {
+                    let toRemove = currentAdults - newAdults;
+                    const fromM = Math.min(m, toRemove);
+                    m -= fromM;
+                    toRemove -= fromM;
+                    if (toRemove > 0) f = Math.max(0, f - toRemove);
+                    newAdults = m + f;
+                }
+                if (newAdults < 1) return;
+                maleEl.textContent = String(m);
+                femaleEl.textContent = String(f);
+                if (adEl) adEl.textContent = String(m + f);
+                return;
+            }
+
+            const cap = ctpModalTourCap();
+            const maxAd = Math.max(0, cap - c);
+            let total = m + f + change;
+            total = Math.max(maxAd > 0 ? 1 : 0, Math.min(maxAd, total));
+            const diff = total - (m + f);
+            if (diff > 0) m += diff;
+            else {
+                let rem = -diff;
+                const fromM = Math.min(m, rem);
+                m -= fromM;
+                rem -= fromM;
+                f = Math.max(0, f - rem);
+            }
+            maleEl.textContent = String(m);
+            femaleEl.textContent = String(f);
+            if (adEl) adEl.textContent = String(m + f);
+        };
+        window.ctpGuestFemaleDelta = function(change) {
+            const maleEl = document.getElementById('ctpModalMale');
+            const femaleEl = document.getElementById('ctpModalFemale');
+            const adEl = document.getElementById('ctpModalAdults');
+            if (!maleEl || !femaleEl) return;
+            let m = ctpSafeInt(maleEl.textContent);
+            let f = ctpSafeInt(femaleEl.textContent);
+            if (change > 0) {
+                if (m <= 0) return;
+                m--;
+                f++;
+            } else {
+                if (f <= 0) return;
+                f--;
+                m++;
+            }
+            maleEl.textContent = String(m);
+            femaleEl.textContent = String(f);
+            if (adEl) adEl.textContent = String(m + f);
+        };
+        function ctpCollectChildAgesFromModal(expectedCount) {
+            const expected = Math.max(0, parseInt(expectedCount, 10) || 0);
+            if (!expected) return [];
+            const box = document.getElementById('ctpChildAgeDropdowns');
+            if (!box) return null;
+            const selects = box.querySelectorAll('select.ctp-child-age');
+            if (selects.length !== expected) return null;
+            const ages = [];
+            for (let i = 0; i < selects.length; i++) {
+                const raw = String(selects[i].value ?? '').trim();
+                if (raw === '') return null;
+                const age = parseInt(raw, 10);
+                if (!Number.isFinite(age) || age < 0 || age > 17) return null;
+                ages.push(age);
+            }
+            return ages;
+        }
+        function ctpEnsureChildAgeDropdowns(childCount) {
+            const box = document.getElementById('ctpChildAgeDropdowns');
+            const n = Math.max(0, parseInt(childCount, 10) || 0);
+            const current = box ? box.querySelectorAll('select.ctp-child-age').length : 0;
+            if (current !== n) {
+                window.ctpUpdateChildAgeDropdownsPro(n);
+            }
+        }
+        window.ctpUpdateChildAgeDropdownsPro = function(childCount) {
+            const sec = document.getElementById('ctpChildAgesSection');
+            const box = document.getElementById('ctpChildAgeDropdowns');
+            if (!sec || !box) return;
+            const n = Math.max(0, parseInt(childCount, 10) || 0);
+            const preserved = [];
+            box.querySelectorAll('select.ctp-child-age').forEach(function(s) {
+                preserved.push(String(s.value ?? '').trim());
+            });
+            if (!n) {
+                sec.style.display = 'none';
+                box.innerHTML = '';
+                return;
+            }
+            sec.style.display = 'block';
+            box.innerHTML = '';
+            for (let i = 1; i <= n; i++) {
+                const preset = preserved[i - 1] != null ? preserved[i - 1] : '';
+                let opts = '<option value="">Age</option>';
+                for (let a = 0; a <= 17; a++) {
+                    const sel = preset !== '' && String(a) === preset ? ' selected' : '';
+                    opts += '<option value="' + a + '"' + sel + '>' + a + '</option>';
+                }
+                box.insertAdjacentHTML('beforeend', '<div class="d-flex align-items-center gap-1 mb-1"><span class="small">C' + i + ':</span><select class="form-select form-select-sm ctp-child-age">' + opts + '</select></div>');
+            }
+        };
+        function ctpCopyModalInputsFromHidden() {
+            const gsd = document.getElementById('pro_group_size_display');
+            const focEl = document.getElementById('pro_foc_size');
+            if (gsd) gsd.value = String(Math.max(1, ctpSafeInt(document.getElementById('ctp_hidden_group_size').value) || 1));
+            if (focEl) focEl.value = String(Math.max(0, ctpSafeInt(document.getElementById('ctp_hidden_foc_size').value)));
+            const cb = document.getElementById('pro_include_foc_in_group_price');
+            if (cb) cb.checked = document.getElementById('ctp_hidden_discount').value === '1';
+            const maleEl = document.getElementById('ctpModalMale');
+            const femaleEl = document.getElementById('ctpModalFemale');
+            const childEl = document.getElementById('ctpModalChildren');
+            const infEl = document.getElementById('ctpModalInfants');
+            const adEl = document.getElementById('ctpModalAdults');
+            if (maleEl) maleEl.textContent = String(ctpSafeInt(document.getElementById('ctp_hidden_male').value));
+            if (femaleEl) femaleEl.textContent = String(ctpSafeInt(document.getElementById('ctp_hidden_female').value));
+            if (childEl) childEl.textContent = String(ctpSafeInt(document.getElementById('ctp_hidden_child_count').value));
+            if (infEl) infEl.textContent = String(ctpSafeInt(document.getElementById('ctp_hidden_infant_count').value));
+            const m = maleEl ? ctpSafeInt(maleEl.textContent) : 0;
+            const f = femaleEl ? ctpSafeInt(femaleEl.textContent) : 0;
+            if (adEl) adEl.textContent = String(m + f);
+            if (ctpIsGroup()) ctpRebalanceHeadcountToTotal();
+            window.ctpUpdateChildAgeDropdownsPro(childEl ? ctpSafeInt(childEl.textContent) : 0);
+            let ages = [];
+            try {
+                ages = JSON.parse(document.getElementById('ctp_hidden_child_ages').value || '[]');
+            } catch (e2) { ages = []; }
+            document.querySelectorAll('.ctp-child-age').forEach(function(sel, idx) {
+                if (ages[idx] != null && ages[idx] !== '') sel.value = String(parseInt(ages[idx], 10));
+            });
+        }
+        function ctpOpenGuestModal() {
+            const focSec = document.getElementById('ctpProGroupDetailsSection');
+            if (focSec) focSec.classList.toggle('d-none', !ctpIsGroup());
+            if (!window.tourProGuestConfigured) {
+                if (ctpIsGroup()) ctpInitDefaultGroupHidden();
+                else ctpInitDefaultFitHidden();
+            }
+            ctpCopyModalInputsFromHidden();
+            const el = document.getElementById('tourProGuestModal');
+            if (!el || !window.bootstrap) return;
+            const bm = bootstrap.Modal.getOrCreateInstance(el);
+            el.addEventListener('shown.bs.modal', function onShown() {
+                el.removeEventListener('shown.bs.modal', onShown);
+                try {
+                    document.querySelectorAll('#tourProGuestModal [data-bs-toggle="tooltip"]').forEach(function(t) {
+                        bootstrap.Tooltip.getOrCreateInstance(t);
+                    });
+                } catch (e3) { /* ignore */ }
+            }, { once: true });
+            bm.show();
+        }
+        const ctpOpenBtn = document.getElementById('tourProOpenGuestModalBtn');
+        if (ctpOpenBtn) ctpOpenBtn.addEventListener('click', function() { ctpOpenGuestModal(); });
+        const ctpApplyBtn = document.getElementById('tourProGuestApplyBtn');
+        if (ctpApplyBtn) {
+            ctpApplyBtn.addEventListener('click', function() {
+                const childEl = document.getElementById('ctpModalChildren');
+                let c = ctpSafeInt(childEl.textContent);
+                const m = ctpSafeInt(document.getElementById('ctpModalMale').textContent);
+                const f = ctpSafeInt(document.getElementById('ctpModalFemale').textContent);
+                const inf = ctpSafeInt(document.getElementById('ctpModalInfants').textContent);
+                if (m + f < 1) {
+                    alert('At least one adult is required.');
+                    return;
+                }
+                if (ctpIsGroup()) {
+                    ctpSyncModalGuestsToCap();
+                    const gs = Math.max(0, ctpSafeInt(document.getElementById('pro_group_size_display').value));
+                    const foc = Math.max(0, ctpSafeInt(document.getElementById('pro_foc_size').value));
+                    const cap = gs + foc;
+                    c = Math.min(ctpSafeInt(childEl.textContent), cap);
+                    childEl.textContent = String(c);
+                    ctpSyncModalGuestsToCap();
+                    c = ctpSafeInt(childEl.textContent);
+                }
+                ctpEnsureChildAgeDropdowns(c);
+                const childAges = ctpCollectChildAgesFromModal(c);
+                if (c > 0 && childAges === null) {
+                    alert('Please select an age for each child.');
+                    return;
+                }
+                if (ctpIsGroup()) {
+                    const gs = Math.max(0, ctpSafeInt(document.getElementById('pro_group_size_display').value));
+                    const foc = Math.max(0, ctpSafeInt(document.getElementById('pro_foc_size').value));
+                    const cb = document.getElementById('pro_include_foc_in_group_price');
+                    ctpSetHidden('ctp_hidden_group_size', gs);
+                    ctpSetHidden('ctp_hidden_foc_size', foc);
+                    ctpSetHidden('ctp_hidden_paying_pax', gs);
+                    ctpSetHidden('ctp_hidden_auto_foc', foc);
+                    ctpSetHidden('ctp_hidden_discount', (cb && cb.checked) ? 1 : 0);
+                } else {
+                    ctpSetHidden('ctp_hidden_group_size', 0);
+                    ctpSetHidden('ctp_hidden_foc_size', 0);
+                    ctpSetHidden('ctp_hidden_paying_pax', 0);
+                    ctpSetHidden('ctp_hidden_auto_foc', 0);
+                    ctpSetHidden('ctp_hidden_discount', 0);
+                }
+                ctpSetHidden('ctp_hidden_male', m);
+                ctpSetHidden('ctp_hidden_female', f);
+                ctpSetHidden('ctp_hidden_adult_count', m + f);
+                ctpSetHidden('ctp_hidden_child_count', c);
+                ctpSetHidden('ctp_hidden_infant_count', inf);
+                ctpSetHidden('ctp_hidden_child_ages', JSON.stringify(childAges));
+                window.tourProGuestConfigured = true;
+                ctpRenderGuestSummary();
+                const gmod = document.getElementById('tourProGuestModal');
+                const inst = gmod && window.bootstrap ? bootstrap.Modal.getInstance(gmod) : null;
+                if (inst) inst.hide();
+            });
+        }
+        function ctpRenderGuestSummary() {
+            const span = document.getElementById('tourProGuestSummary');
+            if (!span) return;
+            if (!window.tourProGuestConfigured) {
+                span.textContent = 'Click “Select tour guests” to set passengers…';
+                ctpUpdateSubmitButtonState();
+                return;
+            }
+            const a = ctpSafeInt(document.getElementById('ctp_hidden_adult_count').value);
+            const c = ctpSafeInt(document.getElementById('ctp_hidden_child_count').value);
+            const i = ctpSafeInt(document.getElementById('ctp_hidden_infant_count').value);
+            const mv = ctpSafeInt(document.getElementById('ctp_hidden_male').value);
+            const fv = ctpSafeInt(document.getElementById('ctp_hidden_female').value);
+            if (ctpIsGroup()) {
+                const gs = ctpSafeInt(document.getElementById('ctp_hidden_group_size').value);
+                const foc = ctpSafeInt(document.getElementById('ctp_hidden_foc_size').value);
+                span.innerHTML = 'Paying <strong>' + gs + '</strong> + FOC <strong>' + foc + '</strong> · ' + a + ' adults (' + mv + 'M/' + fv + 'F), ' + c + ' ch, ' + i + ' inf';
+            } else {
+                span.innerHTML = a + ' adults (' + mv + 'M/' + fv + 'F), ' + c + ' ch, ' + i + ' inf';
+            }
+            ctpUpdateSubmitButtonState();
+        }
+
+        ctpRefreshTourTypeUI();
+        ctpUpdateSubmitButtonState();
+
+        function ctpHasSelect2() {
+            return typeof jQuery !== 'undefined' && jQuery.fn && typeof jQuery.fn.select2 === 'function';
+        }
+        function ctpSelect2Config(kind) {
+            return {
+                placeholder: kind === 'agent' ? 'Type to search agent...' : 'Type to search agency...',
+                allowClear: true,
+                width: '100%',
+                dropdownParent: jQuery('#createTourProModal')
+            };
+        }
+        function ctpDestroySelect2(selectEl) {
+            if (!selectEl || !ctpHasSelect2()) return;
+            const $el = jQuery(selectEl);
+            if ($el.data('select2')) $el.select2('destroy');
+        }
+        function ctpRebuildSelect2(selectEl, placeholder, items, disabled) {
+            if (!selectEl) return;
+            ctpDestroySelect2(selectEl);
+            selectEl.innerHTML = '';
+            const emptyOpt = document.createElement('option');
+            emptyOpt.value = '';
+            emptyOpt.textContent = '';
+            selectEl.appendChild(emptyOpt);
+            (items || []).forEach(function(item) {
+                const opt = document.createElement('option');
+                opt.value = String(item.id);
+                opt.textContent = item.text;
+                selectEl.appendChild(opt);
+            });
+            selectEl.disabled = !!disabled;
+            if (ctpHasSelect2()) {
+                const kind = selectEl.id === 'ctpAgentSelect' ? 'agent' : 'agency';
+                const cfg = ctpSelect2Config(kind);
+                if (placeholder) cfg.placeholder = placeholder;
+                const $el = jQuery(selectEl);
+                $el.prop('disabled', !!disabled);
+                $el.select2(cfg);
+            }
+        }
+        let ctpAgencyAgentHandlersBound = false;
+        let ctpAgencyPickTimer = null;
+        function ctpBindAgencyAgentHandlers() {
+            if (ctpAgencyAgentHandlersBound || typeof jQuery === 'undefined') return;
+            const $modal = jQuery('#createTourProModal');
+            if (!$modal.length) return;
+            ctpAgencyAgentHandlersBound = true;
+
+            function ctpOnAgencyChosen(agencyId) {
+                const id = agencyId ? String(agencyId) : '';
+                const agencyIdVal = document.getElementById('agencyIdValue');
+                if (agencyIdVal) agencyIdVal.value = id;
+                clearTimeout(ctpAgencyPickTimer);
+                ctpAgencyPickTimer = setTimeout(function() {
+                    loadAgentsByAgency(id);
+                    ctpUpdateSubmitButtonState();
+                }, 0);
+            }
+            function ctpOnAgentChosen(agentId) {
+                const id = agentId ? String(agentId) : '';
+                const agentIdVal = document.getElementById('agentIdValue');
+                if (agentIdVal) agentIdVal.value = id;
+                ctpUpdateSubmitButtonState();
+            }
+
+            $modal.on('change.ctpPro', '#ctpAgencySelect', function() {
+                ctpOnAgencyChosen(jQuery(this).val());
+            });
+            $modal.on('select2:select.ctpPro', '#ctpAgencySelect', function(e) {
+                const id = (e.params && e.params.data && e.params.data.id != null)
+                    ? e.params.data.id
+                    : jQuery(this).val();
+                ctpOnAgencyChosen(id);
+            });
+            $modal.on('select2:clear.ctpPro', '#ctpAgencySelect', function() {
+                ctpOnAgencyChosen('');
+            });
+
+            $modal.on('change.ctpPro', '#ctpAgentSelect', function() {
+                ctpOnAgentChosen(jQuery(this).val());
+            });
+            $modal.on('select2:select.ctpPro', '#ctpAgentSelect', function(e) {
+                const id = (e.params && e.params.data && e.params.data.id != null)
+                    ? e.params.data.id
+                    : jQuery(this).val();
+                ctpOnAgentChosen(id);
+            });
+            $modal.on('select2:clear.ctpPro', '#ctpAgentSelect', function() {
+                ctpOnAgentChosen('');
+            });
+        }
+        function ctpInitTourProSelect2() {
+            if (!ctpHasSelect2()) return;
+            const $agency = jQuery('#ctpAgencySelect');
+            const $agent = jQuery('#ctpAgentSelect');
+            if ($agency.length && !$agency.data('select2')) {
+                $agency.select2(ctpSelect2Config('agency'));
+            }
+            if ($agent.length && !$agent.data('select2')) {
+                $agent.select2(ctpSelect2Config('agent'));
+            }
+        }
+        function ctpResetAgentSelect() {
+            const agentSel = document.getElementById('ctpAgentSelect');
+            const agentIdVal = document.getElementById('agentIdValue');
+            if (!agentSel) return;
+            if (agentIdVal) agentIdVal.value = '';
+            availableAgents = [];
+            ctpRebuildSelect2(agentSel, 'Choose agent...', [], true);
+        }
+
+        function loadAgenciesForDmc() {
+            const agencySel = document.getElementById('ctpAgencySelect');
+            const agencyIdVal = document.getElementById('agencyIdValue');
+            if (!agencySel) return;
+            if (agencyIdVal) agencyIdVal.value = '';
+            ctpRebuildSelect2(agencySel, 'Loading agencies...', [], true);
+            ctpResetAgentSelect();
+
+            fetch('{{ route("enquiry-form-pro.get-agencies") }}?by_dmc=1')
+                .then(function(response) { return response.json(); })
+                .then(function(data) {
+                    if (data.success && data.agencies && data.agencies.length > 0) {
+                        availableAgencies = data.agencies;
+                        const items = data.agencies.map(function(agency) {
+                            return { id: agency.agency_id, text: agency.agency_name };
+                        });
+                        ctpRebuildSelect2(agencySel, 'Type to search agency...', items, false);
+                    } else {
+                        availableAgencies = [];
+                        ctpRebuildSelect2(agencySel, 'No agencies for this DMC', [], true);
+                    }
+                    ctpInitTourProSelect2();
+                })
+                .catch(function(error) {
+                    console.error('Error loading agencies:', error);
+                    availableAgencies = [];
+                    ctpRebuildSelect2(agencySel, 'Error loading agencies', [], true);
+                    ctpInitTourProSelect2();
+                });
+        }
+
+        function loadAgentsByAgency(agencyId) {
+            const agentSel = document.getElementById('ctpAgentSelect');
+            const agentIdVal = document.getElementById('agentIdValue');
+            if (!agentSel) return;
+            if (!agencyId) {
+                ctpResetAgentSelect();
+                ctpUpdateSubmitButtonState();
+                return;
+            }
+            if (agentIdVal) agentIdVal.value = '';
+            ctpRebuildSelect2(agentSel, 'Loading agents...', [], true);
+
+            fetch('{{ route("enquiry-form-pro.get-agents") }}?agency_id=' + encodeURIComponent(agencyId), {
+                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+            })
+                .then(function(response) { return response.json(); })
+                .then(function(data) {
+                    if (data.success && data.agents && data.agents.length > 0) {
+                        availableAgents = data.agents;
+                        const items = data.agents.map(function(agent) {
+                            return { id: agent.agent_id, text: agent.name };
+                        });
+                        ctpRebuildSelect2(agentSel, 'Type to search agent...', items, false);
+                    } else {
+                        availableAgents = [];
+                        ctpRebuildSelect2(agentSel, 'No agents available', [], true);
+                    }
+                    ctpUpdateSubmitButtonState();
+                })
+                .catch(function(error) {
+                    console.error('Error loading agents:', error);
+                    availableAgents = [];
+                    ctpRebuildSelect2(agentSel, 'Error loading agents', [], true);
+                    ctpUpdateSubmitButtonState();
+                });
+        }
+
+        // Multiple destination checkbox toggle
+        const multipleDestCheckbox = document.getElementById('multipleDestination');
+        const singleDestDiv = document.getElementById('singleDestinationDiv');
+        const multipleDestDiv = document.getElementById('multipleDestinationDiv');
+        const destinationSingle = document.getElementById('destinationSingle');
+        const destinationMultiple = document.getElementById('destinationMultiple');
+
+        multipleDestCheckbox.addEventListener('change', function() {
+            if (this.checked) {
+                // Switch to multiple mode
+                singleDestDiv.style.display = 'none';
+                multipleDestDiv.style.display = 'block';
+                // Clear single destination
+                destinationSingleInput.value = '';
+                destinationSingleValue.value = '';
+            } else {
+                // Switch to single mode
+                singleDestDiv.style.display = 'block';
+                multipleDestDiv.style.display = 'none';
+                // Clear multiple destinations
+                destinationInput.value = '';
+                selectedDestinations = [];
+                updateSelectedDestinations();
+            }
+            
+            ctpUpdateSubmitButtonState();
+        });
+
+        // Single destination autocomplete
+        const destinationSingleInput = document.getElementById('destinationSingle');
+        const suggestionBoxSingle = document.getElementById('destinationSuggestionsSingle');
+        const destinationSingleValue = document.getElementById('destinationSingleValue');
+
+        destinationSingleInput.addEventListener('input', function() {
+            const query = this.value.toLowerCase().trim();
+            
+            if (query.length < 1) {
+                suggestionBoxSingle.style.display = 'none';
+                return;
+            }
+
+            const filtered = allDestinations.filter(dest => 
+                dest.name.toLowerCase().includes(query)
+            );
+
+            if (filtered.length > 0) {
+                suggestionBoxSingle.innerHTML = '';
+                filtered.forEach(dest => {
+                    const item = document.createElement('a');
+                    item.href = 'javascript:void(0);';
+                    item.className = 'list-group-item list-group-item-action';
+                    item.style.padding = '6px 10px';
+                    item.style.fontSize = '10px';
+                    item.style.cursor = 'pointer';
+                    item.textContent = dest.country ? (dest.name + ' (' + dest.country + ')') : dest.name;
+                    item.addEventListener('click', function() {
+                        destinationSingleInput.value = dest.name;
+                        destinationSingleValue.value = dest.name;
+                        suggestionBoxSingle.style.display = 'none';
+                        ctpUpdateSubmitButtonState();
+                    });
+                    suggestionBoxSingle.appendChild(item);
+                });
+                suggestionBoxSingle.style.display = 'block';
+            } else {
+                suggestionBoxSingle.style.display = 'none';
+            }
+        });
+
+        // Multiple destination autocomplete
+        const destinationInput = document.getElementById('destinationMultiple');
+        const suggestionBox = document.getElementById('destinationSuggestions');
+        const selectedDestinationsDiv = document.getElementById('selectedDestinations');
+
+        destinationInput.addEventListener('input', function() {
+            const query = this.value.toLowerCase().trim();
+            
+            if (query.length < 1) {
+                suggestionBox.style.display = 'none';
+                return;
+            }
+
+            const filtered = allDestinations.filter(dest => 
+                dest.name.toLowerCase().includes(query) && 
+                !selectedDestinations.includes(dest.name)
+            );
+
+            if (filtered.length > 0) {
+                suggestionBox.innerHTML = '';
+                filtered.forEach(dest => {
+                    const item = document.createElement('a');
+                    item.href = 'javascript:void(0);';
+                    item.className = 'list-group-item list-group-item-action';
+                    item.style.padding = '6px 10px';
+                    item.style.fontSize = '10px';
+                    item.style.cursor = 'pointer';
+                    item.textContent = dest.country ? (dest.name + ' (' + dest.country + ')') : dest.name;
+                    item.addEventListener('click', function() {
+                        addDestination(dest.name);
+                        destinationInput.value = '';
+                        suggestionBox.style.display = 'none';
+                    });
+                    suggestionBox.appendChild(item);
+                });
+                suggestionBox.style.display = 'block';
+            } else {
+                suggestionBox.style.display = 'none';
+            }
+        });
+
+        function addDestination(name) {
+            if (!selectedDestinations.includes(name)) {
+                selectedDestinations.push(name);
+                updateSelectedDestinations();
+            }
+        }
+
+        function removeDestination(name) {
+            selectedDestinations = selectedDestinations.filter(d => d !== name);
+            updateSelectedDestinations();
+        }
+
+        function updateSelectedDestinations() {
+            selectedDestinationsDiv.innerHTML = '';
+            selectedDestinations.forEach(dest => {
+                const badge = document.createElement('span');
+                badge.className = 'badge bg-info me-1 mb-1 d-inline-flex align-items-center';
+                badge.style.fontSize = '11px';
+                badge.style.padding = '4px 8px';
+                badge.innerHTML = `${dest} <i class="ri-close-line ms-1" style="cursor: pointer; font-size: 14px;"></i>`;
+                badge.querySelector('i').addEventListener('click', function() {
+                    removeDestination(dest);
+                });
+                selectedDestinationsDiv.appendChild(badge);
+            });
+
+            // Update hidden input
+            document.getElementById('destinationsArray').value = JSON.stringify(selectedDestinations);
+            ctpUpdateSubmitButtonState();
+        }
+
+        /** Local YYYY-MM-DD (avoids UTC shift from toISOString). */
+        function ctpLocalDateStr(dateObj) {
+            const y = dateObj.getFullYear();
+            const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const d = String(dateObj.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+
+        function ctpAddDays(dateStr, days) {
+            const parts = String(dateStr || '').split('-').map(Number);
+            if (parts.length !== 3 || parts.some(isNaN)) return dateStr;
+            const dt = new Date(parts[0], parts[1] - 1, parts[2]);
+            dt.setDate(dt.getDate() + days);
+            return ctpLocalDateStr(dt);
+        }
+
+        /** Earliest selectable tour start = tomorrow. */
+        function ctpMinTourStartDate() {
+            const d = new Date();
+            d.setHours(0, 0, 0, 0);
+            d.setDate(d.getDate() + 1);
+            return ctpLocalDateStr(d);
+        }
+
+        // Tour can start from tomorrow onwards — today and past dates are not selectable
+        const tourStartDateInput = document.getElementById('tourStartDate');
+        const tourEndDateInput = document.getElementById('tourEndDate');
+
+        /** Re-apply the tomorrow floor (also keeps a long-open page correct past midnight). */
+        window.ctpApplyTourStartFloor = function () {
+            const startEl = document.getElementById('tourStartDate');
+            const endEl = document.getElementById('tourEndDate');
+            if (!startEl || !endEl) return;
+            const minStartStr = ctpMinTourStartDate();
+            startEl.setAttribute('min', minStartStr);
+            if (!startEl.value || startEl.value < minStartStr) {
+                startEl.value = minStartStr;
+            }
+            const minEndStr = ctpAddDays(startEl.value, 1);
+            endEl.setAttribute('min', minEndStr);
+            if (!endEl.value || endEl.value < minEndStr) {
+                endEl.value = minEndStr;
+            }
+        };
+
+        if (tourStartDateInput && tourEndDateInput) {
+            window.ctpApplyTourStartFloor();
+
+            // Update end date min when start date changes
+            tourStartDateInput.addEventListener('change', function() {
+                const floorStr = ctpMinTourStartDate();
+                if (this.value && this.value < floorStr) {
+                    alert('Start date must be tomorrow or later');
+                    this.value = floorStr;
+                }
+                const minEndDateStr = ctpAddDays(this.value || floorStr, 1);
+                tourEndDateInput.setAttribute('min', minEndDateStr);
+
+                // If end date is less than start date + 1, update it
+                if (!tourEndDateInput.value || tourEndDateInput.value < minEndDateStr) {
+                    tourEndDateInput.value = minEndDateStr;
+                }
+                ctpUpdateSubmitButtonState();
+            });
+            tourEndDateInput.addEventListener('change', ctpUpdateSubmitButtonState);
+        }
+        
+        // Form validation (contact number and email are optional)
+        document.getElementById('createTourProForm').addEventListener('submit', function(e) {
+            const emailVal = (document.getElementById('customerEmail')?.value || '').trim();
+            if (emailVal && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailVal)) {
+                e.preventDefault();
+                alert('Please enter a valid email address or leave email blank.');
                 return false;
             }
-        } else {
-            const singleDest = document.getElementById('destinationSingleValue').value;
-            if (!singleDest || singleDest.trim() === '') {
+
+            if (!(document.getElementById('agencyIdValue')?.value || '').trim()) {
                 e.preventDefault();
-                alert('Please select a destination');
+                alert('Please select an agency from the list.');
                 return false;
             }
-        }
+            if (!(document.getElementById('agentIdValue')?.value || '').trim()) {
+                e.preventDefault();
+                alert('Please select an agent from the list.');
+                return false;
+            }
 
-        // Validate dates
-        const startDate = new Date(document.getElementById('tourStartDate').value);
-        const endDate = new Date(document.getElementById('tourEndDate').value);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        
-        if (startDate < today) {
-            e.preventDefault();
-            alert('Start date cannot be in the past');
-            return false;
-        }
-        
-        const minEndDate = new Date(startDate);
-        minEndDate.setDate(minEndDate.getDate() + 1);
-        
-        if (endDate < minEndDate) {
-            e.preventDefault();
-            alert('End date must be at least 1 day after start date');
-            return false;
-        }
+            const multipleDestChecked = document.getElementById('multipleDestination').checked;
+            
+            // Validate destination based on mode
+            if (multipleDestChecked) {
+                if (selectedDestinations.length === 0) {
+                    e.preventDefault();
+                    alert('Please select at least one destination');
+                    return false;
+                }
+            } else {
+                const singleDest = document.getElementById('destinationSingleValue').value;
+                if (!singleDest || singleDest.trim() === '') {
+                    e.preventDefault();
+                    alert('Please select a destination');
+                    return false;
+                }
+            }
 
-        // Check at least one person
-        const adults = parseInt(document.getElementById('adultCount').value) || 0;
-        const children = parseInt(document.getElementById('childCount').value) || 0;
-        const infants = parseInt(document.getElementById('infantCount').value) || 0;
-        
-        if (adults + children + infants === 0) {
-            e.preventDefault();
-            alert('Please specify at least one passenger (Adult, Child, or Infant)');
-            return false;
-        }
+            // Validate dates — tour must start tomorrow or later
+            const startDateStr = document.getElementById('tourStartDate').value;
+            const endDateStr = document.getElementById('tourEndDate').value;
+            const minStartDateStr = ctpMinTourStartDate();
+
+            if (!startDateStr || startDateStr < minStartDateStr) {
+                e.preventDefault();
+                alert('Start date must be tomorrow or later');
+                return false;
+            }
+
+            const minEndDateStr = ctpAddDays(startDateStr, 1);
+
+            if (!endDateStr || endDateStr < minEndDateStr) {
+                e.preventDefault();
+                alert('End date must be at least 1 day after start date');
+                return false;
+            }
+
+            if (!window.tourProGuestConfigured) {
+                e.preventDefault();
+                alert('Click "Select tour guests", set passengers, then Apply Selection.');
+                return false;
+            }
+            const adults = ctpSafeInt(document.getElementById('ctp_hidden_adult_count').value);
+            const children = ctpSafeInt(document.getElementById('ctp_hidden_child_count').value);
+            const infants = ctpSafeInt(document.getElementById('ctp_hidden_infant_count').value);
+            if (adults + children + infants === 0) {
+                e.preventDefault();
+                alert('Please specify at least one passenger.');
+                return false;
+            }
+            if (adults < 1) {
+                e.preventDefault();
+                alert('At least one adult is required.');
+                return false;
+            }
+        });
+
+        // Close suggestions when clicking outside
+        document.addEventListener('click', function(e) {
+            // Close multiple destinations suggestions
+            if (!destinationInput.contains(e.target) && !suggestionBox.contains(e.target)) {
+                suggestionBox.style.display = 'none';
+            }
+            // Close single destination suggestions
+            if (!destinationSingleInput.contains(e.target) && !suggestionBoxSingle.contains(e.target)) {
+                suggestionBoxSingle.style.display = 'none';
+            }
+        });
     });
-
-    // Close suggestions when clicking outside
-    document.addEventListener('click', function(e) {
-        // Close multiple destinations suggestions
-        if (!destinationInput.contains(e.target) && !suggestionBox.contains(e.target)) {
-            suggestionBox.style.display = 'none';
-        }
-        // Close single destination suggestions
-        if (!destinationSingleInput.contains(e.target) && !suggestionBoxSingle.contains(e.target)) {
-            suggestionBoxSingle.style.display = 'none';
-        }
-        // Close agency suggestions
-        if (!agencyInput.contains(e.target) && !agencySuggestions.contains(e.target)) {
-            agencySuggestions.style.display = 'none';
-        }
-        // Close agent suggestions
-        if (!agentInput.contains(e.target) && !agentSuggestions.contains(e.target)) {
-            agentSuggestions.style.display = 'none';
-        }
-    });
-});
 </script>
 
 

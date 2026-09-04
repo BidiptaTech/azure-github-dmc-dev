@@ -404,6 +404,13 @@ class TourController extends Controller
               ->map(fn($city) => "{$city->name}, ({$city->country})")
               ->toArray();
 
+        // Mirrors `destination`: same countries, same order, as ISO alpha-2 codes.
+        $shortCodes = Country::whereIn('name', $countryArray)->pluck('short_code', 'name');
+        $short_code = collect($countryArray)
+              ->map(fn($name) => $shortCodes[$name] ?? null)
+              ->filter()
+              ->implode(', ');
+
         try {
             $hotel_status = Tour::where('tour_id', $tour->tour_id)->first();
             if ($hotel_status) {
@@ -492,6 +499,7 @@ class TourController extends Controller
                     'tour_id' => $tour->tour_id,
                     'agent_id' => $tour->agent_id,
                     'destination' => $tour->destination,
+                    'short_code' => $short_code,
                     'child' => $tour->child,
                     'infant' => $tour->infant,
                     'male' => $tour->male_count,
@@ -953,9 +961,9 @@ class TourController extends Controller
                 $checkOutTime = Carbon::createFromFormat('d/m/Y', $tourValidation['check_out']);
                 
                 // Generate tour ID
-                $max_tour_id = Tour::max('tour_id') ?? 0;
-                $tourId = CommonHelper::createId($max_tour_id);
-                $display_id = 'DMC-ORD' . $tourId;
+                // $max_tour_id = Tour::max('tour_id') ?? 0;
+                // $tourId = CommonHelper::createId($max_tour_id);
+                // $display_id = 'DMC-ORD' . $tourId;
                 
                 // Get country names and cities
                 $countryNames = $tourValidation['destination'];
@@ -1063,12 +1071,12 @@ class TourController extends Controller
                 $tour->child = $tourValidation['child'] ?? 0;
                 $tour->infant = $tourValidation['infant'] ?? 0;
                 $tour->agent_id = $agent_id;
-                $tour->tour_id = $tourId;
+                // $tour->tour_id = $tourId;
                 $tour->male_count = $tourValidation['male'];
                 $tour->female_count = $tourValidation['female'];
                 $tour->check_in_time = $checkInTime;
                 $tour->check_out_time = $checkOutTime;
-                $tour->display_id = $display_id;
+                // $tour->display_id = $display_id;
                 // Set initial status based on booking type
                 $tour->tour_status = ($bookingType == 'enquiry') ? "New Enquiry" : "Confirmed";
                 $tour->city = $request->city;
@@ -1078,6 +1086,9 @@ class TourController extends Controller
                 $tour->taxes = !empty($taxArray) ? json_encode($taxArray) : null;
                 $tour->save();
                 $tour->refresh();
+                
+                $tour->display_id = 'DMC-ORD' . $tour->tour_id;
+                $tour->save();
                 
                 // Prepare service response
                 $service = CommonHelper::CommonResponse($agent_id, $tour->tour_id);
@@ -1120,7 +1131,7 @@ class TourController extends Controller
                 ];
                 
                 // Use the newly created tour_id
-                $tour_id = $tourId;
+                $tour_id = $tour->tour_id;
                 
             } catch (\Exception $e) {
                 return response()->json([
@@ -1197,12 +1208,13 @@ class TourController extends Controller
                         $order->tour_id = $tour_id;
                         $order->data = $validatedData['data'];
                         $order->type = $validatedData['type'];
-                        $order->booking_id = $bookId;
+                        // $order->booking_id = $bookId;
                         $order->status = 1; // Assuming status 1 means active or confirmed
                         $order->bookingType = $bookingType;
                         $order->discount = $commission;
                         $order->markup_percentage = $markup_percentage;
                         $order->save();
+                        $order->refresh();
                         $service = CommonHelper::CommonBookingResponse($agent_id,$tour_id,$type);
                         
                         // Update tour status based on booking type
@@ -1358,12 +1370,13 @@ class TourController extends Controller
                 $order->tour_id = $tour_id;
                 $order->data = $validatedData['data'];
                 $order->type = $validatedData['type'];
-                $order->booking_id = $bookId;
+                // $order->booking_id = $bookId;
                 $order->status = 1; // Assuming status 1 means active or confirmed
                 $order->bookingType = $bookingType;
                 $order->discount = $commission;
                 $order->markup_percentage = $markup_percentage;
                 $order->save();
+                $order->refresh();
                 $service = CommonHelper::CommonBookingResponse($agent_id,$tour_id,$type);
                 
                 // Update tour status based on booking type
@@ -2438,12 +2451,13 @@ class TourController extends Controller
                 $order->tour_id = $tour_id;
                 $order->data = $validatedData['data'];
                 $order->type = $validatedData['type'];
-                $order->booking_id = $bookId;
+                // $order->booking_id = $bookId;
                 $order->status = $stattus;
                 $order->bookingType = $bookingType;
                 $order->discount = $commission;
                 $order->markup_percentage = $markup_percentage;
                 $order->save();
+                $order->refresh();
                 
                 // Update tour status based on booking type and current status
                 if($bookingType == 'enquiry'){
@@ -2573,6 +2587,135 @@ class TourController extends Controller
         }
     }
 
+    /*
+    * Book all services at once.
+    * Date 03-09-2026
+    */
+    public function bookAll(Request $request)
+    {
+        $input = $request->json()->all();
+        if (empty($input)) {
+            $input = $request->all();
+        }
+
+        if (isset($input['services']) && is_array($input['services'])) {
+            $services = $input['services'];
+        } elseif (isset($input['bookings']) && is_array($input['bookings'])) {
+            $services = $input['bookings'];
+        } else {
+            $services = $input;
+        }
+
+        if (!is_array($services) || empty($services)) {
+            return response()->json([
+                'message' => 'Services data is required. Send a JSON array of booking objects.',
+            ], 400);
+        }
+
+        // Single createBooking payload posted to this endpoint
+        if (isset($services['type']) && array_key_exists('data', $services)) {
+            $services = [$services];
+        }
+
+        if (!array_is_list($services)) {
+            return response()->json([
+                'message' => 'Services data must be a JSON array of booking objects.',
+            ], 400);
+        }
+
+        $results = [];
+        $resolvedTourId = null;
+        $successCount = 0;
+
+        foreach ($services as $index => $serviceData) {
+            if (!is_array($serviceData)) {
+                $results[] = [
+                    'message' => 'Invalid service payload at index ' . $index,
+                ];
+                continue;
+            }
+
+            // Reuse tour created by an earlier service in this batch
+            if ($resolvedTourId && (empty($serviceData['tour_id']) || $serviceData['tour_id'] == 0)) {
+                $serviceData['tour_id'] = $resolvedTourId;
+            }
+
+            $jsonPayload = json_encode($serviceData);
+            $server = $request->server->all();
+            $server['CONTENT_TYPE'] = 'application/json';
+            $server['HTTP_CONTENT_TYPE'] = 'application/json';
+            $server['CONTENT_LENGTH'] = strlen($jsonPayload);
+
+            $serviceRequest = Request::create(
+                $request->getUri(),
+                'POST',
+                [],
+                $request->cookies->all(),
+                [],
+                $server,
+                $jsonPayload
+            );
+            $serviceRequest->headers->replace($request->headers->all());
+            $serviceRequest->headers->set('Content-Type', 'application/json');
+            $serviceRequest->setUserResolver($request->getUserResolver());
+            $serviceRequest->setRouteResolver($request->getRouteResolver());
+            if ($request->hasSession()) {
+                $serviceRequest->setLaravelSession($request->session());
+            }
+
+            try {
+                $response = $this->createBooking($serviceRequest);
+                $status = $response->getStatusCode();
+                $payload = json_decode($response->getContent(), true);
+                $success = $status >= 200 && $status < 300;
+
+                if ($success) {
+                    $successCount++;
+                    if (!empty($payload['tour_data']['tour_id'])) {
+                        $resolvedTourId = $payload['tour_data']['tour_id'];
+                    } elseif (!empty($payload['order']['tour_id'])) {
+                        $resolvedTourId = $payload['order']['tour_id'];
+                    } elseif (!empty($serviceData['tour_id']) && $serviceData['tour_id'] != 0) {
+                        $resolvedTourId = $serviceData['tour_id'];
+                    }
+                }
+
+                $results[] = $payload;
+            } catch (\Illuminate\Validation\ValidationException $e) {
+                $results[] = [
+                    'message' => 'Validation failed',
+                    'errors' => $e->errors(),
+                ];
+            } catch (\Throwable $e) {
+                $results[] = [
+                    'message' => $e->getMessage(),
+                ];
+            }
+        }
+
+        $failedCount = count($results) - $successCount;
+
+        if ($failedCount === 0) {
+            $message = 'All services booked successfully.';
+            $httpStatus = 201;
+        } elseif ($successCount === 0) {
+            $message = 'Failed to book services.';
+            $httpStatus = 409;
+        } else {
+            $message = 'Some services failed to book.';
+            $httpStatus = 207;
+        }
+
+        return response()->json([
+            'message' => $message,
+            'tour_id' => $resolvedTourId,
+            'total' => count($results),
+            'success_count' => $successCount,
+            'failed_count' => $failedCount,
+            'results' => $results,
+        ], $httpStatus);
+    }
+
     /* 
     *Update Enquiry 
     * Date 24-03-2025
@@ -2619,7 +2762,6 @@ class TourController extends Controller
                     'tour_id' => $tour_id, 
                     'status' => 1,
                     'dmcId' => $tour->dmc_id,
-                    'enquiry_id' => $enquiryId,
                     'sender_id' => $userId,
                     'sender_type' => 'agent',
                     'receiver_id' => $currentEnquiry->sender_id ?? 0,
@@ -2630,6 +2772,7 @@ class TourController extends Controller
                     'comment' => $request->comment,
                     'status' => 1,
                 ]);
+                $enquiry->refresh();
                 
                 if ($enquiry) {
                     // Mark previous enquiry as inactive if it exists
@@ -2815,6 +2958,7 @@ class TourController extends Controller
             $order->deleted_at = now(); //cancel booking
             $order->cancel_reason = $request->cancel_reason;
             $order->save();
+            CommonHelper::maybeRevertTourStatusToNewEnquiry((int) $tour_id);
             $service = CommonHelper::CommonBookingResponse($agent_id,$tour_id,$order->type);
             return response()->json([
                 'success' => true,

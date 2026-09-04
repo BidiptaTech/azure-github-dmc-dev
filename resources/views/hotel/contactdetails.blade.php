@@ -5,6 +5,7 @@
 
 @include('hotel.tapview', ['hotel' => $hotel])
 <div class="content-wrapper">
+    <x-alert />
     <div class="container-xxl flex-grow-1 container-p-y">
 
         <div class="card mb-6">
@@ -15,7 +16,7 @@
                 </a> --}}
             </h5>
             
-            <form id="hotelForm" method="POST" action="{{ route('hotels.createcontacts') }}" class="card-body">
+            <form id="hotelForm" method="POST" action="{{ route('hotels.createcontacts') }}" class="card-body js-submit-loader-form" data-loader-message="Saving...">
                 @csrf
                 <input type="hidden" class="form-control" name="id" value="{{ $hotel->hotel_unique_id }}">
                 <div class="row g-4">
@@ -306,13 +307,20 @@
 
                 <!-- Action Buttons -->
                 <div class="d-flex justify-content-between mt-4">
-                    <button type="submit" class="btn btn-primary px-4"
-                    >Save</button>
+                    <button type="submit" class="btn btn-primary px-4 js-submit-loader-btn">
+                        <span class="js-submit-loader-btn-text">Save</span>
+                        <span class="js-submit-loader-btn-loading d-none">
+                            <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                            Saving...
+                        </span>
+                    </button>
                 </div>
             </form>
         </div>
     </div>
 </div>
+
+<x-form-submit-loader message="Saving..." />
 
 @section('scripts')
 <script>

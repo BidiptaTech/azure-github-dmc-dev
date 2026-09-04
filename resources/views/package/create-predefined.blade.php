@@ -123,9 +123,9 @@
                 <div class="card-body">
                     <div class="row g-3">
                         <div class="col-md-3">
-                            <label class="form-label" id="adult-price-label">Adult Price (SGD) <span class="text-danger">*</span></label>
+                            <label class="form-label" id="adult-price-label">Adult Price ({{ $currency ?? 'SGD' }}) <span class="text-danger">*</span></label>
                             <div class="input-group">
-                                <span class="input-group-text">SGD</span>
+                                <span class="input-group-text">{{ $currency ?? 'SGD' }}</span>
                                 <input type="number" class="form-control @error('price_adult') is-invalid @enderror" 
                                        name="price_adult" value="{{ old('price_adult') }}" min="0" step="0.01" required>
                             </div>
@@ -140,9 +140,9 @@
                             @enderror
                         </div>
                         <div class="col-md-3" id="senior-price-section">
-                            <label class="form-label">Senior Citizen Price (SGD)</label>
+                            <label class="form-label">Senior Citizen Price ({{ $currency ?? 'SGD' }})</label>
                             <div class="input-group">
-                                <span class="input-group-text">SGD</span>
+                                <span class="input-group-text">{{ $currency ?? 'SGD' }}</span>
                                 <input type="number" class="form-control @error('price_senior') is-invalid @enderror" 
                                        name="price_senior" value="{{ old('price_senior') }}" min="0" step="0.01">
                             </div>
@@ -151,9 +151,9 @@
                             @enderror
                         </div>
                         <div class="col-md-3" id="child-price-section">
-                            <label class="form-label">Child Price (SGD)</label>
+                            <label class="form-label">Child Price ({{ $currency ?? 'SGD' }})</label>
                             <div class="input-group">
-                                <span class="input-group-text">SGD</span>
+                                <span class="input-group-text">{{ $currency ?? 'SGD' }}</span>
                                 <input type="number" class="form-control @error('price_child') is-invalid @enderror" 
                                        name="price_child" value="{{ old('price_child') }}" min="0" step="0.01">
                             </div>

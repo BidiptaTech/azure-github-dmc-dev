@@ -9,6 +9,7 @@
 @include('hotel.tapview', ['hotel' => $hotel])
 <link href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" rel="stylesheet">
 <div class="content-wrapper">
+    <x-alert />
    <div class="container-xxl flex-grow-1 container-p-y">
       <div class="card mb-6">
          <h5 class="card-header d-flex justify-content-between align-items-center">
@@ -58,6 +59,33 @@
                      <div class="mb-3 col-md-3" id="base_weekend_price" style="display: none;">
                            <label for="weekend_price" class="form-label"><strong>Base Weekend Price</strong></label>
                            <input value="{{$rate->weekend_price}}" type="number" name="weekend_price" class="form-control" placeholder="Enter Base weekend price">
+                     </div>
+
+                     <!-- Breakfast Price -->
+                     <div class="mb-3 col-md-3">
+                        <label for="breakfast_price" class="form-label"><strong>Breakfast Price</strong></label>
+                        <input value="{{$rate->breakfast_price}}" type="number" step="0.01" min="0" name="breakfast_price" class="form-control" placeholder="Enter breakfast price">
+                        @error('breakfast_price')
+                           <div class="text-danger mt-1">{{ $message }}</div>
+                        @enderror
+                     </div>
+
+                     <!-- Lunch Price -->
+                     <div class="mb-3 col-md-3">
+                        <label for="lunch_price" class="form-label"><strong>Lunch Price</strong></label>
+                        <input value="{{$rate->lunch_price}}" type="number" step="0.01" min="0" name="lunch_price" class="form-control" placeholder="Enter lunch price">
+                        @error('lunch_price')
+                           <div class="text-danger mt-1">{{ $message }}</div>
+                        @enderror
+                     </div>
+
+                     <!-- Dinner Price -->
+                     <div class="mb-3 col-md-3">
+                        <label for="dinner_price" class="form-label"><strong>Dinner Price</strong></label>
+                        <input value="{{$rate->dinner_price}}" type="number" step="0.01" min="0" name="dinner_price" class="form-control" placeholder="Enter dinner price">
+                        @error('dinner_price')
+                           <div class="text-danger mt-1">{{ $message }}</div>
+                        @enderror
                      </div>
 
                      <!-- Start Date -->

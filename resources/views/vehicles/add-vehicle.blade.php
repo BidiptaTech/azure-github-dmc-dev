@@ -85,7 +85,14 @@
 
         <div class="card mb-6">
             <h5 class="card-header d-flex justify-content-between align-items-center">
-                Add New Vehicle
+                <span class="d-flex align-items-center flex-wrap gap-2">
+                    Add New Vehicle
+                    <x-currency-price-note
+                        :country="old('country', $selectedCountry ?? null)"
+                        :watch-country="true"
+                        country-select-id="country"
+                    />
+                </span>
                 <a href="{{ route('vehicle.index') }}" class="btn btn-sm btn-outline-danger">
                     <i class="mdi mdi-arrow-left"></i> Back
                 </a>
@@ -110,7 +117,7 @@
 
             @if(!request()->has('zone_mapping'))
             <form id="restaurantForm" method="POST" action="{{ route('vehicle.store') }}" enctype="multipart/form-data"
-                class="card-body">
+                class="card-body js-submit-loader-form" data-loader-message="Saving...">
                 @csrf
                 <!-- Hidden Fields -->
                 <div id="vehicleDetailsContainer">
@@ -197,8 +204,8 @@
                                 <input type="text" class="form-control" name="vehicle_plate_no" id="vehicle_plate_no"
                                     placeholder="Enter Vehicle Plate Number" value="{{ old('vehicle_plate_no') }}" oninput="validatePlateNumber(this)">
                                 <small class="validation-message text-danger" id="vehicle_plate_no-validation-message"></small>
-                                <small class="text-muted mt-1 d-block">
-                                    <i class="fas fa-info-circle"></i> Special characters are automatically removed. Plate numbers like "WB 26", "WB-26", "WB/26" will all be treated as "WB26".
+                                <small class="text-muted mt-1 d-block" style="font-size: 9px;">
+                                    <i class="fas fa-info-circle"></i> Plate numbers like "WB 26", "WB-26", "WB/26" will all be treated as "WB26".
                                 </small>
                                 @error('vehicle_plate_no')
                                 <div class="text-danger mt-1">{{ $message }}</div>
@@ -216,20 +223,60 @@
                                 <div class="text-danger mt-1">{{ $message }}</div>
                                 @enderror
                             </div>
+                            <!-- Seating Capacity(Arr/Dept) -->
+                            <div class="col-md-3 mb-3">
+                                <label for="seating_capacity" class="form-label"><strong>Seating
+                                        Capacity(Arr/Dept)</strong><span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" name="city_tour_seating_capacity" id="city_tour_seating_capacity"
+                                    placeholder="Enter Seating Capacity" value="{{ old('city_tour_seating_capacity') }}" oninput="validateSeatingCapacity(this)">
+                                <small class="validation-message text-danger" id="city_tour_seating_capacity-validation-message"></small>
+                                @error('city_tour_seating_capacity')
+                                <div class="text-danger mt-1">{{ $message }}</div>
+                                @enderror
+                            </div> 
+                            
+                            {{-- <!-- City Tour No of Guides -->
+                            <div class="col-md-3 mb-3">
+                                <label for="city_tour_guides" class="form-label"><strong>No of Guides</strong><span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" name="city_tour_guides" id="city_tour_guides"
+                                    placeholder="Enter No of Guides" value="{{ old('city_tour_guides') }}">
+                                @error('city_tour_guides')
+                                <div class="text-danger mt-1">{{ $message }}</div>
+                                @enderror
+                            </div> --}}
+                            <!-- Country (Master DMC countries) -->
+                            <div class="col-md-3 mb-3">
+                                <label for="country" class="form-label"><strong><i class="ri-map-pin-line"></i> Country</strong><span class="text-danger">*</span></label>
+                                @php
+                                    $scopedCountries = $countries ?? collect();
+                                    $vehicleSelectedCountry = old('country', $selectedCountry ?? '');
+                                @endphp
+                                <select name="country" id="country" class="form-control" required>
+                                    @if($scopedCountries->count() !== 1)
+                                        <option value="">Select Country</option>
+                                    @endif
+                                    @foreach($scopedCountries as $c)
+                                        <option value="{{ $c->name }}" {{ $vehicleSelectedCountry == $c->name ? 'selected' : '' }}>{{ $c->name }}</option>
+                                    @endforeach
+                                </select>
+                                @error('country')
+                                    <div class="text-danger mt-1">{{ $message }}</div>
+                                @enderror
+                            </div>
+
                             <!-- City Name -->
                             <div class="col-md-3 mb-3">
                                 <label for="city_name" class="form-label"><strong><i class="ri-map-pin-line"></i> City Name</strong><span class="text-danger">*</span></label>
                                 @php
-                                    $roleId = auth()->user()->role_id;
-                                    $placeholder = $roleId == 11 ? 'Select City' : 'Select DMC First';
+                                    $hasPreloadedCities = isset($cities) && count($cities) > 0 && $vehicleSelectedCountry !== '';
+                                    $placeholder = $hasPreloadedCities ? 'Select City' : 'Select Country First';
                                 @endphp
 
-                                <select name="city_name" id="city_name" class="form-control" required>
+                                <select name="city_name" id="city_name" class="form-control" required {{ !$hasPreloadedCities ? 'disabled' : '' }}>
                                     <option value="">{{ $placeholder }}</option>
-
-                                    @if(in_array($roleId, [11, 35, 76, 111, 139, 140]))
+                                    @if($hasPreloadedCities)
                                         @foreach($cities as $city)
-                                            <option value="{{ $city->name }}">{{ $city->name }}</option>
+                                            <option value="{{ $city->name }}" {{ old('city_name') == $city->name ? 'selected' : '' }}>{{ $city->name }}</option>
                                         @endforeach
                                     @endif
                                 </select>
@@ -241,75 +288,92 @@
 
 
 
+                            <fieldset id="vehicle_profit" class="border p-4 rounded mb-4">
+                                <h5 class="card-title mb-3">Profit</h5>
+                                <div class="row">
+                                    <div class="col-md-3 mb-3">
+                                        <label for="day_profit_type" class="form-label"><strong>Type</strong></label>
+                                        <select id="day_profit_type" name="day_profit_type" class="form-select form-select-sm">
+                                            <option value="percentage" {{ old('day_profit_type', 'percentage') === 'percentage' ? 'selected' : '' }}>Percentage</option>
+                                            <option value="flat" {{ old('day_profit_type') === 'flat' ? 'selected' : '' }}>Flat</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3 mb-3">
+                                        <label for="mark_up" class="form-label"><strong>Mark up</strong></label>
+                                        <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control form-control-sm" id="mark_up" name="mark_up" placeholder="0.00" value="{{ old('mark_up') }}">
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-3 mb-3">
+                                        <label for="night_profit_type" class="form-label"><strong>Type</strong></label>
+                                        <select id="night_profit_type" name="night_profit_type" class="form-select form-select-sm">
+                                            <option value="percentage" {{ old('night_profit_type', 'percentage') === 'percentage' ? 'selected' : '' }}>Percentage</option>
+                                            <option value="flat" {{ old('night_profit_type') === 'flat' ? 'selected' : '' }}>Flat</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3 mb-3">
+                                        <label for="night_surcharge" class="form-label"><strong>Night Surcharge</strong></label>
+                                        <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control form-control-sm" id="night_surcharge" name="night_surcharge" placeholder="0.00" value="{{ old('night_surcharge') }}">
+                                    </div>
+                                </div>
+                            </fieldset>
+
                             <fieldset id="privatePrice" class="border p-4 rounded mb-4">
                                 <h5 class="card-title mb-3">Private Car Tarrifs</h5>
                                 <fieldset id="taxi_day_charges" class="border p-4 rounded mb-4">
                                     <h5 class="card-title mb-3">Day Charges</h5>
                                     <div class="row">
-
-                                        <!-- Base Price -->
                                         <div class="col-md-3 mb-3">
-                                            <label for="day_base_price" class="form-label"><strong>Base
-                                                    Price</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control" name="base_price"
-                                                placeholder="Enter Base Price" value="{{ old('base_price') }}">
-                                            @error('base_price')
-                                            <div class="text-danger mt-1">{{ $message }}</div>
-                                            @enderror
+                                            <label for="base_cost_price" class="form-label"><strong>Base Cost Price</strong><span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" class="form-control vehicle-day-cost-input" id="base_cost_price" name="base_cost_price" data-sell-target="base_price" placeholder="Enter Base Cost Price" value="{{ old('base_cost_price') }}">
+                                            @error('base_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                         </div>
-                                        <!-- Cost per KM Below 10 -->
                                         <div class="col-md-3 mb-3">
-                                            <label for="cost_per_km_below_10" class="form-label"><strong>Cost per KM
-                                                    Below 10km</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control"
-                                                name="cost_per_km_below_10" placeholder="Enter Cost" value="{{ old('cost_per_km_below_10') }}">
-                                            @error('cost_per_km_below_10')
-                                            <div class="text-danger mt-1">{{ $message }}</div>
-                                            @enderror
+                                            <label for="base_price" class="form-label"><strong>Base Sell Price</strong><span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" class="form-control vehicle-day-sell-input" id="base_price" name="base_price" placeholder="Enter Base Sell Price" value="{{ old('base_price') }}">
+                                            @error('base_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                         </div>
-
-                                        <!-- Cost per KM 10 to 25 -->
+                                        {{-- Per KM pricing temporarily hidden
                                         <div class="col-md-3 mb-3">
-                                            <label for="cost_per_km_10_to_25" class="form-label"><strong>Cost per KM (10km to 25km)</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control"
-                                                name="cost_per_km_10_to_25" placeholder="Enter Cost" value="{{ old('cost_per_km_10_to_25') }}">
-                                            @error('cost_per_km_10_to_25')
-                                            <div class="text-danger mt-1">{{ $message }}</div>
-                                            @enderror
+                                            <label for="per_km_below_10_cost_price" class="form-label"><strong>Per KM Below 10km Cost Price</strong><span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" class="form-control vehicle-day-cost-input" name="per_km_below_10_cost_price" data-sell-target="cost_per_km_below_10" placeholder="Enter Cost Price" value="{{ old('per_km_below_10_cost_price') }}">
+                                            @error('per_km_below_10_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                         </div>
-
-                                        <!-- Cost per KM Above 25 -->
                                         <div class="col-md-3 mb-3">
-                                            <label for="cost_per_km_above_25" class="form-label"><strong>Cost per KM
-                                                Above 25km</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control"
-                                                name="cost_per_km_above_25" placeholder="Enter Cost" value="{{ old('cost_per_km_above_25') }}">
-                                            @error('cost_per_km_above_25')
-                                            <div class="text-danger mt-1">{{ $message }}</div>
-                                            @enderror
+                                            <label for="cost_per_km_below_10" class="form-label"><strong>Per KM Below 10km Sell Price</strong><span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" class="form-control vehicle-day-sell-input" name="cost_per_km_below_10" placeholder="Enter Sell Price" value="{{ old('cost_per_km_below_10') }}">
+                                            @error('cost_per_km_below_10')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                         </div>
-
-                                        <!-- Cost per Hour -->
                                         <div class="col-md-3 mb-3">
-                                            <label for="cost_per_hour" class="form-label"><strong>Cost per
-                                                    Hour</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control" name="cost_per_hour"
-                                                placeholder="Enter Cost" value="{{ old('cost_per_hour') }}">
-                                            @error('cost_per_hour')
-                                            <div class="text-danger mt-1">{{ $message }}</div>
-                                            @enderror
+                                            <label for="per_km_10_to_25_cost_price" class="form-label"><strong>Per KM 10-25km Cost Price</strong><span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" class="form-control vehicle-day-cost-input" name="per_km_10_to_25_cost_price" data-sell-target="cost_per_km_10_to_25" placeholder="Enter Cost Price" value="{{ old('per_km_10_to_25_cost_price') }}">
+                                            @error('per_km_10_to_25_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                         </div>
-
-                                        <!-- Cancel Cost -->
                                         <div class="col-md-3 mb-3">
-                                            <label for="cancel_cost" class="form-label"><strong>Cancel
-                                                    Cost</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control" name="cancel_cost"
-                                                placeholder="Enter Cancel Cost" value="{{ old('cancel_cost') }}">
-                                            @error('cancel_cost')
-                                            <div class="text-danger mt-1">{{ $message }}</div>
-                                            @enderror
-
+                                            <label for="cost_per_km_10_to_25" class="form-label"><strong>Per KM 10-25km Sell Price</strong><span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" class="form-control vehicle-day-sell-input" name="cost_per_km_10_to_25" placeholder="Enter Sell Price" value="{{ old('cost_per_km_10_to_25') }}">
+                                            @error('cost_per_km_10_to_25')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                        </div>
+                                        <div class="col-md-3 mb-3">
+                                            <label for="per_km_above_25_cost_price" class="form-label"><strong>Per KM Above 25km Cost Price</strong><span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" class="form-control vehicle-day-cost-input" name="per_km_above_25_cost_price" data-sell-target="cost_per_km_above_25" placeholder="Enter Cost Price" value="{{ old('per_km_above_25_cost_price') }}">
+                                            @error('per_km_above_25_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                        </div>
+                                        <div class="col-md-3 mb-3">
+                                            <label for="cost_per_km_above_25" class="form-label"><strong>Per KM Above 25km Sell Price</strong><span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" class="form-control vehicle-day-sell-input" name="cost_per_km_above_25" placeholder="Enter Sell Price" value="{{ old('cost_per_km_above_25') }}">
+                                            @error('cost_per_km_above_25')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                        </div>
+                                        --}}
+                                        <div class="col-md-3 mb-3">
+                                            <label for="per_hour_cost_price" class="form-label"><strong>Per Hour Cost Price</strong><span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" class="form-control vehicle-day-cost-input" id="per_hour_cost_price" name="per_hour_cost_price" data-sell-target="cost_per_hour" placeholder="Enter Cost Price" value="{{ old('per_hour_cost_price') }}">
+                                            @error('per_hour_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                        </div>
+                                        <div class="col-md-3 mb-3">
+                                            <label for="cost_per_hour" class="form-label"><strong>Per Hour Sell Price</strong><span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" class="form-control vehicle-day-sell-input" id="cost_per_hour" name="cost_per_hour" placeholder="Enter Sell Price" value="{{ old('cost_per_hour') }}">
+                                            @error('cost_per_hour')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                         </div>
                                     </div>
                                 </fieldset>
@@ -317,71 +381,77 @@
                                 <fieldset id="taxi_night_charges" class="border p-4 rounded mb-4">
                                     <h5 class="card-title mb-3">Night Charges</h5>
                                     <div class="row">
-                                        <!-- Night Cost per KM Below 10 -->
-                                        <!-- Base Price -->
                                         <div class="col-md-3 mb-3">
-                                            <label for="base_price" class="form-label"><strong>Base
-                                                    Price</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.1" class="form-control" name="night_base_price"
-                                                placeholder="Enter Base Price" value="{{ old('night_base_price') }}">
-                                            @error('base_price')
-                                            <div class="text-danger mt-1">{{ $message }}</div>
-                                            @enderror
+                                            <label for="night_base_cost_price" class="form-label"><strong>Base Cost Price</strong><span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" class="form-control vehicle-night-cost-input" id="night_base_cost_price" name="night_base_cost_price" data-sell-target="night_base_price" placeholder="Enter Base Cost Price" value="{{ old('night_base_cost_price') }}">
+                                            @error('night_base_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                         </div>
                                         <div class="col-md-3 mb-3">
-                                            <label for="night_cost_per_km_below_10" class="form-label"><strong>Cost per KM Below 10km</strong><span
-                                                    class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control"
-                                                name="night_cost_per_km_below_10" placeholder="Enter Cost for night" value="{{ old('night_cost_per_km_below_10') }}">
-                                            @error('night_cost_per_km_below_10')
-                                            <div class="text-danger mt-1">{{ $message }}</div>
-                                            @enderror
+                                            <label for="night_base_price" class="form-label"><strong>Base Sell Price</strong><span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" class="form-control vehicle-night-sell-input" id="night_base_price" name="night_base_price" placeholder="Enter Base Sell Price" value="{{ old('night_base_price') }}">
+                                            @error('night_base_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                         </div>
-
-                                        <!-- Night Cost per KM 10 to 25 -->
+                                        {{-- Per KM pricing temporarily hidden
                                         <div class="col-md-3 mb-3">
-                                            <label for="night_cost_per_km_10_to_25" class="form-label"><strong>Cost per KM (10km to 25km)</strong><span
-                                                class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control"
-                                                name="night_cost_per_km_10_to_25" placeholder="Enter Cost for night" value="{{ old('night_cost_per_km_10_to_25') }}">
-                                            @error('night_cost_per_km_10_to_25')
-                                            <div class="text-danger mt-1">{{ $message }}</div>
-                                            @enderror
+                                            <label for="night_per_km_below_10_cost_price" class="form-label"><strong>Per KM Below 10km Cost Price</strong><span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" class="form-control auto-calculated-cost vehicle-night-cost-input" name="night_per_km_below_10_cost_price" data-sell-target="night_cost_per_km_below_10" placeholder="Auto-calculated" value="{{ old('night_per_km_below_10_cost_price') }}">
+                                            @error('night_per_km_below_10_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                         </div>
-
-                                        <!-- Night Cost per KM Above 25 -->
                                         <div class="col-md-3 mb-3">
-                                            <label for="night_cost_per_km_above_25" class="form-label"><strong>Cost per KM Above 25km</strong><span
-                                                    class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control"
-                                                name="night_cost_per_km_above_25" placeholder="Enter Cost for night" value="{{ old('night_cost_per_km_above_25') }}">
-                                            @error('night_cost_per_km_above_25')
-                                            <div class="text-danger mt-1">{{ $message }}</div>
-                                            @enderror
+                                            <label for="night_cost_per_km_below_10" class="form-label"><strong>Per KM Below 10km Sell Price</strong><span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" class="form-control auto-calculated-sell vehicle-night-sell-input" name="night_cost_per_km_below_10" placeholder="Auto-calculated" value="{{ old('night_cost_per_km_below_10') }}">
+                                            @error('night_cost_per_km_below_10')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                         </div>
-
-                                        <!-- Cost per Hour(Night) -->
                                         <div class="col-md-3 mb-3">
-                                            <label for="night_cost_per_hour" class="form-label"><strong>Cost per
-                                                    Hour</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control" name="night_cost_per_hour"
-                                                placeholder="Enter Cost" value="{{ old('night_cost_per_hour') }}">
-                                            @error('night_cost_per_hour')
-                                            <div class="text-danger mt-1">{{ $message }}</div>
-                                            @enderror
+                                            <label for="night_per_km_10_to_25_cost_price" class="form-label"><strong>Per KM 10-25km Cost Price</strong><span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" class="form-control auto-calculated-cost vehicle-night-cost-input" name="night_per_km_10_to_25_cost_price" data-sell-target="night_cost_per_km_10_to_25" placeholder="Auto-calculated" value="{{ old('night_per_km_10_to_25_cost_price') }}">
+                                            @error('night_per_km_10_to_25_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                         </div>
-
-                                        <!-- Cancel Cost -->
                                         <div class="col-md-3 mb-3">
-                                            <label for="night_cancel_cost" class="form-label"><strong>Cancel
-                                                    Cost</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control" name="night_cancel_cost"
-                                                placeholder="Enter Cancel Cost" value="{{ old('night_cancel_cost') }}">
-                                            @error('night_cancel_cost')
-                                            <div class="text-danger mt-1">{{ $message }}</div>
-                                            @enderror
+                                            <label for="night_cost_per_km_10_to_25" class="form-label"><strong>Per KM 10-25km Sell Price</strong><span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" class="form-control auto-calculated-sell vehicle-night-sell-input" name="night_cost_per_km_10_to_25" placeholder="Auto-calculated" value="{{ old('night_cost_per_km_10_to_25') }}">
+                                            @error('night_cost_per_km_10_to_25')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                        </div>
+                                        <div class="col-md-3 mb-3">
+                                            <label for="night_per_km_above_25_cost_price" class="form-label"><strong>Per KM Above 25km Cost Price</strong><span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" class="form-control auto-calculated-cost vehicle-night-cost-input" name="night_per_km_above_25_cost_price" data-sell-target="night_cost_per_km_above_25" placeholder="Auto-calculated" value="{{ old('night_per_km_above_25_cost_price') }}">
+                                            @error('night_per_km_above_25_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                        </div>
+                                        <div class="col-md-3 mb-3">
+                                            <label for="night_cost_per_km_above_25" class="form-label"><strong>Per KM Above 25km Sell Price</strong><span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" class="form-control auto-calculated-sell vehicle-night-sell-input" name="night_cost_per_km_above_25" placeholder="Auto-calculated" value="{{ old('night_cost_per_km_above_25') }}">
+                                            @error('night_cost_per_km_above_25')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                        </div>
+                                        --}}
+                                        <div class="col-md-3 mb-3">
+                                            <label for="night_per_hour_cost_price" class="form-label"><strong>Per Hour Cost Price</strong><span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" class="form-control auto-calculated-cost vehicle-night-cost-input" id="night_per_hour_cost_price" name="night_per_hour_cost_price" data-sell-target="night_cost_per_hour" placeholder="Per Hour Cost Price" value="{{ old('night_per_hour_cost_price') }}">
+                                            @error('night_per_hour_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                        </div>
+                                        <div class="col-md-3 mb-3">
+                                            <label for="night_cost_per_hour" class="form-label"><strong>Per Hour Sell Price</strong><span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" class="form-control auto-calculated-sell vehicle-night-sell-input" id="night_cost_per_hour" name="night_cost_per_hour" placeholder="Per Hour Sell Price" value="{{ old('night_cost_per_hour') }}">
+                                            @error('night_cost_per_hour')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                         </div>
                                     </div>
+                                </fieldset>
+
+                                <fieldset id="taxi_cancellation" class="border p-4 rounded mb-4">
+                                    <h5 class="card-title mb-3">Cancellation</h5>
+                                    <div class="row">
+                                        <div class="col-md-3 mb-3">
+                                            <label for="cancellation_cost" class="form-label"><strong>Cancellation Cost Price</strong><span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" class="form-control" id="cancellation_cost" name="cancellation_cost" placeholder="From Base Cost Price" value="{{ old('cancellation_cost') }}">
+                                            @error('cancellation_cost')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                        </div>
+                                        <div class="col-md-3 mb-3">
+                                            <label for="cancellation_sell" class="form-label"><strong>Cancellation Sell Price</strong><span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" class="form-control" id="cancellation_sell" name="cancellation_sell" placeholder="From Base Sell Price" value="{{ old('cancellation_sell') }}">
+                                            @error('cancellation_sell')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                        </div>
+                                    </div>
+                                    <input type="hidden" name="night_cancel_cost_price" id="night_cancel_cost_price" value="{{ old('night_cancel_cost_price') }}">
+                                    <input type="hidden" name="night_cancel_cost" id="night_cancel_cost" value="{{ old('night_cancel_cost') }}">
                                 </fieldset>
                             </fieldset>
 
@@ -452,39 +522,6 @@
                                 }
                             </style>
 
-                            <!-- attraction_privae_transport_price -->
-                            <div class="col-md-3 mb-3 private-fields">
-                                <label for="attraction_private_transport_price" class="form-label"><strong>Attraction Private Transport Price</strong><span class="text-danger">*</span></label>
-                                <input type="number" step="0.01" class="form-control" name="attraction_private_transport_price"
-                                    placeholder="Enter Cost" value="{{ old('attraction_private_transport_price') }}" id="attraction_private_transport_price">
-                                @error('attraction_private_transport_price')
-                                <div class="text-danger mt-1">{{ $message }}</div>
-                                @enderror
-                            </div>
-
-                            <!-- attraction_shared_transport_price -->
-                            <div class="col-md-3 mb-3 sharable-field">
-                                <label for="attraction_shared_transport_price" class="form-label"><strong>Attraction Shared Transport Price</strong><span class="text-danger">*</span></label>
-                                <input type="number" step="0.01" class="form-control" name="attraction_shared_transport_price"
-                                    placeholder="Enter Cost" value="{{ old('attraction_shared_transport_price') }}" id="attraction_shared_transport_price">
-                            </div>
-
-                            <!-- restaurant_private_transport_price -->
-                            <div class="col-md-3 mb-3 private-fields">
-                                <label for="restaurant_private_transport_price" class="form-label"><strong>Restaurant Private Transport Price</strong><span class="text-danger">*</span></label>
-                                <input type="number" step="0.01" class="form-control" name="restaurant_private_transport_price"
-                                    placeholder="Enter Cost" value="{{ old('restaurant_private_transport_price') }}" id="restaurant_private_transport_price">
-                            </div>
-
-                            <!-- restaurant_shared_transport_price -->
-                            <div class="col-md-3 mb-3 sharable-field">
-                                <label for="restaurant_shared_transport_price" class="form-label"><strong>Restaurant Shared Transport Price</strong><span class="text-danger">*</span></label>
-                                <input type="number" step="0.01" class="form-control" name="restaurant_shared_transport_price"
-                                    placeholder="Enter Cost" value="{{ old('restaurant_shared_transport_price') }}" id="restaurant_shared_transport_price">
-                            </div>
-
-
-
                             <!-- Vehicle image -->
                             <div class="mb-3 col-md-4">
                                 <label for="master_image" class="form-label"><strong>Vehicle
@@ -528,7 +565,13 @@
 
                     <!-- Submit Buttons -->
                     <div class="d-flex gap-3 mt-4">
-                        <button type="submit" class="btn btn-primary px-4">Save</button>
+                        <button type="submit" class="btn btn-primary px-4 js-submit-loader-btn">
+                            <span class="js-submit-loader-btn-text">Save</span>
+                            <span class="js-submit-loader-btn-loading d-none">
+                                <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                                Saving...
+                            </span>
+                        </button>
                     </div>
             </form>
             @else
@@ -836,6 +879,7 @@
     </div>
 </div>
 <!-- End of the form -->
+<x-form-submit-loader message="Saving..." />
 @endsection
 
 @section('scripts')
@@ -874,6 +918,12 @@
         // Initialize Select2 for Driver dropdown
         $('#driver').select2({
             placeholder: "Search and Select Driver",
+            allowClear: true,
+            width: '100%'
+        });
+
+        $('#country').select2({
+            placeholder: "Search and Select Country",
             allowClear: true,
             width: '100%'
         });
@@ -1020,63 +1070,106 @@ function updateMoreBadge() {
 }
 </script>
 
-@php
-    $currentUser = auth()->user();
-    $userRoleId = $currentUser->role_id;
-    $resolvedDmcId = '';
-
-    if ($userRoleId == 11) {
-        $resolvedDmcId = $currentUser->userId;
-    } elseif ($userRoleId == 35) {
-        $resolvedDmcId = \App\Models\User::where('userId', $currentUser->userId)->value('created_by');
-    } elseif ($userRoleId == 76 || $userRoleId == 139) {
-        $pm = \App\Models\User::where('userId', $currentUser->userId)->first();
-        $ph = \App\Models\User::where('userId', $pm?->created_by)->first();
-        $resolvedDmcId = $ph?->created_by;
-    } elseif ($userRoleId == 111 || $userRoleId == 140) {
-        $apm = \App\Models\User::where('userId', $currentUser->userId)->first();
-        $pm = \App\Models\User::where('userId', $apm?->created_by)->first();
-        $ph = \App\Models\User::where('userId', $pm?->created_by)->first();
-        $resolvedDmcId = $ph?->created_by;
-    }
-@endphp
-
 <script>
     $(document).ready(function () {
-        const dmcId = "{{ $resolvedDmcId }}";
+        const dmcId = "{{ $resolvedDmcId ?? '' }}";
+        const masterCountryNames = @json($masterDmcCountryNames ?? []);
 
-        // Auto-load drivers if user role resolves DMC directly
+        function populateCountryOptions(countries, selectedCountry) {
+            var $country = $('#country');
+            $country.empty();
+            if (!countries || countries.length !== 1) {
+                $country.append('<option value="">Select Country</option>');
+            }
+            $.each(countries || [], function (i, name) {
+                var selected = (name === selectedCountry) ? 'selected' : '';
+                $country.append('<option value="' + name + '" ' + selected + '>' + name + '</option>');
+            });
+            $country.trigger('change.select2');
+        }
+
+        function loadCitiesByCountry(countryName) {
+            if (!countryName) {
+                $('#city_name').prop('disabled', true)
+                    .empty()
+                    .append('<option value="">Select Country First</option>')
+                    .trigger('change');
+                return;
+            }
+
+            $('#city_name').prop('disabled', true)
+                .empty()
+                .append('<option value="">Loading cities...</option>')
+                .trigger('change');
+
+            $.ajax({
+                url: "{{ route('fetch-cities-by-country') }}",
+                type: "GET",
+                data: { country: countryName },
+                dataType: 'json',
+                success: function (response) {
+                    $('#city_name').empty().append('<option value="">Select a City</option>');
+                    if (response.cities && response.cities.length > 0) {
+                        $.each(response.cities, function (idx, city) {
+                            $('#city_name').append('<option value="' + city.name + '">' + city.name + '</option>');
+                        });
+                        $('#city_name').prop('disabled', false);
+                    } else {
+                        $('#city_name').append('<option value="">No cities available</option>');
+                    }
+                    $('#city_name').trigger('change');
+                },
+                error: function () {
+                    $('#city_name').prop('disabled', true)
+                        .empty()
+                        .append('<option value="">Error loading cities</option>')
+                        .trigger('change');
+                }
+            });
+        }
+
+        function loadCountriesAndCitiesForDmc(selectedDmcId) {
+            if (!selectedDmcId) {
+                return;
+            }
+
+            $.ajax({
+                url: "{{ route('fetch.cities_countries') }}",
+                type: "GET",
+                data: { dmc_id: selectedDmcId },
+                dataType: 'json',
+                success: function (response) {
+                    var countries = response.countries || (response.country ? [response.country] : []);
+                    var selected = response.country || (countries[0] || '');
+                    populateCountryOptions(countries, selected);
+                    loadCitiesByCountry(selected);
+                }
+            });
+        }
+
         if (dmcId) {
             loadDriversForDmc(dmcId);
         }
 
-        // If DMC dropdown is visible, load drivers and cities on change
+        $('#country').on('change', function () {
+            loadCitiesByCountry($(this).val());
+        });
+
         $('#dmc').change(function () {
             const selectedDmcId = $(this).val();
-            console.log(selectedDmcId);
-            $('#city_name').html('<option value="">Loading...</option>').trigger('change');
             $('#driver').html('<option value="">Loading drivers...</option>').trigger('change');
 
             if (selectedDmcId) {
-                // Load cities
-                $.ajax({
-                    url: "{{ route('fetch.dmc_cities') }}",
-                    type: "GET",
-                    data: { country_name: selectedDmcId },
-                    success: function (response) {
-                        $('#city_name').html('<option value="">Select City</option>');
-                        $.each(response, function (key, city) {
-                            $('#city_name').append('<option value="' + city.name + '">' + city.name + '</option>');
-                        });
-                        $('#city_name').trigger('change');
-                    }
-                });
-
-                // Load drivers
+                loadCountriesAndCitiesForDmc(selectedDmcId);
                 loadDriversForDmc(selectedDmcId);
             } else {
-                $('#city_name').html('<option value="">Select a DMC first</option>').trigger('change');
+                $('#city_name').html('<option value="">Select Country First</option>').trigger('change');
                 $('#driver').html('<option value="">Select a DMC first</option>').trigger('change');
+                if (masterCountryNames.length) {
+                    populateCountryOptions(masterCountryNames, '');
+                } else {
+                    $('#country').val('').trigger('change');
+                }
             }
         });
 
@@ -1117,6 +1210,9 @@ function updateMoreBadge() {
     document.addEventListener("DOMContentLoaded", function () {
         let dmcSelect = document.getElementById("dmc_id");
         let citySelect = document.getElementById("city_name");
+        if (!dmcSelect || !citySelect) {
+            return;
+        }
 
         dmcSelect.addEventListener("change", function () {
             let dmc = this.value;
@@ -1475,6 +1571,266 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
+<script>
+function initNightChargeAutoPopulate() {
+    if (!document.getElementById('auto-calculated-style')) {
+        const style = document.createElement('style');
+        style.id = 'auto-calculated-style';
+        style.textContent = `
+            .auto-calculated, .auto-calculated-sell, .auto-calculated-cost {
+                background-color: #f8f9fa !important;
+                border-left: 3px solid #17a2b8 !important;
+                transition: all 0.2s ease;
+            }
+            .auto-calculated:focus, .auto-calculated-sell:focus, .auto-calculated-cost:focus {
+                background-color: #fff !important;
+                border-left-color: #007bff !important;
+            }
+            .auto-calculated.value-updated, .auto-calculated-sell.value-updated, .auto-calculated-cost.value-updated {
+                animation: highlightUpdate 0.8s ease-in-out;
+            }
+            @keyframes highlightUpdate {
+                0% { background-color: #e8f7ff; }
+                100% { background-color: #f8f9fa; }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    const dayScope = document.querySelector('#taxi_day_charges') || document;
+    const nightScope = document.querySelector('#taxi_night_charges') || document;
+
+    const getNum = (el) => {
+        if (!el) return null;
+        const v = (el.value ?? '').toString().trim();
+        if (v === '') return null;
+        const n = Number.parseFloat(v);
+        return Number.isFinite(n) ? n : null;
+    };
+
+    const format = (n) => (Math.round(n * 100) / 100).toFixed(2);
+    const approxEqual = (a, b) => Math.abs(a - b) < 0.01;
+    const compute = (dayVal, nightBaseVal) => {
+        if (dayVal === null) return null;
+        return dayVal + (nightBaseVal ?? 0);
+    };
+
+    const setupNightGroup = ({ nightBaseName, pairs, cssClass, runInitialRecalc }) => {
+        const nightBaseEl = nightScope.querySelector(`input[name="${nightBaseName}"]`);
+
+        const initAutoFlags = () => {
+            const nightBaseVal = getNum(nightBaseEl);
+            pairs.forEach(({ day, night }) => {
+                const dayEl = dayScope.querySelector(`input[name="${day}"]`);
+                const nightEl = nightScope.querySelector(`input[name="${night}"]`);
+                if (!dayEl || !nightEl) return;
+
+                const dayVal = getNum(dayEl);
+                const nightVal = getNum(nightEl);
+                const computed = compute(dayVal, nightBaseVal);
+
+                if (nightVal === null) {
+                    nightEl.dataset.auto = '1';
+                } else if (computed !== null && approxEqual(nightVal, computed)) {
+                    nightEl.dataset.auto = '1';
+                } else if (!nightEl.dataset.auto) {
+                    nightEl.dataset.auto = '0';
+                }
+            });
+        };
+
+        const recalcNight = () => {
+            const nightBaseVal = getNum(nightBaseEl) ?? 0;
+            pairs.forEach(({ day, night }) => {
+                const dayEl = dayScope.querySelector(`input[name="${day}"]`);
+                const nightEl = nightScope.querySelector(`input[name="${night}"]`);
+                if (!dayEl || !nightEl) return;
+                if ((nightEl.dataset.auto ?? '1') !== '1') return;
+
+                const computed = compute(getNum(dayEl), nightBaseVal);
+                nightEl.value = computed === null ? '' : format(computed);
+                nightEl.classList.add(cssClass, 'value-updated');
+                nightEl.dispatchEvent(new Event('input', { bubbles: true }));
+                setTimeout(() => nightEl.classList.remove('value-updated'), 800);
+            });
+        };
+
+        pairs.forEach(({ night }) => {
+            const nightEl = nightScope.querySelector(`input[name="${night}"]`);
+            if (!nightEl) return;
+            nightEl.addEventListener('input', function (e) {
+                if (e && e.isTrusted === false) return;
+                this.dataset.auto = '0';
+                this.classList.remove(cssClass);
+            });
+        });
+
+        const bindRecalc = (name, scopeEl) => {
+            const el = (scopeEl || document).querySelector(`input[name="${name}"]`);
+            if (!el) return;
+            el.addEventListener('input', () => recalcNight());
+            el.addEventListener('change', () => recalcNight());
+        };
+
+        bindRecalc(nightBaseName, nightScope);
+        pairs.forEach(({ day }) => bindRecalc(day, dayScope));
+
+        initAutoFlags();
+        if (runInitialRecalc) recalcNight();
+    };
+
+    setupNightGroup({
+        nightBaseName: 'night_base_price',
+        cssClass: 'auto-calculated-sell',
+        runInitialRecalc: false,
+        pairs: [
+            // Sell prices are calculated from night cost + Night Surcharge (see vehicle profit script)
+        ],
+    });
+
+    setupNightGroup({
+        nightBaseName: 'night_base_cost_price',
+        cssClass: 'auto-calculated-cost',
+        runInitialRecalc: true,
+        pairs: [
+            // { day: 'per_km_below_10_cost_price', night: 'night_per_km_below_10_cost_price' },
+            // { day: 'per_km_10_to_25_cost_price', night: 'night_per_km_10_to_25_cost_price' },
+            // { day: 'per_km_above_25_cost_price', night: 'night_per_km_above_25_cost_price' },
+            { day: 'per_hour_cost_price', night: 'night_per_hour_cost_price' },
+        ],
+    });
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initNightChargeAutoPopulate);
+} else {
+    initNightChargeAutoPopulate();
+}
+</script>
+
+<script>
+(function () {
+    function parseAmount(value) {
+        const n = parseFloat(String(value || '0').replace(',', '.'));
+        return isNaN(n) ? null : n;
+    }
+
+    function calculateSell(costValue, typeEl, amountEl) {
+        const cost = parseAmount(costValue);
+        if (cost === null) return '';
+        const type = (typeEl?.value || 'percentage').toLowerCase();
+        const amount = parseAmount(amountEl?.value) ?? 0;
+        let sell = cost;
+        if (type === 'flat') {
+            sell = cost + amount;
+        } else {
+            sell = cost + (cost * amount / 100);
+        }
+        return Number(Math.max(0, sell).toFixed(2));
+    }
+
+    function updateSellFromCost(costInput, typeEl, amountEl) {
+        if (!costInput) return;
+        const sellId = costInput.getAttribute('data-sell-target');
+        const sellInput = sellId ? document.getElementById(sellId) || document.querySelector(`input[name="${sellId}"]`) : null;
+        if (!sellInput) return;
+        if (costInput.value === '' || costInput.value === null) return;
+        sellInput.value = calculateSell(costInput.value, typeEl, amountEl);
+        sellInput.dataset.autoFilled = '1';
+        if (sellInput.name === 'base_price' || sellInput.id === 'base_price') {
+            syncCancellationFromBase();
+        }
+    }
+
+    function updateGroup(costSelector, typeId, amountId) {
+        const typeEl = document.getElementById(typeId);
+        const amountEl = document.getElementById(amountId);
+        document.querySelectorAll(costSelector).forEach(function (costInput) {
+            updateSellFromCost(costInput, typeEl, amountEl);
+        });
+    }
+
+    function syncCancellationFromBase() {
+        const baseCost = document.getElementById('base_cost_price') || document.querySelector('input[name="base_cost_price"]');
+        const baseSell = document.getElementById('base_price') || document.querySelector('input[name="base_price"]');
+        const cancelCost = document.getElementById('cancellation_cost') || document.querySelector('input[name="cancellation_cost"]');
+        const cancelSell = document.getElementById('cancellation_sell') || document.querySelector('input[name="cancellation_sell"]');
+        const nightCancelCost = document.getElementById('night_cancel_cost_price');
+        const nightCancelSell = document.getElementById('night_cancel_cost');
+
+        if (baseCost && cancelCost && (cancelCost.dataset.manual !== '1')) {
+            cancelCost.value = baseCost.value;
+        }
+        if (baseSell && cancelSell && (cancelSell.dataset.manual !== '1')) {
+            cancelSell.value = baseSell.value;
+        }
+        if (cancelCost && nightCancelCost) nightCancelCost.value = cancelCost.value;
+        if (cancelSell && nightCancelSell) nightCancelSell.value = cancelSell.value;
+    }
+
+    function bindGroup(costSelector, sellSelector, typeId, amountId) {
+        const typeEl = document.getElementById(typeId);
+        const amountEl = document.getElementById(amountId);
+
+        document.querySelectorAll(costSelector).forEach(function (costInput) {
+            costInput.addEventListener('input', function () {
+                updateSellFromCost(this, typeEl, amountEl);
+                if (this.name === 'base_cost_price' || this.id === 'base_cost_price') {
+                    syncCancellationFromBase();
+                }
+            });
+            costInput.addEventListener('change', function () {
+                updateSellFromCost(this, typeEl, amountEl);
+                if (this.name === 'base_cost_price' || this.id === 'base_cost_price') {
+                    syncCancellationFromBase();
+                }
+            });
+        });
+
+        document.querySelectorAll(sellSelector).forEach(function (sellInput) {
+            sellInput.addEventListener('input', function () {
+                this.dataset.autoFilled = '0';
+                if (this.name === 'base_price' || this.id === 'base_price') {
+                    syncCancellationFromBase();
+                }
+            });
+        });
+
+        if (typeEl) typeEl.addEventListener('change', function () { updateGroup(costSelector, typeId, amountId); });
+        if (amountEl) {
+            amountEl.addEventListener('input', function () { updateGroup(costSelector, typeId, amountId); });
+            amountEl.addEventListener('change', function () { updateGroup(costSelector, typeId, amountId); });
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        bindGroup('.vehicle-day-cost-input', '.vehicle-day-sell-input', 'day_profit_type', 'mark_up');
+        bindGroup('.vehicle-night-cost-input', '.vehicle-night-sell-input', 'night_profit_type', 'night_surcharge');
+
+        const cancelCost = document.getElementById('cancellation_cost');
+        const cancelSell = document.getElementById('cancellation_sell');
+        if (cancelCost) {
+            if (cancelCost.value !== '') cancelCost.dataset.manual = '1';
+            cancelCost.addEventListener('input', function () {
+                this.dataset.manual = '1';
+                const nightCancelCost = document.getElementById('night_cancel_cost_price');
+                if (nightCancelCost) nightCancelCost.value = this.value;
+            });
+        }
+        if (cancelSell) {
+            if (cancelSell.value !== '') cancelSell.dataset.manual = '1';
+            cancelSell.addEventListener('input', function () {
+                this.dataset.manual = '1';
+                const nightCancelSell = document.getElementById('night_cancel_cost');
+                if (nightCancelSell) nightCancelSell.value = this.value;
+            });
+        }
+
+        syncCancellationFromBase();
+    });
+})();
+</script>
+
 @else
 <!-- Zone mapping scripts -->
 <script>
@@ -1545,4 +1901,5 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 @endif
 
+@include('components.currency-price-note-dmc-script')
 @endsection

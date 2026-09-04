@@ -4,8 +4,31 @@
 
 @section('content')
 <div class="container-xxl flex-grow-1 container-p-y">
+    @php
+    
+        $currentZoneType = request()->query('zone_type');
+        $allowedZoneTypes = ['Hotel', 'Restaurant', 'Attraction'];
+        $currentZoneType = in_array($currentZoneType, $allowedZoneTypes, true) ? $currentZoneType : null;
+
+        $currentSort = request()->query('sort', 'updated_at');
+        $currentDir = strtolower(request()->query('direction', 'desc')) === 'asc' ? 'asc' : 'desc';
+
+        $sortIcon = function (string $key) use ($currentSort, $currentDir) {
+            if ($currentSort !== $key) return '';
+            return $currentDir === 'asc' ? ' <i class="ri-arrow-up-line"></i>' : ' <i class="ri-arrow-down-line"></i>';
+        };
+        $sortLink = function (string $key) use ($currentSort, $currentDir) {
+            $nextDir = ($currentSort === $key && $currentDir === 'asc') ? 'desc' : 'asc';
+            return request()->fullUrlWithQuery(['sort' => $key, 'direction' => $nextDir]);
+        };
+    @endphp
+
     <h4 class="fw-bold py-3 mb-4">
-        <span class="text-muted fw-light">Zone /</span> Zone List
+        <span class="text-muted fw-light">Zone /</span>
+        Zone List
+        @if($currentZoneType)
+            <span class="text-muted fw-light">/</span> {{ $currentZoneType }}
+        @endif
     </h4>
 
     <!-- Display flash message -->
@@ -32,27 +55,134 @@
 
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
-            <h5>Zones</h5>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <h5 class="mb-0">
+                    Zones
+                    @if($currentZoneType)
+                        <span class="badge bg-label-primary ms-2">{{ $currentZoneType }}</span>
+                    @else
+                        <span class="badge bg-label-secondary ms-2">All</span>
+                    @endif
+                </h5>
+
+                <div class="btn-group ms-0 ms-md-3" role="group" aria-label="Zone type filter">
+                    <a href="{{ request()->fullUrlWithQuery(['zone_type' => null]) }}"
+                       class="btn btn-sm {{ $currentZoneType ? 'btn-outline-secondary' : 'btn-secondary' }}">
+                        All
+                    </a>
+                    <a href="{{ request()->fullUrlWithQuery(['zone_type' => 'Hotel']) }}"
+                       class="btn btn-sm {{ $currentZoneType === 'Hotel' ? 'btn-success' : 'btn-outline-success' }}">
+                        Hotel
+                    </a>
+                    <a href="{{ request()->fullUrlWithQuery(['zone_type' => 'Restaurant']) }}"
+                       class="btn btn-sm {{ $currentZoneType === 'Restaurant' ? 'btn-warning' : 'btn-outline-warning' }}">
+                        Restaurant
+                    </a>
+                    <a href="{{ request()->fullUrlWithQuery(['zone_type' => 'Attraction']) }}"
+                       class="btn btn-sm {{ $currentZoneType === 'Attraction' ? 'btn-info' : 'btn-outline-info' }}">
+                        Attraction
+                    </a>
+                </div>
+            </div>
             <a href="{{ route('zones.create') }}" class="btn btn-primary">Add New Zone</a>
         </div>
         <div class="card-body">
+            <form method="GET" id="zone-location-filter-form" class="row mb-4 align-items-end g-3">
+                @if($currentZoneType)
+                    <input type="hidden" name="zone_type" value="{{ $currentZoneType }}">
+                @endif
+                @if($currentSort)
+                    <input type="hidden" name="sort" value="{{ $currentSort }}">
+                @endif
+                @if($currentDir)
+                    <input type="hidden" name="direction" value="{{ $currentDir }}">
+                @endif
+                <div class="col-md-3">
+                    <label for="zone_filter_country" class="form-label"><strong>Country</strong></label>
+                    <select id="zone_filter_country" name="country" class="form-select">
+                        <option value="" {{ empty($filterCountry ?? '') ? 'selected' : '' }}>All Countries</option>
+                        @foreach(($countries ?? collect()) as $c)
+                            <option value="{{ $c->name }}" {{ ($filterCountry ?? '') === $c->name ? 'selected' : '' }}>{{ $c->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="zone_filter_city" class="form-label"><strong>City</strong></label>
+                    <select id="zone_filter_city" name="city" class="form-select" {{ empty($filterCountry ?? '') ? 'disabled' : '' }}>
+                        <option value="" {{ empty($filterCityId ?? '') ? 'selected' : '' }}>All Cities</option>
+                        @foreach(($filterCities ?? collect()) as $cityOption)
+                            <option value="{{ $cityOption->city_id }}" {{ (string) ($filterCityId ?? '') === (string) $cityOption->city_id ? 'selected' : '' }}>
+                                {{ $cityOption->name }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+            </form>
+
             <div class="table-responsive text-nowrap">
                 <table class="table table-bordered">
                     <thead>
                         <tr>
                             <th>#</th>
-                            <th>Zone Name</th>
-                            <th>Zone Type</th>
+                            <th>
+                                <a href="{{ $sortLink('zone_name') }}" class="text-body text-decoration-none">
+                                    Zone Name{!! $sortIcon('zone_name') !!}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="{{ $sortLink('zone_type') }}" class="text-body text-decoration-none">
+                                    Zone Type{!! $sortIcon('zone_type') !!}
+                                </a>
+                            </th>
                             <th>City</th>
-                            <th>Status</th>
-                            @if(auth()->user()->role_id == 11)
+                            <th>
+                                <a href="{{ $sortLink('status') }}" class="text-body text-decoration-none">
+                                    Status{!! $sortIcon('status') !!}
+                                </a>
+                            </th>
+                            @php
+                                $accessRoles = [11, 35, 130, 132, 133, 135, 136, 137, 138];
+                            @endphp
+                            @if(in_array(auth()->user()->role_id, $accessRoles))
                             <th>Zone</th>
                             @endif
                             <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
+                        @php
+                            $modalUser = auth()->user();
+                            $modalIsAdmin = (int) ($modalUser->userId ?? 0) === 1;
+                            $modalAdminDmcId = 1;
+                            $modalDmcId = $modalIsAdmin ? $modalAdminDmcId : (int) ($dmcId ?? 0);
+                            $itemBelongsToDmc = function ($model) use ($modalIsAdmin, $modalDmcId) {
+                                if ($modalIsAdmin) {
+                                    return true;
+                                }
+                                if (!$modalDmcId) {
+                                    return false;
+                                }
+                                $dmcIds = (array) ($model->dmc_id ?? []);
+                                return in_array($modalDmcId, $dmcIds, true)
+                                    || in_array((string) $modalDmcId, $dmcIds, true);
+                            };
+                        @endphp
                         @forelse($zones as $key => $zone)
+                        @php
+                            $serviceMatchesZone = function ($item, string $cityField) use ($zone) {
+                                $zoneCity = trim((string) (optional($zone->cities)->name ?? ''));
+                                $zoneCountry = trim((string) (optional($zone->cities)->country ?? ''));
+                                $itemCountry = trim((string) ($item->country ?? ''));
+                                $itemCity = trim((string) ($item->{$cityField} ?? ''));
+                                if ($zoneCountry !== '' && strcasecmp($itemCountry, $zoneCountry) !== 0) {
+                                    return false;
+                                }
+                                if ($zoneCity !== '' && strcasecmp($itemCity, $zoneCity) !== 0) {
+                                    return false;
+                                }
+                                return true;
+                            };
+                        @endphp
                         <tr>
                             <td>{{ ++$key }}</td>
                             <td style="max-width: 200px;">
@@ -67,7 +197,10 @@
                                     {{ $zone->status == 1 ? 'Active' : 'Inactive' }}
                                 </span>
                             </td>
-                            @if(auth()->user()->role_id == 11)
+                            @php
+                                $accessRoles = [11, 35, 130, 132, 133, 135, 136, 137, 138];
+                            @endphp
+                            @if(in_array(auth()->user()->role_id, $accessRoles))
                             <td>
                                 <!-- Settings Icon - Opens Checkbox Modal -->
                                 <button type="button" 
@@ -85,7 +218,7 @@
                                     @endif
                                 </button>
                                 <!-- Checkbox Modal -->
-                                <div class="modal fade" id="checkboxModal-{{ $zone->zone_id }}" tabindex="-1" aria-labelledby="checkboxModalLabel-{{ $zone->zone_id }}" aria-hidden="true">
+                                <div class="modal fade" id="checkboxModal-{{ $zone->zone_id }}" tabindex="-1" aria-labelledby="checkboxModalLabel-{{ $zone->zone_id }}" aria-hidden="true" data-bs-backdrop="true">
                                     <div class="modal-dialog modal-dialog-centered" style="max-width: 600px; width: 95%;">
                                         <div class="modal-content border-0 shadow-lg" style="border-radius: 10px; overflow: hidden;">
                                             <div class="modal-header bg-primary p-4 position-relative" style="background: linear-gradient(135deg, #6f42c1, #007bff) !important;">
@@ -112,10 +245,13 @@
                                                     </div>
                                                 </div>
                                                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" 
-                                                        style="position: absolute; top: 15px; right: 15px;"></button>
+                                                        style="position: absolute; top: 15px; right: 15px; z-index: 1;"></button>
                                             </div>
                                             <form action="{{ route('zones.settings', $zone->zone_id) }}" method="POST">
                                                 @csrf
+                                                @if($modalIsAdmin)
+                                                    <input type="hidden" name="dmc_id" value="{{ $modalAdminDmcId }}">
+                                                @endif
                                                 <div class="modal-body p-4" style="height: 60vh; overflow-y: auto;">
                                                     <div class="modal-body-content">
                                                         @if($zone->zone_type == 'Hotel')
@@ -129,14 +265,19 @@
                                                             <hr class="my-2 border-success-subtle">
                                                             <div class="row g-3 mt-3">
                                                                 @php
-                                                                    $user = auth()->user();
-                                                                    $activeHotels = $hotels->filter(function ($hotel) use ($user) {
-                                                                        return $hotel->status == 1 && in_array($user->userId, (array) $hotel->dmc_id);
+                                                                    $activeHotels = $hotels->filter(function ($hotel) use ($itemBelongsToDmc, $serviceMatchesZone) {
+                                                                        if (($hotel->status ?? 0) != 1) {
+                                                                            return false;
+                                                                        }
+                                                                        if (!$itemBelongsToDmc($hotel)) {
+                                                                            return false;
+                                                                        }
+                                                                        return $serviceMatchesZone($hotel, 'city');
                                                                     });
                                                                 @endphp
                                                                 @foreach($activeHotels as $hotel)
                                                                     @php
-                                                                        $currentZoneForThisDmc = $hotel->getZoneForDmc($user->userId);
+                                                                        $currentZoneForThisDmc = $hotel->getZoneForDmc($modalDmcId);
                                                                         $isAvailable = is_null($currentZoneForThisDmc) || $currentZoneForThisDmc == $zone->zone_id;
                                                                     @endphp
                                                                     @if($isAvailable)
@@ -159,9 +300,9 @@
                                                                 @endforeach
                                                                 
                                                                 @php
-                                                                    $availableHotels = $activeHotels->filter(function($h) use ($zone, $user) { 
-                                                                        $currentZone = $h->getZoneForDmc($user->userId);
-                                                                        return is_null($currentZone) || $currentZone == $zone->zone_id; 
+                                                                    $availableHotels = $activeHotels->filter(function ($h) use ($zone, $modalDmcId) {
+                                                                        $currentZone = $h->getZoneForDmc($modalDmcId);
+                                                                        return is_null($currentZone) || $currentZone == $zone->zone_id;
                                                                     });
                                                                 @endphp
                                                                 @if($availableHotels->count() == 0)
@@ -186,14 +327,19 @@
                                                             <hr class="my-2">
                                                             <div class="row g-3 mt-3">
                                                                 @php
-                                                                    $user = auth()->user();
-                                                                    $activeAttractions = $attractions->filter(function ($attraction) use ($user) {
-                                                                        return $attraction->status == 1 && in_array($user->userId, (array) $attraction->dmc_id);
+                                                                    $activeAttractions = $attractions->filter(function ($attraction) use ($itemBelongsToDmc, $serviceMatchesZone) {
+                                                                        if (($attraction->status ?? 0) != 1) {
+                                                                            return false;
+                                                                        }
+                                                                        if (!$itemBelongsToDmc($attraction)) {
+                                                                            return false;
+                                                                        }
+                                                                        return $serviceMatchesZone($attraction, 'location');
                                                                     });
                                                                 @endphp
                                                                 @foreach($activeAttractions as $attraction)
                                                                     @php
-                                                                        $currentZoneForThisDmc = $attraction->getZoneForDmc($user->userId);
+                                                                        $currentZoneForThisDmc = $attraction->getZoneForDmc($modalDmcId);
                                                                         $isAvailable = is_null($currentZoneForThisDmc) || $currentZoneForThisDmc == $zone->zone_id;
                                                                     @endphp
                                                                     @if($isAvailable)
@@ -216,9 +362,9 @@
                                                                 @endforeach
                                                                 
                                                                 @php
-                                                                    $availableAttractions = $activeAttractions->filter(function($a) use ($zone, $user) { 
-                                                                        $currentZone = $a->getZoneForDmc($user->userId);
-                                                                        return is_null($currentZone) || $currentZone == $zone->zone_id; 
+                                                                    $availableAttractions = $activeAttractions->filter(function ($a) use ($zone, $modalDmcId) {
+                                                                        $currentZone = $a->getZoneForDmc($modalDmcId);
+                                                                        return is_null($currentZone) || $currentZone == $zone->zone_id;
                                                                     });
                                                                 @endphp
                                                                 @if($availableAttractions->count() == 0)
@@ -243,14 +389,19 @@
                                                             <hr class="my-2">
                                                             <div class="row g-3 mt-3">
                                                                 @php
-                                                                    $user = auth()->user();
-                                                                    $activeRestaurants = $restaurants->filter(function ($restaurant) use ($user) {
-                                                                        return $restaurant->status == 1 && in_array($user->userId, (array) $restaurant->dmc_id);
+                                                                    $activeRestaurants = $restaurants->filter(function ($restaurant) use ($itemBelongsToDmc, $serviceMatchesZone) {
+                                                                        if (($restaurant->status ?? 0) != 1) {
+                                                                            return false;
+                                                                        }
+                                                                        if (!$itemBelongsToDmc($restaurant)) {
+                                                                            return false;
+                                                                        }
+                                                                        return $serviceMatchesZone($restaurant, 'city');
                                                                     });
                                                                 @endphp
                                                                 @foreach($activeRestaurants as $restaurant)
                                                                     @php
-                                                                        $currentZoneForThisDmc = $restaurant->getZoneForDmc($user->userId);
+                                                                        $currentZoneForThisDmc = $restaurant->getZoneForDmc($modalDmcId);
                                                                         $isAvailable = is_null($currentZoneForThisDmc) || $currentZoneForThisDmc == $zone->zone_id;
                                                                     @endphp
                                                                     @if($isAvailable)
@@ -273,9 +424,9 @@
                                                                 @endforeach
                                                                 
                                                                 @php
-                                                                    $availableRestaurants = $activeRestaurants->filter(function($r) use ($zone, $user) { 
-                                                                        $currentZone = $r->getZoneForDmc($user->userId);
-                                                                        return is_null($currentZone) || $currentZone == $zone->zone_id; 
+                                                                    $availableRestaurants = $activeRestaurants->filter(function ($r) use ($zone, $modalDmcId) {
+                                                                        $currentZone = $r->getZoneForDmc($modalDmcId);
+                                                                        return is_null($currentZone) || $currentZone == $zone->zone_id;
                                                                     });
                                                                 @endphp
                                                                 @if($availableRestaurants->count() == 0)
@@ -323,23 +474,41 @@
                                         <i class="ri-eye-line" style="font-size: 16px;"></i>
                                     </a>
 
+                                    @php
+                                        $authUser = auth()->user();
+                                        $isAdminUser = (int) ($authUser->userId ?? 0) === 1 || (int) ($authUser->role_id ?? 0) === 1;
+                                        $zoneOwnerDmcId = is_array($zone->dmc_id)
+                                            ? (int) ($zone->dmc_id[0] ?? 0)
+                                            : (int) ($zone->dmc_id ?? 0);
+                                        // Admin (userId/role 1): manage master zones (no dmc_id).
+                                        // DMC users: manage only their own DMC zones.
+                                        $canManageThisZone = $isAdminUser
+                                            ? ($zoneOwnerDmcId === 0)
+                                            : (!empty($dmcId) && $zoneOwnerDmcId > 0 && (int) $zoneOwnerDmcId === (int) $dmcId);
+                                    @endphp
                                     <!-- Edit -->
+                                    @if($canManageThisZone)
                                     <a href="{{ route('zones.edit', Crypt::encrypt($zone->zone_id)) }}" 
                                     class="btn btn-primary btn-sm rounded-circle d-flex justify-content-center align-items-center"
                                     style="width: 28px; height: 28px; padding: 0;" title="Edit">
                                         <i class="ri-pencil-line" style="font-size: 16px;"></i>
                                     </a>
+                                    @endif
                                     <!-- Delete -->
-                                    <form action="{{ route('zones.destroy', Crypt::encrypt($zone->zone_id)) }}" method="POST" class="d-inline">
+                                    @if($canManageThisZone)
+                                    <form action="{{ route('zones.destroy', Crypt::encrypt($zone->zone_id)) }}" method="POST" class="d-inline zone-delete-form">
                                         @csrf
                                         @method('DELETE')
-                                        <button type="submit" 
-                                                class="btn btn-danger btn-sm rounded-circle d-flex justify-content-center align-items-center"
+                                        <button type="button"
+                                                class="btn btn-danger btn-sm rounded-circle d-flex justify-content-center align-items-center btn-delete-zone"
                                                 style="width: 28px; height: 28px; padding: 0;" title="Delete"
-                                                onclick="return confirm('Are you sure you want to delete this port?')">
+                                                data-zone-name="{{ $zone->zone_name }}"
+                                                data-zone-type="{{ strtolower($zone->zone_type ?? 'items') }}"
+                                                data-check-url="{{ route('zones.check-delete', Crypt::encrypt($zone->zone_id)) }}">
                                             <i class="ri-delete-bin-line" style="font-size: 16px;"></i>
                                         </button>
                                     </form>
+                                    @endif
                                 </div>
                             </td>
 
@@ -358,23 +527,228 @@
 @endsection
 
 @push('scripts')
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.min.css">
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.all.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialize all modals
-    const modalTriggers = document.querySelectorAll('[data-bs-toggle="modal"]');
-    
-    modalTriggers.forEach(trigger => {
-        trigger.addEventListener('click', function(e) {
-            e.preventDefault();
-            const targetId = this.getAttribute('data-bs-target');
-            const targetModal = document.querySelector(targetId);
-            
-            if (targetModal) {
-                const modal = new bootstrap.Modal(targetModal);
-                modal.show();
-            } else {
-                console.error('Modal not found:', targetId);
+    const filterForm = document.getElementById('zone-location-filter-form');
+    const countrySelect = document.getElementById('zone_filter_country');
+    const citySelect = document.getElementById('zone_filter_city');
+    const citiesUrl = @json(route('fetch-cities-by-country'));
+
+    if (countrySelect && citySelect && filterForm) {
+        countrySelect.addEventListener('change', function () {
+            const country = this.value;
+            citySelect.innerHTML = '<option value="">All Cities</option>';
+            citySelect.disabled = !country;
+
+            if (!country) {
+                filterForm.submit();
+                return;
             }
+
+            citySelect.innerHTML = '<option value="">Loading cities...</option>';
+            fetch(citiesUrl + '?country=' + encodeURIComponent(country), {
+                headers: { 'Accept': 'application/json' }
+            })
+                .then(function (response) { return response.json(); })
+                .then(function (data) {
+                    citySelect.innerHTML = '<option value="">All Cities</option>';
+                    (data.cities || []).forEach(function (city) {
+                        const opt = document.createElement('option');
+                        opt.value = city.city_id;
+                        opt.textContent = city.name;
+                        citySelect.appendChild(opt);
+                    });
+                    citySelect.disabled = false;
+                    filterForm.submit();
+                })
+                .catch(function () {
+                    citySelect.innerHTML = '<option value="">All Cities</option>';
+                    citySelect.disabled = false;
+                    filterForm.submit();
+                });
+        });
+
+        citySelect.addEventListener('change', function () {
+            if (!this.disabled) {
+                filterForm.submit();
+            }
+        });
+    }
+
+    const isAdminUser = @json((int) (auth()->user()->userId ?? 0) === 1 || (int) (auth()->user()->role_id ?? 0) === 1);
+
+    @if(session('error'))
+    Swal.fire({
+        title: 'Warning',
+        text: @json(session('error')),
+        icon: 'warning',
+        confirmButtonColor: '#f0ad4e',
+        confirmButtonText: 'OK'
+    });
+    @endif
+
+    document.querySelectorAll('.btn-delete-zone').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            const form = this.closest('.zone-delete-form');
+            const zoneName = this.getAttribute('data-zone-name') || 'this zone';
+            const zoneType = this.getAttribute('data-zone-type') || 'items';
+            const checkUrl = this.getAttribute('data-check-url') || '';
+
+            const openConfirmDelete = function () {
+                let html = '<p class="mb-2">Are you sure you want to delete <strong>' + escapeHtml(zoneName) + '</strong>?</p>';
+                if (!isAdminUser) {
+                    html += '<p class="text-muted small mb-0"><i class="ri-information-line me-1"></i>Note: This will also remove this zone assignment from all related ' +
+                        escapeHtml(zoneType) + ' for your <code>DMC</code>.</p>';
+                }
+
+                Swal.fire({
+                    title: 'Delete Zone?',
+                    html: html,
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#dc3545',
+                    cancelButtonColor: '#6c757d',
+                    confirmButtonText: '<i class="ri-delete-bin-line me-1"></i> Yes, delete it',
+                    cancelButtonText: 'Cancel',
+                    reverseButtons: true,
+                    focusCancel: true,
+                    customClass: {
+                        popup: 'swal2-zone-delete',
+                        confirmButton: 'px-4',
+                        cancelButton: 'px-4'
+                    }
+                }).then(function(result) {
+                    if (result.isConfirmed && form) {
+                        btn.disabled = true;
+                        btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+                        form.submit();
+                    }
+                });
+            };
+
+            // Admin: pre-check if zone is mapped before showing delete confirm.
+            if (isAdminUser && checkUrl) {
+                btn.disabled = true;
+                fetch(checkUrl, {
+                    headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                    .then(function (response) { return response.json(); })
+                    .then(function (data) {
+                        btn.disabled = false;
+                        if (data && data.can_delete === false) {
+                            Swal.fire({
+                                title: 'Warning',
+                                text: data.message || 'This zone cannot be deleted.',
+                                icon: 'warning',
+                                confirmButtonColor: '#f0ad4e',
+                                confirmButtonText: 'OK'
+                            });
+                            return;
+                        }
+                        openConfirmDelete();
+                    })
+                    .catch(function () {
+                        btn.disabled = false;
+                        openConfirmDelete();
+                    });
+                return;
+            }
+
+            openConfirmDelete();
+        });
+    });
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // Handle all modals properly to fix aria-hidden and display issues
+    const modalElements = document.querySelectorAll('.modal');
+    
+    modalElements.forEach(function(modalElement) {
+        // Fix aria-hidden issue on show
+        modalElement.addEventListener('show.bs.modal', function() {
+            // Remove aria-hidden before showing
+            this.removeAttribute('aria-hidden');
+            this.setAttribute('aria-modal', 'true');
+        });
+        
+        // Proper cleanup on hide
+        modalElement.addEventListener('hidden.bs.modal', function() {
+            const modalId = this.id;
+            
+            // Ensure modal is properly hidden
+            this.setAttribute('aria-hidden', 'true');
+            this.removeAttribute('aria-modal');
+            this.style.display = 'none';
+            this.classList.remove('show');
+            
+            // Clean up backdrop - remove all backdrops
+            const backdrops = document.querySelectorAll('.modal-backdrop');
+            backdrops.forEach(function(backdrop) {
+                backdrop.remove();
+            });
+            
+            // Remove modal-open class from body if no other modals are open
+            if (!document.querySelector('.modal.show')) {
+                document.body.classList.remove('modal-open');
+                document.body.style.overflow = '';
+                document.body.style.paddingRight = '';
+            }
+            
+            // Move focus back to trigger button if it exists
+            const triggerButton = document.querySelector('[data-bs-target="#' + modalId + '"]');
+            if (triggerButton) {
+                setTimeout(function() {
+                    triggerButton.focus();
+                }, 100);
+            }
+        });
+        
+        // Handle close button focus issue - move focus before modal closes
+        const closeButtons = modalElement.querySelectorAll('[data-bs-dismiss="modal"]');
+        closeButtons.forEach(function(closeBtn) {
+            closeBtn.addEventListener('click', function(e) {
+                // Move focus away immediately to prevent aria-hidden warning
+                const modalId = modalElement.id;
+                const triggerButton = document.querySelector('[data-bs-target="#' + modalId + '"]');
+                
+                // Blur the close button first
+                this.blur();
+                
+                // Then move focus to trigger button
+                if (triggerButton) {
+                    setTimeout(function() {
+                        triggerButton.focus();
+                    }, 0);
+                } else {
+                    // Fallback: focus on body to remove focus from close button
+                    document.body.focus();
+                }
+            });
+        });
+        
+        // Handle ESC key to prevent focus issues
+        modalElement.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                const modalId = this.id;
+                const triggerButton = document.querySelector('[data-bs-target="#' + modalId + '"]');
+                if (triggerButton) {
+                    setTimeout(function() {
+                        triggerButton.focus();
+                    }, 100);
+                }
+            }
+        });
+        
+        // Additional cleanup on hidePrevented
+        modalElement.addEventListener('hidePrevented.bs.modal', function() {
+            // If hide is prevented, ensure aria-hidden is not set
+            this.removeAttribute('aria-hidden');
         });
     });
 });

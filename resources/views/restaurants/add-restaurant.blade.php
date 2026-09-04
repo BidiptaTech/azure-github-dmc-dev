@@ -5,7 +5,12 @@
 <link href="https://cdn.jsdelivr.net/npm/summernote@0.9.0/dist/summernote.min.css" rel="stylesheet">
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+
+<link rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    
 <style>
+   
     .select2-container .select2-selection--single {
         height: 100% !important; /* Adjust as needed */
         line-height: 100% !important;
@@ -116,7 +121,7 @@
                 </a>
             </h5>
             <form id="restaurantForm" method="POST" action="{{ route('restaurant.store') }}"
-                enctype="multipart/form-data" class="card-body">
+                enctype="multipart/form-data" class="card-body js-submit-loader-form" data-loader-message="Saving...">
                 @csrf
                 <!-- Hidden Fields -->
 
@@ -236,7 +241,10 @@
                                     <option value="" selected>Select</option>
                                     <option value="0" {{ old('owned_by') == '0' ? 'selected' : '' }}>Third Party</option>
                                     @foreach($hotels as $hotel)
-                                        <option value="{{ $hotel->hotel_unique_id }}" {{ old('owned_by') == $hotel->hotel_unique_id ? 'selected' : '' }}>
+                                        <option value="{{ $hotel->hotel_unique_id }}"
+                                            data-country="{{ $hotel->country ?? '' }}"
+                                            data-city="{{ $hotel->city ?? '' }}"
+                                            {{ old('owned_by') == $hotel->hotel_unique_id ? 'selected' : '' }}>
                                             {{ $hotel->name }} - {{ $hotel->display_id }}
                                         </option>
                                     @endforeach
@@ -258,7 +266,35 @@
                                 <div class="text-danger mt-1">{{ $message }}</div>
                                 @enderror
                             </div>
+                            <!-- email-->
+                             <div class="col-md-3 mb-3">
+                                <label for="restaurant_email" class="form-label"><strong>Email</strong><span class="text-danger">*</span></label>
+                                <input type="email" class="form-control" name="restaurant_email" placeholder="Enter Email"   autocomplete="new-email"required>
+                                @error('restaurant_email')
+                                <div class="text-danger mt-1">{{ $message }}</div>
+                                @enderror
+                            </div> 
+                             <!-- password-->
+                            <div class="col-md-3 mb-3">
+                                <label for="password" class="form-label"><strong>Password</strong><span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <input id="password" type="password" class="form-control" name="password" placeholder="Enter Password" required>
+                                  <!-- Show / Hide -->
+                                  <button type="button"id="togglePasswordBtn" class="btn btn-outline-secondary  btn-sm px-2" onclick="togglePassword()">
+                                        <i id="eyeIcon" class="bi bi-eye-slash"></i>
+                                    </button>
+                                    <!-- Auto Generate -->
+                                    <button type="button" class="btn btn-outline-secondary  btn-sm px-2" onclick="generatePassword()">
+                                        🔐
+                                    </button>
+                                </div>
+                                @error('password')
+                                <div class="text-danger mt-1">{{ $message }}</div>
+                                @enderror
+                            </div>
                         </div>
+
+                        
 
                         <!-- Meal Availability -->
                         <div class="row">
@@ -401,13 +437,20 @@
 
                     <!-- Submit Buttons -->
                     <div class="d-flex gap-3 mt-4">
-                        <button type="submit" class="btn btn-primary px-4">Save</button>
+                        <button type="submit" class="btn btn-primary px-4 js-submit-loader-btn">
+                            <span class="js-submit-loader-btn-text">Save</span>
+                            <span class="js-submit-loader-btn-loading d-none">
+                                <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                                Saving...
+                            </span>
+                        </button>
                     </div>
             </form>
         </div>
     </div>
 </div>
 <!-- End of the form -->
+<x-form-submit-loader message="Saving..." />
 @endsection
 
 @section('scripts')
@@ -1147,8 +1190,63 @@ $(document).ready(function() {
         $('#owned_by').select2({
             placeholder: "Search and Select Ownership",
             allowClear: true,
-            width: '100%'
+            width: '100%',
+            templateResult: function (state) {
+                if (!state.id) return state.text;
+                if (state.element && (state.element.disabled || state.element.hidden)) {
+                    return null;
+                }
+                return state.text;
+            }
         });
+
+        // Show only hotels matching selected country (+ city when chosen). Keep Third Party always.
+        function filterOwnershipHotelsByLocation() {
+            const country = String($('#country').val() || '').trim().toLowerCase();
+            const city = String($('#citySelect').val() || '').trim().toLowerCase();
+            const $ownedBy = $('#owned_by');
+            const currentVal = $ownedBy.val();
+            let keepCurrent = false;
+
+            $ownedBy.find('option').each(function () {
+                const $opt = $(this);
+                const val = String($opt.val() ?? '');
+
+                // Always keep placeholder + Third Party
+                if (val === '' || val === '0') {
+                    $opt.prop('disabled', false).prop('hidden', false).show();
+                    if (val === currentVal) keepCurrent = true;
+                    return;
+                }
+
+                const hotelCountry = String($opt.attr('data-country') || '').trim().toLowerCase();
+                const hotelCity = String($opt.attr('data-city') || '').trim().toLowerCase();
+
+                let visible = true;
+                if (!country) {
+                    visible = false;
+                } else if (hotelCountry !== country) {
+                    visible = false;
+                } else if (city && hotelCity && hotelCity !== city) {
+                    visible = false;
+                }
+
+                $opt.prop('disabled', !visible).prop('hidden', !visible);
+                if (visible) {
+                    $opt.show();
+                    if (val === currentVal) keepCurrent = true;
+                } else {
+                    $opt.hide();
+                }
+            });
+
+            if (!keepCurrent) {
+                $ownedBy.val('').trigger('change');
+            } else {
+                $ownedBy.trigger('change.select2');
+            }
+        }
+        window.filterOwnershipHotelsByLocation = filterOwnershipHotelsByLocation;
         
         // Check if the user role corresponds to DMC-like roles
         if ([11,20,35,78,120,139,140].includes(userRoleId)) {
@@ -1284,18 +1382,59 @@ $(document).ready(function() {
             if (!selectedCountryValue || selectedCountryValue === '') {
                 // Country cleared, disable city field
                 $('#citySelect').prop('disabled', true).empty().append('<option value="">Select Country First</option>').trigger('change');
+                filterOwnershipHotelsByLocation();
                 return;
             }
             
             loadCitiesByCountry(selectedCountryValue);
+            filterOwnershipHotelsByLocation();
+        });
+
+        // when city changes, narrow ownership hotels further
+        $('#citySelect').on('change', function () {
+            filterOwnershipHotelsByLocation();
         });
 
         // initial load if country pre-selected
         if ($('#country').val()) {
             loadCitiesByCountry($('#country').val());
+            filterOwnershipHotelsByLocation();
+        } else {
+            filterOwnershipHotelsByLocation();
         }
 
-    });
+       
+
+    }); 
+     // password show/hide toggle functionality  
+  function togglePassword() {
+        const passwordField = document.getElementById('password');
+        console.log(passwordField);
+        const eyeBtn = document.getElementById('togglePasswordBtn');
+
+if (passwordField.type === 'password') {
+    passwordField.type = 'text';
+    eyeBtn.innerHTML = '<i id="eyeIcon" class="bi bi-eye"></i>';      // open eye
+} else {
+    passwordField.type = 'password';
+    eyeBtn.innerHTML = ' <i id="eyeIcon" class="bi bi-eye-slash"></i>';      // closed eye
+}
+}
+    
+    // password auto generate functionality
+    function generatePassword() {
+        const length = 10;
+        const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$!";
+        let password = "";
+
+        for (let i = 0; i < length; i++) {
+            password += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+
+        const passwordField = document.getElementById('password');
+        passwordField.value = password;
+        passwordField.type = 'text'; // show generated password
+    }
 </script>
 
 @endsection

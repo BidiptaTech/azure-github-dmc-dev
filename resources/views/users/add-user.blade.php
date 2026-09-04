@@ -78,7 +78,7 @@
             <form action="{{ route('users.store') }}" method="POST" enctype="multipart/form-data" class="card-body">
                 @csrf
                 <input type="hidden" class="form-control" name="code" value="{{ $user_countryCode }}">
-
+                <input type="hidden" name="timezone" id="timezone">
                 <div class="row">
                     <!-- User Salutation -->
                     <div class="col-md-3 mb-3">
@@ -163,7 +163,7 @@
                         <div class="col-md-12">
                             <div class="row">
                             <!-- Dependent Country Select Box (Initially Hidden) -->
-                            <div class="col-md-4" id="mastercountryContainer" style="display: none;">
+                            <div class="col-md-4 mb-3" id="mastercountryContainer" style="display: none;">
                                 <!-- <div class="mb-3">
                                     <label for="masater_country_name" class="form-label"><strong>Country Names</strong>
                                         <span style="color: red; font-weight: bold;">*</span>
@@ -175,7 +175,7 @@
                             </div>
                             
                             <!-- Multiple country select -->
-                            <div class="col-md-4" id="country_names" style="display: none;">
+                            <div class="col-md-4 mb-3" id="country_names" style="display: none;">
                                 <div class="mb-3">
                                     <label for="country_names" class="form-label">
                                         <strong>Country Names</strong>
@@ -194,7 +194,7 @@
                             </div>
 
                             <!-- Assistant Manager Select -->
-                            <div class="col-md-4" id="assistant_manager_container" style="display: none;">
+                            <div class="col-md-4 mb-3" id="assistant_manager_container" style="display: none;">
                                 <!-- <div class="mb-3">
                                     <label for="assistant_manager" class="form-label">
                                         <strong>Assistant Manager</strong>
@@ -210,7 +210,7 @@
                             </div>
 
                             <!-- Master Dmc Logo -->
-                            <div class="col-md-3" id="master_logo" style="display: none;">
+                            <div class="col-md-4 mb-3" id="master_logo" style="display: none;">
                                 <div class="mb-3">
                                     <label for="master_logo" class="form-label">
                                         <strong>Master Dmc Logo</strong>
@@ -221,7 +221,7 @@
                                 </div>
                             </div>
                         @endif
-                            <div class="col-md-3" id="company_name" style="display: none;">
+                            <div class="col-md-4 mb-3" id="company_name" style="display: none;">
                                 <div class="mb-3">
                                     <label for="company_name" class="form-label">
                                         <strong>Company Name</strong>
@@ -231,9 +231,61 @@
                                         name="company_name" placeholder="Enter Your Name">
                                 </div>
                             </div>
+                            <div class="col-md-4 mb-3" id="company_code_container" style="display: none;">
+                                <div class="mb-3">
+                                    <label for="company_code" class="form-label">
+                                        <strong>Company Code</strong>
+                                    </label>
+                                    <input type="text" class="form-control" id="company_code"
+                                        name="company_code" placeholder="Enter Company Code">
+                                </div>
+                            </div>
+                            <div class="col-md-4 mb-3" id="user_code_container">
+                                <div class="mb-3">
+                                    <label for="user_code" class="form-label">
+                                        <strong>User Code</strong>
+                                    </label>
+                                    <input type="text" class="form-control" id="user_code"
+                                        name="user_code" placeholder="Enter User Code">
+                                </div>
+                            </div>
+                            <div class="col-md-4 mb-3" id="company_reg_no_container" style="display: none;">
+                                <div class="mb-3">
+                                    <label for="company_reg_no" class="form-label">
+                                        <strong>Company Reg. No</strong>
+                                    </label>
+                                    <input type="text" class="form-control" id="company_reg_no"
+                                        name="company_reg_no" placeholder="Enter Company Reg. No">
+                                </div>
+                            </div>
+                            <div class="col-md-4 mb-3" id="licence_no_container" style="display: none;">
+                                <div class="mb-3">
+                                    <label for="licence_no" class="form-label">
+                                        <strong>TA License No</strong>
+                                    </label>
+                                    <input type="text" class="form-control" id="licence_no"
+                                        name="licence_no" placeholder="Enter TA License No">
+                                </div>
+                            </div>
+                            <!-- Third Party (DMC only) — values must be string enum: yes|no -->
+                            <div class="col-md-4 mb-3" id="thirdparty_container" style="display: none;">
+                                <div class="mb-3">
+                                    <label for="thirdparty" class="form-label">
+                                        <strong>Third Party DMC</strong>
+                                    </label>
+                                    @php $oldThirdParty = strtolower((string) old('thirdparty', 'no')) === 'yes' ? 'yes' : 'no'; @endphp
+                                    <select class="form-select" id="thirdparty" name="thirdparty">
+                                        <option value="no" @selected($oldThirdParty === 'no')>No</option>
+                                        <option value="yes" @selected($oldThirdParty === 'yes')>Yes</option>
+                                    </select>
+                                    @error('thirdparty')
+                                    <div class="text-danger mt-1">{{ $message }}</div>
+                                    @enderror
+                                </div>
+                            </div>
                         @if(auth()->user()->user_type == 1 || auth()->user()->user_type == 3 || auth()->user()->user_type == 2)
                             <!-- Single Country Select-->
-                            <div class="col-md-4" id="country_name" style="display: none;">
+                            <div class="col-md-4 mb-3" id="country_name" style="display: none;">
                                 <div class="mb-3">
                                     <label for="country_name" class="form-label">
                                         <strong>Country Name</strong>
@@ -251,7 +303,7 @@
                             </div>
                             @endif
 
-                            <div class="col-md-4" id="user_coun">
+                            <div class="col-md-4 mb-3" id="user_coun">
                                 <div class="mb-3">
                                     <label for="user_country" class="form-label">
                                         <strong> User Country</strong>
@@ -260,13 +312,13 @@
                                     <select class="form-select" id="user_country" name="user_country">
                                         <option value>Choose a country...</option>
                                         @foreach($country as $c)
-                                            <option value="{{ $c->name }}">{{ $c->name }}</option>
+                                            <option value="{{ $c->name }}" {{ old('user_country', $dmcLocationPrefill['user_country'] ?? '') == $c->name ? 'selected' : '' }}>{{ $c->name }}</option>
                                         @endforeach
                                     </select>
                                 </div>
                             </div>
 
-                            <div class="col-md-4" id="city_name">
+                            <div class="col-md-4 mb-3" id="city_name">
                                 <div class="mb-3">
                                     <label for="city" class="form-label">
                                         <strong> User City</strong>
@@ -279,14 +331,14 @@
                             </div>
                             
 
-                            <div class="col-md-4" id="city_name">
+                            <div class="col-md-4 mb-3" id="city_name">
                                 <div class="mb-3">
                                     <label for="address" class="form-label">
                                         <strong>Address</strong>
                                         <span style="color: red; font-weight: bold;">*</span>
                                     </label>
                                     <input type="text" class="form-control @error('address') is-invalid @enderror" id="address"
-                                        name="address" placeholder="Enter Address" required>
+                                        name="address" placeholder="Enter Address" value="{{ old('address', $dmcLocationPrefill['address'] ?? '') }}" required>
                                     @error('address')
                                         <div class="text-danger mt-1">{{ $message }}</div>
                                     @enderror
@@ -295,7 +347,7 @@
 
                             @if(auth()->user()->user_type == 1)
                             <!-- Dmc Select-->
-                            <div class="col-md-4" id="inputDmcContainer" style="display: none;">
+                            <div class="col-md-4 mb-3" id="inputDmcContainer" style="display: none;">
                                 <div class="mb-3">
                                     <label for="inputDmc" class="form-label"><strong>Dmc</strong><span
                                             style="color: red; font-weight: bold;">*</span></label>
@@ -311,7 +363,7 @@
                                 </div>
                             </div>
                             <!-- Sales Manager Admin Select--> 
-                            <div class="col-md-4" id="inputSalespersonContainerAdmin" style="display: none;">
+                            <div class="col-md-4 mb-3" id="inputSalespersonContainerAdmin" style="display: none;">
                                 @if(auth()->user()->role_id != 3)
                                 <div class="mb-3">
                                     <label for="inputSalesperson" class="form-label"><strong>Sales Manager (Admin)</strong><span
@@ -330,6 +382,16 @@
                     </div>
                 @endif
                
+                <!-- Currency (read-only, auto-filled from selected country) - only for DMC role -->
+                <div class="row" id="currency_container" style="display: none;">
+                    <div class="col-md-3 mb-3">
+                        <label for="currency" class="form-label"><strong>Currency</strong></label>
+                        <input type="text" class="form-control" id="currency" name="currency"
+                            value="{{ old('currency') }}" placeholder="Select a country first" readonly
+                            style="background-color: #f8f9fa;">
+                        <small class="text-muted">Auto-filled from the selected country</small>
+                    </div>
+                </div>
 
                 <!-- All -->
                 <div class="row">
@@ -338,9 +400,12 @@
                             <label for="inputCountryCode" class="form-label"><strong> Country Code</strong><span
                                     style="color: red; font-weight: bold;">*</span></label>
                             <select class="form-select" id="inputCountryCode" name="code" required>
-                                <option selected disabled value>Choose...</option>
+                                <option disabled value>Choose...</option>
+                                @php
+                                    $selectedCountryCode = old('code', $dmcLocationPrefill['country_code'] ?? '65');
+                                @endphp
                                 @foreach($countryCodes as $key => $value)
-                                <option value="{{ $key }}" @if($key == '65') selected @endif >{{ $value }}</option>
+                                <option value="{{ $key }}" {{ (string) $key === (string) $selectedCountryCode ? 'selected' : '' }}>{{ $value }}</option>
                                 @endforeach
                             </select>
                             @error('code')
@@ -496,9 +561,16 @@
     var country_names = document.getElementById('country_names');
     var master_logo = document.getElementById('master_logo');
     var company_name = document.getElementById('company_name');
+    var company_code_container = document.getElementById('company_code_container');
+    var user_code_container = document.getElementById('user_code_container');
+    var company_reg_no_container = document.getElementById('company_reg_no_container');
+    var licence_no_container = document.getElementById('licence_no_container');
     var inputSalespersonContainerAdmin = document.getElementById('inputSalespersonContainerAdmin');
     var markuptypes = document.getElementById('markuptypes');
     var mastercountryContainer = document.getElementById('mastercountryContainer');
+    var currency_container = document.getElementById('currency_container');
+    var thirdparty_container = document.getElementById('thirdparty_container');
+    var thirdparty = document.getElementById('thirdparty');
 
     function resetHiddenFieldValues() {
         document.querySelectorAll(
@@ -506,7 +578,8 @@
             '#inputDmcContainer input, #inputDmcContainer select, ' +
             '#country_name input, #country_name select, ' +
             '#inputSalespersonContainerAdmin input, #inputSalespersonContainerAdmin select, ' +
-            '#markuptypes select'
+            '#markuptypes select, #company_code_container input, ' +
+            '#company_reg_no_container input, #licence_no_container input'
         ).forEach(function (element) {
             element.value = '';
         });
@@ -523,11 +596,24 @@
         if (country_names) country_names.style.display = 'none';
         if (master_logo) master_logo.style.display = 'none';
         if (company_name) company_name.style.display = 'none';
+        if (company_code_container) company_code_container.style.display = 'none';
+        if (company_reg_no_container) company_reg_no_container.style.display = 'none';
+        if (licence_no_container) licence_no_container.style.display = 'none';
         if (inputSalespersonContainerAdmin) inputSalespersonContainerAdmin.style.display = 'none';
         if (markuptypes) markuptypes.style.display = 'none';
         if (mastercountryContainer) mastercountryContainer.style.display = 'none';
+        if (currency_container) currency_container.style.display = 'none';
+        if (thirdparty_container) thirdparty_container.style.display = 'none';
+        // Preserve string enum (yes|no) across role toggles; do not coerce to boolean/number
+        const preservedThirdParty = thirdparty
+            ? (String(thirdparty.value || 'no').toLowerCase() === 'yes' ? 'yes' : 'no')
+            : 'no';
+        if (thirdparty) {
+            thirdparty.disabled = true; // avoid submitting when not a DMC role
+        }
 
         resetHiddenFieldValues(); // Reset input fields
+        if (user_code_container) user_code_container.style.display = 'block';
 
         // Show elements based on userRole
         if (userRole >= 5 && userRole <= 9) {
@@ -539,9 +625,18 @@
         } else if (userRole === 11 || userRole === 20) {
             if ({{ auth()->user()->role_id }} == 10 || {{ auth()->user()->role_id }} == 19) {
                 if (country_name) country_name.style.display = 'block';
+                if (company_code_container) company_code_container.style.display = 'block';
             }
             if (inputRoleContainer) inputRoleContainer.style.display = 'block';
             if (company_name) company_name.style.display = 'block';
+            if (company_reg_no_container) company_reg_no_container.style.display = 'block';
+            if (licence_no_container) licence_no_container.style.display = 'block';
+            if (currency_container) currency_container.style.display = 'flex';
+            if (thirdparty_container) thirdparty_container.style.display = 'block';
+            if (thirdparty) {
+                thirdparty.disabled = false;
+                thirdparty.value = preservedThirdParty;
+            }
         } else if (userRole === 4) {
             if (inputSalespersonContainerAdmin) inputSalespersonContainerAdmin.style.display = 'block';
         } else if ([3, 24, 25, 26, 27].includes(userRole)) {
@@ -569,7 +664,10 @@
                     countrySelect.empty();
                     countrySelect.append('<option selected disabled>Choose...</option>');
                     if (response.countries.length > 0) {
-                        $.each(response.countries, function (key, value) {
+                        var countries = response.countries.slice().sort(function(a, b) {
+                            return String(a || '').localeCompare(String(b || ''), undefined, { sensitivity: 'base' });
+                        });
+                        $.each(countries, function (key, value) {
                             countrySelect.append(`<option value="${value}">${value}</option>`);
                         });
 
@@ -983,6 +1081,9 @@
 <!-- Add this script after your existing validation scripts -->
 <script>
     $(document).ready(function() {
+        const dmcLocationPrefill = @json($dmcLocationPrefill ?? []);
+        let isInitialLocationPrefill = !!(dmcLocationPrefill.user_country || dmcLocationPrefill.city || dmcLocationPrefill.country_code);
+
         // Initialize Select2 for User Country dropdown
         $('#user_country').select2({
             placeholder: "Search and Select Country",
@@ -1007,6 +1108,9 @@
         // Country selection change handler
         $('#user_country').on('change', function() {
             const selectedCountry = $(this).val();
+            const preferredCity = isInitialLocationPrefill ? (dmcLocationPrefill.city || null) : null;
+            const keepPrefillCountryCode = isInitialLocationPrefill && dmcLocationPrefill.country_code;
+
             if (selectedCountry) {
                 // Show loading state for cities
                 $('#city').html('<option>Loading cities...</option>').trigger('change');
@@ -1022,38 +1126,110 @@
                         $('#city').html('<option selected disabled value>Select city...</option>');
                         
                         if (response.cities && response.cities.length > 0) {
-                            $.each(response.cities, function(key, city) {
-                                $('#city').append('<option value="' + city.name + '">' + city.name + '</option>');
+                            var cities = response.cities.slice().sort(function(a, b) {
+                                return String(a.name || '').localeCompare(String(b.name || ''), undefined, { sensitivity: 'base' });
+                            });
+                            $.each(cities, function(key, city) {
+                                var selected = (preferredCity && city.name === preferredCity) ? 'selected' : '';
+                                $('#city').append('<option value="' + city.name + '" ' + selected + '>' + city.name + '</option>');
                             });
                         } else {
                             $('#city').append('<option disabled>No cities found</option>');
                         }
                         // Trigger change to refresh Select2
                         $('#city').trigger('change');
+                        isInitialLocationPrefill = false;
                     },
                     error: function() {
                         $('#city').html('<option disabled value>Error loading cities</option>').trigger('change');
+                        isInitialLocationPrefill = false;
                     }
                 });
                 
-                // Fetch country code for the selected country
-                $.ajax({
-                    url: "{{ route('get.country.code') }}",
-                    type: "GET",
-                    data: { country: selectedCountry },
-                    dataType: 'json',
-                    success: function(response) {
-                        if (response.success && response.country_code) {
-                            // Find and select the country code option
-                            $('#inputCountryCode').val(response.country_code).trigger('change');
+                // Fetch country code for the selected country (skip overwrite during DMC prefill)
+                if (!keepPrefillCountryCode) {
+                    $.ajax({
+                        url: "{{ route('get.country.code') }}",
+                        type: "GET",
+                        data: { country: selectedCountry },
+                        dataType: 'json',
+                        success: function(response) {
+                            if (response.success && response.country_code) {
+                                // Find and select the country code option
+                                $('#inputCountryCode').val(response.country_code).trigger('change');
+                            }
                         }
-                    }
-                });
+                    });
+                } else if (dmcLocationPrefill.country_code) {
+                    $('#inputCountryCode').val(dmcLocationPrefill.country_code).trigger('change');
+                }
             } else {
                 // Reset cities dropdown if no country selected
                 $('#city').html('<option selected disabled value>Select country first...</option>').trigger('change');
+                isInitialLocationPrefill = false;
             }
         });
+
+        // Prefill from DMC location on page load (fields remain editable)
+        if ($('#user_country').val()) {
+            $('#user_country').trigger('change');
+        }
+
+        // ----- Currency auto-fill based on the selected (assigned) country -----
+        // Note: currency depends on the "Country Name" field(s), NOT on "User Country".
+        function fetchCurrencyForCountry(country) {
+            if (!country) {
+                $('#currency').val('');
+                return;
+            }
+            $.ajax({
+                url: "{{ route('get.currency.by.country') }}",
+                type: "GET",
+                data: { country: country },
+                dataType: 'json',
+                success: function(response) {
+                    $('#currency').val(response.currency || '');
+                },
+                error: function() {
+                    $('#currency').val('');
+                }
+            });
+        }
+
+        // Single "Country Name" select (DMC / role-based single country)
+        $(document).on('change', 'select[name="country_name"]', function() {
+            fetchCurrencyForCountry($(this).val());
+        });
+
+        // Multiple "Country Names" select (Master DMC): use the first selected country
+        $(document).on('change', 'select[name="country_names[]"]', function() {
+            var values = $(this).val();
+            fetchCurrencyForCountry(values && values.length ? values[0] : '');
+        });
+
+        // Read-only "Country Name" text input (role 28, prefilled with auth user's country)
+        $(document).on('change', 'input[name="country_name"]', function() {
+            fetchCurrencyForCountry($(this).val());
+        });
+
+        // Populate currency on load if a country is already set/preselected.
+        (function initCurrency() {
+            var single = $('select[name="country_name"]:visible').val();
+            var multi = $('select[name="country_names[]"]:visible').val();
+            var readonlyCountry = $('input[name="country_name"]').val();
+            var initialCountry = single
+                || (multi && multi.length ? multi[0] : '')
+                || readonlyCountry
+                || '';
+            if (initialCountry) {
+                fetchCurrencyForCountry(initialCountry);
+            }
+        })();
     });
 </script>
+<script>
+    document.getElementById('timezone').value =
+    Intl.DateTimeFormat().resolvedOptions().timeZone;
+</script>
 @endsection
+

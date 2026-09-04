@@ -211,7 +211,7 @@ class BulkUploadController extends Controller
             'port_type','port_name','port_lat','port_lng','port_distance_km',
             'room_category','room_rate_variant','total_no_of_rooms','single_price','double_price','single_weekend_price','double_weekend_price','breakfast','breakfast_type','breakfast_price','lunch','lunch_type','lunch_price','dinner','dinner_type','dinner_price','meal_child_price','room_master_img','room_add_img','base_room',
             'bed_type_name','single_bed_count','king_bed_count','queen_bed_count','twin_bed_count','bunk_bed_count',
-            'map_room_category','map_bed_type','no_of_rooms','extra_bed','extra_bed_type','extra_bed_price','max_adult_allowed','babycot','babycot_price',
+            'map_room_category','map_bed_type','no_of_rooms','extra_bed','extra_bed_type','extra_bed_price','extra_bed_cost_price','max_adult_allowed','babycot','babycot_price','babycot_cost_price',
             'season_name','season_single_price','season_double_price','season_single_weekend_price','season_double_weekend_price','season_start_date','season_end_date',
             'event_name','event_type','price_surcharge','event_start_date','event_end_date'
         ];
@@ -327,9 +327,11 @@ class BulkUploadController extends Controller
         $data[] = $mappingSectionRow;
 
         // Sample room mappings
+        // map_room_category, map_bed_type, no_of_rooms, extra_bed, extra_bed_type,
+        // extra_bed_price, extra_bed_cost_price, max_adult_allowed, babycot, babycot_price, babycot_cost_price
         $roomMappings = [
-            ['Standard', 'King Bed', '5', 'Yes', 'Rollaway Bed', '50', '2', 'Yes', '25'],
-            ['Deluxe', 'Twin Bed', '10', 'Yes', 'Sofa Bed', '75', '3', 'Yes', '30']
+            ['Standard', 'King Bed', '5', 'Yes', 'Rollaway Bed', '50', '40', '2', 'Yes', '25', '20'],
+            ['Deluxe', 'Twin Bed', '10', 'Yes', 'Sofa Bed', '75', '60', '3', 'Yes', '30', '22']
         ];
         foreach ($roomMappings as $mapping) {
             $mappingRow = array_fill(0, count($header), '');
@@ -356,7 +358,7 @@ class BulkUploadController extends Controller
         foreach ($seasons as $season) {
             $seasonRow = array_fill(0, count($header), '');
             for ($i = 0; $i < count($season); $i++) {
-                $seasonRow[61 + $i] = $season[$i]; // Starting from season_name column
+                $seasonRow[63 + $i] = $season[$i]; // Starting from season_name column
             }
             $data[] = $seasonRow;
         }
@@ -378,7 +380,7 @@ class BulkUploadController extends Controller
         foreach ($events as $event) {
             $eventRow = array_fill(0, count($header), '');
             for ($i = 0; $i < count($event); $i++) {
-                $eventRow[68 + $i] = $event[$i]; // Starting from event_name column
+                $eventRow[70 + $i] = $event[$i]; // Starting from event_name column
             }
             $data[] = $eventRow;
         }
@@ -773,17 +775,25 @@ class BulkUploadController extends Controller
             'Experience Years*',
             'Languages*',
             'Proficiency*',
-            'Minimum Base Price*',
+            'Minimum Sell Price*',
+            'Minimum Cost Price*',
             'Night Surcharge*',
             'Night Start Time*',
             'Night End Time*',
-            'Hourly Price*',
-            'Two Hour Price*',
-            'Four Hour Price*',
-            'Six Hour Price*',
-            'Eight Hour Price*',
-            'Ten Hour Price*',
-            'Twelve Hour Price*',
+            'Hourly Sell Price*',
+            'Hourly Cost Price*',
+            'Two Hour Sell Price*',
+            'Two Hour Cost Price*',
+            'Four Hour Sell Price*',
+            'Four Hour Cost Price*',
+            'Six Hour Sell Price*',
+            'Six Hour Cost Price*',
+            'Eight Hour Sell Price*',
+            'Eight Hour Cost Price*',
+            'Ten Hour Sell Price*',
+            'Ten Hour Cost Price*',
+            'Twelve Hour Sell Price*',
+            'Twelve Hour Cost Price*',
             'About*',
             'Status (1=Active, 0=Inactive)'
         ];
@@ -809,16 +819,24 @@ class BulkUploadController extends Controller
             'English',
             'Fluent',
             '180',
+            '150',
             '10',
             '18:00',
             '06:00',
             '30',
+            '25',
             '55',
+            '46',
             '100',
+            '83',
             '140',
+            '117',
             '180',
+            '150',
             '220',
+            '183',
             '250',
+            '208',
             'Professional tour guide with 5 years experience',
             '1'
         ];
@@ -841,6 +859,14 @@ class BulkUploadController extends Controller
             '',
             'Hindi',
             'Intermediate',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
             '',
             '',
             '',
@@ -886,6 +912,14 @@ class BulkUploadController extends Controller
             '',
             '',
             '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
             ''
         ];
 
@@ -908,16 +942,24 @@ class BulkUploadController extends Controller
             'Spanish',
             'Fluent',
             '200',
+            '170',
             '15',
             '19:00',
             '07:00',
             '35',
+            '29',
             '65',
+            '54',
             '120',
+            '100',
             '160',
+            '133',
             '200',
+            '167',
             '240',
+            '200',
             '280',
+            '233',
             'Experienced cultural guide specializing in heritage tours',
             '1'
         ];
@@ -1643,16 +1685,9 @@ class BulkUploadController extends Controller
                     $restaurant->images = json_encode($imagesArray);
                 }
                 
-                // Generate unique restaurant_id
-                $lastRestaurant = Restaurant::withTrashed()->orderBy('created_at', 'desc')->first();
-                $restaurant_max_id = $lastRestaurant->restaurant_id ?? 0;
-                $restaurantId = \App\Helpers\CommonHelper::createId($restaurant_max_id);
-                while (Restaurant::where('restaurant_id', $restaurantId)->exists()) {
-                    $restaurantId = \App\Helpers\CommonHelper::createId($restaurantId);
-                }
-                
-                $restaurant->restaurant_id = $restaurantId; // <-- critical line
+                // restaurant_id is assigned by DB sequence on save (same as RestaurantController::store)
                 $restaurant->save();
+                $restaurant->refresh();
                 $successCount++;
                 
             } catch (\Exception $e) {
@@ -1784,15 +1819,7 @@ class BulkUploadController extends Controller
 
     private function createMeal($restaurant, $mealType, $beverage, $mealsType, $itemName, $itemPrice, $itemType, $adultPrice, $childPrice, $itemDescription, $mealStatus, $userId)
     {
-        $lastMeal = Meal::withTrashed()->orderBy('created_at', 'desc')->first();
-        $meal_max_id = $lastMeal->meal_id ?? 0;
-        $mealId = \App\Helpers\CommonHelper::createId($meal_max_id);
-        while (Meal::where('meal_id', $mealId)->exists()) {
-            $mealId = \App\Helpers\CommonHelper::createId($mealId);
-        }
-        
         $meal = new Meal();
-        $meal->meal_id = $mealId;
         $meal->restaurant_id = $restaurant->restaurant_id;
         $meal->name = $itemName ?: 'Menu Item';
         $meal->item_description = $itemDescription;
@@ -1843,6 +1870,7 @@ class BulkUploadController extends Controller
         $meal->created_by = $userId;
         
         $meal->save();
+        $meal->refresh();
         
         return $meal;
     }
@@ -1885,19 +1913,27 @@ class BulkUploadController extends Controller
                 $experienceYears = trim($row[13] ?? '');
                 $language = trim($row[14] ?? '');
                 $proficiency = trim($row[15] ?? '');
-                $minimumBasePrice = trim($row[16] ?? '');
-                $nightSurcharge = trim($row[17] ?? '');
-                $nightStartTime = trim($row[18] ?? '');
-                $nightEndTime = trim($row[19] ?? '');
-                $hourlyPrice = trim($row[20] ?? '');
-                $twoHourPrice = trim($row[21] ?? '');
-                $fourHourPrice = trim($row[22] ?? '');
-                $sixHourPrice = trim($row[23] ?? '');
-                $eightHourPrice = trim($row[24] ?? '');
-                $tenHourPrice = trim($row[25] ?? '');
-                $twelveHourPrice = trim($row[26] ?? '');
-                $about = trim($row[27] ?? '');
-                $status = trim($row[28] ?? '1');
+                $minimumSellPrice = trim($row[16] ?? '');
+                $minimumCostPrice = trim($row[17] ?? '');
+                $nightSurcharge = trim($row[18] ?? '');
+                $nightStartTime = trim($row[19] ?? '');
+                $nightEndTime = trim($row[20] ?? '');
+                $hourlyPrice = trim($row[21] ?? '');
+                $hourlyCostPrice = trim($row[22] ?? '');
+                $twoHourPrice = trim($row[23] ?? '');
+                $twoHourCostPrice = trim($row[24] ?? '');
+                $fourHourPrice = trim($row[25] ?? '');
+                $fourHourCostPrice = trim($row[26] ?? '');
+                $sixHourPrice = trim($row[27] ?? '');
+                $sixHourCostPrice = trim($row[28] ?? '');
+                $eightHourPrice = trim($row[29] ?? '');
+                $eightHourCostPrice = trim($row[30] ?? '');
+                $tenHourPrice = trim($row[31] ?? '');
+                $tenHourCostPrice = trim($row[32] ?? '');
+                $twelveHourPrice = trim($row[33] ?? '');
+                $twelveHourCostPrice = trim($row[34] ?? '');
+                $about = trim($row[35] ?? '');
+                $status = trim($row[36] ?? '1');
                 
                 // Check if this is a new guide or additional language for existing guide
                 if (!empty($guideName) && !empty($email) && !empty($contactNo)) {
@@ -1908,10 +1944,11 @@ class BulkUploadController extends Controller
                         empty($serviceType) || empty($age) || empty($masterImage) || empty($licenseNumber) || 
                         empty($licenseImage) || empty($licenseExpiryDate) || empty($city) || empty($country) || 
                         empty($experienceYears) || empty($language) || empty($proficiency) || 
-                        empty($minimumBasePrice) || empty($nightSurcharge) || empty($nightStartTime) || 
-                        empty($nightEndTime) || empty($hourlyPrice) || empty($twoHourPrice) || 
-                        empty($fourHourPrice) || empty($sixHourPrice) || empty($eightHourPrice) || 
-                        empty($tenHourPrice) || empty($twelveHourPrice) || empty($about)) {
+                        empty($minimumSellPrice) || empty($minimumCostPrice) || empty($nightSurcharge) || empty($nightStartTime) || 
+                        empty($nightEndTime) || empty($hourlyPrice) || empty($hourlyCostPrice) || empty($twoHourPrice) ||
+                        empty($twoHourCostPrice) || empty($fourHourPrice) || empty($fourHourCostPrice) ||
+                        empty($sixHourPrice) || empty($sixHourCostPrice) || empty($eightHourPrice) || empty($eightHourCostPrice) ||
+                        empty($tenHourPrice) || empty($tenHourCostPrice) || empty($twelveHourPrice) || empty($twelveHourCostPrice) || empty($about)) {
                         $errors[] = "Row {$rowNumber}: Missing required fields for new guide";
                         $errorCount++;
                         continue;
@@ -1996,17 +2033,8 @@ class BulkUploadController extends Controller
                     // Mark this guide as being processed
                     $processedGuides[$guideKey] = $rowNumber;
                     
-                    // Generate unique guide ID
-                    $lastGuide = Guide::withTrashed()->orderBy('created_at', 'desc')->first();
-                    $guide_max_id = $lastGuide->guide_id ?? 0;
-                    $guideId = \App\Helpers\CommonHelper::createId($guide_max_id);
-                    while (Guide::where('guide_id', $guideId)->exists()) {
-                        $guideId = \App\Helpers\CommonHelper::createId($guideId);
-                    }
-                    
-                    // Create new guide
+                    // Create new guide — guide_id auto-assigned on save (same as GuideController::store)
                     $guide = new Guide();
-                    $guide->guide_id = $guideId;
                     $guide->salutation = $salutation;
                     $guide->guide_gender = $gender;
                     $guide->name = $guideName;
@@ -2021,17 +2049,25 @@ class BulkUploadController extends Controller
                     $guide->city = $city;
                     $guide->country = $country;
                     $guide->experience_years = is_numeric($experienceYears) ? intval($experienceYears) : 0;
-                    $guide->day_rate = is_numeric($minimumBasePrice) ? floatval($minimumBasePrice) : 0;
+                    $guide->day_rate = is_numeric($minimumSellPrice) ? floatval($minimumSellPrice) : 0;
+                    $guide->minimum_cost_price = is_numeric($minimumCostPrice) ? floatval($minimumCostPrice) : 0;
                     $guide->night_surcharge = is_numeric($nightSurcharge) ? floatval($nightSurcharge) : 0;
                     $guide->night_start_time = $nightStartTime;
                     $guide->night_end_time = $nightEndTime;
                     $guide->hourly_price = is_numeric($hourlyPrice) ? floatval($hourlyPrice) : 0;
+                    $guide->hourly_cost_price = is_numeric($hourlyCostPrice) ? floatval($hourlyCostPrice) : 0;
                     $guide->two_hour_price = is_numeric($twoHourPrice) ? floatval($twoHourPrice) : 0;
+                    $guide->two_hour_cost_price = is_numeric($twoHourCostPrice) ? floatval($twoHourCostPrice) : 0;
                     $guide->four_hour_price = is_numeric($fourHourPrice) ? floatval($fourHourPrice) : 0;
+                    $guide->four_hour_cost_price = is_numeric($fourHourCostPrice) ? floatval($fourHourCostPrice) : 0;
                     $guide->six_hour_price = is_numeric($sixHourPrice) ? floatval($sixHourPrice) : 0;
+                    $guide->six_hour_cost_price = is_numeric($sixHourCostPrice) ? floatval($sixHourCostPrice) : 0;
                     $guide->eight_hour_price = is_numeric($eightHourPrice) ? floatval($eightHourPrice) : 0;
+                    $guide->eight_hour_cost_price = is_numeric($eightHourCostPrice) ? floatval($eightHourCostPrice) : 0;
                     $guide->ten_hour_price = is_numeric($tenHourPrice) ? floatval($tenHourPrice) : 0;
+                    $guide->ten_hour_cost_price = is_numeric($tenHourCostPrice) ? floatval($tenHourCostPrice) : 0;
                     $guide->twelve_hour_price = is_numeric($twelveHourPrice) ? floatval($twelveHourPrice) : 0;
+                    $guide->twelve_hour_cost_price = is_numeric($twelveHourCostPrice) ? floatval($twelveHourCostPrice) : 0;
                     $guide->description = $about;
                     $guide->is_active = ($status == '1') ? 1 : 0;
                     $guide->status = 1; // Default approved status
@@ -2039,6 +2075,7 @@ class BulkUploadController extends Controller
                     $guide->created_by = $auth_user->userId;
                     
                     $guide->save();
+                    $guide->refresh();
                     
                     // Set current guide for language processing
                     $currentGuide = $guide;
@@ -2122,16 +2159,13 @@ class BulkUploadController extends Controller
             $existingLanguage->proficiency = $proficiency;
             $existingLanguage->save();
         } else {
-            // Create new language entry
-            $max_language_id = \App\Models\GuideLanguage::max('language_id') ?? 0;
-            $language_id = \App\Helpers\CommonHelper::createId($max_language_id);
-            
-            \App\Models\GuideLanguage::create([
+            // Create new language entry — language_id auto-assigned on save
+            $guideLanguage = \App\Models\GuideLanguage::create([
                 'guide_id' => $guideId,
-                'language_id' => $language_id,
                 'language' => $language,
                 'proficiency' => $proficiency,
             ]);
+            $guideLanguage->refresh();
         }
     }
 
@@ -2158,18 +2192,30 @@ class BulkUploadController extends Controller
             'Attraction Shared Transport Price*',
             'Restaurant Private Transport Price*',
             'Restaurant Shared Transport Price*',
-            'Base Price*',
-            'Cost per KM Below 10*',
-            'Cost per KM 10 to 25*',
-            'Cost per KM Above 25*',
-            'Cost per Hour*',
-            'Cancel Cost*',
-            'Night Base Price*',
-            'Night Cost per KM Below 10*',
-            'Night Cost per KM 10 to 25*',
-            'Night Cost per KM Above 25*',
-            'Night Cost per Hour*',
-            'Night Cancel Cost*',
+            'Base Sell Price*',
+            'Base Cost Price*',
+            'Per KM Below 10 Sell Price*',
+            'Per KM Below 10 Cost Price*',
+            'Per KM 10-25 Sell Price*',
+            'Per KM 10-25 Cost Price*',
+            'Per KM Above 25 Sell Price*',
+            'Per KM Above 25 Cost Price*',
+            'Per Hour Sell Price*',
+            'Per Hour Cost Price*',
+            'Cancel Sell Price*',
+            'Cancel Cost Price*',
+            'Night Base Sell Price*',
+            'Night Base Cost Price*',
+            'Night Per KM Below 10 Sell Price*',
+            'Night Per KM Below 10 Cost Price*',
+            'Night Per KM 10-25 Sell Price*',
+            'Night Per KM 10-25 Cost Price*',
+            'Night Per KM Above 25 Sell Price*',
+            'Night Per KM Above 25 Cost Price*',
+            'Night Per Hour Sell Price*',
+            'Night Per Hour Cost Price*',
+            'Night Cancel Sell Price*',
+            'Night Cancel Cost Price*',
             'Vehicle Image*',
             'Description*',
             'Status (1=Active, 0=Inactive)'
@@ -2193,17 +2239,29 @@ class BulkUploadController extends Controller
             '30.00',
             '', // Empty for private
             '80.00',
+            '65.00',
             '2.50',
             '2.00',
+            '2.00',
+            '1.60',
             '1.80',
+            '1.50',
             '15.00',
+            '12.00',
             '20.00',
+            '16.00',
             '100.00',
+            '80.00',
             '3.00',
+            '2.40',
             '2.50',
+            '2.00',
             '2.20',
+            '1.80',
             '18.00',
+            '14.00',
             '25.00',
+            '20.00',
             'https://stgdmcappdev.blob.core.windows.net/uploads/vehicle_1234.jpg',
             'Comfortable sedan for city travel',
             '1'
@@ -2224,17 +2282,29 @@ class BulkUploadController extends Controller
             '', // Empty for sharable
             '25.00',
             '60.00',
+            '48.00',
             '2.00',
+            '1.60',
             '1.80',
             '1.50',
+            '1.50',
+            '1.20',
             '12.00',
+            '10.00',
             '15.00',
+            '12.00',
             '80.00',
+            '64.00',
             '2.50',
+            '2.00',
             '2.20',
             '1.80',
+            '1.80',
+            '1.50',
             '15.00',
+            '12.00',
             '20.00',
+            '16.00',
             'https://stgdmcappdev.blob.core.windows.net/uploads/vehicle_5678.jpg',
             'Economical shared ride option',
             '1'
@@ -2255,17 +2325,29 @@ class BulkUploadController extends Controller
             '28.00',
             '20.00',
             '70.00',
+            '56.00',
             '2.20',
+            '1.80',
             '1.90',
+            '1.50',
             '1.60',
+            '1.30',
             '13.00',
+            '10.50',
             '18.00',
+            '14.50',
             '90.00',
+            '72.00',
             '2.80',
+            '2.20',
             '2.30',
+            '1.85',
             '2.00',
+            '1.60',
             '16.00',
+            '13.00',
             '22.00',
+            '18.00',
             'https://stgdmcappdev.blob.core.windows.net/uploads/vehicle_9012.jpg',
             'Versatile vehicle for both private and shared rides',
             '1'
@@ -2912,17 +2994,8 @@ class BulkUploadController extends Controller
                 // Mark this driver as being processed
                 $processedDrivers[$driverKey] = $rowNumber;
                 
-                // Generate unique driver ID
-                $lastDriver = Driver::withTrashed()->orderBy('created_at', 'desc')->first();
-                $driver_max_id = $lastDriver->driver_id ?? 0;
-                $driverId = \App\Helpers\CommonHelper::createId($driver_max_id);
-                while (Driver::where('driver_id', $driverId)->exists()) {
-                    $driverId = \App\Helpers\CommonHelper::createId($driverId);
-                }
-                
-                // Create new driver
+                // Create new driver — driver_id auto-assigned on save (same as DriverController::store)
                 $driver = new Driver();
-                $driver->driver_id = $driverId;
                 $driver->salutation = $salutation;
                 $driver->driver_gender = $driverGender;
                 $driver->name = $driverName;
@@ -2947,6 +3020,7 @@ class BulkUploadController extends Controller
                 $driver->operational_country_id = 1;
                 
                 $driver->save();
+                $driver->refresh();
                 $successCount++;
                 
             } catch (\Exception $e) {
@@ -3144,20 +3218,32 @@ class BulkUploadController extends Controller
                 $restaurantPrivatePrice = trim($row[10] ?? '');
                 $restaurantSharedPrice = trim($row[11] ?? '');
                 $basePrice = trim($row[12] ?? '');
-                $costPerKmBelow10 = trim($row[13] ?? '');
-                $costPerKm10To25 = trim($row[14] ?? '');
-                $costPerKmAbove25 = trim($row[15] ?? '');
-                $costPerHour = trim($row[16] ?? '');
-                $cancelCost = trim($row[17] ?? '');
-                $nightBasePrice = trim($row[18] ?? '');
-                $nightCostPerKmBelow10 = trim($row[19] ?? '');
-                $nightCostPerKm10To25 = trim($row[20] ?? '');
-                $nightCostPerKmAbove25 = trim($row[21] ?? '');
-                $nightCostPerHour = trim($row[22] ?? '');
-                $nightCancelCost = trim($row[23] ?? '');
-                $vehicleImage = trim($row[24] ?? '');
-                $description = trim($row[25] ?? '');
-                $status = trim($row[26] ?? '1');
+                $baseCostPrice = trim($row[13] ?? '');
+                $costPerKmBelow10 = trim($row[14] ?? '');
+                $perKmBelow10CostPrice = trim($row[15] ?? '');
+                $costPerKm10To25 = trim($row[16] ?? '');
+                $perKm10To25CostPrice = trim($row[17] ?? '');
+                $costPerKmAbove25 = trim($row[18] ?? '');
+                $perKmAbove25CostPrice = trim($row[19] ?? '');
+                $costPerHour = trim($row[20] ?? '');
+                $perHourCostPrice = trim($row[21] ?? '');
+                $cancelCost = trim($row[22] ?? '');
+                $cancelCostPrice = trim($row[23] ?? '');
+                $nightBasePrice = trim($row[24] ?? '');
+                $nightBaseCostPrice = trim($row[25] ?? '');
+                $nightCostPerKmBelow10 = trim($row[26] ?? '');
+                $nightPerKmBelow10CostPrice = trim($row[27] ?? '');
+                $nightCostPerKm10To25 = trim($row[28] ?? '');
+                $nightPerKm10To25CostPrice = trim($row[29] ?? '');
+                $nightCostPerKmAbove25 = trim($row[30] ?? '');
+                $nightPerKmAbove25CostPrice = trim($row[31] ?? '');
+                $nightCostPerHour = trim($row[32] ?? '');
+                $nightPerHourCostPrice = trim($row[33] ?? '');
+                $nightCancelCost = trim($row[34] ?? '');
+                $nightCancelCostPrice = trim($row[35] ?? '');
+                $vehicleImage = trim($row[36] ?? '');
+                $description = trim($row[37] ?? '');
+                $status = trim($row[38] ?? '1');
                 
                 // Validate required fields with specific missing field names
                 $missingFields = [];
@@ -3169,18 +3255,30 @@ class BulkUploadController extends Controller
                 if (empty($seatingCapacity)) $missingFields[] = 'Seating Capacity';
                 if (empty($city)) $missingFields[] = 'City';
                 if (empty($vehicleSharingOption)) $missingFields[] = 'Vehicle Sharing Option';
-                if (empty($basePrice)) $missingFields[] = 'Base Price';
-                if (empty($costPerKmBelow10)) $missingFields[] = 'Cost per KM Below 10';
-                if (empty($costPerKm10To25)) $missingFields[] = 'Cost per KM 10 to 25';
-                if (empty($costPerKmAbove25)) $missingFields[] = 'Cost per KM Above 25';
-                if (empty($costPerHour)) $missingFields[] = 'Cost per Hour';
-                if (empty($cancelCost)) $missingFields[] = 'Cancel Cost';
-                if (empty($nightBasePrice)) $missingFields[] = 'Night Base Price';
-                if (empty($nightCostPerKmBelow10)) $missingFields[] = 'Night Cost per KM Below 10';
-                if (empty($nightCostPerKm10To25)) $missingFields[] = 'Night Cost per KM 10 to 25';
-                if (empty($nightCostPerKmAbove25)) $missingFields[] = 'Night Cost per KM Above 25';
-                if (empty($nightCostPerHour)) $missingFields[] = 'Night Cost per Hour';
-                if (empty($nightCancelCost)) $missingFields[] = 'Night Cancel Cost';
+                if (empty($basePrice)) $missingFields[] = 'Base Sell Price';
+                if (empty($baseCostPrice)) $missingFields[] = 'Base Cost Price';
+                if (empty($costPerKmBelow10)) $missingFields[] = 'Per KM Below 10 Sell Price';
+                if (empty($perKmBelow10CostPrice)) $missingFields[] = 'Per KM Below 10 Cost Price';
+                if (empty($costPerKm10To25)) $missingFields[] = 'Per KM 10-25 Sell Price';
+                if (empty($perKm10To25CostPrice)) $missingFields[] = 'Per KM 10-25 Cost Price';
+                if (empty($costPerKmAbove25)) $missingFields[] = 'Per KM Above 25 Sell Price';
+                if (empty($perKmAbove25CostPrice)) $missingFields[] = 'Per KM Above 25 Cost Price';
+                if (empty($costPerHour)) $missingFields[] = 'Per Hour Sell Price';
+                if (empty($perHourCostPrice)) $missingFields[] = 'Per Hour Cost Price';
+                if (empty($cancelCost)) $missingFields[] = 'Cancel Sell Price';
+                if (empty($cancelCostPrice)) $missingFields[] = 'Cancel Cost Price';
+                if (empty($nightBasePrice)) $missingFields[] = 'Night Base Sell Price';
+                if (empty($nightBaseCostPrice)) $missingFields[] = 'Night Base Cost Price';
+                if (empty($nightCostPerKmBelow10)) $missingFields[] = 'Night Per KM Below 10 Sell Price';
+                if (empty($nightPerKmBelow10CostPrice)) $missingFields[] = 'Night Per KM Below 10 Cost Price';
+                if (empty($nightCostPerKm10To25)) $missingFields[] = 'Night Per KM 10-25 Sell Price';
+                if (empty($nightPerKm10To25CostPrice)) $missingFields[] = 'Night Per KM 10-25 Cost Price';
+                if (empty($nightCostPerKmAbove25)) $missingFields[] = 'Night Per KM Above 25 Sell Price';
+                if (empty($nightPerKmAbove25CostPrice)) $missingFields[] = 'Night Per KM Above 25 Cost Price';
+                if (empty($nightCostPerHour)) $missingFields[] = 'Night Per Hour Sell Price';
+                if (empty($nightPerHourCostPrice)) $missingFields[] = 'Night Per Hour Cost Price';
+                if (empty($nightCancelCost)) $missingFields[] = 'Night Cancel Sell Price';
+                if (empty($nightCancelCostPrice)) $missingFields[] = 'Night Cancel Cost Price';
                 if (empty($vehicleImage)) $missingFields[] = 'Vehicle Image';
                 if (empty($description)) $missingFields[] = 'Description';
                 
@@ -3301,17 +3399,8 @@ class BulkUploadController extends Controller
                 // Mark this vehicle as being processed
                 $processedVehicles[$vehicleKey] = $rowNumber;
                 
-                // Generate unique vehicle ID
-                $lastVehicle = Vehicle::withTrashed()->orderBy('created_at', 'desc')->first();
-                $vehicle_max_id = $lastVehicle->vehicle_id ?? 0;
-                $vehicleId = \App\Helpers\CommonHelper::createId($vehicle_max_id);
-                while (Vehicle::where('vehicle_id', $vehicleId)->exists()) {
-                    $vehicleId = \App\Helpers\CommonHelper::createId($vehicleId);
-                }
-                
-                // Create new vehicle (same structure as VehicleController)
+                // Create new vehicle — vehicle_id auto-assigned on save (same as VehicleController::store)
                 $vehicle = new Vehicle();
-                $vehicle->vehicle_id = $vehicleId;
                 $vehicle->vehicle_name = $vehicleName;
                 $vehicle->vehicle_type = $vehicleType;
                 $vehicle->vehicle_model = $vehicleModel;
@@ -3341,21 +3430,34 @@ class BulkUploadController extends Controller
                 
                 // Set pricing fields
                 $vehicle->base_price = is_numeric($basePrice) ? floatval($basePrice) : 0;
+                $vehicle->base_cost_price = is_numeric($baseCostPrice) ? floatval($baseCostPrice) : 0;
                 $vehicle->cost_per_km_below_10 = is_numeric($costPerKmBelow10) ? floatval($costPerKmBelow10) : 0;
+                $vehicle->per_km_below_10_cost_price = is_numeric($perKmBelow10CostPrice) ? floatval($perKmBelow10CostPrice) : 0;
                 $vehicle->cost_per_km_10_to_25 = is_numeric($costPerKm10To25) ? floatval($costPerKm10To25) : 0;
+                $vehicle->per_km_10_to_25_cost_price = is_numeric($perKm10To25CostPrice) ? floatval($perKm10To25CostPrice) : 0;
                 $vehicle->cost_per_km_above_25 = is_numeric($costPerKmAbove25) ? floatval($costPerKmAbove25) : 0;
+                $vehicle->per_km_above_25_cost_price = is_numeric($perKmAbove25CostPrice) ? floatval($perKmAbove25CostPrice) : 0;
                 $vehicle->cost_per_hour = is_numeric($costPerHour) ? floatval($costPerHour) : 0;
+                $vehicle->per_hour_cost_price = is_numeric($perHourCostPrice) ? floatval($perHourCostPrice) : 0;
                 $vehicle->cancel_cost = is_numeric($cancelCost) ? floatval($cancelCost) : 0;
+                $vehicle->cancel_cost_price = is_numeric($cancelCostPrice) ? floatval($cancelCostPrice) : 0;
                 
                 // Set night pricing fields
                 $vehicle->night_base_price = is_numeric($nightBasePrice) ? floatval($nightBasePrice) : 0;
+                $vehicle->night_base_cost_price = is_numeric($nightBaseCostPrice) ? floatval($nightBaseCostPrice) : 0;
                 $vehicle->night_cost_per_km_below_10 = is_numeric($nightCostPerKmBelow10) ? floatval($nightCostPerKmBelow10) : 0;
+                $vehicle->night_per_km_below_10_cost_price = is_numeric($nightPerKmBelow10CostPrice) ? floatval($nightPerKmBelow10CostPrice) : 0;
                 $vehicle->night_cost_per_km_10_to_25 = is_numeric($nightCostPerKm10To25) ? floatval($nightCostPerKm10To25) : 0;
+                $vehicle->night_per_km_10_to_25_cost_price = is_numeric($nightPerKm10To25CostPrice) ? floatval($nightPerKm10To25CostPrice) : 0;
                 $vehicle->night_cost_per_km_above_25 = is_numeric($nightCostPerKmAbove25) ? floatval($nightCostPerKmAbove25) : 0;
+                $vehicle->night_per_km_above_25_cost_price = is_numeric($nightPerKmAbove25CostPrice) ? floatval($nightPerKmAbove25CostPrice) : 0;
                 $vehicle->night_cost_per_hour = is_numeric($nightCostPerHour) ? floatval($nightCostPerHour) : 0;
+                $vehicle->night_per_hour_cost_price = is_numeric($nightPerHourCostPrice) ? floatval($nightPerHourCostPrice) : 0;
                 $vehicle->night_cancel_cost = is_numeric($nightCancelCost) ? floatval($nightCancelCost) : 0;
+                $vehicle->night_cancel_cost_price = is_numeric($nightCancelCostPrice) ? floatval($nightCancelCostPrice) : 0;
                 
                 $vehicle->save();
+                $vehicle->refresh();
                 $successCount++;
                 
             } catch (\Exception $e) {
@@ -3564,24 +3666,6 @@ class BulkUploadController extends Controller
                     // Mark this attraction as being processed
                     $processedAttractions[$attractionKey] = $rowNumber;
                     
-                    // Generate unique attraction ID
-                    $lastAttraction = Attraction::withTrashed()->orderBy('attraction_id', 'desc')->first();
-                    $attraction_max_id = $lastAttraction->attraction_id ?? 0;
-                    
-                    // Generate new ID with retry logic
-                    $maxRetries = 10;
-                    $retryCount = 0;
-                    do {
-                        $attractionId = \App\Helpers\CommonHelper::createId($attraction_max_id + $retryCount);
-                        $retryCount++;
-                    } while (Attraction::where('attraction_id', $attractionId)->exists() && $retryCount < $maxRetries);
-                    
-                    if ($retryCount >= $maxRetries) {
-                        $errors[] = "Row {$rowNumber}: Could not generate unique attraction ID";
-                        $errorCount++;
-                        continue;
-                    }
-                    
                     // Process additional images (comma-separated to JSON array)
                     $additionalImagesArray = [];
                     if (!empty($additionalImages)) {
@@ -3591,9 +3675,8 @@ class BulkUploadController extends Controller
                     // Use Important Notes as description (no additional data appended)
                     $description = $importantNotes;
                   
-                    // Create attraction record
+                    // Create attraction record — attraction_id auto-assigned on save
                     $attraction = new Attraction();
-                    $attraction->attraction_id = $attractionId;
                     $attraction->name = $attractionName;
                     $attraction->description = $description;
                     $attraction->master_image = $masterImage;
@@ -3645,6 +3728,7 @@ class BulkUploadController extends Controller
                     }
                     
                     $attraction->save();
+                    $attraction->refresh();
                     $successCount++;
                     
                 } catch (\Exception $e) {
@@ -3861,24 +3945,8 @@ class BulkUploadController extends Controller
                         continue;
                     }
                     
-                    // Generate unique ticket ID - get the maximum ticket_id and increment
-                    $maxTicketId = \App\Models\Ticket::withTrashed()->max('ticket_id');
-                    
-                    // Ensure it's at least 8 digits
-                    if (!$maxTicketId || $maxTicketId < 10000000) {
-                        $ticketMaxId = 10000000;
-                    } else {
-                        $ticketMaxId = $maxTicketId + 1;
-                    }
-                    
-                    // Double-check for uniqueness (in case of concurrent uploads)
-                    while (\App\Models\Ticket::withTrashed()->where('ticket_id', $ticketMaxId)->exists()) {
-                        $ticketMaxId++;
-                    }
-                    
-                    // Create ticket record
+                    // Create ticket record — ticket_id auto-assigned on save (same as TicketController::store)
                     $ticket = new \App\Models\Ticket();
-                    $ticket->ticket_id = $ticketMaxId;
                     $ticket->name = $ticketName;
                     $ticket->description = $description;
                     $ticket->terms_conditions = $termsConditions;
@@ -3894,6 +3962,7 @@ class BulkUploadController extends Controller
                     $ticket->created_by = $auth_user->userId;
                     
                     $ticket->save();
+                    $ticket->refresh();
                     $successCount++;
                     
                     Log::info("SUCCESS: Created ticket '{$ticketName}' for attraction '{$currentAttraction->name}' with ID {$ticket->ticket_id}");
@@ -4265,37 +4334,9 @@ class BulkUploadController extends Controller
                         continue;
                     }
                     
-                    // Generate unique ticket ID with better error handling
-                    try {
-                        $maxTicketId = \App\Models\Ticket::withTrashed()->max('ticket_id');
-                        
-                        if (!$maxTicketId || $maxTicketId < 10000000) {
-                            $ticketMaxId = 10000000;
-                        } else {
-                            $ticketMaxId = $maxTicketId + 1;
-                        }
-                        
-                        // Double-check for uniqueness with limit to prevent infinite loop
-                        $attempts = 0;
-                        while (\App\Models\Ticket::withTrashed()->where('ticket_id', $ticketMaxId)->exists() && $attempts < 100) {
-                            $ticketMaxId++;
-                            $attempts++;
-                        }
-
-                        if ($attempts >= 100) {
-                            throw new \Exception("Unable to generate unique ticket ID after 100 attempts");
-                        }
-                    } catch (\Exception $e) {
-                        Log::error("Ticket ID generation error for row {$rowNumber}: " . $e->getMessage());
-                        $errors[] = "Row {$rowNumber}: Error generating ticket ID";
-                        $errorCount++;
-                        continue;
-                    }
-                    
-                    // Create ticket record with enhanced error handling
+                    // Create ticket record — ticket_id auto-assigned on save (same as TicketController::store)
                     try {
                         $ticket = new \App\Models\Ticket();
-                        $ticket->ticket_id = $ticketMaxId;
                         $ticket->name = $ticketName;
                         $ticket->description = $description;
                         $ticket->terms_conditions = $termsConditions;
@@ -4311,6 +4352,7 @@ class BulkUploadController extends Controller
                         $ticket->created_by = $auth_user->userId;
                         
                         $ticket->save();
+                        $ticket->refresh();
                         $successCount++;
                     } catch (\Exception $e) {
                         Log::error("Ticket save error for row {$rowNumber}: " . $e->getMessage());
@@ -5357,33 +5399,9 @@ class BulkUploadController extends Controller
                         continue;
                     }
                     
-                    // Generate unique meal ID
-                    try {
-                        $lastMeal = Meal::withTrashed()->orderBy('created_at', 'desc')->first();
-                        $meal_max_id = $lastMeal->meal_id ?? 0;
-                        $mealId = \App\Helpers\CommonHelper::createId($meal_max_id);
-                        
-                        // Ensure uniqueness
-                        $attempts = 0;
-                        while (Meal::where('meal_id', $mealId)->exists() && $attempts < 100) {
-                            $mealId = \App\Helpers\CommonHelper::createId($mealId);
-                            $attempts++;
-                        }
-
-                        if ($attempts >= 100) {
-                            throw new \Exception("Unable to generate unique meal ID after 100 attempts");
-                        }
-                    } catch (\Exception $e) {
-                        Log::error("Meal ID generation error for row {$rowNumber}: " . $e->getMessage());
-                        $errors[] = "Row {$rowNumber}: Error generating meal ID";
-                        $errorCount++;
-                        continue;
-                    }
-                    
-                    // Create meal record
+                    // Create meal record — meal_id auto-assigned on save (same as MealController::store)
                     try {
                         $meal = new Meal();
-                        $meal->meal_id = $mealId;
                         $meal->restaurant_id = $restaurant->restaurant_id;
                         $meal->name = 'Menu Item'; // Default name
                         $meal->item_description = $itemDescription;
@@ -5419,6 +5437,7 @@ class BulkUploadController extends Controller
                         $meal->created_by = $auth_user->userId;
                         
                         $meal->save();
+                        $meal->refresh();
                         $successCount++;
                     } catch (\Exception $e) {
                         Log::error("Meal save error for row {$rowNumber}: " . $e->getMessage());
@@ -5540,9 +5559,12 @@ class BulkUploadController extends Controller
                                             return $bed;
                                         });
         
-        // Get available room categories for this hotel
+        // DMC rooms only (same as HotelController::hotelbeds) — exclude admin base rooms
+        $dmcId = CommonHelper::getDmcId($auth_user);
         $roomCategories = \App\Models\Room::where('hotel_id', $hotel_id)
-                                         ->where('base_room', '!=', 1)
+                                         ->where('created_by', $dmcId)
+                                         ->where('dmc_base_room', 0)
+                                         ->orderBy('room_type')
                                          ->get();
         
         // Get upload history for beds
@@ -5573,6 +5595,8 @@ class BulkUploadController extends Controller
         // if (!$this->userHasAccessToHotel($hotel, $auth_user->userId)) {
         //     abort(403, 'You can only download templates for your own hotels.');
         // }
+
+        $dmcId = CommonHelper::getDmcId($auth_user);
         
         $headers = [
             'Room Type*',
@@ -5582,36 +5606,92 @@ class BulkUploadController extends Controller
             'Child Count',
             'Extra Bed (Yes/No)*',
             'Extra Bed Type',
-            'Extra Bed Price',
+            'Extra Bed Price (Sell)',
+            'Extra Bed Price (Cost)',
             'Baby Cot (Yes/No)*',
-            'Baby Cot Price',
+            'Baby Cot Price (Sell)',
+            'Baby Cot Price (Cost)',
             'Force Child (Yes/No)',
             'Force Child Count',
             'Status (Active/Inactive)*'
         ];
         
         $data = [$headers];
-        
-        // Add sample data with available bed types and room categories
-        $bedTypes = \App\Models\BedMaster::where('hotel_id', $hotel_id)->where('is_active', 1)->first();
-        $roomCategory = \App\Models\Room::where('hotel_id', $hotel_id)->where('base_room', '!=', 1)->first();
-        
-        if ($bedTypes && $roomCategory) {
-            $data[] = [
-                $roomCategory->room_type, // Room Type
-                $bedTypes->name,          // Bed Type
-                1,                        // No. of Rooms
-                2,                        // Adult Count
-                1,                        // Child Count
-                'Yes',                    // Extra Bed
-                'Sofa Bed',              // Extra Bed Type
-                25.00,                   // Extra Bed Price
-                'Yes',                   // Baby Cot
-                15.00,                   // Baby Cot Price
-                'No',                    // Force Child
-                0,                       // Force Child Count
-                'Active'                 // Status
-            ];
+
+        // Prefer existing beds for this DMC + hotel; fall back to one dummy sample row
+        $existingBeds = \App\Models\Bed::with('room')
+            ->where('dmc_id', $dmcId)
+            ->whereHas('room', function ($query) use ($hotel_id) {
+                $query->where('hotel_id', $hotel_id);
+            })
+            ->orderBy('bed_id')
+            ->get();
+
+        if ($existingBeds->isNotEmpty()) {
+            foreach ($existingBeds as $bed) {
+                $data[] = [
+                    $bed->room->room_type ?? '',
+                    $bed->room_type ?? '', // bed type name stored on beds.room_type
+                    $bed->no_of_rooms ?? 0,
+                    $bed->adult_count ?? 0,
+                    $bed->child_count ?? 0,
+                    ((int) $bed->extra_bed === 1) ? 'Yes' : 'No',
+                    $bed->extra_bed_type ?? '',
+                    $bed->extra_bed_price ?? '',
+                    $bed->extra_bed_cost_price ?? '',
+                    ((int) $bed->baby_cot === 1) ? 'Yes' : 'No',
+                    $bed->baby_cot_price ?? '',
+                    $bed->baby_cot_cost_price ?? '',
+                    ((int) $bed->force_child === 1) ? 'Yes' : 'No',
+                    $bed->force_child_count ?? 0,
+                    ((int) $bed->is_active === 1) ? 'Active' : 'Inactive',
+                ];
+            }
+        } else {
+            $bedTypes = \App\Models\BedMaster::where('hotel_id', $hotel_id)->where('is_active', 1)->first();
+            $roomCategory = \App\Models\Room::where('hotel_id', $hotel_id)
+                ->where('created_by', $dmcId)
+                ->where('dmc_base_room', 0)
+                ->first();
+
+            if ($bedTypes && $roomCategory) {
+                $data[] = [
+                    $roomCategory->room_type,
+                    $bedTypes->name,
+                    1,
+                    2,
+                    1,
+                    'Yes',
+                    'Sofa Bed',
+                    25.00,
+                    20.00,
+                    'Yes',
+                    15.00,
+                    10.00,
+                    'No',
+                    0,
+                    'Active',
+                ];
+            } else {
+                // Keep a usable demo row even if DMC rooms/bed types are not set up yet
+                $data[] = [
+                    'Deluxe Double Room',
+                    'King Bed',
+                    1,
+                    2,
+                    1,
+                    'Yes',
+                    'Sofa Bed',
+                    25.00,
+                    20.00,
+                    'Yes',
+                    15.00,
+                    10.00,
+                    'No',
+                    0,
+                    'Active',
+                ];
+            }
         }
         
         // Add empty rows for user data
@@ -5632,6 +5712,8 @@ class BulkUploadController extends Controller
     {
         $auth_user = Auth::user();
         $successCount = 0;
+        $createdCount = 0;
+        $updatedCount = 0;
         $errorCount = 0;
         $errors = [];
         
@@ -5657,7 +5739,8 @@ class BulkUploadController extends Controller
             // if (!$this->userHasAccessToHotel($hotel, $auth_user->userId)) {
             //     return redirect()->back()->with('error', 'You can only upload beds for your own hotels.');
             // }
-            
+
+            $dmcId = CommonHelper::getDmcId($auth_user);
             $csvData = $this->readCsvFile($file->getPathname());
             
             if (empty($csvData)) {
@@ -5670,7 +5753,7 @@ class BulkUploadController extends Controller
             }
 
             // Validate CSV structure
-            $expectedColumns = 13; // Based on template
+            $expectedColumns = 15; // Based on template (includes sell + cost prices)
             $headerRow = $csvData[0];
             if (count($headerRow) < $expectedColumns) {
                 return redirect()->back()->with('error', "Invalid CSV format. Expected at least {$expectedColumns} columns, found " . count($headerRow) . ".");
@@ -5720,11 +5803,13 @@ class BulkUploadController extends Controller
                     $extraBed = trim($row[5] ?? '');
                     $extraBedType = trim($row[6] ?? '');
                     $extraBedPrice = trim($row[7] ?? '0');
-                    $babyCot = trim($row[8] ?? '');
-                    $babyCotPrice = trim($row[9] ?? '0');
-                    $forceChild = trim($row[10] ?? '0');
-                    $forceChildCount = trim($row[11] ?? '0');
-                    $status = trim($row[12] ?? '1');
+                    $extraBedCostPrice = trim($row[8] ?? '');
+                    $babyCot = trim($row[9] ?? '');
+                    $babyCotPrice = trim($row[10] ?? '0');
+                    $babyCotCostPrice = trim($row[11] ?? '');
+                    $forceChild = trim($row[12] ?? '0');
+                    $forceChildCount = trim($row[13] ?? '0');
+                    $status = trim($row[14] ?? '1');
                     
                     // Validate required fields
                     $missingFields = [];
@@ -5746,8 +5831,10 @@ class BulkUploadController extends Controller
                         'No. of Rooms' => $noOfRooms,
                         'Adult Count' => $adultCount,
                         'Child Count' => $childCount,
-                        'Extra Bed Price' => $extraBedPrice,
-                        'Baby Cot Price' => $babyCotPrice,
+                        'Extra Bed Price (Sell)' => $extraBedPrice,
+                        'Extra Bed Price (Cost)' => $extraBedCostPrice,
+                        'Baby Cot Price (Sell)' => $babyCotPrice,
+                        'Baby Cot Price (Cost)' => $babyCotCostPrice,
                         'Force Child Count' => $forceChildCount
                     ];
                     
@@ -5792,12 +5879,14 @@ class BulkUploadController extends Controller
                     }
                     $forceChildNumeric = ($forceChildValue === 'yes' || $forceChildValue === '1') ? '1' : '0';
 
-                    // Find room category by name
+                    // Find DMC room category by name (exclude admin base rooms)
                     $roomCategory = \App\Models\Room::where('room_type', $roomTypeName)
                                                   ->where('hotel_id', $hotel_id)
+                                                  ->where('created_by', $dmcId)
+                                                  ->where('dmc_base_room', 0)
                                                   ->first();
                     if (!$roomCategory) {
-                        $errors[] = "Row {$rowNumber}: Room Type '{$roomTypeName}' not found for this hotel";
+                        $errors[] = "Row {$rowNumber}: Room Type '{$roomTypeName}' not found for this DMC hotel rooms";
                         $errorCount++;
                         continue;
                     }
@@ -5814,13 +5903,24 @@ class BulkUploadController extends Controller
                     }
                     $bedTypeId = $bedType->bedId;
 
-                    // Check room availability
-                    $totalRoomsInCategory = $roomCategory->no_of_room;
-                    $usedRooms = \App\Models\Bed::where('room_id', $roomCategoryId)->sum('no_of_rooms');
-                    
-                    if ($totalRoomsInCategory < ($usedRooms + intval($noOfRooms))) {
-                        $availableRooms = $totalRoomsInCategory - $usedRooms;
-                        $errors[] = "Row {$rowNumber}: Not enough rooms available. Requested: {$noOfRooms}, Available: {$availableRooms}";
+                    // Upsert key: same room category + bed type for this DMC
+                    $existingBed = \App\Models\Bed::where('room_id', $roomCategoryId)
+                        ->where('bed_master_id', $bedTypeId)
+                        ->where('dmc_id', $dmcId)
+                        ->first();
+
+                    // Check room availability (exclude this bed's current allocation when updating)
+                    $totalRoomsInCategory = (int) $roomCategory->no_of_room;
+                    $usedRooms = (int) \App\Models\Bed::where('room_id', $roomCategoryId)
+                        ->where('dmc_id', $dmcId)
+                        ->sum('no_of_rooms');
+                    $existingRoomsCount = $existingBed ? (int) $existingBed->no_of_rooms : 0;
+                    $usedRoomsExcludingCurrent = max(0, $usedRooms - $existingRoomsCount);
+                    $requestedRooms = (int) $noOfRooms;
+                    $availableRooms = $totalRoomsInCategory - $usedRoomsExcludingCurrent;
+
+                    if ($requestedRooms > $availableRooms) {
+                        $errors[] = "Row {$rowNumber}: Not enough rooms available. Requested: {$requestedRooms}, Available: {$availableRooms}";
                         $errorCount++;
                         continue;
                     }
@@ -5859,46 +5959,77 @@ class BulkUploadController extends Controller
                         continue;
                     }
 
-                    // Generate unique bed ID using CommonHelper (following HotelController logic)
-                    $lastBed = \App\Models\Bed::withTrashed()->orderBy('bed_id', 'desc')->first();
-                    $bedMaxId = $lastBed ? $lastBed->bed_id : 0;
-                    $bedId = \App\Helpers\CommonHelper::createId($bedMaxId);
-                    
-                    while (\App\Models\Bed::where('bed_id', $bedId)->exists()) {
-                        $bedId = \App\Helpers\CommonHelper::createId($bedId);
+                    // Sell + Cost prices required when Extra Bed / Baby Cot is Yes
+                    if ($extraBedNumeric == '1') {
+                        if ($extraBedPrice === '' || !is_numeric($extraBedPrice)) {
+                            $errors[] = "Row {$rowNumber}: Extra Bed Price (Sell) is required when Extra Bed is Yes";
+                            $errorCount++;
+                            continue;
+                        }
+                        if ($extraBedCostPrice === '' || !is_numeric($extraBedCostPrice)) {
+                            $errors[] = "Row {$rowNumber}: Extra Bed Price (Cost) is required when Extra Bed is Yes";
+                            $errorCount++;
+                            continue;
+                        }
                     }
-                    
-                    // Handle null values for extra bed and baby cot (following HotelController logic)
+                    if ($babyCotNumeric == '1') {
+                        if ($babyCotPrice === '' || !is_numeric($babyCotPrice)) {
+                            $errors[] = "Row {$rowNumber}: Baby Cot Price (Sell) is required when Baby Cot is Yes";
+                            $errorCount++;
+                            continue;
+                        }
+                        if ($babyCotCostPrice === '' || !is_numeric($babyCotCostPrice)) {
+                            $errors[] = "Row {$rowNumber}: Baby Cot Price (Cost) is required when Baby Cot is Yes";
+                            $errorCount++;
+                            continue;
+                        }
+                    }
+
                     if ($extraBedNumeric != '1') {
                         $extraBedType = null;
                         $extraBedPrice = 0;
+                        $extraBedCostPrice = null;
                     }
                     if ($babyCotNumeric != '1') {
                         $babyCotPrice = 0;
+                        $babyCotCostPrice = null;
                     }
-                    
-                    // Create bed record (following exact HotelController storebeds logic)
-                    $bed = new \App\Models\Bed();
+
+                    // Update existing bed config, or create a new one for new room+bed type
+                    $bed = $existingBed ?: new \App\Models\Bed();
+                    $isUpdate = (bool) $existingBed;
+
                     $bed->room_type = $bedType->name;
                     $bed->bed_master_id = $bedTypeId;
-                    $bed->no_of_rooms = intval($noOfRooms);
+                    $bed->no_of_rooms = $requestedRooms;
                     $bed->max_occupancy = $maxOccupancy;
                     $bed->adult_count = intval($adultCount);
                     $bed->child_count = intval($childCount);
                     $bed->extra_bed = ($extraBedNumeric == '1') ? 1 : 0;
                     $bed->extra_bed_type = $extraBedType;
                     $bed->extra_bed_price = floatval($extraBedPrice);
+                    $bed->extra_bed_cost_price = ($extraBedNumeric == '1' && $extraBedCostPrice !== '')
+                        ? floatval($extraBedCostPrice)
+                        : null;
                     $bed->baby_cot = ($babyCotNumeric == '1') ? 1 : null;
                     $bed->baby_cot_price = floatval($babyCotPrice);
-                    $bed->bed_id = $bedId;
-                    $bed->dmc_id = $auth_user->userId;
+                    $bed->baby_cot_cost_price = ($babyCotNumeric == '1' && $babyCotCostPrice !== '')
+                        ? floatval($babyCotCostPrice)
+                        : null;
+                    $bed->dmc_id = $dmcId;
                     $bed->room_id = $roomCategoryId;
                     $bed->is_active = ($statusNumeric == '1') ? 1 : 0;
                     $bed->force_child = ($forceChildNumeric == '1') ? 1 : 0;
                     $bed->force_child_count = intval($forceChildCount);
                     
                     $bed->save();
+                    $bed->refresh();
                     $successCount++;
+                    if ($isUpdate) {
+                        $updatedCount++;
+                    } else {
+                        $createdCount++;
+                    }
                     
                 } catch (\Exception $e) {
                     $errors[] = "Row {$rowNumber}: " . $e->getMessage();
@@ -5937,7 +6068,11 @@ class BulkUploadController extends Controller
                 count($csvData ?? []),
                 $successCount,
                 $errorCount,
-                $errors,
+                [
+                    'created_count' => $createdCount,
+                    'updated_count' => $updatedCount,
+                    'messages' => $errors,
+                ],
                 $auth_user->userId
             );
         } catch (\Exception $e) {
@@ -5946,10 +6081,10 @@ class BulkUploadController extends Controller
         
         // Generate user-friendly messages
         if ($successCount > 0 && $errorCount == 0) {
-            $message = "Success! {$successCount} beds uploaded successfully for {$hotel->name}.";
+            $message = "Success! {$successCount} beds processed for {$hotel->name} ({$createdCount} created, {$updatedCount} updated).";
             return redirect()->back()->with('success', $message);
         } elseif ($successCount > 0 && $errorCount > 0) {
-            $message = "Partial success: {$successCount} beds uploaded successfully, {$errorCount} failed for {$hotel->name}.";
+            $message = "Partial success: {$successCount} beds processed ({$createdCount} created, {$updatedCount} updated), {$errorCount} failed for {$hotel->name}.";
             
             $validator = Validator::make([], []);
             foreach ($errors as $error) {
@@ -6050,89 +6185,99 @@ class BulkUploadController extends Controller
         if (!$this->userHasAccessToHotel($hotel, $auth_user->userId)) {
             abort(403, 'You can only download templates for your own hotels.');
         }
+
+        $dmcId = CommonHelper::getDmcId($auth_user);
         
         $headers = [
             'Season Name*',
-            'Single Weekday Price*',
-            'Single Weekend Price*', 
-            'Double Weekday Price*',
-            'Double Weekend Price*',
+            'Single Weekday Price (Sell)*',
+            'Single Weekday Price (Cost)*',
+            'Single Weekend Price (Sell)*',
+            'Single Weekend Price (Cost)*',
+            'Double Weekday Price (Sell)*',
+            'Double Weekday Price (Cost)*',
+            'Double Weekend Price (Sell)*',
+            'Double Weekend Price (Cost)*',
+            'Breakfast Price (Sell)',
+            'Breakfast Price (Cost)',
+            'Lunch Price (Sell)',
+            'Lunch Price (Cost)',
+            'Dinner Price (Sell)',
+            'Dinner Price (Cost)',
             'Start Date* (MM/DD/YYYY)',
             'End Date* (MM/DD/YYYY)',
             'Status (1=Active, 0=Inactive)*'
         ];
         
         $data = [$headers];
-        
-        // Add sample data with correct MM/DD/YYYY format
-        // Using quotes around dates to prevent Excel auto-formatting
-        $data[] = [
-            'Summer Season 2025',
-            '150.00',
-            '200.00',
-            '250.00',
-            '300.00',
-            '"06/01/2025"',
-            '"08/31/2025"',
-            '1'
-        ];
-        
-        $data[] = [
-            'Winter Season 2025',
-            '120.00',
-            '160.00',
-            '200.00',
-            '240.00', 
-            '"12/01/2025"',
-            '"02/28/2026"',
-            '1'
-        ];
-        
-        // Add additional sample for current year dates
-        $currentYear = date('Y');
-        $nextYear = $currentYear + 1;
-        $data[] = [
-            'Spring Season ' . $currentYear,
-            '180.00',
-            '220.00',
-            '280.00',
-            '320.00',
-            '"03/01/' . $currentYear . '"',
-            '"05/31/' . $currentYear . '"',
-            '1'
-        ];
-        
-        // Add template row for user input with format examples
-        $data[] = [
-            'Your Season Name Here',
-            '100.00',
-            '150.00',
-            '200.00',
-            '250.00',
-            '"01/01/2025"',
-            '"03/31/2025"',
-            '1'
-        ];
-        
-        // Add instruction row (will be filtered out during upload)
-        $data[] = [
-            '=== DELETE THIS ROW BEFORE UPLOAD ===',
-            'Enter prices as numbers only',
-            'No currency symbols',
-            'All fields required',
-            'Except this column',
-            'Use MM/DD/YYYY format',
-            'With forward slashes /',
-            '1 or 0'
-        ];
 
-        return $this->generateCsvResponse($data, 'hotel_seasons_template_' . $hotel_id . '.csv');
+        $existingSeasons = \App\Models\Rate::where('hotel_id', $hotel_id)
+            ->where('event_type', 'Season')
+            ->where('dmc_id', $dmcId)
+            ->orderBy('start_date')
+            ->get();
+
+        if ($existingSeasons->isNotEmpty()) {
+            foreach ($existingSeasons as $season) {
+                $data[] = [
+                    $season->event,
+                    $season->weekday_price ?? '',
+                    $season->weekday_cost_price ?? '',
+                    $season->weekend_price ?? '',
+                    $season->weekend_cost_price ?? '',
+                    $season->double_weekday_price ?? '',
+                    $season->double_weekday_cost_price ?? '',
+                    $season->double_weekend_price ?? '',
+                    $season->double_weekend_cost_price ?? '',
+                    $season->breakfast_price ?? '',
+                    $season->breakfast_cost_price ?? '',
+                    $season->lunch_price ?? '',
+                    $season->lunch_cost_price ?? '',
+                    $season->dinner_price ?? '',
+                    $season->dinner_cost_price ?? '',
+                    '"' . \Carbon\Carbon::parse($season->start_date)->format('m/d/Y') . '"',
+                    '"' . \Carbon\Carbon::parse($season->end_date)->format('m/d/Y') . '"',
+                    ((int) $season->is_active === 1) ? '1' : '0',
+                ];
+            }
+        } else {
+            $data[] = [
+                'Summer Season 2025',
+                '150.00',
+                '120.00',
+                '200.00',
+                '160.00',
+                '250.00',
+                '200.00',
+                '300.00',
+                '240.00',
+                '15.00',
+                '10.00',
+                '20.00',
+                '15.00',
+                '25.00',
+                '18.00',
+                '"06/01/2025"',
+                '"08/31/2025"',
+                '1'
+            ];
+        }
+
+        // Add empty rows for user data
+        $emptyRow = array_fill(0, count($headers), '');
+        for ($i = 0; $i < 5; $i++) {
+            $data[] = $emptyRow;
+        }
+
+        return $this->generateCsvResponse($data, 'hotel_seasons_template_' . $hotel->name . '_' . date('Y-m-d') . '.csv');
     }
 
     public function uploadHotelSeasons(Request $request, $hotel_id)
     {
         $auth_user = Auth::user();
         $successCount = 0;
+        $createdCount = 0;
+        $updatedCount = 0;
         $errorCount = 0;
         $errors = [];
         
@@ -6164,6 +6309,8 @@ class BulkUploadController extends Controller
                 return redirect()->back()->with('error', 'You can only upload seasons for your own hotels.');
             }
 
+            $dmcId = CommonHelper::getDmcId($auth_user);
+
             // Check if file was uploaded successfully
             if (!$file->isValid()) {
                 return redirect()->back()->with('error', 'File upload failed. Please try again.');
@@ -6189,7 +6336,7 @@ class BulkUploadController extends Controller
             $header = array_shift($csvData);
             
             // Check if we have the expected number of columns
-            $expectedColumns = 8;
+            $expectedColumns = 18;
             if (count($header) < $expectedColumns) {
                 return redirect()->back()->with('error', 'Invalid file format. Expected ' . $expectedColumns . ' columns.');
             }
@@ -6221,20 +6368,34 @@ class BulkUploadController extends Controller
                     // Map CSV columns to variables
                     $seasonName = trim($row[0] ?? '');
                     $singleWeekdayPrice = trim($row[1] ?? '');
-                    $singleWeekendPrice = trim($row[2] ?? '');
-                    $doubleWeekdayPrice = trim($row[3] ?? '');
-                    $doubleWeekendPrice = trim($row[4] ?? '');
-                    $startDate = trim($row[5] ?? '');
-                    $endDate = trim($row[6] ?? '');
-                    $status = trim($row[7] ?? '1');
+                    $singleWeekdayCostPrice = trim($row[2] ?? '');
+                    $singleWeekendPrice = trim($row[3] ?? '');
+                    $singleWeekendCostPrice = trim($row[4] ?? '');
+                    $doubleWeekdayPrice = trim($row[5] ?? '');
+                    $doubleWeekdayCostPrice = trim($row[6] ?? '');
+                    $doubleWeekendPrice = trim($row[7] ?? '');
+                    $doubleWeekendCostPrice = trim($row[8] ?? '');
+                    $breakfastPrice = trim($row[9] ?? '');
+                    $breakfastCostPrice = trim($row[10] ?? '');
+                    $lunchPrice = trim($row[11] ?? '');
+                    $lunchCostPrice = trim($row[12] ?? '');
+                    $dinnerPrice = trim($row[13] ?? '');
+                    $dinnerCostPrice = trim($row[14] ?? '');
+                    $startDate = trim($row[15] ?? '');
+                    $endDate = trim($row[16] ?? '');
+                    $status = trim($row[17] ?? '1');
                     
                     // Validate required fields
                     $missingFields = [];
                     if (empty($seasonName)) $missingFields[] = 'Season Name';
-                    if (empty($singleWeekdayPrice)) $missingFields[] = 'Single Weekday Price';
-                    if (empty($singleWeekendPrice)) $missingFields[] = 'Single Weekend Price';
-                    if (empty($doubleWeekdayPrice)) $missingFields[] = 'Double Weekday Price';
-                    if (empty($doubleWeekendPrice)) $missingFields[] = 'Double Weekend Price';
+                    if ($singleWeekdayPrice === '') $missingFields[] = 'Single Weekday Price (Sell)';
+                    if ($singleWeekdayCostPrice === '') $missingFields[] = 'Single Weekday Price (Cost)';
+                    if ($singleWeekendPrice === '') $missingFields[] = 'Single Weekend Price (Sell)';
+                    if ($singleWeekendCostPrice === '') $missingFields[] = 'Single Weekend Price (Cost)';
+                    if ($doubleWeekdayPrice === '') $missingFields[] = 'Double Weekday Price (Sell)';
+                    if ($doubleWeekdayCostPrice === '') $missingFields[] = 'Double Weekday Price (Cost)';
+                    if ($doubleWeekendPrice === '') $missingFields[] = 'Double Weekend Price (Sell)';
+                    if ($doubleWeekendCostPrice === '') $missingFields[] = 'Double Weekend Price (Cost)';
                     if (empty($startDate)) $missingFields[] = 'Start Date';
                     if (empty($endDate)) $missingFields[] = 'End Date';
                     
@@ -6246,10 +6407,20 @@ class BulkUploadController extends Controller
 
                     // Validate numeric fields
                     $numericFields = [
-                        'Single Weekday Price' => $singleWeekdayPrice,
-                        'Single Weekend Price' => $singleWeekendPrice,
-                        'Double Weekday Price' => $doubleWeekdayPrice,
-                        'Double Weekend Price' => $doubleWeekendPrice
+                        'Single Weekday Price (Sell)' => $singleWeekdayPrice,
+                        'Single Weekday Price (Cost)' => $singleWeekdayCostPrice,
+                        'Single Weekend Price (Sell)' => $singleWeekendPrice,
+                        'Single Weekend Price (Cost)' => $singleWeekendCostPrice,
+                        'Double Weekday Price (Sell)' => $doubleWeekdayPrice,
+                        'Double Weekday Price (Cost)' => $doubleWeekdayCostPrice,
+                        'Double Weekend Price (Sell)' => $doubleWeekendPrice,
+                        'Double Weekend Price (Cost)' => $doubleWeekendCostPrice,
+                        'Breakfast Price (Sell)' => $breakfastPrice,
+                        'Breakfast Price (Cost)' => $breakfastCostPrice,
+                        'Lunch Price (Sell)' => $lunchPrice,
+                        'Lunch Price (Cost)' => $lunchCostPrice,
+                        'Dinner Price (Sell)' => $dinnerPrice,
+                        'Dinner Price (Cost)' => $dinnerCostPrice,
                     ];
                     
                     foreach ($numericFields as $fieldName => $value) {
@@ -6302,10 +6473,17 @@ class BulkUploadController extends Controller
                         continue;
                     }
 
-                    // Check for overlapping seasons for this hotel and DMC
-                    $overlappingSeasons = \App\Models\Rate::where('hotel_id', $hotel_id)
+                    // Upsert: match existing season by name for this hotel + DMC
+                    $existingSeason = \App\Models\Rate::where('hotel_id', $hotel_id)
                         ->where('event_type', 'Season')
-                        ->where('dmc_id', $auth_user->userId)
+                        ->where('dmc_id', $dmcId)
+                        ->where('event', $seasonName)
+                        ->first();
+
+                    // Check for overlapping seasons (exclude current record when updating)
+                    $overlapQuery = \App\Models\Rate::where('hotel_id', $hotel_id)
+                        ->where('event_type', 'Season')
+                        ->where('dmc_id', $dmcId)
                         ->where(function ($query) use ($startDateParsed, $endDateParsed) {
                             $query->whereBetween('start_date', [$startDateParsed, $endDateParsed])
                                 ->orWhereBetween('end_date', [$startDateParsed, $endDateParsed])
@@ -6313,10 +6491,13 @@ class BulkUploadController extends Controller
                                     $query->where('start_date', '<=', $startDateParsed)
                                         ->where('end_date', '>=', $endDateParsed);
                                 });
-                        })
-                        ->exists();
+                        });
 
-                    if ($overlappingSeasons) {
+                    if ($existingSeason) {
+                        $overlapQuery->where('rate_id', '!=', $existingSeason->rate_id);
+                    }
+
+                    if ($overlapQuery->exists()) {
                         $errors[] = "Row {$rowNumber}: Season dates overlap with existing season for this hotel.";
                         $errorCount++;
                         continue;
@@ -6329,37 +6510,42 @@ class BulkUploadController extends Controller
                         continue;
                     }
                     
-                    // Generate unique rate ID
-                    $lastRate = \App\Models\Rate::withTrashed()->orderBy('created_at', 'desc')->first();
-                    $rate_max_id = $lastRate->rate_id ?? 0;
-                    $rateId = \App\Helpers\CommonHelper::createId($rate_max_id);
-                    while (\App\Models\Rate::where('rate_id', $rateId)->exists()) {
-                        $rateId = \App\Helpers\CommonHelper::createId($rateId);
-                    }
+                    $season = $existingSeason ?: new \App\Models\Rate();
+                    $isUpdate = (bool) $existingSeason;
 
-                    // Create season record
-                    $season = \App\Models\Rate::create([
-                        'rate_id' => $rateId,
-                        'event' => $seasonName,
-                        'event_type' => 'Season',
-                        'hotel_id' => $hotel_id,
-                        'price' => 0,
-                        'weekday_price' => floatval($singleWeekdayPrice),
-                        'weekend_price' => floatval($singleWeekendPrice),
-                        'double_weekday_price' => floatval($doubleWeekdayPrice),
-                        'double_weekend_price' => floatval($doubleWeekendPrice),
-                        'start_date' => $startDateParsed,
-                        'end_date' => $endDateParsed,
-                        'dmc_id' => $auth_user->userId,
-                        'is_active' => $status == '1' ? 1 : 0,
-                        'created_at' => now(),
-                        'updated_at' => now()
-                    ]);
+                    $season->event = $seasonName;
+                    $season->event_type = 'Season';
+                    $season->hotel_id = $hotel_id;
+                    $season->price = 0;
+                    $season->weekday_price = floatval($singleWeekdayPrice);
+                    $season->weekday_cost_price = floatval($singleWeekdayCostPrice);
+                    $season->weekend_price = floatval($singleWeekendPrice);
+                    $season->weekend_cost_price = floatval($singleWeekendCostPrice);
+                    $season->double_weekday_price = floatval($doubleWeekdayPrice);
+                    $season->double_weekday_cost_price = floatval($doubleWeekdayCostPrice);
+                    $season->double_weekend_price = floatval($doubleWeekendPrice);
+                    $season->double_weekend_cost_price = floatval($doubleWeekendCostPrice);
+                    $season->breakfast_price = $breakfastPrice !== '' ? floatval($breakfastPrice) : 0;
+                    $season->breakfast_cost_price = $breakfastCostPrice !== '' ? floatval($breakfastCostPrice) : null;
+                    $season->lunch_price = $lunchPrice !== '' ? floatval($lunchPrice) : 0;
+                    $season->lunch_cost_price = $lunchCostPrice !== '' ? floatval($lunchCostPrice) : null;
+                    $season->dinner_price = $dinnerPrice !== '' ? floatval($dinnerPrice) : 0;
+                    $season->dinner_cost_price = $dinnerCostPrice !== '' ? floatval($dinnerCostPrice) : null;
+                    $season->start_date = $startDateParsed;
+                    $season->end_date = $endDateParsed;
+                    $season->dmc_id = $dmcId;
+                    $season->is_active = $status == '1' ? 1 : 0;
 
-                    if ($season) {
+                    if ($season->save()) {
+                        $season->refresh();
                         $successCount++;
+                        if ($isUpdate) {
+                            $updatedCount++;
+                        } else {
+                            $createdCount++;
+                        }
                     } else {
-                        $errors[] = "Row {$rowNumber}: Failed to create season record.";
+                        $errors[] = "Row {$rowNumber}: Failed to save season record.";
                         $errorCount++;
                     }
 
@@ -6386,7 +6572,11 @@ class BulkUploadController extends Controller
                 'total_records' => $successCount + $errorCount,
                 'success_count' => $successCount,
                 'error_count' => $errorCount,
-                'errors' => $errors,
+                'errors' => [
+                    'created_count' => $createdCount,
+                    'updated_count' => $updatedCount,
+                    'messages' => $errors,
+                ],
                 'status' => $status,
                 'uploaded_by' => $auth_user->userId
             ]);
@@ -6394,7 +6584,7 @@ class BulkUploadController extends Controller
             DB::commit();
 
             // Prepare response message
-            $message = "Upload completed! {$successCount} seasons uploaded successfully";
+            $message = "Upload completed! {$successCount} seasons processed ({$createdCount} created, {$updatedCount} updated)";
             if ($errorCount > 0) {
                 $message .= ", {$errorCount} failed";
             }

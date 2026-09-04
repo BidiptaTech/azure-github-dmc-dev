@@ -15,11 +15,39 @@ class Order extends Model
     protected $guarded = [];
     protected $casts = [
         'data' => 'json', // Ensures Laravel treats 'data' column as JSON
+        'cost_price' => 'array',
     ];
     use SoftDeletes;
     
     // Automatically load the tour relationship when retrieving orders
     protected $with = ['tour'];
+
+    protected static function booted(): void
+    {
+        static::saving(function (Order $order) {
+            // Freeze cost_price at booking time. Only (re)snapshot when:
+            // - creating a new order, or
+            // - service data/type changed (rebook / edit services).
+            // Never overwrite an existing snapshot just because master prices changed.
+            $serviceChanged = $order->isDirty('data') || $order->isDirty('type');
+            $isCreate = ! $order->exists;
+
+            if (! $isCreate && ! $serviceChanged) {
+                return;
+            }
+
+            try {
+                \App\Helpers\OrderCostPriceHelper::snapshotOntoOrder($order);
+            } catch (\Throwable $e) {
+                \Log::warning('Failed to build order cost_price', [
+                    'booking_id' => $order->booking_id ?? null,
+                    'tour_id' => $order->tour_id ?? null,
+                    'type' => $order->type ?? null,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        });
+    }
     
     public function toArray()
     {

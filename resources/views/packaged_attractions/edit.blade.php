@@ -168,26 +168,24 @@
     .btn-primary:hover {
         background: linear-gradient(45deg, #5d60ff, #7073ff);
     }
-    .price-input {
-        position: relative;
-    }
-    .price-input::before {
-        content: '$';
-        position: absolute;
-        left: 10px;
-        top: 50%;
-        transform: translateY(-50%);
-        color: #566a7f;
-        z-index: 10;
-        pointer-events: none;
-    }
-    .price-input input {
-        padding-left: 25px;
-    }
     .form-control:focus {
         border-color: #696cff;
         box-shadow: 0 0 0 0.25rem rgba(105, 108, 255, 0.25);
     }
+    .section-title {
+        font-size: 0.9375rem;
+        font-weight: 600;
+        color: #405189;
+        margin-bottom: 0.5rem;
+        padding-bottom: 0.25rem;
+        border-bottom: 1px solid #e9ecef;
+    }
+    .package-price-table { font-size: 0.8125rem; margin-bottom: 0; }
+    .package-price-table th,
+    .package-price-table td { padding: 0.35rem 0.5rem; vertical-align: middle; }
+    .package-price-table thead th { font-size: 0.75rem; font-weight: 600; white-space: nowrap; }
+    .package-price-table .form-control { max-width: 100%; }
+    .package-price-table .age-badge { font-size: 0.7rem; padding: 0.2em 0.45em; }
     .existing-images {
         display: flex;
         flex-wrap: wrap;
@@ -225,12 +223,22 @@
 @endsection
 
 @section('content')
+@php
+    $dmcCurrency = \App\Helpers\CommonHelper::getDmcCurrencyByCountry();
+@endphp
 <!-- Start of the form -->
 <div class="content-wrapper">
     <div class="container-xxl flex-grow-1 container-p-y">
         <div class="card mb-6">
             <h5 class="card-header d-flex justify-content-between align-items-center">
-                Edit Packaged Attraction
+                <span class="d-flex align-items-center flex-wrap gap-2">
+                    Edit Packaged Attraction
+                    <x-currency-price-note
+                        :country="old('country', $packagedAttraction->country ?? $dmcCountry ?? null)"
+                        :watch-country="true"
+                        country-select-id="attractionCountryFilter"
+                    />
+                </span>
                 <a href="{{ route('packaged-attractions.index') }}" class="btn btn-sm btn-outline-light">
                     <i class="fas fa-arrow-left me-1"></i> Back
                 </a>
@@ -270,6 +278,45 @@
                     </div>
                 </div>
                 
+                @php
+                    $selectedAttractions = json_decode($packagedAttraction->attractions, true) ?? [];
+                    $selectedAttractionIds = array_map('strval', $selectedAttractions);
+                    $attractionCountries = ($attractions ?? collect())->pluck('country')->filter()->unique()->sort()->values();
+                    $filterCountry = old('country', $packagedAttraction->country ?? $dmcCountry ?? '');
+                    $filterCity = old('city', $packagedAttraction->city ?? '');
+                @endphp
+
+                <div class="row">
+                    <!-- Country (read-only on edit) -->
+                    <div class="col-md-4 mb-3">
+                        <label for="attractionCountryFilter" class="form-label">
+                            <strong>Country</strong>
+                        </label>
+                        <input type="hidden" name="country" value="{{ $filterCountry }}">
+                        <select class="form-select bg-light" id="attractionCountryFilter" disabled aria-readonly="true" tabindex="-1">
+                            <option value="">All Countries</option>
+                            @foreach($attractionCountries as $country)
+                                <option value="{{ $country }}" {{ $filterCountry === $country ? 'selected' : '' }}>
+                                    {{ $country }}
+                                </option>
+                            @endforeach
+                        </select>
+                        <small class="text-muted">Country cannot be changed when editing a package.</small>
+                    </div>
+
+                    <!-- City (read-only on edit) -->
+                    <div class="col-md-4 mb-3">
+                        <label for="attractionCityFilter" class="form-label">
+                            <strong>City</strong>
+                        </label>
+                        <input type="hidden" name="city" value="{{ $filterCity }}">
+                        <select class="form-select bg-light" id="attractionCityFilter" disabled aria-readonly="true" tabindex="-1">
+                            <option value="">All Cities</option>
+                        </select>
+                        <small class="text-muted">City cannot be changed when editing a package.</small>
+                    </div>
+                </div>
+
                 <div class="row">
                     <!-- Attractions Selection -->
                     <div class="col-md-12 mb-3">
@@ -278,14 +325,13 @@
                         </label>
                         <select name="attractions[]" id="attractionsSelect" class="form-select" multiple required>
                             <option value="">Select Attractions</option>
-                            @php
-                                $selectedAttractions = json_decode($packagedAttraction->attractions, true) ?? [];
-                            @endphp
                             @foreach($attractions ?? [] as $attraction)
-                                <option 
-                                    data-image="{{ $attraction->master_image }}" 
+                                <option
+                                    data-image="{{ $attraction->master_image }}"
+                                    data-country="{{ $attraction->country }}"
+                                    data-city="{{ $attraction->location }}"
                                     value="{{ $attraction->id }}"
-                                    {{ in_array($attraction->id, $selectedAttractions) ? 'selected' : '' }}
+                                    {{ in_array((string) $attraction->id, $selectedAttractionIds, true) ? 'selected' : '' }}
                                 >
                                     {{ $attraction->name }}
                                 </option>
@@ -305,48 +351,95 @@
                     </div>
                 </div>
                 
+                <div class="row g-2 mb-3">
+                    <div class="col-md-3 mb-2">
+                        <label for="profit_type" class="form-label"><strong>Profit Type</strong></label>
+                        <select id="profit_type" name="profit_type" class="form-select form-select-sm">
+                            <option value="flat" {{ old('profit_type', 'flat') === 'flat' ? 'selected' : '' }}>Flat</option>
+                            <option value="percentage" {{ old('profit_type') === 'percentage' ? 'selected' : '' }}>Percentage</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <label for="profit_on_cost" class="form-label"><strong>Profit On Cost</strong></label>
+                        <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control form-control-sm" id="profit_on_cost" name="profit_on_cost" placeholder="0.00" value="{{ old('profit_on_cost') }}">
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <div class="section-title">
+                        <i class="ri-money-dollar-circle-line me-1"></i> Pricing
+                        <small class="text-muted fw-normal">(Cost = attraction fee · Sell = customer pays · {{ $dmcCurrency }})</small>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-sm package-price-table">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width:20%">Age</th>
+                                    <th>Cost <span class="text-danger">*</span></th>
+                                    <th>Sell <span class="text-danger">*</span></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><span class="badge bg-info-subtle text-info age-badge">Child</span></td>
+                                    <td>
+                                        <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control form-control-sm package-price-input package-cost-input" id="child_cost_price" name="child_cost_price" data-sell-target="child_price" placeholder="0.00" value="{{ old('child_cost_price', $packagedAttraction->child_cost_price) }}" required>
+                                        @error('child_cost_price')<div class="text-danger small">{{ $message }}</div>@enderror
+                                    </td>
+                                    <td>
+                                        <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control form-control-sm package-price-input package-sell-input" id="child_price" name="child_price" placeholder="0.00" value="{{ old('child_price', $packagedAttraction->child_price) }}" required>
+                                        @error('child_price')<div class="text-danger small">{{ $message }}</div>@enderror
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><span class="badge bg-primary-subtle text-primary age-badge">Adult</span></td>
+                                    <td>
+                                        <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control form-control-sm package-price-input package-cost-input" id="adult_cost_price" name="adult_cost_price" data-sell-target="adult_price" placeholder="0.00" value="{{ old('adult_cost_price', $packagedAttraction->adult_cost_price) }}" required>
+                                        @error('adult_cost_price')<div class="text-danger small">{{ $message }}</div>@enderror
+                                    </td>
+                                    <td>
+                                        <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control form-control-sm package-price-input package-sell-input" id="adult_price" name="adult_price" placeholder="0.00" value="{{ old('adult_price', $packagedAttraction->adult_price) }}" required>
+                                        @error('adult_price')<div class="text-danger small">{{ $message }}</div>@enderror
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><span class="badge bg-secondary-subtle text-secondary age-badge">Senior</span></td>
+                                    <td>
+                                        <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control form-control-sm package-price-input package-cost-input" id="senior_citizen_cost_price" name="senior_citizen_cost_price" data-sell-target="senior_citizen_price" placeholder="0.00" value="{{ old('senior_citizen_cost_price', $packagedAttraction->senior_citizen_cost_price) }}" required>
+                                        @error('senior_citizen_cost_price')<div class="text-danger small">{{ $message }}</div>@enderror
+                                    </td>
+                                    <td>
+                                        <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control form-control-sm package-price-input package-sell-input" id="senior_citizen_price" name="senior_citizen_price" placeholder="0.00" value="{{ old('senior_citizen_price', $packagedAttraction->senior_citizen_price) }}" required>
+                                        @error('senior_citizen_price')<div class="text-danger small">{{ $message }}</div>@enderror
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
                 <div class="row">
-                    <!-- Senior Citizen Price -->
-                    <div class="col-md-4 mb-3">
-                        <label for="senior_citizen_price" class="form-label">
-                            <strong>Senior Citizen Price</strong><span class="text-danger">*</span>
-                        </label>
-                        <div class="input-group">
-                            <span class="input-group-text">$</span>
-                            <input type="number" step="0.01" class="form-control" id="senior_citizen_price" 
-                                   name="senior_citizen_price" placeholder="0.00" value="{{ $packagedAttraction->senior_citizen_price }}" required>
+                    <div class="col-md-6 mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="vehicle_included" name="vehicle_included" value="1"
+                                   {{ old('vehicle_included', $packagedAttraction->vehicle_included) ? 'checked' : '' }}>
+                            <label class="form-check-label" for="vehicle_included">
+                                <strong>Vehicle Included</strong>
+                            </label>
                         </div>
-                        @error('senior_citizen_price')
+                        @error('vehicle_included')
                             <div class="text-danger mt-1">{{ $message }}</div>
                         @enderror
                     </div>
-                    
-                    <!-- Adult Price -->
-                    <div class="col-md-4 mb-3">
-                        <label for="adult_price" class="form-label">
-                            <strong>Adult Price</strong><span class="text-danger">*</span>
-                        </label>
-                        <div class="input-group">
-                            <span class="input-group-text">$</span>
-                            <input type="number" step="0.01" class="form-control" id="adult_price" 
-                                   name="adult_price" placeholder="0.00" value="{{ $packagedAttraction->adult_price }}" required>
+                    <div class="col-md-6 mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="guide_included" name="guide_included" value="1"
+                                   {{ old('guide_included', $packagedAttraction->guide_included) ? 'checked' : '' }}>
+                            <label class="form-check-label" for="guide_included">
+                                <strong>Guide Included</strong>
+                            </label>
                         </div>
-                        @error('adult_price')
-                            <div class="text-danger mt-1">{{ $message }}</div>
-                        @enderror
-                    </div>
-                    
-                    <!-- Child Price -->
-                    <div class="col-md-4 mb-3">
-                        <label for="child_price" class="form-label">
-                            <strong>Child Price</strong><span class="text-danger">*</span>
-                        </label>
-                        <div class="input-group">
-                            <span class="input-group-text">$</span>
-                            <input type="number" step="0.01" class="form-control" id="child_price" 
-                                   name="child_price" placeholder="0.00" value="{{ $packagedAttraction->child_price }}" required>
-                        </div>
-                        @error('child_price')
+                        @error('guide_included')
                             <div class="text-danger mt-1">{{ $message }}</div>
                         @enderror
                     </div>
@@ -445,6 +538,78 @@
 
 <script>
     $(document).ready(function() {
+        function clampPackagePriceInput(el) {
+            if (!el || el.value === '' || el.value === null) return;
+            const n = parseFloat(String(el.value).replace(',', '.'));
+            if (isNaN(n)) return;
+            el.value = Number(n.toFixed(2));
+        }
+
+        function calculateSellFromCost(costValue) {
+            const profitType = ($('#profit_type').val() || 'flat').toLowerCase();
+            const profit = parseFloat(String($('#profit_on_cost').val() || '0').replace(',', '.'));
+            const cost = parseFloat(String(costValue || '0').replace(',', '.'));
+
+            if (isNaN(cost)) return '';
+
+            const profitAmount = isNaN(profit) ? 0 : profit;
+            let sell = cost;
+
+            if (profitType === 'percentage') {
+                sell = cost + (cost * profitAmount / 100);
+            } else {
+                sell = cost + profitAmount;
+            }
+
+            return Number(Math.max(0, sell).toFixed(2));
+        }
+
+        function updateSellFromCostInput(costInput) {
+            if (!costInput) return;
+            const sellId = costInput.getAttribute('data-sell-target');
+            const sellInput = sellId ? document.getElementById(sellId) : null;
+            if (!sellInput) return;
+
+            if (costInput.value === '' || costInput.value === null) {
+                return;
+            }
+
+            sellInput.value = calculateSellFromCost(costInput.value);
+            sellInput.dataset.autoFilled = '1';
+        }
+
+        function updateAllSellPricesFromCost() {
+            document.querySelectorAll('.package-cost-input').forEach(function (costInput) {
+                updateSellFromCostInput(costInput);
+            });
+        }
+
+        document.querySelectorAll('.package-price-input').forEach(function (el) {
+            el.addEventListener('blur', function () { clampPackagePriceInput(this); });
+            if (el.value !== '') {
+                clampPackagePriceInput(el);
+            }
+        });
+
+        document.querySelectorAll('.package-cost-input').forEach(function (costInput) {
+            costInput.addEventListener('input', function () {
+                updateSellFromCostInput(this);
+            });
+            costInput.addEventListener('change', function () {
+                updateSellFromCostInput(this);
+            });
+        });
+
+        document.querySelectorAll('.package-sell-input').forEach(function (sellInput) {
+            sellInput.addEventListener('input', function () {
+                this.dataset.autoFilled = '0';
+            });
+        });
+
+        $('#profit_type, #profit_on_cost').on('input change', function () {
+            updateAllSellPricesFromCost();
+        });
+
         // Initialize Select2
         if (typeof $.fn.select2 !== 'undefined') {
             $("#attractionsSelect").select2({
@@ -475,9 +640,69 @@
             console.error("Summernote plugin is not available");
         }
         
-        // Update attractions preview on page load
-        updateAttractionPreview();
-        
+        const savedFilterCity = @json($filterCity);
+
+        // Build attractions data map from blade
+        const allAttractionOptions = [];
+        $('#attractionsSelect option').each(function() {
+            if ($(this).val()) {
+                allAttractionOptions.push({
+                    id: String($(this).val()),
+                    name: $(this).text(),
+                    image: $(this).data('image'),
+                    country: $(this).data('country') || '',
+                    city: $(this).data('city') || '',
+                    element: $(this).clone()
+                });
+            }
+        });
+
+        function filterAttractions() {
+            const selectedCountry = $('#attractionCountryFilter').val();
+            const selectedCity = $('#attractionCityFilter').val();
+            const currentSelected = ($('#attractionsSelect').val() || []).map(String);
+
+            $('#attractionsSelect').empty();
+
+            allAttractionOptions.forEach(function(opt) {
+                const matchCountry = !selectedCountry || opt.country === selectedCountry;
+                const matchCity = !selectedCity || opt.city === selectedCity;
+                const keepSelected = currentSelected.includes(opt.id);
+                if (keepSelected || (matchCountry && matchCity)) {
+                    const el = opt.element.clone();
+                    if (currentSelected.includes(opt.id)) {
+                        el.prop('selected', true);
+                    }
+                    $('#attractionsSelect').append(el);
+                }
+            });
+
+            $('#attractionsSelect').trigger('change');
+            updateAttractionPreview();
+        }
+
+        function populateCities(country) {
+            const selectedCity = $('#attractionCityFilter').val() || savedFilterCity;
+            const cities = [...new Set(
+                allAttractionOptions
+                    .filter(o => !country || o.country === country)
+                    .map(o => o.city)
+                    .filter(c => c)
+            )].sort();
+
+            $('#attractionCityFilter').empty().append('<option value="">All Cities</option>');
+            cities.forEach(function(city) {
+                $('#attractionCityFilter').append($('<option>', {
+                    value: city,
+                    text: city,
+                    selected: selectedCity === city
+                }));
+            });
+        }
+
+        populateCities($('#attractionCountryFilter').val());
+        filterAttractions();
+
         // Handle attraction selection change
         $('#attractionsSelect').on('change', function() {
             updateAttractionPreview();
@@ -611,4 +836,5 @@
         });
     }
 </script>
+@include('components.currency-price-note-dmc-script')
 @endsection 

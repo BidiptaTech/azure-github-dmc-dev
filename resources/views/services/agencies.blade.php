@@ -29,11 +29,10 @@
         </div>
 
         <!-- Selected Agencies Section -->
-        @if(isset($selectedAgencies) && count($selectedAgencies) > 0)
-        <div class="card mb-4" id="selectedAgenciesSection">
+        <div class="card mb-4 {{ (!isset($selectedAgencies) || count($selectedAgencies) === 0) ? 'd-none' : '' }}" id="selectedAgenciesSection">
             <div class="card-header">
                 <div class="d-flex flex-wrap justify-content-between align-items-end gap-2">
-                    <h5 class="mb-0">Selected Agencies ({{ count($selectedAgencies) }})</h5>
+                    <h5 class="mb-0" id="selectedAgenciesTitle">Selected Agencies ({{ isset($selectedAgencies) ? count($selectedAgencies) : 0 }})</h5>
                     <div class="d-flex flex-wrap gap-2">
                         <div class="input-group input-group-sm" style="width: 260px;">
                             <span class="input-group-text"><i class="ri-search-line"></i></span>
@@ -64,7 +63,7 @@
                             </tr>
                         </thead>
                         <tbody id="selectedAgenciesBody">
-                            @foreach($selectedAgencies as $agency)
+                            @foreach(($selectedAgencies ?? []) as $agency)
                                 <tr class="selected-agency-row" data-agency-id="{{ $agency->agency_id }}" data-name="{{ strtolower($agency->agency_name) }}" data-location="{{ strtolower($agency->city) }}, {{ strtolower($agency->country) }}">
                                     <td>
                                         <div class="d-flex align-items-center">
@@ -124,7 +123,6 @@
                 </div>
             </div>
         </div>
-        @endif
 
         <!-- Available Agencies Section -->
         <div class="card">
@@ -137,6 +135,7 @@
             </div>
             
             <div class="card-body">
+                <div id="availableAgenciesAlerts"></div>
                 @if(session('success'))
                     <div class="alert alert-success alert-dismissible fade show" role="alert">
                         {{ session('success') }}
@@ -174,7 +173,19 @@
                 <div class="row" id="agenciesContainer">
                     @if(isset($availableAgencies) && count($availableAgencies) > 0)
                         @foreach($availableAgencies as $agency)
-                            <div class="col-lg-4 col-md-6 mb-3 agency-item" data-agency-name="{{ strtolower($agency->agency_name) }}" data-country="{{ strtolower($agency->country) }}" data-city="{{ strtolower($agency->city) }}">
+                            <div class="col-lg-4 col-md-6 mb-3 agency-item"
+                                 data-agency-id="{{ $agency->agency_id }}"
+                                 data-display-name="{{ $agency->agency_name }}"
+                                 data-logo="{{ $agency->logo }}"
+                                 data-display-city="{{ $agency->city }}"
+                                 data-display-country="{{ $agency->country }}"
+                                 data-email="{{ $agency->email }}"
+                                 data-phone="{{ $agency->phone }}"
+                                 data-total-branches="{{ $agency->total_branches }}"
+                                 data-view-url="{{ route('agencies.show', Crypt::encrypt($agency->agency_id)) }}"
+                                 data-agency-name="{{ strtolower($agency->agency_name) }}"
+                                 data-country="{{ strtolower($agency->country) }}"
+                                 data-city="{{ strtolower($agency->city) }}">
                                 <div class="card h-100 agency-card" 
                                      data-bs-toggle="tooltip" 
                                      data-bs-html="true"
@@ -263,6 +274,44 @@
     <!-- / Content -->
 </div>
 
+<!-- Assign Sales User Modal -->
+<div class="modal fade" id="assignSalesDmcModal" tabindex="-1" aria-labelledby="assignSalesDmcModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h5 class="modal-title" id="assignSalesDmcModalLabel">Assign Sales User</h5>
+                    <small class="text-muted" id="assignSalesAgencyName"></small>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-3">Select the sales user responsible for this agency:</p>
+
+                <div class="list-group" id="salesDmcUserOptions">
+                    @forelse(($salesDmcUsers ?? collect()) as $salesUser)
+                        <button type="button"
+                                class="list-group-item list-group-item-action sales-dmc-user-option"
+                                data-user-id="{{ $salesUser->userId }}"
+                                data-user-name="{{ $salesUser->name }}">
+                            <span>
+                                <i class="ri-user-line me-2"></i>{{ $salesUser->name }}
+                            </span>
+                        </button>
+                    @empty
+                        <div class="alert alert-warning mb-0">
+                            No eligible sales users were found under the current DMC.
+                        </div>
+                    @endforelse
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Remove Agency Modal -->
 <div class="modal fade" id="removeAgencyModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -312,14 +361,115 @@
 
 <script>
 let currentAgencyId = null;
+let pendingAgencySelection = null;
 const defaultAgencyCountry = '{{ strtolower(auth()->user()->country ?? '') }}';
+const csrfToken = '{{ csrf_token() }}';
+let selectedAgenciesPaginator = null;
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text ?? '';
+    return div.innerHTML;
+}
+
+function resetAgencyButton(btn) {
+    if (!btn) return;
+    const btnText = btn.querySelector('.btn-text');
+    const btnLoader = btn.querySelector('.btn-loader');
+    if (btnText) btnText.classList.remove('d-none');
+    if (btnLoader) btnLoader.classList.add('d-none');
+    btn.disabled = false;
+}
+
+function setAgencyButtonLoading(btn) {
+    if (!btn) return;
+    const btnText = btn.querySelector('.btn-text');
+    const btnLoader = btn.querySelector('.btn-loader');
+    if (btnText) btnText.classList.add('d-none');
+    if (btnLoader) btnLoader.classList.remove('d-none');
+    btn.disabled = true;
+}
+
+function updateSelectedAgencyCount() {
+    const count = document.querySelectorAll('#selectedAgenciesBody .selected-agency-row').length;
+    const title = document.getElementById('selectedAgenciesTitle');
+    const section = document.getElementById('selectedAgenciesSection');
+    if (title) title.textContent = `Selected Agencies (${count})`;
+    if (section) section.classList.toggle('d-none', count === 0);
+}
+
+function buildSelectedAgencyRowFromItem(item) {
+    const agencyId = item.getAttribute('data-agency-id');
+    const name = item.getAttribute('data-display-name') || '';
+    const city = item.getAttribute('data-display-city') || '';
+    const country = item.getAttribute('data-display-country') || '';
+    const logo = item.getAttribute('data-logo') || '';
+    const email = item.getAttribute('data-email') || '';
+    const phone = item.getAttribute('data-phone') || '';
+    const branches = parseInt(item.getAttribute('data-total-branches') || '0', 10);
+    const viewUrl = item.getAttribute('data-view-url') || '#';
+    const branchLabel = `${branches} ${branches === 1 ? 'Location' : 'Locations'}`;
+    const logoHtml = logo
+        ? `<img src="${escapeHtml(logo)}" alt="${escapeHtml(name)} Logo" style="width: 100%; height: 100%; object-fit: cover; border-radius: 4px;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"><i class="ri-building-line text-muted" style="display: none;"></i>`
+        : `<i class="ri-building-line text-muted"></i>`;
+
+    const row = document.createElement('tr');
+    row.className = 'selected-agency-row';
+    row.setAttribute('data-agency-id', agencyId);
+    row.setAttribute('data-name', name.toLowerCase());
+    row.setAttribute('data-location', `${city}, ${country}`.toLowerCase());
+    row.innerHTML = `
+        <td>
+            <div class="d-flex align-items-center">
+                <div class="bg-light rounded me-2 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; overflow: hidden;">${logoHtml}</div>
+                <div><strong>${escapeHtml(name)}</strong></div>
+            </div>
+        </td>
+        <td>${escapeHtml(city)}, ${escapeHtml(country)}</td>
+        <td><small class="d-block">${escapeHtml(email)}</small><small class="text-muted">${escapeHtml(phone)}</small></td>
+        <td><span class="badge bg-label-info">${escapeHtml(branchLabel)}</span></td>
+        <td>
+            <div class="btn-group" role="group">
+                <a href="${viewUrl}" class="btn btn-sm btn-outline-primary"><i class="ri-eye-line me-1"></i>View</a>
+                <button type="button" class="btn btn-sm btn-outline-danger remove-agency-btn"
+                        data-agency-id="${escapeHtml(agencyId)}" data-agency-name="${escapeHtml(name)}">
+                    <i class="ri-delete-bin-line me-1"></i>Remove
+                </button>
+            </div>
+        </td>`;
+    return row;
+}
+
+function addAgencyToSelectedTable(item) {
+    const agencyId = item.getAttribute('data-agency-id');
+    if (document.querySelector(`#selectedAgenciesBody .selected-agency-row[data-agency-id="${agencyId}"]`)) return;
+    const tbody = document.getElementById('selectedAgenciesBody');
+    if (!tbody) return;
+    tbody.insertBefore(buildSelectedAgencyRowFromItem(item), tbody.firstChild);
+    item.classList.add('agency-selected');
+}
+
+function removeAgencyFromSelectedTable(agencyId) {
+    const row = document.querySelector(`#selectedAgenciesBody .selected-agency-row[data-agency-id="${agencyId}"]`);
+    if (row) row.remove();
+}
+
+function refreshSelectedAgencyPagination() {
+    if (selectedAgenciesPaginator) selectedAgenciesPaginator.refresh(1);
+}
 
 function selectAll() {
-    document.querySelectorAll('.select-agency-btn').forEach(button => {
-        if (!button.disabled) {
-            button.click();
-        }
-    });
+    const buttons = Array.from(document.querySelectorAll('.agency-item:not(.agency-selected) .select-agency-btn'))
+        .filter(button => !button.disabled && button.closest('.agency-item')?.style.display !== 'none');
+
+    if (!buttons.length) return;
+
+    pendingAgencySelection = {
+        bulk: true,
+        buttons: buttons
+    };
+    document.getElementById('assignSalesAgencyName').textContent = `${buttons.length} agencies`;
+    new bootstrap.Modal(document.getElementById('assignSalesDmcModal')).show();
 }
 
 function deselectAll() {
@@ -338,6 +488,11 @@ function applyAgencyFilters() {
     let visibleCount = 0;
 
     items.forEach(item => {
+        if (item.classList.contains('agency-selected')) {
+            item.style.display = 'none';
+            return;
+        }
+
         const name = item.getAttribute('data-agency-name') || '';
         const country = item.getAttribute('data-country') || '';
         const city = item.getAttribute('data-city') || '';
@@ -399,7 +554,82 @@ function onAgencyCountryChange() {
     applyAgencyFilters();
 }
 
-// Document ready
+function selectAgency(agencyId, agencyName, buttonEl, salesUserId) {
+    fetch('{{ route('services.agencies.select') }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': csrfToken,
+            'Accept': 'application/json',
+        },
+        body: JSON.stringify({
+            agency_id: agencyId,
+            sales_user_id: salesUserId
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const item = buttonEl ? buttonEl.closest('.agency-item') : null;
+            if (item) {
+                addAgencyToSelectedTable(item);
+                item.style.display = 'none';
+            }
+            updateSelectedAgencyCount();
+            refreshSelectedAgencyPagination();
+            applyAgencyFilters();
+            showAlert('success', data.message || `${agencyName} has been selected successfully!`);
+        } else {
+            resetAgencyButton(buttonEl);
+            showAlert('error', data.message || 'An error occurred while selecting the agency.');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        resetAgencyButton(buttonEl);
+        showAlert('error', 'An error occurred while selecting the agency.');
+    });
+}
+
+function openSalesDmcModal(agencyId, agencyName, buttonEl) {
+    pendingAgencySelection = { agencyId, agencyName, buttonEl };
+    document.getElementById('assignSalesAgencyName').textContent = agencyName;
+    new bootstrap.Modal(document.getElementById('assignSalesDmcModal')).show();
+}
+
+function removeAgency(agencyId, agencyName) {
+    fetch('{{ route('services.agencies.remove') }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': csrfToken,
+            'Accept': 'application/json',
+        },
+        body: JSON.stringify({ agency_id: agencyId })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            removeAgencyFromSelectedTable(agencyId);
+            const item = document.querySelector(`.agency-item[data-agency-id="${agencyId}"]`);
+            if (item) {
+                item.classList.remove('agency-selected');
+                resetAgencyButton(item.querySelector('.select-agency-btn'));
+            }
+            updateSelectedAgencyCount();
+            refreshSelectedAgencyPagination();
+            applyAgencyFilters();
+            showAlert('success', data.message || `${agencyName} has been removed successfully!`);
+        } else {
+            showAlert('error', data.message || 'An error occurred while removing the agency.');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('error', 'An error occurred while removing the agency.');
+    });
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize tooltips
     var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
@@ -407,108 +637,66 @@ document.addEventListener('DOMContentLoaded', function() {
         return new bootstrap.Tooltip(tooltipTriggerEl);
     });
 
-    // Agency selection functionality
     document.querySelectorAll('.select-agency-btn').forEach(button => {
         button.addEventListener('click', function() {
-            const agencyId = this.getAttribute('data-agency-id');
-            const agencyName = this.getAttribute('data-agency-name');
-            
-            // Show loading state
-            const btnText = this.querySelector('.btn-text');
-            const btnLoader = this.querySelector('.btn-loader');
-            btnText.classList.add('d-none');
-            btnLoader.classList.remove('d-none');
-            this.disabled = true;
-            
-            // Make AJAX request
-            fetch('{{ route('services.agencies.select') }}', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                },
-                body: JSON.stringify({
-                    agency_id: agencyId
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Show success message
-                    showAlert('success', data.message);
-                    // Reload page after short delay
-                    setTimeout(() => {
-                        window.location.reload();
-                    }, 1000);
-                } else {
-                    showAlert('error', data.message);
-                    // Reset button state
-                    btnText.classList.remove('d-none');
-                    btnLoader.classList.add('d-none');
-                    this.disabled = false;
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showAlert('error', 'An error occurred while selecting the agency.');
-                // Reset button state
-                btnText.classList.remove('d-none');
-                btnLoader.classList.add('d-none');
-                this.disabled = false;
-            });
+            if (this.disabled) return;
+            openSalesDmcModal(
+                this.getAttribute('data-agency-id'),
+                this.getAttribute('data-agency-name'),
+                this
+            );
         });
     });
 
-    // Agency removal functionality
-    document.querySelectorAll('.remove-agency-btn').forEach(button => {
-        button.addEventListener('click', function() {
-            currentAgencyId = this.getAttribute('data-agency-id');
-            const agencyName = this.getAttribute('data-agency-name');
-            
-            document.getElementById('removeAgencyName').textContent = agencyName;
-            
-            const modal = new bootstrap.Modal(document.getElementById('removeAgencyModal'));
-            modal.show();
+    document.querySelectorAll('.sales-dmc-user-option').forEach(option => {
+        option.addEventListener('click', function() {
+            if (!pendingAgencySelection) return;
+
+            const selection = pendingAgencySelection;
+            const salesUserId = this.getAttribute('data-user-id');
+            const modalElement = document.getElementById('assignSalesDmcModal');
+            const modal = bootstrap.Modal.getInstance(modalElement);
+
+            if (modal) modal.hide();
+
+            if (selection.bulk) {
+                selection.buttons.forEach(button => {
+                    setAgencyButtonLoading(button);
+                    selectAgency(
+                        button.getAttribute('data-agency-id'),
+                        button.getAttribute('data-agency-name'),
+                        button,
+                        salesUserId
+                    );
+                });
+            } else {
+                setAgencyButtonLoading(selection.buttonEl);
+                selectAgency(
+                    selection.agencyId,
+                    selection.agencyName,
+                    selection.buttonEl,
+                    salesUserId
+                );
+            }
+
+            pendingAgencySelection = null;
         });
     });
 
-    // Confirm removal
+    document.addEventListener('click', function(event) {
+        const removeBtn = event.target.closest('.remove-agency-btn');
+        if (!removeBtn || !document.getElementById('selectedAgenciesBody')?.contains(removeBtn)) return;
+        currentAgencyId = removeBtn.getAttribute('data-agency-id');
+        document.getElementById('removeAgencyName').textContent = removeBtn.getAttribute('data-agency-name');
+        new bootstrap.Modal(document.getElementById('removeAgencyModal')).show();
+    });
+
     document.getElementById('confirmRemoveAgency').addEventListener('click', function() {
         if (!currentAgencyId) return;
-        
-        // Make AJAX request
-        fetch('{{ route('services.agencies.remove') }}', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': '{{ csrf_token() }}'
-            },
-            body: JSON.stringify({
-                agency_id: currentAgencyId
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // Hide modal
-                const modal = bootstrap.Modal.getInstance(document.getElementById('removeAgencyModal'));
-                modal.hide();
-                
-                // Show success message
-                showAlert('success', data.message);
-                
-                // Reload page after short delay
-                setTimeout(() => {
-                    window.location.reload();
-                }, 1000);
-            } else {
-                showAlert('error', data.message);
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showAlert('error', 'An error occurred while removing the agency.');
-        });
+        const agencyName = document.getElementById('removeAgencyName').textContent;
+        removeAgency(currentAgencyId, agencyName);
+        const modal = bootstrap.Modal.getInstance(document.getElementById('removeAgencyModal'));
+        if (modal) modal.hide();
     });
     // Populate country dropdown from DOM
     const countrySelect = document.getElementById('agencyCountrySelect');
@@ -532,19 +720,17 @@ document.addEventListener('DOMContentLoaded', function() {
     // Selected Agencies: client-side pagination + search
     const selectedBody = document.getElementById('selectedAgenciesBody');
     if (selectedBody) {
-        const rows = Array.from(selectedBody.querySelectorAll('.selected-agency-row'));
         const pagination = document.getElementById('selectedAgenciesPagination');
         const searchInput = document.getElementById('selectedAgencySearch');
         const pageSizeSelect = document.getElementById('selectedAgencyPageSize');
 
         function getPageSize() { return parseInt(pageSizeSelect.value, 10) || 10; }
+        function getAllRows() { return Array.from(selectedBody.querySelectorAll('.selected-agency-row')); }
         function getFilteredRows() {
             const term = (searchInput.value || '').toLowerCase();
-            return rows.filter(r => {
+            return getAllRows().filter(r => {
                 if (!term) return true;
-                const name = r.getAttribute('data-name') || '';
-                const loc = r.getAttribute('data-location') || '';
-                return name.includes(term) || loc.includes(term);
+                return (r.getAttribute('data-name') || '').includes(term) || (r.getAttribute('data-location') || '').includes(term);
             });
         }
         function renderPagination(total, page, pageSize) {
@@ -573,19 +759,11 @@ document.addEventListener('DOMContentLoaded', function() {
             const safePage = Math.min(Math.max(1, page), totalPages);
             const start = (safePage - 1) * pageSize;
             const end = start + pageSize;
-            rows.forEach(r => r.classList.add('d-none'));
+            getAllRows().forEach(r => r.classList.add('d-none'));
             filtered.slice(start, end).forEach(r => r.classList.remove('d-none'));
             renderPagination(total, safePage, pageSize);
         }
-        // Last selected agency to top
-        try {
-            const lastId = localStorage.getItem('last_selected_agency_id');
-            if (lastId) {
-                const row = rows.find(r => String(r.getAttribute('data-agency-id')) === String(lastId));
-                if (row && row.parentElement) row.parentElement.insertBefore(row, row.parentElement.firstChild);
-                localStorage.removeItem('last_selected_agency_id');
-            }
-        } catch (e) {}
+        selectedAgenciesPaginator = { refresh(page = 1) { render(page); } };
         render(1);
         searchInput.addEventListener('input', () => render(1));
         pageSizeSelect.addEventListener('change', () => render(1));
@@ -594,24 +772,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
 function showAlert(type, message) {
     const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
-    const alertHtml = `
-        <div class="alert ${alertClass} alert-dismissible fade show" role="alert">
-            ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    `;
-    
-    // Insert at the top of the card body
-    const cardBody = document.querySelector('.card-body');
-    cardBody.insertAdjacentHTML('afterbegin', alertHtml);
-    
-    // Auto-remove after 5 seconds
-    setTimeout(() => {
-        const alert = cardBody.querySelector('.alert');
-        if (alert) {
-            alert.remove();
-        }
-    }, 5000);
+    const alertHtml = `<div class="alert ${alertClass} alert-dismissible fade show" role="alert">${message}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>`;
+    const alertContainer = document.getElementById('availableAgenciesAlerts');
+    if (!alertContainer) return;
+    alertContainer.insertAdjacentHTML('beforeend', alertHtml);
+    setTimeout(() => { const alert = alertContainer.querySelector('.alert'); if (alert) alert.remove(); }, 5000);
 }
 </script>
 @endsection

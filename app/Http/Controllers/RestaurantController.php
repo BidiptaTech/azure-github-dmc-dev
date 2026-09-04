@@ -19,6 +19,12 @@ use App\Models\Country;
 use App\Models\City;
 use App\Models\Order;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Hash; 
+use Illuminate\Validation\ValidationException;
+use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\Rule;
+
 
 class RestaurantController extends Controller
 {
@@ -290,6 +296,8 @@ class RestaurantController extends Controller
         $restaurant->lunch_price = $request->input('lunch_price'); // Fixed typo
         $restaurant->dinner_price = $request->input('dinner_price');
         $restaurant->property = $request->input('property');
+        $restaurant->email = $request->input('restaurant_email');    //email added
+        $restaurant->password = Hash::make($request->input('password'));    //password added
         $restaurant->is_active = $request->input('restaurant_status') == 1 ? 1 : 0;
         $restaurant->images = $img_path ?? null;
         $restaurant->master_image = $master_image ?? null;
@@ -327,7 +335,7 @@ class RestaurantController extends Controller
                 $dmcUsers = User::where('role_id', 11)
                     ->where('user_type', 2)
                     ->whereIn('userId', $restaurantDmcIds)
-                    ->select('userId', 'name', 'company_name')
+                    ->select('userId', 'name', 'company_name', 'currency')
                     ->orderBy('company_name', 'asc')
                     ->get();
             }
@@ -335,29 +343,31 @@ class RestaurantController extends Controller
         }
         
         $restaurants = Restaurant::where('status', 1)->get();
-        //$meals = Meal::where('restaurant_id', $restaurant_id)->get();
+        $query = Meal::with(['restaurant', 'dmc:userId,name,company_name', 'createdByUser:userId,name'])
+            ->where('restaurant_id', $restaurant_id);
+
         if($auth_user->role_id == 1 || $auth_user->role_id == 20){
-            $meals = Meal::where('restaurant_id', $restaurant_id)->get();
+            // Admin and Virtual DMC can see all meals for this restaurant
         }
         else if($auth_user->role_id == 11){
-            $meals = Meal::where('restaurant_id', $restaurant_id)->where('dmc_id', $auth_user->userId)->get();
+            $query->where('dmc_id', $auth_user->userId);
         }
         else if($auth_user->role_id == 35 || in_array($auth_user->role_id, [130, 132, 133, 135, 136, 137, 138])){
             $userdmc = User::where('userId', $auth_user->created_by)->first();
-            $meals = Meal::where('restaurant_id', $restaurant_id)->where('dmc_id', $userdmc->userId)->get();
+            $query->where('dmc_id', $userdmc->userId);
         }
         else if($auth_user->role_id == 78 || $auth_user->role_id == 139){
-            $user_product_head = User::where('userId', $auth_user->created_by)->first();    
+            $user_product_head = User::where('userId', $auth_user->created_by)->first();
             $user_product_head_dmc = User::where('userId', $user_product_head->created_by)->first();
-            $meals = Meal::where('restaurant_id', $restaurant_id)->where('dmc_id', $user_product_head_dmc->userId)->get();
+            $query->where('dmc_id', $user_product_head_dmc->userId);
         }else if($auth_user->role_id == 120 || $auth_user->role_id == 140){
             $user_product_manager = User::where('userId', $auth_user->created_by)->first();
             $user_product_head = User::where('userId', $user_product_manager->created_by)->first();
             $user_product_head_dmc = User::where('userId', $user_product_head->created_by)->first();
-            $meals = Meal::where('restaurant_id', $restaurant_id)->where('dmc_id', $user_product_head_dmc->userId)->get();
-        }else{
-            $meals = Meal::where('restaurant_id', $restaurant_id)->get();
+            $query->where('dmc_id', $user_product_head_dmc->userId);
         }
+
+        $meals = $query->get();
         return view('meals.create-meals', compact('restaurants', 'meals', 'current_restaurant', 'auth_user', 'dmcUsers'));
     }
 
@@ -437,6 +447,8 @@ class RestaurantController extends Controller
     {
         // dd($request->all());
         // Validate the incoming request data
+
+        try {
         $request->validate([
             'name' => 'required|string|max:255',
             'phone' => 'nullable|numeric',
@@ -460,6 +472,14 @@ class RestaurantController extends Controller
             'description' => 'required',
             'terms_conditions' => 'required|string',
             'remarks' => 'nullable|string',
+            'restaurant_email' => [
+                'required',
+                'email',
+                Rule::unique('restaurants', 'email')->whereNull('deleted_at'),
+            ],
+            'password' => 'required|string|min:8', //password added 
+        ], [
+            'restaurant_email.unique' => 'This email is already registered for another restaurant.',
         ]);
 
         
@@ -493,12 +513,12 @@ class RestaurantController extends Controller
                 'closing_time_dinner' => null,
             ]);
         }
-        $lastRestaurant = Restaurant::withTrashed()->orderBy('created_at', 'desc')->first();
-        $restaurant_max_id = $lastRestaurant->restaurant_id ?? 0;
-        $restaurantId = CommonHelper::createId($restaurant_max_id);
-        while (Restaurant::where('restaurant_id', $restaurantId)->exists()) {
-            $restaurantId = CommonHelper::createId($restaurantId);
-        }
+        // $lastRestaurant = Restaurant::withTrashed()->orderBy('created_at', 'desc')->first();
+        // $restaurant_max_id = $lastRestaurant->restaurant_id ?? 0;
+        // $restaurantId = CommonHelper::createId($restaurant_max_id);
+        // while (Restaurant::where('restaurant_id', $restaurantId)->exists()) {
+        //     $restaurantId = CommonHelper::createId($restaurantId);
+        // }
 
         $imagePaths = [];
         if ($request->hasFile('all_images')) {
@@ -586,9 +606,11 @@ class RestaurantController extends Controller
         $restaurant->dinner_price = $request->input('dinner_price');
 
         $restaurant->owned_by = $request->input('owned_by');
-        $restaurant->restaurant_id = $restaurantId;
+        // $restaurant->restaurant_id = $restaurantId;
 
         $restaurant->property = $request->input('property');
+        $restaurant->email = $request->input('restaurant_email');    //email added
+        $restaurant->password = Hash::make($request->input('password'));    //password added
         //$restaurant->is_active = $restaurant->restaurant_status;
         $restaurant->images = $imagePathsJson;
         $restaurant->master_image = $masterImage;
@@ -600,12 +622,19 @@ class RestaurantController extends Controller
         $restaurant->terms_conditions = $request->input('terms_conditions');
         $restaurant->created_by = $auth_user->userId;
         $restaurant->save();
+        $restaurant->refresh();
 
         // if (in_array($auth_user->role_id, [11, 4, 3, 35, 78, 120])) {
         //     return view('restaurants.thankyou');
         // }
         $restaurant_id = $restaurant->restaurant_id;
         return redirect()->route('meals.restaurant_create', Crypt::encrypt($restaurant_id))->with('success', 'Restaurant added successfully!');
+
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->withInput()
+                ->with('error', $e->getMessage());
+        }
     }
 
     /*
@@ -642,8 +671,10 @@ class RestaurantController extends Controller
     * Date 07-10-2024
     */
     public function update(Request $request, $id)
+
     {
         // Reset fields for Breakfast if not available
+        try {
         if ($request->breakfast_available != 1) {
             $request->merge([
                 'opening_time_bf' => null,
@@ -689,6 +720,23 @@ class RestaurantController extends Controller
         $img_path = array_merge($existingImages, $imagePaths);
 
         $restaurant = Restaurant::where('restaurant_id',$id)->first();
+        if (!$restaurant) {
+            return redirect()->back()->with('error', 'Restaurant not found.');
+        }
+
+        $request->validate([
+            'restaurant_email' => [
+                'required',
+                'email',
+                Rule::unique('restaurants', 'email')
+                    ->whereNull('deleted_at')
+                    ->ignore($restaurant->id),
+            ],
+            'password' => 'nullable|string|min:8',
+        ], [
+            'restaurant_email.unique' => 'This email is already registered for another restaurant.',
+        ]);
+
         // Process master image
         $master_image = $restaurant->master_image ?? '';
 
@@ -711,6 +759,8 @@ class RestaurantController extends Controller
                 $master_image = $masterImagePath['master_value'];
             }
         }
+
+        $plainPassword = trim((string) $request->input('password', ''));
 
         $restaurant->name = $request->input('name');
         $restaurant->phone = $request->input('phone');
@@ -735,6 +785,16 @@ class RestaurantController extends Controller
         $restaurant->lunch_price = $request->input('lunch_price');
         $restaurant->dinner_price = $request->input('dinner_price');
         $restaurant->property = $request->input('property');
+        $restaurant->email = $request->input('restaurant_email');    //email added
+        if ($plainPassword !== '') {
+            $restaurant->password = Hash::make($plainPassword);
+
+            // Invalidate all tokens for this restaurant (id and/or restaurant_id)
+            CommonHelper::invalidateAccessTokens(Restaurant::class, [
+                $restaurant->id,
+                $restaurant->restaurant_id,
+            ]);
+        }
         $restaurant->is_active = $request->input('restaurant_status') == 1 ? 1 : 0;
         $restaurant->description = $request->input('description');
         $restaurant->remarks = $request->input('remarks');
@@ -744,6 +804,33 @@ class RestaurantController extends Controller
         $restaurant->save();
 
         return redirect()->route('restaurant.index')->with('success', 'Restaurant details updated successfully.');
+        } catch (ValidationException $e) {
+            return redirect()->back()
+                ->withInput()
+                ->withErrors($e->errors())
+                ->with('error', $e->getMessage());
+        }
+        catch (QueryException $e) {
+            $message = $e->getMessage();
+            if (str_contains($message, 'duplicate key value violates unique constraint')) {
+                $fieldName = null;
+                if (preg_match('/Key\s*\(([^)]+)\)\s*=/', $message, $matches)) {
+                    $fieldName = trim($matches[1]);
+                }
+                $errorMessage = 'ERROR: duplicate key value violates unique constraint for field: '
+                    . ($fieldName ? $fieldName : 'unknown');
+            } else {
+                $errorMessage = 'Database error: ' . $message;
+            }
+            return redirect()->back()
+                ->withInput()
+                ->with('error', $errorMessage);
+            }
+        catch (\Exception $e) {
+            return redirect()->back()
+                ->withInput()
+                ->with('error', $e->getMessage()->getTraceAsString());
+        }
     }
 
     /*
@@ -858,10 +945,57 @@ class RestaurantController extends Controller
             return redirect()->back()->with('error', 'You do not have permission to access this page.');
         }
 
-        // Get all available restaurants
-        $allRestaurants = Restaurant::where('status', 1)
-                                   ->orderBy('name', 'asc')
-                                   ->get();
+        // Resolve Master DMC for this user (to read multiple countries from master record)
+        $masterDmcId = $user->master_dmc_id ?? null;
+        if (empty($masterDmcId)) {
+            $dmcUser = User::where('userId', $dmc_id)->first();
+            $masterDmcId = $dmcUser->master_dmc_id ?? null;
+        }
+        if (empty($masterDmcId)) {
+            $visited = [];
+            $candidateId = $user->created_by ?? null;
+            $safety = 0;
+            while (!empty($candidateId) && $safety < 8 && !in_array($candidateId, $visited, true)) {
+                $visited[] = $candidateId;
+                $candidate = User::where('userId', $candidateId)->first();
+                if (! $candidate) break;
+                if ((int) ($candidate->role_id ?? 0) === 3) {
+                    $masterDmcId = $candidate->userId;
+                    break;
+                }
+                $candidateId = $candidate->created_by ?? null;
+                $safety++;
+            }
+        }
+
+        $masterDmc = User::where('userId', $masterDmcId ?: $dmc_id)->first();
+        $masterDmcCountries = [];
+        if ($masterDmc && !empty($masterDmc->country)) {
+            $masterDmcCountries = array_values(array_filter(array_map(
+                static fn ($c) => trim($c),
+                preg_split('/\s*,\s*/', (string) $masterDmc->country)
+            )));
+        }
+
+        // Get all available restaurants (Travclicks/platform + Master DMC countries)
+        $allRestaurantsQuery = Restaurant::where('status', 1)->orderBy('name', 'asc');
+        if (Schema::hasColumn('restaurants', 'user_type')) {
+            $allRestaurantsQuery->where('user_type', 1);
+        }
+        if (!empty($masterDmcCountries) && Schema::hasColumn('restaurants', 'country')) {
+            $allRestaurantsQuery->whereIn('country', $masterDmcCountries);
+        }
+
+        $allRestaurants = $allRestaurantsQuery->get();
+
+        // Country dropdown should show only countries that actually exist in the Travclicks results
+        $allowedCountries = $allRestaurants
+            ->pluck('country')
+            ->filter()
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
         
         // Filter restaurants that are selected by the current DMC
         $selectedRestaurants = $allRestaurants->filter(function($restaurant) use ($dmc_id) {
@@ -873,7 +1007,7 @@ class RestaurantController extends Controller
             return !$restaurant->hasSelectedByDmc($dmc_id);
         });
 
-        return view('services.restaurants', compact('availableRestaurants', 'selectedRestaurants'));
+        return view('services.restaurants', compact('availableRestaurants', 'selectedRestaurants', 'allowedCountries'));
     }
 
     /**

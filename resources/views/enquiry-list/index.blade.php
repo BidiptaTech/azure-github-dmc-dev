@@ -49,166 +49,88 @@
         <div class="card">
             <div class="card-datatable">
                 <div class="table-container">
-                    <table class="datatables-basic table table-bordered collapsed" id="enquiriesTable">
-                    <thead class="table-light">
-                        <tr>
-                            <th class="text-center dtr-control" style="width: 50px;">
-                                <i class="fas fa-sort me-1"></i>#
-                            </th>
-                            <th>Display ID</th>
-                            <th>Agent Details</th>
-                            <th>Location</th>
-                            <th class="text-center">Pax Info</th>
-                            <th>Travel Dates</th>
+                    <table class="datatables-basic table table-bordered collapsed enquiry-table-fixed-cols" id="enquiriesTable" style="table-layout: fixed; width: 100%;"
+                    @if(in_array(auth()->user()->role_id, [33, 37, 38, 128, 129, 130, 134, 135, 136, 138])) data-cols="6"
+                    @else data-cols="5"
+                    @endif>
+                    <colgroup>
+                        <col style="width: 3%;">
+                        <col style="width: 34%;">
+                        <col style="width: 15%;">
+                        @if(in_array(auth()->user()->role_id, [33, 37, 38, 128, 129, 130, 134, 135, 136, 138]))
+                        <col style="width: 14%;">
+                        @endif
+                        <col style="width: 17%;">
+                        <col style="width: 17%;">
+                    </colgroup>
+                    <thead class="table-light" style="line-height: 1.4;">
+                        <tr style="line-height: 1.4;">
+                            <th class="text-center col-row-num" style="width: 3%; min-width: 32px; padding: 0.5rem 0.35rem; font-size: 0.8125rem; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">#</th>
+                            <th style="padding: 0.5rem 0.5rem; font-size: 0.8125rem; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Tour Details</th>
+                            <th style="padding: 0.5rem 0.5rem; font-size: 0.8125rem; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Agent Details</th>
                             @if(in_array(auth()->user()->role_id, [33, 37, 38, 128, 129, 130, 134, 135, 136, 138]))
-                                <th>Create Tour</th>
+                                <th style="padding: 0.5rem 0.5rem; font-size: 0.8125rem; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Create Tour</th>
                             @endif
-                            <th>Created At</th>
-                            <th>Auto Cancel Date</th>
+                            <th style="padding: 0.5rem 0.5rem; font-size: 0.8125rem; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Created At</th>
+                            <th style="padding: 0.5rem 0.5rem; font-size: 0.8125rem; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Auto Cancel Date</th>
                         </tr>
                     </thead>
                     <tbody class="sortable">
                         @foreach($enquiries as $enquiry)
                         <tr class="draggable-row" data-id="{{ $loop->iteration }}">
-                            <td class="text-center dtr-control">
-                                <div class="d-flex align-items-center justify-content-center">
-                                    <span class="drag-handle me-2"><i class="fas fa-grip-vertical text-muted"></i></span>
-                                    <span class="row-number">{{ $loop->iteration }}</span>
-                                </div>
+                            <td class="text-center col-row-num">
+                                <span class="row-number">{{ $loop->iteration }}</span>
                             </td>
-                            
-                            <td>
-                                <div class="d-flex flex-column rounded px-3 py-2" 
-                                    style="background: linear-gradient(145deg, #ffffff, #e6e6e6); 
-                                            box-shadow: 4px 4px 10px #cfcfcf, -4px -4px 10px #ffffff;">
 
-                                    <!-- Display ID -->
-                                    <div class="mb-1">
-                                        <span class="fw-semibold text-primary">
-                                            {{ $enquiry->display_id ?? 'N/A' }}
-                                        </span>
-                                    </div>
-
-                                    <!-- Multi Enquiry ID -->
+                            <!-- Tour Details: Display ID, Location, Pax, Travel Dates -->
+                            <td class="tour-details-cell">
+                                <div class="d-flex flex-column gap-1 small">
                                     <div>
-                                        <span class="text-muted small">Multi Enq ID:</span>
-                                        <span class="fw-semibold small" 
-                                            style="background: linear-gradient(45deg, #6e5b1b, #a89525, #eead35); 
-                                                    -webkit-background-clip: text; 
-                                                    -webkit-text-fill-color: transparent;">
-                                            {{ $enquiry->multi_enq_id ?? 'N/A' }}
-                                        </span>                               
+                                        <span class="fw-semibold text-primary">{{ $enquiry->display_id ?? 'N/A' }}</span>
+                                        @if($enquiry->multi_enq_id)
+                                        <span class="text-muted ms-1">Multi: {{ $enquiry->multi_enq_id }}</span>
+                                        @endif
+                                    </div>
+                                    <div>
+                                        <i class="fas fa-globe-americas text-info me-1"></i>{{ $enquiry->country ?? 'N/A' }}
+                                        <i class="fas fa-map-marker-alt text-danger ms-2 me-1"></i>{{ $enquiry->city ?? 'N/A' }}
+                                    </div>
+                                    <div>
+                                        <i class="fas fa-user me-1 text-success"></i>{{ $enquiry->adult ?? 0 }}A
+                                        <i class="fas fa-child me-1 text-info"></i>{{ $enquiry->child ?? 0 }}C
+                                        <i class="fas fa-baby me-1 text-warning"></i>{{ $enquiry->infant ?? 0 }}I
+                                    </div>
+                                    <div>
+                                        @if($enquiry->check_in_time || $enquiry->check_out_time)
+                                            @if($enquiry->check_in_time)<strong>In:</strong> {{ \Carbon\Carbon::parse($enquiry->check_in_time)->format('M d, Y') }}@endif
+                                            @if($enquiry->check_out_time)<span class="ms-1"><strong>Out:</strong> {{ \Carbon\Carbon::parse($enquiry->check_out_time)->format('M d, Y') }}</span>@endif
+                                            @if($enquiry->check_in_time && $enquiry->check_out_time)
+                                            <small class="badge bg-info bg-opacity-10 text-info ms-1">{{ \Carbon\Carbon::parse($enquiry->check_in_time)->diffInDays(\Carbon\Carbon::parse($enquiry->check_out_time)) + 1 }}d</small>
+                                            @endif
+                                        @else
+                                        <span class="text-muted">Dates: N/A</span>
+                                        @endif
                                     </div>
                                 </div>
                             </td>
 
-                            <!-- Enhanced Agent Details Column -->
+                            <!-- Agent Details Column -->
                             <td>
                                 <div class="d-flex align-items-center">
-                                    <div class="avatar-wrapper me-3">
-                                        <div class="avatar bg-primary bg-opacity-10 rounded-circle">
-                                            <span class="avatar-initial rounded-circle bg-primary">
-                                                {{ substr($enquiry->agent->name ?? 'NA', 0, 1) }}
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <div class="d-flex flex-column">
-                                        <span class="fw-semibold mb-1 text-primary">{{ $enquiry->agent->name ?? 'N/A' }}</span>
-                                        <div class="d-flex align-items-center">
-                                            <span class="text-muted small">
-                                                <i class="fas fa-building me-1"></i>
-                                                {{ $enquiry->agent->company_name ?? 'N/A' }}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </td>
-
-                            <!-- Enhanced Location Column -->
-                            <td>
-                                <div class="location-badge p-2 rounded-3 bg-light">
-                                    <div class="d-flex flex-column">
-                                        <span class="fw-semibold mb-1">
-                                            <i class="fas fa-globe-americas text-info me-1"></i>
-                                            {{ $enquiry->country ?? 'N/A' }}
-                                        </span>
+                                   
+                                    <div class="d-flex flex-column min-w-0">
+                                        <span class="fw-semibold mb-0 text-primary">{{ $enquiry->agent->name ?? 'N/A' }}</span>
                                         <span class="text-muted small">
-                                            <i class="fas fa-map-marker-alt text-danger me-1"></i>
-                                            {{ $enquiry->city ?? 'N/A' }}
+                                            <i class="fas fa-building me-1"></i>{{ $enquiry->agent->company_name ?? 'N/A' }}
                                         </span>
                                     </div>
-                                </div>
-                            </td>
-
-                            <!-- Enhanced Pax Column -->
-                            <td>
-                                <div class="pax-info-card text-center p-2 rounded-3">
-                                    <div class="total-pax mb-2">
-                                        <span class="fw-bold fs-5 text-primary">
-                                            {{ ($enquiry->adult ?? 0) + ($enquiry->child ?? 0) }}
-                                        </span>
-                                    </div>
-                                    <div class="pax-details d-flex justify-content-center gap-2">
-                                        <span class="badge bg-success bg-opacity-10 text-success" title="Adults">
-                                            <i class="fas fa-user me-1"></i>{{ $enquiry->adult ?? 0 }}
-                                        </span>
-                                        <span class="badge bg-info bg-opacity-10 text-info" title="Children">
-                                            <i class="fas fa-child me-1"></i>{{ $enquiry->child ?? 0 }}
-                                        </span>
-                                        <span class="badge bg-warning bg-opacity-10 text-warning" title="Infants">
-                                            <i class="fas fa-baby me-1"></i>{{ $enquiry->infant ?? 0 }}
-                                        </span>
-                                    </div>
-                                </div>
-                            </td>
-
-                            <!-- Travel Dates Column -->
-                            <td>
-                                <div class="d-flex flex-column">
-                                    @if ($enquiry->check_in_time)
-                                    <div class="mb-1">
-                                        <span class="fw-semibold">
-                                            <i class="fas fa-calendar-check text-success me-1"></i>
-                                            <small class="text-muted">Check In:</small>
-                                        </span>
-                                        <br>
-                                        <span class="fw-medium">
-                                            {{ \Carbon\Carbon::parse($enquiry->check_in_time)->format('D, M d, Y') }}
-                                        </span>
-                                    </div>
-                                    @endif
-                                    
-                                    @if ($enquiry->check_out_time)
-                                    <div>
-                                        <span class="fw-semibold">
-                                            <i class="fas fa-calendar-minus text-danger me-1"></i>
-                                            <small class="text-muted">Check Out:</small>
-                                        </span>
-                                        <br>
-                                        <span class="fw-medium">
-                                            {{ \Carbon\Carbon::parse($enquiry->check_out_time)->format('D, M d, Y') }}
-                                        </span>
-                                    </div>
-                                    @endif
-                                    
-                                    @if (!$enquiry->check_in_time && !$enquiry->check_out_time)
-                                    <span class="text-muted">N/A</span>
-                                    @endif
-                                    
-                                    @if ($enquiry->check_in_time && $enquiry->check_out_time)
-                                    <div class="mt-1">
-                                        <small class="badge bg-info bg-opacity-10 text-info">
-                                            {{ \Carbon\Carbon::parse($enquiry->check_in_time)->diffInDays(\Carbon\Carbon::parse($enquiry->check_out_time)) + 1 }} days
-                                        </small>
-                                    </div>
-                                    @endif
                                 </div>
                             </td>
                             @if(in_array(auth()->user()->role_id, [33, 37, 38, 128, 129, 130, 134, 135, 136, 138]))
                             <td>
                                 @if($enquiry->unique_tour_id == null)
-                                    <a href="{{ route('single-tour-package.create', Crypt::encrypt(['enquiry_id' => $enquiry->enquiry_id])) }}" class="btn btn-primary btn-sm">
-                                        <i class="fas fa-plus me-1"></i>Create Tour
+                                    <a href="{{ route('single-tour-package.create', Crypt::encrypt(['enquiry_id' => $enquiry->enquiry_id])) }}" class="btn btn-primary btn-sm btn-create-tour-sm" style="padding: 0.35rem 0.5rem; font-size: 0.75rem; line-height: 1.35;">
+                                        <i class="fas fa-plus me-1" style="font-size: 0.65rem;"></i>Create Tour
                                     </a>
                                 @else
                                     <span class="badge bg-success bg-opacity-10 text-success">Tour Created</span>
@@ -277,13 +199,24 @@
         box-shadow: 0 2px 6px 0 rgba(67, 89, 113, 0.12);
     }
 
-    .table thead th {
-        background-color: #f6f7f8;
+    /* Enquiry list table header: compact height, long text shows ellipsis */
+    table#enquiriesTable thead th,
+    #enquiriesTable.datatables-basic thead th,
+    .card-datatable table#enquiriesTable thead th {
+        background-color: #f6f7f8 !important;
         border-bottom: none;
-        padding: 0.75rem;
-        font-size: 0.875rem;
+        padding: 0.2rem 0.5rem !important;
+        font-size: 0.7rem !important;
+        font-weight: 600 !important;
+        line-height: 1.2 !important;
+        height: 1.75rem !important;
+        max-height: 1.75rem !important;
         text-transform: uppercase;
         letter-spacing: 0.5px;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        display: table-cell;
     }
 
     .table tbody td {
@@ -315,6 +248,22 @@
     .btn-primary:hover {
         background-color: #484bff;
         border-color: #484bff;
+    }
+
+    /* Create Tour button: fixed size so it stays same after DataTables redraw/refresh */
+    #enquiriesTable .btn-create-tour-sm,
+    #enquiriesTable tbody td a[href*="single-tour-package.create"].btn,
+    .datatables-basic .btn-create-tour-sm,
+    table#enquiriesTable tbody tr td:nth-child(4) a.btn-primary {
+        padding: 0.35rem 0.5rem !important;
+        font-size: 0.75rem !important;
+        line-height: 1.35 !important;
+        min-height: unset !important;
+    }
+    #enquiriesTable .btn-create-tour-sm i,
+    #enquiriesTable tbody td a[href*="single-tour-package.create"].btn i,
+    .datatables-basic .btn-create-tour-sm i {
+        font-size: 0.65rem !important;
     }
 
     .fw-semibold {
@@ -349,7 +298,37 @@
     
     .datatables-basic {
         width: 100% !important;
+        table-layout: fixed !important;
     }
+    
+    /* Lock column widths from first paint so they don't change after DataTables init/refresh */
+    #enquiriesTable.enquiry-table-fixed-cols,
+    #enquiriesTable.enquiry-table-fixed-cols thead th,
+    #enquiriesTable.enquiry-table-fixed-cols tbody td {
+        box-sizing: border-box;
+    }
+    #enquiriesTable[data-cols="6"] th:nth-child(1),
+    #enquiriesTable[data-cols="6"] td:nth-child(1) { width: 3% !important; max-width: 3% !important; }
+    #enquiriesTable[data-cols="6"] th:nth-child(2),
+    #enquiriesTable[data-cols="6"] td:nth-child(2) { width: 34% !important; max-width: 34% !important; }
+    #enquiriesTable[data-cols="6"] th:nth-child(3),
+    #enquiriesTable[data-cols="6"] td:nth-child(3) { width: 15% !important; max-width: 15% !important; }
+    #enquiriesTable[data-cols="6"] th:nth-child(4),
+    #enquiriesTable[data-cols="6"] td:nth-child(4) { width: 14% !important; max-width: 14% !important; }
+    #enquiriesTable[data-cols="6"] th:nth-child(5),
+    #enquiriesTable[data-cols="6"] td:nth-child(5) { width: 17% !important; max-width: 17% !important; }
+    #enquiriesTable[data-cols="6"] th:nth-child(6),
+    #enquiriesTable[data-cols="6"] td:nth-child(6) { width: 17% !important; max-width: 17% !important; }
+    #enquiriesTable[data-cols="5"] th:nth-child(1),
+    #enquiriesTable[data-cols="5"] td:nth-child(1) { width: 3% !important; max-width: 3% !important; }
+    #enquiriesTable[data-cols="5"] th:nth-child(2),
+    #enquiriesTable[data-cols="5"] td:nth-child(2) { width: 34% !important; max-width: 34% !important; }
+    #enquiriesTable[data-cols="5"] th:nth-child(3),
+    #enquiriesTable[data-cols="5"] td:nth-child(3) { width: 15% !important; max-width: 15% !important; }
+    #enquiriesTable[data-cols="5"] th:nth-child(4),
+    #enquiriesTable[data-cols="5"] td:nth-child(4) { width: 16% !important; max-width: 16% !important; }
+    #enquiriesTable[data-cols="5"] th:nth-child(5),
+    #enquiriesTable[data-cols="5"] td:nth-child(5) { width: 17% !important; max-width: 17% !important; }
     
     /* Ensure table cells don't exceed container */
     .datatables-basic th,
@@ -359,50 +338,33 @@
         text-overflow: ellipsis;
     }
     
-    /* Allow specific columns to wrap */
-    .datatables-basic th:nth-child(2),
+    /* Tour Details and Agent Details body cells can wrap; header stays single line with ellipsis */
+    .datatables-basic .tour-details-cell,
     .datatables-basic td:nth-child(2),
-    .datatables-basic th:nth-child(3),
     .datatables-basic td:nth-child(3) {
         white-space: normal;
         word-wrap: break-word;
     }
     
-    /* DataTable responsive control button */
-    .datatables-basic td.dtr-control:before,
-    .datatables-basic th.dtr-control:before {
-        top: 50%;
-        left: 10px;
-        height: 16px;
-        width: 16px;
-        margin-top: -8px;
-        display: block;
-        position: absolute;
-        color: white;
-        border: 2px solid white;
-        border-radius: 50%;
-        box-shadow: 0 0 3px rgba(0,0,0,0.3);
-        box-sizing: content-box;
-        text-align: center;
-        text-indent: 0 !important;
-        font-family: 'Courier New', Courier, monospace;
-        line-height: 12px;
-        content: '+';
-        background-color: #696cff;
-        cursor: pointer;
-        z-index: 10;
+    /* # column: always show row number and drag handle */
+    .datatables-basic td.col-row-num,
+    .datatables-basic th.col-row-num {
+        width: 3% !important;
+        min-width: 32px !important;
+        max-width: 40px !important;
     }
-    
-    .datatables-basic td.dtr-control.parent:before {
-        content: '-';
-        background-color: #dc3545;
+    /* Tour Details: fixed 34%; Create Tour 14%; Created At / Auto Cancel 17% each */
+    .datatables-basic .tour-details-cell,
+    .datatables-basic th:nth-child(2),
+    .datatables-basic td:nth-child(2) {
+        width: 34% !important;
+        max-width: 34% !important;
     }
-    
-    /* Ensure the control column has relative positioning */
-    .datatables-basic td.dtr-control,
-    .datatables-basic th.dtr-control {
-        position: relative;
-        padding-left: 35px !important;
+    .datatables-basic th:nth-last-child(1),
+    .datatables-basic td:nth-last-child(1),
+    .datatables-basic th:nth-last-child(2),
+    .datatables-basic td:nth-last-child(2) {
+        width: 14% !important;
     }
 
     /* Custom scrollbar */
@@ -816,10 +778,12 @@
             font-size: 0.75rem !important;
         }
         
-        /* Mobile-first responsive design */
-        .table thead th {
-            font-size: 0.75rem;
-            padding: 0.5rem 0.25rem;
+        /* Keep enquiry list header compact on mobile too */
+        table#enquiriesTable thead th,
+        #enquiriesTable thead th {
+            font-size: 0.7rem !important;
+            padding: 0.2rem 0.5rem !important;
+            max-height: 1.75rem !important;
         }
         
         .table tbody td {
@@ -945,47 +909,41 @@
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.14.0/Sortable.min.js"></script>
 <script>
     $(document).ready(function() {
-        // Wait for any existing DataTable initialization to complete
-        setTimeout(function() {
-            
-            // Check if DataTable is already initialized by the layout
-            if ($.fn.DataTable.isDataTable('.datatables-basic')) {
-                console.log('DataTable already exists, enhancing it...');
-                var table = $('.datatables-basic').DataTable();
-                
-                // Enable responsive if not already enabled
-                if (!table.responsive) {
-                    table.destroy();
-                    table = $('.datatables-basic').DataTable({
-                        responsive: true,
-                        columnDefs: getColumnDefs(),
-                        drawCallback: function() {
-                            updateRowNumbers();
-                        }
-                    });
-                } else {
-                    // Update row numbers for existing table
+        // Run immediately (setTimeout 0) so column widths don't flash: destroy layout's DataTable and re-init with fixed columns.
+        var tableEl = $('#enquiriesTable');
+        if (!tableEl.length) return;
+        if ($.fn.DataTable.isDataTable(tableEl)) {
+            tableEl.DataTable().destroy();
+        }
+        tableEl.DataTable({
+                responsive: false,
+                autoWidth: false,
+                columnDefs: getColumnDefs(),
+                buttons: ['copy', 'csv', 'excel', 'pdf', 'print'],
+                language: { search: "_INPUT_", searchPlaceholder: "Search..." },
+                lengthMenu: [10, 25, 50, 100],
+                drawCallback: function() {
                     updateRowNumbers();
+                    applyCreateTourButtonSize();
                 }
-            } else {
-                console.log('Initializing new DataTable...');
-                var table = $('.datatables-basic').DataTable({
-                    responsive: true,
-                    columnDefs: getColumnDefs(),
-                    drawCallback: function() {
-                        updateRowNumbers();
-                    }
-                });
-            }
-            
-            // Force update row numbers after DataTable is ready
-            setTimeout(function() {
-                updateRowNumbers();
-            }, 100);
-            
-            // Function to update row numbers after DataTable operations
-            function updateRowNumbers() {
-                var table = $('.datatables-basic').DataTable();
+        });
+        
+        function applyCreateTourButtonSize() {
+                $('#enquiriesTable tbody a[href*="single-tour-package.create"].btn').css({
+            'padding': '0.35rem 0.5rem',
+            'font-size': '0.75rem',
+            'line-height': '1.35'
+        }).find('i').css('font-size', '0.65rem');
+        }
+        
+        setTimeout(function() {
+            updateRowNumbers();
+            applyCreateTourButtonSize();
+        }, 50);
+        
+        // Function to update row numbers after DataTable operations
+        function updateRowNumbers() {
+            var table = $('#enquiriesTable').DataTable();
                 var info = table.page.info();
                 var start = info.start;
                 
@@ -998,21 +956,9 @@
                     if (rowNumberSpan.length) {
                         rowNumberSpan.text(rowNumber);
                     } else {
-                        // If row-number span doesn't exist, create it
-                        var dragHandle = $(node).find('.drag-handle');
-                        if (dragHandle.length) {
-                            dragHandle.after('<span class="row-number">' + rowNumber + '</span>');
-                        } else {
-                            // If drag handle doesn't exist, create the entire structure
-                            var firstCell = $(node).find('td:first');
-                            if (firstCell.length) {
-                                firstCell.html(`
-                                    <div class="d-flex align-items-center justify-content-center">
-                                        <span class="drag-handle me-2"><i class="fas fa-grip-vertical text-muted"></i></span>
-                                        <span class="row-number">${rowNumber}</span>
-                                    </div>
-                                `);
-                            }
+                        var firstCell = $(node).find('td:first');
+                        if (firstCell.length) {
+                            firstCell.html('<span class="row-number">' + rowNumber + '</span>');
                         }
                     }
                 });
@@ -1025,40 +971,30 @@
                 });
             }
             
-            // Function to get column definitions based on user role
+            // Function to get column definitions – widths must match colgroup or DataTables overrides
             function getColumnDefs() {
                 @if(in_array(auth()->user()->role_id, [33, 37, 38, 128, 129, 130, 134, 135, 136, 138]))
-                    // User has Create Tour permission - 8 columns
-                    return [
-                        { targets: 0, className: 'dtr-control' },
-                        { responsivePriority: 1, targets: 0 }, // # - Always visible
-                        { responsivePriority: 2, targets: 1 }, // Display ID - Always visible  
-                        { responsivePriority: 3, targets: 2 }, // Agent Details - High priority
-                        { responsivePriority: 4, targets: 3 }, // Location - Medium priority
-                        { responsivePriority: 5, targets: 4 }, // Pax Info - Medium priority
-                        { responsivePriority: 7, targets: 5 }, // Travel Dates - Low priority
-                        { responsivePriority: 6, targets: 6 }, // Create Tour - Medium priority
-                        { responsivePriority: 8, targets: 7 }, // Created At - Low priority
-                        { responsivePriority: 9, targets: 8 }  // Auto Cancel Date - Lowest priority
-                    ];
+                return [
+                    { targets: 0, width: '3%', className: 'col-row-num' },
+                    { targets: 1, width: '34%', className: 'tour-details-cell' },
+                    { targets: 2, width: '15%' },
+                    { targets: 3, width: '14%' },
+                    { targets: 4, width: '17%' },
+                    { targets: 5, width: '17%' }
+                ];
                 @else
-                    // User doesn't have Create Tour permission - 7 columns
-                    return [
-                        { targets: 0, className: 'dtr-control' },
-                        { responsivePriority: 1, targets: 0 }, // # - Always visible
-                        { responsivePriority: 2, targets: 1 }, // Display ID - Always visible  
-                        { responsivePriority: 3, targets: 2 }, // Agent Details - High priority
-                        { responsivePriority: 4, targets: 3 }, // Location - Medium priority
-                        { responsivePriority: 5, targets: 4 }, // Pax Info - Medium priority
-                        { responsivePriority: 6, targets: 5 }, // Travel Dates - Medium priority
-                        { responsivePriority: 7, targets: 6 }, // Created At - Low priority
-                        { responsivePriority: 8, targets: 7 }  // Auto Cancel Date - Lowest priority
-                    ];
+                return [
+                    { targets: 0, width: '3%', className: 'col-row-num' },
+                    { targets: 1, width: '34%', className: 'tour-details-cell' },
+                    { targets: 2, width: '15%' },
+                    { targets: 3, width: '16%' },
+                    { targets: 4, width: '17%' }
+                ];
                 @endif
             }
             
             // Add event listeners for DataTable events to update row numbers
-            var table = $('.datatables-basic').DataTable();
+            var table = $('#enquiriesTable').DataTable();
             
             // Update row numbers on page change
             table.on('page.dt', function() {
@@ -1089,7 +1025,8 @@
             $(window).on('load', function() {
                 setTimeout(function() {
                     updateRowNumbers();
-                }, 500);
+                    applyCreateTourButtonSize();
+                }, 100);
             });
             
             // Initialize Sortable for drag and drop functionality
@@ -1097,7 +1034,7 @@
                 var sortableElement = document.querySelector('.sortable');
                 if (sortableElement && typeof Sortable !== 'undefined') {
                     var sortable = Sortable.create(sortableElement, {
-                        handle: '.drag-handle',
+                        handle: '.col-row-num',
                         animation: 150,
                         onEnd: function(evt) {
                             // Update row numbers after drag and drop

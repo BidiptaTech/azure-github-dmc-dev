@@ -17,10 +17,12 @@ use App\Models\Country;
 use App\Models\Transaction;
 use App\Helpers\CommonHelper;
 use App\Models\City;
+use App\Models\Agency;
 use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Hash;
 use DB;
 use Auth;
 
@@ -38,7 +40,6 @@ class UserController extends Controller
             return $next($request);
         });
     }
-
 
     /* 
     * Display a listing of the Users.
@@ -810,9 +811,287 @@ class UserController extends Controller
             // Final sorted result
             $users = $allUsers->sortBy('userId')->values();
         }
-        return view('users.users',compact('users'));
+        // Role 10 policy: initialize/sync Booking Type (is_pro) for visible role 11 rows from auth user's is_pro.
+        $authRoleId = (int) ($this->auth_user->role_id ?? 0);
+        $authIsPro = (int) ($this->auth_user->is_pro ?? 0);
+        if ($authRoleId === 10 && in_array($authIsPro, [1, 2, 3], true)) {
+            $targetUserIds = collect($users)
+                ->filter(function ($u) {
+                    return (int) ($u->role_id ?? 0) === 11;
+                })
+                ->pluck('userId')
+                ->filter()
+                ->unique()
+                ->values();
+
+            if ($targetUserIds->isNotEmpty()) {
+                User::whereIn('userId', $targetUserIds->all())->update(['is_pro' => $authIsPro]);
+
+                // Keep in-memory rows aligned with DB update for immediate view rendering.
+                foreach ($users as $u) {
+                    if ((int) ($u->role_id ?? 0) === 11) {
+                        $u->is_pro = $authIsPro;
+                    }
+                }
+            }
+        }
+
+        // Travclicks admins: main list shows only Travclicks roles + Master DMC.
+        // Clicking a Master DMC opens a modal with that Master's DMC / MDMC / other nested users.
+        $masterDmcTeams = collect();
+        $collapseToTravclicksAndMasterDmc = in_array($authRoleId, [1, 2], true);
+        if ($collapseToTravclicksAndMasterDmc) {
+            $users = collect($users)->values();
+            $travclicksRoleIds = Role::query()
+                ->where(function ($q) {
+                    $q->where('user_type', 1)
+                        ->orWhere('name', 'like', '%Travclicks%');
+                })
+                ->pluck('role_id')
+                ->map(fn ($id) => (int) $id)
+                ->unique()
+                ->values()
+                ->all();
+
+            $masterDmcRoleId = 10;
+            $allVisibleUsers = $users;
+            $excludedFromMasterTeam = [10, 19]; // never nest other Master DMCs
+
+            $masterDmcTeams = $allVisibleUsers
+                ->filter(fn ($u) => (int) ($u->role_id ?? 0) === $masterDmcRoleId)
+                ->mapWithKeys(function ($mdmc) use ($allVisibleUsers, $excludedFromMasterTeam) {
+                    $masterId = (int) $mdmc->userId;
+
+                    // Only users created by this Master DMC (recursive created_by tree).
+                    $teamById = collect();
+                    $creatorIds = collect([$masterId]);
+                    $guard = 0;
+                    do {
+                        $level = $allVisibleUsers->filter(function ($u) use ($creatorIds, $masterId, $excludedFromMasterTeam) {
+                            $roleId = (int) ($u->role_id ?? 0);
+                            if ((int) ($u->userId ?? 0) === $masterId) {
+                                return false;
+                            }
+                            if (in_array($roleId, $excludedFromMasterTeam, true)) {
+                                return false;
+                            }
+                            return $creatorIds->contains((int) ($u->created_by ?? 0));
+                        });
+
+                        $creatorIds = collect();
+                        foreach ($level as $u) {
+                            $id = (int) $u->userId;
+                            if (!$teamById->has($id)) {
+                                $teamById->put($id, $u);
+                                $creatorIds->push($id);
+                            }
+                        }
+                        $guard++;
+                    } while ($creatorIds->isNotEmpty() && $guard < 20);
+
+                    return [$masterId => $teamById->sortBy('userId')->values()];
+                });
+
+            $users = $allVisibleUsers
+                ->filter(function ($u) use ($travclicksRoleIds, $masterDmcRoleId) {
+                    $roleId = (int) ($u->role_id ?? 0);
+                    return $roleId === $masterDmcRoleId || in_array($roleId, $travclicksRoleIds, true);
+                })
+                // Travclicks roles first, then Master DMC rows.
+                ->sortBy(function ($u) use ($masterDmcRoleId) {
+                    $roleId = (int) ($u->role_id ?? 0);
+                    $group = ($roleId === $masterDmcRoleId) ? 1 : 0;
+                    return sprintf('%d-%010d', $group, (int) ($u->userId ?? 0));
+                })
+                ->values();
+        }
+
+        return view('users.users', compact('users', 'masterDmcTeams', 'collapseToTravclicksAndMasterDmc'));
     }
 
+    /**
+     * Return all users (DMC + nested roles) created under a Master DMC for the users-list modal.
+     * Only includes the clicked Master's hierarchy — never other Master DMCs.
+     * Payload includes the same settings/booking fields as the main users table.
+     */
+    public function masterDmcTeam($masterDmcId)
+    {
+        if (!hasPermission('view users')) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+        }
+
+        $masterDmcId = (int) $masterDmcId;
+        $master = User::with('role')->where('userId', $masterDmcId)->where('role_id', 10)->first();
+        if (!$master) {
+            return response()->json(['success' => false, 'message' => 'Master DMC not found'], 404);
+        }
+
+        $excludedRoleIds = [10, 19]; // Master Dmc, Virtual Master Dmc
+        $settingsRoleIds = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+        $dmcRoleIds = [11, 20];
+        $authRoleId = (int) ($this->auth_user->role_id ?? 0);
+        $authUserId = (int) ($this->auth_user->userId ?? 0);
+        $authUserIsPro = (int) ($this->auth_user->is_pro ?? 0);
+        $authUserType = (int) ($this->auth_user->user_type ?? 0);
+        $isMasterDmcViewer = $authRoleId === 10;
+        // Travclicks admins (role 1/2) may manage nested settings from this modal.
+        $canEditSettings = $isMasterDmcViewer || in_array($authRoleId, [1, 2], true);
+        $canEditUsers = hasPermission('edit users');
+        $canDeleteUsers = hasPermission('delete users');
+        // Always expose Auto Login in this modal (same audience as collapsed Travclicks list).
+        $showAutoLogin = true;
+
+        $teamById = collect();
+        $creatorIds = collect([$masterDmcId]);
+        $guard = 0;
+
+        do {
+            $newUsers = User::with('role')
+                ->whereIn('created_by', $creatorIds->all())
+                ->where('userId', '!=', $masterDmcId)
+                ->whereNotIn('role_id', $excludedRoleIds)
+                ->get();
+
+            $creatorIds = collect();
+            foreach ($newUsers as $u) {
+                $id = (int) $u->userId;
+                if ($teamById->has($id)) {
+                    continue;
+                }
+                $teamById->put($id, $u);
+                $creatorIds->push($id);
+            }
+            $guard++;
+        } while ($creatorIds->isNotEmpty() && $guard < 20);
+
+        $team = $teamById
+            ->sortBy('userId')
+            ->values()
+            ->map(function ($u) use (
+                $settingsRoleIds,
+                $dmcRoleIds,
+                $authRoleId,
+                $authUserId,
+                $authUserIsPro,
+                $isMasterDmcViewer,
+                $canEditSettings,
+                $canEditUsers,
+                $canDeleteUsers,
+                $showAutoLogin
+            ) {
+                $rowRoleId = (int) ($u->role_id ?? 0);
+                $showSettingsForThisRow = in_array($rowRoleId, $settingsRoleIds, true)
+                    || ($authRoleId === 10 && $rowRoleId === 11)
+                    // In modal, also surface settings for DMC rows to Travclicks admins.
+                    || (in_array($authRoleId, [1, 2], true) && in_array($rowRoleId, $dmcRoleIds, true));
+                $showThirdPartyForThisRow = in_array($rowRoleId, $dmcRoleIds, true)
+                    && strtolower((string) ($u->thirdparty ?? 'no')) === 'yes';
+                $canToggleThirdPartyForThisRow = $showThirdPartyForThisRow
+                    && $isMasterDmcViewer
+                    && (int) ($u->master_dmc_id ?? 0) === $authUserId;
+                $showSettingsCellForThisRow = $showSettingsForThisRow || $showThirdPartyForThisRow;
+                $thirdPartyEnabled = strtolower((string) ($u->thirdparty_enabled ?? 'no')) === 'yes';
+
+                $showBookingTypeForThisRow = ($authRoleId === 1 && $rowRoleId === 10)
+                    || ($authRoleId === 10 && $rowRoleId === 11)
+                    // Travclicks admins managing DMC users inside Master DMC modal.
+                    || (in_array($authRoleId, [1, 2], true) && $rowRoleId === 11);
+
+                $bookingOptionsForRow = [
+                    1 => 'Lite Form',
+                    2 => 'Pro Form',
+                    3 => 'Both',
+                ];
+                $selectedBookingTypeForRow = (int) ($u->is_pro ?? 1);
+                $bookingTypeLockedForRow = false;
+
+                if ($authRoleId === 10 && $rowRoleId === 11) {
+                    if ($authUserIsPro === 1) {
+                        $bookingOptionsForRow = [1 => 'Lite Form'];
+                        $selectedBookingTypeForRow = 1;
+                        $bookingTypeLockedForRow = true;
+                    } elseif ($authUserIsPro === 2) {
+                        $bookingOptionsForRow = [2 => 'Pro Form'];
+                        $selectedBookingTypeForRow = 2;
+                        $bookingTypeLockedForRow = true;
+                    } elseif ($authUserIsPro === 3) {
+                        $bookingOptionsForRow = [
+                            1 => 'Lite Form',
+                            2 => 'Pro Form',
+                            3 => 'Both',
+                        ];
+                        $selectedBookingTypeForRow = 3;
+                    }
+                } elseif (!in_array($selectedBookingTypeForRow, [1, 2, 3], true)) {
+                    $selectedBookingTypeForRow = 1;
+                }
+
+                $userIsActive = (int) ($u->is_active ?? 1) === 1;
+                $autoCancelDate = $u->auto_cancel_date;
+                $aiResponse = strtoupper((string) ($u->ai_response ?? ''));
+
+                return [
+                    'userId' => (int) ($u->userId ?? 0),
+                    'name' => (string) ($u->name ?? ''),
+                    'company_name' => (string) ($u->company_name ?? 'N/A'),
+                    'email' => (string) ($u->email ?? ''),
+                    'phone' => (string) ($u->phone ?? ''),
+                    'user_country' => (string) ($u->user_country ?? 'N/A'),
+                    'city' => (string) ($u->city ?? 'N/A'),
+                    'role' => (string) (optional($u->role)->name ?? 'No Role'),
+                    'role_id' => $rowRoleId,
+                    'user_type' => (string) ($u->getUserTypeName() ?? 'Unknown'),
+                    'is_active' => $userIsActive,
+                    'zone_on' => (int) ($u->zone_on ?? 0) === 1,
+                    'price_hide' => (int) ($u->price_hide ?? 0) === 1,
+                    'email_on' => (int) ($u->email_on ?? 0) === 1,
+                    'auto_cancel_date' => $autoCancelDate === null ? null : (int) $autoCancelDate,
+                    'ai_response' => $aiResponse,
+                    'ai_response_type' => strtolower((string) ($u->ai_response_type ?? '')),
+                    'thirdparty' => strtolower((string) ($u->thirdparty ?? 'no')),
+                    'thirdparty_enabled' => $thirdPartyEnabled,
+                    'master_dmc_id' => (int) ($u->master_dmc_id ?? 0),
+                    'is_pro' => (int) ($u->is_pro ?? 1),
+                    'show_settings_cell' => $showSettingsCellForThisRow,
+                    'show_settings_controls' => $showSettingsForThisRow,
+                    'can_edit_settings' => $canEditSettings && $showSettingsForThisRow,
+                    'show_third_party' => $showThirdPartyForThisRow,
+                    'can_toggle_third_party' => $canToggleThirdPartyForThisRow,
+                    'show_booking_type' => $showBookingTypeForThisRow,
+                    'booking_options' => $bookingOptionsForRow,
+                    'selected_booking_type' => $selectedBookingTypeForRow,
+                    'booking_type_locked' => $bookingTypeLockedForRow,
+                    'can_edit' => $canEditUsers,
+                    'can_delete' => $canDeleteUsers,
+                    'show_auto_login' => $showAutoLogin,
+                    'edit_url' => $canEditUsers
+                        ? route('users.edit', Crypt::encrypt($u->userId))
+                        : null,
+                    'destroy_url' => $canDeleteUsers
+                        ? route('users.destroy', $u->userId)
+                        : null,
+                    'login_url' => route('admin.loginAsUser', $u->userId),
+                ];
+            })
+            ->values();
+
+        return response()->json([
+            'success' => true,
+            'master' => [
+                'userId' => (int) $master->userId,
+                'name' => (string) $master->name,
+                'role' => (string) (optional($master->role)->name ?? 'Master Dmc'),
+            ],
+            'meta' => [
+                'show_settings_column' => true,
+                'show_booking_type_column' => true,
+                'show_action_column' => $canEditUsers || $canDeleteUsers,
+                'show_auto_login_column' => $showAutoLogin,
+                'auth_user_id' => $authUserId,
+            ],
+            'team' => $team,
+        ]);
+    }
     
     /*
     * Show the form for creating a new User.
@@ -829,7 +1108,20 @@ class UserController extends Controller
         $ipAddress = request()->ip();
         $usercountryCode = CommonHelper::getCountryInfo($ipAddress);
         $user_countryCode = $usercountryCode['country_code'];
-        $countryCodes = User::countryCodes();
+        $countryCodes = Country::query()
+            ->where('is_active', 1)
+            ->whereNotNull('country_code')
+            ->where('country_code', '!=', '')
+            ->orderBy('name')
+            ->get(['name', 'country_code'])
+            ->mapWithKeys(function ($country) {
+                $code = ltrim(trim((string) $country->country_code), '+');
+                if ($code === '') {
+                    return [];
+                }
+                return [$code => $country->name . ' (' . $code . ')'];
+            })
+            ->toArray();
         $authUserType =  $this->auth_user->user_type; 
 
         $userTypes = array_filter(User::getUserTypes(), function($key) use ($authUserType) {
@@ -855,9 +1147,9 @@ class UserController extends Controller
         $adminSalesManager = User::where('role_id',3)->get();
         if ($this->auth_user->role_id == 10) {
             $assignedCountries = explode(',', $this->auth_user->country); 
-            $country = Country::where('is_active', 1)->whereIn('name', $assignedCountries)->get(); 
+            $country = Country::where('is_active', 1)->whereIn('name', $assignedCountries)->orderBy('name')->get(); 
         } else {
-            $country = Country::where('is_active', 1)->get(); 
+            $country = Country::where('is_active', 1)->orderBy('name')->get(); 
         }
         $countriesArray = [];
         if($this->auth_user->role_id == 1){
@@ -1360,9 +1652,9 @@ class UserController extends Controller
         // Handle country access based on role
         if ($this->auth_user->role_id == 10) {
             $assignedCountries = explode(',', $this->auth_user->country);
-            $country = Country::where('is_active', 1)->whereIn('name', $assignedCountries)->get();
+            $country = Country::where('is_active', 1)->whereIn('name', $assignedCountries)->orderBy('name')->get();
         } else {
-            $country = Country::where('is_active', 1)->get();
+            $country = Country::where('is_active', 1)->orderBy('name')->get();
         }
         
         // If we're coming from role 24 setup, prepare countries array
@@ -1386,6 +1678,51 @@ class UserController extends Controller
         //     $users->country_names = $countriesArray;
         // }
 
+        // Prefill location fields from the parent DMC (role_id 11) for eligible roles.
+        $dmcLocationPrefill = [
+            'user_country' => null,
+            'city' => null,
+            'address' => null,
+            'country_code' => null,
+        ];
+        $prefillLocationRoleIds = [
+            11, 12, 33, 34, 35, 36, 37, 38,
+            64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78,
+            81, 84, 87, 90, 93, 96, 99, 102, 105, 108, 111, 114, 117, 120, 123,
+            124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138,
+        ];
+        if (in_array((int) $this->auth_user->role_id, $prefillLocationRoleIds, true)) {
+            $dmcId = CommonHelper::getDmcId($this->auth_user);
+            if (!$dmcId) {
+                $dmcId = $this->auth_user->dmcId ?: null;
+            }
+            if (!$dmcId && (int) $this->auth_user->role_id === 11) {
+                $dmcId = $this->auth_user->userId;
+            }
+
+            if ($dmcId) {
+                $dmcUser = User::where('role_id', 11)
+                    ->where(function ($query) use ($dmcId) {
+                        $query->where('userId', (int) $dmcId)
+                            ->orWhere('dmcId', (int) $dmcId);
+                    })
+                    ->first();
+
+                if ($dmcUser) {
+                    $countryParts = preg_split('/\s*,\s*/', (string) ($dmcUser->country ?? '')) ?: [];
+                    $prefillCountry = trim((string) ($countryParts[0] ?? ''));
+                    $prefillCode = ltrim(trim((string) ($dmcUser->country_code ?? '')), '+');
+
+                    $dmcLocationPrefill = [
+                        'user_country' => $prefillCountry !== '' ? $prefillCountry : null,
+                        'city' => trim((string) ($dmcUser->city ?? '')) ?: null,
+                        'address' => trim((string) ($dmcUser->address ?? '')) ?: null,
+                        'country_code' => $prefillCode !== '' ? $prefillCode : null,
+                    ];
+                }
+            }
+        }
+
         return view('users.add-user', compact(
             'adminSalesManager',
             'countriesArray',
@@ -1397,7 +1734,8 @@ class UserController extends Controller
             'roles',
             'user_countryCode',
             'master_dmc',
-            'dmcs'
+            'dmcs',
+            'dmcLocationPrefill'
         ));
     }
 
@@ -1415,6 +1753,7 @@ class UserController extends Controller
                 'phone' => 'required',
                 'email' => 'required|email',
                 'password' => 'required|min:8',
+                'thirdparty' => 'nullable|string|in:yes,no',
             ]);
         
             // Step 2: Check for validation errors first
@@ -1431,6 +1770,9 @@ class UserController extends Controller
         
             $deletedUser = User::withTrashed()->where('email', $email)->first();
             if ($deletedUser && $deletedUser->trashed()) {
+                $restoredCountry = is_array($request->country_names)
+                    ? implode(',', $request->country_names)
+                    : ($request->country_name ?? $deletedUser->country);
                 $deletedUser->restore();
                 // Optional: Update user details after restore
                 $deletedUser->update([
@@ -1438,6 +1780,9 @@ class UserController extends Controller
                     'phone' => $request->phone,
                     'role_id' => $request->role,
                     'password' => bcrypt($request->password),
+                    'is_active' => 1,
+                    'country' => $restoredCountry,
+                    'currency' => $this->resolveCurrencyForCountry($restoredCountry),
                 ]);
                 return redirect()->route('users.index')->with('success', 'User restored successfully.');
             }
@@ -1448,11 +1793,13 @@ class UserController extends Controller
         //login user role insert directly
         $auth_role_id = $this->auth_user->role_id;
         
-        $user_max_id = User::withTrashed()->max('userId') ?? 1;
-        $usersId = CommonHelper::createId($user_max_id);
-        while (User::where('userId', $usersId)->exists()) {
-            $usersId = CommonHelper::createId($usersId);
-        }
+        // $user_max_id = User::withTrashed()->max('userId') ?? 1;
+        // $usersId = CommonHelper::createId($user_max_id);
+        // $usersId = CommonHelper::createId();
+        // while (User::where('userId', $usersId)->exists()) {
+            // $usersId = CommonHelper::createId();
+            // $usersId = CommonHelper::createId($usersId);
+        // }
         $role = $request->input('role');
         if ($role <= 9 || ($role >= 13 && $role <= 17) || $role == 21 || $role == 22 || $role == 23 || ($role >= 39 && $role <= 48) || $role == 79 || $role == 82 || $role == 85 || $role == 88 || $role == 91 || $role == 94 
         ||$role == 97 || $role == 100 || $role == 103 || $role == 106 || $role == 109 || $role == 112 || $role == 115 || $role == 118 || $role == 121) {
@@ -1505,22 +1852,37 @@ class UserController extends Controller
         }
 
         $dmc_id = CommonHelper::getDmcId($this->auth_user);
-        
+
+        $userCountry = is_array($request->country_names)
+            ? implode(',', $request->country_names)
+            : ($get_country_name ?? null);
+        $userCurrency = $this->resolveCurrencyForCountry($userCountry);
+
+        // Third party flag only applies to DMC roles; everyone else stays 'no'.
+        // DB columns are enum('yes','no') — always store lowercase string values.
+        $isDmcRole = in_array((int) $role, [11, 20], true);
+        $thirdPartyRaw = strtolower(trim((string) $request->input('thirdparty', 'no')));
+        $thirdParty = ($isDmcRole && $thirdPartyRaw === 'yes') ? 'yes' : 'no';
+        $thirdPartyEnabled = $thirdParty === 'yes' ? 'no' : 'yes';
+
         $user = User::create([
             'salutation' => $request->input('salutation'),
             'name' => $request->input('yourname'),
             'role_id' => (int) $request->input('role'), // Ensure integer
             'master_dmc_id' => isset($masterDmcId) ? (int) $masterDmcId : (int) ($request->master_dmc ?? 0), // Convert to integer
-            'country' => is_array($request->country_names) ? implode(',', $request->country_names) : ($get_country_name ?? null),
-            'dmcId' => $request->input('role') == 11 ? (int) $usersId : (int) ($dmc_id ?? 0), // Ensure integer
+            'country' => $userCountry,
+            'currency' => $userCurrency,
+            // 'dmcId' => $request->input('role') == 11 ? (int) $usersId : (int) ($dmc_id ?? 0), // Ensure integer
+            'dmcId' => (int) ($dmc_id ?? 0), // Ensure integer
             'country_code' => (string) ($request->input('code') ?? ''), // Ensure string
             'phone' => (string) $request->input('phone'),
             'city' => $request->input('city'),
             'user_country' => $request->input('user_country'),
             'address' => $request->input('address'),
             'markup_type' => 0, 
+            'guide_pax' => (int) ($request->guide_pax ?? 0), // Ensure integer
             'markup_price' => 0, // Ensure float
-            'userId' => (int) $usersId, // Ensure integer
+            // 'userId' => (int) $usersId, // Ensure integer
             'email' => $email, // Store email in lowercase
             'created_by' => (int) ($admin_id ?? 0), // Ensure integer
             'user_type' => (int) $user_type, // Ensure integer
@@ -1530,6 +1892,14 @@ class UserController extends Controller
             'password' => bcrypt($request->input('password')),
             'sales_manager_admin' => (int) ($salemg_admin ?? 0), // Ensure integer
             'company_name' => $request->company_name ?? Auth::user()->company_name ?? 'Travclicks',
+            'thirdparty' => (string) $thirdParty, // enum string: yes|no
+            'thirdparty_enabled' => (string) $thirdPartyEnabled, // enum string: yes|no (inverse of thirdparty on create)
+            'company_code' => $request->input('company_code') ?: null,
+            'user_code' => $request->input('user_code') ?: null,
+            'company_reg_no' => $request->input('company_reg_no') ?: null,
+            'licence_no' => $request->input('licence_no') ?: null,
+            'timezone' => $request->timezone ?? 'UTC',
+            'is_active' => 1,
         ]);
         
         $role = Role::where('role_id', $request->input('role'))->first();
@@ -1537,6 +1907,23 @@ class UserController extends Controller
             $user->assignRole($role->name);
         } else {
             return redirect()->back()->withErrors(['role' => 'The selected role does not exist.']);
+        }
+        if ($user->role_id == 11) {
+            $agency = Agency::where('agency_id', 2192)->first();
+        
+            if ($agency) {
+                // 1. Get the existing array, default to empty array if null
+                $dmcIds = $agency->dmc_id ?? [];
+        
+                // 2. Add the new user ID if it doesn't already exist in the array
+                if (!in_array($user->userId, $dmcIds)) {
+                    $dmcIds[] = (int) $user->userId;
+                }
+        
+                // 3. Assign the updated array back and save
+                $agency->dmc_id = $dmcIds;
+                $agency->save();
+            }
         }
         $users = User::all();
         return redirect()->route('users.index',compact('users'))
@@ -1561,7 +1948,20 @@ class UserController extends Controller
         $ipAddress = request()->ip();
         $usercountryCode = CommonHelper::getCountryInfo($ipAddress);
         $user_countryCode = $usercountryCode['country_code'];
-        $countryCodes = User::countryCodes();
+        $countryCodes = Country::query()
+            ->where('is_active', 1)
+            ->whereNotNull('country_code')
+            ->where('country_code', '!=', '')
+            ->orderBy('name')
+            ->get(['name', 'country_code'])
+            ->mapWithKeys(function ($country) {
+                $code = ltrim(trim((string) $country->country_code), '+');
+                if ($code === '') {
+                    return [];
+                }
+                return [$code => $country->name . ' (' . $code . ')'];
+            })
+            ->toArray();
         $authUserType = $this->auth_user->user_type;
 
         // Get appropriate roles based on auth user type and role_id - matching create function logic
@@ -2056,6 +2456,11 @@ class UserController extends Controller
                 $validationRules['master_dmc'] = 'required|exists:users,userId';
             }
             $validationRules['company_name'] = 'required|string|max:255';
+            $validationRules['markup_type_attraction'] = 'nullable|in:0,1';
+            $validationRules['markup_price_attraction'] = 'nullable|numeric|min:0';
+            $validationRules['markup_type_flight'] = 'nullable|in:0,1';
+            $validationRules['markup_price_flight'] = 'nullable|numeric|min:0';
+            $validationRules['thirdparty'] = 'nullable|string|in:yes,no';
             // Only require country_name if it's being sent (created by Master DMC)
             if ($request->has('country_name')) {
                 $validationRules['country_name'] = 'required|string';
@@ -2133,7 +2538,7 @@ class UserController extends Controller
         }
 
         // Update user with all the properly determined values
-        $user->update([
+        $updateData = [
             'salutation' => $request->salutation,
             'name' => $request->yourname,
             'user_type' => (int) $user_type,
@@ -2157,7 +2562,65 @@ class UserController extends Controller
             'markup_service' => $request->filled('markup_service') ? $request->markup_service : $user->markup_service,
             'markup_type' => $request->has('markup_type') && $request->markup_type !== '' ? (int) $request->markup_type : $user->markup_type,
             'markup_price' => $request->filled('markup_price') ? (int) $request->markup_price : $user->markup_price,
-        ]);
+        ];
+
+        if (in_array((int) $userRole, [11, 20], true)) {
+            $updateData['markup_type_attraction'] = $request->has('markup_type_attraction') && $request->markup_type_attraction !== ''
+                ? (int) $request->markup_type_attraction
+                : (int) ($user->markup_type_attraction ?? 1);
+            $updateData['markup_price_attraction'] = $request->filled('markup_price_attraction')
+                ? (float) $request->markup_price_attraction
+                : (float) ($user->markup_price_attraction ?? 0);
+            $updateData['markup_type_flight'] = $request->has('markup_type_flight') && $request->markup_type_flight !== ''
+                ? (int) $request->markup_type_flight
+                : (int) ($user->markup_type_flight ?? 1);
+            $updateData['markup_price_flight'] = $request->filled('markup_price_flight')
+                ? (float) $request->markup_price_flight
+                : (float) ($user->markup_price_flight ?? 0);
+        }
+
+        // Third party flag only applies to DMC roles; everyone else stays 'no'.
+        // DB columns are enum('yes','no') — always store lowercase string values.
+        // Same rule as create: thirdparty=yes → thirdparty_enabled=no; thirdparty=no → thirdparty_enabled=yes.
+        $isDmcRole = in_array((int) $userRole, [11, 20], true);
+        $thirdPartyRaw = strtolower(trim((string) $request->input(
+            'thirdparty',
+            $user->thirdparty ?? 'no'
+        )));
+        $thirdParty = ($isDmcRole && $thirdPartyRaw === 'yes') ? 'yes' : 'no';
+        $thirdPartyEnabled = $thirdParty === 'yes' ? 'no' : 'yes';
+        $updateData['thirdparty'] = (string) $thirdParty;
+        $updateData['thirdparty_enabled'] = (string) $thirdPartyEnabled;
+
+        // Optional codes / registration fields (update only when present in request)
+        if ($request->has('company_code')) {
+            $updateData['company_code'] = $request->input('company_code') ?: null;
+        }
+        if ($request->has('user_code')) {
+            $updateData['user_code'] = $request->input('user_code') ?: null;
+        }
+        if ($request->has('company_reg_no')) {
+            $updateData['company_reg_no'] = $request->input('company_reg_no') ?: null;
+        }
+        if ($request->has('licence_no')) {
+            $updateData['licence_no'] = $request->input('licence_no') ?: null;
+        }
+
+        // Capture the company name before the update so we can detect a change below.
+        $originalCompanyName = $user->company_name;
+
+        $user->update($updateData);
+
+        // If the edited user is a DMC (role_id 11) and its company name changed,
+        // cascade the new company name to every user that belongs to this DMC.
+        if ((int) $user->role_id === 11) {
+            $newCompanyName = $updateData['company_name'] ?? $user->company_name;
+            if ($newCompanyName !== null && $newCompanyName !== $originalCompanyName) {
+                User::where('dmcId', $user->userId)
+                    ->where('userId', '!=', $user->userId)
+                    ->update(['company_name' => $newCompanyName]);
+            }
+        }
 
         // Update role
         $role = Role::where('role_id', $request->role)->first();
@@ -2202,8 +2665,7 @@ class UserController extends Controller
             ['model' => Hotel::class, 'field' => 'dmc_id', 'message' => 'hotels'],
             ['model' => Attraction::class, 'field' => 'dmc_id', 'message' => 'attractions'],
             ['model' => Restaurant::class, 'field' => 'dmc_id', 'message' => 'restaurants'],
-            ['model' => Guide::class, 'field' => 'dmc_id', 'message' => 'guides'],
-            ['model' => Agent::class, 'field' => 'sales_manager_dmc', 'message' => 'agents']
+            ['model' => Guide::class, 'field' => 'dmc_id', 'message' => 'guides']
         ];
         
         foreach ($dependencies as $dependency) {
@@ -2304,6 +2766,14 @@ class UserController extends Controller
         $currentUser = Auth::user();
         $targetUser = User::where('userId', $userId)->first();
 
+        if (!$targetUser) {
+            return redirect()->route('users.index')->with('error', 'User not found.');
+        }
+
+        if (!$targetUser->isAccountActive()) {
+            return redirect()->route('users.index')->with('error', 'This user account is not active. Auto login is not allowed.');
+        }
+
         // Role hierarchy: lower value = higher privilege
         $roleHierarchy = [
             1 => 1,  // Admin
@@ -2386,7 +2856,9 @@ class UserController extends Controller
     public function getCountries($masterDmcId) {
         $masterDmc = User::where('userId',$masterDmcId)->first();
         $countries = $masterDmc ? explode(',', $masterDmc->country) : []; // Assuming countries are stored as CSV
-        return response()->json(['countries' => $countries]);
+        $countries = array_values(array_filter(array_map('trim', $countries)));
+        natcasesort($countries);
+        return response()->json(['countries' => array_values($countries)]);
     }
 
     /*
@@ -2427,7 +2899,7 @@ class UserController extends Controller
         
         if ($masterDmc && $masterDmc->country) {
             $countries = explode(',', $masterDmc->country);
-            $countryObjects = Country::whereIn('name', $countries)->get(['name']);
+            $countryObjects = Country::whereIn('name', $countries)->orderBy('name')->get(['name']);
             return response()->json(['countries' => $countryObjects]);
         }
         
@@ -2500,6 +2972,97 @@ class UserController extends Controller
         return response()->json(['success' => true, 'message' => 'Zone status updated successfully', 'user_id' => $request->user_id, 'zone_on' => $request->zone_on]);
     }
 
+    /**
+     * Toggle third party access (thirdparty_enabled) for a DMC user.
+     */
+    public function updateThirdPartyEnabled(Request $request)
+    {
+        if (!hasPermission('edit users')) {
+            return response()->json(['success' => false, 'message' => 'You do not have permission to update third party access.'], 403);
+        }
+
+        // Same gate as Zone On / Price Hide: only Master DMC may change this.
+        if ((int) ($this->auth_user->role_id ?? 0) !== 10) {
+            return response()->json(['success' => false, 'message' => 'Only the Master DMC can update third party access.'], 403);
+        }
+
+        $request->validate([
+            'user_id' => 'required|integer',
+            'thirdparty_enabled' => 'required|string|in:yes,no',
+        ]);
+
+        $user = User::where('userId', $request->user_id)->first();
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'User not found.'], 404);
+        }
+
+        if (!in_array((int) $user->role_id, [11, 20], true)) {
+            return response()->json(['success' => false, 'message' => 'Third party access applies to DMC users only.'], 422);
+        }
+
+        if (strtolower(trim((string) ($user->thirdparty ?? 'no'))) !== 'yes') {
+            return response()->json(['success' => false, 'message' => 'This DMC is not a third party DMC.'], 422);
+        }
+
+        // Must be a DMC under this Master DMC — not another master's DMC.
+        if ((int) ($user->master_dmc_id ?? 0) !== (int) $this->auth_user->userId) {
+            return response()->json(['success' => false, 'message' => 'You can only update third party access for your own DMCs.'], 403);
+        }
+
+        $thirdPartyEnabled = strtolower(trim((string) $request->input('thirdparty_enabled'))) === 'yes' ? 'yes' : 'no';
+        $user->thirdparty_enabled = $thirdPartyEnabled;
+        $user->save();
+
+        $label = $thirdPartyEnabled === 'yes' ? 'enabled' : 'disabled';
+
+        return response()->json([
+            'success' => true,
+            'message' => "Third party access {$label} successfully.",
+            'user_id' => (int) $user->userId,
+            'thirdparty_enabled' => (string) $user->thirdparty_enabled,
+        ]);
+    }
+
+    /**
+     * Toggle user account active / inactive (is_active).
+     */
+    public function updateActive(Request $request)
+    {
+        if (!hasPermission('edit users')) {
+            return response()->json(['success' => false, 'message' => 'You do not have permission to update user status.'], 403);
+        }
+
+        $request->validate([
+            'user_id' => 'required|integer',
+            'is_active' => 'required|in:0,1',
+        ]);
+
+        $user = User::where('userId', $request->user_id)->first();
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'User not found.'], 404);
+        }
+
+        if ((int) $user->userId === (int) $this->auth_user->userId && (int) $request->is_active === 0) {
+            return response()->json(['success' => false, 'message' => 'You cannot deactivate your own account.'], 422);
+        }
+
+        $user->is_active = (int) $request->is_active;
+        $user->save();
+
+        if ((int) $request->is_active === 0 && method_exists($user, 'tokens')) {
+            $user->tokens()->delete();
+        }
+
+        $label = $user->is_active ? 'activated' : 'deactivated';
+
+        return response()->json([
+            'success' => true,
+            'message' => "User account {$label} successfully.",
+            'user_id' => $user->userId,
+            'is_active' => (int) $user->is_active,
+        ]);
+    }
+
     public function updateAutoCancel(Request $request){
         $user = User::where('userId', $request->user_id)->first();
         
@@ -2509,21 +3072,129 @@ class UserController extends Controller
 
         // Store previous value for potential rollback
         $previousValue = $user->auto_cancel_date;
-        
-        // Update the auto_cancel_date field
+
+        // Update auto_cancel_date and auto_cancel_status (1 = on, 0 = off)
         $user->auto_cancel_date = $request->auto_cancel_date ?: null;
+        $user->auto_cancel_status = $request->auto_cancel_date ? 1 : 0;
         $user->save();
-        
+
         $message = $request->auto_cancel_date ? 
             "Auto cancel date updated to D-{$request->auto_cancel_date} successfully" : 
             "Auto cancel date cleared successfully";
         
         return response()->json([
-            'success' => true, 
-            'message' => $message, 
-            'user_id' => $request->user_id, 
+            'success' => true,
+            'message' => $message,
+            'user_id' => $request->user_id,
             'auto_cancel_date' => $request->auto_cancel_date,
+            'auto_cancel_status' => $user->auto_cancel_status,
             'previous_value' => $previousValue
+        ]);
+    }
+
+    public function updateGuidePax(Request $request)
+    {
+        $user = User::where('userId', $request->user_id)->first();
+
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'User not found']);
+        }
+
+        $previousValue = $user->guide_pax;
+        $guidePax = (int) ($request->guide_pax ?? 0);
+        $guidePax = max(0, min(99, $guidePax)); // clamp 0-99
+
+        $user->guide_pax = $guidePax;
+        $user->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Guide pax updated successfully',
+            'user_id' => $request->user_id,
+            'guide_pax' => $guidePax,
+            'previous_value' => $previousValue,
+        ]);
+    }
+
+    /**
+     * Update AI response type (QTN / ITN) for a DMC user. Master DMC only.
+     */
+    public function updateAiResponse(Request $request)
+    {
+        if ((int) $this->auth_user->role_id !== 10) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only Master DMC can update AI Response settings.',
+            ], 403);
+        }
+
+        $request->validate([
+            'user_id' => 'required|integer',
+            'ai_response' => 'nullable|in:QTN,ITN',
+        ]);
+
+        $user = User::where('userId', $request->user_id)->first();
+
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'User not found'], 404);
+        }
+
+        $previousValue = $user->ai_response;
+        $aiResponse = $request->filled('ai_response') ? strtoupper((string) $request->ai_response) : null;
+
+        $user->ai_response = $aiResponse;
+        $user->save();
+
+        $message = $aiResponse
+            ? "AI Response updated to {$aiResponse} successfully"
+            : 'AI Response cleared successfully';
+
+        return response()->json([
+            'success' => true,
+            'message' => $message,
+            'user_id' => $request->user_id,
+            'ai_response' => $aiResponse,
+            'previous_value' => $previousValue,
+        ]);
+    }
+
+    public function updateAiResponseType(Request $request)
+    {
+        if ((int) $this->auth_user->role_id !== 10) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only Master DMC can update AI Response Type settings.',
+            ], 403);
+        }
+
+        $request->validate([
+            'user_id' => 'required|integer',
+            'ai_response_type' => 'nullable|in:lite,pro',
+        ]);
+
+        $user = User::where('userId', $request->user_id)->first();
+
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'User not found'], 404);
+        }
+
+        $previousValue = $user->ai_response_type;
+        $aiResponseType = $request->filled('ai_response_type') ? strtolower((string) $request->ai_response_type) : null;
+
+        $user->ai_response_type = $aiResponseType;
+        $user->save();
+
+        $label = $aiResponseType ? ucfirst($aiResponseType) : null;
+        $message = $label
+            ? "AI Response Type updated to {$label} successfully"
+            : 'AI Response Type cleared successfully';
+
+        return response()->json([
+            'success' => true,
+            'message' => $message,
+            'user_id' => $request->user_id,
+            'ai_response_type' => $aiResponseType,
+            'previous_value' => $previousValue,
         ]);
     }
 
@@ -2566,6 +3237,66 @@ class UserController extends Controller
         }
     }
 
+    public function updateBookingType(Request $request)
+    {
+        $request->validate([
+            'user_id' => 'required',
+            'booking_type' => 'required|integer|in:1,2,3',
+        ]);
+
+        $targetUser = User::where('userId', $request->user_id)->first();
+        if (! $targetUser) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User not found',
+            ], 404);
+        }
+
+        $authRoleId = (int) (Auth::user()->role_id ?? 0);
+        $targetRoleId = (int) ($targetUser->role_id ?? 0);
+
+        $allowed = ($authRoleId === 1 && $targetRoleId === 10)
+            || ($authRoleId === 10 && $targetRoleId === 11)
+            // Travclicks admins managing DMC booking type from Master DMC team modal
+            || (in_array($authRoleId, [1, 2], true) && $targetRoleId === 11);
+
+        if (! $allowed) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You do not have permission to update booking type for this user.',
+            ], 403);
+        }
+
+        // For role 10 updating role 11 users, enforce auth user's is_pro policy.
+        if ($authRoleId === 10 && $targetRoleId === 11) {
+            $authIsPro = (int) (Auth::user()->is_pro ?? 0);
+
+            if ($authIsPro === 1 && (int) $request->booking_type !== 1) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Booking Type is locked to Lite Form for this account.',
+                ], 422);
+            }
+            if ($authIsPro === 2 && (int) $request->booking_type !== 2) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Booking Type is locked to Pro Form for this account.',
+                ], 422);
+            }
+            // authIsPro === 3 can choose any of 1,2,3
+        }
+
+        $targetUser->is_pro = (int) $request->booking_type;
+        $targetUser->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Booking type updated successfully.',
+            'user_id' => $targetUser->userId,
+            'is_pro' => (int) $targetUser->is_pro,
+        ]);
+    }
+
     /*
     * Get cities by country name
     * Date: 03-06-2024
@@ -2575,6 +3306,7 @@ class UserController extends Controller
         
         $cities = City::where('country', $countryName)
                 ->select('name', 'city_id')
+                ->orderBy('name')
                 ->get();
                  
         return response()->json(['cities' => $cities]);
@@ -2600,5 +3332,139 @@ class UserController extends Controller
             'success' => false,
             'message' => 'Country not found'
         ], 404);
+    }
+
+    /**
+     * AJAX: return currency for a country name (countries.currency).
+     * Used by add-user (and similar) to fill the read-only currency field.
+     */
+    public function getCurrencyByCountry(Request $request)
+    {
+        $countryName = trim((string) $request->input('country', ''));
+        if ($countryName === '') {
+            return response()->json([
+                'success' => false,
+                'currency' => '',
+                'message' => 'Country is required',
+            ], 422);
+        }
+
+        $currency = $this->resolveCurrencyForCountry($countryName);
+        if (!$currency) {
+            // Case-insensitive fallback
+            $currency = Country::query()
+                ->whereRaw('LOWER(name) = ?', [mb_strtolower($countryName)])
+                ->whereNotNull('currency')
+                ->where('currency', '!=', '')
+                ->value('currency');
+        }
+
+        if ($currency) {
+            return response()->json([
+                'success' => true,
+                'currency' => (string) $currency,
+            ]);
+        }
+
+        return response()->json([
+            'success' => false,
+            'currency' => '',
+            'message' => 'Currency not found for this country',
+        ], 404);
+    }
+
+    public function profile()
+    {
+        $user = Auth::user();
+        return view('users.profile', compact('user'));
+    }
+
+    /**
+     * Update the authenticated user's profile.
+     */
+    public function updateProfile(Request $request)
+    {
+        $user = Auth::user();
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'phone' => 'nullable|string|max:50',
+            'country' => 'nullable|string|max:100',
+            'city' => 'nullable|string|max:100',
+            'address' => 'nullable|string',
+            'profile_image' => 'nullable|image|mimes:jpeg,png,jpg,gif',
+        ]);
+
+        $data = [
+            'name' => $request->name,
+            'phone' => $request->phone ?? $user->phone,
+            'country' => $request->country ?? $user->country,
+            'city' => $request->city ?? $user->city,
+            'address' => $request->address ?? $user->address,
+        ];
+
+        if ($request->hasFile('profile_image')) {
+            $pathData = CommonHelper::image_path('file_storage', $request->file('profile_image'));
+            if (!empty($pathData['master_value'])) {
+                $data['profile_image'] = $pathData['master_value'];
+            }
+        }
+
+        $user->update($data);
+        return redirect()->route('user.profile')->with('success', 'Profile updated successfully.');
+    }
+
+    /**
+     * Update the authenticated user's password.
+     */
+    public function updatePassword(Request $request)
+    {
+        $request->validate([
+            'current_password' => 'required|string',
+            'password' => 'required|string|min:8|confirmed',
+        ], [
+            'current_password.required' => 'Current password is required.',
+            'password.required' => 'New password is required.',
+            'password.min' => 'New password must be at least 8 characters.',
+            'password.confirmed' => 'New password confirmation does not match.',
+        ]);
+
+        $user = Auth::user();
+        if (!Hash::check($request->current_password, $user->password)) {
+            return redirect()->route('user.profile')
+                ->withErrors(['current_password' => 'The current password is incorrect.'])
+                ->withInput($request->only('current_password'))
+                ->with('open_password_modal', true);
+        }
+
+        $user->update([
+            'password' => bcrypt($request->password),
+        ]);
+
+        return redirect()->route('user.profile')
+            ->with('success', 'Password changed successfully.');
+    }
+
+    /**
+     * Resolve ISO currency code from countries table using a country name or comma-separated list.
+     */
+    private function resolveCurrencyForCountry(?string $countryValue): ?string
+    {
+        if ($countryValue === null || trim($countryValue) === '') {
+            return null;
+        }
+
+        $countryNames = array_values(array_filter(array_map('trim', preg_split('/,/', $countryValue))));
+        if (empty($countryNames)) {
+            return null;
+        }
+
+        $currency = Country::where('name', $countryNames[0])->value('currency');
+        if ($currency) {
+            return $currency;
+        }
+
+        return Country::whereIn('name', $countryNames)
+            ->whereNotNull('currency')
+            ->value('currency');
     }
 }
