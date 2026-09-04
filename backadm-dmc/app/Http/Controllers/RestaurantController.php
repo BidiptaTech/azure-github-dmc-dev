@@ -343,29 +343,31 @@ class RestaurantController extends Controller
         }
         
         $restaurants = Restaurant::where('status', 1)->get();
-        //$meals = Meal::where('restaurant_id', $restaurant_id)->get();
+        $query = Meal::with(['restaurant', 'dmc:userId,name,company_name', 'createdByUser:userId,name'])
+            ->where('restaurant_id', $restaurant_id);
+
         if($auth_user->role_id == 1 || $auth_user->role_id == 20){
-            $meals = Meal::where('restaurant_id', $restaurant_id)->get();
+            // Admin and Virtual DMC can see all meals for this restaurant
         }
         else if($auth_user->role_id == 11){
-            $meals = Meal::where('restaurant_id', $restaurant_id)->where('dmc_id', $auth_user->userId)->get();
+            $query->where('dmc_id', $auth_user->userId);
         }
         else if($auth_user->role_id == 35 || in_array($auth_user->role_id, [130, 132, 133, 135, 136, 137, 138])){
             $userdmc = User::where('userId', $auth_user->created_by)->first();
-            $meals = Meal::where('restaurant_id', $restaurant_id)->where('dmc_id', $userdmc->userId)->get();
+            $query->where('dmc_id', $userdmc->userId);
         }
         else if($auth_user->role_id == 78 || $auth_user->role_id == 139){
-            $user_product_head = User::where('userId', $auth_user->created_by)->first();    
+            $user_product_head = User::where('userId', $auth_user->created_by)->first();
             $user_product_head_dmc = User::where('userId', $user_product_head->created_by)->first();
-            $meals = Meal::where('restaurant_id', $restaurant_id)->where('dmc_id', $user_product_head_dmc->userId)->get();
+            $query->where('dmc_id', $user_product_head_dmc->userId);
         }else if($auth_user->role_id == 120 || $auth_user->role_id == 140){
             $user_product_manager = User::where('userId', $auth_user->created_by)->first();
             $user_product_head = User::where('userId', $user_product_manager->created_by)->first();
             $user_product_head_dmc = User::where('userId', $user_product_head->created_by)->first();
-            $meals = Meal::where('restaurant_id', $restaurant_id)->where('dmc_id', $user_product_head_dmc->userId)->get();
-        }else{
-            $meals = Meal::where('restaurant_id', $restaurant_id)->get();
+            $query->where('dmc_id', $user_product_head_dmc->userId);
         }
+
+        $meals = $query->get();
         return view('meals.create-meals', compact('restaurants', 'meals', 'current_restaurant', 'auth_user', 'dmcUsers'));
     }
 

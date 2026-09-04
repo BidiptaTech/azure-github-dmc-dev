@@ -373,6 +373,8 @@
                             <tr>
                                 <th>No</th>
                                 <th>Restaurant Name</th>
+                                <th>DMC Company</th>
+                                <th>Created By</th>
                                 <th>Meal Type</th>
                                 {{-- <th>Item Name</th> --}}
                                 <th>Beverage</th>
@@ -404,6 +406,8 @@
                                             Unknown
                                         @endif
                                     </td>
+                                    <td>{{ $meal->dmc->company_name ?? ($meal->dmc->name ?? '—') }}</td>
+                                    <td>{{ $meal->createdByUser->name ?? '—' }}</td>
                                     <td>
                                         @if($meal->meal_period == 1)
                                             Breakfast

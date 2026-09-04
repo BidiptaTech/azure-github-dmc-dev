@@ -23,33 +23,31 @@ class TicketController extends Controller
         // }
 
         $auth_user = Auth::user();
-        $tickets = [];
+        $query = Ticket::with(['dmc:userId,name,company_name', 'createdByUser:userId,name']);
 
         if($auth_user->role_id == 1 || $auth_user->role_id == 20){
             // Admin and Virtual DMC can see all tickets
-            $tickets = Ticket::all();
         }else if($auth_user->role_id == 11){
             // Regular DMC sees only their tickets
-            $tickets = Ticket::where('dmc_id', $auth_user->userId)->get();
+            $query->where('dmc_id', $auth_user->userId);
         }else if($auth_user->role_id == 35 || in_array($auth_user->role_id, [130, 132, 133, 135, 136, 137, 138, 139, 140])){
             // Sub-users see tickets of their parent DMC
-            $dmc_id = $auth_user->created_by;
-            $tickets = Ticket::where('dmc_id', $dmc_id)->get();
+            $query->where('dmc_id', $auth_user->created_by);
         }else if($auth_user->role_id == 78){
             // Sales executive sees tickets of their DMC
             $sales_head = User::where('userId', $auth_user->created_by)->first();
-            $dmc_id = $sales_head->created_by;
-            $tickets = Ticket::where('dmc_id', $dmc_id)->get();
+            $query->where('dmc_id', $sales_head->created_by);
         }else if($auth_user->role_id == 120){
             // Sales manager sees tickets of their DMC
             $sales_manager = User::where('userId', $auth_user->created_by)->first();
             $sales_head = User::where('userId', $sales_manager->created_by)->first();
-            $dmc_id = $sales_head->created_by;
-            $tickets = Ticket::where('dmc_id', $dmc_id)->get();
+            $query->where('dmc_id', $sales_head->created_by);
         }else{
             // For other roles, show only their own tickets (fallback)
-            $tickets = Ticket::where('dmc_id', $auth_user->userId)->get();
+            $query->where('dmc_id', $auth_user->userId);
         }
+
+        $tickets = $query->get();
 
         return view('tickets.tickets', compact('tickets'));
     }
@@ -191,7 +189,9 @@ class TicketController extends Controller
         //     abort(403, 'You do not have permission to access this page.');
         // }
         $ticket_id = Crypt::decrypt($ticket_id);
-        $ticket = Ticket::where('ticket_id', $ticket_id)->first();
+        $ticket = Ticket::with(['dmc:userId,name,company_name', 'createdByUser:userId,name', 'updatedByUser:userId,name'])
+            ->where('ticket_id', $ticket_id)
+            ->first();
         if(!$ticket){
             return redirect()->back()->with('error', 'Ticket not found.');
         }
@@ -224,42 +224,31 @@ class TicketController extends Controller
             // If attraction's dmc_id is null/empty, $dmcUsers remains empty collection
         }
         
+        $query = Ticket::with(['dmc:userId,name,company_name', 'createdByUser:userId,name'])
+            ->where('status', 1)
+            ->where('attraction_id', $attraction_id);
+
         if($auth_user->role_id == 1 || $auth_user->role_id == 20){
-        $tickets = Ticket::where('status', 1)
-            ->where('attraction_id', $attraction_id)
-            ->get();
+            // Admin and Virtual DMC can see all tickets for this attraction
         }else if($auth_user->role_id == 11){
-            $tickets = Ticket::where('status', 1)
-            ->where('attraction_id', $attraction_id)
-            ->where('dmc_id', $auth_user->userId)
-            ->get();
+            $query->where('dmc_id', $auth_user->userId);
         }else if($auth_user->role_id == 35 || in_array($auth_user->role_id, [130, 132, 133, 135, 136, 137, 138])){
             $userdmc = User::where('userId', $auth_user->created_by)->first();
-            $tickets = Ticket::where('status', 1)
-            ->where('attraction_id', $attraction_id)
-            ->where('dmc_id', $userdmc->userId)
-            ->get();
+            $query->where('dmc_id', $userdmc->userId);
         }else if($auth_user->role_id == 74 || $auth_user->role_id == 139){
             $user_product_head = User::where('userId', $auth_user->created_by)->first();
             $user_product_head_dmc = User::where('userId', $user_product_head->created_by)->first();
-            $tickets = Ticket::where('status', 1)
-            ->where('attraction_id', $attraction_id)
-            ->where('dmc_id', $user_product_head_dmc->userId)
-            ->get();
+            $query->where('dmc_id', $user_product_head_dmc->userId);
         }else if($auth_user->role_id == 93 || $auth_user->role_id == 140){
             $user_product_manager = User::where('userId', $auth_user->created_by)->first();
             $user_product_head = User::where('userId', $user_product_manager->created_by)->first();
             $user_product_head_dmc = User::where('userId', $user_product_head->created_by)->first();
-            $tickets = Ticket::where('status', 1)
-            ->where('attraction_id', $attraction_id)
-            ->where('dmc_id', $user_product_head_dmc->userId)
-            ->get();
+            $query->where('dmc_id', $user_product_head_dmc->userId);
         }else{
-            $tickets = Ticket::where('status', 1)
-            ->where('attraction_id', $attraction_id)
-            ->where('dmc_id', $auth_user->userId)
-            ->get();
+            $query->where('dmc_id', $auth_user->userId);
         }
+
+        $tickets = $query->get();
         return view('tickets.add-ticket', compact('attraction', 'tickets', 'auth_user', 'dmcUsers'));
     }
 
