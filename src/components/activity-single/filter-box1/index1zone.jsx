@@ -38,6 +38,7 @@ import dayjs from "dayjs";
 import { setDateService } from "@/slice/common/dateServicesSlice";
 import { setbookingImage, setbookingType } from "@/slice/tourguide/guideslice";
 import { addToCart } from "@/slice/cart/carSlice";
+import { store } from "@/store/store";
 
 const Index1Zone = () => {
   const pickUpLocation = useSelector((state) => state.pickupDrop.entrypickup);
@@ -69,7 +70,6 @@ const Index1Zone = () => {
   // Get default values for guests from Redux store
   // Fetch values from Redux
   const tourDetails = useSelector((state) => state.hotels?.tourdetails);
-  
 
   const adultsMax = tourDetails?.adult ?? 1; // Use optional chaining with fallback
   
@@ -210,9 +210,14 @@ const Index1Zone = () => {
       addToCart({
         bookingType: "entryport",
         item: details,
-        tourDetails,
+        tourDetails: tourDetails,
       })
     );
+    const cartError = store.getState().cart?.lastActionError;
+    if (cartError) {
+      toast.error(cartError);
+      return;
+    }
     toast.success("Added to cart successfully.");
     navigate(`/dashboard/db-dashboard/cart`);
   };

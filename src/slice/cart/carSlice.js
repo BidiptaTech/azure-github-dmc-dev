@@ -5,6 +5,7 @@ import { createSlice, current } from "@reduxjs/toolkit";
  * [
  *   {
  *     tripId, check_in, check_out, destination, adult, child, infant, tour_id,
+ *     cityWiseDates: [{ city, checkIn, checkOut }, ...],
  *     bookings: [
  *       { type: "entryport", cartItemId, ... },
  *       { type: "exitport", cartItemId, ... },
@@ -12,6 +13,7 @@ import { createSlice, current } from "@reduxjs/toolkit";
  *   },
  * ]
  */
+export const MAX_CART_TRIPS = 5;
 const CART_STORAGE_KEY = "dmc_cart";
 
 const loadCartFromStorage = () => {
@@ -37,7 +39,6 @@ const saveCartToStorage = (cart) => {
 };
 
 const persistCart = (state) => {
-  // Unwrap Immer draft so console / localStorage get plain JSON
   const plainCart = current(state).cart;
   console.log("state.cart added to cart", plainCart);
   console.log("state.cart JSON:", JSON.stringify(plainCart, null, 2));
@@ -46,6 +47,8 @@ const persistCart = (state) => {
 
 const initialState = {
   cart: loadCartFromStorage(),
+  lastActionError: null,
+  checkoutTripId: null,
 };
 
 const normalizeDestination = (destination) => {
@@ -56,7 +59,7 @@ const normalizeDestination = (destination) => {
   return String(destination);
 };
 
-const buildTourMeta = (tourDetails = {}) => {
+export const buildTourMeta = (tourDetails = {}) => {
   const check_in =
     tourDetails.check_in ||
     tourDetails.CheckInTime ||
@@ -67,27 +70,50 @@ const buildTourMeta = (tourDetails = {}) => {
     tourDetails.CheckOutTime ||
     tourDetails.checkOut ||
     "";
+  // Keep same shape as handleSearch: [{ city, country }, ...]
   const destination = tourDetails.destination ?? "";
   const adult = Number(tourDetails.adult ?? tourDetails.Adults ?? 0);
   const child = Number(tourDetails.child ?? tourDetails.Children ?? 0);
   const infant = Number(tourDetails.infant ?? tourDetails.Infants ?? 0);
+  const cityWiseDates = Array.isArray(tourDetails.cityWiseDates)
+    ? tourDetails.cityWiseDates
+    : [];
+  const country =
+    tourDetails.country ||
+    (Array.isArray(destination) &&
+      destination.find((d) => d?.country)?.country) ||
+    "";
 
   return {
     check_in,
     check_out,
     destination,
+    country,
     adult,
     child,
     infant,
+    cityWiseDates,
+    adultGenders: Array.isArray(tourDetails.adultGenders)
+      ? tourDetails.adultGenders
+      : undefined,
+    childrenAges: Array.isArray(tourDetails.childrenAges)
+      ? tourDetails.childrenAges
+      : undefined,
     tour_id: tourDetails.tour_id ?? tourDetails.tourId ?? null,
   };
 };
 
-const isSameTrip = (trip, meta) =>
+export const isSameTrip = (trip, meta) =>
   String(trip.check_in || "") === String(meta.check_in || "") &&
   String(trip.check_out || "") === String(meta.check_out || "") &&
   normalizeDestination(trip.destination) ===
     normalizeDestination(meta.destination);
+
+export const wouldCreateNewCartTrip = (cart, tourDetails) => {
+  const meta = buildTourMeta(tourDetails || {});
+  const list = Array.isArray(cart) ? cart : [];
+  return !list.some((trip) => isSameTrip(trip, meta));
+};
 
 const cartSlice = createSlice({
   name: "cart",
@@ -95,7 +121,12 @@ const cartSlice = createSlice({
   reducers: {
     addToCart: (state, action) => {
       const { bookingType, item, tourDetails } = action.payload || {};
-      if (!bookingType || !item) return;
+      state.lastActionError = null;
+
+      if (!bookingType || !item) {
+        state.lastActionError = "Invalid cart item.";
+        return;
+      }
 
       const meta = buildTourMeta(tourDetails || {});
       const booking = {
@@ -120,15 +151,31 @@ const cartSlice = createSlice({
         if (!Array.isArray(state.cart[existingIndex].bookings)) {
           state.cart[existingIndex].bookings = [];
         }
-        // Keep guest counts / tour_id fresh from latest tourDetails
         state.cart[existingIndex].adult = meta.adult;
         state.cart[existingIndex].child = meta.child;
         state.cart[existingIndex].infant = meta.infant;
+        state.cart[existingIndex].destination = meta.destination;
+        if (meta.country) {
+          state.cart[existingIndex].country = meta.country;
+        }
+        if (meta.cityWiseDates?.length) {
+          state.cart[existingIndex].cityWiseDates = meta.cityWiseDates;
+        }
+        if (meta.adultGenders) {
+          state.cart[existingIndex].adultGenders = meta.adultGenders;
+        }
+        if (meta.childrenAges) {
+          state.cart[existingIndex].childrenAges = meta.childrenAges;
+        }
         if (meta.tour_id != null) {
           state.cart[existingIndex].tour_id = meta.tour_id;
         }
         state.cart[existingIndex].bookings.push(booking);
       } else {
+        if (state.cart.length >= MAX_CART_TRIPS) {
+          state.lastActionError = `Maximum ${MAX_CART_TRIPS} trips can be added to the cart.`;
+          return;
+        }
         state.cart.push({
           tripId: `trip-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
           ...meta,
@@ -140,6 +187,7 @@ const cartSlice = createSlice({
     },
     removeFromCart: (state, action) => {
       const { tripId, cartItemId } = action.payload || {};
+      state.lastActionError = null;
       if (!tripId || !cartItemId || !Array.isArray(state.cart)) return;
 
       const tripIndex = state.cart.findIndex((trip) => trip.tripId === tripId);
@@ -158,22 +206,44 @@ const cartSlice = createSlice({
     },
     clearCartByTrip: (state, action) => {
       const tripId = action.payload;
+      state.lastActionError = null;
       if (!tripId || !Array.isArray(state.cart)) return;
       state.cart = state.cart.filter((trip) => trip.tripId !== tripId);
+      if (state.checkoutTripId === tripId) {
+        state.checkoutTripId = null;
+      }
       persistCart(state);
     },
     clearCart: (state) => {
       state.cart = [];
+      state.checkoutTripId = null;
+      state.lastActionError = null;
       persistCart(state);
+    },
+    setCheckoutTripId: (state, action) => {
+      state.checkoutTripId = action.payload || null;
+    },
+    clearCartError: (state) => {
+      state.lastActionError = null;
     },
   },
 });
 
-export const { addToCart, removeFromCart, clearCartByTrip, clearCart } =
-  cartSlice.actions;
+export const {
+  addToCart,
+  removeFromCart,
+  clearCartByTrip,
+  clearCart,
+  setCheckoutTripId,
+  clearCartError,
+} = cartSlice.actions;
 
 export const selectCart = (state) =>
   Array.isArray(state.cart?.cart) ? state.cart.cart : [];
+
+export const selectCartLastError = (state) => state.cart?.lastActionError;
+
+export const selectCheckoutTripId = (state) => state.cart?.checkoutTripId;
 
 export const selectCartItemCount = (state) => {
   const cart = Array.isArray(state.cart?.cart) ? state.cart.cart : [];

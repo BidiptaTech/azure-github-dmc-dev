@@ -38,6 +38,7 @@ import PriceMode from "./PriceMode1";
 import Pickuptime1 from "./Pickuptime1";
 import { setbookingImage, setbookingType } from "@/slice/tourguide/guideslice";
 import { addToCart } from "@/slice/cart/carSlice";
+import { store } from "@/store/store";
 
 const Index2Zone = () => {
   // const pickUpLocation = useSelector((state) => state.pickupDrop.entrypickup);
@@ -298,9 +299,14 @@ const Index2Zone = () => {
       addToCart({
         bookingType: "exitport",
         item: details,
-        tourDetails,
+        tourDetails: tourDetails,
       })
     );
+    const cartError = store.getState().cart?.lastActionError;
+    if (cartError) {
+      toast.error(cartError);
+      return;
+    }
     toast.success("Added to cart successfully.");
     navigate(`/dashboard/db-dashboard/cart`);
   };
