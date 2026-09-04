@@ -388,6 +388,7 @@ class DayLevelController extends Controller
             $this->applyHotelDmcFilter($hotelsQuery, $dmcId);
 
             $hotels = $hotelsQuery->get(['id', 'hotel_unique_id', 'name', 'hotel_star_rating', 'city', 'dmc_id']);
+            $hotels = $this->filterHotelsThatHaveRoomsForDmc($hotels, $dmcId);
 
             $result['hotels'] = $hotels
                 ->groupBy('hotel_star_rating')
@@ -397,7 +398,7 @@ class DayLevelController extends Controller
             $result['hotels_flat'] = $hotels->values()->toArray();
         }
 
-        // ── Attractions (DMC-mapped only) ───────────────────────────
+        // ── Attractions (DMC-mapped + must have tickets for this DMC) ─
         // attractions table has NO city column — use location only
         if (in_array($type, ['all', 'attractions'])) {
             $attractionsQuery = Attraction::whereNull('deleted_at')
@@ -406,6 +407,7 @@ class DayLevelController extends Controller
                 ->orderBy('name');
 
             $this->applyServiceDmcFilter($attractionsQuery, $dmcId);
+            $this->applyAttractionHasTicketsForDmcFilter($attractionsQuery, $dmcId);
 
             $attractions = $attractionsQuery
                 ->get(['attraction_id', 'name', 'location', 'adult_price'])
@@ -421,7 +423,7 @@ class DayLevelController extends Controller
             }, $attractions);
         }
 
-        // ── Restaurants (DMC-mapped only) ─────────────────────────────
+        // ── Restaurants (DMC-mapped + must have meals for this DMC) ──
         if (in_array($type, ['all', 'restaurants'])) {
             $restaurantsQuery = Restaurant::whereNull('deleted_at')
                 ->where('is_active', 1)
@@ -429,6 +431,7 @@ class DayLevelController extends Controller
                 ->orderBy('name');
 
             $this->applyServiceDmcFilter($restaurantsQuery, $dmcId);
+            $this->applyRestaurantHasMealsForDmcFilter($restaurantsQuery, $dmcId);
 
             $result['restaurants'] = $restaurantsQuery
                 ->get(['restaurant_id', 'name', 'city'])
@@ -436,19 +439,22 @@ class DayLevelController extends Controller
                 ->toArray();
         }
 
-        // ── Guides ──────────────────────────────────────────────────
+        // ── Guides (DMC-scoped) ─────────────────────────────────────
         if (in_array($type, ['all', 'guides'])) {
-            $result['guides'] = Guide::whereNull('deleted_at')
+            $guidesQuery = Guide::whereNull('deleted_at')
                 ->where('is_active', 1)
                 ->where('city', 'ilike', "%{$cityName}%")
-                ->orderBy('name')
+                ->orderBy('name');
+
+            $this->applyGuideDmcFilter($guidesQuery, $dmcId);
+
+            $result['guides'] = $guidesQuery
                 ->get(['id', 'guide_id', 'name', 'city', 'day_rate'])
                 ->values()
                 ->toArray();
         }
 
-        // ── Vehicles (for airport transfer) ─────────────────────────
-        // vehicles.city and vehicles.dmc_id exist per SQL dump
+        // ── Vehicles (for airport transfer) — DMC only, no city fallback ─
         if (in_array($type, ['all', 'vehicles'])) {
             $vehicleQuery = Vehicle::whereNull('deleted_at')
                 // Keep legacy rows visible; many vehicle rows use null/0 flags.
@@ -459,33 +465,15 @@ class DayLevelController extends Controller
                     $q->where('is_active', 1)->orWhereNull('is_active')->orWhere('is_active', 0);
                 })
                 ->where('city', 'ilike', "%{$cityName}%")
-                ->where(function ($q) use ($dmcId) {
-                    // vehicles.dmc_id is plain numeric in this flow
-                    $q->where('dmc_id', $dmcId)
-                      ->orWhereRaw('CAST(dmc_id AS TEXT) = ?', [(string) $dmcId])
-                      ->orWhereRaw('CAST(dmc_id AS TEXT) LIKE ?', ['%' . (string) $dmcId . '%']);
-                })
                 ->orderBy('vehicle_name');
 
-            $vehicles = $vehicleQuery->get([
+            $this->applyVehicleDmcFilter($vehicleQuery, $dmcId);
+
+            $result['vehicles'] = $vehicleQuery->get([
                 'id', 'vehicle_id', 'vehicle_name', 'vehicle_type',
                 'seating_capacity', 'sharable', 'image',
                 'base_price', 'cost_per_hour', 'city', 'dmc_id',
-            ]);
-
-            // Fallback: if strict dmc mapping has no rows, show city vehicles
-            if ($vehicles->isEmpty()) {
-                $vehicles = Vehicle::whereNull('deleted_at')
-                    ->where('city', 'ilike', "%{$cityName}%")
-                    ->orderBy('vehicle_name')
-                    ->get([
-                    'id', 'vehicle_id', 'vehicle_name', 'vehicle_type',
-                    'seating_capacity', 'sharable', 'image',
-                    'base_price', 'cost_per_hour', 'city', 'dmc_id',
-                ]);
-            }
-
-            $result['vehicles'] = $vehicles->values()->toArray();
+            ])->values()->toArray();
         }
 
         return response()->json($result);
@@ -514,8 +502,9 @@ class DayLevelController extends Controller
         $this->applyHotelDmcFilter($query, $dmcId);
 
         $hotels = $query->get(['id', 'hotel_unique_id', 'name', 'city', 'hotel_star_rating', 'dmc_id']);
+        $hotels = $this->filterHotelsThatHaveRoomsForDmc($hotels, $dmcId);
 
-        return response()->json($hotels);
+        return response()->json($hotels->values());
     }
 
     // =========================================================================
@@ -698,7 +687,8 @@ class DayLevelController extends Controller
     }
 
     /**
-     * Active rooms for a hotel (DMC-scoped when rows exist, else all hotel rooms).
+     * Active rooms for a hotel, strictly scoped to the selected DMC.
+     * No fallback to other DMCs' rooms — hotels without DMC rooms stay empty.
      *
      * @param  list<string>  $columns
      */
@@ -720,18 +710,164 @@ class DayLevelController extends Controller
             return $query;
         };
 
-        if ($dmcId > 0) {
-            $scoped = $buildQuery()->where(function ($q) use ($dmcId) {
+        if ($dmcId <= 0) {
+            return $buildQuery()->get();
+        }
+
+        return $buildQuery()->where(function ($q) use ($dmcId) {
+            $q->where('created_by', $dmcId)
+                ->orWhere('dmc_id', $dmcId);
+        })->get();
+    }
+
+    /**
+     * Hotel unique ids that have at least one active room for this DMC.
+     *
+     * @return array<string, true>
+     */
+    private function hotelUniqueIdSetWithRoomsForDmc(int $dmcId): array
+    {
+        if ($dmcId <= 0) {
+            return [];
+        }
+
+        static $cache = [];
+        if (isset($cache[$dmcId])) {
+            return $cache[$dmcId];
+        }
+
+        $ids = Room::query()
+            ->whereNull('deleted_at')
+            ->where(function ($q) {
+                $q->where('status', 1)->orWhereNull('status');
+            })
+            ->whereNotNull('room_type')
+            ->where('room_type', '!=', '')
+            ->where(function ($q) use ($dmcId) {
                 $q->where('created_by', $dmcId)
                     ->orWhere('dmc_id', $dmcId);
-            })->get();
+            })
+            ->distinct()
+            ->pluck('hotel_id')
+            ->map(fn ($id) => trim((string) $id))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
 
-            if ($scoped->isNotEmpty()) {
-                return $scoped;
+        $set = [];
+        foreach ($ids as $id) {
+            $set[$id] = true;
+            if (ctype_digit($id)) {
+                $set[(string) ((int) $id)] = true;
             }
         }
 
-        return $buildQuery()->get();
+        return $cache[$dmcId] = $set;
+    }
+
+    /**
+     * Keep only hotels that have bookable rooms for the selected DMC.
+     *
+     * @param  \Illuminate\Support\Collection<int, mixed>  $hotels
+     * @return \Illuminate\Support\Collection<int, mixed>
+     */
+    private function filterHotelsThatHaveRoomsForDmc($hotels, int $dmcId)
+    {
+        if ($dmcId <= 0) {
+            return $hotels;
+        }
+
+        $roomHotelIds = $this->hotelUniqueIdSetWithRoomsForDmc($dmcId);
+        if ($roomHotelIds === []) {
+            return $hotels->filter(fn () => false)->values();
+        }
+
+        return $hotels->filter(function ($hotel) use ($roomHotelIds) {
+            $uid = trim((string) (is_array($hotel)
+                ? ($hotel['hotel_unique_id'] ?? '')
+                : ($hotel->hotel_unique_id ?? '')));
+            $listId = trim((string) (is_array($hotel)
+                ? ($hotel['id'] ?? '')
+                : ($hotel->id ?? '')));
+
+            if ($uid !== '' && isset($roomHotelIds[$uid])) {
+                return true;
+            }
+            if ($listId !== '' && isset($roomHotelIds[$listId])) {
+                return true;
+            }
+            if ($uid !== '' && ctype_digit($uid) && isset($roomHotelIds[(string) ((int) $uid)])) {
+                return true;
+            }
+
+            return false;
+        })->values();
+    }
+
+    private function applyAttractionHasTicketsForDmcFilter($query, int $dmcId): void
+    {
+        if ($dmcId <= 0 || ! Schema::hasTable('tickets')) {
+            return;
+        }
+
+        $query->whereIn('attraction_id', function ($sub) use ($dmcId) {
+            $sub->select('attraction_id')
+                ->from('tickets')
+                ->where('dmc_id', $dmcId)
+                ->whereNotNull('attraction_id');
+            if (Schema::hasColumn('tickets', 'deleted_at')) {
+                $sub->whereNull('deleted_at');
+            }
+        });
+    }
+
+    private function applyRestaurantHasMealsForDmcFilter($query, int $dmcId): void
+    {
+        if ($dmcId <= 0 || ! Schema::hasTable('meals')) {
+            return;
+        }
+
+        $query->whereIn('restaurant_id', function ($sub) use ($dmcId) {
+            $sub->select('restaurant_id')
+                ->from('meals')
+                ->where('dmc_id', $dmcId)
+                ->whereNotNull('restaurant_id');
+            if (Schema::hasColumn('meals', 'deleted_at')) {
+                $sub->whereNull('deleted_at');
+            }
+        });
+    }
+
+    private function applyGuideDmcFilter($query, int $dmcId): void
+    {
+        if ($dmcId <= 0) {
+            return;
+        }
+
+        $query->where(function ($q) use ($dmcId) {
+            if (Schema::hasColumn('guides', 'dmc_id')) {
+                $q->where('dmc_id', $dmcId)
+                    ->orWhereRaw("CAST(dmc_id AS TEXT) = ?", [(string) $dmcId])
+                    ->orWhereRaw("COALESCE(dmc_id::text, '') LIKE ?", ['%' . $dmcId . '%']);
+            }
+            if (Schema::hasColumn('guides', 'created_by')) {
+                $q->orWhere('created_by', $dmcId);
+            }
+        });
+    }
+
+    private function applyVehicleDmcFilter($query, int $dmcId): void
+    {
+        if ($dmcId <= 0) {
+            return;
+        }
+
+        $query->where(function ($q) use ($dmcId) {
+            $q->where('dmc_id', $dmcId)
+                ->orWhereRaw('CAST(dmc_id AS TEXT) = ?', [(string) $dmcId])
+                ->orWhereRaw("COALESCE(dmc_id::text, '') LIKE ?", ['%' . $dmcId . '%']);
+        });
     }
 
     /**
@@ -850,7 +986,10 @@ class DayLevelController extends Controller
             $hotelQuery->where('city', $likeOperator, "%{$cityName}%");
         }
         $this->applyHotelDmcFilter($hotelQuery, $dmcId);
-        $hotelsForLocations = $hotelQuery->get(['id', 'hotel_unique_id', 'name', 'city']);
+        $hotelsForLocations = $this->filterHotelsThatHaveRoomsForDmc(
+            $hotelQuery->get(['id', 'hotel_unique_id', 'name', 'city']),
+            $dmcId
+        );
 
         $defaultHotelRow = DefaultValue::query()
             ->where('dmc_id', $dmcId)
@@ -883,6 +1022,7 @@ class DayLevelController extends Controller
                 ->where('location', $likeOperator, "%{$cityName}%")
                 ->orderBy('name');
             $this->applyServiceDmcFilter($attractionsQuery, $dmcId);
+            $this->applyAttractionHasTicketsForDmcFilter($attractionsQuery, $dmcId);
             $attractionLocations = $attractionsQuery
                 ->get(['attraction_id', 'name', 'location'])
                 ->map(fn ($a) => [
@@ -899,6 +1039,7 @@ class DayLevelController extends Controller
                 ->where('city', $likeOperator, "%{$cityName}%")
                 ->orderBy('name');
             $this->applyServiceDmcFilter($restaurantsQuery, $dmcId);
+            $this->applyRestaurantHasMealsForDmcFilter($restaurantsQuery, $dmcId);
             $restaurantLocations = $restaurantsQuery
                 ->get(['restaurant_id', 'name', 'city'])
                 ->map(fn ($r) => [
@@ -983,7 +1124,7 @@ class DayLevelController extends Controller
 
     /**
      * Zone-respected transfer price for arrival/departure (and other leg transfers).
-     * Uses DMC default vehicle + vehicle_zone_mappings via EnquiryFormPro::getZonePrices.
+     * Uses this DMC's default vehicle + this DMC's zone assignments only (no cross-DMC fallback).
      */
     public function transferZonePrice(Request $request)
     {
@@ -992,16 +1133,18 @@ class DayLevelController extends Controller
         $dropValue = trim((string) $request->input('drop_value', ''));
         $transferType = strtolower(trim((string) $request->input('transfer_type', 'private')));
 
+        $empty = [
+            'success' => true,
+            'zone_mapped' => false,
+            'price' => 0,
+            'private_price' => 0,
+            'shared_price' => 0,
+            'vehicle_id' => null,
+            'vehicle_name' => null,
+        ];
+
         if ($pickupValue === '' || $dropValue === '') {
-            return response()->json([
-                'success' => false,
-                'zone_mapped' => false,
-                'price' => 0,
-                'private_price' => 0,
-                'shared_price' => 0,
-                'vehicle_id' => null,
-                'vehicle_name' => null,
-            ]);
+            return response()->json(array_merge($empty, ['success' => false]));
         }
 
         $pickup = $this->parseTransferLocationValue($pickupValue);
@@ -1017,41 +1160,38 @@ class DayLevelController extends Controller
         $pickupId = $this->resolveServiceIdForZoneLookup($pickup['type'], $pickup['id'], $dmcId);
         $dropId = $this->resolveServiceIdForZoneLookup($drop['type'], $drop['id'], $dmcId);
 
-        if ($pickupId === null || $dropId === null || $pickupType === '' || $dropType === '') {
-            return response()->json([
-                'success' => true,
-                'zone_mapped' => false,
-                'price' => 0,
-                'private_price' => 0,
-                'shared_price' => 0,
-                'vehicle_id' => null,
-                'vehicle_name' => null,
-            ]);
+        // Hotel / attraction / restaurant → only this DMC's assigned zone (no other-DMC fallback).
+        // zone:* tokens must keep the zone id (do not re-resolve as hotel/attraction entity).
+        $pickupZoneId = $pickup['type'] === 'zone'
+            ? ($this->zoneBelongsToDmc((string) $pickup['id'], $dmcId) ? (string) $pickup['id'] : null)
+            : $this->resolveDmcStrictZoneId($pickupType, (string) ($pickupId ?? ''), $dmcId);
+        $dropZoneId = $drop['type'] === 'zone'
+            ? ($this->zoneBelongsToDmc((string) $drop['id'], $dmcId) ? (string) $drop['id'] : null)
+            : $this->resolveDmcStrictZoneId($dropType, (string) ($dropId ?? ''), $dmcId);
+
+        if ($pickupZoneId === null || $dropZoneId === null || $pickupType === '' || $dropType === '') {
+            return response()->json(array_merge($empty, [
+                'message' => 'No DMC zone assignment for selected pickup/drop',
+            ]));
         }
 
         $vehicleId = $this->resolveDefaultTransferVehicleId($dmcId);
-        if ($vehicleId === null) {
-            return response()->json([
-                'success' => true,
-                'zone_mapped' => false,
-                'price' => 0,
-                'private_price' => 0,
-                'shared_price' => 0,
-                'vehicle_id' => null,
-                'vehicle_name' => null,
+        $vehicleName = $vehicleId ? $this->resolveTransferVehicleName($vehicleId, $dmcId) : null;
+        if ($vehicleId === null || $vehicleName === null || !$this->vehicleBelongsToDmc($vehicleId, $dmcId)) {
+            return response()->json(array_merge($empty, [
                 'message' => 'No default transfer vehicle configured for this DMC',
-            ]);
+            ]));
         }
-
-        $vehicleName = $this->resolveTransferVehicleName($vehicleId, $dmcId);
 
         $zoneRequest = Request::create('/', 'GET', [
             'vehicle_id' => $vehicleId,
-            'pickup_id' => $pickupId,
-            'drop_id' => $dropId,
+            // Pass DMC-strict zone IDs so getZonePrices does not fall back to other DMC assignments.
+            'pickup_id' => $pickupZoneId,
+            'drop_id' => $dropZoneId,
             'pickup_type' => $pickupType,
             'drop_type' => $dropType,
             'dmc_id' => $dmcId,
+            'strict_dmc' => 1,
         ]);
 
         $zoneResponse = app(EnquiryFormPro::class)->getZonePrices($zoneRequest);
@@ -1079,6 +1219,113 @@ class DayLevelController extends Controller
             'vehicle_name' => $vehicleName,
             'message' => $payload['message'] ?? null,
         ]);
+    }
+
+    /**
+     * Resolve zone id strictly for this DMC (hotel/attraction/restaurant assignments only).
+     * Port / already-zone tokens keep their id when they belong to the DMC.
+     */
+    private function resolveDmcStrictZoneId(string $type, string $serviceId, int $dmcId): ?string
+    {
+        $type = strtolower(trim($type));
+        $serviceId = trim($serviceId);
+        if ($type === '' || $serviceId === '' || $dmcId <= 0) {
+            return null;
+        }
+
+        if ($type === 'port') {
+            return $serviceId;
+        }
+
+        if ($type === 'zone') {
+            return $this->zoneBelongsToDmc($serviceId, $dmcId) ? $serviceId : null;
+        }
+
+        if ($type === 'hotel') {
+            $hotel = Hotel::query()
+                ->whereNull('deleted_at')
+                ->where(function ($q) use ($serviceId) {
+                    $q->where('hotel_unique_id', $serviceId);
+                    if (ctype_digit($serviceId)) {
+                        $q->orWhere('id', (int) $serviceId);
+                    }
+                })
+                ->first();
+            $zoneId = $hotel?->getZoneForDmc($dmcId);
+
+            return ($zoneId !== null && trim((string) $zoneId) !== '') ? (string) $zoneId : null;
+        }
+
+        if ($type === 'attraction') {
+            $attraction = Attraction::query()
+                ->whereNull('deleted_at')
+                ->where(function ($q) use ($serviceId) {
+                    $q->where('attraction_id', $serviceId);
+                    if (ctype_digit($serviceId)) {
+                        $q->orWhere('id', (int) $serviceId);
+                    }
+                })
+                ->first();
+            $zoneId = $attraction?->getZoneForDmc($dmcId);
+
+            return ($zoneId !== null && trim((string) $zoneId) !== '') ? (string) $zoneId : null;
+        }
+
+        if ($type === 'restaurant') {
+            $restaurant = Restaurant::query()
+                ->whereNull('deleted_at')
+                ->where(function ($q) use ($serviceId) {
+                    $q->where('restaurant_id', $serviceId);
+                    if (ctype_digit($serviceId)) {
+                        $q->orWhere('id', (int) $serviceId);
+                    }
+                })
+                ->first();
+            $zoneId = $restaurant?->getZoneForDmc($dmcId);
+
+            return ($zoneId !== null && trim((string) $zoneId) !== '') ? (string) $zoneId : null;
+        }
+
+        return null;
+    }
+
+    private function zoneBelongsToDmc(string $zoneId, int $dmcId): bool
+    {
+        if ($zoneId === '' || $dmcId <= 0) {
+            return false;
+        }
+
+        return Zone::query()
+            ->where('zone_id', $zoneId)
+            ->where(function ($q) use ($dmcId) {
+                $q->where('dmc_id', $dmcId)
+                    ->orWhere('dmc_id', (string) $dmcId)
+                    ->orWhereRaw('CAST(dmc_id AS TEXT) = ?', [(string) $dmcId]);
+            })
+            ->exists();
+    }
+
+    private function vehicleBelongsToDmc(string $vehicleId, int $dmcId): bool
+    {
+        $vehicleId = trim($vehicleId);
+        if ($vehicleId === '' || $dmcId <= 0) {
+            return false;
+        }
+
+        $query = Vehicle::query()
+            ->whereNull('deleted_at')
+            ->where(function ($q) use ($vehicleId) {
+                $q->where('vehicle_id', $vehicleId);
+                if (ctype_digit($vehicleId)) {
+                    $q->orWhere('id', (int) $vehicleId);
+                }
+            });
+
+        if (Schema::hasColumn('vehicles', 'dmc_id')) {
+            $this->applyVehicleDmcFilter($query, $dmcId);
+        }
+
+        return $query->exists();
     }
 
     /** @return array{type: string, id: string} */
@@ -1171,18 +1418,42 @@ class DayLevelController extends Controller
             ->first();
 
         $vehicleId = trim((string) ($row->service_id ?? ''));
-        if ($vehicleId !== '') {
-            return $vehicleId;
+        // Only accept an active (non-deleted) vehicle for this DMC.
+        if ($vehicleId !== '' && $this->vehicleBelongsToDmc($vehicleId, $dmcId)) {
+            $canonical = $this->resolveCanonicalVehicleId($vehicleId, $dmcId);
+            if ($canonical !== null) {
+                return $canonical;
+            }
         }
 
         if ($prefer !== 'shared') {
-            return $this->resolveDefaultTransferVehicleId($dmcId, 'shared');
+            $shared = $this->resolveDefaultTransferVehicleId($dmcId, 'shared');
+            if ($shared !== null) {
+                return $shared;
+            }
+        }
+
+        // Fallback: first active vehicle for this DMC (default may point at a soft-deleted row).
+        $fallback = Vehicle::query()
+            ->whereNull('deleted_at')
+            ->where(function ($q) use ($dmcId) {
+                $q->where('dmc_id', $dmcId)
+                    ->orWhere('dmc_id', (string) $dmcId)
+                    ->orWhereRaw('CAST(dmc_id AS TEXT) = ?', [(string) $dmcId]);
+            })
+            ->orderBy('id')
+            ->first(['vehicle_id', 'id']);
+
+        if ($fallback) {
+            $id = trim((string) ($fallback->vehicle_id ?? ''));
+            return $id !== '' ? $id : (string) $fallback->id;
         }
 
         return null;
     }
 
-    private function resolveTransferVehicleName(string $vehicleId, int $dmcId): ?string
+    /** Canonical active vehicles.vehicle_id for a raw id / vehicle_id token. */
+    private function resolveCanonicalVehicleId(string $vehicleId, int $dmcId): ?string
     {
         $vehicleId = trim($vehicleId);
         if ($vehicleId === '') {
@@ -1199,13 +1470,45 @@ class DayLevelController extends Controller
             });
 
         if ($dmcId > 0 && Schema::hasColumn('vehicles', 'dmc_id')) {
+            $this->applyVehicleDmcFilter($query, $dmcId);
+        }
+
+        $vehicle = $query->first(['vehicle_id', 'id']);
+        if (! $vehicle) {
+            return null;
+        }
+
+        $canonical = trim((string) ($vehicle->vehicle_id ?? ''));
+
+        return $canonical !== '' ? $canonical : (string) $vehicle->id;
+    }
+
+    private function resolveTransferVehicleName(string $vehicleId, int $dmcId): ?string
+    {
+        $vehicleId = trim($vehicleId);
+        if ($vehicleId === '') {
+            return null;
+        }
+
+        // Prefer active vehicle; fall back to soft-deleted so historical IDs still show a name.
+        $query = Vehicle::withTrashed()
+            ->where(function ($q) use ($vehicleId) {
+                $q->where('vehicle_id', $vehicleId);
+                if (ctype_digit($vehicleId)) {
+                    $q->orWhere('id', (int) $vehicleId);
+                }
+            })
+            ->orderByRaw('CASE WHEN deleted_at IS NULL THEN 0 ELSE 1 END');
+
+        if ($dmcId > 0 && Schema::hasColumn('vehicles', 'dmc_id')) {
             $query->where(function ($q) use ($dmcId) {
                 $q->where('dmc_id', $dmcId)
+                    ->orWhere('dmc_id', (string) $dmcId)
                     ->orWhereRaw("COALESCE(dmc_id::text, '') LIKE ?", ['%' . $dmcId . '%']);
             });
         }
 
-        $vehicle = $query->first(['vehicle_name', 'vehicle_type']);
+        $vehicle = $query->first(['vehicle_name', 'vehicle_type', 'vehicle_id']);
         if ($vehicle === null) {
             return null;
         }
@@ -1216,7 +1519,11 @@ class DayLevelController extends Controller
             return $type !== '' ? $type : null;
         }
 
-        return $type !== '' ? ($name . ' (' . $type . ')') : $name;
+        if ($type !== '' && strcasecmp($name, $type) !== 0) {
+            return $name . ' (' . $type . ')';
+        }
+
+        return $name;
     }
 
     private function resolveTransferCountry(Request $request, int $masterDmcId, int $dmcId): string
@@ -1366,7 +1673,7 @@ class DayLevelController extends Controller
 
     private function getExistingRoomMealColumns(): array
     {
-        $base = ['room_type', 'rooms_only'];
+        $base = ['room_id', 'room_type', 'rooms_only'];
         $optional = [
             'breakfast',
             'lunch',
@@ -1374,6 +1681,9 @@ class DayLevelController extends Controller
             'breakfast_included',
             'lunch_included',
             'dinner_included',
+            'breakfast_price',
+            'lunch_price',
+            'dinner_price',
         ];
 
         $existing = [];
@@ -1410,22 +1720,52 @@ class DayLevelController extends Controller
     private function buildMealPlanOptionsFromRooms(array $rooms): array
     {
         $set = [];
+        $bestPrices = [
+            'breakfast_price' => 0.0,
+            'lunch_price' => 0.0,
+            'dinner_price' => 0.0,
+        ];
 
         foreach ($rooms as $room) {
-            $room = is_array($room) ? $room : [];
+            $room = is_array($room) ? $room : (array) $room;
             $roomText = 'room';
 
-            $hasBreakfast = $this->isTruthyMealFlag($room['breakfast'] ?? null) || $this->isTruthyMealFlag($room['breakfast_included'] ?? null);
-            $hasLunch = $this->isTruthyMealFlag($room['lunch'] ?? null) || $this->isTruthyMealFlag($room['lunch_included'] ?? null);
-            $hasDinner = $this->isTruthyMealFlag($room['dinner'] ?? null) || $this->isTruthyMealFlag($room['dinner_included'] ?? null);
+            $breakfastPrice = (float) ($room['breakfast_price'] ?? 0);
+            $lunchPrice = (float) ($room['lunch_price'] ?? 0);
+            $dinnerPrice = (float) ($room['dinner_price'] ?? 0);
+            $bestPrices['breakfast_price'] = max($bestPrices['breakfast_price'], $breakfastPrice);
+            $bestPrices['lunch_price'] = max($bestPrices['lunch_price'], $lunchPrice);
+            $bestPrices['dinner_price'] = max($bestPrices['dinner_price'], $dinnerPrice);
+
+            $hasBreakfast = $this->isTruthyMealFlag($room['breakfast'] ?? null)
+                || $this->isTruthyMealFlag($room['breakfast_included'] ?? null)
+                || $breakfastPrice > 0;
+            $hasLunch = $this->isTruthyMealFlag($room['lunch'] ?? null)
+                || $this->isTruthyMealFlag($room['lunch_included'] ?? null)
+                || $lunchPrice > 0;
+            $hasDinner = $this->isTruthyMealFlag($room['dinner'] ?? null)
+                || $this->isTruthyMealFlag($room['dinner_included'] ?? null)
+                || $dinnerPrice > 0;
 
             $set[$roomText . ' only'] = true;
-            if ($hasBreakfast) $set[$roomText . ' with breakfast'] = true;
-            if ($hasLunch) $set[$roomText . ' with lunch'] = true;
-            if ($hasDinner) $set[$roomText . ' with dinner'] = true;
-            if ($hasBreakfast && $hasLunch) $set[$roomText . ' with breakfast + lunch'] = true;
-            if ($hasBreakfast && $hasDinner) $set[$roomText . ' with breakfast + dinner'] = true;
-            if ($hasLunch && $hasDinner) $set[$roomText . ' with lunch + dinner'] = true;
+            if ($hasBreakfast) {
+                $set[$roomText . ' with breakfast'] = true;
+            }
+            if ($hasLunch) {
+                $set[$roomText . ' with lunch'] = true;
+            }
+            if ($hasDinner) {
+                $set[$roomText . ' with dinner'] = true;
+            }
+            if ($hasBreakfast && $hasLunch) {
+                $set[$roomText . ' with breakfast + lunch'] = true;
+            }
+            if ($hasBreakfast && $hasDinner) {
+                $set[$roomText . ' with breakfast + dinner'] = true;
+            }
+            if ($hasLunch && $hasDinner) {
+                $set[$roomText . ' with lunch + dinner'] = true;
+            }
             if ($hasBreakfast && $hasLunch && $hasDinner) {
                 $set[$roomText . ' with all meals (breakfast + lunch + dinner)'] = true;
             }
@@ -1444,10 +1784,39 @@ class DayLevelController extends Controller
         $plans = array_keys($set);
         sort($plans, SORT_NATURAL | SORT_FLAG_CASE);
 
-        return array_map(function ($plan) {
+        return array_map(function ($plan) use ($bestPrices) {
+            $key = strtolower((string) $plan);
+            $breakfast = str_contains($key, 'breakfast') ? (float) $bestPrices['breakfast_price'] : 0.0;
+            $lunch = str_contains($key, 'lunch') ? (float) $bestPrices['lunch_price'] : 0.0;
+            $dinner = str_contains($key, 'dinner') ? (float) $bestPrices['dinner_price'] : 0.0;
+            $mealTotal = $breakfast + $lunch + $dinner;
+
+            $label = (string) $plan;
+            if ($mealTotal > 0) {
+                $parts = [];
+                if ($breakfast > 0) {
+                    $parts[] = 'B ' . number_format($breakfast, 2, '.', '');
+                }
+                if ($lunch > 0) {
+                    $parts[] = 'L ' . number_format($lunch, 2, '.', '');
+                }
+                if ($dinner > 0) {
+                    $parts[] = 'D ' . number_format($dinner, 2, '.', '');
+                }
+                if ($parts !== []) {
+                    $label .= ' — ' . implode(' + ', $parts);
+                }
+            }
+
             return [
-                'value' => $plan,
-                'label' => $plan,
+                'value' => (string) $plan,
+                'label' => $label,
+                'breakfast_price' => $breakfast,
+                'lunch_price' => $lunch,
+                'dinner_price' => $dinner,
+                'includes_breakfast' => str_contains($key, 'breakfast'),
+                'includes_lunch' => str_contains($key, 'lunch'),
+                'includes_dinner' => str_contains($key, 'dinner'),
             ];
         }, $plans);
     }
@@ -2009,10 +2378,23 @@ class DayLevelController extends Controller
         }
 
         $dayLevelId = (int) $dayLevel->id;
+        $affectedMasterId = (int) ($dayLevel->master_dmc_id ?? 0);
+        $deletedPackageIds = [];
+        foreach ($dayLevel->collectPackageSummaries() as $summary) {
+            $pid = trim((string) ($summary['package_id'] ?? ''));
+            if ($pid !== '' && ! empty($summary['has_stable_id'])) {
+                $deletedPackageIds[] = $pid;
+            }
+        }
+
         $dayLevel->delete();
 
+        $azureSync = ['ok' => false, 'deleted_blobs' => [], 'search' => []];
         try {
-            $this->refreshCombinedJsonFile();
+            $azureSync = $this->refreshCombinedJsonFile(
+                $affectedMasterId > 0 ? [$affectedMasterId] : [],
+                $deletedPackageIds
+            );
         } catch (\Throwable $e) {
             Log::warning('Day-level soft-deleted in DB but Azure JSON refresh failed', [
                 'day_level_id' => $dayLevelId,
@@ -2023,12 +2405,21 @@ class DayLevelController extends Controller
         if ($this->wantsJsonResponse()) {
             return response()->json([
                 'success' => true,
-                'message' => 'Day Level package deleted and removed from Azure.',
+                'message' => ! empty($azureSync['ok'])
+                    ? 'Day Level deleted from DB, blob storage, and Azure AI Search (indexer reset).'
+                    : 'Day Level soft-deleted. Azure blob/search sync may have failed — check logs.',
                 'deleted_day_level_id' => $dayLevelId,
+                'deleted_package_ids' => $deletedPackageIds,
+                'azure_sync' => $azureSync,
             ]);
         }
 
-        return redirect()->route('day-level.index')->with('success', 'Day Level deleted and removed from Azure.');
+        return redirect()->route('day-level.index')->with(
+            ! empty($azureSync['ok']) ? 'success' : 'warning',
+            ! empty($azureSync['ok'])
+                ? 'Day Level deleted from blob storage and Azure AI Search (indexer reset).'
+                : 'Day Level soft-deleted. Azure blob/search sync may have failed — check logs.'
+        );
     }
 
     /**
@@ -2067,6 +2458,9 @@ class DayLevelController extends Controller
         $remainingDestinations = DayLevel::canonicalizeDestinationsForStorage($remainingDestinations);
 
         $dayLevelId = (int) $dayLevel->id;
+        $affectedMasterIds = array_values(array_unique(array_filter([
+            (int) ($dayLevel->master_dmc_id ?? 0),
+        ])));
         $rowDeleted = false;
 
         try {
@@ -2082,6 +2476,9 @@ class DayLevelController extends Controller
                 $incomingMasterId = $this->resolveMasterDmcIdForDmcUserId($resolvedDmcId);
                 if ($incomingMasterId <= 0) {
                     $incomingMasterId = (int) $dayLevel->master_dmc_id;
+                }
+                if ($incomingMasterId > 0) {
+                    $affectedMasterIds[] = $incomingMasterId;
                 }
                 $country = (string) ($remainingDestinations[0]['country'] ?? $meta['country'] ?? '');
                 $country = $country !== '' ? $country : null;
@@ -2126,8 +2523,12 @@ class DayLevelController extends Controller
             return response()->json(['success' => false, 'message' => 'Could not delete package. Please try again.'], 500);
         }
 
+        $azureSync = ['ok' => false, 'deleted_blobs' => [], 'search' => []];
         try {
-            $this->refreshCombinedJsonFile();
+            $azureSync = $this->refreshCombinedJsonFile(
+                array_values(array_unique(array_filter($affectedMasterIds))),
+                [$packageId]
+            );
         } catch (\Throwable $e) {
             Log::warning('Day-level package deleted in DB but Azure JSON refresh failed', [
                 'day_level_id' => $dayLevelId,
@@ -2138,11 +2539,16 @@ class DayLevelController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => $rowDeleted
-                ? 'Package deleted. Day Level row soft-deleted and removed from Azure.'
-                : 'Package deleted and removed from Azure.',
+            'message' => ! empty($azureSync['ok'])
+                ? ($rowDeleted
+                    ? 'Package deleted from blob storage and Azure AI Search. Day Level row soft-deleted.'
+                    : 'Package deleted from blob storage and Azure AI Search (indexer reset).')
+                : ($rowDeleted
+                    ? 'Package deleted and Day Level soft-deleted. Azure blob/search sync may have failed — check logs.'
+                    : 'Package deleted. Azure blob/search sync may have failed — check logs.'),
             'deleted_package_id' => $packageId,
             'row_deleted' => $rowDeleted,
+            'azure_sync' => $azureSync,
         ]);
     }
 
@@ -3794,9 +4200,23 @@ class DayLevelController extends Controller
     /**
      * Rebuild combined + per-master JSON blobs after each create/update/delete.
      * Each uploaded file is only the raw package array (starts with `[`, ends with `]`).
+     * Masters that no longer have packages get their blob deleted from Azure.
+     * On delete: removes package docs from Azure AI Search, purges orphans, resets+runs indexer.
+     *
+     * @param  list<int>  $masterIdsPossiblyEmptied  Master IDs that may have zero packages after this change
+     * @param  list<string>  $deletedPackageIds  Package ids removed from DB (search key = id)
+     * @return array{ok: bool, combined_url: ?string, uploaded_masters: list<int>, deleted_blobs: list<string>, search: array<string, mixed>}
      */
-    private function refreshCombinedJsonFile(): void
+    private function refreshCombinedJsonFile(array $masterIdsPossiblyEmptied = [], array $deletedPackageIds = []): array
     {
+        $result = [
+            'ok' => false,
+            'combined_url' => null,
+            'uploaded_masters' => [],
+            'deleted_blobs' => [],
+            'search' => [],
+        ];
+
         try {
             $rows = DayLevel::query()
                 ->with('dmc')
@@ -3817,16 +4237,18 @@ class DayLevelController extends Controller
                 'day_level_rows' => $rows->count(),
                 'package_count'  => count($payload),
                 'package_ids'    => $packageIds,
+                'deleted_package_ids' => $deletedPackageIds,
             ]);
 
             $json = $this->encodeFlatPackagesForBlobStorage($payload);
             if ($json === null) {
                 Log::warning('Day-level Azure JSON refresh skipped: payload could not be encoded as a JSON array.');
 
-                return;
+                return $result;
             }
 
             $combinedUrl = $this->storeDayLevelJsonOnAzure($json, 'day-level-combined.json');
+            $result['combined_url'] = $combinedUrl;
             if ($combinedUrl === null) {
                 Log::warning('Day-level combined JSON was not uploaded to Azure (check file_storage=azure and AZURE_AI_* credentials).');
             } else {
@@ -3858,6 +4280,7 @@ class DayLevelController extends Controller
                 if ($masterJson !== null) {
                     $masterUrl = $this->storeDayLevelJsonOnAzure($masterJson, 'master-dmc-' . $masterId . '.json');
                     if ($masterUrl !== null) {
+                        $result['uploaded_masters'][] = (int) $masterId;
                         Log::info('Day-level master DMC JSON synced to Azure', [
                             'master_dmc_id' => $masterId,
                             'url'           => $masterUrl,
@@ -3870,12 +4293,89 @@ class DayLevelController extends Controller
                     }
                 }
             }
+
+            $deletedBlobs = $this->purgeEmptyMasterDmcJsonBlobs(
+                array_keys($masterIds),
+                $masterIdsPossiblyEmptied
+            );
+            $result['deleted_blobs'] = $deletedBlobs;
+            $result['ok'] = $combinedUrl !== null;
+
+            // Blob indexer does not drop docs when JSON/blobs are deleted — purge by id, then reset+run.
+            if ($deletedPackageIds !== [] || $deletedBlobs !== []) {
+                $searchSync = CommonHelper::syncAzureSearchAfterDayLevelChange($deletedPackageIds, $packageIds);
+                $result['search'] = $searchSync;
+                if (! empty($searchSync['skipped'])) {
+                    Log::warning('Azure Search sync skipped after day-level change — set AZURE_SEARCH_* in .env', [
+                        'deleted_package_ids' => $deletedPackageIds,
+                    ]);
+                } elseif (empty($searchSync['ok'])) {
+                    Log::warning('Azure Search sync incomplete after day-level change', [
+                        'search' => $searchSync,
+                    ]);
+                }
+            }
+
+            return $result;
         } catch (\Throwable $e) {
             Log::error('Failed to refresh day-level JSON on Azure', [
                 'message' => $e->getMessage(),
                 'trace'   => $e->getTraceAsString(),
             ]);
+
+            return $result;
         }
+    }
+
+    /**
+     * Delete master-dmc-{id}.json blobs that no longer have any packages.
+     * Uses known emptied IDs first, then lists the container to catch orphans.
+     *
+     * @param  list<int>  $activeMasterIds
+     * @param  list<int>  $masterIdsPossiblyEmptied
+     * @return list<string>
+     */
+    private function purgeEmptyMasterDmcJsonBlobs(array $activeMasterIds, array $masterIdsPossiblyEmptied = []): array
+    {
+        $active = [];
+        foreach ($activeMasterIds as $id) {
+            $id = (int) $id;
+            if ($id > 0) {
+                $active[$id] = true;
+            }
+        }
+
+        $candidates = [];
+        foreach ($masterIdsPossiblyEmptied as $id) {
+            $id = (int) $id;
+            if ($id > 0 && ! isset($active[$id])) {
+                $candidates['master-dmc-' . $id . '.json'] = true;
+            }
+        }
+
+        // Also remove any orphan master-dmc-*.json still sitting in the container.
+        $listed = CommonHelper::listAzureJsonBlobs('master-dmc-', self::DAY_LEVEL_JSON_CONTAINER);
+        foreach ($listed as $blobName) {
+            if (! preg_match('/^master-dmc-(\d+)\.json$/i', $blobName, $m)) {
+                continue;
+            }
+            $id = (int) $m[1];
+            if ($id > 0 && ! isset($active[$id])) {
+                $candidates[$blobName] = true;
+            }
+        }
+
+        $deleted = [];
+        foreach (array_keys($candidates) as $blobName) {
+            if (CommonHelper::deleteJsonFromAzure($blobName, self::DAY_LEVEL_JSON_CONTAINER)) {
+                $deleted[] = $blobName;
+                Log::info('Day-level orphan master JSON deleted from Azure', [
+                    'file_name' => $blobName,
+                ]);
+            }
+        }
+
+        return $deleted;
     }
 }
 

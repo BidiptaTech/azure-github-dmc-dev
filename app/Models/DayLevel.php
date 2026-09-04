@@ -2765,10 +2765,40 @@ class DayLevel extends Model
         } else {
             $entry = self::enrichHotelRowStarRating($entry);
         }
-        if ($includePrice) {
-            $entry['price'] = (float) ($row['price'] ?? 0);
+
+        // Keep meal + room pricing so day-level save / Azure JSON / AI booking stay in sync.
+        $roomPrice = (float) ($row['room_price'] ?? 0);
+        $breakfastPrice = (float) ($row['breakfast_price'] ?? 0);
+        $lunchPrice = (float) ($row['lunch_price'] ?? 0);
+        $dinnerPrice = (float) ($row['dinner_price'] ?? 0);
+        $pricePerNight = (float) ($row['price_per_night'] ?? 0);
+        if ($pricePerNight <= 0) {
+            $pricePerNight = $roomPrice + $breakfastPrice + $lunchPrice + $dinnerPrice;
         }
-        $entry['night'] = (int) ($row['night'] ?? 1);
+        $nights = max(1, (int) ($row['night'] ?? 1));
+        $totalPrice = (float) ($row['total_price'] ?? 0);
+        if ($totalPrice <= 0) {
+            $totalPrice = (float) ($row['price'] ?? 0);
+        }
+        if ($totalPrice <= 0 && $pricePerNight > 0) {
+            $totalPrice = $pricePerNight * $nights;
+        }
+
+        if ($includePrice) {
+            $entry['room_price'] = $roomPrice;
+            $entry['breakfast_price'] = $breakfastPrice;
+            $entry['lunch_price'] = $lunchPrice;
+            $entry['dinner_price'] = $dinnerPrice;
+            if ($pricePerNight > 0) {
+                $entry['price_per_night'] = $pricePerNight;
+            }
+            $entry['price'] = $totalPrice > 0 ? $totalPrice : (float) ($row['price'] ?? 0);
+            if ($totalPrice > 0) {
+                $entry['total_price'] = $totalPrice;
+            }
+        }
+
+        $entry['night'] = $nights;
         $entry['meal_type'] = (string) ($row['meal_type'] ?? '');
         $entry['guide_required'] = (string) ($row['guide_required'] ?? 'No');
         $entry['arrival_departure'] = (string) ($row['arrival_departure'] ?? 'No');
@@ -2776,6 +2806,14 @@ class DayLevel extends Model
         $entry['priority'] = (int) ($row['priority'] ?? 1);
         if ($bookedDay > 0) {
             $entry['booked_day'] = $bookedDay;
+        }
+        foreach (['checkin_day', 'checkout_day'] as $dayField) {
+            if (isset($row[$dayField]) && (int) $row[$dayField] > 0) {
+                $entry[$dayField] = (int) $row[$dayField];
+            }
+        }
+        if (isset($row['stay_days']) && is_array($row['stay_days'])) {
+            $entry['stay_days'] = array_values(array_map('intval', $row['stay_days']));
         }
 
         foreach ([

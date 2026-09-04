@@ -1190,7 +1190,7 @@
 
                                 <div class="hotels-form-panel pricing-panel" id="hotel_pricing_panel">
                                     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
-                                        <div class="pricing-panel-title mb-0">Pricing (editable)</div>
+                                        <div class="pricing-panel-title mb-0">Pricing <small class="text-muted fw-normal">(meals from meal plan)</small></div>
                                         <span class="pricing-total-badge" id="hotel_price_total_badge">Total: {{ $dmcCurrency }} 0.00</span>
                                     </div>
                                     <div class="row g-3 align-items-end">
@@ -1202,24 +1202,24 @@
                                         </div>
                                     </div>
                                         <div class="col-lg-3 col-md-6">
-                                            <label class="form-label" for="hotel_breakfast_price">Breakfast</label>
+                                            <label class="form-label" for="hotel_breakfast_price">Breakfast <small class="text-muted">(from meal)</small></label>
                                             <div class="input-group price-input-group">
                                                 <span class="input-group-text">{{ $dmcCurrency }}</span>
-                                                <input type="number" class="form-control" id="hotel_breakfast_price" min="0" step="0.01" placeholder="0.00" oninput="updateHotelPriceTotal()">
+                                                <input type="number" class="form-control" id="hotel_breakfast_price" min="0" step="0.01" placeholder="0.00" readonly tabindex="-1">
                                             </div>
                                         </div>
                                         <div class="col-lg-3 col-md-6">
-                                            <label class="form-label" for="hotel_lunch_price">Lunch</label>
+                                            <label class="form-label" for="hotel_lunch_price">Lunch <small class="text-muted">(from meal)</small></label>
                                             <div class="input-group price-input-group">
                                                 <span class="input-group-text">{{ $dmcCurrency }}</span>
-                                                <input type="number" class="form-control" id="hotel_lunch_price" min="0" step="0.01" placeholder="0.00" oninput="updateHotelPriceTotal()">
+                                                <input type="number" class="form-control" id="hotel_lunch_price" min="0" step="0.01" placeholder="0.00" readonly tabindex="-1">
                                             </div>
                                         </div>
                                         <div class="col-lg-3 col-md-6">
-                                            <label class="form-label" for="hotel_dinner_price">Dinner</label>
+                                            <label class="form-label" for="hotel_dinner_price">Dinner <small class="text-muted">(from meal)</small></label>
                                             <div class="input-group price-input-group">
                                                 <span class="input-group-text">{{ $dmcCurrency }}</span>
-                                                <input type="number" class="form-control" id="hotel_dinner_price" min="0" step="0.01" placeholder="0.00" oninput="updateHotelPriceTotal()">
+                                                <input type="number" class="form-control" id="hotel_dinner_price" min="0" step="0.01" placeholder="0.00" readonly tabindex="-1">
                                             </div>
                                     </div>
                                     </div>
@@ -2056,13 +2056,38 @@
             });
         }
 
+        function isLockedServiceTransferPickupSelect(el) {
+            const id = String(el?.id || '');
+            return id.startsWith('attraction_transfer_pickup_select_')
+                || id.startsWith('restaurant_transfer_pickup_select_');
+        }
+
+        function lockServiceTransferPickupSelect(selectId) {
+            const el = document.getElementById(selectId);
+            if (!el || !isLockedServiceTransferPickupSelect(el)) return;
+            el.disabled = true;
+            const $el = $(el);
+            if ($el.data('select2')) {
+                $el.select2('destroy');
+            }
+            initSearchableSelects(el);
+        }
+
         function initSearchableSelects(scope = document) {
             const $scope = $(scope);
             const $targets = $scope.hasClass('searchable-select') ? $scope : $scope.find('.searchable-select');
             $targets.each(function () {
                 const $el = $(this);
                 if ($el.data('select2')) return;
-                $el.select2({ width: '100%', placeholder: 'Search and select', allowClear: true });
+                const lockedPickup = isLockedServiceTransferPickupSelect(this);
+                if (lockedPickup) {
+                    this.disabled = true;
+                }
+                $el.select2({
+                    width: '100%',
+                    placeholder: 'Search and select',
+                    allowClear: !lockedPickup,
+                });
             });
         }
 
@@ -2157,6 +2182,8 @@
             setSelectOptions(`attraction_transfer_drop_select_${d}`, opts, silent);
             setSelectOptions(`restaurant_transfer_pickup_select_${d}`, opts, silent);
             setSelectOptions(`restaurant_transfer_drop_select_${d}`, opts, silent);
+            lockServiceTransferPickupSelect(`attraction_transfer_pickup_select_${d}`);
+            lockServiceTransferPickupSelect(`restaurant_transfer_pickup_select_${d}`);
         }
 
         function safeSetSelectValueSilent(selectId, value) {
@@ -2182,38 +2209,68 @@
         function applyAttractionTransferDefaults(dayVal) {
             const d = parseInt(String(dayVal || 1), 10) || 1;
             const attractionOp = getSelectedOption(`attraction_select_${d}`);
+            const pickupSelectId = `attraction_transfer_pickup_select_${d}`;
+            const dropSelectId = `attraction_transfer_drop_select_${d}`;
+
+            // Pickup is always the selected attraction.
             if (attractionOp?.value) {
-                const dropVal = ensureTransferLocationOption(
-                    `attraction_transfer_drop_select_${d}`,
-                    `attraction:${attractionOp.value}`,
-                    formatTransferLocationLabel({ value: `attraction:${attractionOp.value}`, label: attractionOp.textContent, type: 'attraction' })
-                );
-                safeSetSelectValue(`attraction_transfer_drop_select_${d}`, dropVal);
+                const attractionToken = `attraction:${attractionOp.value}`;
+                const attractionLabel = formatTransferLocationLabel({
+                    value: attractionToken,
+                    label: attractionOp.textContent,
+                    type: 'attraction',
+                });
+                const pickupVal = ensureTransferLocationOption(pickupSelectId, attractionToken, attractionLabel);
+                safeSetSelectValue(pickupSelectId, pickupVal);
             }
+            lockServiceTransferPickupSelect(pickupSelectId);
+
+            // Drop defaults to hotel for that day when empty / still pointing at the attraction.
             const hotel = getArrivalHotelForDay(d) || getDepartureHotelForDay(d);
-            const pickupEl = document.getElementById(`attraction_transfer_pickup_select_${d}`);
-            if (hotel?.value && pickupEl && !String(pickupEl.value || '').trim()) {
-                const pickupVal = ensureTransferLocationOption(`attraction_transfer_pickup_select_${d}`, hotel.value, hotel.label || 'Hotel');
-                safeSetSelectValue(`attraction_transfer_pickup_select_${d}`, pickupVal);
+            const dropEl = document.getElementById(dropSelectId);
+            const currentDrop = String(dropEl?.value || '').trim();
+            const dropIsAttraction = currentDrop.startsWith('attraction:');
+            if (hotel?.value && dropEl && (!currentDrop || dropIsAttraction)) {
+                const dropVal = ensureTransferLocationOption(dropSelectId, hotel.value, hotel.label || 'Hotel');
+                safeSetSelectValue(dropSelectId, dropVal);
+            }
+
+            if (isNeedServiceTransfer('attraction', d)) {
+                fetchTransferZonePrice('attraction_transfer', d);
             }
         }
 
         function applyRestaurantTransferDefaults(dayVal) {
             const d = parseInt(String(dayVal || 1), 10) || 1;
             const restaurantOp = getSelectedOption(`restaurant_select_${d}`);
+            const pickupSelectId = `restaurant_transfer_pickup_select_${d}`;
+            const dropSelectId = `restaurant_transfer_drop_select_${d}`;
+
+            // Pickup is always the selected restaurant.
             if (restaurantOp?.value) {
-                const dropVal = ensureTransferLocationOption(
-                    `restaurant_transfer_drop_select_${d}`,
-                    `restaurant:${restaurantOp.value}`,
-                    formatTransferLocationLabel({ value: `restaurant:${restaurantOp.value}`, label: restaurantOp.textContent, type: 'restaurant' })
-                );
-                safeSetSelectValue(`restaurant_transfer_drop_select_${d}`, dropVal);
+                const restaurantToken = `restaurant:${restaurantOp.value}`;
+                const restaurantLabel = formatTransferLocationLabel({
+                    value: restaurantToken,
+                    label: restaurantOp.textContent,
+                    type: 'restaurant',
+                });
+                const pickupVal = ensureTransferLocationOption(pickupSelectId, restaurantToken, restaurantLabel);
+                safeSetSelectValue(pickupSelectId, pickupVal);
             }
+            lockServiceTransferPickupSelect(pickupSelectId);
+
+            // Drop defaults to hotel for that day when empty / still pointing at the restaurant.
             const hotel = getArrivalHotelForDay(d) || getDepartureHotelForDay(d);
-            const pickupEl = document.getElementById(`restaurant_transfer_pickup_select_${d}`);
-            if (hotel?.value && pickupEl && !String(pickupEl.value || '').trim()) {
-                const pickupVal = ensureTransferLocationOption(`restaurant_transfer_pickup_select_${d}`, hotel.value, hotel.label || 'Hotel');
-                safeSetSelectValue(`restaurant_transfer_pickup_select_${d}`, pickupVal);
+            const dropEl = document.getElementById(dropSelectId);
+            const currentDrop = String(dropEl?.value || '').trim();
+            const dropIsRestaurant = currentDrop.startsWith('restaurant:');
+            if (hotel?.value && dropEl && (!currentDrop || dropIsRestaurant)) {
+                const dropVal = ensureTransferLocationOption(dropSelectId, hotel.value, hotel.label || 'Hotel');
+                safeSetSelectValue(dropSelectId, dropVal);
+            }
+
+            if (isNeedServiceTransfer('restaurant', d)) {
+                fetchTransferZonePrice('restaurant_transfer', d);
             }
         }
 
@@ -2237,6 +2294,9 @@
                 if (opt.breakfast_price !== undefined) op.dataset.breakfastPrice = String(opt.breakfast_price);
                 if (opt.lunch_price !== undefined) op.dataset.lunchPrice = String(opt.lunch_price);
                 if (opt.dinner_price !== undefined) op.dataset.dinnerPrice = String(opt.dinner_price);
+                if (opt.includes_breakfast !== undefined) op.dataset.includesBreakfast = opt.includes_breakfast ? '1' : '0';
+                if (opt.includes_lunch !== undefined) op.dataset.includesLunch = opt.includes_lunch ? '1' : '0';
+                if (opt.includes_dinner !== undefined) op.dataset.includesDinner = opt.includes_dinner ? '1' : '0';
                 if (opt.rate !== undefined) op.dataset.rate = String(opt.rate);
                 if (opt.data_name !== undefined) op.dataset.name = String(opt.data_name);
                 if (opt.data_country !== undefined) op.dataset.country = String(opt.data_country);
@@ -3002,13 +3062,13 @@
                                         <span class="day-service-transfer-panel__icon" aria-hidden="true">🚐</span>
                                         <div>
                                             <strong>Attraction Transfer</strong>
-                                            <div class="small text-muted">Pickup from hotel, attraction or restaurant → drop at attraction</div>
+                                            <div class="small text-muted">Pickup is always this attraction → drop at hotel (or choose drop)</div>
                                         </div>
                                     </div>
                                     <div class="row g-2 align-items-end">
                                         <div class="col-md-4">
                                             <label class="form-label" for="attraction_transfer_pickup_select_${d}">Pickup Location</label>
-                                            <select id="attraction_transfer_pickup_select_${d}" class="form-select searchable-select">
+                                            <select id="attraction_transfer_pickup_select_${d}" class="form-select searchable-select" disabled>
                                                 <option value="">Select pickup</option>
                                             </select>
                                         </div>
@@ -3089,13 +3149,13 @@
                                         <span class="day-service-transfer-panel__icon" aria-hidden="true">🚐</span>
                                         <div>
                                             <strong>Restaurant Transfer</strong>
-                                            <div class="small text-muted">Pickup from hotel, attraction or restaurant → drop at restaurant</div>
+                                            <div class="small text-muted">Pickup is always this restaurant → drop at hotel (or choose drop)</div>
                                         </div>
                                     </div>
                                     <div class="row g-2 align-items-end">
                                     <div class="col-md-4">
                                             <label class="form-label" for="restaurant_transfer_pickup_select_${d}">Pickup Location</label>
-                                            <select id="restaurant_transfer_pickup_select_${d}" class="form-select searchable-select">
+                                            <select id="restaurant_transfer_pickup_select_${d}" class="form-select searchable-select" disabled>
                                             <option value="">Select pickup</option>
                                         </select>
                                     </div>
@@ -5281,6 +5341,7 @@
                     };
                 }));
                 applyHotelRoomBasePrice();
+                await loadMealPlansForSelectedHotel();
             } catch (e) {
                 hotelRoomsCache = [];
                 setSelectOptions('hotel_room_select', [{ value: '', label: 'Error loading rooms' }]);
@@ -5353,6 +5414,13 @@
                 return;
             }
 
+            // Prefer local room cache (already has meal flags + prices), then refresh from API.
+            const room = getSelectedRoomPricing();
+            const localPlans = buildMealPlanOptionsFromRoom(room);
+            setSelectOptions('hotel_meal_plan', localPlans.length ? localPlans : [{ value: 'room only', label: 'room only' }]);
+            applyHotelMealPlanPrices();
+            toggleHotelMealTypeVisibility();
+
             const dmcId = document.getElementById('dmc_id').value || '';
             const url = `${DAY_LEVEL_ROUTES.mealPlansByHotel}?hotel_unique_id=${encodeURIComponent(hotelOp.value)}&room_id=${encodeURIComponent(roomOp.value)}&dmc_id=${encodeURIComponent(dmcId)}`;
             try {
@@ -5361,16 +5429,93 @@
                     throw new Error('Failed to fetch meal plans');
                 }
                 const plans = await res.json();
-                if (Array.isArray(plans)) {
-                    setSelectOptions('hotel_meal_plan', plans);
-                } else {
-                    setSelectOptions('hotel_meal_plan', []);
+                if (Array.isArray(plans) && plans.length) {
+                    const current = String(document.getElementById('hotel_meal_plan')?.value || '');
+                    setSelectOptions('hotel_meal_plan', plans.map(plan => ({
+                        value: String(plan.value ?? plan.label ?? ''),
+                        label: String(plan.label ?? plan.value ?? ''),
+                        breakfast_price: parseFloat(plan.breakfast_price) || 0,
+                        lunch_price: parseFloat(plan.lunch_price) || 0,
+                        dinner_price: parseFloat(plan.dinner_price) || 0,
+                        includes_breakfast: !!plan.includes_breakfast,
+                        includes_lunch: !!plan.includes_lunch,
+                        includes_dinner: !!plan.includes_dinner,
+                    })));
+                    if (current) {
+                        safeSetSelectValue('hotel_meal_plan', current);
+                    }
+                    applyHotelMealPlanPrices();
                 }
                 toggleHotelMealTypeVisibility();
             } catch (e) {
-                setSelectOptions('hotel_meal_plan', []);
+                // Keep local meal plans if API fails.
                 toggleHotelMealTypeVisibility();
             }
+        }
+
+        function isTruthyMealFlag(value) {
+            if (value === true || value === 1 || value === '1') return true;
+            if (value === false || value === 0 || value === '0' || value == null) return false;
+            if (typeof value === 'string') {
+                const trimmed = value.trim().toLowerCase();
+                return trimmed !== '' && trimmed !== '0' && trimmed !== 'false' && trimmed !== 'no';
+            }
+            if (typeof value === 'number') return value > 0;
+            return !!value;
+        }
+
+        function buildMealPlanOptionsFromRoom(room) {
+            if (!room) {
+                return [{
+                    value: 'room only',
+                    label: 'room only',
+                    breakfast_price: 0,
+                    lunch_price: 0,
+                    dinner_price: 0,
+                    includes_breakfast: false,
+                    includes_lunch: false,
+                    includes_dinner: false,
+                }];
+            }
+
+            const breakfastPrice = parseFloat(room.breakfast_price) || 0;
+            const lunchPrice = parseFloat(room.lunch_price) || 0;
+            const dinnerPrice = parseFloat(room.dinner_price) || 0;
+            const hasBreakfast = isTruthyMealFlag(room.breakfast) || isTruthyMealFlag(room.breakfast_included) || breakfastPrice > 0;
+            const hasLunch = isTruthyMealFlag(room.lunch) || isTruthyMealFlag(room.lunch_included) || lunchPrice > 0;
+            const hasDinner = isTruthyMealFlag(room.dinner) || isTruthyMealFlag(room.dinner_included) || dinnerPrice > 0;
+
+            const keys = ['room only'];
+            if (hasBreakfast) keys.push('room with breakfast');
+            if (hasLunch) keys.push('room with lunch');
+            if (hasDinner) keys.push('room with dinner');
+            if (hasBreakfast && hasLunch) keys.push('room with breakfast + lunch');
+            if (hasBreakfast && hasDinner) keys.push('room with breakfast + dinner');
+            if (hasLunch && hasDinner) keys.push('room with lunch + dinner');
+            if (hasBreakfast && hasLunch && hasDinner) {
+                keys.push('room with all meals (breakfast + lunch + dinner)');
+            }
+
+            return keys.map((plan) => {
+                const key = plan.toLowerCase();
+                const breakfast = key.includes('breakfast') ? breakfastPrice : 0;
+                const lunch = key.includes('lunch') ? lunchPrice : 0;
+                const dinner = key.includes('dinner') ? dinnerPrice : 0;
+                const parts = [];
+                if (breakfast > 0) parts.push(`B ${breakfast.toFixed(2)}`);
+                if (lunch > 0) parts.push(`L ${lunch.toFixed(2)}`);
+                if (dinner > 0) parts.push(`D ${dinner.toFixed(2)}`);
+                return {
+                    value: plan,
+                    label: parts.length ? `${plan} — ${parts.join(' + ')}` : plan,
+                    breakfast_price: breakfast,
+                    lunch_price: lunch,
+                    dinner_price: dinner,
+                    includes_breakfast: key.includes('breakfast'),
+                    includes_lunch: key.includes('lunch'),
+                    includes_dinner: key.includes('dinner'),
+                };
+            });
         }
 
         function toggleHotelMealTypeVisibility() {
@@ -5379,7 +5524,7 @@
             const selectedOp = getSelectedOption('hotel_meal_plan');
             const selectedText = String(selectedOp?.textContent || '').trim().toLowerCase();
             const selectedValue = String(selectedOp?.value || '').trim().toLowerCase();
-            const isRoomOnly = selectedText.includes('room only') || selectedValue.includes('room only');
+            const isRoomOnly = selectedText.includes('room only') || selectedValue.includes('room only') || !selectedValue;
 
             if (wrap) {
                 wrap.style.display = isRoomOnly ? 'none' : '';
@@ -5425,13 +5570,32 @@
             const room = getSelectedRoomPricing();
             const mealOp = getSelectedOption('hotel_meal_plan');
             const plan = String(mealOp?.value || mealOp?.textContent || '').toLowerCase();
-            const breakfast = parseFloat(room?.breakfast_price) || 0;
-            const lunch = parseFloat(room?.lunch_price) || 0;
-            const dinner = parseFloat(room?.dinner_price) || 0;
 
-            setPriceInput('hotel_breakfast_price', plan.includes('breakfast') ? breakfast : 0);
-            setPriceInput('hotel_lunch_price', plan.includes('lunch') ? lunch : 0);
-            setPriceInput('hotel_dinner_price', plan.includes('dinner') ? dinner : 0);
+            const roomBreakfast = parseFloat(room?.breakfast_price) || 0;
+            const roomLunch = parseFloat(room?.lunch_price) || 0;
+            const roomDinner = parseFloat(room?.dinner_price) || 0;
+
+            const fromOptionBreakfast = parseFloat(mealOp?.dataset?.breakfastPrice);
+            const fromOptionLunch = parseFloat(mealOp?.dataset?.lunchPrice);
+            const fromOptionDinner = parseFloat(mealOp?.dataset?.dinnerPrice);
+
+            const includesBreakfast = mealOp?.dataset?.includesBreakfast === 'true' || mealOp?.dataset?.includesBreakfast === '1' || plan.includes('breakfast');
+            const includesLunch = mealOp?.dataset?.includesLunch === 'true' || mealOp?.dataset?.includesLunch === '1' || plan.includes('lunch');
+            const includesDinner = mealOp?.dataset?.includesDinner === 'true' || mealOp?.dataset?.includesDinner === '1' || plan.includes('dinner');
+
+            const breakfast = includesBreakfast
+                ? (Number.isFinite(fromOptionBreakfast) ? fromOptionBreakfast : roomBreakfast)
+                : 0;
+            const lunch = includesLunch
+                ? (Number.isFinite(fromOptionLunch) ? fromOptionLunch : roomLunch)
+                : 0;
+            const dinner = includesDinner
+                ? (Number.isFinite(fromOptionDinner) ? fromOptionDinner : roomDinner)
+                : 0;
+
+            setPriceInput('hotel_breakfast_price', breakfast);
+            setPriceInput('hotel_lunch_price', lunch);
+            setPriceInput('hotel_dinner_price', dinner);
             updateHotelPriceTotal();
         }
 
@@ -5777,10 +5941,8 @@
 
             safeSetSelectValue('hotel_meal_type', x.meal_type || '');
             setPriceInput('hotel_room_price', x.room_price ?? x.price ?? 0);
-            setPriceInput('hotel_breakfast_price', x.breakfast_price ?? 0);
-            setPriceInput('hotel_lunch_price', x.lunch_price ?? 0);
-            setPriceInput('hotel_dinner_price', x.dinner_price ?? 0);
-            updateHotelPriceTotal();
+            // Breakfast / lunch / dinner are meal-plan driven (readonly).
+            applyHotelMealPlanPrices();
             document.getElementById('hotel_priority').value = String(x.priority || 1);
             toggleHotelTransferFields();
             const shouldLoadXferOpts = hotelsHaveArrivalDepartureTransferSaved();
@@ -7627,6 +7789,13 @@
                 const kind = id.startsWith('restaurant_') ? 'restaurant' : 'attraction';
                 const dayVal = getDayFromElementId(this.id);
                 toggleServiceTransferPanel(kind, dayVal, { clearWhenNo: true });
+                if (isNeedServiceTransfer(kind, dayVal)) {
+                    if (kind === 'restaurant') {
+                        applyRestaurantTransferDefaults(dayVal);
+                    } else {
+                        applyAttractionTransferDefaults(dayVal);
+                    }
+                }
             });
             $(document).on('change select2:select select2:clear', '[id^="attraction_transfer_pickup_select_"], [id^="attraction_transfer_drop_select_"]', function () {
                 if (isPrefillingActivityForm || isHydratingDayServices) return;
