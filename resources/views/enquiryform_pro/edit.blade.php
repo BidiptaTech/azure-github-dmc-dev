@@ -3544,7 +3544,7 @@
                                 <option value="">Select Pickup Location</option>
                                 <optgroup label="Ports">
                                     @foreach($ports as $port)
-                                        <option value="{{ $port->port_id }}" data-name="{{ $port->port_name }}" data-type="port" data-port-id="{{ $port->port_id }}" data-city-id="{{ $port->city_id }}" data-country="{{ $port->country }}">{{ $port->port_name }} ({{ $port->type }})</option>
+                                        <option value="port:{{ $port->port_id }}" data-name="{{ $port->port_name }}" data-type="port" data-port-id="{{ $port->port_id }}" data-city-id="{{ $port->city_id }}" data-country="{{ $port->country }}">{{ $port->port_name }} ({{ $port->type }})</option>
                                     @endforeach
                                 </optgroup>
                                 <optgroup label="Hotels">
@@ -3554,12 +3554,12 @@
                                 </optgroup>
                                 <optgroup label="Attractions">
                                     @foreach($attractions as $attr)
-                                        <option value="{{ $attr->attraction_id }}" data-name="{{ $attr->name }}" data-type="attraction" data-attraction-id="{{ $attr->attraction_id }}" data-location="{{ $attr->location ?? '' }}" data-country="{{ $attr->country ?? '' }}">{{ $attr->name }}</option>
+                                        <option value="attraction:{{ $attr->attraction_id }}" data-name="{{ $attr->name }}" data-type="attraction" data-attraction-id="{{ $attr->attraction_id }}" data-location="{{ $attr->location ?? '' }}" data-country="{{ $attr->country ?? '' }}">{{ $attr->name }}</option>
                                     @endforeach
                                 </optgroup>
                                 <optgroup label="Restaurants">
                                     @foreach($restaurants as $rest)
-                                        <option value="{{ $rest->restaurant_id }}" data-name="{{ $rest->name }}" data-type="restaurant" data-restaurant-id="{{ $rest->restaurant_id }}" data-city="{{ $rest->city ?? '' }}" data-country="{{ $rest->country ?? '' }}">{{ $rest->name }}</option>
+                                        <option value="restaurant:{{ $rest->restaurant_id }}" data-name="{{ $rest->name }}" data-type="restaurant" data-restaurant-id="{{ $rest->restaurant_id }}" data-city="{{ $rest->city ?? '' }}" data-country="{{ $rest->country ?? '' }}">{{ $rest->name }}</option>
                                     @endforeach
                                 </optgroup>
                             </select>
@@ -3570,7 +3570,7 @@
                                 <option value="">Select Drop Location</option>
                                 <optgroup label="Ports">
                                     @foreach($ports as $port)
-                                        <option value="{{ $port->port_id }}" data-name="{{ $port->port_name }}" data-type="port" data-port-id="{{ $port->port_id }}" data-city-id="{{ $port->city_id }}" data-country="{{ $port->country }}">{{ $port->port_name }} ({{ $port->type }})</option>
+                                        <option value="port:{{ $port->port_id }}" data-name="{{ $port->port_name }}" data-type="port" data-port-id="{{ $port->port_id }}" data-city-id="{{ $port->city_id }}" data-country="{{ $port->country }}">{{ $port->port_name }} ({{ $port->type }})</option>
                                     @endforeach
                                 </optgroup>
                                 <optgroup label="Hotels">
@@ -3580,12 +3580,12 @@
                                 </optgroup>
                                 <optgroup label="Attractions">
                                     @foreach($attractions as $attr)
-                                        <option value="{{ $attr->attraction_id }}" data-name="{{ $attr->name }}" data-type="attraction" data-attraction-id="{{ $attr->attraction_id }}" data-location="{{ $attr->location ?? '' }}" data-country="{{ $attr->country ?? '' }}">{{ $attr->name }}</option>
+                                        <option value="attraction:{{ $attr->attraction_id }}" data-name="{{ $attr->name }}" data-type="attraction" data-attraction-id="{{ $attr->attraction_id }}" data-location="{{ $attr->location ?? '' }}" data-country="{{ $attr->country ?? '' }}">{{ $attr->name }}</option>
                                     @endforeach
                                 </optgroup>
                                 <optgroup label="Restaurants">
                                     @foreach($restaurants as $rest)
-                                        <option value="{{ $rest->restaurant_id }}" data-name="{{ $rest->name }}" data-type="restaurant" data-restaurant-id="{{ $rest->restaurant_id }}" data-city="{{ $rest->city ?? '' }}" data-country="{{ $rest->country ?? '' }}">{{ $rest->name }}</option>
+                                        <option value="restaurant:{{ $rest->restaurant_id }}" data-name="{{ $rest->name }}" data-type="restaurant" data-restaurant-id="{{ $rest->restaurant_id }}" data-city="{{ $rest->city ?? '' }}" data-country="{{ $rest->country ?? '' }}">{{ $rest->name }}</option>
                                     @endforeach
                                 </optgroup>
                             </select>
@@ -4995,6 +4995,7 @@
                 row.transfer_type != null && String(row.transfer_type).trim() !== '')) {
                 obj = {
                     ...transferOrItem,
+                    type: row.transferType ?? row.transfer_type ?? transferOrItem.type,
                     transferType: row.transferType ?? row.transfer_type ?? transferOrItem.transferType,
                     transfer_type: row.transfer_type ?? row.transferType,
                 };
@@ -5007,6 +5008,111 @@
         if (!transferOrItem) return '-';
         const ps = transferServiceRawToPS(transferOrItem);
         return ps === 'P' ? 'Private' : 'Shared';
+    }
+
+    function resolveStoredTransferCostSell(data) {
+        if (!data || typeof data !== 'object') return { cost: 0, sell: 0 };
+        const num = function (v) {
+            const n = parseFloat(v);
+            return Number.isFinite(n) ? n : 0;
+        };
+        const cost = num(data.cost) || num(data.Cost) || num(data.adultCost) || num(data.adult_cost);
+        const sell = num(data.sell) || num(data.Sell) || num(data.adultSell) || num(data.adult_sell);
+        const basePrice = num(data.basePrice) || num(data.base_price);
+        let finalCost = cost;
+        let finalSell = sell;
+        if (finalSell <= 0 && basePrice > 0 && Math.abs(basePrice - finalCost) > 0.001) {
+            finalSell = basePrice;
+        } else if (finalSell <= 0 && finalCost <= 0 && basePrice > 0) {
+            finalSell = basePrice;
+        }
+        if (finalSell <= 0 && finalCost > 0) finalSell = finalCost;
+        return { cost: finalCost, sell: finalSell };
+    }
+
+    function linkedTransferOptionsPrices(linked) {
+        const cost = parseFloat(linked?.cost) || 0;
+        const sell = parseFloat(linked?.sell) || 0;
+        return {
+            cost: cost,
+            sell: sell || cost,
+            zonePrivatePrice: parseFloat(linked?.zonePrivatePrice) || 0,
+            zoneSharedPrice: parseFloat(linked?.zoneSharedPrice) || 0,
+            zonePrivateCostPrice: parseFloat(linked?.zonePrivateCostPrice) || 0,
+            zoneSharedCostPrice: parseFloat(linked?.zoneSharedCostPrice) || 0,
+            pickupId: linked?.pickupId || linked?.pickup_id || '',
+            dropId: linked?.dropId || linked?.dropoffId || linked?.drop_id || '',
+            pickupType: linked?.pickupType || '',
+            dropType: linked?.dropType || linked?.dropoffType || ''
+        };
+    }
+
+    async function restoreTransferCostSellFromZonePrices() {
+        if (!Array.isArray(transferList) || typeof fetchZonePrice !== 'function' || typeof calculateTransferPrice !== 'function') {
+            return;
+        }
+        const dmcId = '{{ $dmc_id ?? "" }}';
+        if (!dmcId) return;
+        for (let i = 0; i < transferList.length; i++) {
+            const transfer = transferList[i];
+            if ((transfer.transportMode || 'local') !== 'local') continue;
+            const currentCost = parseFloat(transfer.cost) || 0;
+            const currentSell = parseFloat(transfer.sell) || 0;
+            const zoneCost = parseFloat(transfer.zonePrivateCostPrice) || parseFloat(transfer.zoneSharedCostPrice) || 0;
+            const zoneSell = parseFloat(transfer.zonePrivatePrice) || parseFloat(transfer.zoneSharedPrice) || 0;
+            const needsRestore = currentCost <= 0
+                || (currentSell > 0 && Math.abs(currentCost - currentSell) < 0.001);
+            if (!needsRestore) continue;
+
+            if (zoneCost > 0 || zoneSell > 0) {
+                const prices = calculateTransferPrice({
+                    private_price: transfer.zonePrivatePrice || 0,
+                    shared_price: transfer.zoneSharedPrice || 0,
+                    private_cost_price: transfer.zonePrivateCostPrice || 0,
+                    shared_cost_price: transfer.zoneSharedCostPrice || 0
+                }, transfer.type || transfer.transferType || 'S', transfer.way || 'one-way', transfer.adults || 0, transfer.child || 0);
+                if (prices.cost > 0) transfer.cost = prices.cost;
+                if (prices.sell > 0) transfer.sell = prices.sell;
+                if (prices.cost > 0 && prices.sell > 0 && Math.abs(prices.cost - prices.sell) > 0.001) {
+                    continue;
+                }
+            }
+
+            const loc = (typeof resolveTransferLocationIdsForZoneFetch === 'function')
+                ? resolveTransferLocationIdsForZoneFetch(transfer)
+                : {
+                    pickupId: transfer.pickupId || transfer.portId || '',
+                    dropId: transfer.dropId || transfer.dropoffId || transfer.transferDestinationId || '',
+                    pickupType: transfer.pickupType || 'hotel',
+                    dropType: transfer.dropType || 'hotel'
+                };
+            if (!transfer.vehicleId || !loc.pickupId || !loc.dropId) continue;
+            try {
+                const zonePrice = await fetchZonePrice(
+                    transfer.vehicleId,
+                    loc.pickupId,
+                    loc.pickupType || 'hotel',
+                    loc.dropId,
+                    loc.dropType || 'hotel',
+                    dmcId
+                );
+                const prices = calculateTransferPrice(
+                    zonePrice,
+                    transfer.type || transfer.transferType || 'S',
+                    transfer.way || 'one-way',
+                    transfer.adults || transfer.adultsQty || 0,
+                    transfer.child || transfer.childQty || 0
+                );
+                if (prices.cost > 0) transfer.cost = prices.cost;
+                if (prices.sell > 0) transfer.sell = prices.sell;
+                transfer.zonePrivatePrice = prices.privatePrice || transfer.zonePrivatePrice;
+                transfer.zoneSharedPrice = prices.sharedPrice || transfer.zoneSharedPrice;
+                transfer.zonePrivateCostPrice = prices.privateCostPrice || transfer.zonePrivateCostPrice;
+                transfer.zoneSharedCostPrice = prices.sharedCostPrice || transfer.zoneSharedCostPrice;
+            } catch (e) {
+                console.warn('Could not restore transfer cost/sell from zone mapping', transfer.id, e);
+            }
+        }
     }
     
     function setArrDepFieldValue(elOr$, value) {
@@ -10919,11 +11025,12 @@
         // Load entry port (Arrival)
         ordersByType.entry_port.forEach(order => {
             try {
-                // Use base price for display (same as create form - not totalPrice)
                 const basePrice = parseFloat(order.basePrice || order.base_price || 0);
                 const costVal = parseFloat(order.cost || 0);
                 const sellVal = parseFloat(order.price || order.sell || 0);
-                const displayBase = basePrice > 0 ? basePrice : (costVal > 0 ? costVal : sellVal);
+                const stored = (typeof resolveStoredTransferCostSell === 'function')
+                    ? resolveStoredTransferCostSell({ cost: costVal, sell: sellVal, basePrice: basePrice })
+                    : { cost: costVal, sell: sellVal || basePrice };
                 const arrivalData = {
                     id: generateId('arrival'),
                     orderId: order.id || order.order_id,
@@ -10950,12 +11057,12 @@
                     infant: parseInt(order.infants || order.infant || 0),
                     infantQty: parseInt(order.infants || order.infant || 0),
                     city: order.city || order.destination || '',
-                    cost: displayBase,
-                    sell: displayBase,
-                    adultCost: displayBase,
-                    adultSell: displayBase,
-                    childCost: displayBase,
-                    childSell: displayBase,
+                    cost: stored.cost,
+                    sell: stored.sell,
+                    adultCost: stored.cost,
+                    adultSell: stored.sell,
+                    childCost: stored.cost,
+                    childSell: stored.sell,
                     accommodationIndex: null
                 };
                 arrivalDepartureList.push(arrivalData);
@@ -10967,11 +11074,12 @@
         // Load exit port (Departure)
         ordersByType.exit_port.forEach(order => {
             try {
-                // Use base price for display (same as create form - not totalPrice)
                 const basePrice = parseFloat(order.basePrice || order.base_price || 0);
                 const costVal = parseFloat(order.cost || 0);
                 const sellVal = parseFloat(order.price || order.sell || 0);
-                const displayBase = basePrice > 0 ? basePrice : (costVal > 0 ? costVal : sellVal);
+                const stored = (typeof resolveStoredTransferCostSell === 'function')
+                    ? resolveStoredTransferCostSell({ cost: costVal, sell: sellVal, basePrice: basePrice })
+                    : { cost: costVal, sell: sellVal || basePrice };
                 const departureData = {
                     id: generateId('departure'),
                     orderId: order.id || order.order_id,
@@ -10998,12 +11106,12 @@
                     infant: parseInt(order.infants || order.infant || 0),
                     infantQty: parseInt(order.infants || order.infant || 0),
                     city: order.city || order.destination || '',
-                    cost: displayBase,
-                    sell: displayBase,
-                    adultCost: displayBase,
-                    adultSell: displayBase,
-                    childCost: displayBase,
-                    childSell: displayBase,
+                    cost: stored.cost,
+                    sell: stored.sell,
+                    adultCost: stored.cost,
+                    adultSell: stored.sell,
+                    childCost: stored.cost,
+                    childSell: stored.sell,
                     accommodationIndex: null
                 };
                 arrivalDepartureList.push(departureData);
@@ -11076,7 +11184,9 @@
                 const basePrice = parseFloat(order.basePrice || order.base_price || 0);
                 const costVal = parseFloat(order.cost || 0);
                 const sellVal = parseFloat(order.price || order.sell || 0);
-                const displayBase = basePrice > 0 ? basePrice : (costVal > 0 ? costVal : sellVal);
+                const stored = (typeof resolveStoredTransferCostSell === 'function')
+                    ? resolveStoredTransferCostSell({ cost: costVal, sell: sellVal, basePrice: basePrice })
+                    : { cost: costVal, sell: sellVal || basePrice };
                 const xferPS = resolvePrivateSharedPSFromPayload(order);
                 const transferData = {
                     id: generateId('transfer'),
@@ -11094,9 +11204,9 @@
                     adults: parseInt(order.adults || order.adult || 0),
                     child: parseInt(order.children || order.child || 0),
                     infant: parseInt(order.infants || order.infant || 0),
-                    cost: displayBase,
-                    sell: displayBase,
-                    basePrice: displayBase
+                    cost: stored.cost,
+                    sell: stored.sell,
+                    basePrice: stored.sell || stored.cost
                 };
                 transferList.push(transferData);
             } catch (e) {
@@ -14704,6 +14814,8 @@
                                 sell: finalSell,
                                 zonePrivatePrice: prices.privatePrice,
                                 zoneSharedPrice: prices.sharedPrice,
+                                zonePrivateCostPrice: prices.privateCostPrice,
+                                zoneSharedCostPrice: prices.sharedCostPrice,
                                 focServiceDiscount: arrivalXferFoc
                             };
                             arrivalDepartureList[index].transferId = transferList[arrivalTransferIndex].id;
@@ -14807,8 +14919,14 @@
                         child: arrivalChild,
                         cost: finalCost,
                         sell: finalSell,
+                        pickupId: arrivalPortId,
+                        dropId: arrivalDestinationId,
+                        pickupType: 'port',
+                        dropType: 'hotel',
                         zonePrivatePrice: prices.privatePrice,
                         zoneSharedPrice: prices.sharedPrice,
+                        zonePrivateCostPrice: prices.privateCostPrice,
+                        zoneSharedCostPrice: prices.sharedCostPrice,
                         taxIncluded: false
                     });
                     arrivalDepartureList[index].transferId = transferId;
@@ -14997,6 +15115,8 @@
                                 sell: finalSell,
                                 zonePrivatePrice: prices.privatePrice,
                                 zoneSharedPrice: prices.sharedPrice,
+                                zonePrivateCostPrice: prices.privateCostPrice,
+                                zoneSharedCostPrice: prices.sharedCostPrice,
                                 focServiceDiscount: departureXferFoc
                             };
                             arrivalDepartureList[index].transferId = transferList[transferIndex].id;
@@ -15078,8 +15198,14 @@
                         child: departureChild,
                         cost: finalCost,
                         sell: finalSell,
+                        pickupId: departureDestinationId,
+                        dropId: departurePortId,
+                        pickupType: 'hotel',
+                        dropType: 'port',
                         zonePrivatePrice: prices.privatePrice,
                         zoneSharedPrice: prices.sharedPrice,
+                        zonePrivateCostPrice: prices.privateCostPrice,
+                        zoneSharedCostPrice: prices.sharedCostPrice,
                         taxIncluded: false
                     });
                     arrivalDepartureList[index].transferId = transferId;
@@ -15242,6 +15368,7 @@
                 
                 // Fetch zone price for arrival transfer (if transfer is checked)
                 let arrivalVehiclePrice = 0;
+                let arrivalVehicleSell = 0;
                 let arrivalZonePrice = { private_price: 0, shared_price: 0 };
                 if (arrivalTransfer && arrivalVehicleId && arrivalPortId && arrivalDestinationId) {
                     const arrivalDestinationSelect = document.getElementById('arrivalDestination');
@@ -15276,6 +15403,7 @@
                     // Calculate prices
                     const prices = calculateTransferPrice(arrivalZonePrice, arrivalTransferType, arrivalTransferWay, arrivalAdults, arrivalChild);
                     arrivalVehiclePrice = prices.cost || 0;
+                    arrivalVehicleSell = prices.sell || 0;
                 }
                 
                 const arrivalFocSvc = document.getElementById('arrivalFocServiceDiscount')?.checked || false;
@@ -15290,10 +15418,10 @@
                     type: 'Arrival',
                     adultsQty: arrivalAdults,
                     adultCost: arrivalVehiclePrice,
-                    adultSell: arrivalVehiclePrice, // Default: cost = sell
+                    adultSell: arrivalVehicleSell || arrivalVehiclePrice,
                     childQty: arrivalChild,
                     childCost: arrivalVehiclePrice,
-                    childSell: arrivalVehiclePrice, // Default: cost = sell
+                    childSell: arrivalVehicleSell || arrivalVehiclePrice,
                     infantQty: arrivalInfant,
                     amount: 0,
                     hasTransfer: arrivalTransfer,
@@ -15336,9 +15464,15 @@
                         adults: arrivalAdults,
                         child: arrivalChild,
                         cost: arrivalVehiclePrice,
-                        sell: arrivalVehiclePrice, // Default: cost = sell (user can edit)
+                        sell: arrivalVehicleSell || arrivalVehiclePrice,
+                        pickupId: arrivalPortId,
+                        dropId: arrivalDestinationId,
+                        pickupType: 'port',
+                        dropType: document.getElementById('arrivalDestination')?.selectedOptions?.[0]?.getAttribute('data-type') || 'hotel',
                         zonePrivatePrice: arrivalZonePrice.private_price,
                         zoneSharedPrice: arrivalZonePrice.shared_price,
+                        zonePrivateCostPrice: arrivalZonePrice.private_cost_price,
+                        zoneSharedCostPrice: arrivalZonePrice.shared_cost_price,
                         taxIncluded: false,
                         focServiceDiscount: arrivalFocSvc
                     });
@@ -15486,6 +15620,7 @@
                 
                 // Fetch zone price for departure transfer (if transfer is checked)
                 let departureVehiclePrice = 0;
+                let departureVehicleSell = 0;
                 let departureZonePrice = { private_price: 0, shared_price: 0 };
                 if (departureTransfer && departureVehicleId && departurePortId && departureDestinationId) {
                     const departureDestinationSelect = document.getElementById('departureDestination');
@@ -15520,6 +15655,7 @@
                     // Calculate prices
                     const prices = calculateTransferPrice(departureZonePrice, departureTransferType, departureTransferWay, departureAdults, departureChild);
                     departureVehiclePrice = prices.cost || 0;
+                    departureVehicleSell = prices.sell || 0;
                 }
                 
                 const departureFocSvc = document.getElementById('departureFocServiceDiscount')?.checked || false;
@@ -15534,10 +15670,10 @@
                     type: 'Departure',
                     adultsQty: departureAdults,
                     adultCost: departureVehiclePrice,
-                    adultSell: departureVehiclePrice, // Default: cost = sell
+                    adultSell: departureVehicleSell || departureVehiclePrice,
                     childQty: departureChild,
                     childCost: departureVehiclePrice,
-                    childSell: departureVehiclePrice, // Default: cost = sell
+                    childSell: departureVehicleSell || departureVehiclePrice,
                     infantQty: departureInfant,
                     amount: 0,
                     hasTransfer: departureTransfer,
@@ -15580,9 +15716,15 @@
                         adults: departureAdults,
                         child: departureChild,
                         cost: departureVehiclePrice,
-                        sell: departureVehiclePrice, // Default: cost = sell (user can edit)
+                        sell: departureVehicleSell || departureVehiclePrice,
+                        pickupId: departureDestinationId,
+                        dropId: departurePortId,
+                        pickupType: document.getElementById('departureDestination')?.selectedOptions?.[0]?.getAttribute('data-type') || 'hotel',
+                        dropType: 'port',
                         zonePrivatePrice: departureZonePrice.private_price,
                         zoneSharedPrice: departureZonePrice.shared_price,
+                        zonePrivateCostPrice: departureZonePrice.private_cost_price,
+                        zoneSharedCostPrice: departureZonePrice.shared_cost_price,
                         taxIncluded: false,
                         focServiceDiscount: departureFocSvc
                     });
@@ -15778,6 +15920,9 @@
 
             window.hotelModalSaved = true;
             const editAccIdx = window.hotelModalEditStartIndex ?? window.editingAccommodationIndex;
+            const arrDepFormOverride = (typeof captureHotelModalArrDepForm === 'function')
+                ? captureHotelModalArrDepForm()
+                : null;
             applyAccommodationListFromModalPreview();
 
             const arrivalDateTime = document.getElementById('arrivalDateTime').value;
@@ -15816,7 +15961,7 @@
             accommodationList[editAccIdx].transferIds = [];
             accommodationList[editAccIdx].arrivalDepartureIds = [];
 
-            await syncHotelArrDepToGlobal({ preserveGuideSelection: true });
+            await syncHotelArrDepToGlobal({ preserveGuideSelection: true, formOverride: arrDepFormOverride });
 
             const hotelCity = (typeof getHotelServiceCity === 'function')
                 ? getHotelServiceCity(accommodationList[editAccIdx])
@@ -15853,7 +15998,9 @@
                             
                             // Calculate prices using zone price
                             const prices = calculateTransferPrice(hotelZonePrice, hotelTransferType, hotelTransferWay, adults, child);
-                            hotelTransferPrice = prices.cost || 0;
+                            hotelTransferPrice = prices.sell || prices.cost || 0;
+                            hotelZonePrice._cost = prices.cost || 0;
+                            hotelZonePrice._sell = prices.sell || 0;
                         } catch (error) {
                             console.error('Error fetching zone price for hotel transfer:', error);
                             // Fallback to vehicle price calculation
@@ -15878,6 +16025,12 @@
                         pickup: pickupName,
                         dropoff: dropoffName,
                         isDestinationPickup: isDestinationPickup,
+                        pickupId: pickupId,
+                        dropId: dropoffId,
+                        dropoffId: dropoffId,
+                        pickupType: pickupType,
+                        dropType: dropoffType,
+                        dropoffType: dropoffType,
                         mode: 'Transfer',
                         vehicleId: hotelTransferVehicleId,
                         vehicleType: hotelTransferVehicleType,
@@ -15886,18 +16039,20 @@
                         way: hotelTransferWay,
                         adults: adults,
                         adultsQty: adults,
-                        adultCost: hotelTransferPrice,
-                        adultSell: hotelTransferPrice, // Default: cost = sell (user can edit)
+                        adultCost: hotelZonePrice._cost || hotelTransferPrice,
+                        adultSell: hotelZonePrice._sell || hotelTransferPrice,
                         child: child,
                         childQty: child,
-                        childCost: hotelTransferPrice,
-                        childSell: hotelTransferPrice, // Default: cost = sell (user can edit)
+                        childCost: hotelZonePrice._cost || hotelTransferPrice,
+                        childSell: hotelZonePrice._sell || hotelTransferPrice,
                         infantQty: infant,
                         amount: 0,
-                        cost: hotelTransferPrice,
-                        sell: hotelTransferPrice, // Default: cost = sell (user can edit)
+                        cost: hotelZonePrice._cost || hotelTransferPrice,
+                        sell: hotelZonePrice._sell || hotelTransferPrice,
                         zonePrivatePrice: hotelZonePrice.private_price,
                         zoneSharedPrice: hotelZonePrice.shared_price,
+                        zonePrivateCostPrice: hotelZonePrice.private_cost_price,
+                        zoneSharedCostPrice: hotelZonePrice.shared_cost_price,
                         transportMode: 'local', // Mark as local transfer for correct calculation
                         isStandalone: false,
                         sourceType: 'hotel',
@@ -15968,6 +16123,9 @@
 
         window.hotelModalSaved = true;
         const baseLen = (window.hotelModalBaseList || []).length;
+        const arrDepFormOverride = (typeof captureHotelModalArrDepForm === 'function')
+            ? captureHotelModalArrDepForm()
+            : null;
         applyAccommodationListFromModalPreview();
         selectedHotelsTemp = accommodationList.slice(baseLen);
 
@@ -15986,7 +16144,7 @@
         });
 
         // --- Create / Update ONE global entry_port & exit_port from modal form ---
-        await syncHotelArrDepToGlobal();
+        await syncHotelArrDepToGlobal({ formOverride: arrDepFormOverride });
 
         updateAccommodationTable();
         recalculateEntryExitPorts();
@@ -16696,9 +16854,13 @@
                             previewHotelName = hotelSelectEl.selectedOptions[0].text || '';
                         }
                     }
+                    const liveFormOverride = (typeof captureHotelModalArrDepForm === 'function')
+                        ? captureHotelModalArrDepForm()
+                        : null;
                     await syncHotelArrDepToGlobal({
                         preserveGuideSelection: true,
                         activeCityOnly: true,
+                        formOverride: liveFormOverride,
                         previewHotel: {
                             checkIn: checkInPreview,
                             checkOut: checkOutPreview,
@@ -16777,6 +16939,41 @@
                 if (typeof updateAccommodationSaveGate === 'function') updateAccommodationSaveGate();
             });
         }, 180);
+    }
+
+    function captureHotelModalArrDepForm() {
+        function captureSide(isArrival) {
+            const portSel = document.getElementById(isArrival ? 'arrivalPort' : 'departurePort');
+            const vehicleSel = document.getElementById(isArrival ? 'arrivalVehicleType' : 'departureVehicleType');
+            const typeEl = document.getElementById(isArrival ? 'arrivalTransferType' : 'departureTransferType');
+            const chk = document.getElementById(isArrival ? 'arrivalTransfer' : 'departureTransfer');
+            const portId = (typeof getArrDepSelectValue === 'function' ? getArrDepSelectValue(portSel) : '') || portSel?.value || '';
+            const vehicleId = (typeof getArrDepSelectValue === 'function' ? getArrDepSelectValue(vehicleSel) : '') || vehicleSel?.value || '';
+            let vehicleOpt = vehicleSel?.selectedOptions?.[0] || null;
+            if (vehicleId && vehicleSel) {
+                const match = Array.from(vehicleSel.options || []).find(function (o) {
+                    return String(o.value) === String(vehicleId);
+                });
+                if (match) vehicleOpt = match;
+            }
+            const rawType = String(typeEl?.value || 'S').trim();
+            const upper = rawType.toUpperCase();
+            const xferType = (upper === 'P' || rawType.toLowerCase() === 'private') ? 'P' : 'S';
+            return {
+                portId,
+                portName: portSel?.selectedOptions?.[0]?.text || '',
+                flightNo: document.getElementById(isArrival ? 'arrivalFlightNo' : 'departureFlightNo')?.value || '',
+                hasTransfer: !!(chk && chk.checked),
+                transferType: xferType,
+                vehicleId,
+                vehicleName: vehicleOpt?.text || '',
+                vehicleType: vehicleOpt?.getAttribute('data-type') || '',
+                adults: parseInt(document.getElementById(isArrival ? 'arrivalAdults' : 'departureAdults')?.value || 2, 10),
+                child: parseInt(document.getElementById(isArrival ? 'arrivalChild' : 'departureChild')?.value || 0, 10),
+                infant: parseInt(document.getElementById(isArrival ? 'arrivalInfant' : 'departureInfant')?.value || 0, 10)
+            };
+        }
+        return { arrival: captureSide(true), departure: captureSide(false) };
     }
 
     // Sync hotel arrival/departure into arrivalDepartureList:
@@ -16949,22 +17146,25 @@
             let nAdults, nChild, nInfant;
 
             if (useForm) {
-                portId = portSel?.value || snapRow?.portId || '';
-                portName = (portSel?.value && portSel?.selectedOptions[0]?.text) || snapRow?.portName || '';
+                const formPortId = (typeof getArrDepSelectValue === 'function' ? getArrDepSelectValue(portSel) : '') || portSel?.value || '';
+                const formVehicleId = (typeof getArrDepSelectValue === 'function' ? getArrDepSelectValue(vehicleSel) : '') || vehicleSel?.value || '';
+                const formXferType = document.getElementById(xferTypeId)?.value || '';
+                portId = formPortId || snapRow?.portId || '';
+                portName = (formPortId && portSel?.selectedOptions?.[0]?.text) || snapRow?.portName || '';
                 flightNo = document.getElementById(flightId)?.value || snapRow?.flightNo || '';
-                hasTransfer = preserveGuideSelection
-                    ? (snapRow?.hasTransfer ?? (document.getElementById(xferChkId)?.checked || false))
-                    : (document.getElementById(xferChkId)?.checked || false);
-                xferType = preserveGuideSelection
-                    ? (snapRow?.transferType || document.getElementById(xferTypeId)?.value || 'S')
-                    : (document.getElementById(xferTypeId)?.value || 'S');
-                vehicleId = preserveGuideSelection
-                    ? (snapRow?.vehicleId || vehicleSel?.value || '')
-                    : (vehicleSel?.value || '');
-                const vehicleOpt = vehicleSel?.selectedOptions[0];
-                vehicleName = (vehicleSel?.value && vehicleOpt?.text) || snapRow?.vehicleName || '';
-                vehicleType = (vehicleSel?.value && vehicleOpt?.getAttribute('data-type')) || snapRow?.vehicleType || '';
-                // If form still empty (modal not fully populated), never wipe saved port/vehicle
+                // Modal is the source of truth for the city being edited — never keep stale type/vehicle.
+                hasTransfer = document.getElementById(xferChkId)?.checked || false;
+                xferType = formXferType || snapRow?.transferType || 'S';
+                vehicleId = formVehicleId || snapRow?.vehicleId || '';
+                let vehicleOpt = vehicleSel?.selectedOptions?.[0] || null;
+                if (vehicleId && vehicleSel) {
+                    const match = Array.from(vehicleSel.options || []).find(function (o) {
+                        return String(o.value) === String(vehicleId);
+                    });
+                    if (match) vehicleOpt = match;
+                }
+                vehicleName = (vehicleId && vehicleOpt?.text) || snapRow?.vehicleName || '';
+                vehicleType = (vehicleId && vehicleOpt?.getAttribute('data-type')) || snapRow?.vehicleType || '';
                 if (!portId && snapRow) {
                     portId = snapRow.portId || '';
                     portName = snapRow.portName || portName;
@@ -16973,15 +17173,28 @@
                     vehicleId = snapRow.vehicleId || '';
                     vehicleName = snapRow.vehicleName || vehicleName;
                     vehicleType = snapRow.vehicleType || vehicleType;
-                    if (snapRow.transferType) xferType = snapRow.transferType;
                 }
-                nAdults = preserveGuideSelection
-                    ? parseInt((snapRow?.adultsQty ?? snapRow?.adults ?? document.getElementById(adultsId)?.value ?? 2), 10)
-                    : parseInt((document.getElementById(adultsId)?.value ?? 2), 10);
-                nChild = preserveGuideSelection
-                    ? parseInt((snapRow?.childQty ?? snapRow?.child ?? document.getElementById(childId)?.value ?? 0), 10)
-                    : parseInt((document.getElementById(childId)?.value ?? 0), 10);
+                nAdults = parseInt((document.getElementById(adultsId)?.value ?? snapRow?.adultsQty ?? snapRow?.adults ?? 2), 10);
+                nChild = parseInt((document.getElementById(childId)?.value ?? snapRow?.childQty ?? snapRow?.child ?? 0), 10);
                 nInfant = parseInt(document.getElementById(infantId)?.value || snapRow?.infantQty || snapRow?.infant || 0, 10);
+                const formOverride = isArrival ? options.formOverride?.arrival : options.formOverride?.departure;
+                if (formOverride) {
+                    hasTransfer = formOverride.hasTransfer;
+                    xferType = formOverride.transferType || xferType;
+                    if (formOverride.vehicleId) {
+                        vehicleId = formOverride.vehicleId;
+                        vehicleName = formOverride.vehicleName || vehicleName;
+                        vehicleType = formOverride.vehicleType || vehicleType;
+                    }
+                    if (formOverride.portId) {
+                        portId = formOverride.portId;
+                        portName = formOverride.portName || portName;
+                    }
+                    if (formOverride.flightNo != null && formOverride.flightNo !== '') flightNo = formOverride.flightNo;
+                    nAdults = formOverride.adults ?? nAdults;
+                    nChild = formOverride.child ?? nChild;
+                    nInfant = formOverride.infant ?? nInfant;
+                }
             } else {
                 portId = snapRow?.portId || '';
                 portName = snapRow?.portName || '';
@@ -17006,11 +17219,13 @@
                 destSel.value = destId;
             }
 
-            let vehiclePrice = 0;
-            let zonePrice = { private_price: 0, shared_price: 0 };
-            const snapPrice = parseFloat(snapRow?.adultCost || snapRow?.cost || snapRow?.sell || 0) || 0;
+            let vehicleCost = 0;
+            let vehicleSell = 0;
+            let zonePrice = { private_price: 0, shared_price: 0, private_cost_price: 0, shared_cost_price: 0 };
+            const snapCost = parseFloat(snapRow?.adultCost || snapRow?.cost || 0) || 0;
+            const snapSell = parseFloat(snapRow?.adultSell || snapRow?.sell || 0) || 0;
+            let actualDestId = destId;
             if (hasTransfer && vehicleId && portId && destId) {
-                let actualDestId = destId;
                 if (destType === 'hotel') {
                     const huId = destOpt?.getAttribute('data-hotel-unique-id');
                     if (huId) actualDestId = huId;
@@ -17023,15 +17238,17 @@
                     }
                     if (zonePriceHasMapping(zonePrice)) {
                         const prices = calculateTransferPrice(zonePrice, xferType, 'one-way', nAdults, nChild);
-                        vehiclePrice = prices.cost || 0;
+                        vehicleCost = prices.cost || 0;
+                        vehicleSell = prices.sell || 0;
                     }
                 } catch (e) {
                     console.warn('syncHotelArrDep: zone price fetch failed', travelType, cityName, e);
                 }
-                // Keep saved price if zone fetch returned 0 (no mapping / race while viewing)
-                if (!vehiclePrice && snapPrice > 0) vehiclePrice = snapPrice;
+                if (!vehicleCost && snapCost > 0) vehicleCost = snapCost;
+                if (!vehicleSell && snapSell > 0) vehicleSell = snapSell;
             } else if (snapRow) {
-                vehiclePrice = snapPrice;
+                vehicleCost = snapCost;
+                vehicleSell = snapSell || snapCost;
             }
 
             const entryId = snapRow?.id || generateId('port');
@@ -17089,10 +17306,10 @@
                 adults: nAdults, adultsQty: nAdults,
                 child: nChild, childQty: nChild,
                 infant: nInfant, infantQty: nInfant,
-                adultCost: vehiclePrice, adultSell: vehiclePrice,
-                childCost: vehiclePrice, childSell: vehiclePrice,
+                adultCost: vehicleCost, adultSell: vehicleSell || vehicleCost,
+                childCost: vehicleCost, childSell: vehicleSell || vehicleCost,
                 transferDestinationId: destId, transferDestinationName: destName,
-                cost: vehiclePrice, sell: vehiclePrice,
+                cost: vehicleCost, sell: vehicleSell || vehicleCost,
                 accommodationIndex: null, sourceType: 'hotel', isStandalone: true,
                 focServiceDiscount: focSvc,
                 hotelCityKey: cityKey
@@ -17106,10 +17323,10 @@
             const effectiveVehicleId = vehicleId || (prevTransfer?.vehicleId || '');
             const effectiveVehicleType = vehicleType || (prevTransfer?.vehicleType || '');
             const effectiveVehicleName = vehicleName || (prevTransfer?.vehicleName || '');
-            const effectiveAdults = preserveGuideSelection ? (prevTransfer?.adults ?? nAdults) : nAdults;
-            const effectiveChild = preserveGuideSelection ? (prevTransfer?.child ?? nChild) : nChild;
-            const effectiveCost = vehiclePrice || parseFloat(prevTransfer?.cost || 0) || 0;
-            const effectiveSell = vehiclePrice || parseFloat(prevTransfer?.sell || 0) || effectiveCost;
+            const effectiveAdults = useForm ? nAdults : (preserveGuideSelection ? (prevTransfer?.adults ?? nAdults) : nAdults);
+            const effectiveChild = useForm ? nChild : (preserveGuideSelection ? (prevTransfer?.child ?? nChild) : nChild);
+            const effectiveCost = vehicleCost || parseFloat(prevTransfer?.cost || 0) || 0;
+            const effectiveSell = vehicleSell || parseFloat(prevTransfer?.sell || 0) || effectiveCost;
 
             if (hasTransfer && effectiveVehicleId) {
                 const transferId = existingTransferIdx !== -1
@@ -17141,17 +17358,37 @@
                     child: effectiveChild,
                     cost: effectiveCost,
                     sell: effectiveSell,
+                    pickupId: isArrival ? portId : actualDestId,
+                    dropId: isArrival ? actualDestId : portId,
+                    pickupType: isArrival ? 'port' : destType,
+                    dropType: isArrival ? destType : 'port',
                     zonePrivatePrice: zonePrice?.private_price || prevTransfer?.zonePrivatePrice || 0,
                     zoneSharedPrice: zonePrice?.shared_price || prevTransfer?.zoneSharedPrice || 0,
+                    zonePrivateCostPrice: zonePrice?.private_cost_price || prevTransfer?.zonePrivateCostPrice || 0,
+                    zoneSharedCostPrice: zonePrice?.shared_cost_price || prevTransfer?.zoneSharedCostPrice || 0,
                     taxIncluded: false,
                     focServiceDiscount: focSvc
                 };
                 if (existingTransferIdx !== -1) {
-                    transferList[existingTransferIdx] = { ...transferList[existingTransferIdx], ...payload };
+                    transferList[existingTransferIdx] = {
+                        ...transferList[existingTransferIdx],
+                        ...payload,
+                        type: xferType,
+                        transferType: xferType,
+                        vehicleId: effectiveVehicleId,
+                        vehicleType: effectiveVehicleType,
+                        vehicleName: effectiveVehicleName
+                    };
                 } else {
                     transferList.push(payload);
                 }
                 updated.transferId = transferId;
+                transferList = transferList.filter(function (t) {
+                    if ((t.sourceType || '').toLowerCase() !== sourceKey) return true;
+                    if (String(t.id) === String(transferId)) return true;
+                    if (String(t.sourceId) === String(entryId)) return false;
+                    return true;
+                });
             } else {
                 updated.transferId = snapRow?.transferId || null;
             }
@@ -20346,6 +20583,12 @@
                     destinationType: destinationType,
                     pickup: pickupName,
                     dropoff: dropoffName,
+                    pickupId: pickupId,
+                    dropoffId: dropoffId,
+                    dropId: dropoffId,
+                    pickupType: pickupType,
+                    dropoffType: dropoffType,
+                    dropType: dropoffType,
                     isDestinationPickup: isDestinationPickup,
                     dateTime: dateTime,
                     adults: adultsQty,
@@ -20356,7 +20599,9 @@
                     sourceType: 'tour',
                     sourceId: tourId,
                     zonePrivatePrice: zonePrice.private_price,
-                    zoneSharedPrice: zonePrice.shared_price
+                    zoneSharedPrice: zonePrice.shared_price,
+                    zonePrivateCostPrice: zonePrice.private_cost_price,
+                    zoneSharedCostPrice: zonePrice.shared_cost_price
                 };
                 
                 transferList.push(transferInfo);
@@ -20683,6 +20928,12 @@
                     destinationType: destinationType,
                     pickup: pickupName,
                     dropoff: dropoffName,
+                    pickupId: pickupId,
+                    dropoffId: dropoffId,
+                    dropId: dropoffId,
+                    pickupType: pickupType,
+                    dropoffType: dropoffType,
+                    dropType: dropoffType,
                     isDestinationPickup: isDestinationPickup,
                     dateTime: dateTime,
                     adults: adultsQty,
@@ -20693,7 +20944,9 @@
                     sourceType: 'tour',
                     sourceId: tourId,
                     zonePrivatePrice: zonePrice.private_price,
-                    zoneSharedPrice: zonePrice.shared_price
+                    zoneSharedPrice: zonePrice.shared_price,
+                    zonePrivateCostPrice: zonePrice.private_cost_price,
+                    zoneSharedCostPrice: zonePrice.shared_cost_price
                 };
                 
                 transferList.push(transferInfo);
@@ -24050,6 +24303,12 @@
                     pickup: pickupName,
                     dropoff: dropoffName,
                     isDestinationPickup: isDestinationPickup,
+                    pickupId: pickupId,
+                    dropId: dropoffId,
+                    dropoffId: dropoffId,
+                    pickupType: pickupType,
+                    dropType: dropoffType,
+                    dropoffType: dropoffType,
                     adults: adultsQty,
                     adultsQty: adultsQty,
                     child: childQty,
@@ -24062,6 +24321,8 @@
                     sell: restaurantTransferSell,
                     zonePrivatePrice: restaurantZonePrice.private_price,
                     zoneSharedPrice: restaurantZonePrice.shared_price,
+                    zonePrivateCostPrice: restaurantZonePrice.private_cost_price,
+                    zoneSharedCostPrice: restaurantZonePrice.shared_cost_price,
                     isStandalone: false,
                     sourceType: 'meal',
                     sourceId: mealId,
@@ -24428,6 +24689,12 @@
                     pickup: pickupName,
                     dropoff: dropoffName,
                     isDestinationPickup: isDestinationPickup,
+                    pickupId: pickupId,
+                    dropId: dropoffId,
+                    dropoffId: dropoffId,
+                    pickupType: pickupType,
+                    dropType: dropoffType,
+                    dropoffType: dropoffType,
                     adults: totalAdults,
                     adultsQty: totalAdults,
                     child: totalChild,
@@ -24440,6 +24707,8 @@
                     sell: restaurantTransferSell,
                     zonePrivatePrice: restaurantZonePrice.private_price,
                     zoneSharedPrice: restaurantZonePrice.shared_price,
+                    zonePrivateCostPrice: restaurantZonePrice.private_cost_price,
+                    zoneSharedCostPrice: restaurantZonePrice.shared_cost_price,
                     isStandalone: false,
                     sourceType: 'meal',
                     sourceId: mealIdsPerRow[0][0], // Link to first meal
@@ -24463,6 +24732,12 @@
                     pickup: pickupName,
                     dropoff: dropoffName,
                     isDestinationPickup: isDestinationPickup,
+                    pickupId: pickupId,
+                    dropId: dropoffId,
+                    dropoffId: dropoffId,
+                    pickupType: pickupType,
+                    dropType: dropoffType,
+                    dropoffType: dropoffType,
                     adults: totalAdults,
                     adultsQty: totalAdults,
                     child: totalChild,
@@ -24474,7 +24749,9 @@
                     cost: restaurantTransferCost,
                     sell: restaurantTransferSell,
                     zonePrivatePrice: restaurantZonePrice.private_price,
-                    zoneSharedPrice: restaurantZonePrice.shared_price
+                    zoneSharedPrice: restaurantZonePrice.shared_price,
+                    zonePrivateCostPrice: restaurantZonePrice.private_cost_price,
+                    zoneSharedCostPrice: restaurantZonePrice.shared_cost_price
                 };
             }
             
@@ -25759,13 +26036,11 @@
                 ? `<input type="checkbox" ${transfer.supplement ? 'checked' : ''} onchange="updateTransferSupplement(${index}, this.checked)">`
                 : `<input type="checkbox" ${transfer.supplement ? 'checked' : ''} onchange="updateTransferSupplement(${index}, this.checked)" style="opacity: 0.7;">`;
             
-            // Display cost/sell: use base price (same as create form - shared/private oneway/both-way, not × pax)
-            // Prefer basePrice/base_price from loaded JSON so edit matches create form
+            // Display stored cost (mapping cost) and sell (mapping sell) separately
             const storedSell = parseFloat(transfer.sell || 0);
             const storedCost = parseFloat(transfer.cost || 0);
-            const storedBase = parseFloat(transfer.basePrice || transfer.base_price || 0);
-            let displayCost = storedBase > 0 ? storedBase : storedCost;
-            let displaySell = storedBase > 0 ? storedBase : (storedSell > 0 ? storedSell : storedCost);
+            let displayCost = storedCost;
+            let displaySell = storedSell > 0 ? storedSell : storedCost;
             
             // Get current type and way for dropdowns (honour transferType from API as well as type)
             const currentType = transferServiceRawToPS(transfer);
@@ -25894,22 +26169,41 @@
             if ((field === 'type' || field === 'way') && transfer.transportMode === 'local') {
                 let zonePrivatePrice = parseFloat(transfer.zonePrivatePrice) || 0;
                 let zoneSharedPrice = parseFloat(transfer.zoneSharedPrice) || 0;
+                let zonePrivateCostPrice = parseFloat(transfer.zonePrivateCostPrice) || 0;
+                let zoneSharedCostPrice = parseFloat(transfer.zoneSharedCostPrice) || 0;
                 
-                // If zone prices are missing (e.g. older bookings), try to fetch them so price can update
-                if (zonePrivatePrice === 0 && zoneSharedPrice === 0 && transfer.vehicleId && (transfer.pickupId || transfer.fromZoneId) && (transfer.dropId || transfer.toZoneId)) {
+                // If zone cost prices are missing (linked attraction/restaurant/A-D transfers), fetch them
+                const loc = (typeof resolveTransferLocationIdsForZoneFetch === 'function')
+                    ? resolveTransferLocationIdsForZoneFetch(transfer)
+                    : {
+                        pickupId: transfer.pickupId || transfer.fromZoneId || '',
+                        dropId: transfer.dropId || transfer.dropoffId || transfer.toZoneId || '',
+                        pickupType: transfer.pickupType || 'hotel',
+                        dropType: transfer.dropType || transfer.dropoffType || 'hotel'
+                    };
+                if ((zonePrivateCostPrice === 0 && zoneSharedCostPrice === 0) && transfer.vehicleId && loc.pickupId && loc.dropId) {
                     const dmcId = '{{ $dmc_id ?? "" }}';
-                    const pickupIdForFetch = transfer.pickupId || transfer.fromZoneId || '';
-                    const dropIdForFetch = transfer.dropId || transfer.toZoneId || '';
-                    const pickupTypeForFetch = transfer.pickupType || 'hotel';
-                    const dropTypeForFetch = transfer.dropType || 'hotel';
                     try {
-                        const zonePrice = await fetchZonePrice(transfer.vehicleId, pickupIdForFetch, pickupTypeForFetch, dropIdForFetch, dropTypeForFetch, dmcId);
-                        zonePrivatePrice = parseFloat(zonePrice.private_price) || 0;
-                        zoneSharedPrice = parseFloat(zonePrice.shared_price) || 0;
-                        if (zonePrivatePrice > 0 || zoneSharedPrice > 0) {
+                        const zonePrice = await fetchZonePrice(
+                            transfer.vehicleId,
+                            loc.pickupId,
+                            loc.pickupType,
+                            loc.dropId,
+                            loc.dropType,
+                            dmcId
+                        );
+                        zonePrivatePrice = parseFloat(zonePrice.private_price) || zonePrivatePrice;
+                        zoneSharedPrice = parseFloat(zonePrice.shared_price) || zoneSharedPrice;
+                        zonePrivateCostPrice = parseFloat(zonePrice.private_cost_price) || 0;
+                        zoneSharedCostPrice = parseFloat(zonePrice.shared_cost_price) || 0;
+                        if (zonePrivatePrice > 0 || zoneSharedPrice > 0 || zonePrivateCostPrice > 0 || zoneSharedCostPrice > 0) {
                             transfer.zonePrivatePrice = zonePrivatePrice;
                             transfer.zoneSharedPrice = zoneSharedPrice;
-                            console.log('Fetched zone prices for transfer type/way change:', { zonePrivatePrice, zoneSharedPrice });
+                            transfer.zonePrivateCostPrice = zonePrivateCostPrice;
+                            transfer.zoneSharedCostPrice = zoneSharedCostPrice;
+                            console.log('Fetched zone prices for transfer type/way change:', {
+                                zonePrivatePrice, zoneSharedPrice, zonePrivateCostPrice, zoneSharedCostPrice
+                            });
                         }
                     } catch (err) {
                         console.warn('Could not fetch zone price for transfer recalculation:', err);
@@ -25917,7 +26211,7 @@
                 }
                 
                 // If we still don't have any zone prices, keep existing cost/sell (do not overwrite with 0)
-                if (zonePrivatePrice === 0 && zoneSharedPrice === 0) {
+                if (zonePrivatePrice === 0 && zoneSharedPrice === 0 && zonePrivateCostPrice === 0 && zoneSharedCostPrice === 0) {
                     console.warn('Skipping automatic transfer price recalculation because zone prices are missing.', {
                         index,
                         transferId: transfer.id,
@@ -25931,34 +26225,26 @@
                     return;
                 }
                 
-                // Get current type and way
-                const currentType = transfer.type || 'P';
-                const currentWay = transfer.way || 'one-way';
-                
-                // Get base price based on type (shared or private)
-                let basePrice = 0;
-                if (currentType === 'S' || currentType === 'sic' || currentType === 'Shared') {
-                    basePrice = zoneSharedPrice;
-                } else {
-                    basePrice = zonePrivatePrice;
-                }
-                
-                // Apply way multiplier - both-way costs double
-                const isBothway = currentWay === 'both-way' || currentWay === 'Both Way' || 
-                                  currentWay === 'both' || currentWay === 'two-way' || currentWay === 'return' || currentWay === '2way';
-                const wayMultiplier = isBothway ? 2 : 1;
-                
-                // Update cost and sell with new calculated values
-                transfer.cost = basePrice * wayMultiplier;
-                transfer.sell = basePrice * wayMultiplier;
+                const prices = calculateTransferPrice(
+                    {
+                        private_price: zonePrivatePrice,
+                        shared_price: zoneSharedPrice,
+                        private_cost_price: zonePrivateCostPrice,
+                        shared_cost_price: zoneSharedCostPrice
+                    },
+                    transfer.type || 'P',
+                    transfer.way || 'one-way',
+                    transfer.adults || transfer.adultsQty || 0,
+                    transfer.child || transfer.childQty || 0
+                );
+                transfer.cost = prices.cost;
+                transfer.sell = prices.sell;
                 
                 console.log('Recalculated transfer price:', {
-                    type: currentType,
-                    way: currentWay,
-                    basePrice: basePrice,
-                    wayMultiplier: wayMultiplier,
-                    newCost: transfer.cost,
-                    newSell: transfer.sell
+                    type: transfer.type,
+                    way: transfer.way,
+                    cost: transfer.cost,
+                    sell: transfer.sell
                 });
                 
                 // Refresh the transfer table to show new prices
@@ -26134,6 +26420,7 @@
         if (localRadio) localRadio.checked = true;
         switchTransferMode('local');
         
+        window._localTransferRestoreState = null;
         window.editingTransferIndex = null;
         document.getElementById('transferModalTitleText').textContent = 'Add Transfer Package';
         document.getElementById('saveTransferBtnText').textContent = 'Save & Close';
@@ -26174,13 +26461,10 @@
                 });
             }
             
-            // Auto-set pickup to same as drop off when drop off changes
-            $('#localDrop').off('change.localPickupSync').on('change.localPickupSync', function() {
-                const dropValue = $(this).val();
-                if (dropValue) {
-                    $('#localPickup').val(dropValue).trigger('change');
-                }
-            });
+            // Auto-set pickup to same as drop off only when pickup is still empty
+            if (typeof bindLocalPickupDropSync === 'function') {
+                bindLocalPickupDropSync();
+            }
         }
         
         // Populate default values for local transfer (after city filters settle)
@@ -26223,12 +26507,36 @@
             let actualDropId = dropId;
             let actualPickupType = pickupType;
             let actualDropType = dropType;
+
+            if (typeof parseTransferLocationValue === 'function') {
+                const pickupParsed = parseTransferLocationValue(String(pickupId || ''), pickupType);
+                const dropParsed = parseTransferLocationValue(String(dropId || ''), dropType);
+                if (pickupParsed.id) actualPickupId = pickupParsed.id;
+                if (pickupParsed.type) actualPickupType = pickupParsed.type;
+                if (dropParsed.id) actualDropId = dropParsed.id;
+                if (dropParsed.type) actualDropType = dropParsed.type;
+            }
+
+            let pickupZoneIdHint = '';
+            let dropZoneIdHint = '';
+            if (typeof resolveLocalTransferZoneLookup === 'function') {
+                const localResolved = resolveLocalTransferZoneLookup(pickupId, actualPickupType, dropId, actualDropType);
+                if (localResolved.actualPickupId) actualPickupId = localResolved.actualPickupId;
+                if (localResolved.actualPickupType) actualPickupType = localResolved.actualPickupType;
+                if (localResolved.actualDropId) actualDropId = localResolved.actualDropId;
+                if (localResolved.actualDropType) actualDropType = localResolved.actualDropType;
+                pickupZoneIdHint = localResolved.pickupZoneId || '';
+                dropZoneIdHint = localResolved.dropZoneId || '';
+            }
             
             // Only split legacy "type_id" values (e.g. hotel_123). Do NOT split
             // hotel_unique_id / other ids that merely contain underscores.
+            // Skip when value already uses type:id tokens (attraction:12).
             const knownLocTypes = ['hotel', 'port', 'attraction', 'restaurant', 'zone'];
-            if (pickupId.includes('_')) {
-                const parts = pickupId.split('_');
+            const pickupIdStr = String(pickupId || '');
+            const dropIdStr = String(dropId || '');
+            if (pickupIdStr.includes('_') && pickupIdStr.indexOf(':') === -1) {
+                const parts = pickupIdStr.split('_');
                 const maybeType = String(parts[0] || '').toLowerCase();
                 if (knownLocTypes.includes(maybeType) && parts.length > 1) {
                     actualPickupType = maybeType;
@@ -26237,7 +26545,7 @@
                 }
             }
             
-            if (dropId.includes('_')) {
+            if (dropIdStr.includes('_') && dropIdStr.indexOf(':') === -1) {
                 const parts = dropId.split('_');
                 const maybeType = String(parts[0] || '').toLowerCase();
                 if (knownLocTypes.includes(maybeType) && parts.length > 1) {
@@ -26266,7 +26574,7 @@
                 
                 for (const pickupSelect of pickupSelects) {
                     // Try exact match first (value is now hotel_unique_id)
-                    let pickupOption = pickupSelect.querySelector(`option[value="${pickupId}"]`);
+                    let pickupOption = findOptionByExactValue(pickupSelect, pickupId);
                     // Try with actualPickupId if different
                     if (!pickupOption && actualPickupId && actualPickupId !== pickupId) {
                         pickupOption = pickupSelect.querySelector(`option[value="${actualPickupId}"]`);
@@ -26345,7 +26653,7 @@
                 
                 for (const dropSelect of dropSelects) {
                     // Try exact match first (value is now hotel_unique_id)
-                    let dropOption = dropSelect.querySelector(`option[value="${dropId}"]`);
+                    let dropOption = findOptionByExactValue(dropSelect, dropId);
                     // Try with actualDropId if different
                     if (!dropOption && actualDropId && actualDropId !== dropId) {
                         dropOption = dropSelect.querySelector(`option[value="${actualDropId}"]`);
@@ -26430,7 +26738,7 @@
                 ].filter(s => s !== null);
                 
                 for (const pickupSelect of pickupSelects) {
-                    const pickupOption = pickupSelect.querySelector(`option[value="${pickupId}"]`);
+                    const pickupOption = findOptionByExactValue(pickupSelect, pickupId);
                     if (pickupOption) {
                         const portId = pickupOption.getAttribute('data-port-id');
                         if (portId) {
@@ -26458,7 +26766,7 @@
                 let zoneIdFound = false;
                 for (const pickupSelect of [...pickupSelects, ...tourModalDestinationSelects]) {
                     // Try exact match first
-                    let pickupOption = pickupSelect.querySelector(`option[value="${pickupId}"]`);
+                    let pickupOption = findOptionByExactValue(pickupSelect, pickupId);
                     // Try with actualPickupId if different
                     if (!pickupOption && actualPickupId && actualPickupId !== pickupId) {
                         pickupOption = pickupSelect.querySelector(`option[value="${actualPickupId}"]`);
@@ -26474,14 +26782,16 @@
                     if (pickupOption) {
                         const zoneId = pickupOption.getAttribute('data-zone-id');
                         const attractionId = pickupOption.getAttribute('data-attraction-id');
+                        if (attractionId) {
+                            actualPickupId = attractionId;
+                        }
                         if (zoneId) {
                             console.log('  Found zone_id for pickup attraction:', zoneId, '(from attraction_id:', attractionId || pickupId, ')');
-                            actualPickupId = zoneId;
+                            pickupZoneIdHint = zoneId;
                             zoneIdFound = true;
                             break;
-                        } else if (attractionId && String(attractionId) === String(pickupId)) {
+                        } else if (attractionId) {
                             console.log('  Found attraction_id for pickup (no zone_id):', attractionId);
-                            actualPickupId = attractionId;
                             break;
                         }
                     }
@@ -26503,7 +26813,7 @@
                 ].filter(s => s !== null);
                 
                 for (const dropSelect of dropSelects) {
-                    const dropOption = dropSelect.querySelector(`option[value="${dropId}"]`);
+                    const dropOption = findOptionByExactValue(dropSelect, dropId);
                     if (dropOption) {
                         const portId = dropOption.getAttribute('data-port-id');
                         if (portId) {
@@ -26530,7 +26840,7 @@
                 let zoneIdFound = false;
                 for (const dropSelect of [...dropSelects, ...tourModalDestinationSelects]) {
                     // Try exact match first
-                    let dropOption = dropSelect.querySelector(`option[value="${dropId}"]`);
+                    let dropOption = findOptionByExactValue(dropSelect, dropId);
                     // Try with actualDropId if different
                     if (!dropOption && actualDropId && actualDropId !== dropId) {
                         dropOption = dropSelect.querySelector(`option[value="${actualDropId}"]`);
@@ -26546,14 +26856,16 @@
                     if (dropOption) {
                         const zoneId = dropOption.getAttribute('data-zone-id');
                         const attractionId = dropOption.getAttribute('data-attraction-id');
+                        if (attractionId) {
+                            actualDropId = attractionId;
+                        }
                         if (zoneId) {
                             console.log('  Found zone_id for drop attraction:', zoneId, '(from attraction_id:', attractionId || dropId, ')');
-                            actualDropId = zoneId;
+                            dropZoneIdHint = zoneId;
                             zoneIdFound = true;
                             break;
-                        } else if (attractionId && String(attractionId) === String(dropId)) {
+                        } else if (attractionId) {
                             console.log('  Found attraction_id for drop (no zone_id):', attractionId);
-                            actualDropId = attractionId;
                             break;
                         }
                     }
@@ -26580,7 +26892,7 @@
                 let zoneIdFound = false;
                 for (const pickupSelect of pickupSelects) {
                     // Try exact match first
-                    let pickupOption = pickupSelect.querySelector(`option[value="${pickupId}"]`);
+                    let pickupOption = findOptionByExactValue(pickupSelect, pickupId);
                     // Try with actualPickupId if different
                     if (!pickupOption && actualPickupId && actualPickupId !== pickupId) {
                         pickupOption = pickupSelect.querySelector(`option[value="${actualPickupId}"]`);
@@ -26592,16 +26904,21 @@
                     
                     if (pickupOption) {
                         const zoneId = pickupOption.getAttribute('data-zone-id');
-                        const restaurantId = pickupOption.getAttribute('data-restaurant-id') || pickupOption.value;
+                        const restaurantIdRaw = pickupOption.getAttribute('data-restaurant-id') || '';
+                        const restaurantId = (restaurantIdRaw && String(restaurantIdRaw).indexOf(':') === -1)
+                            ? restaurantIdRaw
+                            : (typeof stripTransferLocationPrefix === 'function'
+                                ? stripTransferLocationPrefix(actualPickupId, 'restaurant')
+                                : actualPickupId);
                         
                         if (zoneId) {
                             console.log('  Found zone_id for pickup restaurant:', zoneId, '(from restaurant_id:', restaurantId, ')');
-                            actualPickupId = zoneId;
+                            actualPickupId = restaurantId || actualPickupId;
+                            pickupZoneIdHint = zoneId;
                             zoneIdFound = true;
                             break;
-                        } else if (restaurantId && restaurantId === pickupId) {
+                        } else if (restaurantId) {
                             console.log('  Found restaurant_id for pickup (no zone_id):', restaurantId);
-                            // Keep restaurant_id, API will extract zone_id from zone_assignments
                             actualPickupId = restaurantId;
                             break;
                         }
@@ -26628,7 +26945,7 @@
                 let zoneIdFound = false;
                 for (const dropSelect of dropSelects) {
                     // Try exact match first
-                    let dropOption = dropSelect.querySelector(`option[value="${dropId}"]`);
+                    let dropOption = findOptionByExactValue(dropSelect, dropId);
                     // Try with actualDropId if different
                     if (!dropOption && actualDropId && actualDropId !== dropId) {
                         dropOption = dropSelect.querySelector(`option[value="${actualDropId}"]`);
@@ -26640,16 +26957,21 @@
                     
                     if (dropOption) {
                         const zoneId = dropOption.getAttribute('data-zone-id');
-                        const restaurantId = dropOption.getAttribute('data-restaurant-id') || dropOption.value;
+                        const restaurantIdRaw = dropOption.getAttribute('data-restaurant-id') || '';
+                        const restaurantId = (restaurantIdRaw && String(restaurantIdRaw).indexOf(':') === -1)
+                            ? restaurantIdRaw
+                            : (typeof stripTransferLocationPrefix === 'function'
+                                ? stripTransferLocationPrefix(actualDropId, 'restaurant')
+                                : actualDropId);
                         
                         if (zoneId) {
                             console.log('  Found zone_id for drop restaurant:', zoneId, '(from restaurant_id:', restaurantId, ')');
-                            actualDropId = zoneId;
+                            actualDropId = restaurantId || actualDropId;
+                            dropZoneIdHint = zoneId;
                             zoneIdFound = true;
                             break;
-                        } else if (restaurantId && restaurantId === dropId) {
+                        } else if (restaurantId) {
                             console.log('  Found restaurant_id for drop (no zone_id):', restaurantId);
-                            // Keep restaurant_id, API will extract zone_id from zone_assignments
                             actualDropId = restaurantId;
                             break;
                         }
@@ -26661,32 +26983,51 @@
                 }
             }
             
+            if (typeof resolveLocalTransferZoneLookup === 'function') {
+                const localResolved = resolveLocalTransferZoneLookup(pickupId, actualPickupType, dropId, actualDropType);
+                if (localResolved.actualPickupId) actualPickupId = localResolved.actualPickupId;
+                if (localResolved.actualPickupType) actualPickupType = localResolved.actualPickupType;
+                if (localResolved.actualDropId) actualDropId = localResolved.actualDropId;
+                if (localResolved.actualDropType) actualDropType = localResolved.actualDropType;
+                if (localResolved.pickupZoneId) pickupZoneIdHint = localResolved.pickupZoneId;
+                if (localResolved.dropZoneId) dropZoneIdHint = localResolved.dropZoneId;
+            }
+            if (typeof stripTransferLocationPrefix === 'function') {
+                actualPickupId = stripTransferLocationPrefix(actualPickupId, actualPickupType);
+                actualDropId = stripTransferLocationPrefix(actualDropId, actualDropType);
+            }
+
             console.log('Final parameters for API call:');
             console.log('  Pickup Type:', actualPickupType);
             console.log('  Pickup ID:', actualPickupId, '(original:', pickupId, ')');
             console.log('  Drop Type:', actualDropType);
             console.log('  Drop ID:', actualDropId, '(original:', dropId, ')');
+            console.log('  Pickup zone hint:', pickupZoneIdHint, 'Drop zone hint:', dropZoneIdHint);
             console.log('  DMC ID:', dmcId);
             
             // Hotels: keep hotel_unique_id — API resolves DMC zone + fallback zones from zone_assignments.
             // Do NOT convert to data-zone-id here (that single zone often has no vehicle mapping).
+            const pickupTypeLabel = String(actualPickupType || '').toUpperCase();
+            const dropTypeLabel = String(actualDropType || '').toUpperCase();
             if (actualPickupType === 'port') {
                 console.log('  Pickup is PORT - using port_id as zone_id:', actualPickupId);
             } else {
-                console.log('  Pickup is', actualPickupType.toUpperCase(), '- sending entity id for zone candidate resolution, DMC:', dmcId);
+                console.log('  Pickup is', pickupTypeLabel, '- sending entity id for zone candidate resolution, DMC:', dmcId);
             }
             
             if (actualDropType === 'port') {
                 console.log('  Drop is PORT - using port_id as zone_id:', actualDropId);
             } else {
-                console.log('  Drop is', actualDropType.toUpperCase(), '- sending entity id for zone candidate resolution, DMC:', dmcId);
+                console.log('  Drop is', dropTypeLabel, '- sending entity id for zone candidate resolution, DMC:', dmcId);
             }
             
             // Query vehicle_zone_mappings directly for prices
             // Query: vehicle_id, (from_zone_id = pickupid AND to_zone_id = dropid) OR (from_zone_id = dropid AND to_zone_id = pickupid)
             // Also includes from_zone_type and to_zone_type to match SingleTourPackageController logic
             // dmc_id is required so the API can resolve hotel/attraction/restaurant zone_assignments
-            const apiUrl = `{{ route('enquiry-form-pro.get-zone-prices') }}?vehicle_id=${encodeURIComponent(vehicleId)}&pickup_id=${encodeURIComponent(actualPickupId)}&drop_id=${encodeURIComponent(actualDropId)}&pickup_type=${encodeURIComponent(actualPickupType)}&drop_type=${encodeURIComponent(actualDropType)}&dmc_id=${encodeURIComponent(dmcId)}`;
+            let apiUrl = `{{ route('enquiry-form-pro.get-zone-prices') }}?vehicle_id=${encodeURIComponent(vehicleId)}&pickup_id=${encodeURIComponent(actualPickupId)}&drop_id=${encodeURIComponent(actualDropId)}&pickup_type=${encodeURIComponent(actualPickupType || '')}&drop_type=${encodeURIComponent(actualDropType || '')}&dmc_id=${encodeURIComponent(dmcId)}`;
+            if (pickupZoneIdHint) apiUrl += `&pickup_zone_id=${encodeURIComponent(pickupZoneIdHint)}`;
+            if (dropZoneIdHint) apiUrl += `&drop_zone_id=${encodeURIComponent(dropZoneIdHint)}`;
             console.log('API URL:', apiUrl);
             console.log('Querying vehicle_zone_mappings with:');
             console.log('  vehicle_id:', vehicleId);
@@ -26739,17 +27080,21 @@
             }
             
             // Extract prices from the response
-            const privatePrice = parseFloat(result.data?.private_price || 0);
-            const sharedPrice = parseFloat(result.data?.shared_price || 0);
+            const privatePrice = parseFloat(result.data?.private_price) || 0;
+            const sharedPrice = parseFloat(result.data?.shared_price) || 0;
+            const privateCostPrice = parseFloat(result.data?.private_cost_price) || 0;
+            const sharedCostPrice = parseFloat(result.data?.shared_cost_price) || 0;
             
             console.log('Extracted prices from vehicle_zone_mappings:');
-            console.log('  private_price:', privatePrice);
-            console.log('  shared_price:', sharedPrice);
+            console.log('  private_price:', privatePrice, 'private_cost_price:', privateCostPrice);
+            console.log('  shared_price:', sharedPrice, 'shared_cost_price:', sharedCostPrice);
             console.log('=== FETCH ZONE PRICE DEBUG END ===');
             
             return {
                 private_price: privatePrice,
-                shared_price: sharedPrice
+                shared_price: sharedPrice,
+                private_cost_price: privateCostPrice,
+                shared_cost_price: sharedCostPrice
             };
         } catch (error) {
             console.error('Error fetching zone price:', error);
@@ -26790,13 +27135,18 @@
 
     async function fetchZonePrice(vehicleId, pickupId, pickupType, dropId, dropType, dmcId) {
         if (!vehicleId || !pickupId || !dropId || !dmcId) {
-            return { private_price: 0, shared_price: 0 };
+            return { private_price: 0, shared_price: 0, private_cost_price: 0, shared_cost_price: 0 };
         }
         const fwdKey = getZonePriceCacheKey(vehicleId, pickupId, pickupType, dropId, dropType, dmcId);
         const revKey = getZonePriceCacheKey(vehicleId, dropId, dropType, pickupId, pickupType, dmcId);
         const cached = window._zonePriceCache.get(fwdKey) || window._zonePriceCache.get(revKey);
         if (cached) {
-            return { private_price: cached.private_price || 0, shared_price: cached.shared_price || 0 };
+            return {
+                private_price: parseFloat(cached.private_price) || 0,
+                shared_price: parseFloat(cached.shared_price) || 0,
+                private_cost_price: parseFloat(cached.private_cost_price) || 0,
+                shared_cost_price: parseFloat(cached.shared_cost_price) || 0
+            };
         }
         const inflight = window._zonePriceInflight.get(fwdKey) || window._zonePriceInflight.get(revKey);
         if (inflight) {
@@ -26805,8 +27155,10 @@
         const requestPromise = (async () => {
             const result = await fetchZonePriceUncached(vehicleId, pickupId, pickupType, dropId, dropType, dmcId);
             const prices = {
-                private_price: parseFloat(result?.private_price || 0) || 0,
-                shared_price: parseFloat(result?.shared_price || 0) || 0
+                private_price: parseFloat(result?.private_price) || 0,
+                shared_price: parseFloat(result?.shared_price) || 0,
+                private_cost_price: parseFloat(result?.private_cost_price) || 0,
+                shared_cost_price: parseFloat(result?.shared_cost_price) || 0
             };
             // Do not cache empty results (early call before drop-off/port settle)
             if (prices.private_price > 0 || prices.shared_price > 0) {
@@ -26825,9 +27177,13 @@
     
     // Calculate transfer price based on type and way (UI price only)
     function calculateTransferPrice(zonePrice, type, way, adults, child, vehicleOption = null) {
-        // Get zone prices
-        let zonePrivatePrice = zonePrice.private_price || 0;
-        let zoneSharedPrice = zonePrice.shared_price || 0;
+        // Get zone prices (sell), with cost fallback when sell was not stored
+        let zonePrivatePrice = parseFloat(zonePrice?.private_price) || 0;
+        let zoneSharedPrice = parseFloat(zonePrice?.shared_price) || 0;
+        let zonePrivateCost = parseFloat(zonePrice?.private_cost_price) || 0;
+        let zoneSharedCost = parseFloat(zonePrice?.shared_cost_price) || 0;
+        if (zonePrivatePrice <= 0 && zonePrivateCost > 0) zonePrivatePrice = zonePrivateCost;
+        if (zoneSharedPrice <= 0 && zoneSharedCost > 0) zoneSharedPrice = zoneSharedCost;
         
         // DO NOT fall back to vehicle base prices if zone mapping is missing
         // Zone prices should remain 0 to indicate missing mapping
@@ -26836,13 +27192,16 @@
         // Calculate base price based on type
         // Shared: per person price (per way), Private: per vehicle price (per way)
         let basePrice = 0;
+        let baseCost = 0;
         
         if (type === 'S' || type === 'sic' || type === 'Shared') {
             // Shared: per person price (do NOT multiply by pax here)
             basePrice = zoneSharedPrice || 0;
+            baseCost = zoneSharedCost || 0;
         } else {
             // Private: fixed per-vehicle price
             basePrice = zonePrivatePrice || 0;
+            baseCost = zonePrivateCost || 0;
         }
         
         // Apply way multiplier - both-way costs double
@@ -26851,15 +27210,18 @@
         const wayMultiplier = isBothway ? 2 : 1;
         
         // Final price includes way multiplier
-        let costPrice = basePrice * wayMultiplier;
+        let costPrice = baseCost * wayMultiplier;
         let sellPrice = basePrice * wayMultiplier;
         
         return {
             cost: costPrice,
             sell: sellPrice,
             basePrice: basePrice,
+            baseCost: baseCost,
             sharedPrice: zoneSharedPrice,
             privatePrice: zonePrivatePrice,
+            sharedCostPrice: zoneSharedCost,
+            privateCostPrice: zonePrivateCost,
             totalPax: Math.max(1, (parseInt(adults) || 0) + (parseInt(child) || 0))
         };
     }
@@ -26908,8 +27270,21 @@
             
             const pickupName = pickupOption.attr('data-name') || pickupOption.text() || '';
             const dropName = dropOption.attr('data-name') || dropOption.text() || '';
-            const pickupType = pickupOption.attr('data-type') || '';
-            const dropType = dropOption.attr('data-type') || '';
+            let pickupType = pickupOption.attr('data-type') || '';
+            let dropType = dropOption.attr('data-type') || '';
+            if (typeof parseTransferLocationValue === 'function') {
+                if (!pickupType) pickupType = parseTransferLocationValue(pickupSelect.value, '').type;
+                if (!dropType) dropType = parseTransferLocationValue(dropSelect.value, '').type;
+            }
+            let pickupIdForFetch = pickupSelect.value;
+            let dropIdForFetch = dropSelect.value;
+            if (typeof resolveLocalTransferZoneLookup === 'function') {
+                const resolvedLoc = resolveLocalTransferZoneLookup(pickupSelect.value, pickupType, dropSelect.value, dropType);
+                pickupIdForFetch = resolvedLoc.actualPickupId || pickupIdForFetch;
+                dropIdForFetch = resolvedLoc.actualDropId || dropIdForFetch;
+                pickupType = resolvedLoc.actualPickupType || pickupType;
+                dropType = resolvedLoc.actualDropType || dropType;
+            }
             
             // Get vehicle ID, type, and name
             const vehicleSelect = document.getElementById('localVehicleType');
@@ -26926,14 +27301,14 @@
             console.log('=== SAVE LOCAL TRANSFER DEBUG ===');
             console.log('Vehicle:', { vehicleId, vehicleType, vehicleName });
             console.log('Type:', type, 'Way:', way, 'Adults:', adults, 'Child:', child);
-            console.log('Pickup:', { id: pickupSelect.value, type: pickupType, name: pickupName });
-            console.log('Dropoff:', { id: dropSelect.value, type: dropType, name: dropName });
+            console.log('Pickup:', { id: pickupSelect.value, fetchId: pickupIdForFetch, type: pickupType, name: pickupName });
+            console.log('Dropoff:', { id: dropSelect.value, fetchId: dropIdForFetch, type: dropType, name: dropName });
             
             // Fetch zone price
             const dmcId = '{{ $dmc_id ?? "" }}';
             let zonePrice;
             try {
-                zonePrice = await fetchZonePrice(vehicleId, pickupSelect.value, pickupType, dropSelect.value, dropType, dmcId);
+                zonePrice = await fetchZonePrice(vehicleId, pickupIdForFetch, pickupType, dropIdForFetch, dropType, dmcId);
                 console.log('Zone prices fetched:', zonePrice);
             } catch (error) {
                 console.error('Failed to fetch zone price:', error.message);
@@ -26971,6 +27346,8 @@
                 sell: prices.sell,
                 zonePrivatePrice: prices.privatePrice,
                 zoneSharedPrice: prices.sharedPrice,
+                zonePrivateCostPrice: prices.privateCostPrice,
+                zoneSharedCostPrice: prices.sharedCostPrice,
                 taxIncluded: false
             };
             
@@ -27362,18 +27739,42 @@
             if (localDest && cityToUse) {
                 localDest.value = cityToUse;
             }
-            if (typeof applyLocalTransferCityFilters === 'function') {
-                applyLocalTransferCityFilters(localDest?.value || '', { skipDefaults: true, skipGuideDefault: true });
-            }
 
-            setTimeout(() => {
-                if (transfer.pickupId) {
-                    $('#localPickup').val(transfer.pickupId).trigger('change');
+            const pickupName = transfer.pickupName || transfer.pickup || '';
+            const dropName = transfer.dropName || transfer.dropoff || '';
+            const destParts = (typeof splitLocalTransferRoute === 'function')
+                ? splitLocalTransferRoute(transfer.destination || transfer.service || '')
+                : (function () {
+                    const p = String(transfer.destination || transfer.service || '').split(/\s*(?:→|->|\/)\s*/);
+                    return { pickup: String(p[0] || '').trim(), drop: String(p[1] || '').trim() };
+                })();
+            const pickupLabel = pickupName || destParts.pickup;
+            const dropLabel = dropName || destParts.drop;
+
+            window._localTransferRestoreState = {
+                pickupId: transfer.pickupId || '',
+                pickupType: transfer.pickupType || '',
+                pickupName: pickupLabel,
+                dropId: transfer.dropId || '',
+                dropType: transfer.dropType || '',
+                dropName: dropLabel
+            };
+
+            const fillLocalTransferFields = function () {
+                if (typeof bindLocalPickupDropSync === 'function') {
+                    jQuery('#localDrop').off('change.localPickupSync');
                 }
-                if (transfer.dropId) {
-                    $('#localDrop').val(transfer.dropId).trigger('change');
+                if (typeof setLocalTransferLocationSelect === 'function') {
+                    setLocalTransferLocationSelect('#localPickup', transfer.pickupId, transfer.pickupType, pickupLabel);
+                    setLocalTransferLocationSelect('#localDrop', transfer.dropId, transfer.dropType, dropLabel);
+                } else {
+                    if (transfer.pickupId) {
+                        $('#localPickup').val(transfer.pickupId).trigger('change');
+                    }
+                    if (transfer.dropId) {
+                        $('#localDrop').val(transfer.dropId).trigger('change');
+                    }
                 }
-                // Set vehicle by vehicleId (not vehicleType) since the dropdown value is vehicleId
                 document.getElementById('localVehicleType').value = transfer.vehicleId || '';
                 if (typeof filterLocalTransferVehiclesByServiceType === 'function') {
                     filterLocalTransferVehiclesByServiceType();
@@ -27381,7 +27782,20 @@
                 if (transfer.vehicleId) {
                     document.getElementById('localVehicleType').value = transfer.vehicleId;
                 }
-            }, 200);
+            };
+
+            const cityFilterPromise = (typeof applyLocalTransferCityFilters === 'function')
+                ? applyLocalTransferCityFilters(localDest?.value || '', {
+                    skipDefaults: true,
+                    skipGuideDefault: true,
+                    deferSelect2: true,
+                    restorePickup: { id: transfer.pickupId, type: transfer.pickupType, name: pickupLabel },
+                    restoreDrop: { id: transfer.dropId, type: transfer.dropType, name: dropLabel }
+                })
+                : Promise.resolve();
+            window._pendingLocalTransferRestore = Promise.resolve(cityFilterPromise).then(function () {
+                fillLocalTransferFields();
+            });
 
             document.getElementById('localType').value = transfer.type || 'S';
             document.getElementById('localWay').value = transfer.way || 'both-way';
@@ -27532,32 +27946,22 @@
         document.getElementById('transferModalTitleText').textContent = 'Edit Transfer Package';
         document.getElementById('saveTransferBtnText').textContent = 'Save & Close';
         
-        // Initialize Select2 for pickup and drop dropdowns in transfer modal
-        if (typeof $.fn.select2 !== 'undefined') {
-            $('#localPickup').select2({
-                placeholder: 'Search and select pickup location',
-                allowClear: true,
-                width: '100%',
-                dropdownParent: $('#transferModal')
-            });
-            $('#localDrop').select2({
-                placeholder: 'Search and select drop location',
-                allowClear: true,
-                width: '100%',
-                dropdownParent: $('#transferModal')
-            });
-            
-            // Auto-set pickup to same as drop off when drop off changes
-            $('#localDrop').on('change', function() {
-                const dropValue = $(this).val();
-                if (dropValue) {
-                    $('#localPickup').val(dropValue).trigger('change');
-                }
-            });
+        const showTransferEditModal = function () {
+            if (typeof bindTransferModalLocationRestore === 'function') {
+                bindTransferModalLocationRestore();
+            }
+            if (typeof bindLocalPickupDropSync === 'function') {
+                bindLocalPickupDropSync();
+            }
+            const transferModal = new bootstrap.Modal(document.getElementById('transferModal'));
+            transferModal.show();
+        };
+
+        if (transportMode === 'local' && window._pendingLocalTransferRestore) {
+            Promise.resolve(window._pendingLocalTransferRestore).then(showTransferEditModal);
+        } else {
+            showTransferEditModal();
         }
-        
-        const transferModal = new bootstrap.Modal(document.getElementById('transferModal'));
-        transferModal.show();
     }
     
     // Remove selected transfers
@@ -30562,8 +30966,8 @@
                         } : null,
                         adults: adults,
                         child: child,
-                        cost: basePrice,
-                        sell: basePrice,
+                        cost: parseFloat(baseCost) || 0,
+                        sell: parseFloat(baseSell) || parseFloat(baseCost) || 0,
                         totalPrice: totalPrice,
                         destination_id: linkedTransfer?.destinationId || "",
                         pickup_location_name: linkedTransfer?.pickup || "",
@@ -30702,14 +31106,22 @@
                             vehicle_type: linkedTransfer.vehicleType || '',
                             seating_capacity: linkedTransfer.capacity || 0
                         },
-                        cost: basePrice,
-                        sell: basePrice,
+                        cost: parseFloat(baseCost) || 0,
+                        sell: parseFloat(baseSell) || parseFloat(baseCost) || 0,
                         totalPrice: transferTotalPrice,
                         ...enquiryProOrderDiscountPayload(linkedTransfer, () => computeTransferOptionsDiscountAmount(linkedTransfer, true)),
                         adults: adults,
                         child: child,
                         pickup_location_name: pickupName,
-                        destination_name: dropoffName
+                        destination_name: dropoffName,
+                        zonePrivatePrice: parseFloat(linkedTransfer.zonePrivatePrice) || 0,
+                        zoneSharedPrice: parseFloat(linkedTransfer.zoneSharedPrice) || 0,
+                        zonePrivateCostPrice: parseFloat(linkedTransfer.zonePrivateCostPrice) || 0,
+                        zoneSharedCostPrice: parseFloat(linkedTransfer.zoneSharedCostPrice) || 0,
+                        pickupId: linkedTransfer.pickupId || '',
+                        dropId: linkedTransfer.dropId || linkedTransfer.dropoffId || '',
+                        pickupType: linkedTransfer.pickupType || '',
+                        dropType: linkedTransfer.dropType || linkedTransfer.dropoffType || ''
                     };
                     tourData.transferInfo = {
                         id: linkedTransfer.id,
@@ -30723,8 +31135,8 @@
                         pickup: pickupName,
                         dropoff: dropoffName,
                         isDestinationPickup: linkedTransfer.isDestinationPickup || false,
-                        cost: basePrice,
-                        sell: basePrice,
+                        cost: parseFloat(baseCost) || 0,
+                        sell: parseFloat(baseSell) || parseFloat(baseCost) || 0,
                         totalPrice: transferTotalPrice,
                         adults: adults,
                         child: child
@@ -30879,14 +31291,22 @@
                             vehicle_type: linkedTransfer.vehicleType || '',
                             seating_capacity: linkedTransfer.capacity || 0
                         },
-                        cost: basePrice,
-                        sell: basePrice,
+                        cost: parseFloat(baseCost) || 0,
+                        sell: parseFloat(baseSell) || parseFloat(baseCost) || 0,
                         totalPrice: transferTotalPrice,
                         ...enquiryProOrderDiscountPayload(linkedTransfer, () => computeTransferOptionsDiscountAmount(linkedTransfer, true)),
                         adults: adults,
                         child: child,
                         pickup_location_name: pickupName,
-                        destination_name: dropoffName
+                        destination_name: dropoffName,
+                        zonePrivatePrice: parseFloat(linkedTransfer.zonePrivatePrice) || 0,
+                        zoneSharedPrice: parseFloat(linkedTransfer.zoneSharedPrice) || 0,
+                        zonePrivateCostPrice: parseFloat(linkedTransfer.zonePrivateCostPrice) || 0,
+                        zoneSharedCostPrice: parseFloat(linkedTransfer.zoneSharedCostPrice) || 0,
+                        pickupId: linkedTransfer.pickupId || '',
+                        dropId: linkedTransfer.dropId || linkedTransfer.dropoffId || '',
+                        pickupType: linkedTransfer.pickupType || '',
+                        dropType: linkedTransfer.dropType || linkedTransfer.dropoffType || ''
                     };
                     mealData.transferInfo = {
                         id: linkedTransfer.id,
@@ -30900,8 +31320,8 @@
                         pickup: pickupName,
                         dropoff: dropoffName,
                         isDestinationPickup: linkedTransfer.isDestinationPickup || false,
-                        cost: basePrice,
-                        sell: basePrice,
+                        cost: parseFloat(baseCost) || 0,
+                        sell: parseFloat(baseSell) || parseFloat(baseCost) || 0,
                         totalPrice: transferTotalPrice,
                         adults: adults,
                         child: child
@@ -31222,6 +31642,8 @@
                 supplement: transfer.supplement !== undefined ? transfer.supplement : false,
                 zonePrivatePrice: transfer.zonePrivatePrice || 0,
                 zoneSharedPrice: transfer.zoneSharedPrice || 0,
+                zonePrivateCostPrice: transfer.zonePrivateCostPrice || 0,
+                zoneSharedCostPrice: transfer.zoneSharedCostPrice || 0,
                 transportMode: "local",
                 booking_id: transfer.bookingId || transfer.booking_id || null,
                 bookingId: transfer.bookingId || transfer.booking_id || null,
@@ -33795,11 +34217,14 @@
         }
         
         // Update all tables after loading data
-        setTimeout(() => {
+        setTimeout(async () => {
             console.log('=== UPDATING ALL TABLES ===');
             // Final pass in case any linked guide orders were processed out of order
             if (typeof hydrateRestaurantGuidesFromPendingLinkedOrders === 'function') {
                 hydrateRestaurantGuidesFromPendingLinkedOrders();
+            }
+            if (typeof restoreTransferCostSellFromZonePrices === 'function') {
+                await restoreTransferCostSellFromZonePrices();
             }
             console.log('arrivalDepartureList:', arrivalDepartureList.length, 'items');
             console.log('accommodationList:', accommodationList.length, 'items');
@@ -33999,14 +34424,20 @@
                 // Use adultCost/adultSell if cost is 0 (transfer pricing is per person)
                 cost: arrival.cost || arrival.adultCost || 0,
                 sell: arrival.sell || arrival.adultSell || 0,
-                zonePrivatePrice: 0,
-                zoneSharedPrice: 0,
+                zonePrivatePrice: parseFloat(data.zonePrivatePrice || data.zone_private_price || 0),
+                zoneSharedPrice: parseFloat(data.zoneSharedPrice || data.zone_shared_price || 0),
+                zonePrivateCostPrice: parseFloat(data.zonePrivateCostPrice || data.zone_private_cost_price || 0),
+                zoneSharedCostPrice: parseFloat(data.zoneSharedCostPrice || data.zone_shared_cost_price || 0),
                 taxIncluded: false,
                 supplement: arrival.supplement,
                 focServiceDiscount: arrivalFocSvc,
                 isStandalone: false,
                 sourceType: 'arrival',
                 sourceId: arrival.id,
+                pickupId: arrival.portId || '',
+                dropId: arrival.transferDestinationId || '',
+                pickupType: 'port',
+                dropType: 'hotel',
                 portId: arrival.portId,
                 portName: arrival.portName,
                 transferDestinationId: arrival.transferDestinationId,
@@ -34173,14 +34604,20 @@
                 // Use adultCost/adultSell if cost is 0 (transfer pricing is per person)
                 cost: departure.cost || departure.adultCost || 0,
                 sell: departure.sell || departure.adultSell || 0,
-                zonePrivatePrice: 0,
-                zoneSharedPrice: 0,
+                zonePrivatePrice: parseFloat(data.zonePrivatePrice || data.zone_private_price || 0),
+                zoneSharedPrice: parseFloat(data.zoneSharedPrice || data.zone_shared_price || 0),
+                zonePrivateCostPrice: parseFloat(data.zonePrivateCostPrice || data.zone_private_cost_price || 0),
+                zoneSharedCostPrice: parseFloat(data.zoneSharedCostPrice || data.zone_shared_cost_price || 0),
                 taxIncluded: false,
                 supplement: departure.supplement,
                 focServiceDiscount: departureFocSvc,
                 isStandalone: false,
                 sourceType: 'departure',
                 sourceId: departure.id,
+                pickupId: departure.transferDestinationId || '',
+                dropId: departure.portId || '',
+                pickupType: 'hotel',
+                dropType: 'port',
                 portId: departure.portId,
                 portName: departure.portName,
                 transferDestinationId: departure.transferDestinationId,
@@ -34490,11 +34927,17 @@
                     dropoff: transferOptions.destination_name || transferOptions.dropoff || tour.attractionName || '',
                     isDestinationPickup: transferOptions.isDestinationPickup || false,
                     cost: parseFloat(transferOptions.cost || transferOptions.Cost || 0),
-                    sell: parseFloat(transferOptions.sell || transferOptions.Sell || transferOptions.cost || 0),
+                    sell: parseFloat(transferOptions.sell || transferOptions.Sell || 0),
                     adults: parseInt(transferOptions.adults || transferOptions.adultsQty) || tour.adultsQty || 0,
                     child: parseInt(transferOptions.child || transferOptions.childQty) || tour.childQty || 0,
                     zonePrivatePrice: parseFloat(transferOptions.zonePrivatePrice || 0),
-                    zoneSharedPrice: parseFloat(transferOptions.zoneSharedPrice || 0)
+                    zoneSharedPrice: parseFloat(transferOptions.zoneSharedPrice || 0),
+                    zonePrivateCostPrice: parseFloat(transferOptions.zonePrivateCostPrice || 0),
+                    zoneSharedCostPrice: parseFloat(transferOptions.zoneSharedCostPrice || 0),
+                    pickupId: transferOptions.pickupId || '',
+                    dropId: transferOptions.dropId || transferOptions.dropoffId || '',
+                    pickupType: transferOptions.pickupType || '',
+                    dropType: transferOptions.dropType || ''
                 };
             }
             
@@ -34521,7 +34964,9 @@
                         adults: parseInt(existingTransferById.adults) || 0,
                         child: parseInt(existingTransferById.child) || 0,
                         zonePrivatePrice: parseFloat(existingTransferById.zonePrivatePrice || 0),
-                        zoneSharedPrice: parseFloat(existingTransferById.zoneSharedPrice || 0)
+                        zoneSharedPrice: parseFloat(existingTransferById.zoneSharedPrice || 0),
+                        zonePrivateCostPrice: parseFloat(existingTransferById.zonePrivateCostPrice || 0),
+                        zoneSharedCostPrice: parseFloat(existingTransferById.zoneSharedCostPrice || 0)
                     };
                     console.log('Linked tour to existing transfer by ID:', data.transferId);
                     // Skip further processing since transfer is already linked
@@ -34608,9 +35053,11 @@
                         child: parseInt(transferData.child) || parseInt(transferData.childQty) || tour.childQty || 0,
                         infant: tour.infantQty || 0,
                         cost: parseFloat(transferData.cost || 0),
-                        sell: parseFloat(transferData.sell || transferData.cost || 0),
+                        sell: parseFloat(transferData.sell || 0),
                         zonePrivatePrice: parseFloat(transferData.zonePrivatePrice || 0),
                         zoneSharedPrice: parseFloat(transferData.zoneSharedPrice || 0),
+                        zonePrivateCostPrice: parseFloat(transferData.zonePrivateCostPrice || 0),
+                        zoneSharedCostPrice: parseFloat(transferData.zoneSharedCostPrice || 0),
                         taxIncluded: false,
                         supplement: tour.supplement,
                         isStandalone: false,
@@ -34618,6 +35065,10 @@
                         sourceId: tour.id,
                         isDestinationPickup: transferData.isDestinationPickup || false,
                         destinationId: transferData.destinationId || null,
+                        pickupId: transferData.pickupId || (transferData.isDestinationPickup ? (transferData.destinationId || '') : (tour.attractionId || '')),
+                        dropId: transferData.dropId || transferData.dropoffId || (transferData.isDestinationPickup ? (tour.attractionId || '') : (transferData.destinationId || '')),
+                        pickupType: transferData.pickupType || (transferData.isDestinationPickup ? 'hotel' : 'attraction'),
+                        dropType: transferData.dropType || transferData.dropoffType || (transferData.isDestinationPickup ? 'attraction' : 'hotel'),
                         focServiceDiscount: resolveFocServiceDiscountFromPayload(transferOptions || transferInfo || transferData)
                     };
                     
@@ -34650,7 +35101,9 @@
                     adults: parseInt(transferData.adults) || parseInt(transferData.adultsQty) || tour.adultsQty || 0,
                     child: parseInt(transferData.child) || parseInt(transferData.childQty) || tour.childQty || 0,
                     zonePrivatePrice: parseFloat(transferData.zonePrivatePrice || 0),
-                    zoneSharedPrice: parseFloat(transferData.zoneSharedPrice || 0)
+                    zoneSharedPrice: parseFloat(transferData.zoneSharedPrice || 0),
+                    zonePrivateCostPrice: parseFloat(transferData.zonePrivateCostPrice || 0),
+                    zoneSharedCostPrice: parseFloat(transferData.zoneSharedCostPrice || 0)
                 };
                 
                 console.log('Stored transferInfo in tour:', tour.transferInfo);
@@ -34857,11 +35310,17 @@
                     dropoff: transferOptions.destination_name || transferOptions.dropoff || meal.restaurantName || '',
                     isDestinationPickup: transferOptions.isDestinationPickup || false,
                     cost: parseFloat(transferOptions.cost || transferOptions.Cost || 0),
-                    sell: parseFloat(transferOptions.sell || transferOptions.Sell || transferOptions.cost || 0),
+                    sell: parseFloat(transferOptions.sell || transferOptions.Sell || 0),
                     adults: parseInt(transferOptions.adults || transferOptions.adultsQty) || meal.adultsQty || 0,
                     child: parseInt(transferOptions.child || transferOptions.childQty) || meal.childQty || 0,
                     zonePrivatePrice: parseFloat(transferOptions.zonePrivatePrice || 0),
-                    zoneSharedPrice: parseFloat(transferOptions.zoneSharedPrice || 0)
+                    zoneSharedPrice: parseFloat(transferOptions.zoneSharedPrice || 0),
+                    zonePrivateCostPrice: parseFloat(transferOptions.zonePrivateCostPrice || 0),
+                    zoneSharedCostPrice: parseFloat(transferOptions.zoneSharedCostPrice || 0),
+                    pickupId: transferOptions.pickupId || '',
+                    dropId: transferOptions.dropId || transferOptions.dropoffId || '',
+                    pickupType: transferOptions.pickupType || '',
+                    dropType: transferOptions.dropType || ''
                 };
             }
             
@@ -34888,7 +35347,9 @@
                         adults: parseInt(existingTransferById.adults) || 0,
                         child: parseInt(existingTransferById.child) || 0,
                         zonePrivatePrice: parseFloat(existingTransferById.zonePrivatePrice || 0),
-                        zoneSharedPrice: parseFloat(existingTransferById.zoneSharedPrice || 0)
+                        zoneSharedPrice: parseFloat(existingTransferById.zoneSharedPrice || 0),
+                        zonePrivateCostPrice: parseFloat(existingTransferById.zonePrivateCostPrice || 0),
+                        zoneSharedCostPrice: parseFloat(existingTransferById.zoneSharedCostPrice || 0)
                     };
                     console.log('Linked meal to existing transfer by ID:', data.transferId);
                     // Skip further processing since transfer is already linked
@@ -34978,9 +35439,11 @@
                         child: parseInt(transferData.child) || parseInt(transferData.childQty) || 0,
                         infant: parseInt(transferData.infant) || 0,
                         cost: parseFloat(transferData.cost || 0),
-                        sell: parseFloat(transferData.sell || transferData.cost || 0),
+                        sell: parseFloat(transferData.sell || 0),
                         zonePrivatePrice: parseFloat(transferData.zonePrivatePrice || 0),
                         zoneSharedPrice: parseFloat(transferData.zoneSharedPrice || 0),
+                        zonePrivateCostPrice: parseFloat(transferData.zonePrivateCostPrice || 0),
+                        zoneSharedCostPrice: parseFloat(transferData.zoneSharedCostPrice || 0),
                         taxIncluded: false,
                         supplement: meal.supplement,
                         focServiceDiscount: resolveFocServiceDiscountFromPayload(transferOptions || transferInfo || transferData),
@@ -34988,7 +35451,11 @@
                         sourceType: 'meal',
                         sourceId: meal.id,
                         isDestinationPickup: transferData.isDestinationPickup || false,
-                        destinationId: transferData.destinationId || null
+                        destinationId: transferData.destinationId || null,
+                        pickupId: transferData.pickupId || (transferData.isDestinationPickup ? (transferData.destinationId || '') : (meal.restaurantId || '')),
+                        dropId: transferData.dropId || transferData.dropoffId || (transferData.isDestinationPickup ? (meal.restaurantId || '') : (transferData.destinationId || '')),
+                        pickupType: transferData.pickupType || (transferData.isDestinationPickup ? 'hotel' : 'restaurant'),
+                        dropType: transferData.dropType || transferData.dropoffType || (transferData.isDestinationPickup ? 'restaurant' : 'hotel')
                     };
                     
                     transferList.push(transferEntry);
@@ -35020,7 +35487,9 @@
                     adults: parseInt(transferData.adults) || parseInt(transferData.adultsQty) || 0,
                     child: parseInt(transferData.child) || parseInt(transferData.childQty) || 0,
                     zonePrivatePrice: parseFloat(transferData.zonePrivatePrice || 0),
-                    zoneSharedPrice: parseFloat(transferData.zoneSharedPrice || 0)
+                    zoneSharedPrice: parseFloat(transferData.zoneSharedPrice || 0),
+                    zonePrivateCostPrice: parseFloat(transferData.zonePrivateCostPrice || 0),
+                    zoneSharedCostPrice: parseFloat(transferData.zoneSharedCostPrice || 0)
                 };
                 
                 console.log('Stored transferInfo in meal:', meal.transferInfo);
@@ -35248,32 +35717,25 @@
             transportMode = 'local';
         }
         
-        // Extract cost and sell - prefer basePrice/base_price for display (same as create form)
-        // Store totalPrice for JSON; cost/sell in UI show base (shared/private oneway/both-way price, not × pax)
+        // Extract cost and sell separately — never copy sell/basePrice into cost
+        const storedPrices = resolveStoredTransferCostSell(data);
         const totalPrice = parseFloat(data.totalPrice || data.total_price || 0);
-        const costValue = parseFloat(data.cost || 0);
-        const sellValue = parseFloat(data.sell || 0);
+        const costValue = storedPrices.cost;
+        const sellValue = storedPrices.sell;
         const basePriceFromData = parseFloat(data.basePrice || data.base_price || 0);
         const adults = parseInt(data.adults || data.adultsQty || data.adults_qty || 0);
         const children = parseInt(data.children || data.childQty || data.child_qty || 0);
-        const totalPax = Math.max(1, adults + children);
-        const isShared = resolvePrivateSharedPSFromPayload(data) === 'S';
-        // Display cost/sell: use base price so edit form matches create form (show shared/private price, not total)
-        let displayBase = basePriceFromData;
-        if (displayBase <= 0 && totalPrice > 0 && isShared && totalPax > 0) {
-            displayBase = totalPrice / totalPax; // derive base from totalPrice ÷ pax
-        }
-        if (displayBase <= 0) {
-            displayBase = costValue > 0 ? costValue : (sellValue > 0 ? sellValue : (totalPrice > 0 ? totalPrice : 0));
-        }
-        const finalCost = displayBase > 0 ? displayBase : costValue;
-        const finalSell = displayBase > 0 ? displayBase : (sellValue > 0 ? sellValue : costValue);
+        const finalCost = costValue;
+        const finalSell = sellValue > 0 ? sellValue : (basePriceFromData > 0 && Math.abs(basePriceFromData - costValue) > 0.001 ? basePriceFromData : costValue);
+        const displayBase = finalSell || finalCost || basePriceFromData || totalPrice || 0;
         
         // Extract zone IDs and prices for later zone price calculation if needed
         const fromZoneId = data.from_zone_id || data.fromZoneId || '';
         const toZoneId = data.to_zone_id || data.toZoneId || '';
         const zonePrivatePrice = parseFloat(data.zonePrivatePrice || data.zone_private_price || 0);
         const zoneSharedPrice = parseFloat(data.zoneSharedPrice || data.zone_shared_price || 0);
+        const zonePrivateCostPrice = parseFloat(data.zonePrivateCostPrice || data.zone_private_cost_price || 0);
+        const zoneSharedCostPrice = parseFloat(data.zoneSharedCostPrice || data.zone_shared_cost_price || 0);
         
         // Extract dateTime and normalize it - handle both date-only and datetime formats
         let dateTimeValue = data.dateTime || data.date || data.pickupdate || data.pickup_date || '';
@@ -35359,6 +35821,8 @@
             basePrice: displayBase > 0 ? displayBase : (finalCost || finalSell),
             zonePrivatePrice: zonePrivatePrice,
             zoneSharedPrice: zoneSharedPrice,
+            zonePrivateCostPrice: zonePrivateCostPrice,
+            zoneSharedCostPrice: zoneSharedCostPrice,
             fromZoneId: fromZoneId,
             toZoneId: toZoneId,
             pickupType: pickupType,

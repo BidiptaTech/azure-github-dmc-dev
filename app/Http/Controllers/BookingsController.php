@@ -16,6 +16,7 @@ use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 use Carbon\Carbon;
 use Dompdf\Dompdf;
@@ -163,7 +164,7 @@ class BookingsController extends Controller
             : $tours;
 
         // Columns required for the negotiation markup/discount business calculation.
-        $negotiationColumns = ['discount', 'discount_type', 'discount_amount', 'markup', 'markup_type', 'markup_amount'];
+        $negotiationColumns = ['discount', 'discount_type', 'discount_amount', 'markup', 'markup_type', 'markup_amount', 'currency_markups'];
 
         // Collect tour ids that are missing any of these attributes on the loaded row.
         $missingIds = [];
@@ -215,9 +216,13 @@ class BookingsController extends Controller
         }
 
         $tourIds = $items->pluck('tour_id')->filter()->unique()->values()->all();
+        $orderColumns = ['booking_id', 'tour_id', 'type', 'status', 'bookingType', 'data', 'cost_price', 'country', 'currency'];
+        if (Schema::hasColumn('orders', 'city')) {
+            $orderColumns[] = 'city';
+        }
         $ordersByTour = Order::query()
             ->whereIn('tour_id', $tourIds)
-            ->get(['booking_id', 'tour_id', 'type', 'status', 'bookingType', 'data', 'cost_price', 'country', 'currency'])
+            ->get($orderColumns)
             ->groupBy('tour_id');
 
         $destinationNames = [];
@@ -294,11 +299,15 @@ class BookingsController extends Controller
                         'order_count' => 0,
                         'sell_total' => 0.0,
                         'cost_total' => 0.0,
+                        'city_gross' => [],
                         'services' => [],
                     ];
                 }
                 $groups[$key]['gross'] += $amount;
                 $groups[$key]['order_count']++;
+                $orderCity = $this->extractOrderCityName($order);
+                $cityBucket = $orderCity !== '' ? $orderCity : '';
+                $groups[$key]['city_gross'][$cityBucket] = ($groups[$key]['city_gross'][$cityBucket] ?? 0) + $amount;
 
                 foreach ($this->extractOrderNegotiationServiceRows($order, (int) ($tour->is_pro ?? 0)) as $serviceRow) {
                     $serviceKey = mb_strtolower(trim((string) ($serviceRow['service'] ?? '')));
@@ -324,7 +333,8 @@ class BookingsController extends Controller
                 }
             }
 
-            // Apply tour markup/discount per country bucket (percentage on each; flat on first only).
+            // Prefer city-wise currency_markups JSON; fall back to tour-level markup/discount.
+            $currencyMarkups = $this->parseTourCurrencyMarkups($tour);
             $markupType = $tour->markup_type ?? null;
             $markupRaw = (float) ($tour->getAttributes()['markup_amount'] ?? $tour->markup_amount ?? 0);
             $markupOn = ((int) ($tour->markup ?? 0) === 1)
@@ -338,22 +348,23 @@ class BookingsController extends Controller
             $countryGroups = [];
             foreach ($groups as $group) {
                 $gross = (float) ceil($group['gross']);
-                $markupMoney = 0.0;
-                if ($markupOn) {
-                    if ($markupType === 'percentage') {
-                        $markupMoney = $gross * $markupRaw / 100;
-                    } elseif ($index === 0) {
-                        $markupMoney = $markupRaw;
-                    }
-                }
-
-                $discountMoney = 0.0;
-                $discountBase = $gross + $markupMoney;
-                if ($discountType === 'percentage' && $discountRaw > 0) {
-                    $discountMoney = $discountBase * $discountRaw / 100;
-                } elseif (in_array($discountType, ['flat', 'foc'], true) && $discountRaw > 0 && $index === 0) {
-                    $discountMoney = $discountRaw;
-                }
+                $applied = $this->applyNegotiationMarkupDiscount(
+                    $gross,
+                    $group,
+                    $currencyMarkups,
+                    $markupOn,
+                    $markupType,
+                    $markupRaw,
+                    $discountType,
+                    $discountRaw,
+                    $index
+                );
+                $markupMoney = (float) ($applied['markup'] ?? 0);
+                $discountMoney = (float) ($applied['discount'] ?? 0);
+                $markupTypeOut = $applied['markup_type'] ?? $markupType;
+                $markupRawOut = (float) ($applied['markup_raw'] ?? $markupRaw);
+                $discountTypeOut = $applied['discount_type'] ?? $discountType;
+                $discountRawOut = (float) ($applied['discount_raw'] ?? $discountRaw);
 
                 $payable = max(0, ceil($gross + $markupMoney - $discountMoney));
                 $serviceRows = [];
@@ -391,16 +402,302 @@ class BookingsController extends Controller
                     'profit_total' => $profitTotal,
                     'margin_total' => $sellTotal > 0 ? round(($profitTotal / $sellTotal) * 100, 2) : 0.0,
                     'services' => $serviceRows,
-                    'markup_type' => $markupType,
-                    'markup_raw' => $markupRaw,
-                    'discount_type' => $discountType,
-                    'discount_raw' => $discountRaw,
+                    'markup_type' => $markupTypeOut,
+                    'markup_raw' => $markupRawOut,
+                    'discount_type' => $discountTypeOut,
+                    'discount_raw' => $discountRawOut,
+                    'cities' => array_values(array_filter(array_keys($group['city_gross'] ?? []))),
                 ];
                 $index++;
             }
 
             $tour->negotiation_country_groups = $countryGroups;
         }
+    }
+
+    /**
+     * Normalize tours.currency_markups JSON into a list of city/currency rows.
+     *
+     * @return array<int, array{city:string,currency:string,country:string,markup_type:?string,markup_value:float,discount_type:?string,discount_value:float}>
+     */
+    private function parseTourCurrencyMarkups($tour): array
+    {
+        $raw = $tour->currency_markups ?? ($tour->getAttributes()['currency_markups'] ?? null);
+        if (is_string($raw)) {
+            $decoded = json_decode($raw, true);
+            $raw = (json_last_error() === JSON_ERROR_NONE) ? $decoded : null;
+        }
+        if (! is_array($raw) || $raw === []) {
+            return [];
+        }
+
+        $rows = [];
+        foreach ($raw as $key => $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+            $city = trim((string) ($row['city'] ?? ''));
+            $currency = is_string($key) && ! is_numeric($key) && empty($row['currency'])
+                ? strtoupper(trim($key))
+                : strtoupper(trim((string) ($row['currency'] ?? '')));
+            if ($city === '' && $currency === '') {
+                continue;
+            }
+            $markupType = trim((string) ($row['markup_type'] ?? ''));
+            $discountType = trim((string) ($row['discount_type'] ?? ''));
+            if (! in_array($markupType, ['percentage', 'flat', ''], true)) {
+                $markupType = '';
+            }
+            if (! in_array($discountType, ['percentage', 'flat', 'foc', ''], true)) {
+                $discountType = '';
+            }
+            $rows[] = [
+                'city' => $city,
+                'currency' => $currency,
+                'country' => trim((string) ($row['country'] ?? '')),
+                'markup_type' => $markupType !== '' ? $markupType : null,
+                'markup_value' => (float) ($row['markup_value'] ?? 0),
+                'discount_type' => $discountType !== '' ? $discountType : null,
+                'discount_value' => (float) ($row['discount_value'] ?? 0),
+            ];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * Match a currency_markups row: city first, then country, then currency.
+     *
+     * @param  array<int, array<string, mixed>>  $markups
+     * @return array<string, mixed>|null
+     */
+    private function lookupCurrencyMarkupRow(array $markups, string $city = '', string $country = '', string $currency = ''): ?array
+    {
+        $city = trim($city);
+        if ($city !== '') {
+            foreach ($markups as $row) {
+                if (strcasecmp((string) ($row['city'] ?? ''), $city) === 0) {
+                    return $row;
+                }
+            }
+        }
+
+        $country = trim($country);
+        if ($country !== '') {
+            foreach ($markups as $row) {
+                if (strcasecmp((string) ($row['country'] ?? ''), $country) === 0) {
+                    return $row;
+                }
+            }
+        }
+
+        $currency = strtoupper(trim($currency));
+        if ($currency !== '') {
+            foreach ($markups as $row) {
+                if (strtoupper(trim((string) ($row['currency'] ?? ''))) === $currency) {
+                    return $row;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @return array{markup:float,discount:float,markup_type:?string,markup_raw:float,discount_type:?string,discount_raw:float}
+     */
+    private function computeMarkupDiscountMoney(
+        float $gross,
+        ?string $markupType,
+        float $markupRaw,
+        ?string $discountType,
+        float $discountRaw
+    ): array {
+        $markupMoney = 0.0;
+        if ($markupType === 'percentage' && $markupRaw > 0) {
+            $markupMoney = $gross * $markupRaw / 100;
+        } elseif ($markupType === 'flat' && $markupRaw > 0) {
+            $markupMoney = $markupRaw;
+        }
+
+        $discountMoney = 0.0;
+        $discountBase = $gross + $markupMoney;
+        if ($discountType === 'percentage' && $discountRaw > 0) {
+            $discountMoney = $discountBase * $discountRaw / 100;
+        } elseif (in_array($discountType, ['flat', 'foc'], true) && $discountRaw > 0) {
+            $discountMoney = $discountRaw;
+        }
+
+        return [
+            'markup' => $markupMoney,
+            'discount' => $discountMoney,
+            'markup_type' => $markupType,
+            'markup_raw' => $markupRaw,
+            'discount_type' => $discountType,
+            'discount_raw' => $discountRaw,
+        ];
+    }
+
+    /**
+     * Apply city-wise currency_markups to a country/currency bucket, else tour-level rates.
+     *
+     * @param  array<string, mixed>  $group
+     * @param  array<int, array<string, mixed>>  $currencyMarkups
+     * @return array{markup:float,discount:float,markup_type:?string,markup_raw:float,discount_type:?string,discount_raw:float}
+     */
+    private function applyNegotiationMarkupDiscount(
+        float $gross,
+        array $group,
+        array $currencyMarkups,
+        bool $tourMarkupOn,
+        ?string $tourMarkupType,
+        float $tourMarkupRaw,
+        ?string $tourDiscountType,
+        float $tourDiscountRaw,
+        int $index
+    ): array {
+        $country = trim((string) ($group['country'] ?? ''));
+        $currency = strtoupper(trim((string) ($group['currency'] ?? '')));
+        $cityGrosses = is_array($group['city_gross'] ?? null) ? $group['city_gross'] : [];
+        $rawGroupGross = (float) ($group['gross'] ?? $gross);
+
+        $parts = [];
+        if ($currencyMarkups !== []) {
+            $matchedRaw = 0.0;
+            foreach ($cityGrosses as $cityName => $cityGross) {
+                $cityName = trim((string) $cityName);
+                $cityGross = (float) $cityGross;
+                if ($cityName === '' || $cityGross <= 0) {
+                    continue;
+                }
+                $row = $this->lookupCurrencyMarkupRow($currencyMarkups, $cityName, '', '');
+                if (! $row) {
+                    continue;
+                }
+                $parts[] = ['gross' => $cityGross, 'row' => $row];
+                $matchedRaw += $cityGross;
+            }
+
+            $leftover = max(0.0, $rawGroupGross - $matchedRaw);
+            if ($leftover > 0.009) {
+                $row = $this->lookupCurrencyMarkupRow($currencyMarkups, '', $country, $currency);
+                if ($row) {
+                    $parts[] = ['gross' => $leftover, 'row' => $row];
+                }
+            } elseif ($parts === []) {
+                $row = $this->lookupCurrencyMarkupRow($currencyMarkups, '', $country, $currency);
+                if ($row) {
+                    $parts[] = ['gross' => $rawGroupGross, 'row' => $row];
+                }
+            }
+        }
+
+        if ($parts !== []) {
+            $markupMoney = 0.0;
+            $discountMoney = 0.0;
+            $markupType = null;
+            $markupRaw = 0.0;
+            $discountType = null;
+            $discountRaw = 0.0;
+            foreach ($parts as $i => $part) {
+                $row = $part['row'];
+                $partGross = count($parts) === 1 ? $gross : (float) ceil($part['gross']);
+                $computed = $this->computeMarkupDiscountMoney(
+                    $partGross,
+                    $row['markup_type'] ?? null,
+                    (float) ($row['markup_value'] ?? 0),
+                    $row['discount_type'] ?? null,
+                    (float) ($row['discount_value'] ?? 0)
+                );
+                $markupMoney += $computed['markup'];
+                $discountMoney += $computed['discount'];
+                if ($i === 0) {
+                    $markupType = $computed['markup_type'];
+                    $markupRaw = $computed['markup_raw'];
+                    $discountType = $computed['discount_type'];
+                    $discountRaw = $computed['discount_raw'];
+                }
+            }
+
+            return [
+                'markup' => $markupMoney,
+                'discount' => $discountMoney,
+                'markup_type' => $markupType,
+                'markup_raw' => $markupRaw,
+                'discount_type' => $discountType,
+                'discount_raw' => $discountRaw,
+            ];
+        }
+
+        $markupMoney = 0.0;
+        if ($tourMarkupOn) {
+            if ($tourMarkupType === 'percentage') {
+                $markupMoney = $gross * $tourMarkupRaw / 100;
+            } elseif ($index === 0) {
+                $markupMoney = $tourMarkupRaw;
+            }
+        }
+
+        $discountMoney = 0.0;
+        $discountBase = $gross + $markupMoney;
+        if ($tourDiscountType === 'percentage' && $tourDiscountRaw > 0) {
+            $discountMoney = $discountBase * $tourDiscountRaw / 100;
+        } elseif (in_array($tourDiscountType, ['flat', 'foc'], true) && $tourDiscountRaw > 0 && $index === 0) {
+            $discountMoney = $tourDiscountRaw;
+        }
+
+        return [
+            'markup' => $markupMoney,
+            'discount' => $discountMoney,
+            'markup_type' => $tourMarkupType,
+            'markup_raw' => $tourMarkupRaw,
+            'discount_type' => $tourDiscountType,
+            'discount_raw' => $tourDiscountRaw,
+        ];
+    }
+
+    private function extractOrderCityName(Order $order): string
+    {
+        $city = trim((string) ($order->city ?? ''));
+        if ($city !== '') {
+            return $city;
+        }
+
+        $data = is_string($order->data) ? json_decode($order->data, true) : $order->data;
+        $first = [];
+        if (is_array($data)) {
+            $first = isset($data[0]) && is_array($data[0]) ? $data[0] : $data;
+        }
+        if (! is_array($first)) {
+            return '';
+        }
+
+        $candidates = [
+            $first['city'] ?? null,
+            $first['destination'] ?? null,
+            $first['hotelCity'] ?? null,
+            $first['hotel_city'] ?? null,
+            $first['location'] ?? null,
+            $first['AttractionCity'] ?? null,
+            is_array($first['hotelDetails'] ?? null) ? ($first['hotelDetails']['location'] ?? null) : null,
+            is_array($first['hotelDetails'] ?? null) ? ($first['hotelDetails']['city'] ?? null) : null,
+        ];
+        foreach ($candidates as $candidate) {
+            $candidate = trim((string) ($candidate ?? ''));
+            if ($candidate === '') {
+                continue;
+            }
+            foreach (preg_split('/\s*,\s*/', $candidate) ?: [] as $part) {
+                $part = trim((string) $part);
+                if ($part === '' || preg_match('/^(Arrival|Departure)\s*:/i', $part)) {
+                    continue;
+                }
+
+                return $part;
+            }
+        }
+
+        return '';
     }
 
     /**
