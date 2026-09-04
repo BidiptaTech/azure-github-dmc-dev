@@ -1,5 +1,5 @@
 <?php
-
+use App\Http\Controllers\StripePaymentController;
 use App\Http\Controllers\AgentController;
 use App\Http\Controllers\AgencyController;
 use App\Http\Controllers\BankDetailController;
@@ -1191,7 +1191,15 @@ Route::post('/hotel-booking/upload-restaurant-files', [HotelBookingController::c
         Route::post('/tour/{tourId}/update-payment', [TourController::class, 'updatePayment'])->name('tour.update-payment');
     });
 
-});    
+    // Stripe Payment Routes (authenticated UI/checkout)
+    Route::get('/stripe', [StripePaymentController::class, 'stripe'])->name('stripe');
+    Route::post('/payment/checkout', [StripePaymentController::class, 'checkout'])->name('stripe.checkout');
+    Route::get('/payment/success', [StripePaymentController::class, 'success'])->name('payment.success');
+    Route::get('/payment/cancel', [StripePaymentController::class, 'cancel'])->name('payment.cancel');
+});
+
+// Stripe webhook must be public (no auth / no CSRF) — Stripe servers call this.
+Route::post('/stripe/webhook', [StripePaymentController::class, 'webhook'])->name('stripe.webhook');    
 
 // Job Sheet routes added to the admin middleware group above
 
