@@ -36,7 +36,7 @@
 {{-- Use config('app.url') (not env('APP_URL')): env() returns null when config is cached, which breaks
      these URLs — especially since APP_URL includes the subpath (/backadm-dmc) where public/ is served.
      config('app.url') is baked at config:cache time, so it always keeps the subpath. --}}
-@php $assetBase = rtrim(config('app.url'), '/'); @endphp
+@php $assetBase = rtrim(url('/'), '/'); @endphp
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>window.jQuery || document.write('<script src="{{ $assetBase }}/assets/vendor/libs/jquery/jquery.js"><\/script>');</script>
 <script src="{{ $assetBase }}/assets/vendor/libs/popper/popper.js"></script>

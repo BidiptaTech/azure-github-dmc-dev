@@ -263,8 +263,11 @@ class SingleTourPackageController extends Controller
             $portsCountryName = $countryForPorts?->name;
         }
         $ports = $this->getPortsForDmc($portsCountryName);
-        
-        return view('single-tour-package.create', compact('countries', 'agents', 'ports', 'selectedCountry', 'enquiry', 'hotels', 'attractions', 'guides', 'vehicles', 'meals', 'tickets', 'zones', 'agency', 'restaurants', 'UserDmc', 'restaurant_data', 'multiRestaurants', 'entryDropoffLocation', 'exitPickupLocation'));
+
+        $preselectedAgentId = $request->integer('agent_id') ?: null;
+        $preselectedAgencyId = $request->integer('agency_id') ?: null;
+
+        return view('single-tour-package.create', compact('countries', 'agents', 'ports', 'selectedCountry', 'enquiry', 'hotels', 'attractions', 'guides', 'vehicles', 'meals', 'tickets', 'zones', 'agency', 'restaurants', 'UserDmc', 'restaurant_data', 'multiRestaurants', 'entryDropoffLocation', 'exitPickupLocation', 'preselectedAgentId', 'preselectedAgencyId'));
     }
     
     /**
@@ -829,6 +832,7 @@ class SingleTourPackageController extends Controller
             $tour->taxes = !empty($taxArray) ? json_encode($taxArray) : null;
             $tour->reference_id = $request->reference_number ?? null;
             $tour->created_by = Auth::user()->userId;
+            $tour->finance_status = 'pending';
             $mainGuestData = null;
             $additionalGuestData = [];
 

@@ -54,6 +54,8 @@ use App\Http\Controllers\CheckCurrencyController;
 use App\Http\Controllers\MailController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FinanceReportController;
+use App\Http\Controllers\WalletManagementController;
+use App\Http\Controllers\AgentFinanceTestDashboardController;
 use App\Http\Controllers\MISReportController;
 use App\Http\Controllers\GuestController;
 use App\Http\Controllers\EditTourController;
@@ -812,8 +814,50 @@ Route::get('/clear', function () {
 
         // Finance reports
         Route::get('/finance/daily-arrival', [BookingListController::class, 'financeDailyArrival'])->name('finance.daily-arrival');
-        Route::resource('enquirylist', EnquiryListController::class);
         Route::get('booking-list/daily-arrival', [BookingListController::class, 'financeDailyArrival'])->name('booking-list.daily-arrival');
+
+        // Finance wallet management (DMC / Agent / Admin)
+        Route::get('/finance/wallet', [WalletManagementController::class, 'index'])->name('finance.wallet.index');
+        Route::get('/finance/wallet/ledger', [WalletManagementController::class, 'ledger'])->name('finance.wallet.ledger');
+        Route::get('/finance/wallet/transactions', [WalletManagementController::class, 'transactionsGlance'])->name('finance.wallet.transactions');
+        Route::get('/finance/wallet/convert-preview', [WalletManagementController::class, 'convertPreview'])->name('finance.wallet.convert-preview');
+        Route::post('/finance/wallet/topup', [WalletManagementController::class, 'topup'])->name('finance.wallet.topup');
+
+        // Dependent dropdown endpoints for wallet allocation
+        Route::get('/finance/wallet/dropdowns/master-dmcs', [WalletManagementController::class, 'dropdownMasterDmcs'])
+            ->name('finance.wallet.dropdowns.master-dmcs');
+        Route::get('/finance/wallet/dropdowns/master-agents', [WalletManagementController::class, 'dropdownMasterAgents'])
+            ->name('finance.wallet.dropdowns.master-agents');
+        Route::get('/finance/wallet/dropdowns/dmc-agents', [WalletManagementController::class, 'dropdownDmcAgents'])
+            ->name('finance.wallet.dropdowns.dmc-agents');
+        Route::get('/finance/wallet/dropdowns/currencies', [WalletManagementController::class, 'dropdownCurrencies'])
+            ->name('finance.wallet.dropdowns.currencies');
+
+        // Travclicks Owner dependent dropdowns (Master DMC -> DMC -> Agent)
+        Route::get('/finance/wallet/dropdowns/travclicks-master-dmcs', [WalletManagementController::class, 'dropdownTravclicksMasterDmcs'])
+            ->name('finance.wallet.dropdowns.travclicks-master-dmcs');
+        Route::get('/finance/wallet/dropdowns/travclicks-dmcs', [WalletManagementController::class, 'dropdownTravclicksDmcs'])
+            ->name('finance.wallet.dropdowns.travclicks-dmcs');
+        Route::get('/finance/wallet/dropdowns/travclicks-agents', [WalletManagementController::class, 'dropdownTravclicksAgents'])
+            ->name('finance.wallet.dropdowns.travclicks-agents');
+
+        // Agent wallet & tour dashboard (sales head / operations / DMC)
+        Route::get('/finance/agent/{agent}/dashboard', [AgentFinanceTestDashboardController::class, 'show'])
+            ->name('finance.agent.dashboard');
+        Route::get('/finance/agent/{agent}/ledger', [AgentFinanceTestDashboardController::class, 'ledger'])
+            ->name('finance.agent.ledger');
+        Route::get('/finance/agent/{agent}/transactions', [AgentFinanceTestDashboardController::class, 'transactionsGlance'])
+            ->name('finance.agent.transactions');
+        Route::get('/finance/agent/{agent}/tours', [AgentFinanceTestDashboardController::class, 'tours'])
+            ->name('finance.agent.tours');
+        Route::post('/finance/agent/{agent}/allocate', [AgentFinanceTestDashboardController::class, 'allocateToAgent'])
+            ->name('finance.agent.allocate');
+        Route::get('/finance/agent/{agent}/create-tour', [AgentFinanceTestDashboardController::class, 'initializeTour'])
+            ->name('finance.agent.initialize-tour');
+        Route::post('/finance/agent/{agent}/tour/{tour}/settle', [AgentFinanceTestDashboardController::class, 'settleTourFinance'])
+            ->name('finance.agent.settle-tour');
+
+        Route::resource('enquirylist', EnquiryListController::class);
 
         //Drivers Approval
         Route::get('driver/driver-approval', [DriverController::class, 'driverApproval'])->name('driver.approval');

@@ -1,13 +1,3 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <link rel="stylesheet" href="{{ asset('css/style.css') }}">
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <title>Document</title>
-</head>
-<body>
     <div class="layout-wrapper layout-content-navbar  ">
     <div class="layout-container">
         <!-- Menu -->
@@ -836,7 +826,17 @@
                 <!-- End Products Section -->
             @endif
 
-            @if(in_array(auth()->user()->role_id, [1,2,3,4,10,11,19,20,33,36,37,38,126,127,128, 129, 130, 134, 135, 136, 138]))
+            @if(in_array(auth()->user()->role_id, [1,2,3,4,10,11,20]))
+              <!-- Finance & Wallet -->
+                <li class="menu-header mt-5">
+                    <span class="menu-header-text" data-i18n="Finance">Finance</span>
+                </li>
+                <li class="menu-item @if(Request::is('finance/wallet*')) active @endif">
+                    <a href="{{ route('finance.wallet.index') }}" class="menu-link">
+                        <i class="menu-icon tf-icons ri-wallet-3-line"></i>
+                        <div data-i18n="Wallet Management">Wallet Management</div>
+                    </a>
+                </li>
               <!-- Reports -->
                 <li class="menu-header mt-5">
                     <span class="menu-header-text" data-i18n="View Reports">View Reports</span>

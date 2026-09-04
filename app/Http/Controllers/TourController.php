@@ -1127,7 +1127,8 @@ class TourController extends Controller
             $tour->reference_id = $request->reference_id ?? null;
             $tour->multi_enq_id = $multi_enq_id ?? '';
             $tour->child_ages = $validatedData['children_ages'] ?? null;
-            
+            $tour->finance_status = 'pending';
+
             // Check if service IDs are present and set 1 or 0 in tours table
             $tour->hotel = $this->checkServicePresent($request->hotel_ids);
             $tour->attraction = $this->checkServicePresent($request->attraction_ids);

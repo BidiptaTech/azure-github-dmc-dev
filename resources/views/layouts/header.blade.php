@@ -19,7 +19,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com/" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;ampdisplay=swap" rel="stylesheet">
 
-@php $assetBase = rtrim(config('app.url'), '/'); @endphp
+@php $assetBase = rtrim(url('/'), '/'); @endphp
 <!-- Icons -->
 <link rel="stylesheet" href="{{ $assetBase }}/assets/vendor/fonts/remixicon/remixicon.css" />
 <link rel="stylesheet" href="{{ $assetBase }}/assets/vendor/fonts/flag-icons.css" />

@@ -1,0 +1,13 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "python",
+    "FINANCE_DATABASE_URL": "postgresql://postgres:123456789@127.0.0.1:5432/dmc_dev",
+    "FINANCE_API_BEARER_TOKEN": "travclicks-finance-dev-token-change-in-production",
+    "FINANCE_WEBHOOK_SECRET": "travclicks-webhook-dev-secret-change-in-production",
+    "FINANCE_MAX_RETRY_COUNT": "3",
+    "FINANCE_IDEMPOTENCY_TTL_HOURS": "24",
+    "FINANCE_LOG_LEVEL": "INFO"
+  }
+}

@@ -1691,6 +1691,74 @@ class CommonHelper
     }
 
     /**
+     * Role IDs allowed to create tours on behalf of an agent (sales, ops, DMC).
+     *
+     * @return array<int, int>
+     */
+    public static function createTourOnBehalfRoleIds(): array
+    {
+        return [11, 33, 34, 37, 38, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138];
+    }
+
+    public static function canCreateTourOnBehalfOfAgent($user = null): bool
+    {
+        $user = $user ?? auth()->user();
+        if (! $user) {
+            return false;
+        }
+
+        $roleId = (int) $user->role_id;
+        if (! in_array($roleId, self::createTourOnBehalfRoleIds(), true)) {
+            return false;
+        }
+
+        if ($roleId === 11) {
+            return true;
+        }
+
+        return self::dmcCanAccessProForm($user) || self::dmcCanAccessLiteForm($user);
+    }
+
+    /**
+     * Resolve the DMC userId for sales / operations staff (or DMC themselves).
+     */
+    public static function resolveDmcUserIdForStaff($user = null): ?int
+    {
+        $user = $user ?? auth()->user();
+        if (! $user) {
+            return null;
+        }
+
+        $roleId = (int) $user->role_id;
+
+        if ($roleId === 11) {
+            return (int) $user->userId;
+        }
+
+        if (in_array($roleId, [33, 34, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138], true)) {
+            return $user->created_by ? (int) $user->created_by : null;
+        }
+
+        if (in_array($roleId, [37, 64, 65, 66, 67, 68], true)) {
+            $salesHead = User::where('userId', $user->created_by)->first();
+
+            return $salesHead ? (int) $salesHead->created_by : null;
+        }
+
+        if (in_array($roleId, [38, 81, 90, 108, 117, 124, 125, 126, 127], true)) {
+            $salesManager = User::where('userId', $user->created_by)->first();
+            if (! $salesManager) {
+                return null;
+            }
+            $salesHead = User::where('userId', $salesManager->created_by)->first();
+
+            return $salesHead ? (int) $salesHead->created_by : null;
+        }
+
+        return null;
+    }
+
+    /**
      * Resolve QTN (quotation) or ITN (itinerary) email type from DMC user settings.
      * Falls back to master DMC when the child DMC has no selection.
      */

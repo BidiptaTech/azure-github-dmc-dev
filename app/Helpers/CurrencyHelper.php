@@ -108,6 +108,33 @@ class CurrencyHelper
     }
 
     /**
+     * @return array<int, string>
+     */
+    public static function knownCurrencyCodes(): array
+    {
+        return array_values(array_unique(array_values(self::$currencyNameToCode)));
+    }
+
+    /**
+     * Normalize Country.currency / user.currency to an ISO 4217 code.
+     * Accepts 3-letter codes or full currency names.
+     */
+    public static function toIsoCode(?string $currencyRaw, string $fallback = 'SGD'): string
+    {
+        $raw = trim((string) $currencyRaw);
+        if ($raw === '') {
+            return $fallback;
+        }
+
+        $upper = strtoupper($raw);
+        if (preg_match('/^[A-Z]{3}$/', $upper) === 1) {
+            return $upper;
+        }
+
+        return self::normalizeCurrencyToCode($raw, self::knownCurrencyCodes(), $fallback);
+    }
+
+    /**
      * Get exchange rate between two currencies.
      *
      * @param string $baseCurrency   The currency you are converting FROM (e.g. 'USD')

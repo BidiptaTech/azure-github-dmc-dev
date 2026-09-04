@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en" class="light-style layout-navbar-fixed layout-menu-fixed layout-compact " dir="ltr"
-  data-theme="theme-bordered" data-assets-path="{{ rtrim(config('app.url'), '/') . '/assets/' }}"
+  data-theme="theme-bordered" data-assets-path="{{ rtrim(url('/'), '/') . '/assets/' }}"
   data-template="vertical-menu-template-bordered"
   data-style="light">
 <head>
@@ -11,7 +11,9 @@
 @include('layouts.header')  
 @yield('css')
 @stack('css')
+<link rel="stylesheet" href="{{ asset('css/style.css') }}">
 </head>
+<body>
 @include('layouts.sidebar')
 @include('layouts.topbar')
 

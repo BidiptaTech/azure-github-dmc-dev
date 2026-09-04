@@ -86,7 +86,9 @@ class AgentController extends Controller
             'agent_count' => $agents->count(),
             'agents' => $agents->pluck('dmc_id', 'agent_id')
         ]);
-        return view('agents.index', compact('agents', 'user'));
+        $canCreateTourOnBehalf = CommonHelper::canCreateTourOnBehalfOfAgent($user);
+
+        return view('agents.index', compact('agents', 'user', 'canCreateTourOnBehalf'));
     }
 
     /**

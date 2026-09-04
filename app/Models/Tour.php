@@ -24,6 +24,14 @@ class Tour extends Model
         'taxes' => 'array',
         'mainguest' => 'array',
         'additionalguest' => 'array',
+        'gateway_response_json' => 'array',
+        'payment_gateway_response' => 'array',
+        'payment_received_datetime' => 'datetime',
+        'supplier_cost' => 'decimal:4',
+        'travclicks_markup' => 'decimal:4',
+        'dmc_commission' => 'decimal:4',
+        'selling_price' => 'decimal:4',
+        'payment_received_amount' => 'decimal:4',
     ];
 
     protected static $TourStatus = [
