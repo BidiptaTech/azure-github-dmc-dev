@@ -22,12 +22,20 @@ import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined
 import AccessTimeOutlinedIcon from "@mui/icons-material/AccessTimeOutlined";
 import PeopleOutlineIcon from "@mui/icons-material/PeopleOutline";
 import FlightTakeoffOutlinedIcon from "@mui/icons-material/FlightTakeoffOutlined";
+import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
+import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 import {
   selectCart,
   removeFromCart,
   clearCart,
   clearCartByTrip,
+  setCheckoutTripId,
+  MAX_CART_TRIPS,
 } from "@/slice/cart/carSlice";
+import {
+  applyTourSearchToRedux,
+  formatDestinationLabel,
+} from "@/utils/applyTourSearchToRedux";
 
 const BOOKING_TYPE_LABELS = {
   entryport: "Entry Port",
@@ -42,10 +50,7 @@ const formatPrice = (value) => {
   });
 };
 
-const formatDestination = (destination) => {
-  if (Array.isArray(destination)) return destination.filter(Boolean).join(", ");
-  return destination || "—";
-};
+const formatDestination = formatDestinationLabel;
 
 const getPickup = (item) =>
   item.entrypickup || item.exitpickup || item.pickup || "—";
@@ -87,6 +92,50 @@ const CartPage = () => {
     dispatch(removeFromCart({ tripId, cartItemId }));
   };
 
+  /** Same Redux fields as MainFilterSearchBox handleSearch */
+  const restoreTripToRedux = (trip) => {
+    applyTourSearchToRedux(dispatch, {
+      destination: trip.destination,
+      country: trip.country,
+      cityWiseDates: trip.cityWiseDates,
+      check_in: trip.check_in,
+      check_out: trip.check_out,
+      adult: trip.adult,
+      child: trip.child,
+      infant: trip.infant,
+      adultGenders: trip.adultGenders,
+      childrenAges: trip.childrenAges,
+      tour_id: trip.tour_id,
+    });
+  };
+
+  const handleEditTrip = (trip) => {
+    restoreTripToRedux(trip);
+    const searchParams = new URLSearchParams({
+      location: trip.destination.join(","),
+      dates: [trip.check_in, trip.check_out].join(","),
+      guests: JSON.stringify(trip.guestCounts),
+    });
+    navigate(`/dashboard/db-dashboard/view-hotel-search/0?${searchParams}`, {
+      state: {
+        editCartTripId: trip.tripId,
+        cartTrip: trip,
+      },
+    });
+  };
+
+  const handleTripCheckout = (trip) => {
+    restoreTripToRedux(trip);
+    dispatch(setCheckoutTripId(trip.tripId));
+    navigate("/dashboard/db-dashboard/CheckOut", {
+      state: {
+        cartTripId: trip.tripId,
+        cartTrip: trip,
+        checkoutSource: "cart",
+      },
+    });
+  };
+
   if (trips.length === 0) {
     return (
       <Box
@@ -126,12 +175,12 @@ const CartPage = () => {
             Your cart is empty
           </Typography>
           <Typography color="text.secondary" mb={3}>
-            Add transfers for a trip. Items with the same check-in, check-out,
-            and destination stay grouped together.
+            Add transfers for a trip. You can keep up to {MAX_CART_TRIPS} trips
+            in the cart. Use Edit on a trip to add more products.
           </Typography>
           <Button
             variant="contained"
-            onClick={() => navigate("/dashboard/db-dashboard/pickupdrop")}
+            onClick={() => navigate("/dashboard/db-dashboard/home_1")}
             sx={{
               bgcolor: "#3554d1",
               textTransform: "none",
@@ -141,7 +190,7 @@ const CartPage = () => {
               "&:hover": { bgcolor: "#2a43b0" },
             }}
           >
-            Browse Transfers
+            Start New Trip
           </Button>
         </Card>
       </Box>
@@ -171,17 +220,30 @@ const CartPage = () => {
             </Typography>
             <Typography color="text.secondary" mt={0.5}>
               {totals.itemCount} item{totals.itemCount === 1 ? "" : "s"} across{" "}
-              {trips.length} trip{trips.length === 1 ? "" : "s"}
+              {trips.length}/{MAX_CART_TRIPS} trip
+              {trips.length === 1 ? "" : "s"}
             </Typography>
           </Box>
-          <Button
-            variant="outlined"
-            color="error"
-            onClick={() => dispatch(clearCart())}
-            sx={{ textTransform: "none", borderRadius: 2 }}
-          >
-            Clear Cart
-          </Button>
+          <Stack direction="row" spacing={1.5}>
+            {trips.length < MAX_CART_TRIPS && (
+              <Button
+                variant="outlined"
+                startIcon={<AddCircleOutlineIcon />}
+                onClick={() => navigate("/dashboard/db-dashboard/home_1")}
+                sx={{ textTransform: "none", borderRadius: 2 }}
+              >
+                Add New Trip
+              </Button>
+            )}
+            <Button
+              variant="outlined"
+              color="error"
+              onClick={() => dispatch(clearCart())}
+              sx={{ textTransform: "none", borderRadius: 2 }}
+            >
+              Clear Cart
+            </Button>
+          </Stack>
         </Stack>
 
         <Grid container spacing={3}>
@@ -192,6 +254,9 @@ const CartPage = () => {
                   (sum, item) => sum + (Number(item.totalPrice) || 0),
                   0
                 );
+                const cityWiseDates = Array.isArray(trip.cityWiseDates)
+                  ? trip.cityWiseDates
+                  : [];
 
                 return (
                   <Card
@@ -234,9 +299,38 @@ const CartPage = () => {
                               {trip.bookings.length} booking
                               {trip.bookings.length === 1 ? "" : "s"}
                             </Typography>
+                            {cityWiseDates.length > 0 && (
+                              <Stack
+                                direction="row"
+                                spacing={0.75}
+                                flexWrap="wrap"
+                                useFlexGap
+                                mt={1}
+                              >
+                                {cityWiseDates.map((cityDate, idx) => (
+                                  <Chip
+                                    key={`${cityDate.city}-${idx}`}
+                                    size="small"
+                                    label={`${cityDate.city}: ${cityDate.checkIn} – ${cityDate.checkOut}`}
+                                    sx={{
+                                      bgcolor: "rgba(255,255,255,0.18)",
+                                      color: "#fff",
+                                      fontWeight: 600,
+                                      fontSize: "0.7rem",
+                                    }}
+                                  />
+                                ))}
+                              </Stack>
+                            )}
                           </Box>
                         </Stack>
-                        <Stack direction="row" spacing={1} alignItems="center">
+                        <Stack
+                          direction="row"
+                          spacing={1}
+                          alignItems="center"
+                          flexWrap="wrap"
+                          useFlexGap
+                        >
                           <Chip
                             label={formatPrice(tripTotal)}
                             sx={{
@@ -245,6 +339,22 @@ const CartPage = () => {
                               fontWeight: 700,
                             }}
                           />
+                          <Button
+                            size="small"
+                            startIcon={<EditOutlinedIcon />}
+                            onClick={() => handleEditTrip(trip)}
+                            sx={{
+                              color: "#fff",
+                              textTransform: "none",
+                              border: "1px solid rgba(255,255,255,0.45)",
+                              "&:hover": {
+                                borderColor: "#fff",
+                                bgcolor: "rgba(255,255,255,0.12)",
+                              },
+                            }}
+                          >
+                            Edit / Add more
+                          </Button>
                           <Button
                             size="small"
                             onClick={() =>
@@ -434,6 +544,48 @@ const CartPage = () => {
                           </Box>
                         </Box>
                       ))}
+
+                      <Divider />
+                      <Box
+                        sx={{
+                          p: 2,
+                          bgcolor: "#f8fafc",
+                          display: "flex",
+                          flexDirection: { xs: "column", sm: "row" },
+                          gap: 1.5,
+                          justifyContent: "flex-end",
+                          alignItems: { xs: "stretch", sm: "center" },
+                        }}
+                      >
+                        <Typography
+                          fontWeight={700}
+                          color="#0f172a"
+                          sx={{ mr: { sm: "auto" } }}
+                        >
+                          Trip total: {formatPrice(tripTotal)}
+                        </Typography>
+                        <Button
+                          variant="outlined"
+                          startIcon={<EditOutlinedIcon />}
+                          onClick={() => handleEditTrip(trip)}
+                          sx={{ textTransform: "none", borderRadius: 2 }}
+                        >
+                          Add more products
+                        </Button>
+                        <Button
+                          variant="contained"
+                          onClick={() => handleTripCheckout(trip)}
+                          sx={{
+                            bgcolor: "#3554d1",
+                            textTransform: "none",
+                            borderRadius: 2,
+                            fontWeight: 700,
+                            "&:hover": { bgcolor: "#2a43b0" },
+                          }}
+                        >
+                          Proceed to Checkout
+                        </Button>
+                      </Box>
                     </CardContent>
                   </Card>
                 );
@@ -452,35 +604,63 @@ const CartPage = () => {
               }}
             >
               <CardContent sx={{ p: 3 }}>
-                <Typography variant="h6" fontWeight={700} mb={2}>
+                <Typography variant="h6" fontWeight={700} mb={1}>
                   Order Summary
                 </Typography>
-                <Stack spacing={1.5} mb={2}>
+                <Typography variant="body2" color="text.secondary" mb={2}>
+                  Checkout is tour-wise — choose a trip below to continue.
+                </Typography>
+                <Stack spacing={2} mb={2}>
                   {trips.map((trip, index) => {
                     const sectionTotal = trip.bookings.reduce(
                       (sum, item) => sum + (Number(item.totalPrice) || 0),
                       0
                     );
                     return (
-                      <Stack
+                      <Box
                         key={trip.tripId || index}
-                        direction="row"
-                        justifyContent="space-between"
-                        alignItems="flex-start"
-                        spacing={1}
+                        sx={{
+                          p: 1.5,
+                          borderRadius: 2,
+                          border: "1px solid #e8ecf4",
+                          bgcolor: "#fafbff",
+                        }}
                       >
-                        <Box>
-                          <Typography variant="body2" color="text.secondary">
-                            Trip {index + 1} ({trip.bookings.length})
+                        <Stack
+                          direction="row"
+                          justifyContent="space-between"
+                          alignItems="flex-start"
+                          spacing={1}
+                          mb={1}
+                        >
+                          <Box>
+                            <Typography variant="body2" fontWeight={700}>
+                              Trip {index + 1} ({trip.bookings.length})
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {formatDestination(trip.destination)}
+                            </Typography>
+                          </Box>
+                          <Typography fontWeight={700} color="#3554d1">
+                            {formatPrice(sectionTotal)}
                           </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {formatDestination(trip.destination)}
-                          </Typography>
-                        </Box>
-                        <Typography fontWeight={600}>
-                          {formatPrice(sectionTotal)}
-                        </Typography>
-                      </Stack>
+                        </Stack>
+                        <Button
+                          fullWidth
+                          size="small"
+                          variant="contained"
+                          onClick={() => handleTripCheckout(trip)}
+                          sx={{
+                            bgcolor: "#3554d1",
+                            textTransform: "none",
+                            borderRadius: 1.5,
+                            fontWeight: 700,
+                            "&:hover": { bgcolor: "#2a43b0" },
+                          }}
+                        >
+                          Checkout Trip {index + 1}
+                        </Button>
+                      </Box>
                     );
                   })}
                 </Stack>
@@ -489,36 +669,23 @@ const CartPage = () => {
                   direction="row"
                   justifyContent="space-between"
                   alignItems="center"
-                  mb={3}
+                  mb={2}
                 >
-                  <Typography fontWeight={700}>Total</Typography>
+                  <Typography fontWeight={700}>Cart total</Typography>
                   <Typography fontWeight={800} color="#3554d1" fontSize={22}>
                     {formatPrice(totals.amount)}
                   </Typography>
                 </Stack>
                 <Button
                   fullWidth
-                  variant="contained"
-                  sx={{
-                    bgcolor: "#3554d1",
-                    textTransform: "none",
-                    py: 1.4,
-                    borderRadius: 2,
-                    fontWeight: 700,
-                    mb: 1.5,
-                    "&:hover": { bgcolor: "#2a43b0" },
-                  }}
-                  onClick={() => navigate("/dashboard/db-dashboard/CheckOut")}
-                >
-                  Proceed to Checkout
-                </Button>
-                <Button
-                  fullWidth
                   variant="text"
-                  onClick={() => navigate(-1)}
+                  onClick={() => navigate("/dashboard/db-dashboard/home_1")}
+                  disabled={trips.length >= MAX_CART_TRIPS}
                   sx={{ textTransform: "none", color: "#64748b" }}
                 >
-                  Continue Shopping
+                  {trips.length >= MAX_CART_TRIPS
+                    ? `Trip limit reached (${MAX_CART_TRIPS})`
+                    : "Continue Shopping"}
                 </Button>
               </CardContent>
             </Card>
