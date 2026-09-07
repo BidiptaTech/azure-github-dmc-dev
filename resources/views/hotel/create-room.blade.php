@@ -1,4 +1,25 @@
 @extends('layouts.layout')
+@php
+    $baseRoomForPricing = $baseRoomForPricing ?? collect($rooms ?? [])->first(function ($room) {
+        return (float) ($room->base_room ?? 0) > 0;
+    });
+    $baseRoomPricing = $baseRoomPricing ?? [
+        'weekday_price' => (float) optional($baseRoomForPricing)->weekday_price,
+        'weekend_price' => (float) optional($baseRoomForPricing)->weekend_price,
+        'double_weekday_price' => (float) optional($baseRoomForPricing)->double_weekday_price,
+        'double_weekend_price' => (float) optional($baseRoomForPricing)->double_weekend_price,
+        'weekday_cost_price' => (float) optional($baseRoomForPricing)->weekday_cost_price,
+        'weekend_cost_price' => (float) optional($baseRoomForPricing)->weekend_cost_price,
+        'double_weekday_cost_price' => (float) optional($baseRoomForPricing)->double_weekday_cost_price,
+        'double_weekend_cost_price' => (float) optional($baseRoomForPricing)->double_weekend_cost_price,
+    ];
+    $variantBaseRoom = $baseRoomForPricing;
+    $variantBasePricing = $baseRoomPricing;
+    $costOrSell = function ($cost, $sell) {
+        $cost = (float) $cost;
+        return $cost > 0 ? $cost : (float) $sell;
+    };
+@endphp
 @section('content')
 @include('hotel.tapview', ['hotel' => $hotel])
 @extends('layouts.datatablecss')
@@ -535,6 +556,19 @@
         margin-bottom: 0;
     }
 
+    .room-occupancy-pricing-row .row.g-2 > [class*="col-"] {
+        min-width: 0;
+    }
+
+    .room-occupancy-pricing-row .form-text.base-cost-info,
+    .room-occupancy-pricing-row .form-text.base-price-info {
+        font-size: 0.8rem;
+        line-height: 1.2;
+        margin-top: 0.25rem;
+        margin-bottom: 0;
+        word-break: break-word;
+    }
+
     .room-price-pair .form-text {
         min-height: 1.25rem;
         margin-top: 0.25rem;
@@ -630,7 +664,7 @@
                         <label for="room_profit_amount" class="form-label"><strong>Profit amount</strong></label>
                         <input type="number" id="room_profit_amount" class="form-control js-room-profit-amount"
                                value="0" min="0" step="0.01" placeholder="Enter profit amount">
-                        <small class="text-muted">Auto-fills Sell from Cost</small>
+                        <small class="text-muted">Auto-fills Sell from variant + profit</small>
                     </div>
                 </div>
 
@@ -668,37 +702,55 @@
 
                 <div id="room-pricing-alert" class="mb-3"></div>
 
-                <div class="mb-3 row room-occupancy-pricing-row" id="variant_pricing_row" style="display: none;">
+                <div class="mb-3 row room-occupancy-pricing-row" id="variant_pricing_row" style="display: none;"
+                    data-weekday-price="{{ $variantBasePricing['weekday_price'] }}"
+                    data-weekend-price="{{ $variantBasePricing['weekend_price'] }}"
+                    data-double-weekday-price="{{ $variantBasePricing['double_weekday_price'] }}"
+                    data-double-weekend-price="{{ $variantBasePricing['double_weekend_price'] }}"
+                    data-weekday-cost="{{ $costOrSell($variantBasePricing['weekday_cost_price'], $variantBasePricing['weekday_price']) }}"
+                    data-weekend-cost="{{ $costOrSell($variantBasePricing['weekend_cost_price'], $variantBasePricing['weekend_price']) }}"
+                    data-double-weekday-cost="{{ $costOrSell($variantBasePricing['double_weekday_cost_price'], $variantBasePricing['double_weekday_price']) }}"
+                    data-double-weekend-cost="{{ $costOrSell($variantBasePricing['double_weekend_cost_price'], $variantBasePricing['double_weekend_price']) }}">
                     <!-- Single weekday weekend price -->
                     <div class="col-md-6" id="single_price">
                         <div class="mb-3">
                             <fieldset class="border p-1 position-relative">
                                 <legend>Single</legend>
                                 <div class="row g-2">
-                                    <div class="col-md-6 form-floating">
+                                    <div class="col-md-6">
+                                        <div class="form-floating">
                                         <input type="text" id="singleWeekdayCostPrice" name="singleWeekdayCostPrice"
-                                            class="form-control js-room-cost" data-sell-target="singleWeekdayPrice" placeholder=" ">
+                                            class="form-control js-room-cost" data-sell-target="singleWeekdayPrice" placeholder=" "
+                                            value="{{ $variantBaseRoom ? number_format($costOrSell($variantBasePricing['weekday_cost_price'], $variantBasePricing['weekday_price']), 2, '.', '') : '' }}">
                                         <label for="singleWeekdayCostPrice">Weekday Price(Cost)</label>
+                                        </div>
                                     </div>
-                                    <div class="col-md-6 form-floating">
+                                    <div class="col-md-6">
+                                        <div class="form-floating">
                                         <input type="text" id="singleWeekdayPrice" name="singleWeekdayPrice"
                                             class="form-control js-room-sell" placeholder=" " onkeyup="calculatePrice()">
                                         <label for="singleWeekdayPrice">Weekday Price(Sell)</label>
+                                        </div>
                                         @if(!empty($show_dmc_room_pricing_hints))
                                 <span class="text-primary">Your calculated price: <span
                                         id="totalSingleWeekdayPrice">0</span></span>
                                         @endif
                                         <div class="calculation-display text-primary small mt-1" id="single-weekday-calc" style="display: none;"></div>
                                     </div>
-                                    <div class="col-md-6 form-floating">
+                                    <div class="col-md-6">
+                                        <div class="form-floating">
                                         <input type="text" id="singleWeekendCostPrice" name="singleWeekendCostPrice"
-                                            class="form-control js-room-cost" data-sell-target="singleWeekendPrice" placeholder=" ">
+                                            class="form-control js-room-cost" data-sell-target="singleWeekendPrice" placeholder=" "
+                                            value="{{ $variantBaseRoom ? number_format($costOrSell($variantBasePricing['weekend_cost_price'], $variantBasePricing['weekend_price']), 2, '.', '') : '' }}">
                                         <label for="singleWeekendCostPrice">Weekend Price(Cost)</label>
+                                        </div>
                                     </div>
-                                    <div class="col-md-6 form-floating">
+                                    <div class="col-md-6">
+                                        <div class="form-floating">
                                         <input type="text" id="singleWeekendPrice" name="singleWeekendPrice"
                                             class="form-control js-room-sell" placeholder=" " onkeyup="calculatePrice()">
                                         <label for="singleWeekendPrice">Weekend Price(Sell)</label>
+                                        </div>
                                         @if(!empty($show_dmc_room_pricing_hints))
                                 <span class="text-primary">Your calculated price: <span
                                         id="totalSingleWeekendPrice">0</span></span>
@@ -716,30 +768,40 @@
                             <fieldset class="border p-1 position-relative">
                                 <legend>Double</legend>
                                 <div class="row g-2">
-                                    <div class="col-md-6 form-floating">
+                                    <div class="col-md-6">
+                                        <div class="form-floating">
                                         <input type="text" id="doubleWeekdayCostPrice" name="doubleWeekdayCostPrice"
-                                            class="form-control js-room-cost" data-sell-target="doubleWeekdayPrice" placeholder=" ">
+                                            class="form-control js-room-cost" data-sell-target="doubleWeekdayPrice" placeholder=" "
+                                            value="{{ $variantBaseRoom ? number_format($costOrSell($variantBasePricing['double_weekday_cost_price'], $variantBasePricing['double_weekday_price']), 2, '.', '') : '' }}">
                                         <label for="doubleWeekdayCostPrice">Weekday Price(Cost)</label>
+                                        </div>
                                     </div>
-                                    <div class="col-md-6 form-floating">
+                                    <div class="col-md-6">
+                                        <div class="form-floating">
                                         <input type="text" id="doubleWeekdayPrice" name="doubleWeekdayPrice"
                                             class="form-control js-room-sell" placeholder=" " onkeyup="calculatePrice()">
                                         <label for="doubleWeekdayPrice">Weekday Price(Sell)</label>
+                                        </div>
                                         @if(!empty($show_dmc_room_pricing_hints))
                                 <span class="text-primary">Your calculated price: <span
                                         id="totalDoubleWeekdayPrice">0</span></span>
                                         @endif
                                         <div class="calculation-display text-primary small mt-1" id="double-weekday-calc" style="display: none;"></div>
                                     </div>
-                                    <div class="col-md-6 form-floating">
+                                    <div class="col-md-6">
+                                        <div class="form-floating">
                                         <input type="text" id="doubleWeekendCostPrice" name="doubleWeekendCostPrice"
-                                            class="form-control js-room-cost" data-sell-target="doubleWeekendPrice" placeholder=" ">
+                                            class="form-control js-room-cost" data-sell-target="doubleWeekendPrice" placeholder=" "
+                                            value="{{ $variantBaseRoom ? number_format($costOrSell($variantBasePricing['double_weekend_cost_price'], $variantBasePricing['double_weekend_price']), 2, '.', '') : '' }}">
                                         <label for="doubleWeekendCostPrice">Weekend Price(Cost)</label>
+                                        </div>
                                     </div>
-                                    <div class="col-md-6 form-floating">
+                                    <div class="col-md-6">
+                                        <div class="form-floating">
                                         <input type="text" id="doubleWeekendPrice" name="doubleWeekendPrice"
                                             class="form-control js-room-sell" placeholder=" " onkeyup="calculatePrice()">
                                         <label for="doubleWeekendPrice">Weekend Price(Sell)</label>
+                                        </div>
                                         @if(!empty($show_dmc_room_pricing_hints))
                                 <span class="text-primary">Your calculated price: <span
                                         id="totalDoubleWeekendPrice">0</span></span>
@@ -1085,8 +1147,13 @@
                     </thead>
                     <tbody>
                             @foreach ($rooms as $key => $room)
-                            <tr data-dmc-id="{{ $room->dmc_id ?? 'admin' }}" data-hotel-id="{{ $room->hotel_id }}" data-created-by="{{ $room->created_by }}">
-                                <td>{{ ++$key }}</td>
+                            @php
+                                $rowIsBaseRoom = ((float) ($room->base_room ?? 0)) > 0;
+                                $rowVariantPrice = (float) ($room->varient_price ?? 0);
+                                $rowSortKey = $rowIsBaseRoom ? -1 : $rowVariantPrice;
+                            @endphp
+                            <tr data-dmc-id="{{ $room->dmc_id ?? 'admin' }}" data-hotel-id="{{ $room->hotel_id }}" data-created-by="{{ $room->created_by }}" data-base-room="{{ $rowIsBaseRoom ? '1' : '0' }}" data-variant-price="{{ $rowVariantPrice }}">
+                                <td data-order="{{ $rowSortKey }}">{{ ++$key }}</td>
                                 <td>
                                     <a href="{{ route('hotel_details', ['hotel' => $room->hotel->hotel_unique_id]) }}"
                                         target="_blank">
@@ -1110,7 +1177,7 @@
                                 </td>
                                 @endif
                                 <td>{{ $room->room_type }}</td>
-                                <td>{{ $room->no_of_room }}</td>
+                                <td>{{ (int) $room->no_of_room }}</td>
                                 <td>
                                     @php
                                         $canEditBaseRoom = (string) $room->created_by === (string) ($effective_room_owner_id ?? $auth_user->userId);
@@ -1263,8 +1330,34 @@
 <script>
     $(document).ready(function() {
         // Initialize DataTable with export buttons
-        var dataTable = $('.datatables-basic').DataTable({
+        // Keep base room first, then variant price ascending (DataTables uses data-order on No).
+        var $roomsTable = $('.datatables-basic');
+        if ($.fn.DataTable.isDataTable($roomsTable)) {
+            $roomsTable.DataTable().destroy();
+        }
+        var $roomsBody = $roomsTable.find('tbody');
+        var sortedRoomRows = $roomsBody.find('tr').get().sort(function (a, b) {
+            var aBase = a.getAttribute('data-base-room') === '1' ? 0 : 1;
+            var bBase = b.getAttribute('data-base-room') === '1' ? 0 : 1;
+            if (aBase !== bBase) {
+                return aBase - bBase;
+            }
+            return (parseFloat(a.getAttribute('data-variant-price')) || 0) - (parseFloat(b.getAttribute('data-variant-price')) || 0);
+        });
+        $roomsBody.append(sortedRoomRows);
+        sortedRoomRows.forEach(function (row, index) {
+            var numberCell = row.cells[0];
+            if (numberCell) {
+                numberCell.setAttribute('data-order', row.getAttribute('data-base-room') === '1'
+                    ? -1
+                    : (parseFloat(row.getAttribute('data-variant-price')) || 0));
+                numberCell.textContent = index + 1;
+            }
+        });
+
+        var dataTable = $roomsTable.DataTable({
             responsive: true,
+            order: [[0, 'asc']],
             buttons: [
                 'copy',
                 'csv',
@@ -1468,6 +1561,226 @@ $(document).ready(function() {
         singleWeekend: 0,
         doubleWeekday: 0,
         doubleWeekend: 0
+    };
+
+    const standardCosts = {
+        singleWeekday: 0,
+        singleWeekend: 0,
+        doubleWeekday: 0,
+        doubleWeekend: 0
+    };
+
+    const serverBasePricing = @json($baseRoomPricing ?? $variantBasePricing ?? null);
+
+    function pickNumeric(obj, keys) {
+        if (!obj) return 0;
+        for (let i = 0; i < keys.length; i++) {
+            const raw = obj[keys[i]];
+            if (raw === undefined || raw === null || raw === '') continue;
+            const n = parseFloat(raw);
+            if (!isNaN(n)) return n;
+        }
+        return 0;
+    }
+
+    function costOrSell(cost, sell) {
+        const c = parseFloat(cost);
+        if (!isNaN(c) && c > 0) return c;
+        return parseFloat(sell) || 0;
+    }
+
+    function roundOccupancy(n) {
+        return Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+    }
+
+    function occupancyProfitSettings() {
+        const typeEl = document.querySelector('.js-room-profit-type');
+        const amountEl = document.querySelector('.js-room-profit-amount');
+        return {
+            type: typeEl ? typeEl.value : 'percentage',
+            amount: parseFloat(amountEl ? amountEl.value : 0) || 0
+        };
+    }
+
+    function applyProfitToSellBase(base, type, amount) {
+        const b = parseFloat(base) || 0;
+        const a = parseFloat(amount) || 0;
+        if (a <= 0) return roundOccupancy(b);
+        if (type === 'flat') return roundOccupancy(b + a);
+        return roundOccupancy(b + (b * a / 100));
+    }
+
+    function occupancyInput(id, sellTarget) {
+        return document.getElementById(id)
+            || document.querySelector('[name="' + id + '"]')
+            || (sellTarget ? document.querySelector('.js-room-cost[data-sell-target="' + sellTarget + '"]') : null);
+    }
+
+    function setOccupancyInput(id, value, makeReadonly, sellTarget) {
+        const formatted = (parseFloat(value) || 0).toFixed(2);
+        const seen = new Set();
+        const add = function (el) {
+            if (!el || seen.has(el)) return;
+            seen.add(el);
+            el.value = formatted;
+            el.readOnly = false;
+            el.classList.remove('bg-light');
+            el.style.cursor = '';
+        };
+        add(document.getElementById(id));
+        document.querySelectorAll('[name="' + id + '"]').forEach(add);
+        if (sellTarget) {
+            document.querySelectorAll('.js-room-cost[data-sell-target="' + sellTarget + '"]').forEach(add);
+        }
+        if (window.jQuery) {
+            window.jQuery('#' + id + ', [name="' + id + '"]').each(function () { add(this); });
+        }
+        if (!seen.size) {
+            console.warn('Missing occupancy input:', id, sellTarget);
+        }
+    }
+
+    function setOccupancyHint(inputId, className, html, dataBase, sellTarget) {
+        const el = occupancyInput(inputId, sellTarget);
+        if (!el) return;
+        const col = el.closest('.col-md-6') || el.parentElement;
+        const uniqueClass = className + '-' + inputId;
+        let hint = col.querySelector('.' + uniqueClass);
+        if (!hint) {
+            hint = document.createElement('div');
+            hint.className = 'form-text text-info ' + className + ' ' + uniqueClass;
+            col.appendChild(hint);
+        }
+        hint.dataset.base = dataBase;
+        hint.innerHTML = html;
+    }
+
+    function loadBaseOccupancyFrom(source) {
+        if (!source) return false;
+        standardPrices.singleWeekday = pickNumeric(source, ['weekday_price', 'weekdayPrice', 'singleWeekdayPrice', 'baseSingleWeekdayPrice']);
+        standardPrices.singleWeekend = pickNumeric(source, ['weekend_price', 'weekendPrice', 'singleWeekendPrice', 'baseSingleWeekendPrice']);
+        standardPrices.doubleWeekday = pickNumeric(source, ['double_weekday_price', 'doubleWeekdayPrice', 'doubleWeekdayPrice', 'baseDoubleWeekdayPrice']);
+        standardPrices.doubleWeekend = pickNumeric(source, ['double_weekend_price', 'doubleWeekendPrice', 'doubleWeekendPrice', 'baseDoubleWeekendPrice']);
+        standardCosts.singleWeekday = costOrSell(
+            pickNumeric(source, ['weekday_cost_price', 'weekdayCostPrice', 'singleWeekdayCostPrice', 'baseSingleWeekdayCostPrice']),
+            standardPrices.singleWeekday
+        );
+        standardCosts.singleWeekend = costOrSell(
+            pickNumeric(source, ['weekend_cost_price', 'weekendCostPrice', 'singleWeekendCostPrice', 'baseSingleWeekendCostPrice']),
+            standardPrices.singleWeekend
+        );
+        standardCosts.doubleWeekday = costOrSell(
+            pickNumeric(source, ['double_weekday_cost_price', 'doubleWeekdayCostPrice', 'doubleWeekdayCostPrice', 'baseDoubleWeekdayCostPrice']),
+            standardPrices.doubleWeekday
+        );
+        standardCosts.doubleWeekend = costOrSell(
+            pickNumeric(source, ['double_weekend_cost_price', 'doubleWeekendCostPrice', 'doubleWeekendCostPrice', 'baseDoubleWeekendCostPrice']),
+            standardPrices.doubleWeekend
+        );
+        return true;
+    }
+
+    function loadBaseOccupancyFromRow() {
+        const row = document.getElementById('variant_pricing_row');
+        if (!row || !row.dataset) return false;
+        const source = {
+            weekday_price: row.dataset.weekdayPrice,
+            weekend_price: row.dataset.weekendPrice,
+            double_weekday_price: row.dataset.doubleWeekdayPrice,
+            double_weekend_price: row.dataset.doubleWeekendPrice,
+            weekday_cost_price: row.dataset.weekdayCost,
+            weekend_cost_price: row.dataset.weekendCost,
+            double_weekday_cost_price: row.dataset.doubleWeekdayCost,
+            double_weekend_cost_price: row.dataset.doubleWeekendCost
+        };
+        return loadBaseOccupancyFrom(source);
+    }
+
+    function applyOccupancyFromBase(variantPrice, makeReadonly, options) {
+        variantPrice = parseFloat(variantPrice) || 0;
+        options = options || {};
+        const updateCost = options.updateCost !== false;
+        const updateSell = options.updateSell !== false;
+
+        const newPrices = {
+            singleWeekday: standardPrices.singleWeekday + variantPrice,
+            singleWeekend: standardPrices.singleWeekend + variantPrice,
+            doubleWeekday: standardPrices.doubleWeekday + variantPrice,
+            doubleWeekend: standardPrices.doubleWeekend + variantPrice
+        };
+        const newCosts = {
+            singleWeekday: standardCosts.singleWeekday + variantPrice,
+            singleWeekend: standardCosts.singleWeekend + variantPrice,
+            doubleWeekday: standardCosts.doubleWeekday + variantPrice,
+            doubleWeekend: standardCosts.doubleWeekend + variantPrice
+        };
+        const profit = occupancyProfitSettings();
+        const sellPrices = {
+            singleWeekday: applyProfitToSellBase(newPrices.singleWeekday, profit.type, profit.amount),
+            singleWeekend: applyProfitToSellBase(newPrices.singleWeekend, profit.type, profit.amount),
+            doubleWeekday: applyProfitToSellBase(newPrices.doubleWeekday, profit.type, profit.amount),
+            doubleWeekend: applyProfitToSellBase(newPrices.doubleWeekend, profit.type, profit.amount)
+        };
+
+        if (updateSell) {
+            setOccupancyInput('singleWeekdayPrice', sellPrices.singleWeekday, makeReadonly);
+            setOccupancyInput('singleWeekendPrice', sellPrices.singleWeekend, makeReadonly);
+            setOccupancyInput('doubleWeekdayPrice', sellPrices.doubleWeekday, makeReadonly);
+            setOccupancyInput('doubleWeekendPrice', sellPrices.doubleWeekend, makeReadonly);
+        }
+        if (updateCost) {
+            setOccupancyInput('singleWeekdayCostPrice', newCosts.singleWeekday, makeReadonly, 'singleWeekdayPrice');
+            setOccupancyInput('singleWeekendCostPrice', newCosts.singleWeekend, makeReadonly, 'singleWeekendPrice');
+            setOccupancyInput('doubleWeekdayCostPrice', newCosts.doubleWeekday, makeReadonly, 'doubleWeekdayPrice');
+            setOccupancyInput('doubleWeekendCostPrice', newCosts.doubleWeekend, makeReadonly, 'doubleWeekendPrice');
+        }
+
+        const op = variantPrice >= 0 ? '+' : '';
+        const sellHint = function (base, variantTotal, sellTotal) {
+            let text = variantPrice !== 0
+                ? ('Base price ' + base.toFixed(2) + ' ' + op + variantPrice.toFixed(2) + ' = ' + variantTotal.toFixed(2))
+                : ('Base price: ' + base.toFixed(2));
+            if (profit.amount > 0) {
+                text += profit.type === 'flat'
+                    ? (' + profit ' + profit.amount.toFixed(2) + ' = ' + sellTotal.toFixed(2))
+                    : (' + profit ' + profit.amount.toFixed(2) + '% = ' + sellTotal.toFixed(2));
+            }
+            return text;
+        };
+        const costHint = function (base, total) {
+            return variantPrice !== 0
+                ? ('Base cost ' + base.toFixed(2) + ' ' + op + variantPrice.toFixed(2) + ' = ' + total.toFixed(2))
+                : ('Base cost: ' + base.toFixed(2));
+        };
+
+        if (updateSell) {
+            setOccupancyHint('singleWeekdayPrice', 'base-price-info', sellHint(standardPrices.singleWeekday, newPrices.singleWeekday, sellPrices.singleWeekday), standardPrices.singleWeekday.toFixed(2));
+            setOccupancyHint('singleWeekendPrice', 'base-price-info', sellHint(standardPrices.singleWeekend, newPrices.singleWeekend, sellPrices.singleWeekend), standardPrices.singleWeekend.toFixed(2));
+            setOccupancyHint('doubleWeekdayPrice', 'base-price-info', sellHint(standardPrices.doubleWeekday, newPrices.doubleWeekday, sellPrices.doubleWeekday), standardPrices.doubleWeekday.toFixed(2));
+            setOccupancyHint('doubleWeekendPrice', 'base-price-info', sellHint(standardPrices.doubleWeekend, newPrices.doubleWeekend, sellPrices.doubleWeekend), standardPrices.doubleWeekend.toFixed(2));
+        }
+        if (updateCost) {
+            setOccupancyHint('singleWeekdayCostPrice', 'base-cost-info', costHint(standardCosts.singleWeekday, newCosts.singleWeekday), standardCosts.singleWeekday.toFixed(2), 'singleWeekdayPrice');
+            setOccupancyHint('singleWeekendCostPrice', 'base-cost-info', costHint(standardCosts.singleWeekend, newCosts.singleWeekend), standardCosts.singleWeekend.toFixed(2), 'singleWeekendPrice');
+            setOccupancyHint('doubleWeekdayCostPrice', 'base-cost-info', costHint(standardCosts.doubleWeekday, newCosts.doubleWeekday), standardCosts.doubleWeekday.toFixed(2), 'doubleWeekdayPrice');
+            setOccupancyHint('doubleWeekendCostPrice', 'base-cost-info', costHint(standardCosts.doubleWeekend, newCosts.doubleWeekend), standardCosts.doubleWeekend.toFixed(2), 'doubleWeekendPrice');
+        }
+
+        document.querySelectorAll('.base-price-info, .base-cost-info').forEach(function (hint) {
+            hint.classList.toggle('text-primary', variantPrice !== 0 || profit.amount > 0);
+            hint.classList.toggle('text-info', variantPrice === 0 && profit.amount <= 0);
+        });
+
+        return { newPrices: newPrices, newCosts: newCosts, sellPrices: sellPrices };
+    }
+
+    window.refreshRoomOccupancySells = function () {
+        const row = document.getElementById('variant_pricing_row');
+        if (!row || row.offsetParent === null) {
+            return;
+        }
+        const variantPrice = parseFloat((document.getElementById('varient_price_input') || {}).value) || 0;
+        applyOccupancyFromBase(variantPrice, false, { updateCost: false, updateSell: true });
     };
 
     // Price calculation for DMC users
@@ -1744,7 +2057,7 @@ $(document).ready(function() {
     // Auto-populate and set up form fields based on existing rooms
     function setupFormFields() {
         // Filter rooms to just this hotel
-        const currentHotelRooms = allRooms.filter(room => room.hotel_id === hotelId);
+        const currentHotelRooms = allRooms.filter(room => String(room.hotel_id) === String(hotelId));
         const hasRoomsForHotel = currentHotelRooms.length > 0;
         
         // Find base room if it exists
@@ -1807,45 +2120,21 @@ $(document).ready(function() {
             toggleRequiredFields(false);
 
             // Extract base room prices and display them
-            if (baseRoom) {
-                // Extract and display base room prices
-                standardPrices.singleWeekday = parseFloat(baseRoom.weekday_price) || 0;
-                standardPrices.singleWeekend = parseFloat(baseRoom.weekend_price) || 0;
-                standardPrices.doubleWeekday = parseFloat(baseRoom.double_weekday_price) || 0;
-                standardPrices.doubleWeekend = parseFloat(baseRoom.double_weekend_price) || 0;
-                
-                // Set base room prices as default values in variant room form fields
-                $('#singleWeekdayPrice').val(standardPrices.singleWeekday.toFixed(2));
-                $('#singleWeekendPrice').val(standardPrices.singleWeekend.toFixed(2));
-                $('#doubleWeekdayPrice').val(standardPrices.doubleWeekday.toFixed(2));
-                $('#doubleWeekendPrice').val(standardPrices.doubleWeekend.toFixed(2));
+            if (baseRoom || serverBasePricing) {
+                loadBaseOccupancyFrom(baseRoom);
+                loadBaseOccupancyFromRow();
+                if (serverBasePricing) {
+                    loadBaseOccupancyFrom(serverBasePricing);
+                }
 
-                // Add helper text showing base room prices with variant calculation for form fields
-                $('#singleWeekdayPrice').after(
-                    `<div class="form-text text-info base-price-info" data-base="${standardPrices.singleWeekday.toFixed(2)}">Base price: ${standardPrices.singleWeekday.toFixed(2)}</div>`
-                );
-                $('#singleWeekendPrice').after(
-                    `<div class="form-text text-info base-price-info" data-base="${standardPrices.singleWeekend.toFixed(2)}">Base price: ${standardPrices.singleWeekend.toFixed(2)}</div>`
-                );
-                $('#doubleWeekdayPrice').after(
-                    `<div class="form-text text-info base-price-info" data-base="${standardPrices.doubleWeekday.toFixed(2)}">Base price: ${standardPrices.doubleWeekday.toFixed(2)}</div>`
-                );
-                $('#doubleWeekendPrice').after(
-                    `<div class="form-text text-info base-price-info" data-base="${standardPrices.doubleWeekend.toFixed(2)}">Base price: ${standardPrices.doubleWeekend.toFixed(2)}</div>`
-                );
+                const currentVariantPrice = parseFloat($('#varient_price_input').val()) || 0;
+                applyOccupancyFromBase(currentVariantPrice, false);
 
-                // Calculation display elements are now added directly in HTML
-                
-                // Make price fields read-only initially to show they're calculated from base + variant
-                $('#singleWeekdayPrice, #singleWeekendPrice, #doubleWeekdayPrice, #doubleWeekendPrice').prop('readonly', true);
-                $('#singleWeekdayPrice, #singleWeekendPrice, #doubleWeekdayPrice, #doubleWeekendPrice').addClass('bg-light').css('cursor', 'not-allowed');
-                
-                // Add note that prices are auto-calculated
                 $('#room-pricing-alert').html('<div class="alert alert-info mb-0"><i class="fas fa-info-circle"></i> Prices are automatically calculated based on base room prices + variant price</div>');
             }
 
             // Add a change handler for variant price to automatically update all price fields
-            $('#varient_price_input').on('input', updateVariantPrices);
+            $('#varient_price_input').off('input.variantPrices').on('input.variantPrices', updateVariantPrices);
             
             // Initialize with current variant price if any exists
             const currentVariantPrice = $('#varient_price_input').val();
@@ -1855,8 +2144,7 @@ $(document).ready(function() {
                 }, 200);
             }
             
-            // Test the calculation
-            console.log('Base room setup complete. Standard prices:', standardPrices);
+            console.log('Base room setup complete. Standard prices:', standardPrices, 'Standard costs:', standardCosts);
         } else {
             // Rooms exist but no base room, create a base room first
             $('#base_room_type_input').val('').prop('readonly', false);
@@ -1881,6 +2169,7 @@ $(document).ready(function() {
         
         console.log('Variant Price:', variantPrice);
         console.log('Standard Prices:', standardPrices);
+        console.log('Standard Costs:', standardCosts);
         
         // Show price calculation explanation for variant price field
         if (variantPrice !== 0) {
@@ -1896,38 +2185,14 @@ $(document).ready(function() {
             $('#variant_calculation_info').remove();
         }
 
-        // Calculate and update all variant price fields: Base Price + Variant Price = Final Price
-        const newSingleWeekdayPrice = standardPrices.singleWeekday + variantPrice;
-        const newSingleWeekendPrice = standardPrices.singleWeekend + variantPrice;
-        const newDoubleWeekdayPrice = standardPrices.doubleWeekday + variantPrice;
-        const newDoubleWeekendPrice = standardPrices.doubleWeekend + variantPrice;
-        
-        $('#singleWeekdayPrice').val(newSingleWeekdayPrice.toFixed(2));
-        $('#singleWeekendPrice').val(newSingleWeekendPrice.toFixed(2));
-        $('#doubleWeekdayPrice').val(newDoubleWeekdayPrice.toFixed(2));
-        $('#doubleWeekendPrice').val(newDoubleWeekendPrice.toFixed(2));
+        const applied = applyOccupancyFromBase(variantPrice, false);
+        const newSingleWeekdayPrice = (applied.sellPrices || applied.newPrices).singleWeekday;
+        const newSingleWeekendPrice = (applied.sellPrices || applied.newPrices).singleWeekend;
+        const newDoubleWeekdayPrice = (applied.sellPrices || applied.newPrices).doubleWeekday;
+        const newDoubleWeekendPrice = (applied.sellPrices || applied.newPrices).doubleWeekend;
 
-        console.log('Updated Prices:', {
-            singleWeekday: newSingleWeekdayPrice,
-            singleWeekend: newSingleWeekendPrice,
-            doubleWeekday: newDoubleWeekdayPrice,
-            doubleWeekend: newDoubleWeekendPrice
-        });
-
-        // Update base price info for each field to show calculation
-        $('.base-price-info').each(function() {
-            const basePrice = parseFloat($(this).data('base'));
-            
-            if (variantPrice !== 0) {
-                const operation = variantPrice >= 0 ? "+" : "";
-                const totalPrice = (basePrice + variantPrice).toFixed(2);
-                $(this).html(`Base price ${basePrice.toFixed(2)} ${operation}${variantPrice.toFixed(2)} = ${totalPrice}`);
-                $(this).removeClass('text-info').addClass('text-primary');
-            } else {
-                $(this).html(`Base price: ${basePrice.toFixed(2)}`);
-                $(this).removeClass('text-primary').addClass('text-info');
-            }
-        });
+        console.log('Updated Prices:', applied.newPrices);
+        console.log('Updated Costs:', applied.newCosts);
 
         // Update calculation display in Single and Double sections
         if (variantPrice !== 0) {
@@ -1941,8 +2206,6 @@ $(document).ready(function() {
             $('#single-weekend-calc').html(calc2).show();
             $('#double-weekday-calc').html(calc3).show();
             $('#double-weekend-calc').html(calc4).show();
-            
-            console.log('Updated calculation displays:', {calc1, calc2, calc3, calc4});
         } else {
             $('.calculation-display').hide();
         }
@@ -2554,6 +2817,7 @@ $(document).ready(function() {
         const c = isNaN(costVal) ? 0 : costVal;
         const a = isNaN(amtVal) ? 0 : amtVal;
         if (c <= 0) return 0;
+        if (a <= 0) return round2(c);
         if (type === 'flat') return round2(c + a);
         return round2(c + (c * a / 100));
     }
@@ -2567,8 +2831,12 @@ $(document).ready(function() {
         };
     }
 
+    function isOccupancyCostField(costEl) {
+        return !!(costEl && costEl.closest && costEl.closest('#variant_pricing_row'));
+    }
+
     function updateSellFromCost(costEl, force) {
-        if (!costEl) return;
+        if (!costEl || isOccupancyCostField(costEl)) return;
         const sellId = costEl.getAttribute('data-sell-target');
         if (!sellId) return;
         const sellEl = document.getElementById(sellId);
@@ -2583,18 +2851,15 @@ $(document).ready(function() {
     }
 
     function recalculateAll(force) {
+        if (typeof window.refreshRoomOccupancySells === 'function') {
+            window.refreshRoomOccupancySells();
+        }
         document.querySelectorAll('.js-room-cost[data-sell-target]').forEach(function (costEl) {
             updateSellFromCost(costEl, force);
         });
     }
 
     document.addEventListener('DOMContentLoaded', function () {
-        document.querySelectorAll('.js-room-cost[data-sell-target]').forEach(function (costEl) {
-            costEl.addEventListener('input', function () {
-                updateSellFromCost(costEl, true);
-            });
-        });
-
         document.querySelectorAll('.js-room-sell').forEach(function (sellEl) {
             sellEl.addEventListener('input', function () {
                 sellEl.dataset.userEdited = '1';

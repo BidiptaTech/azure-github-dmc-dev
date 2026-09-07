@@ -159,6 +159,32 @@
         align-items: center;
         justify-content: center;
     }
+
+    .season-occupancy-pricing-row > .col-md-6 {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .season-occupancy-pricing-row fieldset,
+    .season-meal-pricing-row fieldset {
+        height: 100%;
+        margin-bottom: 0;
+    }
+
+    .season-occupancy-pricing-row legend,
+    .season-meal-pricing-row legend {
+        font-size: 0.95rem;
+        font-weight: 600;
+        float: none;
+        width: auto;
+        padding: 0 0.5rem;
+        margin-bottom: 0;
+    }
+
+    .season-occupancy-pricing-row .row.g-2 > [class*="col-"],
+    .season-meal-pricing-row .row.g-2 > [class*="col-"] {
+        min-width: 0;
+    }
 </style>
 <div class="content-wrapper">
     <div class="container-xxl flex-grow-1 container-p-y">
@@ -258,8 +284,7 @@
                <hr>
                <div id="hotelRatesContainer">
                   <div class="hotel-rate-form">
-                     <div class="row">
-                        <!-- Season Name -->
+                     <div class="row align-items-end g-2">
                         <div class="col-md-3 mb-3">
                            <label for="event" class="form-label"><strong>Season Name</strong><span class="text-danger">*</span></label>
                            <input type="text" class="form-control" name="event" placeholder="Enter Event Name" required>
@@ -270,237 +295,197 @@
                         <input name="event_type" type="hidden" value="Season">
 
                         <div class="col-md-3 mb-3">
+                           <label for="date_range" class="form-label"><strong>Season Date Range</strong><span class="text-danger">*</span></label>
+                           <input type="text" id="date_range" name="date_range" class="form-control" placeholder="Select date range">
+                           @error('hotel_owner_company_name')
+                              <div class="text-danger mt-1">{{ $message }}</div>
+                           @enderror
+                        </div>
+
+                        <div class="col-md-3 mb-3">
                            <label for="season_profit_margin" class="form-label"><strong>Profit (margin)</strong></label>
                            <select id="season_profit_margin" class="form-select js-season-profit-type">
                               <option value="percentage" selected>%</option>
                               <option value="flat">Flat</option>
                            </select>
-                           <small class="text-muted">Helper only — not saved</small>
                         </div>
                         <div class="col-md-3 mb-3">
                            <label for="season_profit_amount" class="form-label"><strong>Profit amount</strong></label>
                            <input type="number" id="season_profit_amount" class="form-control js-season-profit-amount"
                                   value="0" min="0" step="0.01" placeholder="Enter profit amount">
-                           <small class="text-muted">Auto-fills Sell from Cost</small>
+                        </div>
+                     </div>
+
+                     <div class="mb-3 row season-occupancy-pricing-row">
+                        <div class="col-md-6">
+                           <div class="mb-3">
+                              <fieldset class="border p-1 position-relative">
+                                 <legend>Single</legend>
+                                 <div class="row g-2">
+                                    <div class="col-md-6">
+                                       <div class="form-floating">
+                                          <input type="number" id="weekday_cost_price" name="weekday_cost_price" class="form-control js-season-cost" data-sell-target="weekday_price" placeholder=" " min="0" step="0.01">
+                                          <label for="weekday_cost_price">Weekday Price(Cost) <span class="text-danger">*</span></label>
+                                       </div>
+                                       @error('weekday_cost_price')
+                                          <div class="text-danger mt-1">{{ $message }}</div>
+                                       @enderror
+                                    </div>
+                                    <div class="col-md-6" id="base_weekday_price">
+                                       <div class="form-floating">
+                                          <input type="number" id="weekday_price" name="weekday_price" class="form-control js-season-sell" placeholder=" " min="0" step="0.01">
+                                          <label for="weekday_price">Weekday Price(Sell) <span class="text-danger">*</span></label>
+                                       </div>
+                                       @error('weekday_price')
+                                          <div class="text-danger mt-1">{{ $message }}</div>
+                                       @enderror
+                                    </div>
+                                    <div class="col-md-6">
+                                       <div class="form-floating">
+                                          <input type="number" id="weekend_cost_price" name="weekend_cost_price" class="form-control js-season-cost" data-sell-target="weekend_price" placeholder=" " min="0" step="0.01">
+                                          <label for="weekend_cost_price">Weekend Price(Cost) <span class="text-danger">*</span></label>
+                                       </div>
+                                       @error('weekend_cost_price')
+                                          <div class="text-danger mt-1">{{ $message }}</div>
+                                       @enderror
+                                    </div>
+                                    <div class="col-md-6" id="base_weekend_price">
+                                       <div class="form-floating">
+                                          <input type="number" id="weekend_price" name="weekend_price" class="form-control js-season-sell" placeholder=" " min="0" step="0.01">
+                                          <label for="weekend_price">Weekend Price(Sell) <span class="text-danger">*</span></label>
+                                       </div>
+                                       @error('weekend_price')
+                                          <div class="text-danger mt-1">{{ $message }}</div>
+                                       @enderror
+                                    </div>
+                                 </div>
+                              </fieldset>
+                           </div>
                         </div>
 
-                        <!-- Single Weekday: Cost then Sell -->
-                        <div class="mb-3 col-md-3">
-                           <label for="weekday_cost_price" class="form-label">
-                              <strong>Single Base Weekday Price(Cost)</strong>
-                              <span class="text-danger">*</span>
-                           </label>
-                           <input type="number" id="weekday_cost_price" name="weekday_cost_price" class="form-control js-season-cost" data-sell-target="weekday_price" placeholder="Enter Cost Price" min="0" step="0.01">
-                           @error('weekday_cost_price')
-                              <div class="text-danger mt-1">{{ $message }}</div>
-                           @enderror
+                        <div class="col-md-6">
+                           <div class="mb-3">
+                              <fieldset class="border p-1 position-relative">
+                                 <legend>Double</legend>
+                                 <div class="row g-2">
+                                    <div class="col-md-6">
+                                       <div class="form-floating">
+                                          <input type="number" id="double_weekday_cost_price" name="double_weekday_cost_price" class="form-control js-season-cost" data-sell-target="double_weekday_price" placeholder=" " min="0" step="0.01">
+                                          <label for="double_weekday_cost_price">Weekday Price(Cost) <span class="text-danger">*</span></label>
+                                       </div>
+                                       @error('double_weekday_cost_price')
+                                          <div class="text-danger mt-1">{{ $message }}</div>
+                                       @enderror
+                                    </div>
+                                    <div class="col-md-6">
+                                       <div class="form-floating">
+                                          <input type="number" id="double_weekday_price" name="double_weekday_price" class="form-control js-season-sell" placeholder=" " min="0" step="0.01">
+                                          <label for="double_weekday_price">Weekday Price(Sell) <span class="text-danger">*</span></label>
+                                       </div>
+                                       @error('double_weekday_price')
+                                          <div class="text-danger mt-1">{{ $message }}</div>
+                                       @enderror
+                                    </div>
+                                    <div class="col-md-6">
+                                       <div class="form-floating">
+                                          <input type="number" id="double_weekend_cost_price" name="double_weekend_cost_price" class="form-control js-season-cost" data-sell-target="double_weekend_price" placeholder=" " min="0" step="0.01">
+                                          <label for="double_weekend_cost_price">Weekend Price(Cost) <span class="text-danger">*</span></label>
+                                       </div>
+                                       @error('double_weekend_cost_price')
+                                          <div class="text-danger mt-1">{{ $message }}</div>
+                                       @enderror
+                                    </div>
+                                    <div class="col-md-6">
+                                       <div class="form-floating">
+                                          <input type="number" id="double_weekend_price" name="double_weekend_price" class="form-control js-season-sell" placeholder=" " min="0" step="0.01">
+                                          <label for="double_weekend_price">Weekend Price(Sell) <span class="text-danger">*</span></label>
+                                       </div>
+                                       @error('double_weekend_price')
+                                          <div class="text-danger mt-1">{{ $message }}</div>
+                                       @enderror
+                                    </div>
+                                 </div>
+                              </fieldset>
+                           </div>
                         </div>
+                     </div>
 
-                        <div class="mb-3 col-md-3" id="base_weekday_price">
-                           <label for="weekday_price" class="form-label">
-                              <strong>Single Base Weekday Price(sell)</strong>
-                              <span class="text-danger">*</span>
-                              <sup>
-                                    <button type="button" 
-                                          class="info-button" 
-                                          data-bs-toggle="tooltip" 
-                                          data-bs-placement="top" 
-                                          title="Price applicable on weekdays."
-                                          style="border: none;">
-                                       <i class="bi bi-info-circle"></i>
-                                    </button>
-                                    </sup>
-                           </label>
-                           <input type="number" id="weekday_price" name="weekday_price" class="form-control js-season-sell" placeholder="Enter Sell Price" min="0" step="0.01">
-                           @error('weekday_price')
-                              <div class="text-danger mt-1">{{ $message }}</div>
-                           @enderror
-                        </div>
-
-                        <!-- Single Weekend: Cost then Sell -->
-                        <div class="mb-3 col-md-3">
-                           <label for="weekend_cost_price" class="form-label"><strong>Single Base Weekend Price(Cost)</strong><span class="text-danger">*</span></label>
-                           <input type="number" id="weekend_cost_price" name="weekend_cost_price" class="form-control js-season-cost" data-sell-target="weekend_price" placeholder="Enter Cost Price" min="0" step="0.01">
-                           @error('weekend_cost_price')
-                              <div class="text-danger mt-1">{{ $message }}</div>
-                           @enderror
-                        </div>
-
-                        <div class="mb-3 col-md-3" id="base_weekend_price">
-                           <label for="weekend_price" class="form-label"><strong>Single Base Weekend Price(sell)</strong><span class="text-danger">*</span>
-                              <sup>
-                                 <button type="button" 
-                                    class="info-button" 
-                                    data-bs-toggle="tooltip" 
-                                    data-bs-placement="top" 
-                                    title="Price applicable on weekend."
-                                    style="border: none;">
-                                    <i class="bi bi-info-circle"></i>
-                                 </button>
-                              </sup>
-                           </label>
-                              <input type="number" id="weekend_price" name="weekend_price" class="form-control js-season-sell" placeholder="Enter Sell Price" min="0" step="0.01">
-                              @error('weekend_price')
-                                 <div class="text-danger mt-1">{{ $message }}</div>
-                              @enderror
-                        </div>
-
-                        <!-- Double Weekday: Cost then Sell -->
-                        <div class="mb-3 col-md-3">
-                           <label for="double_weekday_cost_price" class="form-label">
-                              <strong>Double Base Weekday Price(Cost)</strong>
-                              <span class="text-danger">*</span>
-                           </label>
-                           <input type="number" id="double_weekday_cost_price" name="double_weekday_cost_price" class="form-control js-season-cost" data-sell-target="double_weekday_price" placeholder="Enter Cost Price" min="0" step="0.01">
-                           @error('double_weekday_cost_price')
-                              <div class="text-danger mt-1">{{ $message }}</div>
-                           @enderror
-                        </div>
-
-                        <div class="mb-3 col-md-3">
-                           <label for="double_weekday_price" class="form-label">
-                              <strong>Double Base Weekday Price(sell)</strong>
-                              <span class="text-danger">*</span>
-                              <sup>
-                                    <button type="button" 
-                                          class="info-button" 
-                                          data-bs-toggle="tooltip" 
-                                          data-bs-placement="top" 
-                                          title="Price applicable on weekdays."
-                                          style="border: none;">
-                                       <i class="bi bi-info-circle"></i>
-                                    </button>
-                                    </sup>
-                           </label>
-                           <input type="number" id="double_weekday_price" name="double_weekday_price" class="form-control js-season-sell" placeholder="Enter Sell Price" min="0" step="0.01">
-                           @error('double_weekday_price')
-                              <div class="text-danger mt-1">{{ $message }}</div>
-                           @enderror
-                        </div>
-
-                        <!-- Double Weekend: Cost then Sell -->
-                        <div class="mb-3 col-md-3">
-                           <label for="double_weekend_cost_price" class="form-label"><strong>Double Base Weekend Price(Cost)</strong><span class="text-danger">*</span></label>
-                           <input type="number" id="double_weekend_cost_price" name="double_weekend_cost_price" class="form-control js-season-cost" data-sell-target="double_weekend_price" placeholder="Enter Cost Price" min="0" step="0.01">
-                           @error('double_weekend_cost_price')
-                              <div class="text-danger mt-1">{{ $message }}</div>
-                           @enderror
-                        </div>
-
-                        <div class="mb-3 col-md-3">
-                           <label for="double_weekend_price" class="form-label"><strong>Double Base Weekend Price(sell)</strong><span class="text-danger">*</span>
-                              <sup>
-                                 <button type="button" 
-                                    class="info-button" 
-                                    data-bs-toggle="tooltip" 
-                                    data-bs-placement="top" 
-                                    title="Price applicable on weekend."
-                                    style="border: none;">
-                                    <i class="bi bi-info-circle"></i>
-                                 </button>
-                              </sup>
-                           </label>
-                              <input type="number" id="double_weekend_price" name="double_weekend_price" class="form-control js-season-sell" placeholder="Enter Sell Price" min="0" step="0.01">
-                              @error('double_weekend_price')
-                                 <div class="text-danger mt-1">{{ $message }}</div>
-                              @enderror
-                        </div>
-
-                        <!-- Breakfast: Cost then Sell -->
-                        <div class="mb-3 col-md-3">
-                           <label for="breakfast_cost_price" class="form-label"><strong>Breakfast Price(Cost)</strong></label>
-                           <input type="number" step="0.01" min="0" id="breakfast_cost_price" name="breakfast_cost_price" class="form-control js-season-cost" data-sell-target="breakfast_price" placeholder="Enter Cost Price">
-                           @error('breakfast_cost_price')
-                              <div class="text-danger mt-1">{{ $message }}</div>
-                           @enderror
-                        </div>
-
-                        <div class="mb-3 col-md-3">
-                           <label for="breakfast_price" class="form-label"><strong>Breakfast Sell Price</strong>
-                              <sup>
-                                 <button type="button" 
-                                    class="info-button" 
-                                    data-bs-toggle="tooltip" 
-                                    data-bs-placement="top" 
-                                    title="Price for breakfast."
-                                    style="border: none;">
-                                    <i class="bi bi-info-circle"></i>
-                                 </button>
-                              </sup>
-                           </label>
-                           <input type="number" step="0.01" min="0" id="breakfast_price" name="breakfast_price" class="form-control js-season-sell" placeholder="Enter Sell Price">
-                           @error('breakfast_price')
-                              <div class="text-danger mt-1">{{ $message }}</div>
-                           @enderror
-                        </div>
-
-                        <!-- Lunch: Cost then Sell -->
-                        <div class="mb-3 col-md-3">
-                           <label for="lunch_cost_price" class="form-label"><strong>Lunch Price(Cost)</strong></label>
-                           <input type="number" step="0.01" min="0" id="lunch_cost_price" name="lunch_cost_price" class="form-control js-season-cost" data-sell-target="lunch_price" placeholder="Enter Cost Price">
-                           @error('lunch_cost_price')
-                              <div class="text-danger mt-1">{{ $message }}</div>
-                           @enderror
-                        </div>
-
-                        <div class="mb-3 col-md-3">
-                           <label for="lunch_price" class="form-label"><strong>Lunch Sell Price</strong>
-                              <sup>
-                                 <button type="button" 
-                                    class="info-button" 
-                                    data-bs-toggle="tooltip" 
-                                    data-bs-placement="top" 
-                                    title="Price for lunch."
-                                    style="border: none;">
-                                    <i class="bi bi-info-circle"></i>
-                                 </button>
-                              </sup>
-                           </label>
-                           <input type="number" step="0.01" min="0" id="lunch_price" name="lunch_price" class="form-control js-season-sell" placeholder="Enter Sell Price">
-                           @error('lunch_price')
-                              <div class="text-danger mt-1">{{ $message }}</div>
-                           @enderror
-                        </div>
-
-                        <!-- Dinner: Cost then Sell -->
-                        <div class="mb-3 col-md-3">
-                           <label for="dinner_cost_price" class="form-label"><strong>Dinner Price(Cost)</strong></label>
-                           <input type="number" step="0.01" min="0" id="dinner_cost_price" name="dinner_cost_price" class="form-control js-season-cost" data-sell-target="dinner_price" placeholder="Enter Cost Price">
-                           @error('dinner_cost_price')
-                              <div class="text-danger mt-1">{{ $message }}</div>
-                           @enderror
-                        </div>
-
-                        <div class="mb-3 col-md-3">
-                           <label for="dinner_price" class="form-label"><strong>Dinner Sell Price</strong>
-                              <sup>
-                                 <button type="button" 
-                                    class="info-button" 
-                                    data-bs-toggle="tooltip" 
-                                    data-bs-placement="top" 
-                                    title="Price for dinner."
-                                    style="border: none;">
-                                    <i class="bi bi-info-circle"></i>
-                                 </button>
-                              </sup>
-                           </label>
-                           <input type="number" step="0.01" min="0" id="dinner_price" name="dinner_price" class="form-control js-season-sell" placeholder="Enter Sell Price">
-                           @error('dinner_price')
-                              <div class="text-danger mt-1">{{ $message }}</div>
-                           @enderror
-                        </div>
-
-                        <!-- Start Date, End date DateRange -->
-                           <div class="mb-3 col-md-3">
-                              <label for="date_range" class="form-label"><strong>Season Date Range</strong><span class="text-danger">*</span></label>
-                              <div class="input-group">
-                                    <input type="text" id="date_range" name="date_range" class="form-control"
-                                       placeholder="Select date range">
-                                    @error('hotel_owner_company_name')
+                     <div class="mb-3 row season-meal-pricing-row">
+                        <div class="col-md-4 mb-3">
+                           <fieldset class="border p-1 position-relative">
+                              <legend>Breakfast</legend>
+                              <div class="row g-2">
+                                 <div class="col-md-6">
+                                    <div class="form-floating">
+                                       <input type="number" step="0.01" min="0" id="breakfast_cost_price" name="breakfast_cost_price" class="form-control js-season-cost" data-sell-target="breakfast_price" placeholder=" ">
+                                       <label for="breakfast_cost_price">Cost</label>
+                                    </div>
+                                    @error('breakfast_cost_price')
                                        <div class="text-danger mt-1">{{ $message }}</div>
                                     @enderror
+                                 </div>
+                                 <div class="col-md-6">
+                                    <div class="form-floating">
+                                       <input type="number" step="0.01" min="0" id="breakfast_price" name="breakfast_price" class="form-control js-season-sell" placeholder=" ">
+                                       <label for="breakfast_price">Sell</label>
+                                    </div>
+                                    @error('breakfast_price')
+                                       <div class="text-danger mt-1">{{ $message }}</div>
+                                    @enderror
+                                 </div>
                               </div>
-                           </div>
+                           </fieldset>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                           <fieldset class="border p-1 position-relative">
+                              <legend>Lunch</legend>
+                              <div class="row g-2">
+                                 <div class="col-md-6">
+                                    <div class="form-floating">
+                                       <input type="number" step="0.01" min="0" id="lunch_cost_price" name="lunch_cost_price" class="form-control js-season-cost" data-sell-target="lunch_price" placeholder=" ">
+                                       <label for="lunch_cost_price">Cost</label>
+                                    </div>
+                                    @error('lunch_cost_price')
+                                       <div class="text-danger mt-1">{{ $message }}</div>
+                                    @enderror
+                                 </div>
+                                 <div class="col-md-6">
+                                    <div class="form-floating">
+                                       <input type="number" step="0.01" min="0" id="lunch_price" name="lunch_price" class="form-control js-season-sell" placeholder=" ">
+                                       <label for="lunch_price">Sell</label>
+                                    </div>
+                                    @error('lunch_price')
+                                       <div class="text-danger mt-1">{{ $message }}</div>
+                                    @enderror
+                                 </div>
+                              </div>
+                           </fieldset>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                           <fieldset class="border p-1 position-relative">
+                              <legend>Dinner</legend>
+                              <div class="row g-2">
+                                 <div class="col-md-6">
+                                    <div class="form-floating">
+                                       <input type="number" step="0.01" min="0" id="dinner_cost_price" name="dinner_cost_price" class="form-control js-season-cost" data-sell-target="dinner_price" placeholder=" ">
+                                       <label for="dinner_cost_price">Cost</label>
+                                    </div>
+                                    @error('dinner_cost_price')
+                                       <div class="text-danger mt-1">{{ $message }}</div>
+                                    @enderror
+                                 </div>
+                                 <div class="col-md-6">
+                                    <div class="form-floating">
+                                       <input type="number" step="0.01" min="0" id="dinner_price" name="dinner_price" class="form-control js-season-sell" placeholder=" ">
+                                       <label for="dinner_price">Sell</label>
+                                    </div>
+                                    @error('dinner_price')
+                                       <div class="text-danger mt-1">{{ $message }}</div>
+                                    @enderror
+                                 </div>
+                              </div>
+                           </fieldset>
+                        </div>
                      </div>
                   </div>
                </div>
