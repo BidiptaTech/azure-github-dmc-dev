@@ -26,14 +26,12 @@ import AccessTimeOutlinedIcon from "@mui/icons-material/AccessTimeOutlined";
 import PeopleOutlineIcon from "@mui/icons-material/PeopleOutline";
 import FlightTakeoffOutlinedIcon from "@mui/icons-material/FlightTakeoffOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
-import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 import {
   selectCart,
   removeFromCart,
   clearCart,
   clearCartByTrip,
   setCheckoutTripId,
-  MAX_CART_TRIPS,
 } from "@/slice/cart/carSlice";
 import {
   applyTourSearchToRedux,
@@ -46,6 +44,11 @@ const BOOKING_TYPE_LABELS = {
   hotel: "Hotel",
   attraction: "Attraction",
   restaurant: "Restaurant",
+  travelhourly: "Travel Hourly",
+  travelpointzone: "Travel Zone",
+  local_transport: "Travel Zone",
+  travel_hourly: "Travel Hourly",
+  travel_point: "Travel Point",
 };
 
 const formatPrice = (value) => {
@@ -212,8 +215,8 @@ const CartPage = () => {
             Your cart is empty
           </Typography>
           <Typography color="text.secondary" mb={3}>
-            Add hotels, attractions, restaurants, or transfers for a trip. You can keep up to {MAX_CART_TRIPS} trips
-            in the cart. Use Edit on a trip to add more products.
+            Add hotels, attractions, restaurants, or transfers for your trip.
+            Starting a new search clears the cart. Use Edit to add more products.
           </Typography>
           <Button
             variant="contained"
@@ -256,22 +259,10 @@ const CartPage = () => {
               Shopping Cart
             </Typography>
             <Typography color="text.secondary" mt={0.5}>
-              {totals.itemCount} item{totals.itemCount === 1 ? "" : "s"} across{" "}
-              {trips.length}/{MAX_CART_TRIPS} trip
-              {trips.length === 1 ? "" : "s"}
+              {totals.itemCount} item{totals.itemCount === 1 ? "" : "s"} in cart
             </Typography>
           </Box>
           <Stack direction="row" spacing={1.5}>
-            {trips.length < MAX_CART_TRIPS && (
-              <Button
-                variant="outlined"
-                startIcon={<AddCircleOutlineIcon />}
-                onClick={() => navigate("/dashboard/db-dashboard/home_1")}
-                sx={{ textTransform: "none", borderRadius: 2 }}
-              >
-                Add New Trip
-              </Button>
-            )}
             <Button
               variant="outlined"
               color="error"
@@ -977,13 +968,13 @@ const CartPage = () => {
                 <Button
                   fullWidth
                   variant="text"
-                  onClick={() => navigate("/dashboard/db-dashboard/home_1")}
-                  disabled={trips.length >= MAX_CART_TRIPS}
+                  onClick={() => {
+                    if (trips[0]) handleEditTrip(trips[0]);
+                    else navigate("/dashboard/db-dashboard/home_1");
+                  }}
                   sx={{ textTransform: "none", color: "#64748b" }}
                 >
-                  {trips.length >= MAX_CART_TRIPS
-                    ? `Trip limit reached (${MAX_CART_TRIPS})`
-                    : "Continue Shopping"}
+                  Continue Shopping
                 </Button>
               </CardContent>
             </Card>

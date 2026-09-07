@@ -22,18 +22,59 @@ const SearchZone = ({
   const zone = useSelector((state) => state.localtour.zone);
   const [displayValue, setDisplayValue] = useState("");
   console.log("zone", zone);
+  console.log("currentbooking23", currentbooking);
+
   useEffect(() => {
+    if (!currentbooking || Array.isArray(currentbooking)) return;
+
     if (picktype === "hotel") {
-      setPickUpLocation(currentbooking?.hotelDetails?.hotel_id);
-      setPickupLatLng(currentbooking?.hotelDetails?.hotel_name);
-    } else if (picktype === "attraction") {
-      setPickUpLocation(currentbooking?.service_details?.attraction_id);
-      setPickupLatLng(currentbooking?.service_details?.name);
+      setPickUpLocation(
+        currentbooking?.hotelDetails?.hotel_id ||
+          currentbooking?.hotel_id ||
+          currentbooking?.hotelId ||
+          null
+      );
+      setPickupLatLng(
+        currentbooking?.hotelDetails?.hotel_name ||
+          currentbooking?.hotel_name ||
+          currentbooking?.serviceName ||
+          ""
+      );
+    } else if (picktype === "attraction" || picktype === "attraction_package") {
+      setPickUpLocation(
+        currentbooking?.service_details?.attraction_id ||
+          currentbooking?.package_attraction_id ||
+          currentbooking?.AttractionId ||
+          currentbooking?.attraction_id ||
+          currentbooking?.attractionId ||
+          null
+      );
+      setPickupLatLng(
+        currentbooking?.service_details?.name ||
+          currentbooking?.AttractionName ||
+          currentbooking?.serviceName ||
+          ""
+      );
     } else if (picktype === "restaurant") {
-      setPickUpLocation(currentbooking?.service_details?.restaurant_id);
-      setPickupLatLng(currentbooking?.service_details?.name);
+      setPickUpLocation(
+        currentbooking?.service_details?.restaurant_id ||
+          currentbooking?.restaurantId ||
+          currentbooking?.restaurant_id ||
+          null
+      );
+      setPickupLatLng(
+        currentbooking?.service_details?.name ||
+          currentbooking?.restaurantName ||
+          currentbooking?.serviceName ||
+          ""
+      );
     }
-  });
+  }, [
+    picktype,
+    currentbooking,
+    setPickUpLocation,
+    setPickupLatLng,
+  ]);
 
   // useEffect(() => {
   //   if (!window.google || !window.google.maps || !window.google.maps.places) {
@@ -195,11 +236,18 @@ const SearchZone = ({
                     className="js-search js-dd-focus w-full pac-item"
                     value={
                       (picktype === "hotel" &&
-                        currentbooking?.hotelDetails?.hotel_name) ||
-                      (picktype === "attraction" &&
-                        currentbooking?.service_details?.name) ||
+                        (currentbooking?.hotelDetails?.hotel_name ||
+                          currentbooking?.hotel_name ||
+                          currentbooking?.serviceName)) ||
+                      ((picktype === "attraction" ||
+                        picktype === "attraction_package") &&
+                        (currentbooking?.service_details?.name ||
+                          currentbooking?.AttractionName ||
+                          currentbooking?.serviceName)) ||
                       (picktype === "restaurant" &&
-                        currentbooking?.service_details?.name) ||
+                        (currentbooking?.service_details?.name ||
+                          currentbooking?.restaurantName ||
+                          currentbooking?.serviceName)) ||
                       ""
                     }
                     disabled

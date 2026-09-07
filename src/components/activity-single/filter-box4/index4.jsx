@@ -31,6 +31,8 @@ import dayjs from "dayjs";
 import { setDateService } from "@/slice/common/dateServicesSlice";
 import Pickuptime1 from "./Pickuptime1";
 import { setbookingImage, setbookingType } from "@/slice/tourguide/guideslice";
+import { addToCart } from "@/slice/cart/carSlice";
+import { store } from "@/store/store";
 
 const Index4 = () => {
   const dispatch = useDispatch();
@@ -47,6 +49,9 @@ const Index4 = () => {
   const PickupPlaceid = useSelector((state) => state.localtour.PickupPlaceid);
   const id = useSelector((state) => state.hotels.id);
   const tourDetails = useSelector((state) => state.hotels?.tourdetails);
+  const searchLocation = useSelector(
+    (state) => state.bookings?.searchLocation || []
+  );
 
   const adultsMax = tourDetails?.adult ?? 1;
   const childrenMax = tourDetails?.child ?? 0;
@@ -364,9 +369,23 @@ const Index4 = () => {
     };
 
     dispatch(sethourlydata(details));
-    navigate(`/dashboard/db-dashboard/CheckOut`, {
-      state: { vehicles: vehicles },
-    });
+    dispatch(
+      addToCart({
+        bookingType: "travelhourly",
+        item: details,
+        tourDetails: {
+          ...(tourDetails || {}),
+          searchLocation,
+        },
+      })
+    );
+    const cartError = store.getState().cart?.lastActionError;
+    if (cartError) {
+      toast.error(cartError);
+      return;
+    }
+    toast.success("Added to cart successfully.");
+    navigate(`/dashboard/db-dashboard/cart`);
 
     // setMappedData(data); // Update state with final values
     // setIsModalOpen(true);
@@ -502,7 +521,7 @@ const Index4 = () => {
           }`}
           disabled={!isBookNowEnabled} // Disable button if not enabled
         >
-          Check Out
+          Add to Cart
         </button>
         {isNight && (
           <div className="text-14 mt-10" style={{ color: "#E53935" }}>

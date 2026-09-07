@@ -41,6 +41,7 @@ import { clearSelectedDmc, fetchDMCsByCountry } from "@/slice/dmc/dmcSlice";
 import { clearSelectedCities } from "@/slice/common/citiesSlice";
 import { clearBookingFlow } from "@/utils/clearBookingFlow";
 import { clearViewDetails } from "@/slice/common/ViewDetails";
+import { clearCart } from "@/slice/cart/carSlice";
 import swal from "sweetalert";
 
 // Create a reusable alert component
@@ -392,6 +393,8 @@ const MainFilterSearchBox = () => {
     // Reset local step tracking for new search — replaces any previous tour session
     dispatch(resetSteps());
     clearBookingFlow(dispatch);
+    // New search starts a fresh tour — only one trip allowed in cart
+    dispatch(clearCart());
 
     // Re-apply city-wise dates after clearBookingFlow (it resets common booking state)
     dispatch(setCityWiseDates(cityWiseDatesPayload));
