@@ -15,6 +15,19 @@
         margin-bottom: 0;
     }
 
+    .room-occupancy-pricing-row .row.g-2 > [class*="col-"] {
+        min-width: 0;
+    }
+
+    .room-occupancy-pricing-row .form-text.base-cost-info,
+    .room-occupancy-pricing-row .form-text.base-price-info {
+        font-size: 0.8rem;
+        line-height: 1.2;
+        margin-top: 0.25rem;
+        margin-bottom: 0;
+        word-break: break-word;
+    }
+
     .room-price-pair .form-text {
         min-height: 1.25rem;
         margin-top: 0.25rem;
@@ -23,6 +36,28 @@
 </style>
 @endsection
 @section('content')
+@php
+    $costOrSell = function ($cost, $sell) {
+        $cost = (float) $cost;
+        return $cost > 0 ? $cost : (float) $sell;
+    };
+    $fmtPrice = function ($value) {
+        if ($value === null || $value === '') {
+            return '';
+        }
+        return number_format((float) $value, 2, '.', '');
+    };
+    $baseRoomPricing = $baseRoomPricing ?? [
+        'weekday_price' => (float) optional($baseRoom ?? null)->weekday_price,
+        'weekend_price' => (float) optional($baseRoom ?? null)->weekend_price,
+        'double_weekday_price' => (float) optional($baseRoom ?? null)->double_weekday_price,
+        'double_weekend_price' => (float) optional($baseRoom ?? null)->double_weekend_price,
+        'weekday_cost_price' => $costOrSell(optional($baseRoom ?? null)->weekday_cost_price, optional($baseRoom ?? null)->weekday_price),
+        'weekend_cost_price' => $costOrSell(optional($baseRoom ?? null)->weekend_cost_price, optional($baseRoom ?? null)->weekend_price),
+        'double_weekday_cost_price' => $costOrSell(optional($baseRoom ?? null)->double_weekday_cost_price, optional($baseRoom ?? null)->double_weekday_price),
+        'double_weekend_cost_price' => $costOrSell(optional($baseRoom ?? null)->double_weekend_cost_price, optional($baseRoom ?? null)->double_weekend_price),
+    ];
+@endphp
 
 <div class="content-wrapper">
     <x-alert />
@@ -102,7 +137,7 @@
                     <div class="col-md-3 mb-3" id="varient_price" style="display: none;">
                         <label for="varient_price_input" class="form-label"><strong>Room Rate
                                 Variant</strong><span class="text-danger">*</span></label>
-                        <input name="varient_price" id="varient_price_input" class="form-control"
+                        <input name="varient_price" id="varient_price_input" class="form-control" type="number" step="0.01"
                             placeholder="Enter Variant Price">
                         @error('varient_price')
                         <div class="text-danger mt-1">{{ $message }}</div>
@@ -148,7 +183,7 @@
                         <label for="room_profit_amount" class="form-label"><strong>Profit amount</strong></label>
                         <input type="number" id="room_profit_amount" class="form-control js-room-profit-amount"
                                value="0" min="0" step="0.01" placeholder="Enter profit amount">
-                        <small class="text-muted">Auto-fills Sell from Cost</small>
+                        <small class="text-muted">Auto-fills Sell from variant + profit</small>
                     </div>
                 </div>
 
@@ -189,34 +224,52 @@
 
                 <div id="room-pricing-alert" class="mb-3"></div>
 
-                <div class="mb-3 row room-occupancy-pricing-row" id="variant_pricing_row" style="display: none;">
+                <div class="mb-3 row room-occupancy-pricing-row" id="variant_pricing_row" style="display: none;"
+                    data-weekday-price="{{ $baseRoomPricing['weekday_price'] }}"
+                    data-weekend-price="{{ $baseRoomPricing['weekend_price'] }}"
+                    data-double-weekday-price="{{ $baseRoomPricing['double_weekday_price'] }}"
+                    data-double-weekend-price="{{ $baseRoomPricing['double_weekend_price'] }}"
+                    data-weekday-cost="{{ $baseRoomPricing['weekday_cost_price'] }}"
+                    data-weekend-cost="{{ $baseRoomPricing['weekend_cost_price'] }}"
+                    data-double-weekday-cost="{{ $baseRoomPricing['double_weekday_cost_price'] }}"
+                    data-double-weekend-cost="{{ $baseRoomPricing['double_weekend_cost_price'] }}">
                     <!-- Single weekday weekend price -->
                     <div class="col-md-6" id="single_price">
                         <div class="mb-3">
                             <fieldset class="border p-1 position-relative">
                                 <legend>Single</legend>
                                 <div class="row g-2">
-                                    <div class="col-md-6 form-floating">
-                                        <input type="text" id="singleWeekdayCostPrice" name="singleWeekdayCostPrice" class="form-control js-room-cost" data-sell-target="singleWeekdayPrice" placeholder=" " value="{{ $room->weekday_cost_price ?? '' }}">
+                                    <div class="col-md-6">
+                                        <div class="form-floating">
+                                        <input type="text" id="singleWeekdayCostPrice" name="singleWeekdayCostPrice" class="form-control js-room-cost" data-sell-target="singleWeekdayPrice" placeholder=" " value="{{ $fmtPrice($room->weekday_cost_price) }}">
                                         <label for="singleWeekdayCostPrice">Weekday Price(Cost)</label>
+                                        </div>
                                     </div>
-                                    <div class="col-md-6 form-floating">
-                                        <input type="text" id="singleWeekdayPrice" name="singleWeekdayPrice" class="form-control js-room-sell" placeholder=" ">
+                                    <div class="col-md-6">
+                                        <div class="form-floating">
+                                        <input type="text" id="singleWeekdayPrice" name="singleWeekdayPrice" class="form-control js-room-sell" placeholder=" " value="{{ $fmtPrice($room->weekday_price) }}" onkeyup="calculatePrice()">
                                         <label for="singleWeekdayPrice">Weekday Price(Sell)</label>
+                                        </div>
                                         @if($auth_user->user_type == 2)
                                         <span class="text-primary" style="font-size: 10px;">calculated price: <span id="totalSingleWeekdayPrice">{{ $single_weekday_price }}</span></span>
                                         @endif
+                                        <div class="calculation-display text-primary small mt-1" id="single-weekday-calc" style="display: none;"></div>
                                     </div>
-                                    <div class="col-md-6 form-floating">
-                                        <input type="text" id="singleWeekendCostPrice" name="singleWeekendCostPrice" class="form-control js-room-cost" data-sell-target="singleWeekendPrice" placeholder=" " value="{{ $room->weekend_cost_price ?? '' }}">
+                                    <div class="col-md-6">
+                                        <div class="form-floating">
+                                        <input type="text" id="singleWeekendCostPrice" name="singleWeekendCostPrice" class="form-control js-room-cost" data-sell-target="singleWeekendPrice" placeholder=" " value="{{ $fmtPrice($room->weekend_cost_price) }}">
                                         <label for="singleWeekendCostPrice">Weekend Price(Cost)</label>
+                                        </div>
                                     </div>
-                                    <div class="col-md-6 form-floating">
-                                        <input type="text" id="singleWeekendPrice" name="singleWeekendPrice" class="form-control js-room-sell" placeholder=" ">
+                                    <div class="col-md-6">
+                                        <div class="form-floating">
+                                        <input type="text" id="singleWeekendPrice" name="singleWeekendPrice" class="form-control js-room-sell" placeholder=" " value="{{ $fmtPrice($room->weekend_price) }}" onkeyup="calculatePrice()">
                                         <label for="singleWeekendPrice">Weekend Price(Sell)</label>
+                                        </div>
                                         @if($auth_user->user_type == 2)
                                         <span class="text-primary" style="font-size: 10px;">calculated price: <span id="totalSingleWeekendPrice">{{ $single_weekend_price }}</span></span>
                                         @endif
+                                        <div class="calculation-display text-primary small mt-1" id="single-weekend-calc" style="display: none;"></div>
                                     </div>
                                 </div>
                             </fieldset>
@@ -229,28 +282,37 @@
                             <fieldset class="border p-1 position-relative">
                                 <legend>Double</legend>
                                 <div class="row g-2">
-                                    <div class="col-md-6 form-floating">
-                                        <input type="text" id="doubleWeekdayCostPrice" name="doubleWeekdayCostPrice" class="form-control js-room-cost" data-sell-target="doubleWeekdayPrice" placeholder=" " value="{{ $room->double_weekday_cost_price ?? '' }}">
+                                    <div class="col-md-6">
+                                        <div class="form-floating">
+                                        <input type="text" id="doubleWeekdayCostPrice" name="doubleWeekdayCostPrice" class="form-control js-room-cost" data-sell-target="doubleWeekdayPrice" placeholder=" " value="{{ $fmtPrice($room->double_weekday_cost_price) }}">
                                         <label for="doubleWeekdayCostPrice">Weekday Price(Cost)</label>
+                                        </div>
                                     </div>
-                                    <div class="col-md-6 form-floating">
-                                        <input type="text" id="doubleWeekdayPrice" name="doubleWeekdayPrice" class="form-control js-room-sell" placeholder=" ">
+                                    <div class="col-md-6">
+                                        <div class="form-floating">
+                                        <input type="text" id="doubleWeekdayPrice" name="doubleWeekdayPrice" class="form-control js-room-sell" placeholder=" " value="{{ $fmtPrice($room->double_weekday_price) }}" onkeyup="calculatePrice()">
                                         <label for="doubleWeekdayPrice">Weekday Price(Sell)</label>
+                                        </div>
                                         @if($auth_user->user_type == 2)
                                         <span class="text-primary" style="font-size: 10px;">calculated price: <span id="totalDoubleWeekdayPrice">{{ $double_weekday_price }}</span></span>
                                         @endif
-                                        
+                                        <div class="calculation-display text-primary small mt-1" id="double-weekday-calc" style="display: none;"></div>
                                     </div>
-                                    <div class="col-md-6 form-floating">
-                                        <input type="text" id="doubleWeekendCostPrice" name="doubleWeekendCostPrice" class="form-control js-room-cost" data-sell-target="doubleWeekendPrice" placeholder=" " value="{{ $room->double_weekend_cost_price ?? '' }}">
+                                    <div class="col-md-6">
+                                        <div class="form-floating">
+                                        <input type="text" id="doubleWeekendCostPrice" name="doubleWeekendCostPrice" class="form-control js-room-cost" data-sell-target="doubleWeekendPrice" placeholder=" " value="{{ $fmtPrice($room->double_weekend_cost_price) }}">
                                         <label for="doubleWeekendCostPrice">Weekend Price(Cost)</label>
+                                        </div>
                                     </div>
-                                    <div class="col-md-6 form-floating">
-                                        <input type="text" id="doubleWeekendPrice" name="doubleWeekendPrice" class="form-control js-room-sell" placeholder=" ">
+                                    <div class="col-md-6">
+                                        <div class="form-floating">
+                                        <input type="text" id="doubleWeekendPrice" name="doubleWeekendPrice" class="form-control js-room-sell" placeholder=" " value="{{ $fmtPrice($room->double_weekend_price) }}" onkeyup="calculatePrice()">
                                         <label for="doubleWeekendPrice">Weekend Price(Sell)</label>
+                                        </div>
                                         @if($auth_user->user_type == 2)
                                         <span class="text-primary" style="font-size: 10px;">calculated price: <span id="totalDoubleWeekendPrice">{{ $double_weekend_price }}</span></span>
                                         @endif
+                                        <div class="calculation-display text-primary small mt-1" id="double-weekend-calc" style="display: none;"></div>
                                     </div>
                                 </div>
                             </fieldset>
@@ -265,29 +327,35 @@
                             <fieldset class="border p-1 position-relative">
                                 <legend>Single</legend>
                                 <div class="row g-2">
-                                    <div class="col-md-6 form-floating">
-                                        <input type="text" id="baseSingleWeekdayCostPrice" name="baseSingleWeekdayCostPrice" class="form-control js-room-cost" data-sell-target="baseSingleWeekdayPrice" placeholder=" " value="{{ $room->weekday_cost_price ?? '' }}">
+                                    <div class="col-md-6">
+                                        <div class="form-floating">
+                                        <input type="text" id="baseSingleWeekdayCostPrice" name="baseSingleWeekdayCostPrice" class="form-control js-room-cost" data-sell-target="baseSingleWeekdayPrice" placeholder=" " value="{{ $fmtPrice($room->weekday_cost_price) }}">
                                         <label for="baseSingleWeekdayCostPrice">Base Weekday Price(Cost)</label>
+                                        </div>
                                     </div>
-                                    <div class="col-md-6 form-floating">
-                                        <input type="text" id="baseSingleWeekdayPrice" name="baseSingleWeekdayPrice" class="form-control js-room-sell" placeholder=" ">
+                                    <div class="col-md-6">
+                                        <div class="form-floating">
+                                        <input type="text" id="baseSingleWeekdayPrice" name="baseSingleWeekdayPrice" class="form-control js-room-sell" placeholder=" " value="{{ $fmtPrice($room->weekday_price) }}" onkeyup="calculatePrice()">
                                         <label for="baseSingleWeekdayPrice">Base Weekday Price(Sell)</label>
+                                        </div>
                                         @if($auth_user->user_type == 2)
                                         <span class="text-primary" style="font-size: 10px;">calculated price: <span id="totalWeekdayPrice"> {{ $single_weekday_price }}</span></span>
                                         @endif
-                                        
                                     </div>
-                                    <div class="col-md-6 form-floating">
-                                        <input type="text" id="baseSingleWeekendCostPrice" name="baseSingleWeekendCostPrice" class="form-control js-room-cost" data-sell-target="baseSingleWeekendPrice" placeholder=" " value="{{ $room->weekend_cost_price ?? '' }}">
+                                    <div class="col-md-6">
+                                        <div class="form-floating">
+                                        <input type="text" id="baseSingleWeekendCostPrice" name="baseSingleWeekendCostPrice" class="form-control js-room-cost" data-sell-target="baseSingleWeekendPrice" placeholder=" " value="{{ $fmtPrice($room->weekend_cost_price) }}">
                                         <label for="baseSingleWeekendCostPrice">Base Weekend Price(Cost)</label>
+                                        </div>
                                     </div>
-                                    <div class="col-md-6 form-floating">
-                                        <input type="text" id="baseSingleWeekendPrice" name="baseSingleWeekendPrice" class="form-control js-room-sell" placeholder=" ">
+                                    <div class="col-md-6">
+                                        <div class="form-floating">
+                                        <input type="text" id="baseSingleWeekendPrice" name="baseSingleWeekendPrice" class="form-control js-room-sell" placeholder=" " value="{{ $fmtPrice($room->weekend_price) }}" onkeyup="calculatePrice()">
                                         <label for="baseSingleWeekendPrice">Base Weekend Price(Sell)</label>
+                                        </div>
                                         @if($auth_user->user_type == 2)
                                         <span class="text-primary" style="font-size: 10px;">calculated price: <span id="totalWeekendPrice">{{ $single_weekend_price }}</span></span>
                                         @endif
-                                      
                                     </div>
                                 </div>
                             </fieldset>
@@ -300,24 +368,32 @@
                             <fieldset class="border p-1 position-relative">
                                 <legend>Double</legend>
                                 <div class="row g-2">
-                                    <div class="col-md-6 form-floating">
-                                        <input type="text" id="baseDoubleWeekdayCostPrice" name="baseDoubleWeekdayCostPrice" class="form-control js-room-cost" data-sell-target="baseDoubleWeekdayPrice" placeholder=" " value="{{ $room->double_weekday_cost_price ?? '' }}">
+                                    <div class="col-md-6">
+                                        <div class="form-floating">
+                                        <input type="text" id="baseDoubleWeekdayCostPrice" name="baseDoubleWeekdayCostPrice" class="form-control js-room-cost" data-sell-target="baseDoubleWeekdayPrice" placeholder=" " value="{{ $fmtPrice($room->double_weekday_cost_price) }}">
                                         <label for="baseDoubleWeekdayCostPrice">Base Weekday Price(Cost)</label>
+                                        </div>
                                     </div>
-                                    <div class="col-md-6 form-floating">
-                                        <input type="text" id="baseDoubleWeekdayPrice" name="baseDoubleWeekdayPrice" class="form-control js-room-sell" placeholder=" ">
+                                    <div class="col-md-6">
+                                        <div class="form-floating">
+                                        <input type="text" id="baseDoubleWeekdayPrice" name="baseDoubleWeekdayPrice" class="form-control js-room-sell" placeholder=" " value="{{ $fmtPrice($room->double_weekday_price) }}" onkeyup="calculatePrice()">
                                         <label for="baseDoubleWeekdayPrice">Base Weekday Price(Sell)</label>
+                                        </div>
                                         @if($auth_user->user_type == 2)
                                         <span class="text-primary" style="font-size: 10px;">calculated price: <span id="totalBaseDoubleWeekdayPrice">{{ $double_weekday_price }}</span></span>
                                         @endif
                                     </div>
-                                    <div class="col-md-6 form-floating">
-                                        <input type="text" id="baseDoubleWeekendCostPrice" name="baseDoubleWeekendCostPrice" class="form-control js-room-cost" data-sell-target="baseDoubleWeekendPrice" placeholder=" " value="{{ $room->double_weekend_cost_price ?? '' }}">
+                                    <div class="col-md-6">
+                                        <div class="form-floating">
+                                        <input type="text" id="baseDoubleWeekendCostPrice" name="baseDoubleWeekendCostPrice" class="form-control js-room-cost" data-sell-target="baseDoubleWeekendPrice" placeholder=" " value="{{ $fmtPrice($room->double_weekend_cost_price) }}">
                                         <label for="baseDoubleWeekendCostPrice">Base Weekend Price(Cost)</label>
+                                        </div>
                                     </div>
-                                    <div class="col-md-6 form-floating">
-                                        <input type="text" id="baseDoubleWeekendPrice" name="baseDoubleWeekendPrice" class="form-control js-room-sell" placeholder=" ">
+                                    <div class="col-md-6">
+                                        <div class="form-floating">
+                                        <input type="text" id="baseDoubleWeekendPrice" name="baseDoubleWeekendPrice" class="form-control js-room-sell" placeholder=" " value="{{ $fmtPrice($room->double_weekend_price) }}" onkeyup="calculatePrice()">
                                         <label for="baseDoubleWeekendPrice">Base Weekend Price(Sell)</label>
+                                        </div>
                                         @if($auth_user->user_type == 2)
                                         <span class="text-primary" style="font-size: 10px;">calculated price: <span id="totalBaseDoubleWeekendPrice">{{ $double_weekend_price }}</span></span>
                                         @endif
@@ -587,82 +663,315 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Get hotel data from server-rendered Blade variable
     const room = @json($room);
     const baseRoom = @json($baseRoom);
+    const serverBasePricing = @json($baseRoomPricing ?? null);
+    const isEditingBaseRoom = Number(room.base_room) > 0;
+    const standardPrices = {
+        singleWeekday: 0,
+        singleWeekend: 0,
+        doubleWeekday: 0,
+        doubleWeekend: 0
+    };
+    const standardCosts = {
+        singleWeekday: 0,
+        singleWeekend: 0,
+        doubleWeekday: 0,
+        doubleWeekend: 0
+    };
 
-    if (room.room_type != "Standard") {
-        // Hide the specified base divs
+    function pickNumeric(obj, keys) {
+        if (!obj) return 0;
+        for (let i = 0; i < keys.length; i++) {
+            const raw = obj[keys[i]];
+            if (raw === undefined || raw === null || raw === '') continue;
+            const n = parseFloat(raw);
+            if (!isNaN(n)) return n;
+        }
+        return 0;
+    }
+
+    function costOrSell(cost, sell) {
+        const c = parseFloat(cost);
+        if (!isNaN(c) && c > 0) return c;
+        return parseFloat(sell) || 0;
+    }
+
+    function roundOccupancy(n) {
+        return Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+    }
+
+    function occupancyProfitSettings() {
+        const typeEl = document.querySelector('.js-room-profit-type');
+        const amountEl = document.querySelector('.js-room-profit-amount');
+        return {
+            type: typeEl ? typeEl.value : 'percentage',
+            amount: parseFloat(amountEl ? amountEl.value : 0) || 0
+        };
+    }
+
+    function applyProfitToSellBase(base, type, amount) {
+        const b = parseFloat(base) || 0;
+        const a = parseFloat(amount) || 0;
+        if (a <= 0) return roundOccupancy(b);
+        if (type === 'flat') return roundOccupancy(b + a);
+        return roundOccupancy(b + (b * a / 100));
+    }
+
+    function occupancyInput(id, sellTarget) {
+        return document.getElementById(id)
+            || document.querySelector('[name="' + id + '"]')
+            || (sellTarget ? document.querySelector('.js-room-cost[data-sell-target="' + sellTarget + '"]') : null);
+    }
+
+    function setOccupancyInput(id, value, makeReadonly, sellTarget) {
+        const formatted = (parseFloat(value) || 0).toFixed(2);
+        const seen = new Set();
+        const add = function (el) {
+            if (!el || seen.has(el)) return;
+            seen.add(el);
+            el.value = formatted;
+            el.readOnly = false;
+            el.classList.remove('bg-light');
+        };
+        add(document.getElementById(id));
+        document.querySelectorAll('[name="' + id + '"]').forEach(add);
+        if (sellTarget) {
+            document.querySelectorAll('.js-room-cost[data-sell-target="' + sellTarget + '"]').forEach(add);
+        }
+    }
+
+    function setOccupancyHint(inputId, className, html, dataBase, sellTarget) {
+        const el = occupancyInput(inputId, sellTarget);
+        if (!el) return;
+        const col = el.closest('.col-md-6') || el.parentElement;
+        const uniqueClass = className + '-' + inputId;
+        let hint = col.querySelector('.' + uniqueClass);
+        if (!hint) {
+            hint = document.createElement('div');
+            hint.className = 'form-text text-info ' + className + ' ' + uniqueClass;
+            col.appendChild(hint);
+        }
+        hint.dataset.base = dataBase;
+        hint.innerHTML = html;
+    }
+
+    function loadBaseOccupancyFrom(source) {
+        if (!source) return false;
+        standardPrices.singleWeekday = pickNumeric(source, ['weekday_price', 'weekdayPrice', 'singleWeekdayPrice']);
+        standardPrices.singleWeekend = pickNumeric(source, ['weekend_price', 'weekendPrice', 'singleWeekendPrice']);
+        standardPrices.doubleWeekday = pickNumeric(source, ['double_weekday_price', 'doubleWeekdayPrice']);
+        standardPrices.doubleWeekend = pickNumeric(source, ['double_weekend_price', 'doubleWeekendPrice']);
+        standardCosts.singleWeekday = costOrSell(
+            pickNumeric(source, ['weekday_cost_price', 'weekdayCostPrice', 'singleWeekdayCostPrice']),
+            standardPrices.singleWeekday
+        );
+        standardCosts.singleWeekend = costOrSell(
+            pickNumeric(source, ['weekend_cost_price', 'weekendCostPrice', 'singleWeekendCostPrice']),
+            standardPrices.singleWeekend
+        );
+        standardCosts.doubleWeekday = costOrSell(
+            pickNumeric(source, ['double_weekday_cost_price', 'doubleWeekdayCostPrice']),
+            standardPrices.doubleWeekday
+        );
+        standardCosts.doubleWeekend = costOrSell(
+            pickNumeric(source, ['double_weekend_cost_price', 'doubleWeekendCostPrice']),
+            standardPrices.doubleWeekend
+        );
+        return true;
+    }
+
+    function loadBaseOccupancyFromRow() {
+        const row = document.getElementById('variant_pricing_row');
+        if (!row || !row.dataset) return false;
+        return loadBaseOccupancyFrom({
+            weekday_price: row.dataset.weekdayPrice,
+            weekend_price: row.dataset.weekendPrice,
+            double_weekday_price: row.dataset.doubleWeekdayPrice,
+            double_weekend_price: row.dataset.doubleWeekendPrice,
+            weekday_cost_price: row.dataset.weekdayCost,
+            weekend_cost_price: row.dataset.weekendCost,
+            double_weekday_cost_price: row.dataset.doubleWeekdayCost,
+            double_weekend_cost_price: row.dataset.doubleWeekendCost
+        });
+    }
+
+    function applyOccupancyFromBase(variantPrice, makeReadonly, options) {
+        variantPrice = parseFloat(variantPrice) || 0;
+        options = options || {};
+        const updateCost = options.updateCost !== false;
+        const updateSell = options.updateSell !== false;
+        const newPrices = {
+            singleWeekday: standardPrices.singleWeekday + variantPrice,
+            singleWeekend: standardPrices.singleWeekend + variantPrice,
+            doubleWeekday: standardPrices.doubleWeekday + variantPrice,
+            doubleWeekend: standardPrices.doubleWeekend + variantPrice
+        };
+        const newCosts = {
+            singleWeekday: standardCosts.singleWeekday + variantPrice,
+            singleWeekend: standardCosts.singleWeekend + variantPrice,
+            doubleWeekday: standardCosts.doubleWeekday + variantPrice,
+            doubleWeekend: standardCosts.doubleWeekend + variantPrice
+        };
+        const profit = occupancyProfitSettings();
+        const sellPrices = {
+            singleWeekday: applyProfitToSellBase(newPrices.singleWeekday, profit.type, profit.amount),
+            singleWeekend: applyProfitToSellBase(newPrices.singleWeekend, profit.type, profit.amount),
+            doubleWeekday: applyProfitToSellBase(newPrices.doubleWeekday, profit.type, profit.amount),
+            doubleWeekend: applyProfitToSellBase(newPrices.doubleWeekend, profit.type, profit.amount)
+        };
+
+        if (updateSell) {
+            setOccupancyInput('singleWeekdayPrice', sellPrices.singleWeekday, makeReadonly);
+            setOccupancyInput('singleWeekendPrice', sellPrices.singleWeekend, makeReadonly);
+            setOccupancyInput('doubleWeekdayPrice', sellPrices.doubleWeekday, makeReadonly);
+            setOccupancyInput('doubleWeekendPrice', sellPrices.doubleWeekend, makeReadonly);
+        }
+        if (updateCost) {
+            setOccupancyInput('singleWeekdayCostPrice', newCosts.singleWeekday, makeReadonly, 'singleWeekdayPrice');
+            setOccupancyInput('singleWeekendCostPrice', newCosts.singleWeekend, makeReadonly, 'singleWeekendPrice');
+            setOccupancyInput('doubleWeekdayCostPrice', newCosts.doubleWeekday, makeReadonly, 'doubleWeekdayPrice');
+            setOccupancyInput('doubleWeekendCostPrice', newCosts.doubleWeekend, makeReadonly, 'doubleWeekendPrice');
+        }
+
+        const op = variantPrice >= 0 ? '+' : '';
+        const sellHint = function (base, variantTotal, sellTotal) {
+            let text = variantPrice !== 0
+                ? ('Base price ' + base.toFixed(2) + ' ' + op + variantPrice.toFixed(2) + ' = ' + variantTotal.toFixed(2))
+                : ('Base price: ' + base.toFixed(2));
+            if (profit.amount > 0) {
+                text += profit.type === 'flat'
+                    ? (' + profit ' + profit.amount.toFixed(2) + ' = ' + sellTotal.toFixed(2))
+                    : (' + profit ' + profit.amount.toFixed(2) + '% = ' + sellTotal.toFixed(2));
+            }
+            return text;
+        };
+        const costHint = function (base, total) {
+            return variantPrice !== 0
+                ? ('Base cost ' + base.toFixed(2) + ' ' + op + variantPrice.toFixed(2) + ' = ' + total.toFixed(2))
+                : ('Base cost: ' + base.toFixed(2));
+        };
+
+        if (updateSell) {
+            setOccupancyHint('singleWeekdayPrice', 'base-price-info', sellHint(standardPrices.singleWeekday, newPrices.singleWeekday, sellPrices.singleWeekday), standardPrices.singleWeekday.toFixed(2));
+            setOccupancyHint('singleWeekendPrice', 'base-price-info', sellHint(standardPrices.singleWeekend, newPrices.singleWeekend, sellPrices.singleWeekend), standardPrices.singleWeekend.toFixed(2));
+            setOccupancyHint('doubleWeekdayPrice', 'base-price-info', sellHint(standardPrices.doubleWeekday, newPrices.doubleWeekday, sellPrices.doubleWeekday), standardPrices.doubleWeekday.toFixed(2));
+            setOccupancyHint('doubleWeekendPrice', 'base-price-info', sellHint(standardPrices.doubleWeekend, newPrices.doubleWeekend, sellPrices.doubleWeekend), standardPrices.doubleWeekend.toFixed(2));
+        }
+        if (updateCost) {
+            setOccupancyHint('singleWeekdayCostPrice', 'base-cost-info', costHint(standardCosts.singleWeekday, newCosts.singleWeekday), standardCosts.singleWeekday.toFixed(2), 'singleWeekdayPrice');
+            setOccupancyHint('singleWeekendCostPrice', 'base-cost-info', costHint(standardCosts.singleWeekend, newCosts.singleWeekend), standardCosts.singleWeekend.toFixed(2), 'singleWeekendPrice');
+            setOccupancyHint('doubleWeekdayCostPrice', 'base-cost-info', costHint(standardCosts.doubleWeekday, newCosts.doubleWeekday), standardCosts.doubleWeekday.toFixed(2), 'doubleWeekdayPrice');
+            setOccupancyHint('doubleWeekendCostPrice', 'base-cost-info', costHint(standardCosts.doubleWeekend, newCosts.doubleWeekend), standardCosts.doubleWeekend.toFixed(2), 'doubleWeekendPrice');
+        }
+
+        if (typeof calculatePrice === 'function') {
+            try { calculatePrice(); } catch (e) {}
+        }
+
+        return { newPrices: newPrices, newCosts: newCosts, sellPrices: sellPrices };
+    }
+
+    window.refreshRoomOccupancySells = function () {
+        const row = document.getElementById('variant_pricing_row');
+        if (!row || row.offsetParent === null) {
+            return;
+        }
+        const variantPrice = parseFloat((document.getElementById('varient_price_input') || {}).value) || 0;
+        applyOccupancyFromBase(variantPrice, false, { updateCost: false, updateSell: true });
+    };
+
+    function occupancyFieldEmpty(id) {
+        const el = document.getElementById(id);
+        const n = parseFloat(el ? el.value : '');
+        return !el || el.value === '' || isNaN(n) || n <= 0;
+    }
+
+    loadBaseOccupancyFrom(baseRoom);
+    loadBaseOccupancyFromRow();
+    if (serverBasePricing) {
+        loadBaseOccupancyFrom(serverBasePricing);
+    }
+
+    function setSectionInputsEnabled(sectionId, enabled) {
+        const section = document.getElementById(sectionId);
+        if (!section) return;
+        section.querySelectorAll('input, select, textarea').forEach(function (el) {
+            el.disabled = !enabled;
+        });
+    }
+
+    if (!isEditingBaseRoom) {
         document.getElementById('base_room_type').style.display = "none";
         document.getElementById('room_type').style.display = "block";
         document.getElementById('room_type_input').value = room.room_type;
 
         document.getElementById('variant_pricing_row').style.display = "";
         document.getElementById('base_pricing_row').style.display = "none";
-
-        const singleWeekdayPrice = document.getElementById('singleWeekdayPrice');
-        const singleWeekendPrice = document.getElementById('singleWeekendPrice');
-
-        const doubleWeekdayPrice = document.getElementById('doubleWeekdayPrice');
-        const doubleWeekendPrice = document.getElementById('doubleWeekendPrice');
+        setSectionInputsEnabled('variant_pricing_row', true);
+        setSectionInputsEnabled('base_pricing_row', false);
 
         const varientPriceInput = document.getElementById('varient_price_input');
-        const varientPriceDiv = document.getElementById('varient_price');
-        varientPriceDiv.style.display = "block";
+        document.getElementById('varient_price').style.display = "block";
+        varientPriceInput.disabled = false;
         varientPriceInput.value = room.varient_price;
 
-        // room data population
-        singleWeekdayPrice.value = room.weekday_price || 0;
-        singleWeekendPrice.value = room.weekend_price || 0;
-        doubleWeekendPrice.value = room.double_weekend_price || 0;
-        doubleWeekdayPrice.value = room.double_weekday_price || 0;
+        const baseRoomTypeInput = document.getElementById('base_room_type_input');
+        if (baseRoomTypeInput) baseRoomTypeInput.disabled = true;
 
-        const singleWeekdayCostPrice = document.getElementById('singleWeekdayCostPrice');
-        const singleWeekendCostPrice = document.getElementById('singleWeekendCostPrice');
-        const doubleWeekdayCostPrice = document.getElementById('doubleWeekdayCostPrice');
-        const doubleWeekendCostPrice = document.getElementById('doubleWeekendCostPrice');
-        if (singleWeekdayCostPrice) singleWeekdayCostPrice.value = room.weekday_cost_price ?? '';
-        if (singleWeekendCostPrice) singleWeekendCostPrice.value = room.weekend_cost_price ?? '';
-        if (doubleWeekdayCostPrice) doubleWeekdayCostPrice.value = room.double_weekday_cost_price ?? '';
-        if (doubleWeekendCostPrice) doubleWeekendCostPrice.value = room.double_weekend_cost_price ?? '';
+        const currentVariant = parseFloat(room.varient_price) || 0;
+        const costsEmpty = occupancyFieldEmpty('singleWeekdayCostPrice')
+            && occupancyFieldEmpty('singleWeekendCostPrice')
+            && occupancyFieldEmpty('doubleWeekdayCostPrice')
+            && occupancyFieldEmpty('doubleWeekendCostPrice');
+        if (costsEmpty) {
+            applyOccupancyFromBase(currentVariant, false, { updateCost: true, updateSell: false });
+        }
 
-        // Update prices dynamically based on variance price
-        varientPriceInput.addEventListener('input', function() {
-            const varientValue = parseFloat(varientPriceInput.value) ||
-                0; // Default to 0 if input is invalid
-            singleWeekdayPrice.value = (parseFloat(baseRoom?.weekday_price || 0) + varientValue)
-                .toFixed(2);
-            singleWeekendPrice.value = (parseFloat(baseRoom?.weekend_price || 0) + varientValue)
-                .toFixed(2);
-            doubleWeekdayPrice.value = (parseFloat(baseRoom?.double_weekday_price || 0) +
-                varientValue).toFixed(2);
-            doubleWeekendPrice.value = (parseFloat(baseRoom?.double_weekend_price || 0) +
-                varientValue).toFixed(2);
+        varientPriceInput.addEventListener('input', function () {
+            applyOccupancyFromBase(this.value, false);
+        });
+        varientPriceInput.addEventListener('change', function () {
+            applyOccupancyFromBase(this.value, false);
         });
     } else {
-        // Show base room divs if no room data is available
         document.getElementById('variant_pricing_row').style.display = "none";
         document.getElementById('base_pricing_row').style.display = "";
+        setSectionInputsEnabled('variant_pricing_row', false);
+        setSectionInputsEnabled('base_pricing_row', true);
 
-        const baseRoomType = document.getElementById('base_room_type');
-        baseRoomType.style.display = "block";
-        const baseRoomTypeInput = document.getElementById('base_room_type_input');
-        baseRoomTypeInput.value = room.room_type;
+        document.getElementById('base_room_type').style.display = "block";
+        document.getElementById('base_room_type_input').value = room.room_type;
+        document.getElementById('base_room_type_input').disabled = false;
+        document.getElementById('varient_price').style.display = "none";
 
-        document.getElementById('baseSingleWeekdayPrice').value = room.weekday_price;
-        document.getElementById('baseSingleWeekendPrice').value = room.weekend_price;
-        document.getElementById('baseDoubleWeekdayPrice').value = room.double_weekday_price;
-        document.getElementById('baseDoubleWeekendPrice').value = room.double_weekend_price;
+        const roomTypeInput = document.getElementById('room_type_input');
+        if (roomTypeInput) roomTypeInput.disabled = true;
+        const varientPriceInput = document.getElementById('varient_price_input');
+        if (varientPriceInput) {
+            varientPriceInput.disabled = true;
+            varientPriceInput.value = 0;
+        }
+    }
 
-        const baseSingleWeekdayCostPrice = document.getElementById('baseSingleWeekdayCostPrice');
-        const baseSingleWeekendCostPrice = document.getElementById('baseSingleWeekendCostPrice');
-        const baseDoubleWeekdayCostPrice = document.getElementById('baseDoubleWeekdayCostPrice');
-        const baseDoubleWeekendCostPrice = document.getElementById('baseDoubleWeekendCostPrice');
-        if (baseSingleWeekdayCostPrice) baseSingleWeekdayCostPrice.value = room.weekday_cost_price ?? '';
-        if (baseSingleWeekendCostPrice) baseSingleWeekendCostPrice.value = room.weekend_cost_price ?? '';
-        if (baseDoubleWeekdayCostPrice) baseDoubleWeekdayCostPrice.value = room.double_weekday_cost_price ?? '';
-        if (baseDoubleWeekendCostPrice) baseDoubleWeekendCostPrice.value = room.double_weekend_cost_price ?? '';
-
+    const hotelForm = document.getElementById('hotelForm');
+    if (hotelForm) {
+        hotelForm.addEventListener('submit', function () {
+            // Ensure only the visible pricing section posts values.
+            if (isEditingBaseRoom) {
+                setSectionInputsEnabled('variant_pricing_row', false);
+                setSectionInputsEnabled('base_pricing_row', true);
+                const roomTypeInput = document.getElementById('room_type_input');
+                if (roomTypeInput) roomTypeInput.disabled = true;
+                const varientPriceInput = document.getElementById('varient_price_input');
+                if (varientPriceInput) varientPriceInput.disabled = true;
+            } else {
+                setSectionInputsEnabled('variant_pricing_row', true);
+                setSectionInputsEnabled('base_pricing_row', false);
+                const baseRoomTypeInput = document.getElementById('base_room_type_input');
+                if (baseRoomTypeInput) baseRoomTypeInput.disabled = true;
+            }
+        });
     }
 });
 </script>
@@ -1419,6 +1728,7 @@ function updateMoreBadge() {
         const c = isNaN(costVal) ? 0 : costVal;
         const a = isNaN(amtVal) ? 0 : amtVal;
         if (c <= 0) return 0;
+        if (a <= 0) return round2(c);
         if (type === 'flat') return round2(c + a);
         return round2(c + (c * a / 100));
     }
@@ -1432,8 +1742,12 @@ function updateMoreBadge() {
         };
     }
 
+    function isOccupancyCostField(costEl) {
+        return !!(costEl && costEl.closest && costEl.closest('#variant_pricing_row'));
+    }
+
     function updateSellFromCost(costEl, force) {
-        if (!costEl) return;
+        if (!costEl || isOccupancyCostField(costEl)) return;
         const sellId = costEl.getAttribute('data-sell-target');
         if (!sellId) return;
         const sellEl = document.getElementById(sellId);
@@ -1448,18 +1762,15 @@ function updateMoreBadge() {
     }
 
     function recalculateAll(force) {
+        if (typeof window.refreshRoomOccupancySells === 'function') {
+            window.refreshRoomOccupancySells();
+        }
         document.querySelectorAll('.js-room-cost[data-sell-target]').forEach(function (costEl) {
             updateSellFromCost(costEl, force);
         });
     }
 
     document.addEventListener('DOMContentLoaded', function () {
-        document.querySelectorAll('.js-room-cost[data-sell-target]').forEach(function (costEl) {
-            costEl.addEventListener('input', function () {
-                updateSellFromCost(costEl, true);
-            });
-        });
-
         document.querySelectorAll('.js-room-sell').forEach(function (sellEl) {
             sellEl.addEventListener('input', function () {
                 sellEl.dataset.userEdited = '1';
