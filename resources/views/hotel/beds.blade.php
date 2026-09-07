@@ -313,9 +313,11 @@
                             <div class="mb-3 col-md-3">
                                 <label for="no_of_rooms" class="form-label"><strong>No. of
                                         Rooms</strong><span class="text-danger">*</span></label>
-                                <select id="no_of_rooms" class="form-control" name="no_of_rooms" required>
-                                </select>
-                                @error('${bedType}_adult_count')
+                                <input type="number" id="no_of_rooms" class="form-control" name="no_of_rooms"
+                                       min="1" step="1" required disabled
+                                       placeholder="Select Room Category First">
+                                <small id="no_of_rooms_hint" class="text-muted">Select a room category first</small>
+                                @error('no_of_rooms')
                                 <div class="text-danger mt-1">{{ $message }}</div>
                                 @enderror
                             </div>
@@ -852,7 +854,12 @@
         // Function to reset dependent dropdowns
         function resetDependentDropdowns() {
             $('#bed_type').val('').trigger('change');
-            $('#no_of_rooms').prop('disabled', true).empty().append('<option value="">Select Room Category First</option>');
+            $('#no_of_rooms')
+                .prop('disabled', true)
+                .val('')
+                .removeAttr('max')
+                .attr('placeholder', 'Select Room Category First');
+            $('#no_of_rooms_hint').text('Select a room category first');
             $('#max-occupancy').val('');
             $('#adult_count').empty().append('<option value="">Select Adults</option>').prop('disabled', true);
             $('#child_count').empty().append('<option value="">Select Children</option>').prop('disabled', true);
@@ -1003,6 +1010,27 @@
 <script>
     const BASE_URL = "{{ env('APP_URL') }}";
     $(document).ready(function() {
+        function clampNoOfRoomsInput() {
+            const $input = $('#no_of_rooms');
+            if ($input.prop('disabled')) return;
+
+            const max = parseInt($input.attr('max'), 10);
+            let value = parseInt($input.val(), 10);
+
+            if ($input.val() === '' || isNaN(value)) {
+                return;
+            }
+            if (value < 1) {
+                $input.val(1);
+                return;
+            }
+            if (!isNaN(max) && value > max) {
+                $input.val(max);
+            }
+        }
+
+        $('#no_of_rooms').on('input change blur', clampNoOfRoomsInput);
+
         $('#room_type').on('change', function() {
             const roomTypeId = $(this).val(); 
 
@@ -1015,23 +1043,48 @@
                     },
                     success: function(response) {
                         console.log('Number of Rooms:', response);
-                        $('#no_of_rooms').prop('disabled', false);
-                        $('#no_of_rooms').empty().append(
-                            '<option value="">Select No of Rooms</option>');
-                        response.forEach(room => {
-                            for (let i = 0; i <= room.no_of_room; i++) {
-                                $('#no_of_rooms').append(
-                                    `<option value="${i}">${i}</option>`);
+                        let maxRooms = 0;
+                        (response || []).forEach(function(room) {
+                            const count = parseInt(room.no_of_room, 10) || 0;
+                            if (count > maxRooms) {
+                                maxRooms = count;
                             }
                         });
+
+                        const $input = $('#no_of_rooms');
+                        if (maxRooms > 0) {
+                            $input
+                                .prop('disabled', false)
+                                .attr({ min: 1, max: maxRooms })
+                                .attr('placeholder', 'Enter no. of rooms (max ' + maxRooms + ')')
+                                .val('');
+                            $('#no_of_rooms_hint').text('Maximum allowed: ' + maxRooms);
+                        } else {
+                            $input
+                                .prop('disabled', true)
+                                .val('')
+                                .removeAttr('max')
+                                .attr('placeholder', 'No rooms available');
+                            $('#no_of_rooms_hint').text('No rooms available for this category');
+                        }
                     },
                     error: function(xhr) {
                         console.error('An error occurred:', xhr.responseText);
+                        $('#no_of_rooms')
+                            .prop('disabled', true)
+                            .val('')
+                            .removeAttr('max')
+                            .attr('placeholder', 'Select Room Category First');
+                        $('#no_of_rooms_hint').text('Could not load room limit');
                     }
                 });
             } else {
-                $('#no_of_rooms').prop('disabled', true).empty().append(
-                    '<option value="">Select Room Category First</option>');
+                $('#no_of_rooms')
+                    .prop('disabled', true)
+                    .val('')
+                    .removeAttr('max')
+                    .attr('placeholder', 'Select Room Category First');
+                $('#no_of_rooms_hint').text('Select a room category first');
             }
         });
     });
