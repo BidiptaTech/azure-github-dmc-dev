@@ -1120,12 +1120,45 @@ class HotelController extends Controller
                 }
             }
         }
+
+        // Base room first; remaining rooms by variant price (lowest to highest).
+        $rooms = collect($rooms)->sort(function ($a, $b) {
+            $aIsBase = (float) ($a->base_room ?? 0) > 0 ? 0 : 1;
+            $bIsBase = (float) ($b->base_room ?? 0) > 0 ? 0 : 1;
+            if ($aIsBase !== $bIsBase) {
+                return $aIsBase <=> $bIsBase;
+            }
+
+            return (float) ($a->varient_price ?? 0) <=> (float) ($b->varient_price ?? 0);
+        })->values();
         
         $currentRooms = Room::where('room_type', 'Standard')->first();
         $restaurants = Restaurant::all();
         $mealTypes = Meal::whereIn('type', ['Breakfast', 'Lunch', 'Dinner'])
                         ->get()
                         ->groupBy('type');
+
+        // Base room occupancy prices for variant-room auto-fill.
+        // DB columns: weekday_price / weekend_price / double_* (sell)
+        //             weekday_cost_price / weekend_cost_price / double_*_cost_price (cost)
+        // Form names: singleWeekdayPrice / singleWeekdayCostPrice (and weekend/double equivalents)
+        $baseRoomForPricing = collect($rooms)->first(function ($room) {
+            return (float) ($room->base_room ?? 0) > 0;
+        });
+        $baseRoomPricing = [
+            'weekday_price' => (float) optional($baseRoomForPricing)->weekday_price,
+            'weekend_price' => (float) optional($baseRoomForPricing)->weekend_price,
+            'double_weekday_price' => (float) optional($baseRoomForPricing)->double_weekday_price,
+            'double_weekend_price' => (float) optional($baseRoomForPricing)->double_weekend_price,
+            'weekday_cost_price' => (float) optional($baseRoomForPricing)->weekday_cost_price,
+            'weekend_cost_price' => (float) optional($baseRoomForPricing)->weekend_cost_price,
+            'double_weekday_cost_price' => (float) optional($baseRoomForPricing)->double_weekday_cost_price,
+            'double_weekend_cost_price' => (float) optional($baseRoomForPricing)->double_weekend_cost_price,
+            'child_with_bed' => (float) optional($baseRoomForPricing)->child_with_bed,
+            'child_with_bed_cost' => (float) optional($baseRoomForPricing)->child_with_bed_cost,
+            'child_without_bed' => (float) optional($baseRoomForPricing)->child_without_bed,
+            'child_without_bed_cost' => (float) optional($baseRoomForPricing)->child_without_bed_cost,
+        ];
                         
         return view('hotel.create-room', compact(
             'hotel',
@@ -1140,7 +1173,9 @@ class HotelController extends Controller
             'auth_user',
             'dmcUsers',
             'effective_room_owner_id',
-            'show_dmc_room_pricing_hints'
+            'show_dmc_room_pricing_hints',
+            'baseRoomForPricing',
+            'baseRoomPricing'
         ));
     }
     /*
@@ -1346,6 +1381,15 @@ class HotelController extends Controller
                 $weekendPrice = $adminBaseRoom->weekend_price + $varientPrice;
                 $doubleWeekdayPrice = $adminBaseRoom->double_weekday_price + $varientPrice;
                 $doubleWeekendPrice = $adminBaseRoom->double_weekend_price + $varientPrice;
+
+                $baseWeekdayCost = (float) ($adminBaseRoom->weekday_cost_price ?: $adminBaseRoom->weekday_price);
+                $baseWeekendCost = (float) ($adminBaseRoom->weekend_cost_price ?: $adminBaseRoom->weekend_price);
+                $baseDoubleWeekdayCost = (float) ($adminBaseRoom->double_weekday_cost_price ?: $adminBaseRoom->double_weekday_price);
+                $baseDoubleWeekendCost = (float) ($adminBaseRoom->double_weekend_cost_price ?: $adminBaseRoom->double_weekend_price);
+                $weekdayCostPrice = $baseWeekdayCost + $varientPrice;
+                $weekendCostPrice = $baseWeekendCost + $varientPrice;
+                $doubleWeekdayCostPrice = $baseDoubleWeekdayCost + $varientPrice;
+                $doubleWeekendCostPrice = $baseDoubleWeekendCost + $varientPrice;
             }
         
             // Create and save the room
@@ -1852,6 +1896,8 @@ class HotelController extends Controller
             $commission_type = null;
             $commission_price = null;
 
+            $dmcOwnerId = null;
+
             // Determine which room to edit based on user role
             if (in_array($auth_user->role_id, [1, 20])) {
                 // Admin: Edit the original room
@@ -1918,6 +1964,36 @@ class HotelController extends Controller
                 }
             }
 
+            $occupancyBaseQuery = Room::where('hotel_id', $room->hotel_id)
+                ->where('room_id', '!=', $room->room_id);
+            if (in_array((int) $auth_user->role_id, [1, 20], true)) {
+                $occupancyBaseQuery->where('dmc_base_room', 1);
+            } else {
+                $occupancyBaseQuery->where('created_by', $dmcOwnerId ?? $auth_user->userId)
+                    ->where('dmc_base_room', 0);
+            }
+            $occupancyBaseRoom = $occupancyBaseQuery->get()->first(function ($candidate) {
+                return (float) ($candidate->base_room ?? 0) > 0;
+            });
+            if ($occupancyBaseRoom) {
+                $baseRoom = $occupancyBaseRoom;
+            }
+
+            $costOrSellValue = function ($cost, $sell) {
+                $cost = (float) $cost;
+                return $cost > 0 ? $cost : (float) $sell;
+            };
+            $baseRoomPricing = [
+                'weekday_price' => (float) optional($baseRoom)->weekday_price,
+                'weekend_price' => (float) optional($baseRoom)->weekend_price,
+                'double_weekday_price' => (float) optional($baseRoom)->double_weekday_price,
+                'double_weekend_price' => (float) optional($baseRoom)->double_weekend_price,
+                'weekday_cost_price' => $costOrSellValue(optional($baseRoom)->weekday_cost_price, optional($baseRoom)->weekday_price),
+                'weekend_cost_price' => $costOrSellValue(optional($baseRoom)->weekend_cost_price, optional($baseRoom)->weekend_price),
+                'double_weekday_cost_price' => $costOrSellValue(optional($baseRoom)->double_weekday_cost_price, optional($baseRoom)->double_weekday_price),
+                'double_weekend_cost_price' => $costOrSellValue(optional($baseRoom)->double_weekend_cost_price, optional($baseRoom)->double_weekend_price),
+            ];
+
             return view('hotel.editroom', compact(
                 'hotel',
                 'single_weekday_price',
@@ -1926,6 +2002,7 @@ class HotelController extends Controller
                 'double_weekend_price',
                 'room',
                 'baseRoom',
+                'baseRoomPricing',
                 'auth_user',
                 'commission_type',
                 'commission_price'
@@ -2198,65 +2275,101 @@ class HotelController extends Controller
             $imagePaths = $this->storeUploadedRoomGallery($request);
             $img_path = array_values(array_filter(array_merge($existingImages, $imagePaths)));
 
-            // Calculate final prices based on user type and base room logic
-            $finalWeekdayPrice = $request->singleWeekdayPrice ?? $request->baseSingleWeekdayPrice ?? 0;
-            $finalWeekendPrice = $request->singleWeekendPrice ?? $request->baseSingleWeekendPrice ?? 0;
-            $finalDoubleWeekdayPrice = $request->doubleWeekdayPrice ?? $request->baseDoubleWeekdayPrice ?? 0;
-            $finalDoubleWeekendPrice = $request->doubleWeekendPrice ?? $request->baseDoubleWeekendPrice ?? 0;
-            $finalWeekdayCostPrice = $request->singleWeekdayCostPrice ?? $request->baseSingleWeekdayCostPrice ?? null;
-            $finalWeekendCostPrice = $request->singleWeekendCostPrice ?? $request->baseSingleWeekendCostPrice ?? null;
-            $finalDoubleWeekdayCostPrice = $request->doubleWeekdayCostPrice ?? $request->baseDoubleWeekdayCostPrice ?? null;
-            $finalDoubleWeekendCostPrice = $request->doubleWeekendCostPrice ?? $request->baseDoubleWeekendCostPrice ?? null;
-        
-            // If this is not a base room, calculate prices based on respective base room + variant
-            if (!$room->base_room && $room->varient_price > 0) {
-                if (in_array($auth_user->role_id, [1, 20])) {
-                    // Admin: Use admin's base room
-                    $adminBaseRoom = Room::where('hotel_id', $request->hotel_id)
-                                       ->where('dmc_base_room', 1)
-                                       ->where('base_room', true)
-                                       ->first();
-                
-                    if ($adminBaseRoom) {
-                        $finalWeekdayPrice = $adminBaseRoom->weekday_price + $room->varient_price;
-                        $finalWeekendPrice = $adminBaseRoom->weekend_price + $room->varient_price;
-                        $finalDoubleWeekdayPrice = $adminBaseRoom->double_weekday_price + $room->varient_price;
-                        $finalDoubleWeekendPrice = $adminBaseRoom->double_weekend_price + $room->varient_price;
+            // Prefer the visible form section: base rooms use base* fields, variants use single*/double*.
+            // filled() is required because the hidden section still posts empty strings.
+            $isBaseRoomEdit = (float) ($room->base_room ?? 0) > 0;
+            $pickPrice = function (array $preferredKeys, array $fallbackKeys = []) use ($request) {
+                foreach (array_merge($preferredKeys, $fallbackKeys) as $key) {
+                    if ($request->filled($key) && $request->input($key) !== '') {
+                        return $request->input($key);
                     }
-                } else {
-                    // DMC / delegated roles: use parent DMC base room
-                    $dmcBaseRoom = Room::where('hotel_id', $request->hotel_id)
-                                     ->where('created_by', $dmcPricingOwnerId)
-                                     ->where('base_room', true)
-                                     ->where('dmc_base_room', 0)
-                                     ->first();
-                
-                    if ($dmcBaseRoom) {
-                        $finalWeekdayPrice = $dmcBaseRoom->weekday_price + $room->varient_price;
-                        $finalWeekendPrice = $dmcBaseRoom->weekend_price + $room->varient_price;
-                        $finalDoubleWeekdayPrice = $dmcBaseRoom->double_weekday_price + $room->varient_price;
-                        $finalDoubleWeekendPrice = $dmcBaseRoom->double_weekend_price + $room->varient_price;
+                }
+                return null;
+            };
+
+            if ($isBaseRoomEdit) {
+                $finalWeekdayPrice = $pickPrice(['baseSingleWeekdayPrice'], ['singleWeekdayPrice']) ?? 0;
+                $finalWeekendPrice = $pickPrice(['baseSingleWeekendPrice'], ['singleWeekendPrice']) ?? 0;
+                $finalDoubleWeekdayPrice = $pickPrice(['baseDoubleWeekdayPrice'], ['doubleWeekdayPrice']) ?? 0;
+                $finalDoubleWeekendPrice = $pickPrice(['baseDoubleWeekendPrice'], ['doubleWeekendPrice']) ?? 0;
+                $finalWeekdayCostPrice = $pickPrice(['baseSingleWeekdayCostPrice'], ['singleWeekdayCostPrice']);
+                $finalWeekendCostPrice = $pickPrice(['baseSingleWeekendCostPrice'], ['singleWeekendCostPrice']);
+                $finalDoubleWeekdayCostPrice = $pickPrice(['baseDoubleWeekdayCostPrice'], ['doubleWeekdayCostPrice']);
+                $finalDoubleWeekendCostPrice = $pickPrice(['baseDoubleWeekendCostPrice'], ['doubleWeekendCostPrice']);
+                $varientPrice = 0;
+            } else {
+                $finalWeekdayPrice = $pickPrice(['singleWeekdayPrice'], ['baseSingleWeekdayPrice']) ?? 0;
+                $finalWeekendPrice = $pickPrice(['singleWeekendPrice'], ['baseSingleWeekendPrice']) ?? 0;
+                $finalDoubleWeekdayPrice = $pickPrice(['doubleWeekdayPrice'], ['baseDoubleWeekdayPrice']) ?? 0;
+                $finalDoubleWeekendPrice = $pickPrice(['doubleWeekendPrice'], ['baseDoubleWeekendPrice']) ?? 0;
+                $finalWeekdayCostPrice = $pickPrice(['singleWeekdayCostPrice'], ['baseSingleWeekdayCostPrice']);
+                $finalWeekendCostPrice = $pickPrice(['singleWeekendCostPrice'], ['baseSingleWeekendCostPrice']);
+                $finalDoubleWeekdayCostPrice = $pickPrice(['doubleWeekdayCostPrice'], ['baseDoubleWeekdayCostPrice']);
+                $finalDoubleWeekendCostPrice = $pickPrice(['doubleWeekendCostPrice'], ['baseDoubleWeekendCostPrice']);
+                $varientPrice = $request->filled('varient_price') ? (float) $request->varient_price : (float) ($room->varient_price ?? 0);
+            }
+
+            // Fill empty costs from hotel base + variant (variant rooms only).
+            if (!$isBaseRoomEdit && $varientPrice != 0) {
+                $lookupBase = null;
+                if (in_array($auth_user->role_id, [1, 20])) {
+                    $lookupBase = Room::where('hotel_id', $request->hotel_id)
+                        ->where('dmc_base_room', 1)
+                        ->where('base_room', true)
+                        ->first();
+                } elseif ($dmcPricingOwnerId) {
+                    $lookupBase = Room::where('hotel_id', $request->hotel_id)
+                        ->where('created_by', $dmcPricingOwnerId)
+                        ->where('base_room', true)
+                        ->where('dmc_base_room', 0)
+                        ->first();
+                }
+
+                if ($lookupBase) {
+                    $costOrSellValue = function ($cost, $sell) {
+                        $cost = (float) $cost;
+                        return $cost > 0 ? $cost : (float) $sell;
+                    };
+                    if ($finalWeekdayCostPrice === null || $finalWeekdayCostPrice === '') {
+                        $finalWeekdayCostPrice = $costOrSellValue($lookupBase->weekday_cost_price, $lookupBase->weekday_price) + $varientPrice;
+                    }
+                    if ($finalWeekendCostPrice === null || $finalWeekendCostPrice === '') {
+                        $finalWeekendCostPrice = $costOrSellValue($lookupBase->weekend_cost_price, $lookupBase->weekend_price) + $varientPrice;
+                    }
+                    if ($finalDoubleWeekdayCostPrice === null || $finalDoubleWeekdayCostPrice === '') {
+                        $finalDoubleWeekdayCostPrice = $costOrSellValue($lookupBase->double_weekday_cost_price, $lookupBase->double_weekday_price) + $varientPrice;
+                    }
+                    if ($finalDoubleWeekendCostPrice === null || $finalDoubleWeekendCostPrice === '') {
+                        $finalDoubleWeekendCostPrice = $costOrSellValue($lookupBase->double_weekend_cost_price, $lookupBase->double_weekend_price) + $varientPrice;
                     }
                 }
             }
 
-            // Debug the data being updated
+            $roomType = $request->filled('room_type')
+                ? $request->room_type
+                : ($request->filled('base_room_type') ? $request->base_room_type : $room->room_type);
+
             \Log::info("Updating room data", [
                 'room_id' => $room->room_id,
+                'is_base_room' => $isBaseRoomEdit,
+                'room_type' => $roomType,
                 'no_of_room' => $request->total_no_of_room,
+                'varient_price' => $varientPrice,
                 'weekday_price' => $finalWeekdayPrice,
                 'weekend_price' => $finalWeekendPrice,
                 'double_weekday_price' => $finalDoubleWeekdayPrice,
                 'double_weekend_price' => $finalDoubleWeekendPrice,
+                'weekday_cost_price' => $finalWeekdayCostPrice,
+                'weekend_cost_price' => $finalWeekendCostPrice,
                 'children_price' => $request->children_price,
                 'dimension' => $request->dimension,
             ]);
 
             // Update room data
             $updateResult = $room->update([
-                'room_type' => $request->room_type,
+                'room_type' => $roomType,
                 'no_of_room' => $request->total_no_of_room,
-                'varient_price' => $request->varient_price ?? 0,
+                'varient_price' => $varientPrice,
                 'weekday_price' => $finalWeekdayPrice,
                 'weekend_price' => $finalWeekendPrice,
                 'dimension' => $request->dimension,
@@ -2286,6 +2399,7 @@ class HotelController extends Controller
                 'child_without_bed' => $request->child_without_bed,
                 'child_with_bed_cost' => $request->child_with_bed_cost,
                 'child_without_bed_cost' => $request->child_without_bed_cost,
+                'status' => $request->has('room_status') ? 1 : 0,
             ]);
         
             \Log::info("Room update result", ['success' => $updateResult]);
