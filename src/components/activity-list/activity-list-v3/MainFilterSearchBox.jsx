@@ -35,6 +35,7 @@ import SearchZone from "./LocationZoneSearch";
 import Pickuptimezone from "./Pickuptimezone";
 import DateSearchZone from "./DateSearchZone";
 import { triggerSearch, clearTriggerSearch } from "@/slice/common/stepsSlice";
+import { selectCart } from "@/slice/cart/carSlice";
 
 const MainFilterSearchBox = ({ Location }) => {
   const dispatch = useDispatch();
@@ -69,6 +70,7 @@ const MainFilterSearchBox = ({ Location }) => {
     useState(false);
 
   const currentbooking = useSelector((state) => state.localtour.selectbooking);
+  console.log("currentbooking23", currentbooking);
   const picktype = useSelector((state) => state.localtour.picktype);
   const [droptype, setdroptype] = useState("");
   // Track if time is selected
@@ -76,6 +78,35 @@ const MainFilterSearchBox = ({ Location }) => {
   const [time1, setTime1] = useState(false);
   const [timezone, setTimezone] = useState(false);
   const viewDetails = useSelector((state) => state.viewDetails.bookings);
+  const cart = useSelector(selectCart);
+
+  const hasCartLocalTransferServices = Array.isArray(cart)
+    ? cart.some(
+        (trip) =>
+          Array.isArray(trip?.bookings) &&
+          trip.bookings.some((booking) => {
+            const type = String(booking?.type || "").toLowerCase();
+            return (
+              type === "hotel" ||
+              type === "attraction" ||
+              type === "attraction_package" ||
+              type === "restaurant"
+            );
+          })
+      )
+    : false;
+
+  const hasViewDetailsLocalTransferServices = Boolean(
+    viewDetails &&
+      (viewDetails.hotel?.length > 0 ||
+        viewDetails.attraction?.length > 0 ||
+        viewDetails.attraction_package?.length > 0 ||
+        viewDetails.restaurant?.length > 0)
+  );
+
+  const showLocalTransferOption =
+    zone_on === 1 &&
+    (hasViewDetailsLocalTransferServices || hasCartLocalTransferServices);
 
   const buttonsearch = () => {
     // Set validation triggered to true when search button is clicked
@@ -192,11 +223,7 @@ const MainFilterSearchBox = ({ Location }) => {
               )}
               {/* <option value="Point To Point">Point To Point</option> */}
               <option value="Hourly">Hourly</option>
-              {(zone_on === 1 && 
-                viewDetails && 
-                (viewDetails.hotel?.length > 0 || 
-                 viewDetails.attraction?.length > 0 || 
-                 viewDetails.restaurant?.length > 0 )) && (
+              {showLocalTransferOption && (
                 <option value="Local Transfer">Local Transfer</option>
               )}
             </select>

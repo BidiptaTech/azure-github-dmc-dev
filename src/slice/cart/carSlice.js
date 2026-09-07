@@ -10,11 +10,12 @@ import { createSlice, current } from "@reduxjs/toolkit";
  *     bookings: [
  *       { type: "entryport", cartItemId, ... },
  *       { type: "exitport", cartItemId, ... },
+ *       { type: "travelhourly"|"travelpointzone"|..., cartItemId, ... },
  *     ]
  *   },
  * ]
  */
-export const MAX_CART_TRIPS = 5;
+export const MAX_CART_TRIPS = 1;
 const CART_STORAGE_KEY = "dmc_cart";
 
 const loadCartFromStorage = () => {
@@ -23,7 +24,9 @@ const loadCartFromStorage = () => {
     const raw = localStorage.getItem(CART_STORAGE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    const list = Array.isArray(parsed) ? parsed : [];
+    // Enforce single-trip cart (trim older multi-trip data)
+    return list.slice(0, MAX_CART_TRIPS);
   } catch (error) {
     console.error("Failed to load cart from localStorage:", error);
     return [];
@@ -183,7 +186,8 @@ const cartSlice = createSlice({
         state.cart[existingIndex].bookings.push(booking);
       } else {
         if (state.cart.length >= MAX_CART_TRIPS) {
-          state.lastActionError = `Maximum ${MAX_CART_TRIPS} trips can be added to the cart.`;
+          state.lastActionError =
+            "Only one trip is allowed in the cart. Start a new search to replace it.";
           return;
         }
         state.cart.push({

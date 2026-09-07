@@ -21,13 +21,67 @@ import { resetVehicles } from '@/slice/port/pickupDropSlice';
 import { clearAttractions } from '@/slice/attractions/attractionSlice';
 import { resetguide } from '@/slice/tourguide/guideslice';
 import { clearRestaurants } from '@/slice/restaurant/RestaurantsSlice';
-import { resetVehicles1 } from '@/slice/localtour/Localslice';
+import { resetVehicles1, fetchLocalZone } from '@/slice/localtour/Localslice';
 import { extractCountryNamesFromDestination } from '@/utils/locationFormat';
+
+const resolveTransferServiceId = (booking, type) => {
+  if (!booking || Array.isArray(booking) || !type) return null;
+
+  const normalizedType = String(type).toLowerCase();
+
+  if (normalizedType === 'hotel') {
+    return (
+      booking.hotelDetails?.hotel_id ||
+      booking.hotel_id ||
+      booking.hotelId ||
+      booking.id ||
+      null
+    );
+  }
+
+  if (normalizedType === 'attraction') {
+    return (
+      booking.service_details?.attraction_id ||
+      booking.AttractionId ||
+      booking.attraction_id ||
+      booking.attractionId ||
+      booking.id ||
+      null
+    );
+  }
+
+  if (normalizedType === 'attraction_package') {
+    return (
+      booking.package_attraction_id ||
+      booking.AttractionId ||
+      booking.attraction_id ||
+      booking.attractionId ||
+      booking.id ||
+      null
+    );
+  }
+
+  if (normalizedType === 'restaurant') {
+    return (
+      booking.service_details?.restaurant_id ||
+      booking.restaurantId ||
+      booking.restaurant_id ||
+      booking.id ||
+      null
+    );
+  }
+
+  return booking.id || null;
+};
 
 const DmcFilter = () => {
   const dispatch = useDispatch();
   const step = useSelector((state) => state.steps.localStepStatus);
   const haveBooking = useSelector((state) => state.common.haveBooking);
+  const picktype = useSelector((state) => state.localtour?.picktype);
+  const selectbooking = useSelector((state) => state.localtour?.selectbooking);
+  const rawZoneOn = useSelector((state) => state.auth?.zone_on);
+  const zone_on = rawZoneOn !== null && rawZoneOn !== undefined ? Number(rawZoneOn) : null;
   console.log(step, "step");
   // Get destination from bookings slice with proper null checking
   const destination = useSelector((state) => {
@@ -216,6 +270,23 @@ const DmcFilter = () => {
       
       console.log('🔍 DMC Filter - Step status:', step);
       console.log('🔍 DMC Filter - Determined current step:', currentStep);
+
+      // When on travel step, re-fetch local zones with same id/type for the new dmc_id
+      if (currentStep === 'travel' && zone_on === 1 && picktype) {
+        const transferId = resolveTransferServiceId(selectbooking, picktype);
+        if (transferId) {
+          console.log('🔍 DMC Filter - Re-fetching local zone:', {
+            id: transferId,
+            type: picktype,
+          });
+          dispatch(fetchLocalZone({ id: transferId, type: picktype }));
+        } else {
+          console.warn(
+            '🔍 DMC Filter - Skipping fetchLocalZone, missing transfer id',
+            { picktype, selectbooking }
+          );
+        }
+      }
 
       // Trigger search for the current step
       if (currentStep) {

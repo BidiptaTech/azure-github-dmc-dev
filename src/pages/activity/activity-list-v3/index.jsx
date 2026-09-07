@@ -41,6 +41,7 @@ import CustomStepper from "@/components/common/sub_common/CustomStepper";
 import TourStatus from "@/components/common/sub_common/TourStatus";
 import { FaAngleUp, FaAngleDown } from "react-icons/fa";
 import { fetchViewDetails } from "@/slice/common/ViewDetails";
+import { selectCart } from "@/slice/cart/carSlice";
 import {
   fetchLocalZone,
   setPicktype,
@@ -228,67 +229,78 @@ console.log("zone_on5", zone_on);
   const [isFilterVisible, setIsFilterVisible] = useState(false);
   const selectedPort = useSelector((state) => state.localtour.selectedPort);
   const viewDetails = useSelector((state) => state.viewDetails.bookings);
+  const cart = useSelector(selectCart);
+  console.log("cart23", cart);
   console.log("viewDetails", viewDetails);
+
+  const cartBookings = useMemo(() => {
+    if (!Array.isArray(cart)) return [];
+    return cart.flatMap((trip) =>
+      Array.isArray(trip?.bookings)
+        ? trip.bookings.map((booking) => ({
+            ...booking,
+            _cartTripId: trip.tripId,
+          }))
+        : []
+    );
+  }, [cart]);
+
+  const normalizeBookingDateKey = (rawDate) => {
+    if (!rawDate) return "";
+    if (Array.isArray(rawDate)) return normalizeBookingDateKey(rawDate[0]);
+    const value = String(rawDate).trim();
+    if (!value) return "";
+
+    // DD/MM/YYYY → YYYY-MM-DD
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(value)) {
+      const [day, month, year] = value.split("/");
+      return `${year}-${month}-${day}`;
+    }
+
+    // Already YYYY-MM-DD (or ISO datetime)
+    if (/^\d{4}-\d{2}-\d{2}/.test(value)) {
+      return value.slice(0, 10);
+    }
+
+    const parsed = new Date(value);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed.toISOString().slice(0, 10);
+    }
+    return value;
+  };
+
+  const parseFlexibleDate = (rawDate) => {
+    const key = normalizeBookingDateKey(rawDate);
+    if (!key) return null;
+    const parsed = new Date(`${key}T00:00:00`);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  };
 
   // Function to check if the "Add Transfer" button should be displayed
   const shouldShowAddTransferButton = () => {
-    // SIMPLIFIED CONDITION - just check if travel_point exists and has items
     const hasTravelPoint =
       ((viewDetails?.travel_point && viewDetails.travel_point.length > 0) ||
         (viewDetails?.guide && viewDetails.guide.length > 0) ||
         (viewDetails?.travel_hourly && viewDetails.travel_hourly.length > 0) ||
         (viewDetails?.entry_port && viewDetails.entry_port.length > 0) ||
         (viewDetails?.exit_port && viewDetails.exit_port.length > 0) ||
-        (viewDetails?.local_transport && viewDetails.local_transport.length > 0)) &&
+        (viewDetails?.local_transport &&
+          viewDetails.local_transport.length > 0)) &&
       (!viewDetails?.hotel || viewDetails?.hotel?.length === 0) &&
       (!viewDetails?.attraction || viewDetails?.attraction?.length === 0) &&
-      (!viewDetails?.attraction_package || viewDetails?.attraction_package?.length === 0) &&
+      (!viewDetails?.attraction_package ||
+        viewDetails?.attraction_package?.length === 0) &&
       (!viewDetails?.restaurant || viewDetails?.restaurant?.length === 0);
 
-    // console.log("DEBUG - Simplified Button Check:", {
-    //   hasTravelPoint,
-    //   travel_point: viewDetails?.travel_point,
-    //   "travel_point length": viewDetails?.travel_point?.length
-    // });
-
-    // Initially just return if we have travel_point data
     return hasTravelPoint;
-
-    // Original complete condition (commented out for now)
-    /*
-    // Check if we have any travel-related data
-    const hasTravelData = 
-      (viewDetails?.travel_point && viewDetails.travel_point.length > 0) || 
-      (viewDetails?.guide && viewDetails.guide.length > 0) || 
-      (viewDetails?.travel_hourly && viewDetails.travel_hourly.length > 0) || 
-      (viewDetails?.entry_port && viewDetails.entry_port.length > 0) || 
-      (viewDetails?.exit_port && viewDetails.exit_port.length > 0);
-    
-    // Check if we don't have any hotel, attraction, or restaurant data
-    const hasNoHotelData = !viewDetails?.hotel || viewDetails.hotel.length === 0;
-    const hasNoAttractionData = !viewDetails?.attraction || viewDetails.attraction.length === 0;
-    const hasNoRestaurantData = !viewDetails?.restaurant || viewDetails.restaurant.length === 0;
-    
-    // Log all the conditions for debugging
-    console.log("DEBUG - Button Conditions:", {
-      hasTravelData,
-      hasNoHotelData,
-      hasNoAttractionData,
-      hasNoRestaurantData,
-      travel_point: viewDetails?.travel_point
-    });
-    
-    return hasTravelData && hasNoHotelData && hasNoAttractionData && hasNoRestaurantData;
-    */
   };
 
-  // Store the result in a variable for use in JSX
   const showAddTransferButton = shouldShowAddTransferButton();
 
   console.log("viewDetails", viewDetails);
 
-  const bookingCount = useMemo(() => {
-    if (!viewDetails) return 0;
+  const viewDetailsBookingCount = useMemo(() => {
+    if (!viewDetails || Array.isArray(viewDetails)) return 0;
 
     const serviceKeys = [
       "hotel",
@@ -312,7 +324,10 @@ console.log("zone_on5", zone_on);
     }, 0);
   }, [viewDetails]);
 
+  const bookingCount = viewDetailsBookingCount + cartBookings.length;
   const hasBookings = bookingCount > 0;
+  const hasViewDetailsBookings = viewDetailsBookingCount > 0;
+  const hasCartBookings = cartBookings.length > 0;
 
   const [showBookingTable, setShowBookingTable] = useState(hasBookings);
   const [lastBookingCount, setLastBookingCount] = useState(bookingCount);
@@ -337,180 +352,403 @@ console.log("zone_on5", zone_on);
   }, [hasBookings, bookingCount, lastBookingCount]);
 
   useEffect(() => {
-    if (
-      viewDetails === null ||
-      (Array.isArray(viewDetails) && viewDetails.length === 0)
-    ) {
+    // Hide table only when both view-details and cart are empty
+    if (!hasViewDetailsBookings && !hasCartBookings) {
       setShowBookingTable(false);
     }
-  }, [viewDetails]);
+  }, [hasViewDetailsBookings, hasCartBookings]);
 
   useEffect(() => {});
-  // Function to organize bookings by date
-  const getBookingsByDate = () => {
-    if (!viewDetails) return {};
 
-    const bookingsByDate = {};
+  const appendBookingByDate = (bookingsByDate, dateKey, booking) => {
+    if (!dateKey) return;
+    if (!bookingsByDate[dateKey]) bookingsByDate[dateKey] = [];
+    bookingsByDate[dateKey].push(booking);
+  };
 
-    // Process hotel bookings
-    if (viewDetails.entry_port) {
-      viewDetails.entry_port.forEach((entryport) => {
-        const date = entryport.bookingDate;
-        if (!bookingsByDate[date]) bookingsByDate[date] = [];
-        bookingsByDate[date].push({
-          ...entryport,
-          serviceType: "Entry Port",
-          serviceName: entryport.vehicles_name || "Unknown Entry Port", // ✅ Use the correct field for serviceName
-          serviceImage: entryport.image || "",
-          price: entryport.totalPrice, // ✅ Use the correct field for price
-        });
-      });
-    }
+  const addCartBookingsToDateMap = (bookingsByDate) => {
+    cartBookings.forEach((item) => {
+      const type = String(item.type || "").toLowerCase();
 
-    if (viewDetails.hotel) {
-      viewDetails.hotel.forEach((hotel) => {
-        if (Array.isArray(hotel.bookingDate) && hotel.bookingDate.length >= 2) {
-          // Get check-in and check-out dates
-          const checkInDate = new Date(hotel.bookingDate[0]);
-          const checkOutDate = new Date(hotel.bookingDate[1]);
+      if (type === "hotel") {
+        const checkIn = item.check_in || item.bookingDate || "";
+        const checkOut = item.check_out || "";
+        const checkInDate = parseFlexibleDate(checkIn);
+        const checkOutDate = parseFlexibleDate(checkOut);
+        const hotelRow = {
+          ...item,
+          serviceType: "Hotel",
+          serviceName: item.hotel_name || "Unknown Hotel",
+          serviceImage: item.image || "",
+          price: item.totalPrice,
+          bookingDate: [checkIn, checkOut].filter(Boolean),
+          hotelDetails: {
+            hotel_id: item.hotel_id || item.hotelId || "",
+            hotel_name: item.hotel_name,
+            image: item.image,
+          },
+          source: "cart",
+        };
 
-          // Generate all dates between check-in and check-out (excluding check-out)
+        if (checkInDate && checkOutDate && checkInDate < checkOutDate) {
           const currentDate = new Date(checkInDate);
           while (currentDate < checkOutDate) {
-            const dateString = currentDate.toISOString().split("T")[0]; // Format as YYYY-MM-DD
-
-            if (!bookingsByDate[dateString]) bookingsByDate[dateString] = [];
-            bookingsByDate[dateString].push({
-              ...hotel,
-              serviceType: "Hotel",
-              serviceName: hotel.hotelDetails?.hotel_name || "Unknown Hotel",
-              serviceImage: hotel.hotelDetails?.image || "",
-              price: hotel.totalPrice,
-            });
-
-            // Move to next day
+            const dateString = currentDate.toISOString().split("T")[0];
+            appendBookingByDate(bookingsByDate, dateString, hotelRow);
             currentDate.setDate(currentDate.getDate() + 1);
           }
+        } else {
+          appendBookingByDate(
+            bookingsByDate,
+            normalizeBookingDateKey(checkIn),
+            hotelRow
+          );
         }
-      });
+        return;
+      }
+
+      if (type === "attraction") {
+        appendBookingByDate(
+          bookingsByDate,
+          normalizeBookingDateKey(item.bookingDate),
+          {
+            ...item,
+            serviceType: "Attraction",
+            serviceName: item.AttractionName || "Unknown Attraction",
+            serviceImage: item.image || "",
+            price: item.totalPrice,
+            adultCount: item.adultCount ?? item.adults ?? 0,
+            childCount: item.childCount ?? item.children ?? 0,
+            source: "cart",
+          }
+        );
+        return;
+      }
+
+      if (type === "restaurant") {
+        appendBookingByDate(
+          bookingsByDate,
+          normalizeBookingDateKey(item.bookingDate),
+          {
+            ...item,
+            serviceType: "Restaurant",
+            serviceName: item.restaurantName || "Unknown Restaurant",
+            serviceImage: item.image || "",
+            price: item.totalPrice,
+            adultCount: item.adultCount ?? item.adults ?? 0,
+            childCount: item.childCount ?? item.children ?? 0,
+            source: "cart",
+          }
+        );
+        return;
+      }
+
+      if (type === "entryport") {
+        appendBookingByDate(
+          bookingsByDate,
+          normalizeBookingDateKey(
+            item.bookingDate || item.pickupdate || item.entrypickupdate
+          ),
+          {
+            ...item,
+            serviceType: "Entry Port",
+            serviceName: item.vehicles_name || "Unknown Entry Port",
+            serviceImage: item.image || "",
+            price: item.totalPrice,
+            source: "cart",
+          }
+        );
+        return;
+      }
+
+      if (type === "exitport") {
+        appendBookingByDate(
+          bookingsByDate,
+          normalizeBookingDateKey(
+            item.bookingDate || item.exitpickupdate || item.pickupdate
+          ),
+          {
+            ...item,
+            serviceType: "Exit Port",
+            serviceName: item.vehicles_name || "Unknown Exit Port",
+            serviceImage: item.image || "",
+            price: item.totalPrice,
+            source: "cart",
+          }
+        );
+        return;
+      }
+
+      if (type === "guide") {
+        appendBookingByDate(
+          bookingsByDate,
+          normalizeBookingDateKey(item.bookingDate),
+          {
+            ...item,
+            serviceType: "Guide",
+            serviceName: item.guide_name || "Unknown Guide",
+            serviceImage: item.image || "",
+            price: item.totalPrice,
+            source: "cart",
+          }
+        );
+        return;
+      }
+
+      if (type === "travel_point" || type === "travelpoint") {
+        appendBookingByDate(
+          bookingsByDate,
+          normalizeBookingDateKey(item.bookingDate || item.pickupdate),
+          {
+            ...item,
+            serviceType: "Travel Point",
+            serviceName: item.vehicles_name || "Unknown Travel Point",
+            serviceImage: item.image || "",
+            price: item.totalPrice,
+            source: "cart",
+          }
+        );
+        return;
+      }
+
+      if (type === "travel_hourly" || type === "travelhourly") {
+        appendBookingByDate(
+          bookingsByDate,
+          normalizeBookingDateKey(item.bookingDate || item.pickupdate),
+          {
+            ...item,
+            serviceType: "Travel Hourly",
+            serviceName: item.vehicles_name || "Unknown Travel Hourly",
+            serviceImage: item.image || "",
+            price: item.totalPrice,
+            source: "cart",
+          }
+        );
+        return;
+      }
+
+      if (
+        type === "local_transport" ||
+        type === "travel_zone" ||
+        type === "zone" ||
+        type === "travelpointzone"
+      ) {
+        appendBookingByDate(
+          bookingsByDate,
+          normalizeBookingDateKey(item.bookingDate || item.pickupdate),
+          {
+            ...item,
+            serviceType: "Travel Zone",
+            serviceName: item.vehicles_name || "Unknown Travel Zone",
+            serviceImage: item.image || "",
+            price: item.totalPrice,
+            source: "cart",
+          }
+        );
+      }
+    });
+  };
+
+  // Organize bookings by date from view details and/or cart
+  const getBookingsByDate = () => {
+    const bookingsByDate = {};
+
+    if (viewDetails && !Array.isArray(viewDetails)) {
+      if (viewDetails.entry_port) {
+        viewDetails.entry_port.forEach((entryport) => {
+          appendBookingByDate(
+            bookingsByDate,
+            normalizeBookingDateKey(entryport.bookingDate),
+            {
+              ...entryport,
+              serviceType: "Entry Port",
+              serviceName: entryport.vehicles_name || "Unknown Entry Port",
+              serviceImage: entryport.image || "",
+              price: entryport.totalPrice,
+              source: "viewDetails",
+            }
+          );
+        });
+      }
+
+      if (viewDetails.hotel) {
+        viewDetails.hotel.forEach((hotel) => {
+          if (
+            Array.isArray(hotel.bookingDate) &&
+            hotel.bookingDate.length >= 2
+          ) {
+            const checkInDate = parseFlexibleDate(hotel.bookingDate[0]);
+            const checkOutDate = parseFlexibleDate(hotel.bookingDate[1]);
+
+            if (checkInDate && checkOutDate) {
+              const currentDate = new Date(checkInDate);
+              while (currentDate < checkOutDate) {
+                const dateString = currentDate.toISOString().split("T")[0];
+                appendBookingByDate(bookingsByDate, dateString, {
+                  ...hotel,
+                  serviceType: "Hotel",
+                  serviceName:
+                    hotel.hotelDetails?.hotel_name || "Unknown Hotel",
+                  serviceImage: hotel.hotelDetails?.image || "",
+                  price: hotel.totalPrice,
+                  source: "viewDetails",
+                });
+                currentDate.setDate(currentDate.getDate() + 1);
+              }
+            }
+          }
+        });
+      }
+
+      if (viewDetails.attraction) {
+        viewDetails.attraction.forEach((attraction) => {
+          appendBookingByDate(
+            bookingsByDate,
+            normalizeBookingDateKey(attraction.bookingDate),
+            {
+              ...attraction,
+              serviceType: "Attraction",
+              serviceName: attraction.AttractionName || "Unknown Attraction",
+              serviceImage: attraction.service_details?.master_image || "",
+              price: attraction.totalPrice,
+              source: "viewDetails",
+            }
+          );
+        });
+      }
+
+      if (viewDetails.attraction_package) {
+        viewDetails.attraction_package.forEach((attraction_package) => {
+          appendBookingByDate(
+            bookingsByDate,
+            normalizeBookingDateKey(attraction_package.bookingDate),
+            {
+              ...attraction_package,
+              serviceType: "Attraction Package",
+              serviceName:
+                attraction_package.AttractionName ||
+                "Unknown Attraction Package",
+              serviceImage:
+                attraction_package.service_details?.master_image || "",
+              price: attraction_package.totalPrice,
+              source: "viewDetails",
+            }
+          );
+        });
+      }
+
+      if (viewDetails.restaurant) {
+        viewDetails.restaurant.forEach((restaurant) => {
+          appendBookingByDate(
+            bookingsByDate,
+            normalizeBookingDateKey(restaurant.bookingDate),
+            {
+              ...restaurant,
+              serviceType: "Restaurant",
+              serviceName: restaurant.restaurantName || "Unknown Restaurant",
+              serviceImage: restaurant.service_details?.master_image || "",
+              price: restaurant.totalPrice,
+              source: "viewDetails",
+            }
+          );
+        });
+      }
+
+      if (viewDetails.guide) {
+        viewDetails.guide.forEach((guide) => {
+          appendBookingByDate(
+            bookingsByDate,
+            normalizeBookingDateKey(guide.bookingDate),
+            {
+              ...guide,
+              serviceType: "Guide",
+              serviceName: guide.guide_name || "Unknown Guide",
+              serviceImage: guide.image || "",
+              price: guide.totalPrice,
+              source: "viewDetails",
+            }
+          );
+        });
+      }
+
+      if (viewDetails.travel_point) {
+        viewDetails.travel_point.forEach((travel_point) => {
+          appendBookingByDate(
+            bookingsByDate,
+            normalizeBookingDateKey(travel_point.bookingDate),
+            {
+              ...travel_point,
+              serviceType: "Travel Point",
+              serviceName:
+                travel_point.vehicles_name || "Unknown Travel Point",
+              serviceImage: travel_point.image || "",
+              price: travel_point.totalPrice,
+              source: "viewDetails",
+            }
+          );
+        });
+      }
+
+      if (viewDetails.travel_hourly) {
+        viewDetails.travel_hourly.forEach((travel_hourly) => {
+          appendBookingByDate(
+            bookingsByDate,
+            normalizeBookingDateKey(travel_hourly.bookingDate),
+            {
+              ...travel_hourly,
+              serviceType: "Travel Hourly",
+              serviceName:
+                travel_hourly.vehicles_name || "Unknown Travel Hourly",
+              serviceImage: travel_hourly.image || "",
+              price: travel_hourly.totalPrice,
+              source: "viewDetails",
+            }
+          );
+        });
+      }
+
+      if (
+        viewDetails.local_transport &&
+        viewDetails.local_transport.length > 0
+      ) {
+        viewDetails.local_transport.forEach((local_transport) => {
+          appendBookingByDate(
+            bookingsByDate,
+            normalizeBookingDateKey(local_transport.bookingDate),
+            {
+              ...local_transport,
+              serviceType: "Travel Zone",
+              serviceName:
+                local_transport.vehicles_name || "Unknown Travel Zone",
+              serviceImage: local_transport.image || "",
+              price: local_transport.totalPrice,
+              source: "viewDetails",
+            }
+          );
+        });
+      }
+
+      if (viewDetails.exit_port) {
+        viewDetails.exit_port.forEach((exitport) => {
+          appendBookingByDate(
+            bookingsByDate,
+            normalizeBookingDateKey(exitport.bookingDate),
+            {
+              ...exitport,
+              serviceType: "Exit Port",
+              serviceName: exitport.vehicles_name || "Unknown Exit Port",
+              serviceImage: exitport.image || "",
+              price: exitport.totalPrice,
+              source: "viewDetails",
+            }
+          );
+        });
+      }
     }
 
-    // Process attraction bookings
-    if (viewDetails.attraction) {
-      viewDetails.attraction.forEach((attraction) => {
-        const date = attraction.bookingDate;
-        if (!bookingsByDate[date]) bookingsByDate[date] = [];
-        bookingsByDate[date].push({
-          ...attraction,
-          serviceType: "Attraction",
-          serviceName: attraction.AttractionName || "Unknown Attraction",
-          serviceImage: attraction.service_details?.master_image || "",
-          price: attraction.totalPrice,
-        });
-      });
+    if (hasCartBookings) {
+      addCartBookingsToDateMap(bookingsByDate);
     }
-    if (viewDetails.attraction_package) {
-      viewDetails.attraction_package.forEach((attraction_package) => {
-        const date = attraction_package.bookingDate;
-        if (!bookingsByDate[date]) bookingsByDate[date] = [];
-        bookingsByDate[date].push({
-          ...attraction_package,
-          serviceType: "Attraction Package",
-          serviceName: attraction_package.AttractionName || "Unknown Attraction Package",
-          serviceImage: attraction_package.service_details?.master_image || "",
-          price: attraction_package.totalPrice,
-        });
-      });
-    }
-    // Process restaurant bookings
-    if (viewDetails.restaurant) {
-      viewDetails.restaurant.forEach((restaurant) => {
-        const date = restaurant.bookingDate;
-        if (!bookingsByDate[date]) bookingsByDate[date] = [];
-        bookingsByDate[date].push({
-          ...restaurant,
-          serviceType: "Restaurant",
-          serviceName: restaurant.restaurantName || "Unknown Restaurant",
-          serviceImage: restaurant.service_details?.master_image || "",
-          price: restaurant.totalPrice, // ✅ Use the correct field for price
-        });
-      });
-    }
-
-    // Process transfer bookings
-
-    // Process transfer bookings
-    if (viewDetails.guide) {
-      viewDetails.guide.forEach((guide) => {
-        const date = guide.bookingDate;
-        if (!bookingsByDate[date]) bookingsByDate[date] = [];
-        bookingsByDate[date].push({
-          ...guide,
-          serviceType: "Guide",
-          serviceName: guide.guide_name || "Unknown Guide", // ✅ Use the correct field for serviceName
-          serviceImage: guide.image || "",
-          price: guide.totalPrice, // ✅ Use the correct field for price
-        });
-      });
-    }
-
-    if (viewDetails.travel_point) {
-      viewDetails.travel_point.forEach((travel_point) => {
-        const date = travel_point.bookingDate;
-        if (!bookingsByDate[date]) bookingsByDate[date] = [];
-        bookingsByDate[date].push({
-          ...travel_point,
-          serviceType: "Travel Point", // ✅ Use the correct field for serviceName
-          serviceName: travel_point.vehicles_name || "Unknown Travel Point", // ✅ Use the correct field for serviceName
-          serviceImage: travel_point.image || "",
-          price: travel_point.totalPrice, // ✅ Use the correct field for price
-        });
-      });
-    }
-    // Process transfer bookings
-    if (viewDetails.travel_hourly) {
-      viewDetails.travel_hourly.forEach((travel_hourly) => {
-        const date = travel_hourly.bookingDate;
-        if (!bookingsByDate[date]) bookingsByDate[date] = [];
-        bookingsByDate[date].push({
-          ...travel_hourly,
-          serviceType: "Travel Hourly", // ✅ Use the correct field for serviceName
-          serviceName: travel_hourly.vehicles_name || "Unknown Travel Hourly", // ✅ Use the correct field for serviceName
-          serviceImage: travel_hourly.image || "",
-          price: travel_hourly.totalPrice, // ✅ Use the correct field for price
-        });
-      });
-    }
-
-    // Process zone bookings - moved outside travel_hourly block
-    if (viewDetails.local_transport && viewDetails.local_transport.length > 0) {
-      viewDetails.local_transport.forEach((local_transport) => {
-        const date = local_transport.bookingDate;
-        if (!bookingsByDate[date]) bookingsByDate[date] = [];
-        bookingsByDate[date].push({
-          ...local_transport,
-          serviceType: "Travel Zone", // ✅ Use the correct field for serviceName
-          serviceName: local_transport.vehicles_name || "Unknown Travel Zone", // ✅ Use the correct field for serviceName
-          serviceImage: local_transport.image || "",
-          price: local_transport.totalPrice, // ✅ Use the correct field for price
-        });
-      });
-    }
-    if (viewDetails.exit_port) {
-      viewDetails.exit_port.forEach((exitport) => {
-        const date = exitport.bookingDate;
-        if (!bookingsByDate[date]) bookingsByDate[date] = [];
-        bookingsByDate[date].push({
-          ...exitport,
-          serviceType: "Exit Port",
-          serviceName: exitport.vehicles_name || "Unknown Exit Port", // ✅ Use the correct field for serviceName
-          serviceImage: exitport.image || "",
-          price: exitport.totalPrice, // ✅ Use the correct field for price
-        });
-      });
-    }
-
-    // Add more service types as needed (restaurant, etc.)
 
     return bookingsByDate;
   };
@@ -524,6 +762,64 @@ console.log("zone_on5", zone_on);
     dispatch(setSelectedPort("Local Transfer"));
     }
     setShowBookingTable(false);
+  };
+
+  /** Resolve service id for Book Transfer from view-details or cart item shape */
+  const getTransferServiceId = (booking) => {
+    if (!booking) return null;
+    const type = booking.serviceType;
+
+    if (type === "Hotel") {
+      return (
+        booking.hotelDetails?.hotel_id ||
+        booking.hotel_id ||
+        booking.hotelId ||
+        booking.id ||
+        null
+      );
+    }
+
+    if (type === "Attraction") {
+      return (
+        booking.service_details?.attraction_id ||
+        booking.AttractionId ||
+        booking.attraction_id ||
+        booking.attractionId ||
+        booking.id ||
+        null
+      );
+    }
+
+    if (type === "Attraction Package") {
+      return (
+        booking.package_attraction_id ||
+        booking.AttractionId ||
+        booking.attraction_id ||
+        booking.attractionId ||
+        booking.id ||
+        null
+      );
+    }
+
+    if (type === "Restaurant") {
+      return (
+        booking.service_details?.restaurant_id ||
+        booking.restaurantId ||
+        booking.restaurant_id ||
+        booking.id ||
+        null
+      );
+    }
+
+    return null;
+  };
+
+  const getTransferServiceType = (booking) => {
+    if (booking?.serviceType === "Hotel") return "hotel";
+    if (booking?.serviceType === "Attraction") return "attraction";
+    if (booking?.serviceType === "Attraction Package") return "attraction_package";
+    if (booking?.serviceType === "Restaurant") return "restaurant";
+    return null;
   };
 
   useEffect(() => {
@@ -798,9 +1094,20 @@ console.log("zone_on5", zone_on);
               <div className="col-12">
                 <div className="text-center mb-30">
                   <h2 className="text-30 fw-600">Your Bookings</h2>
+                  {(hasViewDetailsBookings || hasCartBookings) && (
+                    <p className="text-14 text-light-1 mt-10">
+                      {hasViewDetailsBookings && hasCartBookings
+                        ? "Showing confirmed bookings and cart items"
+                        : hasCartBookings
+                          ? "Showing items from your cart"
+                          : "Showing confirmed bookings"}
+                    </p>
+                  )}
                 </div>
 
-                {Object.entries(getBookingsByDate()).map(([date, bookings]) => (
+                {Object.entries(getBookingsByDate())
+                  .sort(([a], [b]) => String(a).localeCompare(String(b)))
+                  .map(([date, bookings]) => (
                   <div key={date} className="mb-40">
                     <h3 className="text-22 fw-500 mb-20">
                       Bookings for{" "}
@@ -914,7 +1221,11 @@ console.log("zone_on5", zone_on);
                                         Check-in:
                                       </span>{" "}
                                       <span className="text-15">
-                                        {booking.bookingDate[0]}
+                                        {Array.isArray(booking.bookingDate)
+                                          ? booking.bookingDate[0]
+                                          : booking.check_in ||
+                                            booking.bookingDate ||
+                                            "—"}
                                       </span>
                                     </div>
                                     <div className="d-flex items-center">
@@ -926,7 +1237,9 @@ console.log("zone_on5", zone_on);
                                         Check-out:
                                       </span>{" "}
                                       <span className="text-15">
-                                        {booking.bookingDate[1]}
+                                        {Array.isArray(booking.bookingDate)
+                                          ? booking.bookingDate[1] || "—"
+                                          : booking.check_out || "—"}
                                       </span>
                                     </div>
                                   </div>
@@ -1455,41 +1768,21 @@ console.log("zone_on5", zone_on);
                                   <button
                                     className="button -md -dark-1 bg-blue-1 text-white d-flex items-center justify-center"
                                     onClick={() => {
-                                      if (booking.serviceType === "Hotel") {
-                                        handleBookTransfer(
-                                          booking,
-                                          booking.hotelDetails.hotel_id,
-                                          "hotel"
+                                      const serviceId = getTransferServiceId(booking);
+                                      const serviceType = getTransferServiceType(booking);
+                                      if (!serviceId || !serviceType) {
+                                        console.warn(
+                                          "Book Transfer: missing service id for",
+                                          booking.serviceType,
+                                          booking
                                         );
-                                        //dispatch(setSelectedPort("Local Transfer"));
-                                      } else if (
-                                        booking.serviceType === "Attraction"
-                                      ) {
-                                        handleBookTransfer(
-                                          booking,
-                                          booking.service_details.attraction_id,
-                                          "attraction"
-                                        );
-                                       // dispatch(setSelectedPort("Local Transfer"));
-                                      } else if (
-                                        booking.serviceType === "Attraction Package"
-                                      ) {
-                                        handleBookTransfer(
-                                          booking,
-                                          booking.package_attraction_id,
-                                          "attraction_package"
-                                        );
-                                       // dispatch(setSelectedPort("Local Transfer"));
-                                      } else if (
-                                        booking.serviceType === "Restaurant"
-                                      ) {
-                                        handleBookTransfer(
-                                          booking,
-                                          booking.service_details.restaurant_id,
-                                          "restaurant"
-                                        );
-                                       // dispatch(setSelectedPort("Local Transfer"));
+                                        return;
                                       }
+                                      handleBookTransfer(
+                                        booking,
+                                        serviceId,
+                                        serviceType
+                                      );
                                     }}
                                     style={{
                                       borderRadius: "6px",

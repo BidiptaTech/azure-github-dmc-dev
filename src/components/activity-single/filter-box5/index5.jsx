@@ -41,6 +41,8 @@ import { setDateService } from "@/slice/common/dateServicesSlice";
 import { setbookingImage, setbookingType } from "@/slice/tourguide/guideslice";
 import Pickuptime3 from "./Pickuptime1";
 import Pickuptimezone from "@/components/activity-list/activity-list-v3/Pickuptimezone";
+import { addToCart } from "@/slice/cart/carSlice";
+import { store } from "@/store/store";
 
 const Index5 = () => {
   const pickUpLocation = useSelector((state) => state.localtour.entrypickup);
@@ -72,6 +74,9 @@ const Index5 = () => {
   // Fetch values from Redux
   const tourDetails = useSelector((state) => state.hotels?.tourdetails);
   console.log("Tour details:", tourDetails);
+  const searchLocation = useSelector(
+    (state) => state.bookings?.searchLocation || []
+  );
 
   const adultsMax = tourDetails?.adult ?? 1; // Use optional chaining with fallback
   console.log("Adults Max:", adultsMax);
@@ -306,9 +311,23 @@ const Index5 = () => {
     };
 
     dispatch(setpointdata(details));
-    navigate(`/dashboard/db-dashboard/CheckOut`, {
-      state: { vehicles: vehicles },
-    });
+    dispatch(
+      addToCart({
+        bookingType: "travelpointzone",
+        item: details,
+        tourDetails: {
+          ...(tourDetails || {}),
+          searchLocation,
+        },
+      })
+    );
+    const cartError = store.getState().cart?.lastActionError;
+    if (cartError) {
+      toast.error(cartError);
+      return;
+    }
+    toast.success("Added to cart successfully.");
+    navigate(`/dashboard/db-dashboard/cart`);
 
     // const data = {
     //   pickUpLocation,
@@ -473,7 +492,7 @@ const Index5 = () => {
           }`}
           disabled={!isBookNowEnabled} // Disable button if not enabled
         >
-          Check Out
+          Add to Cart
         </button>
         {/* {isNight && (
           <div className="text-14 mt-10" style={{ color: "#E53935" }}>
