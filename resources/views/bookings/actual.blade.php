@@ -7,6 +7,7 @@
 <!-- Add SweetAlert2 JS -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.all.min.js"></script>
 @include('bookings.partials.reject-service-alert-js')
+@include('bookings.partials.attraction-voucher-scripts')
 @include('bookings.partials.services')
 <!-- Select2 CSS -->
 <link href="https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/css/select2.min.css" rel="stylesheet" />
@@ -7737,8 +7738,6 @@ window.generateApproveAttractionForm = function(tourId, attractionOrderIndex, bo
                 <div class="alert alert-info mb-0" id="onlineAttractionCreditsAlert_${tourId}_${attractionOrderIndex}_${bookingIndex}" style="border-radius: 12px;">
                     <div class="small text-muted">Provider order ref</div>
                     <div class="fw-semibold" id="onlineAttractionOrderRef_${tourId}_${attractionOrderIndex}_${bookingIndex}">—</div>
-                    <div class="small text-muted mt-2">Credit balance</div>
-                    <div class="fw-semibold" id="onlineAttractionCreditsBalance_${tourId}_${attractionOrderIndex}_${bookingIndex}">Checking…</div>
                     <div class="small mt-1" id="onlineAttractionCreditsNote_${tourId}_${attractionOrderIndex}_${bookingIndex}"></div>
                 </div>
             </div>
@@ -7991,27 +7990,22 @@ window.loadAttractionDataForApprove = function(tourId, attractionOrderIndex, boo
                     }
                     wrap.classList.remove('d-none');
                     const refEl = document.getElementById(`onlineAttractionOrderRef_${tourId}_${attractionOrderIndex}_${bookingIndex}`);
-                    const balEl = document.getElementById(`onlineAttractionCreditsBalance_${tourId}_${attractionOrderIndex}_${bookingIndex}`);
                     const noteEl = document.getElementById(`onlineAttractionCreditsNote_${tourId}_${attractionOrderIndex}_${bookingIndex}`);
                     const alertEl = document.getElementById(`onlineAttractionCreditsAlert_${tourId}_${attractionOrderIndex}_${bookingIndex}`);
                     const enoughInput = document.getElementById(`onlineAttractionCreditsEnough_${tourId}_${attractionOrderIndex}_${bookingIndex}`);
                     if (refEl) {
                         refEl.textContent = isPlaceholder ? 'Not created yet — will be created on approve' : savedExternalRef;
                     }
-                    const balance = attractionData.credits_balance;
                     const enough = attractionData.credits_enough;
-                    if (balEl) {
-                        balEl.textContent = (balance === 0 || balance) ? String(balance) : (attractionData.credits_message || 'Unavailable');
-                    }
                     if (noteEl) {
                         if (enough === false) {
-                            noteEl.textContent = 'Credits balance is not enough. Approval is blocked until credits are available.';
+                            noteEl.textContent = 'Credits are not enough. Approval is blocked until credits are available.';
                         } else if (enough === true) {
-                            noteEl.textContent = 'Credit balance is sufficient. Approving will charge this order ref.';
+                            noteEl.textContent = 'Approving will charge this order ref.';
                         } else if (isPlaceholder) {
                             noteEl.textContent = 'Provider order will be created and charged on approve.';
                         } else {
-                            noteEl.textContent = 'Credit balance will be confirmed when you approve this order ref.';
+                            noteEl.textContent = 'This order will be charged when you approve.';
                         }
                     }
                     if (alertEl) {
@@ -8020,6 +8014,9 @@ window.loadAttractionDataForApprove = function(tourId, attractionOrderIndex, boo
                     }
                     if (enoughInput) {
                         enoughInput.value = enough === false ? '0' : '1';
+                    }
+                    if (typeof window.mountAttractionVouchers === 'function') {
+                        window.mountAttractionVouchers(tourId, attractionOrderIndex, bookingIndex, attractionData.vouchers || attractionData);
                     }
                 })();
                 
@@ -8141,12 +8138,17 @@ window.confirmIndividualAttractionApproval = function(tourId, attractionOrderInd
             hideApprovalProgressOverlay();
             if (data.success) {
                 console.log('Attraction booking approved successfully:', data);
+                const returnedVouchers = (data.data && data.data.vouchers) ? data.data.vouchers : [];
+                if (typeof window.mountAttractionVouchers === 'function' && returnedVouchers.length) {
+                    window.mountAttractionVouchers(tourId, attractionOrderIndex, bookingIndex, returnedVouchers);
+                }
                 showToast(`Attraction booking approved successfully!\nReference ID: ${referenceId}\nDue Date: ${displayDueDate}`, 'success');
-                
-                // Close modal and refresh page
+
                 const modalId = `individualAttractionModal_${tourId}_${attractionOrderIndex}_${bookingIndex}_approve`;
-                closeIndividualAttractionModal(modalId);
-                setTimeout(() => location.reload(), 1000);
+                setTimeout(() => {
+                    closeIndividualAttractionModal(modalId);
+                    location.reload();
+                }, returnedVouchers.length ? 2500 : 1000);
             } else {
                 console.error('Failed to approve attraction booking:', data);
                 showToast('Failed to approve attraction booking: ' + (data.message || 'Unknown error'), 'error');
@@ -8388,7 +8390,8 @@ function loadIndividualAttractionContent(modalId, tourId, attractionOrderIndex, 
                 displayDueDate: attractionData.display_due_date || null,
                 approvalFile: attractionData.approval_file || null,
                 currency: attractionData.currency || window.bookingCurrency || 'SGD',
-                country: attractionData.country || ''
+                country: attractionData.country || '',
+                vouchers: attractionData.vouchers || []
             };
             
             console.log('✅ Attraction booking data prepared for display', attractionBooking);
@@ -8718,6 +8721,10 @@ function generateIndividualAttractionContent(attractionBooking, modalId, tourId,
                         </small>
                     </div>
                 </div>
+
+                ${(typeof window.renderAttractionVouchersHtml === 'function' && attractionBooking.vouchers && attractionBooking.vouchers.length)
+                    ? window.renderAttractionVouchersHtml(attractionBooking.vouchers)
+                    : ''}
 
              
                 <!-- Individual Action Buttons -->

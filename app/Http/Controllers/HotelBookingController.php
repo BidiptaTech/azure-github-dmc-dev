@@ -417,14 +417,20 @@ class HotelBookingController extends Controller
             $creditsBalance = null;
             $creditsEnough = null;
             $creditsMessage = null;
+            $requiredCreditsAmount = null;
+            $orderVouchers = [];
             if ($isOnline) {
-                $credits = app(OnlineAttractionOrderService::class)->getCredits(is_array($booking) ? $booking : []);
+                $orderService = app(OnlineAttractionOrderService::class);
+                $credits = $orderService->getCredits(is_array($booking) ? $booking : []);
                 $creditsBalance = $credits['credits_balance'] ?? null;
                 $creditsMessage = $credits['message'] ?? null;
-                $qty = max(1, (int) ($booking['adultCount'] ?? 0) + (int) ($booking['childCount'] ?? 0));
-                $unit = (float) ($booking['lowest_ticket_price'] ?? 0);
-                if ($creditsBalance !== null && $unit > 0) {
-                    $creditsEnough = ((float) $creditsBalance) >= ($unit * $qty);
+                $requiredCreditsAmount = $orderService->requiredPaymentAmount(is_array($booking) ? $booking : []);
+                if ($creditsBalance !== null) {
+                    $creditsEnough = ((float) $creditsBalance) >= $requiredCreditsAmount;
+                }
+                $orderVouchers = OnlineAttractionOrderService::extractStoredVouchers(is_array($booking) ? $booking : []);
+                if ((int) ($attractionOrder->is_approve ?? 0) === 1 || OnlineAttractionOrderService::isProviderPaymentComplete($attractionOrder, is_array($booking) ? $booking : [])) {
+                    $creditsEnough = true;
                 }
             }
 
@@ -488,6 +494,9 @@ class HotelBookingController extends Controller
                         'credits_balance' => $creditsBalance,
                         'credits_enough' => $creditsEnough,
                         'credits_message' => $creditsMessage,
+                        'required_credits_amount' => $requiredCreditsAmount,
+                        'vouchers' => $orderVouchers,
+                        'order_details' => is_array($booking) ? ($booking['order_details'] ?? null) : null,
                     ]
                 ]
             ]);
@@ -3380,18 +3389,49 @@ class HotelBookingController extends Controller
             $isOnline = ((string) ($attractionOrder->order_type ?? '') === 'online')
                 || OnlineAttractionOrderService::isOnlineAttraction($booking);
             $savedExternalRef = OnlineAttractionOrderService::extractSavedRef($attractionOrder, $booking);
+            $orderVouchers = OnlineAttractionOrderService::extractStoredVouchers($booking);
+
+            $writeBookingIntoData = function () use (&$attractionData, &$booking, $bookingIndex): void {
+                if (is_array($attractionData) && isset($attractionData[$bookingIndex]) && is_array($attractionData[$bookingIndex])) {
+                    $attractionData[$bookingIndex] = $booking;
+                } elseif (is_array($attractionData) && isset($attractionData[0]) && is_array($attractionData[0])) {
+                    $attractionData[0] = $booking;
+                }
+            };
+
+            if ($isOnline && (int) ($attractionOrder->is_approve ?? 0) === 1) {
+                Log::info('Attraction online approval skipped (already approved; credits not charged again)', [
+                    'tour_id' => $tourId,
+                    'local_order_id' => $attractionOrder->id,
+                    'order_ref_id' => $savedExternalRef,
+                ]);
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Attraction booking is already approved.',
+                    'already_approved' => true,
+                    'data' => [
+                        'tour_id' => $tourId,
+                        'attraction_order_id' => $attractionOrder->id,
+                        'reference_id' => $attractionOrder->reference_id ?? $savedExternalRef,
+                        'order_ref_id' => $savedExternalRef,
+                        'vouchers' => $orderVouchers,
+                        'attraction_details' => $booking,
+                    ],
+                ]);
+            }
 
             if ($isOnline) {
                 $orderService = app(OnlineAttractionOrderService::class);
-                $chargedOnCreate = false;
+                $alreadyPaid = OnlineAttractionOrderService::isProviderPaymentComplete($attractionOrder, $booking);
 
                 if ($savedExternalRef === null) {
-                    Log::info('Attraction online approval: creating provider order and checking credits', [
+                    Log::info('Attraction online approval: creating provider order (pay happens after credit check)', [
                         'tour_id' => $tourId,
                         'local_order_id' => $attractionOrder->id,
                     ]);
 
-                    $createResult = $orderService->createOrder($booking, (int) $tourId, true);
+                    $createResult = $orderService->createOrder($booking, (int) $tourId, false);
                     if (! empty($createResult['credits_insufficient'])) {
                         return response()->json([
                             'success' => false,
@@ -3407,23 +3447,52 @@ class HotelBookingController extends Controller
                     }
 
                     $savedExternalRef = $createResult['order_ref_id'];
-                    $chargedOnCreate = true;
-                    $booking = $orderService->applyRefToAttraction($booking, $savedExternalRef, 'paid');
-                    if (is_array($attractionData) && isset($attractionData[$bookingIndex]) && is_array($attractionData[$bookingIndex])) {
-                        $attractionData[$bookingIndex] = $booking;
-                    } elseif (is_array($attractionData) && isset($attractionData[0]) && is_array($attractionData[0])) {
-                        $attractionData[0] = $booking;
-                    }
+                    $booking = $orderService->applyRefToAttraction($booking, $savedExternalRef, 'pending');
+                    $writeBookingIntoData();
+                    DB::table('orders')->where('id', $attractionOrder->id)->update([
+                        'order_ref_no' => $savedExternalRef,
+                        'data' => json_encode($attractionData),
+                        'updated_at' => now(),
+                    ]);
                 }
 
                 $referenceId = trim((string) $referenceId) !== '' ? trim((string) $referenceId) : $savedExternalRef;
 
-                if (! $chargedOnCreate) {
+                if (! $alreadyPaid) {
+                    $credits = $orderService->getCredits($booking);
+                    $requiredAmount = $orderService->requiredPaymentAmount($booking);
+                    $creditsBalance = $credits['credits_balance'] ?? null;
+                    if ($creditsBalance === null) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => $credits['message'] ?: 'Unable to verify AttractionsSG credit balance. Booking was not approved.',
+                            'credits_insufficient' => false,
+                        ], 422);
+                    }
+                    if ((float) $creditsBalance < $requiredAmount) {
+                        Log::warning('Attraction online approval blocked: insufficient credits', [
+                            'tour_id' => $tourId,
+                            'local_order_id' => $attractionOrder->id,
+                            'order_ref_id' => $savedExternalRef,
+                            'credits_balance' => $creditsBalance,
+                            'required_amount' => $requiredAmount,
+                        ]);
+
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'Credits balance is not enough',
+                            'credits_insufficient' => true,
+                            'credits_balance' => $creditsBalance,
+                            'required_amount' => $requiredAmount,
+                        ], 422);
+                    }
+
                     Log::info('Attraction online approval: paying saved orders.order_ref_no', [
                         'tour_id' => $tourId,
                         'local_order_id' => $attractionOrder->id,
                         'order_ref_id' => $savedExternalRef,
-                        'create_order_called' => false,
+                        'credits_balance' => $creditsBalance,
+                        'required_amount' => $requiredAmount,
                     ]);
 
                     $payResult = $orderService->payOrder($savedExternalRef, $booking);
@@ -3440,6 +3509,52 @@ class HotelBookingController extends Controller
                             'message' => $payResult['message'] ?: 'External attraction payment failed. Booking was not approved.',
                         ], 422);
                     }
+
+                    $booking['external_payment_completed'] = true;
+                    $booking['external_order_status'] = 'paid';
+                    $writeBookingIntoData();
+                    DB::table('orders')->where('id', $attractionOrder->id)->update([
+                        'order_ref_no' => $savedExternalRef,
+                        'data' => json_encode($attractionData),
+                        'updated_at' => now(),
+                    ]);
+                } else {
+                    Log::info('Attraction online approval: skipping pay (already paid or vouchers present)', [
+                        'tour_id' => $tourId,
+                        'local_order_id' => $attractionOrder->id,
+                        'order_ref_id' => $savedExternalRef,
+                    ]);
+                }
+
+                $details = $orderService->fetchOrderDetails($savedExternalRef, $booking);
+                if (empty($details['success']) || empty($details['data'])) {
+                    $existingVouchers = OnlineAttractionOrderService::extractStoredVouchers($booking);
+                    if ($existingVouchers === []) {
+                        Log::warning('Attraction online approval: pay succeeded but order-details failed', [
+                            'tour_id' => $tourId,
+                            'local_order_id' => $attractionOrder->id,
+                            'order_ref_id' => $savedExternalRef,
+                            'message' => $details['message'] ?? null,
+                        ]);
+
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'Payment was processed but voucher details could not be retrieved. Please click Approve again — credits will not be charged twice. '
+                                . ($details['message'] ?? ''),
+                            'payment_completed' => true,
+                            'order_ref_id' => $savedExternalRef,
+                        ], 422);
+                    }
+                    $orderVouchers = $existingVouchers;
+                } else {
+                    $booking = $orderService->applyOrderDetailsToAttraction(
+                        $booking,
+                        $details['data'],
+                        $details['vouchers'],
+                        (string) ($details['data']['status'] ?? 'Paid')
+                    );
+                    $writeBookingIntoData();
+                    $orderVouchers = $details['vouchers'];
                 }
             } elseif (trim((string) $referenceId) === '') {
                 return response()->json([
@@ -3532,6 +3647,10 @@ class HotelBookingController extends Controller
                 if (is_array($attractionData)) {
                     $updateData['data'] = json_encode($attractionData);
                 }
+                $firstVoucherUrl = trim((string) (($orderVouchers[0]['voucher'] ?? '') ?: ($orderVouchers[0]['download_link'] ?? '')));
+                if ($firstVoucherUrl !== '') {
+                    $updateData['voucher_image'] = $firstVoucherUrl;
+                }
             }
 
             // Update the order
@@ -3575,7 +3694,10 @@ class HotelBookingController extends Controller
                     'display_due_date' => $displayDueDate,
                     'upload_files' => $allFiles,
                     'uploaded_count' => count($uploadedFiles),
-                    'upload_errors' => $uploadErrors
+                    'upload_errors' => $uploadErrors,
+                    'order_ref_id' => $savedExternalRef ?? null,
+                    'vouchers' => $orderVouchers ?? [],
+                    'attraction_details' => $booking ?? [],
                 ]
             ]);
 

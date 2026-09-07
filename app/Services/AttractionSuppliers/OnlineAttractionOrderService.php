@@ -237,16 +237,18 @@ class OnlineAttractionOrderService
             $providerStatus = $result['provider_status'] ?? null;
             $message = (string) ($result['message'] ?? '');
             $creditsInsufficient = $this->isCreditsInsufficient($message, $result);
+            $alreadyPaid = $this->payLooksAlreadyComplete($message);
 
             if ($creditsInsufficient) {
                 Log::warning('Attraction external pay credits insufficient', [
                     'order_ref_id' => $orderRefId,
                     'provider_status' => $providerStatus,
                 ]);
-            } elseif (! empty($result['success'])) {
+            } elseif (! empty($result['success']) || $alreadyPaid) {
                 Log::info('Attraction external pay succeeded', [
                     'order_ref_id' => $orderRefId,
                     'provider_status' => $providerStatus,
+                    'already_paid' => $alreadyPaid,
                 ]);
             } else {
                 Log::warning('Attraction external pay failed', [
@@ -257,7 +259,7 @@ class OnlineAttractionOrderService
             }
 
             return [
-                'success' => ! empty($result['success']) && ! $creditsInsufficient,
+                'success' => (! empty($result['success']) || $alreadyPaid) && ! $creditsInsufficient,
                 'credits_insufficient' => $creditsInsufficient,
                 'message' => $message !== '' ? $message : ($creditsInsufficient ? 'Credits balance is not enough' : 'External attraction payment failed.'),
                 'provider_status' => $providerStatus,
@@ -326,6 +328,155 @@ class OnlineAttractionOrderService
                 'message' => $e->getMessage(),
             ];
         }
+    }
+
+    /**
+     * Provider amount that will be charged on Update Order action=pay.
+     *
+     * @param  array<string, mixed>  $attraction
+     */
+    public function requiredPaymentAmount(array $attraction): float
+    {
+        $adults = max(0, (int) ($attraction['adultCount'] ?? 0));
+        $children = max(0, (int) ($attraction['childCount'] ?? 0));
+        $quantity = max(1, $adults + $children);
+        $skuId = trim((string) ($attraction['sku_id'] ?? $attraction['ticket_sku_id'] ?? ''));
+        $ticket = $this->ticketFromAttractionPayload($attraction, $skuId);
+        $amount = (float) $this->providerTotalAmount($attraction, $adults, $children, $quantity, $ticket);
+        if ($amount <= 0) {
+            $amount = (float) ($attraction['totalPrice'] ?? $attraction['price'] ?? 0);
+        }
+
+        return round(max(0, $amount), 2);
+    }
+
+    /**
+     * True when credits were already consumed (or vouchers already stored) so pay must not run again.
+     *
+     * @param  array<string, mixed>  $attraction
+     */
+    public static function isProviderPaymentComplete(object $order, array $attraction = []): bool
+    {
+        if (! empty($attraction['external_payment_completed'])) {
+            return true;
+        }
+
+        $status = strtolower(trim((string) ($attraction['external_order_status'] ?? '')));
+        if (in_array($status, ['paid', 'completed', 'done', 'confirmed'], true)) {
+            return true;
+        }
+
+        $vouchers = self::extractStoredVouchers($attraction);
+
+        return $vouchers !== [];
+    }
+
+    /**
+     * @param  array<string, mixed>  $attraction
+     * @return array<int, array<string, mixed>>
+     */
+    public static function extractStoredVouchers(array $attraction): array
+    {
+        $list = [];
+        if (! empty($attraction['vouchers']) && is_array($attraction['vouchers'])) {
+            $list = $attraction['vouchers'];
+        } elseif (! empty($attraction['order_details']['vouchers']) && is_array($attraction['order_details']['vouchers'])) {
+            $list = $attraction['order_details']['vouchers'];
+        }
+
+        return array_values(array_filter($list, static fn ($row) => is_array($row)));
+    }
+
+    /**
+     * GET /order/details for a paid AttractionsSG order. Does not touch the database.
+     *
+     * @param  array<string, mixed>  $attraction
+     * @return array{success: bool, message: ?string, data: ?array, vouchers: array<int, array<string, mixed>>}
+     */
+    public function fetchOrderDetails(string $orderRefId, array $attraction = []): array
+    {
+        $orderRefId = trim($orderRefId);
+        if (self::isPlaceholderRef($orderRefId)) {
+            return [
+                'success' => false,
+                'message' => 'Online attraction order reference is missing.',
+                'data' => null,
+                'vouchers' => [],
+            ];
+        }
+
+        try {
+            [$supplierCode, $credentials] = $this->resolveSupplier($attraction);
+            $adapter = $this->factory->make($supplierCode);
+            if (! method_exists($adapter, 'fetchOrderDetails')) {
+                return [
+                    'success' => false,
+                    'message' => 'Order details is not available for this supplier.',
+                    'data' => null,
+                    'vouchers' => [],
+                ];
+            }
+
+            $result = $adapter->fetchOrderDetails($orderRefId, $credentials);
+
+            return [
+                'success' => ! empty($result['success']),
+                'message' => $result['message'] ?? null,
+                'data' => is_array($result['data'] ?? null) ? $result['data'] : null,
+                'vouchers' => is_array($result['vouchers'] ?? null) ? $result['vouchers'] : [],
+            ];
+        } catch (Throwable $e) {
+            Log::error('Attraction order-details exception', [
+                'order_ref_id' => $orderRefId,
+                'message' => $e->getMessage(),
+            ]);
+
+            return [
+                'success' => false,
+                'message' => $e->getMessage(),
+                'data' => null,
+                'vouchers' => [],
+            ];
+        }
+    }
+
+    /**
+     * Merge Order Details / vouchers into the existing attraction JSON row without dropping other fields.
+     *
+     * @param  array<string, mixed>  $attraction
+     * @param  array<string, mixed>|null  $orderDetails
+     * @param  array<int, array<string, mixed>>  $vouchers
+     * @return array<string, mixed>
+     */
+    public function applyOrderDetailsToAttraction(array $attraction, ?array $orderDetails, array $vouchers, ?string $status = null): array
+    {
+        if (is_array($orderDetails) && $orderDetails !== []) {
+            $attraction['order_details'] = $orderDetails;
+            $detailsStatus = trim((string) ($orderDetails['status'] ?? ''));
+            if ($detailsStatus !== '') {
+                $attraction['external_order_status'] = $detailsStatus;
+            }
+        }
+        if ($vouchers !== []) {
+            $attraction['vouchers'] = $vouchers;
+        }
+        if ($status !== null && $status !== '') {
+            $attraction['external_order_status'] = $status;
+        }
+        if (strtolower((string) ($attraction['external_order_status'] ?? '')) === 'paid' || $vouchers !== []) {
+            $attraction['external_payment_completed'] = true;
+        }
+
+        return $attraction;
+    }
+
+    public function payLooksAlreadyComplete(?string $message): bool
+    {
+        if (! is_string($message) || trim($message) === '') {
+            return false;
+        }
+
+        return (bool) preg_match('/already\s+(paid|completed|confirmed)/i', $message);
     }
 
     /**
