@@ -84,7 +84,13 @@
                     </a>
                 </div>
             </div>
-            <a href="{{ route('zones.create') }}" class="btn btn-primary">Add New Zone</a>
+            <a href="{{ route('zones.create', array_filter([
+                    'zone_type' => $currentZoneType,
+                    'country' => request()->query('country'),
+                    'city' => request()->query('city'),
+                    'sort' => request()->query('sort'),
+                    'direction' => request()->query('direction'),
+                ], static fn ($value) => $value !== null && $value !== '')) }}" class="btn btn-primary">Add New Zone</a>
         </div>
         <div class="card-body">
             <form method="GET" id="zone-location-filter-form" class="row mb-4 align-items-end g-3">
