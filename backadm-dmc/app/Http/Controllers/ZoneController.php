@@ -116,6 +116,46 @@ class ZoneController extends Controller
     }
 
     /**
+     * Preserve Zone List tab/filters when moving to create and back.
+     */
+    private function zoneListReturnQuery(Request $request): array
+    {
+        $allowedTypes = ['Hotel', 'Restaurant', 'Attraction'];
+        $query = [];
+        $returnTo = $request->input('return_to', old('return_to', []));
+        if (!is_array($returnTo)) {
+            $returnTo = [];
+        }
+
+        $zoneType = $returnTo['zone_type'] ?? $request->query('zone_type');
+        if (is_array($zoneType)) {
+            $zoneType = $zoneType[0] ?? null;
+        }
+        $zoneType = trim((string) $zoneType);
+        if (in_array($zoneType, $allowedTypes, true)) {
+            $query['zone_type'] = $zoneType;
+        }
+
+        foreach (['country', 'city', 'sort', 'direction'] as $key) {
+            $value = $returnTo[$key] ?? $request->query($key);
+            if (is_array($value)) {
+                $value = $value[0] ?? '';
+            }
+            $value = trim((string) $value);
+            if ($value !== '') {
+                $query[$key] = $value;
+            }
+        }
+
+        return $query;
+    }
+
+    private function zoneListUrl(array $query = []): string
+    {
+        return route('zones.index', $query);
+    }
+
+    /**
      * If zone_id is present in hotel/attraction/restaurant zone_assignments
      * (for the zone's dmc_id when set), return a block message; otherwise null.
      */
@@ -426,7 +466,7 @@ class ZoneController extends Controller
     /**
      * Show the form for creating a new zone.
      */
-    public function create()
+    public function create(Request $request)
     {
         $user = Auth::user();
         $isAdmin = (int) ($user->role_id ?? 0) === 1
@@ -441,12 +481,45 @@ class ZoneController extends Controller
         }
         $countries = $countriesQuery->get();
 
-        $selectedCountry = old('country', $masterNames[0] ?? ($countries->first()->name ?? null));
+        $dmcUser = $dmcId ? User::where('userId', $dmcId)->first() : $user;
+        $operatingCountry = CommonHelper::resolveUserOperatingCountry($dmcUser ?: $user);
+        $matchedOperating = null;
+        if ($operatingCountry) {
+            $matchedOperating = $countries->first(function ($country) use ($operatingCountry) {
+                return strcasecmp((string) $country->name, $operatingCountry) === 0;
+            });
+        }
+        if ($matchedOperating) {
+            $countries = $countries
+                ->reject(function ($country) use ($matchedOperating) {
+                    return strcasecmp((string) $country->name, (string) $matchedOperating->name) === 0;
+                })
+                ->prepend($matchedOperating)
+                ->values();
+        }
+
+        $selectedCountry = old('country', $matchedOperating ? $matchedOperating->name : ($masterNames[0] ?? ($countries->first()->name ?? null)));
         $city = $selectedCountry
             ? City::where('country', $selectedCountry)->orderBy('name')->get()
             : collect();
 
-        return view('zones.create', compact('city', 'countries', 'isAdmin', 'selectedCountry'));
+        $listQuery = $this->zoneListReturnQuery($request);
+        $listUrl = $this->zoneListUrl($listQuery);
+        $fromZoneType = $listQuery['zone_type'] ?? null;
+        $preselectedZoneTypes = old('zone_type', $fromZoneType ? [$fromZoneType] : []);
+        if (!is_array($preselectedZoneTypes)) {
+            $preselectedZoneTypes = $fromZoneType ? [$fromZoneType] : [];
+        }
+
+        return view('zones.create', compact(
+            'city',
+            'countries',
+            'isAdmin',
+            'selectedCountry',
+            'listQuery',
+            'listUrl',
+            'preselectedZoneTypes'
+        ));
     }
     
 
@@ -531,7 +604,7 @@ class ZoneController extends Controller
             ]);
         }
 
-        return redirect()->route('zones.index')
+        return redirect()->route('zones.index', $this->zoneListReturnQuery($request))
             ->with('success', "Zone created successfully ({$createdCount})");
     }
 
