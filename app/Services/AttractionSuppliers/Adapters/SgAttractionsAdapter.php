@@ -275,6 +275,219 @@ class SgAttractionsAdapter implements AttractionSupplierAdapter
     }
 
     /**
+     * GET /order/details — purchased tickets and voucher codes after action=pay.
+     *
+     * @param  array<string, string|null>  $credentials
+     * @return array{success: bool, message: ?string, data: ?array, vouchers: array<int, array<string, mixed>>, provider: mixed}
+     */
+    public function fetchOrderDetails(string $orderRefId, array $credentials): array
+    {
+        $orderRefId = trim($orderRefId);
+        $empty = [
+            'success' => false,
+            'message' => 'Online attraction order reference is missing.',
+            'data' => null,
+            'vouchers' => [],
+            'provider' => null,
+        ];
+        if ($orderRefId === '') {
+            return $empty;
+        }
+
+        $ctx = $this->authenticatedContext($credentials);
+        if (! $ctx['success']) {
+            Log::warning('SG Attractions order-details auth failed', [
+                'message' => $ctx['message'] ?? null,
+            ]);
+
+            return [
+                'success' => false,
+                'message' => $ctx['message'] ?? 'SG Attractions authentication failed',
+                'data' => null,
+                'vouchers' => [],
+                'provider' => null,
+            ];
+        }
+
+        try {
+            $response = Http::timeout($ctx['timeout'])
+                ->withHeaders($this->headers($ctx['token']))
+                ->acceptJson()
+                ->get($ctx['base_url'] . '/order/details', [
+                    'order_ref_id' => $orderRefId,
+                ]);
+
+            if (! $response->successful() || (int) ($response->json('status') ?? 0) !== 1000) {
+                $response = Http::timeout($ctx['timeout'])
+                    ->withHeaders($this->headers($ctx['token']))
+                    ->acceptJson()
+                    ->asForm()
+                    ->post($ctx['base_url'] . '/order/details', [
+                        'order_ref_id' => $orderRefId,
+                    ]);
+            }
+        } catch (\Throwable $e) {
+            Log::error('SG Attractions order-details request exception', [
+                'order_ref_id' => $orderRefId,
+                'message' => $e->getMessage(),
+            ]);
+
+            return [
+                'success' => false,
+                'message' => $e->getMessage(),
+                'data' => null,
+                'vouchers' => [],
+                'provider' => null,
+            ];
+        }
+
+        $body = $response->json();
+        $parsed = $this->parseOrderResponse(is_array($body) ? $body : [], $response->status());
+        $data = [];
+        if (is_array($body)) {
+            if (isset($body['data']) && is_array($body['data'])) {
+                $data = $body['data'];
+            } elseif (isset($body['response']['data']) && is_array($body['response']['data'])) {
+                $data = $body['response']['data'];
+            }
+        }
+
+        $success = $response->successful()
+            && in_array($parsed['provider_status'], [1000, null], true)
+            && $data !== [];
+
+        $vouchers = $success ? $this->extractVouchersFromOrderDetails($data, $ctx['base_url']) : [];
+
+        Log::info($success ? 'SG Attractions order-details succeeded' : 'SG Attractions order-details failed', [
+            'http_status' => $response->status(),
+            'provider_status' => $parsed['provider_status'],
+            'message' => $parsed['message'],
+            'order_ref_id' => $orderRefId,
+            'voucher_count' => count($vouchers),
+        ]);
+
+        return [
+            'success' => $success,
+            'message' => $parsed['message'],
+            'data' => $success ? $data : null,
+            'vouchers' => $vouchers,
+            'provider' => is_array($body) ? $body : null,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<int, array<string, mixed>>
+     */
+    private function extractVouchersFromOrderDetails(array $data, string $baseUrl): array
+    {
+        $rows = [];
+        if (isset($data['vouchers']) && is_array($data['vouchers'])) {
+            foreach ($data['vouchers'] as $voucher) {
+                if (is_array($voucher)) {
+                    $rows[] = $this->normalizeVoucher($voucher, $baseUrl);
+                }
+            }
+        }
+        if (isset($data['order_items']) && is_array($data['order_items'])) {
+            foreach ($data['order_items'] as $item) {
+                if (! is_array($item) || empty($item['vouchers']) || ! is_array($item['vouchers'])) {
+                    continue;
+                }
+                foreach ($item['vouchers'] as $voucher) {
+                    if (! is_array($voucher)) {
+                        continue;
+                    }
+                    $rows[] = $this->normalizeVoucher($voucher, $baseUrl, $item);
+                }
+            }
+        }
+
+        $unique = [];
+        foreach ($rows as $row) {
+            $key = strtolower(trim((string) ($row['code'] ?? ''))) . '|' . strtolower(trim((string) ($row['download_link'] ?? $row['voucher'] ?? '')));
+            if ($key === '|') {
+                $key = md5(json_encode($row));
+            }
+            $unique[$key] = $row;
+        }
+
+        return array_values($unique);
+    }
+
+    /**
+     * @param  array<string, mixed>  $voucher
+     * @param  array<string, mixed>  $item
+     * @return array<string, mixed>
+     */
+    private function normalizeVoucher(array $voucher, string $baseUrl, array $item = []): array
+    {
+        $imageUrl = trim((string) ($voucher['voucher'] ?? $voucher['voucher_url'] ?? $voucher['voucher_image'] ?? ''));
+        $download = trim((string) ($voucher['download_link'] ?? $voucher['download_url'] ?? ''));
+        $absoluteImage = $this->absoluteProviderUrl($imageUrl, $baseUrl);
+        $absoluteDownload = $this->absoluteProviderUrl($download, $baseUrl);
+
+        return [
+            'item' => trim((string) ($voucher['item'] ?? $item['ticket_sku_id'] ?? $item['item'] ?? '')),
+            'ticket_name' => trim((string) ($item['ticket_name'] ?? $voucher['ticket_name'] ?? '')),
+            'attraction_title' => trim((string) ($item['attraction_title'] ?? $voucher['attraction_title'] ?? '')),
+            'quantity' => (int) ($voucher['quantity'] ?? $item['quantity'] ?? 1),
+            'valid_date_from' => $voucher['valid_date_from'] ?? null,
+            'valid_date_to' => $voucher['valid_date_to'] ?? null,
+            'code' => trim((string) ($voucher['code'] ?? $voucher['voucher_code'] ?? '')),
+            'code_type' => trim((string) ($voucher['code_type'] ?? '')),
+            'voucher' => $absoluteImage,
+            'download_link' => $this->browserVoucherDownloadUrl($absoluteImage, $absoluteDownload),
+        ];
+    }
+
+    private function isAuthenticatedApiDownloadUrl(string $url): bool
+    {
+        $url = strtolower(trim($url));
+        if ($url === '') {
+            return false;
+        }
+        $host = strtolower((string) (parse_url($url, PHP_URL_HOST) ?? ''));
+        $path = strtolower((string) (parse_url($url, PHP_URL_PATH) ?? ''));
+
+        return str_contains($path, '/voucher/download')
+            || str_contains($host, 'api.attractionsg.com')
+            || str_contains($host, 'tdpapi.attractionsg.com');
+    }
+
+    private function browserVoucherDownloadUrl(string $imageUrl, string $downloadUrl): string
+    {
+        if ($imageUrl !== '' && !$this->isAuthenticatedApiDownloadUrl($imageUrl)) {
+            return $imageUrl;
+        }
+        if ($downloadUrl !== '' && !$this->isAuthenticatedApiDownloadUrl($downloadUrl)) {
+            return $downloadUrl;
+        }
+
+        return $imageUrl !== '' ? $imageUrl : $downloadUrl;
+    }
+
+    private function absoluteProviderUrl(string $url, string $baseUrl): string
+    {
+        $url = trim($url);
+        if ($url === '') {
+            return '';
+        }
+        if (preg_match('#^https?://#i', $url)) {
+            return $url;
+        }
+        if (str_starts_with($url, '//')) {
+            return 'https:' . $url;
+        }
+        $baseUrl = rtrim($baseUrl, '/');
+        if (str_starts_with($url, '/')) {
+            return $baseUrl . $url;
+        }
+
+        return $baseUrl . '/' . ltrim($url, '/');
+    }
+
+    /**
      * Load orderable package/ticket SKUs (e.g. REGDAY). Catalog attraction SKUs are not orderable.
      *
      * @param  array<string, string|null>  $credentials
