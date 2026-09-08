@@ -19,6 +19,9 @@
         $cost = (float) $cost;
         return $cost > 0 ? $cost : (float) $sell;
     };
+    $defaultProfitType = strtolower((string) old('profit_type', optional($baseRoomForPricing)->profit_type ?? 'percentage'));
+    $defaultProfitType = in_array($defaultProfitType, ['percentage', 'flat'], true) ? $defaultProfitType : 'percentage';
+    $defaultProfitAmount = old('profit_amount', optional($baseRoomForPricing)->profit_amount ?? 0);
 @endphp
 @section('content')
 @include('hotel.tapview', ['hotel' => $hotel])
@@ -574,6 +577,58 @@
         margin-top: 0.25rem;
         margin-bottom: 0;
     }
+
+    #room-profit-helper-row {
+        align-items: flex-start;
+    }
+
+    #room-profit-helper-row > [class*="col-"] {
+        display: flex;
+        flex-direction: column;
+    }
+
+    #room-profit-helper-row .form-label {
+        min-height: 1.5rem;
+        margin-bottom: 0.5rem;
+        display: flex;
+        align-items: flex-end;
+        line-height: 1.2;
+    }
+
+    #room-profit-helper-row .form-select,
+    #room-profit-helper-row .form-control {
+        height: 2.5rem;
+        min-height: 2.5rem;
+        padding-top: 0.5rem;
+        padding-bottom: 0.5rem;
+        line-height: 1.5;
+        overflow: visible;
+    }
+
+    #room-profit-helper-row .form-select {
+        padding-right: 2.25rem;
+        background-position: right 0.75rem center;
+        background-size: 16px 12px;
+    }
+
+    #room-profit-helper-row .js-room-profit-amount-hint {
+        min-height: 1.2rem;
+        margin-top: 0.25rem;
+        font-size: 0.8rem;
+        line-height: 1.2;
+    }
+
+    .room-meal-row {
+        align-items: flex-start;
+    }
+
+    .room-meal-toggle-box {
+        min-height: 38px;
+        display: flex;
+        align-items: center;
+        padding-top: 0.4rem;
+        padding-bottom: 0.4rem;
+    }
 </style>
 
 <!-- Start of the form - Only for Admin and Virtual DMC -->
@@ -651,20 +706,20 @@
                     </div>
                 </div>
 
-                <div class="mb-3 row align-items-end g-2" id="room-profit-helper-row">
-                    <div class="col-md-3 mb-3">
+                <div class="mb-3 row g-3" id="room-profit-helper-row">
+                    <div class="col-md-3">
                         <label for="room_profit_margin" class="form-label"><strong>Profit (margin)</strong></label>
-                        <select id="room_profit_margin" class="form-select js-room-profit-type">
-                            <option value="percentage" selected>%</option>
-                            <option value="flat">Flat</option>
+                        <select id="room_profit_margin" name="profit_type" class="form-select js-room-profit-type">
+                            <option value="percentage" {{ $defaultProfitType === 'percentage' ? 'selected' : '' }}>%</option>
+                            <option value="flat" {{ $defaultProfitType === 'flat' ? 'selected' : '' }}>Flat</option>
                         </select>
-                        <small class="text-muted">Helper only — not saved</small>
                     </div>
-                    <div class="col-md-3 mb-3">
-                        <label for="room_profit_amount" class="form-label"><strong>Profit amount</strong></label>
-                        <input type="number" id="room_profit_amount" class="form-control js-room-profit-amount"
-                               value="0" min="0" step="0.01" placeholder="Enter profit amount">
-                        <small class="text-muted">Auto-fills Sell from variant + profit</small>
+                    <div class="col-md-3">
+                        <label for="room_profit_amount" class="form-label js-room-profit-amount-label"><strong>{{ $defaultProfitType === 'percentage' ? 'Profit percentage' : 'Profit amount' }}</strong></label>
+                        <input type="number" id="room_profit_amount" name="profit_amount" class="form-control js-room-profit-amount"
+                               value="{{ $defaultProfitAmount }}" min="0" step="0.01"
+                               placeholder="{{ $defaultProfitType === 'percentage' ? 'Enter profit percentage' : 'Enter profit amount' }}">
+                        <small class="text-muted js-room-profit-amount-hint">{{ $defaultProfitType === 'percentage' ? 'Sell = cost + (cost × percentage / 100)' : 'Sell = cost + flat profit amount' }}</small>
                     </div>
                 </div>
 
@@ -899,104 +954,93 @@
                 </div>
 
                 <!-- Meal Options Section -->
-                <div class="mb-3 row">
-                    <!-- Breakfast Toggle -->
-                    <div class="col-md-3 mb-3">
-                        <label for="breakfast_included" class="form-label"><strong>Breakfast Included</strong></label>
+                <div class="mb-3 row g-3 room-meal-row">
+                    <div class="col-md-3">
+                        <label for="breakfast_included" class="form-label"><strong>Breakfast Available</strong></label>
                         <select name="breakfast_included" id="breakfast_included" class="form-control" onchange="toggleMealOptions('breakfast')">
                             <option value="">Select One</option>
                             <option value="1">Yes</option>
                             <option value="0">No</option>
                         </select>
                     </div>
-                    
-                    <!-- Breakfast Type - Shows when breakfast is included -->
-                    <div class="col-md-3 mb-3 breakfast-options" style="display: none;">
-                        <label for="breakfast_type" class="form-label"><strong>Breakfast Type</strong><span class="text-danger">*</span></label>
+                    <div class="col-md-2">
+                        <label for="supplementary_breakfast" class="form-label"><strong>Comp. Breakfast</strong></label>
+                        <div class="form-control room-meal-toggle-box">
+                            <div class="form-check form-switch mb-0">
+                                <input class="form-check-input" type="checkbox" name="supplementary_breakfast" id="supplementary_breakfast" value="1">
+                                <label class="form-check-label" for="supplementary_breakfast">Included</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-2 breakfast-options" style="display: none;">
+                        <label for="breakfast_type" class="form-label"><strong>Type</strong><span class="text-danger">*</span></label>
                         <select name="breakfast_type" id="breakfast_type" class="form-control">
                             <option value="">Select Type</option>
                             <option value="Buffet">Buffet</option>
                             <option value="Set Menu">Set Menu</option>
                         </select>
                     </div>
-                    
-                    <!-- Breakfast Price - Shows when breakfast is included (Cost then Sell) -->
-                    <div class="col-md-3 mb-3 breakfast-options" style="display: none;">
-                        <label for="breakfast_cost_price" class="form-label"><strong>Breakfast Cost Price</strong></label>
+                    <div class="col-md-2 breakfast-options" style="display: none;">
+                        <label for="breakfast_cost_price" class="form-label"><strong>Cost Price</strong></label>
                         <input type="number" name="breakfast_cost_price" id="breakfast_cost_price" class="form-control js-room-cost" data-sell-target="breakfast_price" placeholder="Enter Cost Price" min="0" step="0.01">
                     </div>
-                    <div class="col-md-3 mb-3 breakfast-options" style="display: none;">
-                        <label for="breakfast_price" class="form-label"><strong>Breakfast Sell Price</strong><span class="text-danger">*</span></label>
+                    <div class="col-md-3 breakfast-options" style="display: none;">
+                        <label for="breakfast_price" class="form-label"><strong>Sell Price</strong><span class="text-danger">*</span></label>
                         <input type="number" name="breakfast_price" id="breakfast_price" class="form-control js-room-sell" placeholder="Enter Sell Price" min="0" step="0.01">
                     </div>
-                    
-                    <!-- Lunch Toggle -->
-                    <div class="col-md-3 mb-3">
-                        <label for="lunch_included" class="form-label"><strong>Lunch Included</strong></label>
+                </div>
+
+                <div class="mb-3 row g-3 room-meal-row">
+                    <div class="col-md-3">
+                        <label for="lunch_included" class="form-label"><strong>Lunch Available</strong></label>
                         <select name="lunch_included" id="lunch_included" class="form-control" onchange="toggleMealOptions('lunch')">
                             <option value="">Select One</option>
                             <option value="1">Yes</option>
                             <option value="0">No</option>
                         </select>
                     </div>
-                    
-                    <!-- Lunch Type - Shows when lunch is included -->
-                    <div class="col-md-3 mb-3 lunch-options" style="display: none;">
-                        <label for="lunch_type" class="form-label"><strong>Lunch Type</strong><span class="text-danger">*</span></label>
+                    <div class="col-md-3 lunch-options" style="display: none;">
+                        <label for="lunch_type" class="form-label"><strong>Type</strong><span class="text-danger">*</span></label>
                         <select name="lunch_type" id="lunch_type" class="form-control">
                             <option value="">Select Type</option>
                             <option value="Buffet">Buffet</option>
                             <option value="Set Menu">Set Menu</option>
                         </select>
                     </div>
-                    
-                    <!-- Lunch Price - Shows when lunch is included (Cost then Sell) -->
-                    <div class="col-md-3 mb-3 lunch-options" style="display: none;">
-                        <label for="lunch_cost_price" class="form-label"><strong>Lunch Cost Price</strong></label>
+                    <div class="col-md-3 lunch-options" style="display: none;">
+                        <label for="lunch_cost_price" class="form-label"><strong>Cost Price</strong></label>
                         <input type="number" name="lunch_cost_price" id="lunch_cost_price" class="form-control js-room-cost" data-sell-target="lunch_price" placeholder="Enter Cost Price" min="0" step="0.01">
                     </div>
-                    <div class="col-md-3 mb-3 lunch-options" style="display: none;">
-                        <label for="lunch_price" class="form-label"><strong>Lunch Sell Price</strong><span class="text-danger">*</span></label>
+                    <div class="col-md-3 lunch-options" style="display: none;">
+                        <label for="lunch_price" class="form-label"><strong>Sell Price</strong><span class="text-danger">*</span></label>
                         <input type="number" name="lunch_price" id="lunch_price" class="form-control js-room-sell" placeholder="Enter Sell Price" min="0" step="0.01">
                     </div>
-                    
-                    <!-- Dinner Toggle -->
-                    <div class="col-md-3 mb-3">
-                        <label for="dinner_included" class="form-label"><strong>Dinner Included</strong></label>
+                </div>
+
+                <div class="mb-3 row g-3 room-meal-row">
+                    <div class="col-md-3">
+                        <label for="dinner_included" class="form-label"><strong>Dinner Available</strong></label>
                         <select name="dinner_included" id="dinner_included" class="form-control" onchange="toggleMealOptions('dinner')">
                             <option value="">Select One</option>
                             <option value="1">Yes</option>
                             <option value="0">No</option>
                         </select>
                     </div>
-                    
-                    <!-- Dinner Type - Shows when dinner is included -->
-                    <div class="col-md-3 mb-3 dinner-options" style="display: none;">
-                        <label for="dinner_type" class="form-label"><strong>Dinner Type</strong><span class="text-danger">*</span></label>
+                    <div class="col-md-3 dinner-options" style="display: none;">
+                        <label for="dinner_type" class="form-label"><strong>Type</strong><span class="text-danger">*</span></label>
                         <select name="dinner_type" id="dinner_type" class="form-control">
                             <option value="">Select Type</option>
                             <option value="Buffet">Buffet</option>
                             <option value="Set Menu">Set Menu</option>
                         </select>
                     </div>
-                    
-                    <!-- Dinner Price - Shows when dinner is included (Cost then Sell) -->
-                    <div class="col-md-3 mb-3 dinner-options" style="display: none;">
-                        <label for="dinner_cost_price" class="form-label"><strong>Dinner Cost Price</strong></label>
+                    <div class="col-md-3 dinner-options" style="display: none;">
+                        <label for="dinner_cost_price" class="form-label"><strong>Cost Price</strong></label>
                         <input type="number" name="dinner_cost_price" id="dinner_cost_price" class="form-control js-room-cost" data-sell-target="dinner_price" placeholder="Enter Cost Price" min="0" step="0.01">
                     </div>
-                    <div class="col-md-3 mb-3 dinner-options" style="display: none;">
-                        <label for="dinner_price" class="form-label"><strong>Dinner Sell Price</strong><span class="text-danger">*</span></label>
+                    <div class="col-md-3 dinner-options" style="display: none;">
+                        <label for="dinner_price" class="form-label"><strong>Sell Price</strong><span class="text-danger">*</span></label>
                         <input type="number" name="dinner_price" id="dinner_price" class="form-control js-room-sell" placeholder="Enter Sell Price" min="0" step="0.01">
-                    </div>
-                    
-                    <!-- Supplementary Breakfast Toggle -->
-                    <div class="col-md-3 mb-3">
-                        <label for="supplementary_breakfast" class="form-label"><strong>Complementary Breakfast Included</strong></label>
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" name="supplementary_breakfast" id="supplementary_breakfast" value="1">
-                            <label class="form-check-label" for="supplementary_breakfast">Enable Complementary Breakfast</label>
-                        </div>
                     </div>
                 </div>
 
@@ -1544,6 +1588,46 @@
 $(document).ready(function() {
     const hotelId = "{{ $hotel->hotel_unique_id }}";
     const allRooms = @json($rooms);
+
+    function syncRoomProfitAmountLabel() {
+        const typeEl = document.querySelector('.js-room-profit-type');
+        const labelEl = document.querySelector('.js-room-profit-amount-label');
+        const amountEl = document.querySelector('.js-room-profit-amount');
+        const hintEl = document.querySelector('.js-room-profit-amount-hint');
+        const isPercent = !typeEl || typeEl.value !== 'flat';
+        if (labelEl) {
+            labelEl.innerHTML = '<strong>' + (isPercent ? 'Profit percentage' : 'Profit amount') + '</strong>';
+        }
+        if (amountEl) {
+            amountEl.placeholder = isPercent ? 'Enter profit percentage' : 'Enter profit amount';
+        }
+        if (hintEl) {
+            hintEl.textContent = isPercent
+                ? 'Sell = cost + (cost × percentage / 100)'
+                : 'Sell = cost + flat profit amount';
+        }
+    }
+
+    function applyBaseRoomProfitDefaults(source, force) {
+        const typeEl = document.querySelector('.js-room-profit-type');
+        const amountEl = document.querySelector('.js-room-profit-amount');
+        if (!typeEl || !amountEl || !source) {
+            syncRoomProfitAmountLabel();
+            return;
+        }
+        if (!force && amountEl.dataset.userEdited === '1') {
+            syncRoomProfitAmountLabel();
+            return;
+        }
+        const type = String(source.profit_type || 'percentage').toLowerCase();
+        typeEl.value = type === 'flat' ? 'flat' : 'percentage';
+        const amount = parseFloat(source.profit_amount);
+        amountEl.value = isNaN(amount) ? 0 : amount;
+        syncRoomProfitAmountLabel();
+    }
+
+    window.syncRoomProfitAmountLabel = syncRoomProfitAmountLabel;
+    window.applyBaseRoomProfitDefaults = applyBaseRoomProfitDefaults;
     console.log("Current hotel ID:", hotelId);
     console.log("All rooms:", allRooms);
     
@@ -1716,10 +1800,10 @@ $(document).ready(function() {
         };
         const profit = occupancyProfitSettings();
         const sellPrices = {
-            singleWeekday: applyProfitToSellBase(newPrices.singleWeekday, profit.type, profit.amount),
-            singleWeekend: applyProfitToSellBase(newPrices.singleWeekend, profit.type, profit.amount),
-            doubleWeekday: applyProfitToSellBase(newPrices.doubleWeekday, profit.type, profit.amount),
-            doubleWeekend: applyProfitToSellBase(newPrices.doubleWeekend, profit.type, profit.amount)
+            singleWeekday: applyProfitToSellBase(newCosts.singleWeekday, profit.type, profit.amount),
+            singleWeekend: applyProfitToSellBase(newCosts.singleWeekend, profit.type, profit.amount),
+            doubleWeekday: applyProfitToSellBase(newCosts.doubleWeekday, profit.type, profit.amount),
+            doubleWeekend: applyProfitToSellBase(newCosts.doubleWeekend, profit.type, profit.amount)
         };
 
         if (updateSell) {
@@ -1736,10 +1820,8 @@ $(document).ready(function() {
         }
 
         const op = variantPrice >= 0 ? '+' : '';
-        const sellHint = function (base, variantTotal, sellTotal) {
-            let text = variantPrice !== 0
-                ? ('Base price ' + base.toFixed(2) + ' ' + op + variantPrice.toFixed(2) + ' = ' + variantTotal.toFixed(2))
-                : ('Base price: ' + base.toFixed(2));
+        const sellHint = function (costTotal, sellTotal) {
+            let text = 'Cost: ' + costTotal.toFixed(2);
             if (profit.amount > 0) {
                 text += profit.type === 'flat'
                     ? (' + profit ' + profit.amount.toFixed(2) + ' = ' + sellTotal.toFixed(2))
@@ -1754,10 +1836,10 @@ $(document).ready(function() {
         };
 
         if (updateSell) {
-            setOccupancyHint('singleWeekdayPrice', 'base-price-info', sellHint(standardPrices.singleWeekday, newPrices.singleWeekday, sellPrices.singleWeekday), standardPrices.singleWeekday.toFixed(2));
-            setOccupancyHint('singleWeekendPrice', 'base-price-info', sellHint(standardPrices.singleWeekend, newPrices.singleWeekend, sellPrices.singleWeekend), standardPrices.singleWeekend.toFixed(2));
-            setOccupancyHint('doubleWeekdayPrice', 'base-price-info', sellHint(standardPrices.doubleWeekday, newPrices.doubleWeekday, sellPrices.doubleWeekday), standardPrices.doubleWeekday.toFixed(2));
-            setOccupancyHint('doubleWeekendPrice', 'base-price-info', sellHint(standardPrices.doubleWeekend, newPrices.doubleWeekend, sellPrices.doubleWeekend), standardPrices.doubleWeekend.toFixed(2));
+            setOccupancyHint('singleWeekdayPrice', 'base-price-info', sellHint(newCosts.singleWeekday, sellPrices.singleWeekday), newCosts.singleWeekday.toFixed(2));
+            setOccupancyHint('singleWeekendPrice', 'base-price-info', sellHint(newCosts.singleWeekend, sellPrices.singleWeekend), newCosts.singleWeekend.toFixed(2));
+            setOccupancyHint('doubleWeekdayPrice', 'base-price-info', sellHint(newCosts.doubleWeekday, sellPrices.doubleWeekday), newCosts.doubleWeekday.toFixed(2));
+            setOccupancyHint('doubleWeekendPrice', 'base-price-info', sellHint(newCosts.doubleWeekend, sellPrices.doubleWeekend), newCosts.doubleWeekend.toFixed(2));
         }
         if (updateCost) {
             setOccupancyHint('singleWeekdayCostPrice', 'base-cost-info', costHint(standardCosts.singleWeekday, newCosts.singleWeekday), standardCosts.singleWeekday.toFixed(2), 'singleWeekdayPrice');
@@ -1775,12 +1857,48 @@ $(document).ready(function() {
     }
 
     window.refreshRoomOccupancySells = function () {
-        const row = document.getElementById('variant_pricing_row');
-        if (!row || row.offsetParent === null) {
-            return;
+        const profit = occupancyProfitSettings();
+        const pairs = [
+            ['singleWeekdayCostPrice', 'singleWeekdayPrice'],
+            ['singleWeekendCostPrice', 'singleWeekendPrice'],
+            ['doubleWeekdayCostPrice', 'doubleWeekdayPrice'],
+            ['doubleWeekendCostPrice', 'doubleWeekendPrice'],
+            ['baseSingleWeekdayCostPrice', 'weekdayPrice'],
+            ['baseSingleWeekendCostPrice', 'weekendPrice'],
+            ['baseDoubleWeekdayCostPrice', 'doubleweekdayPrice'],
+            ['baseDoubleWeekendCostPrice', 'doubleweekendPrice']
+        ];
+        pairs.forEach(function (pair) {
+            const costEl = occupancyInput(pair[0], pair[1]);
+            const sellEl = occupancyInput(pair[1]);
+            if (!costEl || !sellEl || costEl.disabled) return;
+            const section = costEl.closest('#variant_pricing_row, #base_pricing_row');
+            if (section && section.offsetParent === null) return;
+            const sellValue = applyProfitToSellBase(costEl.value, profit.type, profit.amount);
+            setOccupancyInput(pair[1], sellValue, false);
+            if (sellEl) {
+                const uniqueClass = 'base-price-info-' + (sellEl.id || pair[1]);
+                const col = sellEl.closest('.col-md-6') || sellEl.parentElement;
+                if (col) {
+                    let hint = col.querySelector('.' + uniqueClass);
+                    if (!hint) {
+                        hint = document.createElement('div');
+                        hint.className = 'form-text text-primary base-price-info ' + uniqueClass;
+                        col.appendChild(hint);
+                    }
+                    let text = 'Cost: ' + (parseFloat(costEl.value) || 0).toFixed(2);
+                    if (profit.amount > 0) {
+                        text += profit.type === 'flat'
+                            ? (' + profit ' + profit.amount.toFixed(2) + ' = ' + sellValue.toFixed(2))
+                            : (' + profit ' + profit.amount.toFixed(2) + '% = ' + sellValue.toFixed(2));
+                    }
+                    hint.textContent = text;
+                }
+            }
+        });
+        if (typeof calculatePrice === 'function') {
+            try { calculatePrice(); } catch (e) {}
         }
-        const variantPrice = parseFloat((document.getElementById('varient_price_input') || {}).value) || 0;
-        applyOccupancyFromBase(variantPrice, false, { updateCost: false, updateSell: true });
     };
 
     // Price calculation for DMC users
@@ -2104,6 +2222,10 @@ $(document).ready(function() {
             
             // Set required fields for base room
             toggleRequiredFields(true);
+
+            if (typeof window.syncRoomProfitAmountLabel === 'function') {
+                window.syncRoomProfitAmountLabel();
+            }
             
             // Show message indicating this will be the base room
             $('#room-pricing-alert').html('<div class="alert alert-info mb-0">This will be the base room for price calculations.</div>');
@@ -2118,6 +2240,10 @@ $(document).ready(function() {
 
             // Set required fields for variant room
             toggleRequiredFields(false);
+
+            if (typeof window.applyBaseRoomProfitDefaults === 'function') {
+                window.applyBaseRoomProfitDefaults(baseRoom || serverBasePricing, false);
+            }
 
             // Extract base room prices and display them
             if (baseRoom || serverBasePricing) {
@@ -2832,19 +2958,48 @@ $(document).ready(function() {
     }
 
     function isOccupancyCostField(costEl) {
-        return !!(costEl && costEl.closest && costEl.closest('#variant_pricing_row'));
+        return !!(costEl && costEl.closest && (
+            costEl.closest('#variant_pricing_row') || costEl.closest('#base_pricing_row')
+        ));
+    }
+
+    function updateOccupancySellHint(costEl, sellEl, sellValue) {
+        if (!costEl || !sellEl || !isOccupancyCostField(costEl)) return;
+        const g = getProfitSettings();
+        const cost = parseFloat(costEl.value) || 0;
+        const sell = parseFloat(sellValue);
+        const sellNum = isNaN(sell) ? 0 : sell;
+        const col = sellEl.closest('.col-md-6') || sellEl.parentElement;
+        if (!col) return;
+        const uniqueClass = 'base-price-info-' + (sellEl.id || costEl.getAttribute('data-sell-target') || 'sell');
+        let hint = col.querySelector('.' + uniqueClass);
+        if (!hint) {
+            hint = document.createElement('div');
+            hint.className = 'form-text text-primary base-price-info ' + uniqueClass;
+            col.appendChild(hint);
+        }
+        const amt = parseFloat(g.amount) || 0;
+        let text = 'Cost: ' + cost.toFixed(2);
+        if (amt > 0) {
+            text += g.type === 'flat'
+                ? (' + profit ' + amt.toFixed(2) + ' = ' + sellNum.toFixed(2))
+                : (' + profit ' + amt.toFixed(2) + '% = ' + sellNum.toFixed(2));
+        }
+        hint.textContent = text;
     }
 
     function updateSellFromCost(costEl, force) {
-        if (!costEl || isOccupancyCostField(costEl)) return;
+        if (!costEl) return;
         const sellId = costEl.getAttribute('data-sell-target');
         if (!sellId) return;
-        const sellEl = document.getElementById(sellId);
+        const sellEl = document.getElementById(sellId) || document.querySelector('[name="' + sellId + '"]');
         if (!sellEl) return;
         if (!force && sellEl.dataset.userEdited === '1') return;
         const g = getProfitSettings();
-        sellEl.value = calcSellFromCost(costEl.value, g.type, g.amount);
+        const sellValue = calcSellFromCost(costEl.value, g.type, g.amount);
+        sellEl.value = sellValue;
         sellEl.dataset.userEdited = '';
+        updateOccupancySellHint(costEl, sellEl, sellValue);
         if (typeof calculatePrice === 'function') {
             try { calculatePrice(); } catch (e) {}
         }
@@ -2860,6 +3015,11 @@ $(document).ready(function() {
     }
 
     document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('.js-room-cost[data-sell-target]').forEach(function (costEl) {
+            costEl.addEventListener('input', function () { updateSellFromCost(costEl, true); });
+            costEl.addEventListener('change', function () { updateSellFromCost(costEl, true); });
+        });
+
         document.querySelectorAll('.js-room-sell').forEach(function (sellEl) {
             sellEl.addEventListener('input', function () {
                 sellEl.dataset.userEdited = '1';
@@ -2867,9 +3027,25 @@ $(document).ready(function() {
         });
 
         document.querySelectorAll('.js-room-profit-type, .js-room-profit-amount').forEach(function (el) {
-            el.addEventListener('input', function () { recalculateAll(true); });
-            el.addEventListener('change', function () { recalculateAll(true); });
+            el.addEventListener('input', function () {
+                if (el.classList.contains('js-room-profit-amount')) {
+                    el.dataset.userEdited = '1';
+                }
+                if (typeof window.syncRoomProfitAmountLabel === 'function') {
+                    window.syncRoomProfitAmountLabel();
+                }
+                recalculateAll(true);
+            });
+            el.addEventListener('change', function () {
+                if (typeof window.syncRoomProfitAmountLabel === 'function') {
+                    window.syncRoomProfitAmountLabel();
+                }
+                recalculateAll(true);
+            });
         });
+        if (typeof window.syncRoomProfitAmountLabel === 'function') {
+            window.syncRoomProfitAmountLabel();
+        }
     });
 })();
 </script>

@@ -111,6 +111,17 @@
                                 <div class="text-danger mt-1">{{ $message }}</div>
                             @enderror
                         </div>
+                        <!-- Child Without Bed -->
+                        <div class="col-md-2 mb-3">
+                            <label for="child_wo_bed" class="form-label"><strong>Child W/O Bed</strong></label>
+                            <select id="child_wo_bed" name="child_wo_bed" class="form-control" required>
+                                <option value="0" {{ (int) old('child_wo_bed', $bed->child_wo_bed ?? 0) === 0 ? 'selected' : '' }}>0</option>
+                                <option value="1" {{ (int) old('child_wo_bed', $bed->child_wo_bed ?? 0) === 1 ? 'selected' : '' }}>1</option>
+                            </select>
+                            @error('child_wo_bed')
+                                <div class="text-danger mt-1">{{ $message }}</div>
+                            @enderror
+                        </div>
                     </div>
 
                     <!-- Status -->

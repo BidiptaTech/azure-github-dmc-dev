@@ -116,7 +116,7 @@ class ZoneController extends Controller
     }
 
     /**
-     * Preserve Zone List tab/filters when moving to create and back.
+     * Preserve Zone List tab/filters when moving to create/edit/show and back.
      */
     private function zoneListReturnQuery(Request $request): array
     {
@@ -611,19 +611,21 @@ class ZoneController extends Controller
     /**
      * Display the specified zone.
      */
-    public function show($id)
+    public function show(Request $request, $id)
     {
         $zoneId = Crypt::decrypt($id);
         $zone = Zone::where('zone_id', $zoneId)->first();
         // Get the city name using the city_id
         $cityName = City::where('city_id', $zone->city)->value('name') ?? $zone->city;
-        return view('zones.show', compact('zone', 'cityName'));
+        $listQuery = $this->zoneListReturnQuery($request);
+        $listUrl = $this->zoneListUrl($listQuery);
+        return view('zones.show', compact('zone', 'cityName', 'listQuery', 'listUrl'));
     }
 
     /**
      * Show the form for editing the specified zone.
      */
-    public function edit($id)
+    public function edit(Request $request, $id)
     {
         $zoneId = Crypt::decrypt($id);
         $zone = Zone::where('zone_id', $zoneId)->first();
@@ -632,8 +634,10 @@ class ZoneController extends Controller
             || (int) ($user->userId ?? 0) === 1;
 
         $dmcId = $this->resolveDmcIdForUser($user);
+        $listQuery = $this->zoneListReturnQuery($request);
+        $listUrl = $this->zoneListUrl($listQuery);
         if (!$isAdmin && !$this->canManageZone($user, $zone)) {
-            return redirect()->route('zones.index')
+            return redirect()->to($listUrl)
                 ->with('error', 'You are not authorized to edit this zone');
         }
 
@@ -650,7 +654,7 @@ class ZoneController extends Controller
             ? City::where('country', $selectedCountry)->orderBy('name')->get()
             : collect();
 
-        return view('zones.edit', compact('zone', 'city', 'countries', 'isAdmin', 'zoneCountry', 'selectedCountry'));
+        return view('zones.edit', compact('zone', 'city', 'countries', 'isAdmin', 'zoneCountry', 'selectedCountry', 'listQuery', 'listUrl'));
     }
 
     /**
@@ -671,7 +675,7 @@ class ZoneController extends Controller
         $isAdmin = (int) (Auth::user()->role_id ?? 0) === 1
             || (int) (Auth::user()->userId ?? 0) === 1;
         if (!$isAdmin && !$this->canManageZone(Auth::user(), $zone)) {
-            return redirect()->route('zones.index')
+            return redirect()->to($this->zoneListUrl($this->zoneListReturnQuery($request)))
                 ->with('error', 'You are not authorized to edit this zone');
         }
         if ($validator->fails()) {
@@ -687,7 +691,7 @@ class ZoneController extends Controller
         
         $zone->update($data);
 
-        return redirect()->route('zones.index')
+        return redirect()->route('zones.index', $this->zoneListReturnQuery($request))
             ->with('success', 'Zone updated successfully');
     }
 
