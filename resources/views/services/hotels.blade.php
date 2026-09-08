@@ -133,26 +133,28 @@
 
                 <!-- Advanced Filters -->
                 <div class="row g-3 align-items-end mb-4">
-                    <div class="col-lg-4 col-md-6">
+                    <div class="col-lg-5 col-md-6">
                         <label for="hotelSearch" class="form-label mb-1">Search</label>
                         <div class="input-group">
                             <span class="input-group-text"><i class="ri-search-line"></i></span>
                             <input type="text" class="form-control" id="hotelSearch" placeholder="Search hotels by name..." onkeyup="applyFilters()">
                         </div>
                     </div>
-                    <div class="col-lg-3 col-md-6">
-                        <label for="countrySelect" class="form-label mb-1">Country</label>
-                        <select id="countrySelect" class="form-select" onchange="onCountryChange()">
-                            <option value="">All Countries</option>
-                        </select>
-                    </div>
-                    <div class="col-lg-3 col-md-6">
-                        <label for="citySelect" class="form-label mb-1">City</label>
-                        <select id="citySelect" class="form-select" onchange="applyFilters()" disabled>
+                    <div class="col-lg-4 col-md-6">
+                        <label for="citySelect" class="form-label mb-1">
+                            City
+                            @if(!empty($dmcCountry))
+                                <span class="text-muted fw-normal">({{ $dmcCountry }})</span>
+                            @endif
+                        </label>
+                        <select id="citySelect" class="form-select" onchange="applyFilters()">
                             <option value="">All Cities</option>
+                            @foreach(($allowedCities ?? []) as $cityName)
+                                <option value="{{ strtolower($cityName) }}">{{ $cityName }}</option>
+                            @endforeach
                         </select>
                     </div>
-                    <div class="col-lg-2 col-md-6 text-end">
+                    <div class="col-lg-3 col-md-6 text-end">
                         <button type="button" class="btn btn-outline-secondary w-100" onclick="resetFilters()"><i class="ri-filter-off-line me-1"></i>Clear Filters</button>
                         <div class="small text-muted mt-2" id="hotelCount">Showing all hotels</div>
                     </div>
@@ -384,7 +386,7 @@
 <script>
 // CSRF Token
 const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-const defaultCountry = '{{ strtolower(auth()->user()->country ?? '') }}';
+const dmcCountry = '{{ strtolower(trim($dmcCountry ?? '')) }}';
 let selectedHotelsPaginator = null;
 
 function escapeHtml(text) {
@@ -499,7 +501,6 @@ function deselectAll() {
 
 function applyFilters() {
     const searchTerm = document.getElementById('hotelSearch').value.toLowerCase();
-    const selectedCountry = (document.getElementById('countrySelect').value || '').toLowerCase();
     const selectedCity = (document.getElementById('citySelect').value || '').toLowerCase();
     const hotelItems = document.querySelectorAll('.hotel-item');
     let visibleCount = 0;
@@ -511,15 +512,13 @@ function applyFilters() {
         }
 
         const hotelName = item.getAttribute('data-hotel-name');
-        const hotelCountry = item.getAttribute('data-country') || '';
         const hotelCity = item.getAttribute('data-city') || '';
         const hotelNameElement = item.querySelector('.hotel-name');
 
         const matchSearch = !searchTerm || hotelName.includes(searchTerm);
-        const matchCountry = !selectedCountry || hotelCountry === selectedCountry;
         const matchCity = !selectedCity || hotelCity === selectedCity;
 
-        if (matchSearch && matchCountry && matchCity) {
+        if (matchSearch && matchCity) {
             item.classList.remove('hidden');
             visibleCount++;
 
@@ -544,41 +543,7 @@ function applyFilters() {
 
 function resetFilters() {
     document.getElementById('hotelSearch').value = '';
-    document.getElementById('countrySelect').value = '';
-    const citySelect = document.getElementById('citySelect');
-    citySelect.innerHTML = '<option value="">All Cities</option>';
-    citySelect.disabled = true;
-    applyFilters();
-}
-
-function onCountryChange() {
-    const country = (document.getElementById('countrySelect').value || '').toLowerCase();
-    const citySelect = document.getElementById('citySelect');
-    citySelect.innerHTML = '<option value="">All Cities</option>';
-
-    if (!country) {
-        citySelect.disabled = true;
-        applyFilters();
-        return;
-    }
-
-    const hotelItems = document.querySelectorAll('.hotel-item');
-    const cities = new Set();
-    hotelItems.forEach(item => {
-        if ((item.getAttribute('data-country') || '') === country) {
-            const c = item.getAttribute('data-city') || '';
-            if (c) cities.add(c);
-        }
-    });
-
-    Array.from(cities).sort().forEach(city => {
-        const opt = document.createElement('option');
-        opt.value = city;
-        opt.textContent = city.replace(/\b\w/g, ch => ch.toUpperCase());
-        citySelect.appendChild(opt);
-    });
-    citySelect.disabled = cities.size === 0;
-
+    document.getElementById('citySelect').value = '';
     applyFilters();
 }
 
@@ -753,49 +718,10 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Prime Country dropdown from server-allowed list (Master DMC countries / Created DMC country)
-    // Fallback: if not provided, derive from DOM hotel cards (unique countries).
-    const countrySelect = document.getElementById('countrySelect');
-    const hotelItems = document.querySelectorAll('.hotel-item');
-
-    const allowedCountriesFromServer = @json($allowedCountries ?? []);
-    const normalizedAllowed = Array.isArray(allowedCountriesFromServer)
-        ? allowedCountriesFromServer
-            .map(c => String(c || '').trim())
-            .filter(Boolean)
-            .map(c => c.toLowerCase())
-        : [];
-
-    const countrySet = new Set();
-    if (normalizedAllowed.length > 0) {
-        normalizedAllowed.forEach(c => countrySet.add(c));
-    } else {
-        hotelItems.forEach(item => {
-            const c = item.getAttribute('data-country');
-            if (c) countrySet.add(c);
-        });
-    }
-
-    Array.from(countrySet).sort().forEach(country => {
-        const opt = document.createElement('option');
-        opt.value = country;
-        opt.textContent = country.replace(/\b\w/g, ch => ch.toUpperCase());
-        countrySelect.appendChild(opt);
-    });
-
-    // Only auto-filter to user's country when there's a single option.
-    // Otherwise show all Master DMC countries by default.
-    if (defaultCountry && countrySet.size === 1 && Array.from(countrySet).includes(defaultCountry)) {
-        countrySelect.value = defaultCountry;
-        onCountryChange();
-    } else {
-        applyFilters();
-    }
-
-    // Initialize hotel count and apply initial filters
+    // Hotels are already limited to the DMC country server-side.
+    // City options come from the DMC country cities list.
     updateHotelCount();
     applyFilters();
-
     // Selected Hotels: client-side pagination + search
     const selectedBody = document.getElementById('selectedHotelsBody');
     if (selectedBody) {

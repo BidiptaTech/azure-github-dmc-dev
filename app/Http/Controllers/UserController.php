@@ -2500,6 +2500,63 @@ class UserController extends Controller
             $get_country_name = User::where('userId', $request->dmc)->value('country') ?? $get_country_name;
         }
 
+        // When an admin (role 1/2/3) edits a Master DMC (role 10) and removes countries,
+        // block removal if any DMC (role 11) under that Master DMC still has that country.
+        // DMC linkage: users.created_by = Master DMC userId (also check master_dmc_id).
+        $authRoleId = (int) ($this->auth_user->role_id ?? 0);
+        $isAdminEditing = in_array($authRoleId, [1, 2, 3], true);
+        $isEditingMasterDmc = in_array((int) $role, [10], true);
+
+        if ($isAdminEditing && $isEditingMasterDmc && $request->has('country_names')) {
+            $normalizeCountries = static function ($countries): array {
+                return collect(is_array($countries) ? $countries : explode(',', (string) $countries))
+                    ->map(static fn ($country) => trim((string) $country))
+                    ->filter()
+                    ->unique()
+                    ->values()
+                    ->all();
+            };
+
+            $masterDmcUserId = (int) $user->userId;
+            $oldCountries = $normalizeCountries($user->country);
+            $newCountries = $normalizeCountries($request->input('country_names', []));
+            $removedCountries = array_values(array_diff($oldCountries, $newCountries));
+
+            if ($removedCountries !== []) {
+                $blockedCountries = [];
+
+                foreach ($removedCountries as $removedCountry) {
+                    $dmcExists = User::query()
+                        ->where('role_id', 11)
+                        ->where(function ($query) use ($masterDmcUserId) {
+                            $query->where('created_by', $masterDmcUserId)
+                                ->orWhere('master_dmc_id', $masterDmcUserId);
+                        })
+                        ->where(function ($query) use ($removedCountry) {
+                            $query->where('country', $removedCountry)
+                                ->orWhereRaw('TRIM(country) = ?', [$removedCountry]);
+                        })
+                        ->exists();
+
+                    if ($dmcExists) {
+                        $blockedCountries[] = $removedCountry;
+                    }
+                }
+
+                if ($blockedCountries !== []) {
+                    $countryList = implode(', ', $blockedCountries);
+                    $message = count($blockedCountries) === 1
+                        ? "Cannot remove \"{$countryList}\" because a DMC under this Master DMC still exists for this country."
+                        : "Cannot remove these countries because DMCs under this Master DMC still exist for them: {$countryList}.";
+
+                    return redirect()->back()
+                        ->withInput()
+                        ->withErrors(['country_names' => $message])
+                        ->with('error', $message);
+                }
+            }
+        }           
+
         // Logic for masterDmcId
         if($this->auth_user->role_id == 10){
             $masterDmcId = $this->auth_user->userId;
