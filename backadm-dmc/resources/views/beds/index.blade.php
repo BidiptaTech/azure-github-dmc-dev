@@ -41,6 +41,7 @@
                         <th>No Of Queen Bed</th>
                         <th>No Of Twin Bed</th>
                         <th>No Of Bunk Bed</th>
+                        <th>Child W/O Bed</th>
                         <th>Active</th>
                         @if(hasPermission('edit bed') || hasPermission('delete bed'))
                             <th>Action</th>
@@ -65,6 +66,7 @@
                             <td class="category-name">{{ $bed->no_of_queen_bed }}</td>
                             <td class="category-name">{{ $bed->no_of_twin_bed }}</td>
                             <td class="category-name">{{ $bed->no_of_bunk_bed }}</td>
+                            <td class="category-name">{{ (int) ($bed->child_wo_bed ?? 0) }}</td>
                             <td>{{$bed->is_active == 1 ? 'Yes' : 'No'}}</td>
                             @if(hasPermission('edit bed') || hasPermission('delete bed'))
                             <td>

@@ -721,6 +721,7 @@ Route::get('/clear', function () {
         Route::post('/vehicle/map-zones', [VehicleController::class, 'mapZones'])->name('vehicle.map_zones');
         Route::get('/vehicle/{vehicle}/zone-mappings/export', [VehicleController::class, 'exportZoneMappings'])->name('vehicle.zone_mappings.export');
         Route::post('/vehicle/zone-mappings/import', [VehicleController::class, 'importZoneMappings'])->name('vehicle.zone_mappings.import');
+        Route::post('/vehicle/{vehicle}/zone-mappings/sync', [VehicleController::class, 'syncZoneMappingsFromVehicle'])->name('vehicle.zone_mappings.sync');
 
         Route::post('/vehicle/check-mapping-exists', [VehicleController::class, 'checkMappingExists'])->name('vehicle.check_mapping_exists');
         Route::post('/vehicle/add-mapping', [VehicleController::class, 'addMappingAjax'])->name('vehicle.add_mapping');

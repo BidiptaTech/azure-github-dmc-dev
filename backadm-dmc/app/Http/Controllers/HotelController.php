@@ -30,6 +30,7 @@ use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Schema;
 use App\Models\Tour;
 
 class HotelController extends Controller
@@ -1158,6 +1159,8 @@ class HotelController extends Controller
             'child_with_bed_cost' => (float) optional($baseRoomForPricing)->child_with_bed_cost,
             'child_without_bed' => (float) optional($baseRoomForPricing)->child_without_bed,
             'child_without_bed_cost' => (float) optional($baseRoomForPricing)->child_without_bed_cost,
+            'profit_type' => $this->normalizeRoomProfitType(optional($baseRoomForPricing)->profit_type ?? 'percentage'),
+            'profit_amount' => $this->normalizeRoomProfitAmount(optional($baseRoomForPricing)->profit_amount ?? 0),
         ];
                         
         return view('hotel.create-room', compact(
@@ -1433,6 +1436,17 @@ class HotelController extends Controller
             $room->child_without_bed = $request->child_without_bed;
             $room->child_with_bed_cost = $request->child_with_bed_cost;
             $room->child_without_bed_cost = $request->child_without_bed_cost;
+            if ($this->roomsTableHasProfitColumns()) {
+                $fallbackType = 'percentage';
+                $fallbackAmount = 0;
+                if (!$isBaseRoom && $adminBaseRoom) {
+                    $fallbackType = $this->normalizeRoomProfitType($adminBaseRoom->profit_type ?? 'percentage');
+                    $fallbackAmount = $this->normalizeRoomProfitAmount($adminBaseRoom->profit_amount ?? 0);
+                }
+                $profit = $this->roomProfitFromRequest($request, $fallbackType, $fallbackAmount);
+                $room->profit_type = $profit['profit_type'];
+                $room->profit_amount = $profit['profit_amount'];
+            }
             $is_save = $room->save();
             $room->refresh();
             // if($request->no_of_rooms){
@@ -1992,7 +2006,25 @@ class HotelController extends Controller
                 'weekend_cost_price' => $costOrSellValue(optional($baseRoom)->weekend_cost_price, optional($baseRoom)->weekend_price),
                 'double_weekday_cost_price' => $costOrSellValue(optional($baseRoom)->double_weekday_cost_price, optional($baseRoom)->double_weekday_price),
                 'double_weekend_cost_price' => $costOrSellValue(optional($baseRoom)->double_weekend_cost_price, optional($baseRoom)->double_weekend_price),
+                'profit_type' => $this->normalizeRoomProfitType(optional($baseRoom)->profit_type ?? 'percentage'),
+                'profit_amount' => $this->normalizeRoomProfitAmount(optional($baseRoom)->profit_amount ?? 0),
             ];
+
+            $isThisBaseRoom = (float) ($room->base_room ?? 0) > 0;
+            $isDmcEditor = !in_array((int) $auth_user->role_id, [1, 20], true);
+            $isDmcOwnedCopy = $isDmcEditor && (int) ($room->dmc_base_room ?? 1) === 0;
+            // Non-base rooms inherit DMC/admin base profit the first time (no own profit yet,
+            // or DMC is still editing the admin original before a DMC copy exists).
+            $inheritBaseProfit = !$isThisBaseRoom && (
+                ($isDmcEditor && !$isDmcOwnedCopy) || !$this->roomHasCustomProfit($room)
+            );
+            if ($inheritBaseProfit && $baseRoom) {
+                $defaultProfitType = $this->normalizeRoomProfitType($baseRoom->profit_type ?? 'percentage');
+                $defaultProfitAmount = $this->normalizeRoomProfitAmount($baseRoom->profit_amount ?? 0);
+            } else {
+                $defaultProfitType = $this->normalizeRoomProfitType($room->profit_type ?? 'percentage');
+                $defaultProfitAmount = $this->normalizeRoomProfitAmount($room->profit_amount ?? 0);
+            }
 
             return view('hotel.editroom', compact(
                 'hotel',
@@ -2005,7 +2037,10 @@ class HotelController extends Controller
                 'baseRoomPricing',
                 'auth_user',
                 'commission_type',
-                'commission_price'
+                'commission_price',
+                'inheritBaseProfit',
+                'defaultProfitType',
+                'defaultProfitAmount'
             ));
     
 
@@ -2220,6 +2255,111 @@ class HotelController extends Controller
         return $imagePaths;
     }
 
+    private function roomsTableHasProfitColumns(): bool
+    {
+        static $has = null;
+        if ($has === null) {
+            $has = Schema::hasColumn('rooms', 'profit_type') && Schema::hasColumn('rooms', 'profit_amount');
+        }
+
+        return $has;
+    }
+
+    private function normalizeRoomProfitType($type, string $fallback = 'percentage'): string
+    {
+        $type = strtolower(trim((string) $type));
+
+        return in_array($type, ['percentage', 'flat'], true) ? $type : $fallback;
+    }
+
+    private function normalizeRoomProfitAmount($amount, $fallback = 0): float
+    {
+        if ($amount === null || $amount === '') {
+            $amount = $fallback;
+        }
+        $value = is_numeric($amount) ? (float) $amount : (float) $fallback;
+
+        return $value < 0 ? 0.0 : $value;
+    }
+
+    /**
+     * @return array{profit_type: string, profit_amount: float}
+     */
+    private function roomProfitFromRequest(Request $request, $fallbackType = 'percentage', $fallbackAmount = 0): array
+    {
+        return [
+            'profit_type' => $this->normalizeRoomProfitType($request->input('profit_type', $fallbackType), (string) $fallbackType),
+            'profit_amount' => $this->normalizeRoomProfitAmount($request->input('profit_amount', $fallbackAmount), $fallbackAmount),
+        ];
+    }
+
+    private function roomHasCustomProfit($room): bool
+    {
+        if (!$room) {
+            return false;
+        }
+        $type = strtolower(trim((string) ($room->profit_type ?? '')));
+        $amount = $this->normalizeRoomProfitAmount($room->profit_amount ?? 0);
+        if ($type === 'flat') {
+            return true;
+        }
+
+        return $type === 'percentage' && $amount > 0;
+    }
+
+    /**
+     * Child W/O Bed counts in max occupancy only, never in Adults.
+     * Extra bed increases adult options and max occupancy.
+     *
+     * @return array{adult_capacity:int,max_adults:int,child_count:int,max_occupancy:int,default_adults:int,has_child_wo_bed:bool}
+     */
+    private function occupancyFromBedMaster(?BedMaster $bedMaster, $extraBed = 0): array
+    {
+        $adults = $bedMaster ? $bedMaster->adultOccupancy() : 0;
+        $children = $bedMaster ? $bedMaster->childWithoutBedOccupancy() : 0;
+        $extra = (int) $extraBed === 1 ? 1 : 0;
+        $maxAdults = $adults + $extra;
+
+        return [
+            'adult_capacity' => $adults,
+            'max_adults' => max(0, $maxAdults),
+            'child_count' => $children,
+            'max_occupancy' => $adults + $children + $extra,
+            'default_adults' => $extra ? max(0, $maxAdults) : $adults,
+            'has_child_wo_bed' => $children > 0,
+        ];
+    }
+
+    private function applyOccupancyFromBedType(Request $request, ?BedMaster $bedMaster): array
+    {
+        $meta = $this->occupancyFromBedMaster($bedMaster, $request->input('extra_bed'));
+        $adultPosted = (int) $request->input('adult_count');
+        if ($meta['has_child_wo_bed']) {
+            $maxAdults = max(1, $meta['max_adults']);
+            if ($adultPosted < 1 || $adultPosted > $maxAdults) {
+                $adultPosted = max(1, $meta['default_adults']);
+            }
+
+            $maxChild = max(0, (int) $meta['child_count']);
+            $childPosted = (int) $request->input('child_count', 0);
+            if ($childPosted < 0 || $childPosted > $maxChild) {
+                $childPosted = $maxChild > 0 ? 1 : 0;
+            }
+
+            return [
+                'max_occupancy' => max(1, $meta['max_occupancy']),
+                'adult_count' => $adultPosted,
+                'child_count' => $childPosted,
+            ];
+        }
+
+        return [
+            'max_occupancy' => (int) ($request->input('max_occupancy') ?: max(1, $meta['max_occupancy'])),
+            'adult_count' => $request->input('adult_count'),
+            'child_count' => $request->input('child_count'),
+        ];
+    }
+
     /**
      * Update existing room (for admin users or DMC updating their own room)
      */
@@ -2366,7 +2506,7 @@ class HotelController extends Controller
             ]);
 
             // Update room data
-            $updateResult = $room->update([
+            $updateResultPayload = [
                 'room_type' => $roomType,
                 'no_of_room' => $request->total_no_of_room,
                 'varient_price' => $varientPrice,
@@ -2400,7 +2540,18 @@ class HotelController extends Controller
                 'child_with_bed_cost' => $request->child_with_bed_cost,
                 'child_without_bed_cost' => $request->child_without_bed_cost,
                 'status' => $request->has('room_status') ? 1 : 0,
-            ]);
+            ];
+            if ($this->roomsTableHasProfitColumns()) {
+                $profit = $this->roomProfitFromRequest(
+                    $request,
+                    $this->normalizeRoomProfitType($room->profit_type ?? 'percentage'),
+                    $this->normalizeRoomProfitAmount($room->profit_amount ?? 0)
+                );
+                $updateResultPayload['profit_type'] = $profit['profit_type'];
+                $updateResultPayload['profit_amount'] = $profit['profit_amount'];
+            }
+
+            $updateResult = $room->update($updateResultPayload);
         
             \Log::info("Room update result", ['success' => $updateResult]);
     
@@ -2482,7 +2633,7 @@ class HotelController extends Controller
             }
 
             // Create new room for DMC
-            $newRoom = Room::create([
+            $newRoomPayload = [
                 'hotel_id' => $request->hotel_id,
                 'room_type' => $originalRoom->room_type,
                 // 'room_id' => $roomId,
@@ -2523,7 +2674,24 @@ class HotelController extends Controller
                 'child_without_bed' => $request->child_without_bed,
                 'child_with_bed_cost' => $request->child_with_bed_cost,
                 'child_without_bed_cost' => $request->child_without_bed_cost,
-            ]);
+            ];
+            if ($this->roomsTableHasProfitColumns()) {
+                $fallbackType = $this->normalizeRoomProfitType(
+                    $originalRoom->profit_type ?? optional($dmcBaseRoom)->profit_type ?? 'percentage'
+                );
+                $fallbackAmount = $this->normalizeRoomProfitAmount(
+                    $originalRoom->profit_amount ?? optional($dmcBaseRoom)->profit_amount ?? 0
+                );
+                if (!$isBaseRoom && $dmcBaseRoom) {
+                    $fallbackType = $this->normalizeRoomProfitType($dmcBaseRoom->profit_type ?? $fallbackType);
+                    $fallbackAmount = $this->normalizeRoomProfitAmount($dmcBaseRoom->profit_amount ?? $fallbackAmount);
+                }
+                $profit = $this->roomProfitFromRequest($request, $fallbackType, $fallbackAmount);
+                $newRoomPayload['profit_type'] = $profit['profit_type'];
+                $newRoomPayload['profit_amount'] = $profit['profit_amount'];
+            }
+
+            $newRoom = Room::create($newRoomPayload);
             $is_save = $newRoom->save();
             $newRoom->refresh();
             if ($is_save) {
@@ -2661,8 +2829,9 @@ class HotelController extends Controller
             }
         
             $beds = BedMaster::where('hotel_id', $id)->get();
+            $canManageBedConfig = in_array((int) $auth_user->role_id, [1, 20], true);
         
-            return view('hotel.beds', compact('hotel','rooms','beds','bedsData','auth_user','dmcUsers'));
+            return view('hotel.beds', compact('hotel','rooms','beds','bedsData','auth_user','dmcUsers','canManageBedConfig'));
     
 
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -2679,21 +2848,16 @@ class HotelController extends Controller
             $bedType = $request->input('bed_type');
             $hotel_id = $request->input('hotel_id');
             $hotels_bed = BedMaster::where('bedId', $bedType)->where('hotel_id', $hotel_id)->first();
-            $max_occupancy = 0;
-            if ($hotels_bed) {
-                $kingBedCount = $hotels_bed->no_of_king_bed ?? 0;
-                $queenBedCount = $hotels_bed->no_of_queen_bed ?? 0;
-                $twinBedCount = $hotels_bed->no_of_twin_bed ?? 0;
-                $singleBedCount = $hotels_bed->no_of_single_bed ?? 0;
-                $bunkBedCount = $hotels_bed->no_of_bunk_bed ?? 0;
-                $max_occupancy = ($kingBedCount * 2)
-                            + ($queenBedCount * 2) 
-                            + ($twinBedCount * 2) 
-                            + ($singleBedCount) 
-                            + ($bunkBedCount * 2);
+            if (!$hotels_bed) {
+                $hotels_bed = BedMaster::where('bedId', $bedType)->first();
             }
+            $adultCount = $hotels_bed ? $hotels_bed->adultOccupancy() : 0;
+            $childCount = $hotels_bed ? $hotels_bed->childWithoutBedOccupancy() : 0;
             return response()->json([
-                'total_count' => $max_occupancy,
+                'total_count' => $adultCount + $childCount,
+                'adult_count' => $adultCount,
+                'child_count' => $childCount,
+                'has_child_wo_bed' => $childCount > 0,
             ]);
     
 
@@ -2708,6 +2872,9 @@ class HotelController extends Controller
     public function storebeds(Request $request){
         try {
             $auth_user = Auth::user();
+            if (!in_array((int) $auth_user->role_id, [1, 20], true)) {
+                return redirect()->back()->with('error', 'Bed configuration is managed by Travclicks. You can only update Extra Bed and Baby Cot prices.');
+            }
         
             // Base validation rules
             $rules = [
@@ -2763,6 +2930,7 @@ class HotelController extends Controller
             // }
         
             $nameOfBedType = 'Unknown';
+            $bedmaster_det = null;
 
             if($request->input('bed_type')){
                 $bedmaster_det = BedMaster::where('bedId',$request->input('bed_type'))->first();
@@ -2770,13 +2938,14 @@ class HotelController extends Controller
                     $nameOfBedType = $bedmaster_det->name;
                 }
             }
+            $occupancy = $this->applyOccupancyFromBedType($request, $bedmaster_det ?? null);
             $bed = new Bed();
             $bed->room_type = $nameOfBedType;
             $bed->bed_master_id = $request->input('bed_type');
             $bed->no_of_rooms = $request->input('no_of_rooms');
-            $bed->max_occupancy = $request->input('max_occupancy');
-            $bed->adult_count = $request->input('adult_count');
-            $bed->child_count = $request->input('child_count');
+            $bed->max_occupancy = $occupancy['max_occupancy'];
+            $bed->adult_count = $occupancy['adult_count'];
+            $bed->child_count = $occupancy['child_count'];
             $bed->extra_bed = $request->input('extra_bed');
             $bed->extra_bed_type = $request->input('extra_bed_type');
             $bed->extra_bed_price = $request->input('extra_bed_price') ?? 0;
@@ -2834,8 +3003,16 @@ class HotelController extends Controller
             $rooms = Room::where('hotel_id',$hotelId)->where('created_by', $dmcId)->get();
             $hotelBed = Bed::with('room')->where('bed_id', $bedId)->first();
             $room = Room::where('room_id', $hotelBed->room_id)->first();
-            // dd($rooms->toArray());
-            return view('hotel.edit-beds', compact('hotel','rooms','beds','hotelBed','room'));
+            if ($hotelBed && $hotelBed->room && !$rooms->contains('room_id', $hotelBed->room_id)) {
+                $rooms->push($hotelBed->room);
+            }
+            $canManageBedConfig = in_array((int) $auth_user->role_id, [1, 20], true);
+            $bedMaster = $hotelBed ? BedMaster::where('bedId', $hotelBed->bed_master_id)->first() : null;
+            if (!$bedMaster && $hotelBed) {
+                $bedMaster = BedMaster::where('hotel_id', $hotelId)->where('name', $hotelBed->room_type)->first();
+            }
+            $bedOccupancy = $this->occupancyFromBedMaster($bedMaster, optional($hotelBed)->extra_bed);
+            return view('hotel.edit-beds', compact('hotel','rooms','beds','hotelBed','room','auth_user','canManageBedConfig','bedOccupancy'));
     
 
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -2850,6 +3027,47 @@ class HotelController extends Controller
 
     public function updatebed(Request $request){
         try {
+            $auth_user = Auth::user();
+            $bed = Bed::where('bed_id', $request->bed_id)->first();
+            if (!$bed) {
+                return redirect()->back()->with('error', 'Bed not found.');
+            }
+
+            if (!in_array((int) $auth_user->role_id, [1, 20], true)) {
+                $dmcId = CommonHelper::getDmcId($auth_user);
+                if ((string) $bed->dmc_id !== (string) $dmcId) {
+                    abort(403, 'You do not have permission to update this bed.');
+                }
+
+                $priceRules = [];
+                if ((int) $bed->extra_bed === 1) {
+                    $priceRules['extra_bed_price'] = 'required|numeric|min:0';
+                    $priceRules['extra_bed_cost_price'] = 'required|numeric|min:0';
+                }
+                if ((int) $bed->baby_cot === 1) {
+                    $priceRules['baby_cot_price'] = 'required|numeric|min:0';
+                    $priceRules['baby_cot_cost_price'] = 'required|numeric|min:0';
+                }
+                if ($priceRules !== []) {
+                    $request->validate($priceRules);
+                }
+
+                $pricePayload = [];
+                if ((int) $bed->extra_bed === 1) {
+                    $pricePayload['extra_bed_price'] = $request->input('extra_bed_price');
+                    $pricePayload['extra_bed_cost_price'] = $request->input('extra_bed_cost_price');
+                }
+                if ((int) $bed->baby_cot === 1) {
+                    $pricePayload['baby_cot_price'] = $request->input('baby_cot_price');
+                    $pricePayload['baby_cot_cost_price'] = $request->input('baby_cot_cost_price');
+                }
+                if ($pricePayload !== []) {
+                    $bed->update($pricePayload);
+                }
+
+                return redirect()->route('hotels.beds', $request->hotel_id)->with('success', 'Bed prices updated successfully.');
+            }
+
             $request->validate([
                 'no_of_rooms' => 'required|integer|min:1',
                 'max_occupancy' => 'required|integer|min:1',
@@ -2879,8 +3097,6 @@ class HotelController extends Controller
                 ]);
             }
 
-            // $bedId = Crypt::decrypt($request->bed_id);
-            $bed = Bed::where('bed_id', $request->bed_id)->first();
             $room_data = Room::where('room_id', $request->room_type)->first();
             $no_of_room = $room_data->no_of_room;
             $bedAvailable = Bed::where('room_id', $request->room_type)
@@ -2889,9 +3105,13 @@ class HotelController extends Controller
             if($no_of_room <= ($bedAvailable - $bed->no_of_rooms) + $request->input('no_of_rooms')){
                 return redirect()->route('hotels.beds', $request->hotel_id)->with('error', 'You have already filled.');
             }
+            $nameOfBedType = $bed->room_type;
+            $bedmaster_det = null;
             if($request->input('bed_type')){
                 $bedmaster_det = BedMaster::where('bedId',$request->input('bed_type'))->first();
-               $nameOfBedType =  $bedmaster_det->name;
+                if ($bedmaster_det) {
+                    $nameOfBedType = $bedmaster_det->name;
+                }
             }
             // $nameOfBedType = 'Unknown';
 
@@ -2901,12 +3121,13 @@ class HotelController extends Controller
             //         $nameOfBedType = $bedmaster_det->name;
             //     }
             // }
+            $occupancy = $this->applyOccupancyFromBedType($request, $bedmaster_det ?? null);
             $bed->room_type = $nameOfBedType;
             $bed->bed_master_id = $request->input('bed_type');
             $bed->no_of_rooms = $request->input('no_of_rooms');
-            $bed->max_occupancy = $request->input('max_occupancy');
-            $bed->adult_count = $request->input('adult_count');
-            $bed->child_count = $request->input('child_count');
+            $bed->max_occupancy = $occupancy['max_occupancy'];
+            $bed->adult_count = $occupancy['adult_count'];
+            $bed->child_count = $occupancy['child_count'];
             $bed->extra_bed = $request->input('extra_bed');
             $bed->extra_bed_type = $request->input('extra_bed_type');
             $bed->extra_bed_price = $request->input('extra_bed_price') ?? 0;
@@ -2936,6 +3157,10 @@ class HotelController extends Controller
             // if (!hasPermission('delete bed')) {
             //     abort(403, 'You do not have permission to access this page.');
             // }
+            $auth_user = Auth::user();
+            if (!in_array((int) $auth_user->role_id, [1, 20], true)) {
+                return redirect()->back()->with('error', 'Bed configuration is managed by Travclicks.');
+            }
             $bedId = Crypt::decrypt($bedId);
             $bed = Bed::where('bed_id', $bedId)->first();
             $delete = Bed::where('bed_id', $bedId)->delete();
