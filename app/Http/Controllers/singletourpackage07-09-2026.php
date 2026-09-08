@@ -691,26 +691,19 @@ class SingleTourPackageController extends Controller
     {
         // Handle POST data from JavaScript form submission
         if ($request->isMethod('post')) {
-            $tourDetailsRaw = $request->input('tour_details');
-            $createdOrdersRaw = $request->input('created_orders');
-
-            $tourDetails = is_string($tourDetailsRaw)
-                ? (json_decode($tourDetailsRaw, true) ?: [])
-                : (is_array($tourDetailsRaw) ? $tourDetailsRaw : []);
-            $createdOrders = is_string($createdOrdersRaw)
-                ? (json_decode($createdOrdersRaw, true) ?: [])
-                : (is_array($createdOrdersRaw) ? $createdOrdersRaw : []);
-
-            if (!empty($tourDetails)) {
-                session(['tour_details' => $tourDetails]);
+            $tourDetails = $request->input('tour_details');
+            $createdOrders = $request->input('created_orders');
+            
+            if ($tourDetails) {
+                session(['tour_details' => json_decode($tourDetails, true)]);
             }
-            if (!empty($createdOrders)) {
-                session(['created_orders' => $createdOrders]);
+            if ($createdOrders) {
+                session(['created_orders' => json_decode($createdOrders, true)]);
             }
-
+            
             return redirect()->route('single-tour-package.thank-you');
         }
-
+        
         return view('single-tour-package.thank-you');
     }
 
@@ -1306,43 +1299,8 @@ class SingleTourPackageController extends Controller
         }
 
         if ($userDmcIdInt > 0) {
-            // Multi-city under same Master DMC: Singapore city → Singapore DMC inventory,
-            // India city → India DMC inventory (restricted 3rd-party stays on own DMC only).
-            $inventoryDmcIds = [$userDmcIdInt];
-            if (!$isRestrictedThirdParty) {
-                foreach ($cityMatchValues as $placeName) {
-                    $resolved = (int) CommonHelper::resolveSiblingDmcIdForCity($userDmcIdInt, (string) $placeName);
-                    if ($resolved > 0) {
-                        $inventoryDmcIds[] = $resolved;
-                    }
-                }
-                foreach ($tourDestinationNames as $placeName) {
-                    $resolved = (int) CommonHelper::resolveSiblingDmcIdForCity($userDmcIdInt, (string) $placeName);
-                    if ($resolved > 0) {
-                        $inventoryDmcIds[] = $resolved;
-                    }
-                    $resolvedCountry = (int) CommonHelper::resolveSiblingDmcIdForCountry($userDmcIdInt, (string) $placeName);
-                    if ($resolvedCountry > 0) {
-                        $inventoryDmcIds[] = $resolvedCountry;
-                    }
-                }
-            }
-            $inventoryDmcIds = array_values(array_unique(array_filter(array_map('intval', $inventoryDmcIds))));
-            if ($inventoryDmcIds === []) {
-                $inventoryDmcIds = [$userDmcIdInt];
-            }
-
-            $applyJsonDmcScope = function ($query, string $column = 'dmc_id') use ($inventoryDmcIds) {
-                return $query->where(function ($q) use ($column, $inventoryDmcIds) {
-                    foreach ($inventoryDmcIds as $index => $dmcId) {
-                        $method = $index === 0 ? 'whereJsonContains' : 'orWhereJsonContains';
-                        $q->{$method}($column, (int) $dmcId);
-                    }
-                });
-            };
-
-            $hotelsQuery = Hotel::with(['rooms.bed']);
-            $hotels = $applyJsonDmcScope($hotelsQuery)
+            $hotels = Hotel::with(['rooms.bed'])
+                ->whereJsonContains('dmc_id', $userDmcIdInt)
                 ->where(function ($q) use ($cityMatchValues, $tourDestinationNames) {
                     if (!empty($cityMatchValues)) {
                         $q->whereIn('city', $cityMatchValues);
@@ -1352,9 +1310,14 @@ class SingleTourPackageController extends Controller
                     }
                 })
                 ->get();
+        } else {
+            $hotels = collect();
+        }
 
-            // Load guides filtered by city-block DMC(s), matching the tour's city (or country as fallback)
-            $guidesQuery = Guide::with(['languages'])->whereIn('dmc_id', $inventoryDmcIds);
+        // Load guides filtered by DMC, matching the tour's city (or country as fallback)
+        $guides = collect();
+        if ($userDmcIdInt > 0) {
+            $guidesQuery = Guide::with(['languages'])->where('dmc_id', $userDmcIdInt);
             $guidesQuery->where(function ($q) use ($cityMatchValues, $tourDestinationNames) {
                 if (!empty($cityMatchValues)) {
                     $q->whereIn('city', $cityMatchValues);
@@ -1364,52 +1327,54 @@ class SingleTourPackageController extends Controller
                 }
             });
             $guides = $guidesQuery->get();
-
-            // Load restaurants filtered by city-block DMC(s)
-            $restaurantsQuery = Restaurant::with(['meals' => function ($query) use ($inventoryDmcIds) {
-                $query->whereIn('dmc_id', $inventoryDmcIds);
-            }]);
-            $restaurants = $applyJsonDmcScope($restaurantsQuery)
-                ->where(function ($q) use ($cityMatchValues, $tourDestinationNames) {
-                    if (!empty($cityMatchValues)) {
-                        $q->whereIn('city', $cityMatchValues);
-                    }
-                    if (!empty($tourDestinationNames)) {
-                        $q->orWhereIn('country', $tourDestinationNames);
-                    }
-                })
-                ->get();
-
-            // Load attractions filtered by city-block DMC(s)
-            $attractionsQuery = Attraction::with(['tickets' => function ($query) use ($inventoryDmcIds) {
-                $query->whereIn('dmc_id', $inventoryDmcIds);
-            }]);
-            $attractions = $applyJsonDmcScope($attractionsQuery)
-                ->where(function ($q) use ($cityMatchValues, $tourDestinationNames) {
-                    if (!empty($cityMatchValues)) {
-                        $q->whereIn('location', $cityMatchValues);
-                    }
-                    if (!empty($tourDestinationNames)) {
-                        $q->orWhereIn('country', $tourDestinationNames);
-                    }
-                })
-                ->get();
-
-            $packagedAttractions = PackagedAttraction::where('status', 1)
-                ->whereIn('dmc_id', $inventoryDmcIds)
-                ->orderBy('name')
-                ->get();
-
-            $vehicles = Vehicle::whereIn('dmc_id', $inventoryDmcIds)->get();
-        } else {
-            $hotels = collect();
-            $guides = collect();
-            $restaurants = collect();
-            $attractions = collect();
-            $packagedAttractions = collect();
-            $vehicles = collect();
-            $inventoryDmcIds = [];
         }
+
+        // Load restaurants filtered by DMC, matching the tour's city (or country as fallback)
+        $restaurants = collect();
+        if ($userDmcIdInt > 0) {
+            $restaurantsQuery = Restaurant::with(['meals' => function ($query) use ($userDmcIdInt) {
+                $query->where('dmc_id', $userDmcIdInt);
+            }])
+                ->whereJsonContains('dmc_id', $userDmcIdInt);
+            $restaurantsQuery->where(function ($q) use ($cityMatchValues, $tourDestinationNames) {
+                if (!empty($cityMatchValues)) {
+                    $q->whereIn('city', $cityMatchValues);
+                }
+                if (!empty($tourDestinationNames)) {
+                    $q->orWhereIn('country', $tourDestinationNames);
+                }
+            });
+            $restaurants = $restaurantsQuery->get();
+        }
+
+        // Load attractions filtered by DMC, matching the tour's city (attractions use `location`) or country
+        $attractions = collect();
+        if ($userDmcIdInt > 0) {
+            $attractionsQuery = Attraction::with(['tickets' => function ($query) use ($userDmcIdInt) {
+                $query->where('dmc_id', $userDmcIdInt);
+            }])
+                ->whereJsonContains('dmc_id', $userDmcIdInt);
+            $attractionsQuery->where(function ($q) use ($cityMatchValues, $tourDestinationNames) {
+                if (!empty($cityMatchValues)) {
+                    $q->whereIn('location', $cityMatchValues);
+                }
+                if (!empty($tourDestinationNames)) {
+                    $q->orWhereIn('country', $tourDestinationNames);
+                }
+            });
+            $attractions = $attractionsQuery->get();
+        }
+
+        $packagedAttractions = $userDmcIdInt > 0
+            ? PackagedAttraction::where('status', 1)
+                ->where('dmc_id', $userDmcIdInt)
+                ->orderBy('name')
+                ->get()
+            : collect();
+
+        $vehicles = $userDmcIdInt > 0
+            ? Vehicle::where('dmc_id', $userDmcIdInt)->get()
+            : collect();
 
         // Geography scope:
         // - Normal / thirdparty_enabled=yes: master DMC country list (existing behaviour)
@@ -1493,13 +1458,15 @@ class SingleTourPackageController extends Controller
 
         // Multi Restaurant (Buffet) packages – include breakfast_time, lunch_time, dinner_time for time slot dropdown
         $multiRestaurants = collect();
-        $multiRestaurantDmcIds = !empty($inventoryDmcIds) ? $inventoryDmcIds : (($userDmcIdInt > 0) ? [$userDmcIdInt] : []);
-        if (!empty($multiRestaurantDmcIds) && Schema::hasColumn('multi_restaurants', 'dmc_id')) {
-            $multiRestaurants = MultiRestaurant::whereIn('dmc_id', $multiRestaurantDmcIds)
+        if ($userDmcIdInt > 0 && Schema::hasColumn('multi_restaurants', 'dmc_id')) {
+            $multiRestaurant = MultiRestaurant::where('dmc_id', $userDmcIdInt)
                 ->where('status', 1)
                 ->orderBy('created_at', 'desc')
-                ->get();
-        } elseif (!$isRestrictedThirdParty && empty($multiRestaurantDmcIds)) {
+                ->first();
+            if ($multiRestaurant) {
+                $multiRestaurants = collect([$multiRestaurant]);
+            }
+        } elseif (!$isRestrictedThirdParty) {
             // Legacy fallback only when not a restricted third-party DMC (avoids leaking another DMC's package).
             $multiRestaurant = MultiRestaurant::where('status', 1)
                 ->orderBy('created_at', 'desc')
@@ -2141,44 +2108,6 @@ class SingleTourPackageController extends Controller
     }
 
     /**
-     * Inventory DMC for a city block under the same Master DMC.
-     * Singapore city → Singapore DMC products; India city → India DMC products.
-     * Restricted third-party DMCs stay on their own id (no sibling remapping).
-     */
-    private function resolveInventoryDmcId(?string $city = null, ?string $country = null, $requestedDmcId = null): int
-    {
-        $authDmcId = (int) (CommonHelper::getDmcId(Auth::user()) ?: 0);
-        if ($authDmcId <= 0) {
-            return (int) ($requestedDmcId ?: 0);
-        }
-
-        $dmcUser = User::select('userId', 'thirdparty', 'thirdparty_enabled', 'country', 'master_dmc_id', 'role_id')
-            ->where('userId', $authDmcId)
-            ->first();
-        $tpScope = $this->resolveThirdPartyDmcScope($dmcUser);
-        if (!empty($tpScope['is_restricted'])) {
-            return $authDmcId;
-        }
-
-        $city = trim((string) $city);
-        $country = trim((string) $country);
-
-        if ($city !== '' || $country !== '') {
-            return CommonHelper::resolveSiblingDmcIdForCity(
-                $authDmcId,
-                $city !== '' ? $city : null,
-                $country !== '' ? $country : null
-            );
-        }
-
-        if ($requestedDmcId !== null && $requestedDmcId !== '') {
-            return CommonHelper::coerceSiblingDmcId($authDmcId, $requestedDmcId);
-        }
-
-        return $authDmcId;
-    }
-
-    /**
      * Ports limited to DMC-accessible countries; optionally narrowed to one country.
      */
     private function getPortsForDmc(?string $countryName = null, ?int $cityId = null)
@@ -2381,8 +2310,7 @@ class SingleTourPackageController extends Controller
     {
         try {
             $city = $request->input('city');
-            $country = $request->input('country');
-            $dmcId = $this->resolveInventoryDmcId($city, $country, $request->input('dmc_id'));
+            $dmcId = $request->input('dmc_id') ?? Auth::user()->created_by;
             
             if (!$dmcId) {
                 return response()->json([
@@ -2400,11 +2328,7 @@ class SingleTourPackageController extends Controller
 
             // Fetch attractions for the specific city and DMC
             // Note: Attractions table uses 'location' field instead of 'city'
-            $query = Attraction::with(['tickets' => function ($q) use ($dmcId) {
-                    $q->where('dmc_id', (int) $dmcId)
-                        ->select('ticket_id', 'attraction_id', 'name', 'child_price', 'adult_price', 'senior_adult_price', 'description', 'dmc_id');
-                }])
-                ->whereJsonContains('dmc_id', (int) $dmcId)
+            $query = Attraction::whereJsonContains('dmc_id', (int) $dmcId)
                 ->where(function($q) use ($city) {
                     $q->where('location', $city);
                 })
@@ -2483,18 +2407,6 @@ class SingleTourPackageController extends Controller
                     'open_times_count' => count($openTimes),
                     'close_times_count' => count($closeTimes)
                 ]);
-
-                $tickets = collect($attraction->tickets ?? [])->map(function ($ticket) {
-                    return [
-                        'ticket_id' => $ticket->ticket_id,
-                        'name' => $ticket->name,
-                        'adult_price' => $ticket->adult_price,
-                        'child_price' => $ticket->child_price,
-                        'senior_adult_price' => $ticket->senior_adult_price,
-                        'senior_price' => $ticket->senior_adult_price,
-                        'description' => $ticket->description,
-                    ];
-                })->values()->all();
                 
                 return [
                     'attraction_id' => $attraction->attraction_id,
@@ -2505,8 +2417,7 @@ class SingleTourPackageController extends Controller
                     'time_slots' => $timeSlots,
                     'adult_price' => $attraction->adult_price,
                     'child_price' => $attraction->child_price,
-                    'senior_adult_price' => $attraction->senior_adult_price,
-                    'tickets' => $tickets,
+                    'senior_adult_price' => $attraction->senior_adult_price
                 ];
             });
             
@@ -2546,7 +2457,6 @@ class SingleTourPackageController extends Controller
                 'attractions' => $attractionsData,
                 'bundles' => $bundles,
                 'city' => $city,
-                'dmc_id' => $dmcId,
                 'count' => $attractions->count()
             ]);
 
@@ -2569,9 +2479,7 @@ class SingleTourPackageController extends Controller
     {
         try {
             $attractionId = $request->input('attraction_id');
-            $city = $request->input('city');
-            $country = $request->input('country');
-            $dmcId = $this->resolveInventoryDmcId($city, $country, $request->input('dmc_id') ?? CommonHelper::getDmcId(Auth::user()));
+            $dmcId = $request->input('dmc_id') ?? Auth::user()->created_by;
             
             if (!$attractionId) {
                 return response()->json([
@@ -2587,28 +2495,10 @@ class SingleTourPackageController extends Controller
                 ], 403);
             }
 
-            // First verify that the attraction belongs to the resolved city DMC
+            // First verify that the attraction belongs to the current DMC
             $attraction = Attraction::where('attraction_id', $attractionId)
                 ->whereJsonContains('dmc_id', (int) $dmcId)
                 ->first();
-
-            // Fallback: attraction may belong to another sibling DMC under the same Master
-            if (!$attraction) {
-                $authDmcId = (int) (CommonHelper::getDmcId(Auth::user()) ?: 0);
-                $siblingIds = CommonHelper::getSiblingDmcIds($authDmcId);
-                $attraction = Attraction::where('attraction_id', $attractionId)->first();
-                if ($attraction) {
-                    $attractionDmcIds = is_array($attraction->dmc_id)
-                        ? array_map('intval', $attraction->dmc_id)
-                        : array_map('intval', json_decode((string) $attraction->dmc_id, true) ?: []);
-                    $matched = array_values(array_intersect($attractionDmcIds, $siblingIds));
-                    if (!empty($matched)) {
-                        $dmcId = (int) $matched[0];
-                    } else {
-                        $attraction = null;
-                    }
-                }
-            }
 
             if (!$attraction) {
                 return response()->json([
@@ -2632,7 +2522,6 @@ class SingleTourPackageController extends Controller
                 'success' => true,
                 'tickets' => $tickets,
                 'attraction_id' => $attractionId,
-                'dmc_id' => $dmcId,
                 'count' => $tickets->count()
             ]);
 
@@ -2654,9 +2543,25 @@ class SingleTourPackageController extends Controller
     public function fetchHotels(Request $request)
     {
         try {
+            if(Auth::user()->role_id == 11){
+                $dmcId = Auth::user()->userId;
+            }elseif(in_array(Auth::user()->role_id, [33, 34, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138])){
+                $user = User::where('userId', Auth::user()->userId)->first();
+                $dmcId = $user->created_by;
+            }elseif(in_array(Auth::user()->role_id, [37, 124])){
+                $dmcIds = Auth::user()->created_by;
+                $user = User::where('userId', $dmcIds)->first();
+                $dmcId = $user->created_by;
+            }elseif(in_array(Auth::user()->role_id, [38, 125])){
+                $dmcIds = Auth::user()->created_by;
+                $user = User::where('userId', $dmcIds)->first();
+                $dmcIdss = $user->created_by;
+                $user = User::where('userId', $dmcIdss)->first();
+                $dmcId = $user->created_by;
+            }else{
+                $dmcId = null;
+            }
             $city = $request->input('city');
-            $country = $request->input('country');
-            $dmcId = $this->resolveInventoryDmcId($city, $country, $request->input('dmc_id'));
             
             if (!$dmcId) {
                 return response()->json([
@@ -2672,7 +2577,7 @@ class SingleTourPackageController extends Controller
                 ], 400);
             }
 
-            // Fetch hotels where dmc_id JSON contains city-resolved DMC ID and city matches
+            // Fetch hotels where dmc_id JSON contains current DMC ID and city matches
             $hotels = \App\Models\Hotel::whereJsonContains('dmc_id', (int) $dmcId)
                 ->where('status', 1)
                 ->where('is_active', 1)
@@ -2698,8 +2603,7 @@ class SingleTourPackageController extends Controller
                 'success' => true,
                 'hotels' => $hotels,
                 'total_hotels' => count($hotels),
-                'city' => $city,
-                'dmc_id' => $dmcId,
+                'city' => $city
             ]);
 
         } catch (\Exception $e) {
@@ -2811,24 +2715,8 @@ class SingleTourPackageController extends Controller
     {
         try {
             $hotelId = $request->input('hotel_id');
-            $city = $request->input('city');
-            $country = $request->input('country');
-
-            // Prefer city/country sibling DMC; otherwise coerce requested dmc_id within Master siblings
-            $dmcId = $this->resolveInventoryDmcId($city, $country, $request->input('dmc_id') ?? CommonHelper::getDmcId(Auth::user()));
-
-            // If city not provided, derive inventory DMC from the hotel's city
-            if ((!$city && !$country) && $hotelId) {
-                $hotelForCity = \App\Models\Hotel::where('hotel_unique_id', $hotelId)->select('city')->first();
-                if ($hotelForCity) {
-                    $dmcId = $this->resolveInventoryDmcId(
-                        $hotelForCity->city ?? null,
-                        null,
-                        $request->input('dmc_id')
-                    );
-                }
-            }
-
+            // Use same DMC resolution as create view: DMC -> Sales Head -> Sales Manager -> Assistant Manager
+            $dmcId = CommonHelper::getDmcId(Auth::user());
             if (!$hotelId) {
                 return response()->json([
                     'success' => false,
@@ -3066,8 +2954,7 @@ class SingleTourPackageController extends Controller
     {
         try {
             $city = $request->input('city');
-            $country = $request->input('country');
-            $dmcId = $this->resolveInventoryDmcId($city, $country, $request->input('dmc_id') ?? CommonHelper::getDmcId(Auth::user()));
+            $dmcId = $request->input('dmc_id') ?? Auth::user()->created_by;
             
             if (!$dmcId) {
                 return response()->json([
@@ -3104,7 +2991,6 @@ class SingleTourPackageController extends Controller
                 'success' => true,
                 'guides' => $guides,
                 'city' => $city,
-                'dmc_id' => $dmcId,
                 'count' => $guides->count()
             ]);
 
@@ -3222,9 +3108,8 @@ class SingleTourPackageController extends Controller
     {
         try {
             $city = $request->input('city');
-            $country = $request->input('country');
-            // Resolve city-block DMC among Master DMC siblings
-            $dmcId = $this->resolveInventoryDmcId($city, $country, $request->input('dmc_id') ?? CommonHelper::getDmcId(Auth::user()));
+            // Use same DMC resolution so Sales Manager gets correct restaurants/meals
+            $dmcId = $request->input('dmc_id') ?? CommonHelper::getDmcId(Auth::user());
             
             if (!$dmcId) {
                 return response()->json([
@@ -3304,7 +3189,6 @@ class SingleTourPackageController extends Controller
                 'success' => true,
                 'restaurants' => $restaurantsData,
                 'city' => $city,
-                'dmc_id' => $dmcId,
                 'count' => $restaurants->count()
             ]);
 
@@ -3328,22 +3212,9 @@ class SingleTourPackageController extends Controller
         try {
             $restaurantId = $request->input('restaurant_id');
             $mealPeriod = $request->input('meal_period'); // 1=Breakfast, 2=Lunch, 3=Dinner
-            $city = $request->input('city');
-            $country = $request->input('country');
-
-            // Prefer city-block sibling DMC; fall back to restaurant city when needed
-            $dmcId = $this->resolveInventoryDmcId($city, $country, $request->input('dmc_id') ?? CommonHelper::getDmcId(Auth::user()));
-
-            if ((!$city && !$country) && $restaurantId && is_numeric($restaurantId)) {
-                $restaurantForCity = Restaurant::where('restaurant_id', $restaurantId)->select('city')->first();
-                if ($restaurantForCity) {
-                    $dmcId = $this->resolveInventoryDmcId(
-                        $restaurantForCity->city ?? null,
-                        null,
-                        $request->input('dmc_id')
-                    );
-                }
-            }
+            
+            // Use same DMC resolution: DMC -> Sales Head -> Sales Manager -> Assistant Manager
+            $dmcId = CommonHelper::getDmcId(Auth::user());
             
             if (!$dmcId) {
                 return response()->json([
@@ -3477,10 +3348,9 @@ class SingleTourPackageController extends Controller
     public function fetchZones(Request $request)
     {
         try {
-            $city = trim((string) $request->input('city', ''));
-            $country = $request->input('country');
-            $dmcId = $this->resolveInventoryDmcId($city !== '' ? $city : null, $country, $request->input('dmc_id'));
-
+            // Use same DMC resolution: DMC -> Sales Head -> Sales Manager -> Assistant Manager
+            $dmcId = CommonHelper::getDmcId(Auth::user());
+            
             if (!$dmcId) {
                 return response()->json([
                     'success' => false,
@@ -3492,6 +3362,7 @@ class SingleTourPackageController extends Controller
 
             // Zones are city scoped: only offer locations that belong to the requested city
             // (hotels/restaurants use `city`, attractions store the city in `location`).
+            $city = trim((string) $request->input('city', ''));
             $applyCityFilter = function ($query, string $column) use ($city) {
                 if ($city !== '') {
                     $query->whereRaw('LOWER(' . $column . ') = ?', [strtolower($city)]);
@@ -3998,14 +3869,10 @@ class SingleTourPackageController extends Controller
     public function fetchVehiclesByCityAndDmc(Request $request)
     {
         try {
+            // Use same DMC resolution as elsewhere: DMC -> Sales Head -> Sales Manager -> Assistant Manager
+            $dmcId = CommonHelper::getDmcId(Auth::user());
             $city = $request->input('city');
-            $country = $request->input('country');
             $showAllVehicles = $request->input('show_all', false); // New parameter for point-to-point and hourly services
-            $dmcId = $this->resolveInventoryDmcId(
-                $showAllVehicles ? null : $city,
-                $country,
-                $request->input('dmc_id') ?? CommonHelper::getDmcId(Auth::user())
-            );
             
             if (!$dmcId) {
                 return response()->json([
