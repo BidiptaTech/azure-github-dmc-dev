@@ -811,9 +811,6 @@
                     ?? \App\Helpers\CommonHelper::getDmcCurrencyByCountry()
                     ?? 'SGD'
                 ))) ?: 'SGD';
-
-                // Master-DMC sibling map: country => inventory DMC id (Singapore→SG DMC, India→IN DMC)
-                $siblingDmcCountryMap = \App\Helpers\CommonHelper::getSiblingDmcCountryMap((int) $finalDmcId);
             @endphp
             
             <!-- Main Form Card - All in One Row -->
@@ -1825,57 +1822,6 @@
                     };
                     window.getActiveServiceCountry = function () {
                         return String((window.getActiveServiceGeo() || {}).country || '').trim();
-                    };
-
-                    // Master DMC multi-country inventory: city/country → sibling DMC id
-                    window.operatingDmcId = parseInt('{{ (int) $finalDmcId }}', 10) || 0;
-                    window.siblingDmcCountryMap = @json($siblingDmcCountryMap ?? []);
-                    window.resolveDmcIdForCountry = function (country) {
-                        const c = String(country || '').trim();
-                        const map = window.siblingDmcCountryMap || {};
-                        if (!c) return window.operatingDmcId || 0;
-                        if (map[c]) return parseInt(map[c], 10) || window.operatingDmcId || 0;
-                        const lower = c.toLowerCase();
-                        for (const key of Object.keys(map)) {
-                            if (String(key).toLowerCase() === lower) {
-                                return parseInt(map[key], 10) || window.operatingDmcId || 0;
-                            }
-                        }
-                        return window.operatingDmcId || 0;
-                    };
-                    window.resolveDmcIdForCity = function (cityName, countryHint) {
-                        let country = String(countryHint || '').trim();
-                        if (!country && cityName) {
-                            try {
-                                const selectors = [
-                                    '#user_city', '#multi_cities',
-                                    'select[id*="_city_"]', 'select[id*="City"]'
-                                ];
-                                for (const sel of selectors) {
-                                    const els = document.querySelectorAll(sel);
-                                    for (const el of els) {
-                                        const opts = el.options ? Array.from(el.options) : [];
-                                        for (const opt of opts) {
-                                            if (String(opt.value || opt.textContent || '').trim().toLowerCase() === String(cityName).trim().toLowerCase()) {
-                                                const dc = String(opt.getAttribute('data-country') || '').trim();
-                                                if (dc) { country = dc; break; }
-                                            }
-                                        }
-                                        if (country) break;
-                                    }
-                                    if (country) break;
-                                }
-                            } catch (e) { /* ignore */ }
-                        }
-                        if (!country && typeof window.getActiveServiceCountry === 'function') {
-                            country = window.getActiveServiceCountry();
-                        }
-                        return window.resolveDmcIdForCountry(country);
-                    };
-                    window.getActiveServiceDmcId = function (cityName) {
-                        const city = String(cityName || (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : '') || '').trim();
-                        const country = typeof window.getActiveServiceCountry === 'function' ? window.getActiveServiceCountry() : '';
-                        return window.resolveDmcIdForCity(city, country) || window.operatingDmcId || 0;
                     };
 
                     // ==============================
@@ -11973,7 +11919,7 @@
                 cityMessage.style.display = 'none';
                 
                 // Load attractions for the specific city
-                const currentDmcId = (typeof window.getActiveServiceDmcId === 'function' ? window.getActiveServiceDmcId(typeof cityName !== 'undefined' ? cityName : '') : '{{ $finalDmcId }}');
+                const currentDmcId = '{{ $finalDmcId }}';
                 
                 window.fetchJsonDeduped(`{{ route('fetch-attractions-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${currentDmcId}`)
                     .then(data => {
@@ -12229,7 +12175,7 @@
                 languageSelect.innerHTML = '<option value="">Loading languages...</option>';
                 
                 // Load guides for the specific city
-                const currentDmcId = (typeof window.getActiveServiceDmcId === 'function' ? window.getActiveServiceDmcId(typeof cityName !== 'undefined' ? cityName : '') : '{{ $finalDmcId }}');
+                const currentDmcId = '{{ $finalDmcId }}';
                 
                 window.fetchJsonDeduped(`{{ route('fetch-guides-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${currentDmcId}`)
                     .then(data => {
@@ -13024,7 +12970,7 @@
             pickupSelect.disabled = true;
             
             // Get DMC ID for the requests
-            const dmcId = (typeof window.getActiveServiceDmcId === 'function' ? window.getActiveServiceDmcId(typeof cityName !== 'undefined' ? cityName : '') : '{{ $finalDmcId }}');
+            const dmcId = '{{ $finalDmcId }}';
             
             // Make AJAX calls for attractions, hotels and restaurants (same as entry_dropoff_location_select)
             Promise.all([
@@ -14042,7 +13988,7 @@
                 }
                 
                 // Load guides for the specific city
-                const currentDmcId = (typeof window.getActiveServiceDmcId === 'function' ? window.getActiveServiceDmcId(typeof cityName !== 'undefined' ? cityName : '') : '{{ $finalDmcId }}');
+                const currentDmcId = '{{ $finalDmcId }}';
                 
                 window.fetchJsonDeduped(`{{ route('fetch-guides-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${currentDmcId}`)
                     .then(data => {
@@ -14176,7 +14122,7 @@
                 if (cityMessage) cityMessage.style.display = 'none';
                 refreshRestaurantSelect2('Loading restaurants...', false);
                 
-                const currentDmcId = (typeof window.getActiveServiceDmcId === 'function' ? window.getActiveServiceDmcId(typeof cityName !== 'undefined' ? cityName : '') : '{{ $finalDmcId }}');
+                const currentDmcId = '{{ $finalDmcId }}';
                 
                 window.fetchJsonDeduped(`{{ route('fetch-restaurants-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${currentDmcId}`)
                     .then(data => {
@@ -14344,7 +14290,7 @@
             pickupSelect.disabled = true;
             
             // Get DMC ID for the requests
-            const dmcId = (typeof window.getActiveServiceDmcId === 'function' ? window.getActiveServiceDmcId(typeof cityName !== 'undefined' ? cityName : '') : '{{ $finalDmcId }}');
+            const dmcId = '{{ $finalDmcId }}';
             
             // Make AJAX calls for attractions, hotels and restaurants (same as entry_dropoff_location_select)
             Promise.all([
@@ -14519,7 +14465,7 @@
                 }
                 
                 // Load zones for the specific city
-                const currentDmcId = (typeof window.getActiveServiceDmcId === 'function' ? window.getActiveServiceDmcId(typeof cityName !== 'undefined' ? cityName : '') : '{{ $finalDmcId }}');
+                const currentDmcId = '{{ $finalDmcId }}';
                 
                 fetch(`{{ route('fetch-zones-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${currentDmcId}`)
                     .then(response => response.json())
@@ -15571,7 +15517,7 @@
             }
             
             // Get current user's DMC ID from authentication
-            const currentDmcId = (typeof window.getActiveServiceDmcId === 'function' ? window.getActiveServiceDmcId(typeof cityName !== 'undefined' ? cityName : '') : '{{ $finalDmcId }}');
+            const currentDmcId = '{{ $finalDmcId }}';
             console.log('Current DMC ID:', currentDmcId);
             
             // Show DMC info in loading status
@@ -15763,7 +15709,7 @@
             }
             
             // Get DMC ID for the requests
-            const dmcId = (typeof window.getActiveServiceDmcId === 'function' ? window.getActiveServiceDmcId(typeof cityName !== 'undefined' ? cityName : '') : '{{ $finalDmcId }}');
+            const dmcId = '{{ $finalDmcId }}';
             
             // Make AJAX calls for attractions, hotels and restaurants (same as entry_dropoff_location_select)
             Promise.all([
@@ -15902,7 +15848,7 @@
             }
             
             // Get current user's DMC ID for room filtering
-            const currentDmcId = (typeof window.getActiveServiceDmcId === 'function' ? window.getActiveServiceDmcId(typeof cityName !== 'undefined' ? cityName : '') : '{{ $finalDmcId }}');
+            const currentDmcId = '{{ $finalDmcId }}';
             
             // Show loading state with DMC info
             if (roomTypeSelect) roomTypeSelect.innerHTML = '<option value="">Loading rooms for DMC...</option>';
@@ -21633,7 +21579,7 @@
             ticketSelect.innerHTML = '<option value="">Loading tickets...</option>';
             
             // Get current DMC ID
-            const currentDmcId = (typeof window.getActiveServiceDmcId === 'function' ? window.getActiveServiceDmcId(typeof cityName !== 'undefined' ? cityName : '') : '{{ $finalDmcId }}');
+            const currentDmcId = '{{ $finalDmcId }}';
             
             fetch('{{ route('fetch-tickets-by-attraction') }}?attraction_id=' + attractionId + '&dmc_id=' + currentDmcId)
                 .then(response => response.json())
@@ -28958,7 +28904,7 @@
         }
         
         // Get DMC ID for the requests
-        const dmcId = (typeof window.getActiveServiceDmcId === 'function' ? window.getActiveServiceDmcId(typeof cityName !== 'undefined' ? cityName : '') : '{{ $finalDmcId }}');
+        const dmcId = '{{ $finalDmcId }}';
         const dropoffSelect = document.getElementById('entry_dropoff_location_select');
         
         if (!dropoffSelect) {
@@ -29109,7 +29055,7 @@
         }
         
         // Get DMC ID for the requests
-        const dmcId = (typeof window.getActiveServiceDmcId === 'function' ? window.getActiveServiceDmcId(typeof cityName !== 'undefined' ? cityName : '') : '{{ $finalDmcId }}');
+        const dmcId = '{{ $finalDmcId }}';
         const pickupSelect = document.getElementById('exit_pickup_location_select');
         
         if (!pickupSelect) {
@@ -33936,7 +33882,7 @@
                 console.log('Populating entry port dropoff (new interface), city:', cityName);
                 dropoffZoneSelect.innerHTML = '<option value="">Loading locations...</option>';
                 
-                const dmcId = (typeof window.getActiveServiceDmcId === 'function' ? window.getActiveServiceDmcId(typeof cityName !== 'undefined' ? cityName : '') : '{{ $finalDmcId }}');
+                const dmcId = '{{ $finalDmcId }}';
                 // Fetch all hotels for the city so dropdown shows every hotel
                 window.fetchJsonDeduped(`{{ route('fetch-hotels-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`)
                     .then(hotelsData => {

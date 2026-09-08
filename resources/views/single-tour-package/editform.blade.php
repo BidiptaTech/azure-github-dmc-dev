@@ -129,7 +129,59 @@
         
         // Final DMC ID for the form
         $finalDmcId = $dmcId;
-        
+
+        // 3rd-party DMC: Edit/Remove locked only for city plans outside this DMC's own countries
+        // Indonesia 3rd-party → Batam editable; Singapore city plan → read-only
+        $tpFlag = strtolower(trim((string) (optional($dmcUser)->thirdparty ?? optional($UserDmc ?? null)->thirdparty ?? 'no')));
+        $isThirdPartyDmc = ($tpFlag === 'yes') || !empty($isRestrictedThirdParty);
+        $ownDmcCountriesForUi = [];
+        if (!empty($ownDmcCountryNames) && is_array($ownDmcCountryNames)) {
+            $ownDmcCountriesForUi = array_values(array_filter(array_map('trim', $ownDmcCountryNames)));
+        }
+        if ($ownDmcCountriesForUi === []) {
+            $countrySrc = (string) (optional($dmcUser)->country ?? optional($UserDmc ?? null)->country ?? '');
+            $ownDmcCountriesForUi = array_values(array_filter(array_map('trim', preg_split('/\s*,\s*/', $countrySrc) ?: [])));
+        }
+        $cityCountryMapForUi = collect($cities ?? [])
+            ->filter(fn ($c) => !empty($c->name))
+            ->mapWithKeys(fn ($c) => [trim((string) $c->name) => trim((string) ($c->country ?? ''))])
+            ->filter(fn ($country) => $country !== '')
+            ->all();
+        // Ensure tour city plans (e.g. Singapore on an Indonesia 3rd-party tour) are in the map
+        try {
+            $tourCityTokens = [];
+            foreach (preg_split('/\s*,\s*/', (string) (optional($tour)->city ?? '')) ?: [] as $part) {
+                if (preg_match('/^([^\[\]]+?)\s*\[/', $part, $m)) {
+                    $tourCityTokens[] = trim($m[1]);
+                } else {
+                    $token = trim(preg_replace('/\s*\[.*?\]\s*/', '', $part));
+                    if ($token !== '') {
+                        $tourCityTokens[] = $token;
+                    }
+                }
+            }
+            foreach (preg_split('/\s*,\s*/', (string) (optional($tour)->destination ?? '')) ?: [] as $part) {
+                $token = trim($part);
+                if ($token !== '') {
+                    $tourCityTokens[] = $token;
+                }
+            }
+            $tourCityTokens = array_values(array_unique(array_filter($tourCityTokens)));
+            if ($tourCityTokens !== []) {
+                $extraCityRows = \App\Models\City::whereIn('name', $tourCityTokens)->get(['name', 'country']);
+                foreach ($extraCityRows as $row) {
+                    $n = trim((string) ($row->name ?? ''));
+                    $c = trim((string) ($row->country ?? ''));
+                    if ($n !== '' && $c !== '' && !isset($cityCountryMapForUi[$n])) {
+                        $cityCountryMapForUi[$n] = $c;
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            // keep map from $cities only
+        }
+        // Master multi-country: country → sibling DMC id (Singapore→SG DMC, India→IN DMC)
+        $siblingDmcCountryMap = \App\Helpers\CommonHelper::getSiblingDmcCountryMap((int) $finalDmcId);
         // Determine created_by based on role hierarchy (for backward compatibility)
         $createdBy = null;
         if ($currentUserRole == 34) { // Operation Head
@@ -151,6 +203,107 @@
         window.removeServicePageTourStatus = @json(isset($tour) && $tour ? ($tour->tour_status ?? '') : '');
         window.isActualTourStatus = @json($isActualTourStatus);
         window.__displayCurrency = @json($displayCurrency);
+        window.IS_THIRD_PARTY_DMC = @json(!empty($isThirdPartyDmc));
+        window.OWN_DMC_COUNTRIES = @json(array_values($ownDmcCountriesForUi ?? []));
+        window.CITY_COUNTRY_MAP = @json($cityCountryMapForUi ?? new \stdClass());
+        window.operatingDmcId = parseInt('{{ (int) $finalDmcId }}', 10) || 0;
+        window.siblingDmcCountryMap = @json($siblingDmcCountryMap ?? []);
+
+        window.resolveDmcIdForCountry = function (country) {
+            const c = String(country || '').trim();
+            const map = window.siblingDmcCountryMap || {};
+            if (!c) return window.operatingDmcId || 0;
+            if (map[c]) return parseInt(map[c], 10) || window.operatingDmcId || 0;
+            const lower = c.toLowerCase();
+            for (const key of Object.keys(map)) {
+                if (String(key).toLowerCase() === lower) {
+                    return parseInt(map[key], 10) || window.operatingDmcId || 0;
+                }
+            }
+            return window.operatingDmcId || 0;
+        };
+
+        window.resolveDmcIdForCity = function (cityName, countryHint) {
+            let country = String(countryHint || '').trim();
+            if (!country && cityName) {
+                const map = window.CITY_COUNTRY_MAP || {};
+                const key = String(cityName).trim();
+                if (map[key]) country = String(map[key]).trim();
+                if (!country) {
+                    const lower = key.toLowerCase();
+                    for (const k of Object.keys(map)) {
+                        if (String(k).toLowerCase() === lower) { country = String(map[k] || '').trim(); break; }
+                    }
+                }
+                if (!country) {
+                    try {
+                        const selectors = ['#single_city', '#multi_cities', '.city-select', 'select[id*="_city"]'];
+                        for (const sel of selectors) {
+                            const els = document.querySelectorAll(sel);
+                            for (const el of els) {
+                                const opts = el.options ? Array.from(el.options) : [];
+                                for (const opt of opts) {
+                                    if (String(opt.value || '').trim().toLowerCase() === key.toLowerCase()
+                                        || String(opt.textContent || '').trim().toLowerCase().startsWith(key.toLowerCase())) {
+                                        const dc = String(opt.getAttribute('data-country') || '').trim();
+                                        if (dc) { country = dc; break; }
+                                    }
+                                }
+                                if (country) break;
+                            }
+                            if (country) break;
+                        }
+                    } catch (e) { /* ignore */ }
+                }
+            }
+            if (!country && typeof window.getActiveServiceCountry === 'function') {
+                country = window.getActiveServiceCountry();
+            }
+            return window.resolveDmcIdForCountry(country);
+        };
+
+        window.getActiveServiceGeo = function () {
+            const geo = { city: '', country: '' };
+            try {
+                // Prefer active multi-city segment
+                if (typeof _activeSegmentEl !== 'undefined' && _activeSegmentEl) {
+                    const citySel = _activeSegmentEl.querySelector('.city-select');
+                    if (citySel && citySel.selectedOptions && citySel.selectedOptions[0]) {
+                        geo.city = String(citySel.value || citySel.selectedOptions[0].textContent || '').trim();
+                        geo.country = String(citySel.selectedOptions[0].getAttribute('data-country') || '').trim();
+                    }
+                }
+                if (!geo.city) {
+                    const sc = document.getElementById('single_city');
+                    if (sc && sc.value) {
+                        geo.city = String(sc.value || '').trim();
+                        const opt = sc.selectedOptions && sc.selectedOptions[0];
+                        if (opt) geo.country = String(opt.getAttribute('data-country') || '').trim();
+                    }
+                }
+                if (!geo.country && geo.city && window.CITY_COUNTRY_MAP) {
+                    geo.country = String(window.CITY_COUNTRY_MAP[geo.city] || '').trim();
+                }
+            } catch (e) { /* ignore */ }
+            return geo;
+        };
+        window.getActiveServiceCity = function () {
+            return String((window.getActiveServiceGeo() || {}).city || '').trim();
+        };
+        window.getActiveServiceCountry = function () {
+            return String((window.getActiveServiceGeo() || {}).country || '').trim();
+        };
+        window.getActiveServiceDmcId = function (cityName) {
+            const city = String(cityName || (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : '') || '').trim();
+            let country = '';
+            if (typeof window.getActiveServiceCountry === 'function') {
+                country = window.getActiveServiceCountry();
+            }
+            if (city && (!country) && window.CITY_COUNTRY_MAP) {
+                country = String(window.CITY_COUNTRY_MAP[city] || '').trim();
+            }
+            return window.resolveDmcIdForCity(city, country) || window.operatingDmcId || 0;
+        };
 
         window.isRoomBreakfastIncluded = function(room) {
             if (!room) return false;
@@ -705,6 +858,12 @@
         #segmentsWrapper .segment .segment-actions .btn.btn-danger,
         #segmentsWrapper .segment .segment-actions .btn.btn-outline-danger {
             box-shadow: 0 2px 10px rgba(220, 53, 69, 0.10);
+        }
+        #segmentsWrapper .segment .segment-actions .btn.is-thirdparty-readonly,
+        #segmentsWrapper .segment .segment-actions .btn:disabled.is-thirdparty-readonly {
+            opacity: 0.55;
+            cursor: not-allowed !important;
+            pointer-events: none;
         }
         @media (max-width: 576px) {
             #segmentsWrapper .segment .segment-actions .btn {
@@ -1996,12 +2155,15 @@
                                                         mealPlanSelect.innerHTML = '<option value="">Select room type first</option>';
                                                         mealPlanSelect.disabled = true;
                                                         
-                                                        // Get DMC ID
-                                                        const dmcIdInput = document.getElementById('dmc_id');
-                                                        const currentDmcId = dmcIdInput ? dmcIdInput.value : '';
+                                                        // Get city-block DMC ID (Master multi-country inventory)
+                                                        const locInput = document.querySelector('input[name="hotel_location"]');
+                                                        const hotelCityForDmc = (locInput && locInput.value) ? String(locInput.value).trim() : '';
+                                                        const currentDmcId = (typeof window.getActiveServiceDmcId === 'function'
+                                                            ? window.getActiveServiceDmcId(hotelCityForDmc)
+                                                            : (document.getElementById('dmc_id') ? document.getElementById('dmc_id').value : ''));
                                                         
                                                         // Fetch rooms for the selected hotel
-                                                        fetch(`{{ route('fetch-rooms-by-hotel') }}?hotel_id=${encodeURIComponent(hotelId)}&dmc_id=${encodeURIComponent(currentDmcId || '')}`)
+                                                        fetch(`{{ route('fetch-rooms-by-hotel') }}?hotel_id=${encodeURIComponent(hotelId)}&dmc_id=${encodeURIComponent(currentDmcId || '')}&city=${encodeURIComponent(hotelCityForDmc)}`)
                                                             .then(response => {
                                                                 if (!response.ok) {
                                                                     throw new Error('Network response was not ok');
@@ -2346,9 +2508,9 @@
                                                         
                                                         const mealPlans = [];
                                                         
-                                                        // Add Room Only only when DMC (created_by user) is allowed to show prices (price_hide != 1)
-                                                        const dmcPriceHide = {{ isset($dmcUser) && ($dmcUser->price_hide ?? 0) == 1 ? 1 : 0 }};
-                                                        if (!dmcPriceHide) {
+                                                        // Same rule as create.blade.php: show "room only" unless rooms_only = 1
+                                                        const hasRoomsOnly = room.rooms_only == 1 || room.rooms_only === true || room.rooms_only === '1';
+                                                        if (!hasRoomsOnly) {
                                                             mealPlans.push({ value: 'room_only', text: `room only${paxInfo}` });
                                                         }
                                                         
@@ -10340,80 +10502,15 @@
             return;
         }
         
-        // Calculate base price based on hours
-        let basePrice = 0;
-        if (hoursNum == 1) {
-            basePrice = parseFloat(guideData.hourly_price || guideData.price_per_hour || 0);
-        } else if (hoursNum <= 2) {
-            basePrice = parseFloat(guideData.two_hour_price || guideData.hourly_price * 2 || 0);
-        } else if (hoursNum <= 4) {
-            basePrice = parseFloat(guideData.four_hour_price || guideData.hourly_price * 4 || 0);
-        } else if (hoursNum <= 6) {
-            basePrice = parseFloat(guideData.six_hour_price || guideData.hourly_price * 6 || 0);
-        } else if (hoursNum <= 8) {
-            basePrice = parseFloat(guideData.eight_hour_price || guideData.hourly_price * 8 || 0);
-        } else if (hoursNum <= 10) {
-            basePrice = parseFloat(guideData.ten_hour_price || guideData.hourly_price * 10 || 0);
-        } else if (hoursNum <= 12) {
-            basePrice = parseFloat(guideData.twelve_hour_price || guideData.hourly_price * 12 || 0);
-        } else {
-            // For custom hours beyond 12, calculate using hourly rate
-            basePrice = parseFloat(guideData.hourly_price || guideData.price_per_hour || 0) * hoursNum;
-        }
+        // Calculate base price based on hours (same as create form)
+        const basePrice = window.getGuidePackageBasePrice(guideData, hoursNum);
         
-        // Calculate surge charge (night surcharge) based on time slot and hours
+        // Night surcharge: flat amount when pickup is in night range (same as create)
         let surcharge = 0;
         const timeSlotSelect = $('#modal_attraction_time_slot');
         const selectedTimeSlot = timeSlotSelect.val();
-        
-        if (selectedTimeSlot && guideData.night_surcharge && hoursNum > 0) {
-            // Extract time from time slot (format might be "09:00 AM" or "09:00")
-            let pickupHour = 0;
-            let pickupMinutes = 0;
-            const timeMatch = selectedTimeSlot.match(/(\d{1,2}):(\d{2})/);
-            if (timeMatch) {
-                pickupHour = parseInt(timeMatch[1]);
-                pickupMinutes = parseInt(timeMatch[2]);
-                const isPM = selectedTimeSlot.toUpperCase().includes('PM') && pickupHour !== 12;
-                if (isPM) {
-                    pickupHour = pickupHour === 12 ? 12 : pickupHour + 12;
-                }
-            }
-            
-            // Get night hours from guide data
-            const nightStartTime = guideData.night_start_time || '22:00';
-            const nightEndTime = guideData.night_end_time || '08:00';
-            const nightStartParts = nightStartTime.split(':');
-            const nightEndParts = nightEndTime.split(':');
-            const nightStartHour = parseInt(nightStartParts[0]) || 22;
-            const nightStartMin = parseInt(nightStartParts[1]) || 0;
-            const nightEndHour = parseInt(nightEndParts[0]) || 8;
-            const nightEndMin = parseInt(nightEndParts[1]) || 0;
-            
-            // Calculate how many hours fall within night time
-            let nightHours = 0;
-            const pickupTimeMinutes = pickupHour * 60 + pickupMinutes;
-            const nightStartMinutes = nightStartHour * 60 + nightStartMin;
-            const nightEndMinutes = nightEndHour * 60 + nightEndMin;
-            
-            // Check if pickup time falls within night hours
-            let isNightTime = false;
-            if (nightStartMinutes < nightEndMinutes) {
-                // Normal range (e.g., 22:00 to 08:00 next day) - this shouldn't happen, but handle it
-                isNightTime = (pickupTimeMinutes >= nightStartMinutes || pickupTimeMinutes < nightEndMinutes);
-            } else {
-                // Range crosses midnight (e.g., 22:00 to 08:00)
-                isNightTime = (pickupTimeMinutes >= nightStartMinutes || pickupTimeMinutes < nightEndMinutes);
-            }
-            
-            if (isNightTime) {
-                // Calculate how many hours from pickup time fall within night hours
-                // For simplicity, if pickup is in night time, apply surcharge for all hours
-                // Or calculate actual night hours within the duration
-                const nightSurchargePerHour = parseFloat(guideData.night_surcharge || 0);
-                // Apply surcharge for all hours if pickup is during night time
-                surcharge = nightSurchargePerHour * hoursNum;
-            }
+        if (selectedTimeSlot) {
+            surcharge = window.getGuideNightSurcharge(guideData, selectedTimeSlot);
         }
         
         const totalPrice = basePrice + surcharge;
@@ -10586,26 +10683,8 @@
             return;
         }
         
-        // Calculate base price based on hours
-        let basePrice = 0;
-        if (hoursNum <= 1) {
-            basePrice = parseFloat(guideData.hourly_price || guideData.price_per_hour || 0);
-        } else if (hoursNum <= 2) {
-            basePrice = parseFloat(guideData.two_hour_price || guideData.hourly_price * 2 || 0);
-        } else if (hoursNum <= 4) {
-            basePrice = parseFloat(guideData.four_hour_price || guideData.hourly_price * 4 || 0);
-        } else if (hoursNum <= 6) {
-            basePrice = parseFloat(guideData.six_hour_price || guideData.hourly_price * 6 || 0);
-        } else if (hoursNum <= 8) {
-            basePrice = parseFloat(guideData.eight_hour_price || guideData.hourly_price * 8 || 0);
-        } else if (hoursNum <= 10) {
-            basePrice = parseFloat(guideData.ten_hour_price || guideData.hourly_price * 10 || 0);
-        } else if (hoursNum <= 12) {
-            basePrice = parseFloat(guideData.twelve_hour_price || guideData.hourly_price * 12 || 0);
-        } else {
-            // For custom hours beyond 12, calculate using hourly rate
-            basePrice = parseFloat(guideData.hourly_price || guideData.price_per_hour || 0) * hoursNum;
-        }
+        // Calculate base price based on hours (same as create form)
+        const basePrice = window.getGuidePackageBasePrice(guideData, hoursNum);
         
         // Calculate surge charge (night surcharge) - simplified for booking section
         let surcharge = 0;
@@ -11655,7 +11734,7 @@
             // If no zone-mapped vehicles, fetch by city
             if (vehicles.length === 0 && city) {
                 try {
-                    const response = await fetch(`{{ route('fetch-vehicles-by-city-dmc') }}?city=${encodeURIComponent(city)}`);
+                    const response = await fetch(`{{ route('fetch-vehicles-by-city-dmc') }}?city=${encodeURIComponent(city)}&dmc_id=${typeof window.getActiveServiceDmcId === 'function' ? window.getActiveServiceDmcId(city) : ''}`);
                     const data = await response.json();
                     if (data.success && data.vehicles) {
                         vehicles = data.vehicles;
@@ -13158,42 +13237,79 @@
                 tickets = Object.values(tickets);
             }
             const genericTicket = !currentValue || ['n/a', 'general ticket', 'select ticket'].includes(String(currentValue).trim().toLowerCase());
-            if (tickets && Array.isArray(tickets) && tickets.length > 0) {
-                let matched = false;
-                tickets.forEach(ticket => {
-                    const ticketOption = document.createElement('option');
-                    // Use ticket name as value, or ticket_id if name is not available
-                    const ticketValue = ticket.name || ticket.ticket_name || ticket.ticket_id || '';
-                    const ticketText = ticket.name || ticket.ticket_name || ticketValue;
-                    ticketOption.value = ticketValue;
-                    ticketOption.textContent = ticketText;
-                    // Price data for inline edit form total calculation
-                    const adultPrice = parseFloat(ticket.adult_price ?? ticket.price ?? 0) || 0;
-                    const childPrice = parseFloat(ticket.child_price ?? 0) || 0;
-                    const seniorPrice = parseFloat(ticket.senior_price ?? ticket.senior_adult_price ?? ticket.adult_price ?? ticket.price ?? 0) || 0;
-                    ticketOption.dataset.adultPrice = adultPrice;
-                    ticketOption.dataset.childPrice = childPrice;
-                    ticketOption.dataset.seniorPrice = seniorPrice;
-                    if (ticket.ticket_id !== undefined && ticket.ticket_id !== null) {
-                        ticketOption.dataset.ticketId = String(ticket.ticket_id);
+            const fillTicketOptions = function (ticketList) {
+                ticketSelect.innerHTML = '<option value="">Select Ticket</option>';
+                if (ticketList && Array.isArray(ticketList) && ticketList.length > 0) {
+                    let matched = false;
+                    ticketList.forEach(ticket => {
+                        const ticketOption = document.createElement('option');
+                        const ticketValue = ticket.name || ticket.ticket_name || ticket.ticket_id || '';
+                        const ticketText = ticket.name || ticket.ticket_name || ticketValue;
+                        ticketOption.value = ticketValue;
+                        ticketOption.textContent = ticketText;
+                        const adultPrice = parseFloat(ticket.adult_price ?? ticket.price ?? 0) || 0;
+                        const childPrice = parseFloat(ticket.child_price ?? 0) || 0;
+                        const seniorPrice = parseFloat(ticket.senior_price ?? ticket.senior_adult_price ?? ticket.adult_price ?? ticket.price ?? 0) || 0;
+                        ticketOption.dataset.adultPrice = adultPrice;
+                        ticketOption.dataset.childPrice = childPrice;
+                        ticketOption.dataset.seniorPrice = seniorPrice;
+                        if (ticket.ticket_id !== undefined && ticket.ticket_id !== null) {
+                            ticketOption.dataset.ticketId = String(ticket.ticket_id);
+                        }
+                        if (!genericTicket && currentValue && (ticketValue === currentValue || ticketText === currentValue)) {
+                            ticketOption.selected = true;
+                            matched = true;
+                        }
+                        ticketSelect.appendChild(ticketOption);
+                    });
+                    if (!matched && ticketSelect.options.length > 1) {
+                        ticketSelect.selectedIndex = 1;
                     }
-                    // Set selected if it matches current value
-                    if (!genericTicket && currentValue && (ticketValue === currentValue || ticketText === currentValue)) {
-                        ticketOption.selected = true;
-                        matched = true;
-                    }
-                    ticketSelect.appendChild(ticketOption);
-                });
-                if (!matched && ticketSelect.options.length > 1) {
-                    ticketSelect.selectedIndex = 1;
+                } else {
+                    const noTicketOption = document.createElement('option');
+                    noTicketOption.value = '';
+                    noTicketOption.textContent = 'No tickets available for this attraction';
+                    noTicketOption.disabled = true;
+                    ticketSelect.appendChild(noTicketOption);
                 }
+            };
+
+            if (tickets && Array.isArray(tickets) && tickets.length > 0) {
+                fillTicketOptions(tickets);
             } else {
-                // If no tickets found, show message
-                const noTicketOption = document.createElement('option');
-                noTicketOption.value = '';
-                noTicketOption.textContent = 'No tickets available for this attraction';
-                noTicketOption.disabled = true;
-                ticketSelect.appendChild(noTicketOption);
+                // Catalog payload may omit tickets (wrong DMC filter) — fetch like create form
+                const attractionId = selectedOption.getAttribute('data-attraction-id')
+                    || attractionData.attraction_id
+                    || '';
+                if (!attractionId || String(attractionId).startsWith('bundle_')) {
+                    fillTicketOptions([]);
+                    return;
+                }
+                const geo = (typeof window.getActiveServiceGeo === 'function') ? window.getActiveServiceGeo() : {};
+                const ticketCity = geo.city || '';
+                const ticketCountry = geo.country || '';
+                const ticketDmcId = (typeof window.getActiveServiceDmcId === 'function')
+                    ? window.getActiveServiceDmcId(ticketCity)
+                    : (document.getElementById('dmc_id') ? document.getElementById('dmc_id').value : '');
+                ticketSelect.innerHTML = '<option value="">Loading tickets...</option>';
+                fetch(`{{ route('fetch-tickets-by-attraction') }}?attraction_id=${encodeURIComponent(attractionId)}&dmc_id=${encodeURIComponent(ticketDmcId || '')}&city=${encodeURIComponent(ticketCity)}&country=${encodeURIComponent(ticketCountry)}`)
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) {
+                        fillTicketOptions((data && data.success && Array.isArray(data.tickets)) ? data.tickets : []);
+                        // Keep saved ticket selected when present
+                        if (currentValue && !genericTicket) {
+                            for (let i = 0; i < ticketSelect.options.length; i++) {
+                                if (ticketSelect.options[i].value === currentValue || ticketSelect.options[i].textContent === currentValue) {
+                                    ticketSelect.selectedIndex = i;
+                                    break;
+                                }
+                            }
+                        }
+                    })
+                    .catch(function (err) {
+                        console.error('Error loading tickets for attraction row:', err);
+                        ticketSelect.innerHTML = '<option value="">Error loading tickets</option>';
+                    });
             }
         } catch (error) {
             console.error('Error parsing attraction data for tickets:', error);
@@ -13941,7 +14057,6 @@
         const ticketSelect = document.getElementById('modal_attraction_ticket');
         
         if (!city) {
-            // Clear if no city selected
             attractionSelect.innerHTML = '<option value="">Search Attraction</option>';
             attractionCount.textContent = '0';
             if (window.refreshSelect2) {
@@ -13950,89 +14065,87 @@
             return;
         }
         
-        // Clear existing options
-        attractionSelect.innerHTML = '<option value="">Search Attraction</option>';
-        
-        // For demo purposes, show sample attractions
-        // In production, this would fetch from API
-        const all_attractions = @json($attractions ?? []);
-        const all_bundles = @json($packagedAttractions ?? []);
-        const cityKey = (typeof cityMatchKey === 'function')
-            ? cityMatchKey(city)
-            : (city || '').trim().toLowerCase();
-        const attractions = all_attractions.filter(function(attraction) {
-            const loc = (typeof cityMatchKey === 'function')
-                ? cityMatchKey(attraction.location)
-                : (attraction.location || '').trim().toLowerCase();
-            return loc === cityKey;
-        });
-        // Add attraction options
-        attractions.forEach(attraction => {
-            const option = document.createElement('option');
-            option.value = attraction.attraction_id;
-            option.textContent = `${attraction.name} - ${attraction.location}`;
-            option.setAttribute('data-attraction', JSON.stringify(attraction));
-            attractionSelect.appendChild(option);
-        });
+        attractionSelect.innerHTML = '<option value="">Loading attractions...</option>';
+        const dmcId = (typeof window.getActiveServiceDmcId === 'function')
+            ? window.getActiveServiceDmcId(city)
+            : (document.getElementById('dmc_id') ? document.getElementById('dmc_id').value : '');
+        const countryParam = country || '';
 
-        // Append packaged attraction bundles (shown with bundle icon)
-        const cityAttractionIds = attractions.map(a => parseInt(a.id || 0, 10)).filter(Boolean);
-        const cityAttractionUniqueIds = attractions.map(a => parseInt(a.attraction_id || 0, 10)).filter(Boolean);
-        const bundles = (all_bundles || []).filter(function(bundle) {
-            let bundledIds = [];
-            try {
-                bundledIds = Array.isArray(bundle.attractions)
-                    ? bundle.attractions
-                    : (typeof bundle.attractions === 'string' ? JSON.parse(bundle.attractions || '[]') : []);
-            } catch (e) {
-                bundledIds = [];
-            }
-            bundledIds = bundledIds.map(id => parseInt(id, 10));
-            return bundledIds.some(id => cityAttractionIds.includes(id) || cityAttractionUniqueIds.includes(id));
-        });
+        fetch(`{{ route('fetch-attractions-by-dmc') }}?city=${encodeURIComponent(city)}&dmc_id=${encodeURIComponent(dmcId || '')}&country=${encodeURIComponent(countryParam)}`)
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                attractionSelect.innerHTML = '<option value="">Search Attraction</option>';
+                const attractions = (data && data.success && Array.isArray(data.attractions)) ? data.attractions : [];
+                const bundles = (data && Array.isArray(data.bundles)) ? data.bundles : [];
 
-        bundles.forEach(bundle => {
-            const option = document.createElement('option');
-            option.value = 'bundle_' + bundle.package_attraction_id;
-            option.textContent = bundle.name;
-            option.dataset.isBundle = '1';
-            option.dataset.vehicleIncluded = bundle.vehicle_included ? '1' : '0';
-            option.dataset.guideIncluded = bundle.guide_included ? '1' : '0';
-            option.setAttribute('data-attraction', JSON.stringify({
-                name: bundle.name,
-                package_attraction_id: bundle.package_attraction_id,
-                adult_price: bundle.adult_price,
-                child_price: bundle.child_price,
-                senior_price: bundle.senior_citizen_price,
-                vehicle_included: !!bundle.vehicle_included,
-                guide_included: !!bundle.guide_included,
-                is_bundle: true,
-                tickets: [{
-                    name: bundle.name,
-                    ticket_name: bundle.name,
-                    adult_price: bundle.adult_price,
-                    child_price: bundle.child_price,
-                    senior_price: bundle.senior_citizen_price
-                }],
-                master_image: '{{ asset('assets/images/bundle-attraction-icon.png') }}',
-                location: city,
-                category: 'Bundle'
-            }));
-            attractionSelect.appendChild(option);
-        });
-        
-        attractionCount.textContent = attractions.length + bundles.length;
-        document.getElementById('modal_attraction_city').textContent = city;
-        
-        // Refresh Select2 if it's initialized
-        if (window.refreshSelect2) {
-            window.refreshSelect2(attractionSelect);
-        }
-        
-        // Clear time slot and ticket when city changes
-        timeSlotSelect.innerHTML = '<option value="">Select Attraction First</option>';
-        ticketSelect.innerHTML = '<option value="">Select Ticket</option>';
-        document.getElementById('attraction_details_container').style.display = 'none';
+                attractions.forEach(function (attraction) {
+                    const option = document.createElement('option');
+                    option.value = attraction.attraction_id;
+                    option.textContent = `${attraction.name} - ${attraction.location || attraction.city || city}`;
+                    option.setAttribute('data-attraction', JSON.stringify(attraction));
+                    attractionSelect.appendChild(option);
+                });
+
+                bundles.forEach(function (bundle) {
+                    const option = document.createElement('option');
+                    option.value = 'bundle_' + bundle.package_attraction_id;
+                    option.textContent = bundle.name;
+                    option.dataset.isBundle = '1';
+                    option.dataset.vehicleIncluded = bundle.vehicle_included ? '1' : '0';
+                    option.dataset.guideIncluded = bundle.guide_included ? '1' : '0';
+                    option.setAttribute('data-attraction', JSON.stringify({
+                        name: bundle.name,
+                        package_attraction_id: bundle.package_attraction_id,
+                        adult_price: bundle.adult_price,
+                        child_price: bundle.child_price,
+                        senior_price: bundle.senior_adult_price,
+                        vehicle_included: !!bundle.vehicle_included,
+                        guide_included: !!bundle.guide_included,
+                        is_bundle: true,
+                        tickets: [{
+                            name: bundle.name,
+                            ticket_name: bundle.name,
+                            adult_price: bundle.adult_price,
+                            child_price: bundle.child_price,
+                            senior_price: bundle.senior_adult_price
+                        }],
+                        master_image: '{{ asset('assets/images/bundle-attraction-icon.png') }}',
+                        location: city,
+                        category: 'Bundle'
+                    }));
+                    attractionSelect.appendChild(option);
+                });
+
+                // Fallback to preloaded list if API returned nothing
+                if (!attractions.length && !bundles.length) {
+                    const all_attractions = @json($attractions ?? []);
+                    const cityKey = (typeof cityMatchKey === 'function') ? cityMatchKey(city) : (city || '').trim().toLowerCase();
+                    (all_attractions || []).filter(function (attraction) {
+                        const loc = (typeof cityMatchKey === 'function') ? cityMatchKey(attraction.location) : (attraction.location || '').trim().toLowerCase();
+                        return loc === cityKey;
+                    }).forEach(function (attraction) {
+                        const option = document.createElement('option');
+                        option.value = attraction.attraction_id;
+                        option.textContent = `${attraction.name} - ${attraction.location}`;
+                        option.setAttribute('data-attraction', JSON.stringify(attraction));
+                        attractionSelect.appendChild(option);
+                    });
+                }
+
+                attractionCount.textContent = String(attractionSelect.options.length - 1);
+                const cityLabel = document.getElementById('modal_attraction_city');
+                if (cityLabel) cityLabel.textContent = city;
+                if (window.refreshSelect2) window.refreshSelect2(attractionSelect);
+                if (timeSlotSelect) timeSlotSelect.innerHTML = '<option value="">Select Attraction First</option>';
+                if (ticketSelect) ticketSelect.innerHTML = '<option value="">Select Ticket</option>';
+                const details = document.getElementById('attraction_details_container');
+                if (details) details.style.display = 'none';
+            })
+            .catch(function (err) {
+                console.error('Error loading attractions by DMC/city:', err);
+                attractionSelect.innerHTML = '<option value="">Error loading attractions</option>';
+                attractionCount.textContent = '0';
+            });
     }
     
     function onAttractionSelection() {
@@ -14217,19 +14330,70 @@
                     }
                 }
                 
-                // Set Ticket Options (based on selected attraction)
-                if (ticketSelect && attractionData.tickets && attractionData.tickets.length > 0) {
-                    attractionData.tickets.forEach(ticket => {
-                        const ticketOption = document.createElement('option');
-                        ticketOption.value = ticket.ticket_id;
-                        ticketOption.textContent = `${ticket.name}`;
-                        ticketOption.setAttribute('data-ticket', JSON.stringify(ticket));
-                        ticketSelect.appendChild(ticketOption);
-                    });
-                    
-                    // Refresh Select2 if initialized
-                    if (window.refreshSelect2) {
-                        window.refreshSelect2(ticketSelect);
+                // Load tickets (embedded from API when present; otherwise fetch like create)
+                if (ticketSelect) {
+                    const cityEl = document.getElementById('modal_attraction_city_select');
+                    const ticketCity = cityEl ? (cityEl.value || '') : '';
+                    const ticketCountry = (cityEl && cityEl.selectedOptions && cityEl.selectedOptions[0])
+                        ? (cityEl.selectedOptions[0].getAttribute('data-country') || '')
+                        : '';
+                    const ticketDmcId = (typeof window.getActiveServiceDmcId === 'function')
+                        ? window.getActiveServiceDmcId(ticketCity)
+                        : (document.getElementById('dmc_id') ? document.getElementById('dmc_id').value : '');
+
+                    const applyTicketOptions = function (tickets) {
+                        ticketSelect.innerHTML = '<option value="">Select Ticket</option>';
+                        if (tickets && tickets.length > 0) {
+                            tickets.forEach(function (ticket) {
+                                const ticketOption = document.createElement('option');
+                                const tid = ticket.ticket_id;
+                                ticketOption.value = tid;
+                                ticketOption.textContent = ticket.name || ticket.ticket_name || ('Ticket ' + tid);
+                                const ticketPayload = {
+                                    ticket_id: tid,
+                                    name: ticket.name || ticket.ticket_name || '',
+                                    adult_price: ticket.adult_price || 0,
+                                    child_price: ticket.child_price || 0,
+                                    senior_price: ticket.senior_adult_price || ticket.senior_price || 0,
+                                    description: ticket.description || ''
+                                };
+                                ticketOption.setAttribute('data-ticket', JSON.stringify(ticketPayload));
+                                ticketSelect.appendChild(ticketOption);
+                            });
+                        } else {
+                            const noTicketOption = document.createElement('option');
+                            noTicketOption.value = '';
+                            noTicketOption.textContent = 'No tickets available for this attraction';
+                            noTicketOption.disabled = true;
+                            ticketSelect.appendChild(noTicketOption);
+                        }
+                        if (window.refreshSelect2) {
+                            window.refreshSelect2(ticketSelect);
+                        }
+                        validateAttractionForm();
+                    };
+
+                    // Prefer embedded tickets when present (e.g. preloaded catalog fallback)
+                    if (attractionData.tickets && Array.isArray(attractionData.tickets) && attractionData.tickets.length > 0) {
+                        applyTicketOptions(attractionData.tickets);
+                    } else {
+                        ticketSelect.innerHTML = '<option value="">Loading tickets...</option>';
+                        fetch(`{{ route('fetch-tickets-by-attraction') }}?attraction_id=${encodeURIComponent(selectedValue)}&dmc_id=${encodeURIComponent(ticketDmcId || '')}&city=${encodeURIComponent(ticketCity)}&country=${encodeURIComponent(ticketCountry)}`)
+                            .then(function (r) { return r.json(); })
+                            .then(function (data) {
+                                if (data && data.success && Array.isArray(data.tickets)) {
+                                    applyTicketOptions(data.tickets);
+                                } else {
+                                    applyTicketOptions([]);
+                                }
+                            })
+                            .catch(function (err) {
+                                console.error('Error loading attraction tickets:', err);
+                                ticketSelect.innerHTML = '<option value="">Error loading tickets</option>';
+                                if (window.refreshSelect2) {
+                                    window.refreshSelect2(ticketSelect);
+                                }
+                            });
                     }
                 }
                 
@@ -17292,7 +17456,7 @@
         const user_dmc = @json($UserDmc);
         const zone_status = user_dmc.zone_on;
 
-        fetch(`{{ route('fetch-vehicles-by-city-dmc') }}?city=${encodeURIComponent(city)}&zone_status=${zone_status}`)
+        fetch(`{{ route('fetch-vehicles-by-city-dmc') }}?city=${encodeURIComponent(city)}&zone_status=${zone_status}&dmc_id=${typeof window.getActiveServiceDmcId === 'function' ? window.getActiveServiceDmcId(city) : ''}`)
             .then(response => response.json())
             .then(data => {
                 console.log('Point-to-Point dropoff vehicle search response:', data);
@@ -19298,8 +19462,10 @@
         // Reset dependent dropdowns
         resetHotelModalFields();
         
-        // Get current user's DMC ID for hotel filtering
-        const currentDmcId = document.getElementById('dmc_id').value;
+        // Get current user's DMC ID for hotel filtering (city-block DMC under same Master)
+        const currentDmcId = (typeof window.getActiveServiceDmcId === 'function'
+            ? window.getActiveServiceDmcId(cityName)
+            : (document.getElementById('dmc_id') ? document.getElementById('dmc_id').value : ''));
         const controller = startHotelModalFetch('hotels');
         
         // Fetch hotels from API using DMC-specific endpoint (same as create.blade.php)
@@ -19418,13 +19584,16 @@
         mealPlanSelect.innerHTML = '<option value="">Loading rooms...</option>';
         mealPlanSelect.disabled = true;
         
-        // Get DMC id for query string (API resolves DMC from auth; this is informational)
-        const dmcEl = document.getElementById('dmc_id');
-        const currentDmcId = dmcEl ? String(dmcEl.value || '').trim() : '';
+        // Get city-block DMC id (Master multi-country: Singapore city → Singapore DMC)
+        const hotelCityEl = document.getElementById('modal_city_select');
+        const hotelCityName = hotelCityEl ? String(hotelCityEl.value || '').trim() : '';
+        const currentDmcId = (typeof window.getActiveServiceDmcId === 'function'
+            ? window.getActiveServiceDmcId(hotelCityName)
+            : (document.getElementById('dmc_id') ? document.getElementById('dmc_id').value : ''));
         const controller = startHotelModalFetch('rooms');
         
         // fetch-rooms-by-hotel already filters by DMC on the server — use response.rooms as-is.
-        fetch(`{{ route('fetch-rooms-by-hotel') }}?hotel_id=${encodeURIComponent(hotelId)}&dmc_id=${encodeURIComponent(currentDmcId)}`, {
+        fetch(`{{ route('fetch-rooms-by-hotel') }}?hotel_id=${encodeURIComponent(hotelId)}&dmc_id=${encodeURIComponent(currentDmcId)}&city=${encodeURIComponent(hotelCityName)}`, {
             signal: controller.signal,
             headers: { 'Accept': 'application/json' },
         })
@@ -19560,9 +19729,9 @@
         const sample = roomsOfType[0];
         const mealPlans = [];
         const roomText = 'room';
-        const dmcPriceHide = {{ isset($dmcUser) && ($dmcUser->price_hide ?? 0) == 1 ? 1 : 0 }};
 
-        if (!hasRoomsOnly && !dmcPriceHide) {
+        // Same rule as create.blade.php: show "room only" unless rooms_only = 1
+        if (!hasRoomsOnly) {
             mealPlans.push(`${roomText} only`);
         }
         if (hasBreakfast) mealPlans.push(`${roomText} with breakfast`);
@@ -21670,24 +21839,42 @@
         const guideSelect = document.getElementById('modal_guide_select');
         const guideCount = document.getElementById('guide_count');
         
-        // Clear existing options
-        guideSelect.innerHTML = '<option value="">Search Guide</option>';
-        
-        // For demo purposes, show sample guides
-        // In production, this would fetch from API
-        const all_guides = @json($guides ?? []);
-        const guides = Array.isArray(all_guides) ? all_guides.filter(guide => (guide.city || '') == city) : [];
-        // Add guide options
-        guides.forEach(guide => {
-            const option = document.createElement('option');
-            option.value = guide.guide_id || '';
-            const langList = Array.isArray(guide.languages) ? guide.languages.map(l => (l && (l.language || l)) || '').filter(Boolean).join(', ') : '';
-            option.textContent = (guide.name || 'Guide') + (langList ? ' - ' + langList : '');
-            option.setAttribute('data-guide', JSON.stringify(guide));
-            guideSelect.appendChild(option);
-        });
-        
-        guideCount.textContent = guides.length;
+        if (!guideSelect) return;
+        guideSelect.innerHTML = '<option value="">Loading guides...</option>';
+        if (!city) {
+            guideSelect.innerHTML = '<option value="">Search Guide</option>';
+            if (guideCount) guideCount.textContent = '0';
+            return;
+        }
+
+        const dmcId = (typeof window.getActiveServiceDmcId === 'function')
+            ? window.getActiveServiceDmcId(city)
+            : (document.getElementById('dmc_id') ? document.getElementById('dmc_id').value : '');
+
+        fetch(`{{ route('fetch-guides-by-dmc') }}?city=${encodeURIComponent(city)}&dmc_id=${encodeURIComponent(dmcId || '')}&country=${encodeURIComponent(country || '')}`)
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                guideSelect.innerHTML = '<option value="">Search Guide</option>';
+                let guides = (data && data.success && Array.isArray(data.guides)) ? data.guides : [];
+                if (!guides.length) {
+                    const all_guides = @json($guides ?? []);
+                    guides = Array.isArray(all_guides) ? all_guides.filter(function (guide) { return (guide.city || '') == city; }) : [];
+                }
+                guides.forEach(function (guide) {
+                    const option = document.createElement('option');
+                    option.value = guide.guide_id || '';
+                    const langList = Array.isArray(guide.languages) ? guide.languages.map(function (l) { return (l && (l.language || l)) || ''; }).filter(Boolean).join(', ') : '';
+                    option.textContent = (guide.name || 'Guide') + (langList ? ' - ' + langList : '');
+                    option.setAttribute('data-guide', JSON.stringify(guide));
+                    guideSelect.appendChild(option);
+                });
+                if (guideCount) guideCount.textContent = guides.length;
+            })
+            .catch(function (err) {
+                console.error('Error loading guides by DMC/city:', err);
+                guideSelect.innerHTML = '<option value="">Error loading guides</option>';
+                if (guideCount) guideCount.textContent = '0';
+            });
     }
     
     function onGuideSelection() {
@@ -21802,6 +21989,50 @@
         return pickupHour24 >= start && pickupHour24 < end;
     }
 
+    /**
+     * Guide package base price — same rules as create.blade.php for standard packages.
+     * 1 hour → hourly_price (create); other hours use package tiers.
+     */
+    window.getGuidePackageBasePrice = function (guideData, hoursNum) {
+        if (!guideData) return 0;
+        const h = parseInt(hoursNum, 10) || 0;
+        if (h < 1) return 0;
+        const hourly = parseFloat(guideData.hourly_price || guideData.price_per_hour || 0) || 0;
+        const two = parseFloat(guideData.two_hour_price || 0) || 0;
+        const four = parseFloat(guideData.four_hour_price || 0) || 0;
+        const six = parseFloat(guideData.six_hour_price || 0) || 0;
+        const eight = parseFloat(guideData.eight_hour_price || 0) || 0;
+        const ten = parseFloat(guideData.ten_hour_price || 0) || 0;
+        const twelve = parseFloat(guideData.twelve_hour_price || 0) || 0;
+
+        // Exact create packages first
+        if (h === 1) return hourly || 0;
+        if (h === 2) return two || (hourly * 2);
+        if (h === 4) return four || (hourly * 4);
+        if (h === 6) return six || (hourly * 6);
+        if (h === 8) return eight || (hourly * 8);
+        if (h === 10) return ten || (hourly * 10);
+        if (h === 12) return twelve || (hourly * 12);
+
+        // Intermediate / custom hours: next package tier
+        if (h < 2) return hourly || 0;
+        if (h < 4) return four || (hourly * 4);
+        if (h < 6) return six || (hourly * 6);
+        if (h < 8) return eight || (hourly * 8);
+        if (h < 10) return ten || (hourly * 10);
+        if (h < 12) return twelve || (hourly * 12);
+        return hourly * h;
+    };
+
+    window.getGuideNightSurcharge = function (guideData, pickupTimeStr) {
+        if (!guideData || !pickupTimeStr) return 0;
+        const pickupHour24 = parsePickupTimeTo24Hour(String(pickupTimeStr).trim());
+        const nightStartHour = parseInt(String(guideData.night_start_time || '22').split(':')[0], 10) || 22;
+        const nightEndHour = parseInt(String(guideData.night_end_time || '08').split(':')[0], 10) || 8;
+        if (!isPickupInNightRange(pickupHour24, nightStartHour, nightEndHour)) return 0;
+        return parseFloat(guideData.night_surcharge || 0) || 0;
+    };
+
     // Calculate and display guide price
     function calculateGuidePrice() {
         const guideSelect = document.getElementById('modal_guide_select');
@@ -21844,36 +22075,9 @@
             return;
         }
         
-        // Calculate base price based on hours
-        let basePrice = 0;
-        if (hours <= 2) {
-            basePrice = parseFloat(guideData.two_hour_price || guideData.hourly_price * 2 || 30.00);
-        } else if (hours <= 4) {
-            basePrice = parseFloat(guideData.four_hour_price || guideData.hourly_price * 4 || 60.00);
-        } else if (hours <= 6) {
-            basePrice = parseFloat(guideData.six_hour_price || guideData.hourly_price * 6 || 180.00);
-        } else if (hours <= 8) {
-            basePrice = parseFloat(guideData.eight_hour_price || guideData.hourly_price * 8 || 240.00);
-        } else if (hours <= 10) {
-            basePrice = parseFloat(guideData.ten_hour_price || guideData.hourly_price * 10 || 300.00);
-        } else if (hours <= 12) {
-            basePrice = parseFloat(guideData.twelve_hour_price || guideData.hourly_price * 12 || 360.00);
-        } else {
-            // For custom hours beyond 12, calculate using hourly rate
-            basePrice = parseFloat(guideData.hourly_price || guideData.price_per_hour || 15.00) * hours;
-        }
-        
-        // Night surcharge only when pickup time is inside night_start_time..night_end_time
-        let surcharge = 0;
-        const pickupTime = (pickupTimeInput.value || '').trim();
-        const pickupHour24 = parsePickupTimeTo24Hour(pickupTime);
-        const nightStartHour = parseInt(String(guideData.night_start_time || '22').split(':')[0], 10) || 22;
-        const nightEndHour = parseInt(String(guideData.night_end_time || '08').split(':')[0], 10) || 8;
-        const inNightRange = isPickupInNightRange(pickupHour24, nightStartHour, nightEndHour);
-        if (inNightRange && guideData.night_surcharge) {
-            surcharge = parseFloat(guideData.night_surcharge || 0);
-        }
-        
+        // Same package pricing as create form (1 hour = hourly_price, not two_hour_price)
+        const basePrice = window.getGuidePackageBasePrice(guideData, hours);
+        const surcharge = window.getGuideNightSurcharge(guideData, pickupTimeInput.value);
         const totalPrice = basePrice + surcharge;
         
         // Update price display
@@ -21943,37 +22147,10 @@
         const hours = duration === 'custom' ? (customHours || '4') : 
                      (duration && /^\d+$/.test(duration) ? duration : '4');
         
-        // Calculate pricing based on guide data
-        let basePrice = 0;
-        const hoursNum = parseInt(hours);
-        
-        // Calculate base price based on hours
-        if (hoursNum <= 2) {
-            basePrice = parseFloat(guideData.two_hour_price || '30.00');
-        } else if (hoursNum <= 4) {
-            basePrice = parseFloat(guideData.four_hour_price || '60.00');
-        } else if (hoursNum <= 6) {
-            basePrice = parseFloat(guideData.six_hour_price || '180.00');
-        } else if (hoursNum <= 8) {
-            basePrice = parseFloat(guideData.eight_hour_price || '240.00');
-        } else if (hoursNum <= 10) {
-            basePrice = parseFloat(guideData.ten_hour_price || '300.00');
-        } else if (hoursNum <= 12) {
-            basePrice = parseFloat(guideData.twelve_hour_price || '360.00');
-        } else {
-            // For custom hours beyond 12, calculate using hourly rate
-            basePrice = parseFloat(guideData.hourly_price || '15.00') * hoursNum;
-        }
-        
-        // Night surcharge only when pickup time is inside night_start_time..night_end_time
-        let surcharge = 0;
-        const pickupHour24 = parsePickupTimeTo24Hour((pickupTime || '').trim());
-        const nightStartHour = parseInt(String(guideData.night_start_time || '22').split(':')[0], 10) || 22;
-        const nightEndHour = parseInt(String(guideData.night_end_time || '08').split(':')[0], 10) || 8;
-        const inNightRange = isPickupInNightRange(pickupHour24, nightStartHour, nightEndHour);
-        if (inNightRange && guideData.night_surcharge) {
-            surcharge = parseFloat(guideData.night_surcharge || 0);
-        }
+        // Same package pricing as create form
+        const hoursNum = parseInt(hours, 10) || 0;
+        const basePrice = window.getGuidePackageBasePrice(guideData, hoursNum);
+        const surcharge = window.getGuideNightSurcharge(guideData, pickupTime);
         
         const totalPrice = basePrice + surcharge;
         const tax = (totalPrice * 0.07).toFixed(2); // 7% tax
@@ -22964,86 +23141,87 @@
         
         console.log('City:', city);
         console.log('Country:', country);
-        // For demo purposes, show sample restaurants
-        // In production, this would fetch from API
-        const all_restaurants = @json($restaurants);
-        console.log('All Restaurants:', all_restaurants);
-        
-        // Convert object to array if needed
-        const restaurantsArray = Array.isArray(all_restaurants) ? all_restaurants : Object.values(all_restaurants || {});
-        console.log('Restaurants Array:', restaurantsArray);
-        
-        const restaurants = restaurantsArray.filter(restaurant => restaurant.city == city);
-        console.log('Restaurants:', restaurants);
-        
-        // Add restaurant options (after Multi Restaurant)
-        restaurants.forEach(restaurant => {
-            const option = document.createElement('option');
-            option.value = restaurant.restaurant_id;
-            option.textContent = `${restaurant.name} - ${restaurant.city}`;
-            option.setAttribute('data-restaurant', JSON.stringify(restaurant));
-            restaurantSelect.appendChild(option);
-        });
-        
-        const multiCount = multiRestaurantOptions.length || (window.multiRestaurants || []).length;
-        var cityName = modalRestaurantCity ? modalRestaurantCity.textContent.trim() : '';
-        if (cityName && cityName !== '') {
-            restaurantCount.textContent = (restaurants.length + multiCount) + ' in ' + cityName;
-        } else {
-            restaurantCount.textContent = multiCount + ' Multi Restaurant' + (multiCount !== 1 ? 's' : '') + ' available';
-        }
-        
-        // Refresh Select2 if it's initialized on restaurant select to show new options
-        const $restaurantSelect = $(restaurantSelect);
-        if ($restaurantSelect.data('select2')) {
-            console.log('Refreshing Select2 on restaurant select after loading restaurants');
-            // Reset to empty value first to clear any previous selection
-            $restaurantSelect.val(null).trigger('change.select2');
-            // Force Select2 to update its internal cache of options
-            setTimeout(function() {
-                $restaurantSelect.select2('destroy');
-                const $modal = $restaurantSelect.closest('.modal');
-                const dropdownParent = $modal.length ? $modal : $('body');
-                const firstOption = $restaurantSelect.find('option:first');
-                let placeholder = 'Search Restaurant';
-                if (firstOption.length && firstOption.val() === '') {
-                    placeholder = firstOption.text() || 'Search Restaurant';
-                }
-                $restaurantSelect.select2({
-                    theme: 'bootstrap-5',
-                    placeholder: placeholder,
-                    allowClear: true,
-                    width: '100%',
-                    closeOnSelect: true,
-                    dropdownParent: dropdownParent
-                });
-                // Re-attach event listener after reinitialization
-                $restaurantSelect.off('select2:select').on('select2:select', function(e) {
-                    console.log('Restaurant Select2 select event triggered (after reinit)');
-                    const selectedValue = e.params.data.id;
-                    const selectedOption = restaurantSelect.querySelector(`option[value="${selectedValue}"]`);
-                    if (selectedOption) {
-                        console.log('Selected restaurant:', selectedOption.textContent);
-                        restaurantSelect.value = selectedValue;
+
+        const dmcId = (typeof window.getActiveServiceDmcId === 'function')
+            ? window.getActiveServiceDmcId(city)
+            : (document.getElementById('dmc_id') ? document.getElementById('dmc_id').value : '');
+
+        const finishRestaurantOptions = function (restaurants) {
+            restaurants.forEach(function (restaurant) {
+                const option = document.createElement('option');
+                option.value = restaurant.restaurant_id;
+                option.textContent = `${restaurant.name} - ${restaurant.city || city}`;
+                option.setAttribute('data-restaurant', JSON.stringify(restaurant));
+                restaurantSelect.appendChild(option);
+            });
+
+            const multiCount = multiRestaurantOptions.length || (window.multiRestaurants || []).length;
+            var cityName = modalRestaurantCity ? modalRestaurantCity.textContent.trim() : '';
+            if (cityName && cityName !== '') {
+                restaurantCount.textContent = (restaurants.length + multiCount) + ' in ' + cityName;
+            } else {
+                restaurantCount.textContent = multiCount + ' Multi Restaurant' + (multiCount !== 1 ? 's' : '') + ' available';
+            }
+
+            const $restaurantSelect = $(restaurantSelect);
+            if ($restaurantSelect.data('select2')) {
+                $restaurantSelect.val(null).trigger('change.select2');
+                setTimeout(function() {
+                    $restaurantSelect.select2('destroy');
+                    const $modal = $restaurantSelect.closest('.modal');
+                    const dropdownParent = $modal.length ? $modal : $('body');
+                    const firstOption = $restaurantSelect.find('option:first');
+                    let placeholder = 'Search Restaurant';
+                    if (firstOption.length && firstOption.val() === '') {
+                        placeholder = firstOption.text() || 'Search Restaurant';
                     }
-                    onRestaurantSelection();
-                });
-                
-                // Ensure Multi Restaurant options are still at top after Select2 refresh
+                    $restaurantSelect.select2({
+                        theme: 'bootstrap-5',
+                        placeholder: placeholder,
+                        allowClear: true,
+                        width: '100%',
+                        closeOnSelect: true,
+                        dropdownParent: dropdownParent
+                    });
+                    $restaurantSelect.off('select2:select').on('select2:select', function(e) {
+                        const selectedValue = e.params.data.id;
+                        const selectedOption = restaurantSelect.querySelector(`option[value="${selectedValue}"]`);
+                        if (selectedOption) {
+                            restaurantSelect.value = selectedValue;
+                        }
+                        onRestaurantSelection();
+                    });
+                    addMultiRestaurantOptions();
+                }, 100);
+            } else {
                 addMultiRestaurantOptions();
-            }, 100);
-        } else {
-            // If Select2 is not initialized, ensure Multi Restaurant options are visible
-            addMultiRestaurantOptions();
-        }
-        
-        // Clear dependent fields when city changes
-        if (mealSelect) {
-            mealSelect.innerHTML = '<option value="">Select Restaurant First</option>';
-        }
-        if (dishSelect) {
-            dishSelect.innerHTML = '<option value="">Select Dish</option>';
-        }
+            }
+
+            if (mealSelect) {
+                mealSelect.innerHTML = '<option value="">Select Restaurant First</option>';
+            }
+            if (dishSelect) {
+                dishSelect.innerHTML = '<option value="">Select Dish</option>';
+            }
+        };
+
+        fetch(`{{ route('fetch-restaurants-by-dmc') }}?city=${encodeURIComponent(city || '')}&dmc_id=${encodeURIComponent(dmcId || '')}&country=${encodeURIComponent(country || '')}`)
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                let restaurants = (data && data.success && Array.isArray(data.restaurants)) ? data.restaurants : [];
+                if (!restaurants.length) {
+                    const all_restaurants = @json($restaurants ?? []);
+                    const restaurantsArray = Array.isArray(all_restaurants) ? all_restaurants : Object.values(all_restaurants || {});
+                    restaurants = restaurantsArray.filter(function (restaurant) { return restaurant.city == city; });
+                }
+                finishRestaurantOptions(restaurants);
+            })
+            .catch(function (err) {
+                console.error('Error loading restaurants by DMC/city:', err);
+                const all_restaurants = @json($restaurants ?? []);
+                const restaurantsArray = Array.isArray(all_restaurants) ? all_restaurants : Object.values(all_restaurants || {});
+                finishRestaurantOptions(restaurantsArray.filter(function (restaurant) { return restaurant.city == city; }));
+            });
     }
     function onMealTypeSelection() {
         const mealSelect = document.getElementById('modal_restaurant_meal_type');
@@ -26737,11 +26915,41 @@
         if (hoursSelect && customInput) customInput.style.display = hoursSelect.value === 'custom' ? 'block' : 'none';
     }
 
+    function syncGuideEditPickupTime(bookingId) {
+        const timeInput = document.getElementById('guide_pickup_time_input_' + bookingId);
+        const ampmSelect = document.getElementById('guide_pickup_time_ampm_' + bookingId);
+        const hiddenInput = document.getElementById('guide_pickup_time_' + bookingId);
+        if (!timeInput || !ampmSelect || !hiddenInput) return;
+        const digitsOnly = String(timeInput.value || '').replace(/\D/g, '');
+        if (!digitsOnly) {
+            hiddenInput.value = '';
+            if (typeof updateGuideEditRowPrice === 'function') updateGuideEditRowPrice(bookingId);
+            return;
+        }
+        let hour = parseInt(digitsOnly.slice(0, 2), 10) || 1;
+        if (hour > 12) hour = 12;
+        if (hour < 1) hour = 1;
+        let min = 0;
+        if (digitsOnly.length >= 4) {
+            min = parseInt(digitsOnly.slice(2, 4), 10);
+            if (isNaN(min) || min < 0) min = 0;
+            if (min > 59) min = 59;
+        } else if (digitsOnly.length === 3) {
+            min = parseInt(digitsOnly.slice(2, 3) + '0', 10);
+            if (min > 59) min = 59;
+        }
+        const hourStr = String(hour).padStart(2, '0');
+        const minStr = String(min).padStart(2, '0');
+        hiddenInput.value = hourStr + ':' + minStr + ' ' + (ampmSelect.value || 'AM');
+        if (typeof updateGuideEditRowPrice === 'function') updateGuideEditRowPrice(bookingId);
+    }
+
     function updateGuideEditRowPrice(bookingId) {
         const guideSelect = document.getElementById('guide_name_' + bookingId);
         const hoursSelect = document.getElementById('guide_package_hours_' + bookingId);
         const customInput = document.getElementById('guide_package_custom_hours_' + bookingId);
         const priceInput = document.getElementById('guide_total_price_' + bookingId);
+        const pickupInput = document.getElementById('guide_pickup_time_' + bookingId);
         if (!guideSelect || !hoursSelect || !priceInput) return;
         const opt = guideSelect.options[guideSelect.selectedIndex];
         if (!opt || !opt.value || !opt.getAttribute('data-guide-data')) return;
@@ -26754,16 +26962,9 @@
         if (hoursNum < 1) return;
         try {
             const g = JSON.parse(opt.getAttribute('data-guide-data'));
-            const hourly = parseFloat(g.hourly_price || g.price_per_hour || 0) || 0;
-            let base = 0;
-            if (hoursNum <= 2) base = parseFloat(g.two_hour_price || 0) || hourly * 2;
-            else if (hoursNum <= 4) base = parseFloat(g.four_hour_price || 0) || hourly * 4;
-            else if (hoursNum <= 6) base = parseFloat(g.six_hour_price || 0) || hourly * 6;
-            else if (hoursNum <= 8) base = parseFloat(g.eight_hour_price || 0) || hourly * 8;
-            else if (hoursNum <= 10) base = parseFloat(g.ten_hour_price || 0) || hourly * 10;
-            else if (hoursNum <= 12) base = parseFloat(g.twelve_hour_price || 0) || hourly * 12;
-            else base = hourly * hoursNum;
-            priceInput.value = (Math.round(base * 100) / 100).toFixed(2);
+            const base = window.getGuidePackageBasePrice(g, hoursNum);
+            const surcharge = window.getGuideNightSurcharge(g, pickupInput ? pickupInput.value : '');
+            priceInput.value = (Math.round((base + surcharge) * 100) / 100).toFixed(2);
         } catch (e) { console.warn('updateGuideEditRowPrice', e); }
     }
 
@@ -29913,6 +30114,26 @@
                                     Array.from(citySel.options).find(o => normalizeCityValue((o.text || '').trim()) === normalizeCityValue(wanted));
                         if (opt) citySel.value = opt.value;
                     }
+                    // Ensure data-country exists on selected option (for 3rd-party locks)
+                    try {
+                        const selected = citySel.selectedOptions && citySel.selectedOptions[0];
+                        const cityKey = String(citySel.value || prefill.city || '').trim();
+                        const map = window.CITY_COUNTRY_MAP || {};
+                        let country = selected ? String(selected.getAttribute('data-country') || '').trim() : '';
+                        if (!country && cityKey) {
+                            country = String(map[cityKey] || '').trim();
+                            if (!country) {
+                                const lower = cityKey.toLowerCase();
+                                for (const k of Object.keys(map)) {
+                                    if (String(k).toLowerCase() === lower) { country = String(map[k] || '').trim(); break; }
+                                }
+                            }
+                        }
+                        if (selected && country && !selected.getAttribute('data-country')) {
+                            selected.setAttribute('data-country', country);
+                        }
+                        if (country) seg.dataset.country = country;
+                    } catch (e) { /* ignore */ }
                 }
             }
             if (prefill && prefill.start) {
@@ -29963,11 +30184,105 @@
                 } else {
                     seg.dataset.saved = seg.dataset.saved || '0';
                 }
+                if (typeof window.applyThirdPartySegmentActionLocks === 'function') {
+                    window.applyThirdPartySegmentActionLocks(seg);
+                }
             } catch (e) { /* ignore */ }
         }
 
+        window.getSegmentCountryName = function (seg) {
+            if (!seg) return '';
+            try {
+                if (seg.dataset && seg.dataset.country) {
+                    const cached = String(seg.dataset.country || '').trim();
+                    if (cached) return cached;
+                }
+                const citySel = seg.querySelector('.city-select');
+                if (citySel && citySel.selectedOptions && citySel.selectedOptions[0]) {
+                    const dc = String(citySel.selectedOptions[0].getAttribute('data-country') || '').trim();
+                    if (dc) return dc;
+                }
+                const cityName = citySel
+                    ? String(citySel.value || (citySel.selectedOptions && citySel.selectedOptions[0] ? citySel.selectedOptions[0].textContent : '') || '').trim()
+                    : '';
+                // Also try original saved city display text
+                const savedCity = String((seg.dataset && seg.dataset.originalCityDisplay) || '').trim();
+                const lookupNames = [cityName, savedCity].filter(Boolean);
+
+                const mc = document.getElementById('multi_cities');
+                const map = window.CITY_COUNTRY_MAP || {};
+
+                for (const name of lookupNames) {
+                    if (mc) {
+                        const opt = Array.from(mc.options || []).find(function (o) {
+                            return String(o.value || '').trim().toLowerCase() === name.toLowerCase()
+                                || String(o.textContent || '').trim().toLowerCase().startsWith(name.toLowerCase());
+                        });
+                        if (opt) {
+                            const dc = String(opt.getAttribute('data-country') || '').trim();
+                            if (dc) return dc;
+                        }
+                    }
+                    if (map[name]) return String(map[name]).trim();
+                    const lower = name.toLowerCase();
+                    for (const key of Object.keys(map)) {
+                        if (String(key).toLowerCase() === lower) return String(map[key] || '').trim();
+                    }
+                }
+            } catch (e) { /* ignore */ }
+            return '';
+        };
+
+        window.isOwnDmcCountry = function (country) {
+            const c = String(country || '').trim().toLowerCase();
+            if (!c) return false;
+            const own = Array.isArray(window.OWN_DMC_COUNTRIES) ? window.OWN_DMC_COUNTRIES : [];
+            return own.some(function (x) { return String(x || '').trim().toLowerCase() === c; });
+        };
+
+        /** 3rd-party DMC + city country is NOT this DMC's own country (e.g. Singapore for Indonesia DMC). */
+        window.isSegmentOutsideOwnDmcCountry = function (seg) {
+            if (!window.IS_THIRD_PARTY_DMC) return false;
+            const own = Array.isArray(window.OWN_DMC_COUNTRIES) ? window.OWN_DMC_COUNTRIES : [];
+            // If we cannot resolve own countries, do not lock (avoids locking Indonesia by mistake)
+            if (!own.length) return false;
+            const country = window.getSegmentCountryName(seg);
+            if (!country) return false; // no city yet — allow draft remove
+            return !window.isOwnDmcCountry(country);
+        };
+
+        window.applyThirdPartySegmentActionLocks = function (seg) {
+            if (!seg) return;
+            const editBtn = seg.querySelector('.editSavedSegment');
+            const removeBtn = seg.querySelector('.removeSegment');
+            const lock = window.IS_THIRD_PARTY_DMC && window.isSegmentOutsideOwnDmcCountry(seg);
+
+            [editBtn, removeBtn].forEach(function (btn) {
+                if (!btn) return;
+                if (lock) {
+                    btn.disabled = true;
+                    btn.classList.add('is-thirdparty-readonly');
+                    btn.setAttribute('aria-disabled', 'true');
+                    btn.title = btn.classList.contains('editSavedSegment')
+                        ? 'Edit only allowed for your DMC country'
+                        : 'Remove only allowed for your DMC country';
+                } else {
+                    // Do not unlock while hidden Update/Cancel are showing mid-edit for own-country rows
+                    btn.disabled = false;
+                    btn.classList.remove('is-thirdparty-readonly');
+                    btn.removeAttribute('aria-disabled');
+                    btn.title = btn.classList.contains('editSavedSegment')
+                        ? 'Edit this city plan'
+                        : 'Remove this city plan row';
+                }
+            });
+        };
+
         function setSavedSegmentEditMode(seg, isEditing) {
             if (!seg) return;
+            if (isEditing && window.isSegmentOutsideOwnDmcCountry(seg)) {
+                return;
+            }
             const citySel = seg.querySelector('.city-select');
             const startEl = seg.querySelector('.start-date');
             const endEl = seg.querySelector('.end-date');
@@ -29982,6 +30297,7 @@
             if (updBtn) updBtn.classList.toggle('d-none', !isEditing);
             if (cancelBtn) cancelBtn.classList.toggle('d-none', !isEditing);
             try { seg.dataset.editing = isEditing ? '1' : '0'; } catch (e) { /* ignore */ }
+            window.applyThirdPartySegmentActionLocks(seg);
         }
 
         // Edit saved segment (unlock fields)
@@ -29989,6 +30305,11 @@
             const btn = e.target && (e.target.classList?.contains('editSavedSegment') ? e.target : e.target.closest?.('.editSavedSegment'));
             if (!btn) return;
             const seg = btn.closest('.segment');
+            if (btn.disabled || btn.classList.contains('is-thirdparty-readonly') || (seg && window.isSegmentOutsideOwnDmcCountry(seg))) {
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+            }
             if (!seg || seg.dataset.saved !== '1') return;
             e.preventDefault();
             e.stopPropagation();
@@ -30536,6 +30857,11 @@
             const rm = e.target && (e.target.classList && e.target.classList.contains('removeSegment') ? e.target : e.target.closest ? e.target.closest('.removeSegment') : null);
             if (!rm) return;
             const seg = rm.closest('.segment');
+            if (rm.disabled || rm.classList.contains('is-thirdparty-readonly') || (seg && window.isSegmentOutsideOwnDmcCountry(seg))) {
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+            }
             if (!seg) return;
 
             (async () => {
@@ -30703,10 +31029,20 @@
                     applySegmentDateLimits();
                     // Populate the mini header for all rows immediately
                     document.querySelectorAll('#segmentsWrapper .segment').forEach(updateSegmentHeaderFromInputs);
+                    document.querySelectorAll('#segmentsWrapper .segment').forEach(function (seg) {
+                        window.applyThirdPartySegmentActionLocks(seg);
+                    });
                 }
             }
             updateCityHiddenField();
             ensureGuestSectionStaysTourScoped();
+
+            document.addEventListener('change', function (e) {
+                const t = e.target;
+                if (!t || !t.classList || !t.classList.contains('city-select')) return;
+                const seg = t.closest('.segment');
+                if (seg) window.applyThirdPartySegmentActionLocks(seg);
+            });
 
             // If multi-city and first segment is valid, auto-activate it so services grid is immediately visible.
             if (getCityTypeMode() === 'multi') {
