@@ -23,6 +23,8 @@ import { resetguide } from '@/slice/tourguide/guideslice';
 import { clearRestaurants } from '@/slice/restaurant/RestaurantsSlice';
 import { resetVehicles1, fetchLocalZone } from '@/slice/localtour/Localslice';
 import { extractCountryNamesFromDestination } from '@/utils/locationFormat';
+import { selectCart, selectCartItemCount } from '@/slice/cart/carSlice';
+import { lockCartDmc } from '@/utils/lockCartDmc';
 
 const resolveTransferServiceId = (booking, type) => {
   if (!booking || Array.isArray(booking) || !type) return null;
@@ -78,6 +80,9 @@ const DmcFilter = () => {
   const dispatch = useDispatch();
   const step = useSelector((state) => state.steps.localStepStatus);
   const haveBooking = useSelector((state) => state.common.haveBooking);
+  const cartItemCount = useSelector(selectCartItemCount);
+  const cart = useSelector(selectCart);
+  const lockDmcSelection = Boolean(haveBooking || cartItemCount > 0);
   const picktype = useSelector((state) => state.localtour?.picktype);
   const selectbooking = useSelector((state) => state.localtour?.selectbooking);
   const rawZoneOn = useSelector((state) => state.auth?.zone_on);
@@ -131,9 +136,9 @@ const DmcFilter = () => {
   
   const [localSelectedDmc, setLocalSelectedDmc] = useState('');
 
-  // Fetch DMCs when destination changes (skip if haveBooking is true)
+  // Fetch DMCs when destination changes (skip if booking/cart locks DMC)
   useEffect(() => {
-    if (destinationCountries.length > 0 && !haveBooking) {
+    if (destinationCountries.length > 0 && !lockDmcSelection) {
       console.log('🔍 DMC Filter - Fetching DMCs for countries:', destinationCountries);
       
       dispatch(fetchDMCsByCountry(destinationCountries))
@@ -145,18 +150,44 @@ const DmcFilter = () => {
           console.error('❌ DMC Filter - Error fetching DMCs:', err);
         });
     }
-  }, [destinationCountries, dispatch, haveBooking]);
+  }, [destinationCountries, dispatch, lockDmcSelection]);
 
-  // Initialize selected DMC when haveBooking is true
+  // Initialize / restore selected DMC when booking exists or cart has items
   useEffect(() => {
-    if (haveBooking && selectedDmcId && !localSelectedDmc) {
+    if (!lockDmcSelection) return;
+
+    if (selectedDmcId && !localSelectedDmc) {
       setLocalSelectedDmc(selectedDmcId.toString());
+      return;
     }
-  }, [haveBooking, selectedDmcId, localSelectedDmc]);
 
-  // Auto-select first DMC when dmcs are loaded (skip if haveBooking is true)
+    // Restore from cart trip/item if Redux DMC is missing after refresh
+    if (!selectedDmcId && cartItemCount > 0) {
+      const trip = Array.isArray(cart) ? cart[0] : null;
+      const booking = trip?.bookings?.[0];
+      const cartDmcId =
+        trip?.dmc_id ??
+        booking?.dmc_id ??
+        booking?.dmc_Id ??
+        booking?.dmcId ??
+        null;
+      if (cartDmcId) {
+        lockCartDmc(dispatch, cartDmcId);
+        setLocalSelectedDmc(String(cartDmcId));
+      }
+    }
+  }, [
+    lockDmcSelection,
+    selectedDmcId,
+    localSelectedDmc,
+    cartItemCount,
+    cart,
+    dispatch,
+  ]);
+
+  // Auto-select first DMC when dmcs are loaded (skip if booking/cart locks DMC)
   useEffect(() => {
-    if (!haveBooking && dmcs?.data && dmcs.data.length > 0 && dmc_id && !localSelectedDmc) {
+    if (!lockDmcSelection && dmcs?.data && dmcs.data.length > 0 && dmc_id && !localSelectedDmc) {
       const firstDmc = dmcs.data[0];
       const firstDmcId = firstDmc.userId;
       
@@ -189,12 +220,12 @@ const DmcFilter = () => {
       setLocalSelectedDmc(firstDmcId);
       dispatch(setSelectedDmcId({ dmcId: parseInt(firstDmcId), dmcData }));
     }
-  }, [dmcs, destinationCountries, dispatch, dmc_id, localSelectedDmc, haveBooking]);
+  }, [dmcs, destinationCountries, dispatch, dmc_id, localSelectedDmc, lockDmcSelection]);
 
   // Handle DMC selection change
   const handleDmcChange = (event) => {
-    // Don't allow changes when haveBooking is true
-    if (haveBooking) {
+    // Don't allow changes when booking exists or cart has products
+    if (lockDmcSelection) {
       return;
     }
     
@@ -328,9 +359,9 @@ const DmcFilter = () => {
   // Check if we have DMC data
   const dmcList = dmcs?.data || [];
   
-  // When haveBooking is true, show only the selected DMC
-  // When haveBooking is false, show all DMCs
-  const displayDmcList = haveBooking && selectedDmcData 
+  // When booking/cart locks DMC, show only the selected DMC
+  // Otherwise show all DMCs
+  const displayDmcList = lockDmcSelection && selectedDmcData 
     ? [{
         userId: selectedDmcId,
         company_name: selectedDmcCompanyName || selectedDmcData?.name,
@@ -340,6 +371,16 @@ const DmcFilter = () => {
         price_hide: selectedDmcData?.originalData?.price_hide || 0,
         zone_on: selectedDmcData?.originalData?.zone_on || 0
       }]
+    : lockDmcSelection && selectedDmcId
+      ? [{
+          userId: selectedDmcId,
+          company_name: selectedDmcCompanyName || `DMC ${selectedDmcId}`,
+          name: selectedDmcCompanyName || `DMC ${selectedDmcId}`,
+          logo: selectedDmcLogo || '',
+          country: '',
+          price_hide: 0,
+          zone_on: 0,
+        }]
     : dmcList;
   
   // Don't show filter if no DMCs available
@@ -361,7 +402,7 @@ const DmcFilter = () => {
           <RadioGroup
             value={localSelectedDmc}
             onChange={handleDmcChange}
-            disabled={haveBooking}
+            disabled={lockDmcSelection}
           >
             {/* "All DMCs" option */}
             {/* <FormControlLabel

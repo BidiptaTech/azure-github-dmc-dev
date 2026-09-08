@@ -14,10 +14,12 @@
   }
 
   &.-col-city-date-guest {
-    z-index: 30;
+    z-index: 50;
+    overflow: visible;
 
     .button-grid {
       grid-template-columns: 1fr 250px 290px auto;
+      overflow: visible;
     }
 
     .searchMenu-loc,
@@ -25,6 +27,7 @@
     .searchMenu-guests {
       position: relative;
       z-index: 5;
+      overflow: visible;
     }
 
     .dropdown-menu {

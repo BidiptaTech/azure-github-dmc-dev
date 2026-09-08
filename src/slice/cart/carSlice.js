@@ -7,6 +7,7 @@ import { createSlice, current } from "@reduxjs/toolkit";
  *     tripId, check_in, check_out, destination, adult, child, infant, tour_id,
  *     cityWiseDates: [{ city, checkIn, checkOut }, ...],
  *     searchLocation: ["SG", "ID"], // country codes from bookings.searchLocation
+ *     dmc_id: 123, // DMC locked for this cart trip
  *     bookings: [
  *       { type: "entryport", cartItemId, ... },
  *       { type: "exitport", cartItemId, ... },
@@ -92,6 +93,11 @@ export const buildTourMeta = (tourDetails = {}) => {
     : Array.isArray(tourDetails.countryCodes)
       ? tourDetails.countryCodes.filter(Boolean)
       : [];
+  const dmc_id =
+    tourDetails.dmc_id ??
+    tourDetails.dmc_Id ??
+    tourDetails.dmcId ??
+    null;
 
   return {
     check_in,
@@ -99,6 +105,7 @@ export const buildTourMeta = (tourDetails = {}) => {
     destination,
     country,
     searchLocation,
+    dmc_id: dmc_id != null && dmc_id !== "" ? Number(dmc_id) : null,
     adult,
     child,
     infant,
@@ -139,8 +146,12 @@ const cartSlice = createSlice({
       }
 
       const meta = buildTourMeta(tourDetails || {});
+      const itemDmcId =
+        item.dmc_id ?? item.dmc_Id ?? item.dmcId ?? meta.dmc_id ?? null;
       const booking = {
         ...item,
+        dmc_id:
+          itemDmcId != null && itemDmcId !== "" ? Number(itemDmcId) : null,
         pricemode: item.pricemode || item.type || null,
         type: bookingType,
         cartItemId: `${bookingType}-${Date.now()}-${Math.random()
@@ -170,6 +181,11 @@ const cartSlice = createSlice({
         }
         if (meta.searchLocation?.length) {
           state.cart[existingIndex].searchLocation = meta.searchLocation;
+        }
+        if (booking.dmc_id != null) {
+          state.cart[existingIndex].dmc_id = booking.dmc_id;
+        } else if (meta.dmc_id != null) {
+          state.cart[existingIndex].dmc_id = meta.dmc_id;
         }
         if (meta.cityWiseDates?.length) {
           state.cart[existingIndex].cityWiseDates = meta.cityWiseDates;

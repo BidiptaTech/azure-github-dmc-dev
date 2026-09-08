@@ -1,5 +1,6 @@
 import { addToCart } from "@/slice/cart/carSlice";
 import { store } from "@/store/store";
+import { lockCartDmc } from "@/utils/lockCartDmc";
 
 const cloneRooms = (bookingArray) => {
   try {
@@ -25,6 +26,7 @@ export const buildHotelCartItem = ({
   hotelDetails,
   tourDetails,
   searchState,
+  dmcId,
 }) => {
   const rooms = cloneRooms(bookingArray);
   const check_in =
@@ -69,6 +71,11 @@ export const buildHotelCartItem = ({
       .map((room) => room.room_type)
       .filter(Boolean)
       .join(", "),
+    dmc_id:
+      dmcId ??
+      hotelDetails?.dmc_id ??
+      hotelDetails?.dmcId ??
+      null,
   };
 };
 
@@ -77,13 +84,26 @@ export const addHotelBookingToCart = (dispatch, payload) => {
     return "Please select a room first.";
   }
 
+  const currentDmcId = store.getState().dmc?.dmcId;
+  const item = buildHotelCartItem({
+    ...payload,
+    dmcId: payload.dmcId ?? currentDmcId,
+  });
+
   dispatch(
     addToCart({
       bookingType: "hotel",
-      item: buildHotelCartItem(payload),
-      tourDetails: payload.tourDetails,
+      item,
+      tourDetails: {
+        ...(payload.tourDetails || {}),
+        dmc_id: item.dmc_id,
+      },
     })
   );
 
-  return store.getState().cart?.lastActionError || null;
+  const cartError = store.getState().cart?.lastActionError;
+  if (!cartError) {
+    lockCartDmc(dispatch, item);
+  }
+  return cartError || null;
 };
