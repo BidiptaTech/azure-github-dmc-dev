@@ -134,26 +134,28 @@
 
                 <!-- Advanced Filters -->
                 <div class="row g-3 align-items-end mb-4">
-                    <div class="col-lg-4 col-md-6">
+                    <div class="col-lg-5 col-md-6">
                         <label for="restaurantSearch" class="form-label mb-1">Search</label>
                         <div class="input-group">
                             <span class="input-group-text"><i class="ri-search-line"></i></span>
                             <input type="text" class="form-control" id="restaurantSearch" placeholder="Search restaurants by name..." onkeyup="applyRestaurantFilters()">
                         </div>
                     </div>
-                    <div class="col-lg-3 col-md-6">
-                        <label for="restaurantCountrySelect" class="form-label mb-1">Country</label>
-                        <select id="restaurantCountrySelect" class="form-select" onchange="onRestaurantCountryChange()">
-                            <option value="">All Countries</option>
-                        </select>
-                    </div>
-                    <div class="col-lg-3 col-md-6">
-                        <label for="restaurantCitySelect" class="form-label mb-1">City</label>
-                        <select id="restaurantCitySelect" class="form-select" onchange="applyRestaurantFilters()" disabled>
+                    <div class="col-lg-4 col-md-6">
+                        <label for="restaurantCitySelect" class="form-label mb-1">
+                            City
+                            @if(!empty($dmcCountry))
+                                <span class="text-muted fw-normal">({{ $dmcCountry }})</span>
+                            @endif
+                        </label>
+                        <select id="restaurantCitySelect" class="form-select" onchange="applyRestaurantFilters()">
                             <option value="">All Cities</option>
+                            @foreach(($allowedCities ?? []) as $cityName)
+                                <option value="{{ strtolower($cityName) }}">{{ $cityName }}</option>
+                            @endforeach
                         </select>
                     </div>
-                    <div class="col-lg-2 col-md-6 text-end">
+                    <div class="col-lg-3 col-md-6 text-end">
                         <button type="button" class="btn btn-outline-secondary w-100" onclick="resetRestaurantFilters()"><i class="ri-filter-off-line me-1"></i>Clear Filters</button>
                         <div class="small text-muted mt-2" id="restaurantCount">Showing all restaurants</div>
                     </div>
@@ -321,8 +323,8 @@
 
 <script>
 let currentRestaurantId = null;
-const defaultRestaurantCountry = '{{ strtolower(auth()->user()->country ?? '') }}';
 const csrfToken = '{{ csrf_token() }}';
+const dmcCountry = '{{ strtolower(trim($dmcCountry ?? '')) }}';
 let selectedRestaurantsPaginator = null;
 
 function escapeHtml(text) {
@@ -427,7 +429,6 @@ function deselectAll() {
 
 function applyRestaurantFilters() {
     const searchTerm = (document.getElementById('restaurantSearch').value || '').toLowerCase();
-    const selectedCountry = (document.getElementById('restaurantCountrySelect').value || '').toLowerCase();
     const selectedCity = (document.getElementById('restaurantCitySelect').value || '').toLowerCase();
     const items = document.querySelectorAll('.restaurant-item');
     let visibleCount = 0;
@@ -439,14 +440,12 @@ function applyRestaurantFilters() {
         }
 
         const name = item.getAttribute('data-restaurant-name') || '';
-        const country = item.getAttribute('data-country') || '';
         const city = item.getAttribute('data-city') || '';
 
         const matchSearch = !searchTerm || name.includes(searchTerm);
-        const matchCountry = !selectedCountry || country === selectedCountry;
         const matchCity = !selectedCity || city === selectedCity;
 
-        if (matchSearch && matchCountry && matchCity) {
+        if (matchSearch && matchCity) {
             item.style.display = 'block';
             visibleCount++;
         } else {
@@ -461,41 +460,7 @@ function applyRestaurantFilters() {
 
 function resetRestaurantFilters() {
     document.getElementById('restaurantSearch').value = '';
-    document.getElementById('restaurantCountrySelect').value = '';
-    const citySelect = document.getElementById('restaurantCitySelect');
-    citySelect.innerHTML = '<option value="">All Cities</option>';
-    citySelect.disabled = true;
-    applyRestaurantFilters();
-}
-
-function onRestaurantCountryChange() {
-    const country = (document.getElementById('restaurantCountrySelect').value || '').toLowerCase();
-    const citySelect = document.getElementById('restaurantCitySelect');
-    citySelect.innerHTML = '<option value="">All Cities</option>';
-
-    if (!country) {
-        citySelect.disabled = true;
-        applyRestaurantFilters();
-        return;
-    }
-
-    const items = document.querySelectorAll('.restaurant-item');
-    const cities = new Set();
-    items.forEach(item => {
-        if ((item.getAttribute('data-country') || '') === country) {
-            const c = item.getAttribute('data-city') || '';
-            if (c) cities.add(c);
-        }
-    });
-
-    Array.from(cities).sort().forEach(city => {
-        const opt = document.createElement('option');
-        opt.value = city;
-        opt.textContent = city.replace(/\b\w/g, ch => ch.toUpperCase());
-        citySelect.appendChild(opt);
-    });
-    citySelect.disabled = cities.size === 0;
-
+    document.getElementById('restaurantCitySelect').value = '';
     applyRestaurantFilters();
 }
 
@@ -596,40 +561,9 @@ document.addEventListener('DOMContentLoaded', function() {
         const modal = bootstrap.Modal.getInstance(document.getElementById('removeRestaurantModal'));
         if (modal) modal.hide();
     });
-    // Populate country dropdown
-    const countrySelect = document.getElementById('restaurantCountrySelect');
-    const items = document.querySelectorAll('.restaurant-item');
-    const allowedCountriesFromServer = @json($allowedCountries ?? []);
-    const normalizedAllowed = Array.isArray(allowedCountriesFromServer)
-        ? allowedCountriesFromServer
-            .map(c => String(c || '').trim())
-            .filter(Boolean)
-            .map(c => c.toLowerCase())
-        : [];
-
-    const countrySet = new Set();
-    if (normalizedAllowed.length > 0) {
-        normalizedAllowed.forEach(c => countrySet.add(c));
-    } else {
-        items.forEach(item => {
-            const c = item.getAttribute('data-country');
-            if (c) countrySet.add(c);
-        });
-    }
-    Array.from(countrySet).sort().forEach(country => {
-        const opt = document.createElement('option');
-        opt.value = country;
-        opt.textContent = country.replace(/\b\w/g, ch => ch.toUpperCase());
-        countrySelect.appendChild(opt);
-    });
-    // Only auto-filter to user's country when there's a single option.
-    // Otherwise show all Master DMC countries by default.
-    if (defaultRestaurantCountry && countrySet.size === 1 && Array.from(countrySet).includes(defaultRestaurantCountry)) {
-        countrySelect.value = defaultRestaurantCountry;
-        onRestaurantCountryChange();
-    } else {
-        applyRestaurantFilters();
-    }
+    // Restaurants are already limited to the DMC country server-side.
+    // City options come from the DMC country cities list.
+    applyRestaurantFilters();
 
     // Selected Restaurants: client-side pagination + search
     const selectedBody = document.getElementById('selectedRestaurantsBody');

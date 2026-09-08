@@ -134,26 +134,28 @@
 
                 <!-- Advanced Filters -->
                 <div class="row g-3 align-items-end mb-4">
-                    <div class="col-lg-4 col-md-6">
+                    <div class="col-lg-5 col-md-6">
                         <label for="attractionSearch" class="form-label mb-1">Search</label>
                         <div class="input-group">
                             <span class="input-group-text"><i class="ri-search-line"></i></span>
                             <input type="text" class="form-control" id="attractionSearch" placeholder="Search attractions by name..." onkeyup="applyAttractionFilters()">
                         </div>
                     </div>
-                    <div class="col-lg-3 col-md-6">
-                        <label for="attractionCountrySelect" class="form-label mb-1">Country</label>
-                        <select id="attractionCountrySelect" class="form-select" onchange="onAttractionCountryChange()">
-                            <option value="">All Countries</option>
-                        </select>
-                    </div>
-                    <div class="col-lg-3 col-md-6">
-                        <label for="attractionCitySelect" class="form-label mb-1">City</label>
-                        <select id="attractionCitySelect" class="form-select" onchange="applyAttractionFilters()" disabled>
+                    <div class="col-lg-4 col-md-6">
+                        <label for="attractionCitySelect" class="form-label mb-1">
+                            City
+                            @if(!empty($dmcCountry))
+                                <span class="text-muted fw-normal">({{ $dmcCountry }})</span>
+                            @endif
+                        </label>
+                        <select id="attractionCitySelect" class="form-select" onchange="applyAttractionFilters()">
                             <option value="">All Cities</option>
+                            @foreach(($allowedCities ?? []) as $cityName)
+                                <option value="{{ strtolower($cityName) }}">{{ $cityName }}</option>
+                            @endforeach
                         </select>
                     </div>
-                    <div class="col-lg-2 col-md-6 text-end">
+                    <div class="col-lg-3 col-md-6 text-end">
                         <button type="button" class="btn btn-outline-secondary w-100" onclick="resetAttractionFilters()"><i class="ri-filter-off-line me-1"></i>Clear Filters</button>
                         <div class="small text-muted mt-2" id="attractionCount">Showing all attractions</div>
                     </div>
@@ -312,8 +314,8 @@
 
 <script>
 let currentAttractionId = null;
-const defaultAttractionCountry = '{{ strtolower(auth()->user()->country ?? '') }}';
 const csrfToken = '{{ csrf_token() }}';
+const dmcCountry = '{{ strtolower(trim($dmcCountry ?? '')) }}';
 let selectedAttractionsPaginator = null;
 
 function escapeHtml(text) {
@@ -437,7 +439,6 @@ function deselectAll() {
 
 function applyAttractionFilters() {
     const searchTerm = (document.getElementById('attractionSearch').value || '').toLowerCase();
-    const selectedCountry = (document.getElementById('attractionCountrySelect').value || '').toLowerCase();
     const selectedCity = (document.getElementById('attractionCitySelect').value || '').toLowerCase();
     const attractionItems = document.querySelectorAll('.attraction-item');
     let visibleCount = 0;
@@ -449,14 +450,12 @@ function applyAttractionFilters() {
         }
 
         const name = item.getAttribute('data-attraction-name') || '';
-        const country = item.getAttribute('data-country') || '';
         const city = item.getAttribute('data-city') || '';
 
         const matchSearch = !searchTerm || name.includes(searchTerm);
-        const matchCountry = !selectedCountry || country === selectedCountry;
         const matchCity = !selectedCity || city === selectedCity;
 
-        if (matchSearch && matchCountry && matchCity) {
+        if (matchSearch && matchCity) {
             item.style.display = 'block';
             visibleCount++;
         } else {
@@ -471,41 +470,7 @@ function applyAttractionFilters() {
 
 function resetAttractionFilters() {
     document.getElementById('attractionSearch').value = '';
-    document.getElementById('attractionCountrySelect').value = '';
-    const citySelect = document.getElementById('attractionCitySelect');
-    citySelect.innerHTML = '<option value="">All Cities</option>';
-    citySelect.disabled = true;
-    applyAttractionFilters();
-}
-
-function onAttractionCountryChange() {
-    const country = (document.getElementById('attractionCountrySelect').value || '').toLowerCase();
-    const citySelect = document.getElementById('attractionCitySelect');
-    citySelect.innerHTML = '<option value="">All Cities</option>';
-
-    if (!country) {
-        citySelect.disabled = true;
-        applyAttractionFilters();
-        return;
-    }
-
-    const items = document.querySelectorAll('.attraction-item');
-    const cities = new Set();
-    items.forEach(item => {
-        if ((item.getAttribute('data-country') || '') === country) {
-            const c = item.getAttribute('data-city') || '';
-            if (c) cities.add(c);
-        }
-    });
-
-    Array.from(cities).sort().forEach(city => {
-        const opt = document.createElement('option');
-        opt.value = city;
-        opt.textContent = city.replace(/\b\w/g, ch => ch.toUpperCase());
-        citySelect.appendChild(opt);
-    });
-    citySelect.disabled = cities.size === 0;
-
+    document.getElementById('attractionCitySelect').value = '';
     applyAttractionFilters();
 }
 
@@ -637,40 +602,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
         confirmBtn.disabled = false;
     });
-    // Populate country dropdown from DOM
-    const countrySelect = document.getElementById('attractionCountrySelect');
-    const items = document.querySelectorAll('.attraction-item');
-    const allowedCountriesFromServer = @json($allowedCountries ?? []);
-    const normalizedAllowed = Array.isArray(allowedCountriesFromServer)
-        ? allowedCountriesFromServer
-            .map(c => String(c || '').trim())
-            .filter(Boolean)
-            .map(c => c.toLowerCase())
-        : [];
-
-    const countrySet = new Set();
-    if (normalizedAllowed.length > 0) {
-        normalizedAllowed.forEach(c => countrySet.add(c));
-    } else {
-        items.forEach(item => {
-            const c = item.getAttribute('data-country');
-            if (c) countrySet.add(c);
-        });
-    }
-    Array.from(countrySet).sort().forEach(country => {
-        const opt = document.createElement('option');
-        opt.value = country;
-        opt.textContent = country.replace(/\b\w/g, ch => ch.toUpperCase());
-        countrySelect.appendChild(opt);
-    });
-    // Only auto-filter to user's country when there's a single option.
-    // Otherwise show all Master DMC countries by default.
-    if (defaultAttractionCountry && countrySet.size === 1 && Array.from(countrySet).includes(defaultAttractionCountry)) {
-        countrySelect.value = defaultAttractionCountry;
-        onAttractionCountryChange();
-    } else {
-        applyAttractionFilters();
-    }
+    // Attractions are already limited to the DMC country server-side.
+    // City options come from the DMC country cities list.
+    applyAttractionFilters();
 
     // Selected Attractions: client-side pagination + search
     const selectedBody = document.getElementById('selectedAttractionsBody');
