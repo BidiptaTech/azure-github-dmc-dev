@@ -40,6 +40,7 @@ import {
 } from "@mui/material";
 import dayjs from "dayjs";
 import { setDateService } from "@/slice/common/dateServicesSlice";
+import { addGuideBookingToCart } from "@/utils/addGuideToCart";
 
 const Index = () => {
   const pickUpLocation = useSelector((state) => state.tourguide.entrypickup);
@@ -403,10 +404,17 @@ const Index = () => {
     };
     console.log("guide details", details);
     dispatch(setData(details));
-    navigate(`/dashboard/db-dashboard/CheckOut`, {
-      state: { guide: guide },
+
+    const cartError = addGuideBookingToCart(dispatch, {
+      details,
+      tourDetails,
     });
-   
+    if (cartError) {
+      toast.error(cartError);
+      return;
+    }
+    toast.success("Added to cart successfully.");
+    navigate("/dashboard/db-dashboard/cart");
   };
 
   
@@ -452,7 +460,7 @@ const Index = () => {
           onClick={handlesubmit0}
           className="button -dark-1 py-15 px-35 h-60 col-12 rounded-4 bg-blue-1 text-white"
         >
-          Check Out
+          Add to Cart
         </button>
         {isNight && (
           <div className="text-14 mt-10" style={{ color: "#E53935" }}>

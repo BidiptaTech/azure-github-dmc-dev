@@ -20,6 +20,7 @@ import DirectionsCarFilledOutlinedIcon from "@mui/icons-material/DirectionsCarFi
 import HotelOutlinedIcon from "@mui/icons-material/HotelOutlined";
 import AttractionsOutlinedIcon from "@mui/icons-material/AttractionsOutlined";
 import RestaurantOutlinedIcon from "@mui/icons-material/RestaurantOutlined";
+import PersonOutlinedIcon from "@mui/icons-material/PersonOutlined";
 import PlaceOutlinedIcon from "@mui/icons-material/PlaceOutlined";
 import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined";
 import AccessTimeOutlinedIcon from "@mui/icons-material/AccessTimeOutlined";
@@ -44,6 +45,7 @@ const BOOKING_TYPE_LABELS = {
   hotel: "Hotel",
   attraction: "Attraction",
   restaurant: "Restaurant",
+  guide: "Guide",
   travelhourly: "Travel Hourly",
   travelpointzone: "Travel Zone",
   local_transport: "Travel Zone",
@@ -215,7 +217,7 @@ const CartPage = () => {
             Your cart is empty
           </Typography>
           <Typography color="text.secondary" mb={3}>
-            Add hotels, attractions, restaurants, or transfers for your trip.
+            Add hotels, attractions, restaurants, guides, or transfers for your trip.
             Starting a new search clears the cart. Use Edit to add more products.
           </Typography>
           <Button
@@ -419,6 +421,7 @@ const CartPage = () => {
                                   variant="rounded"
                                   src={item.image}
                                   alt={
+                                    item.guide_name ||
                                     item.restaurantName ||
                                     item.AttractionName ||
                                     item.hotel_name ||
@@ -437,6 +440,8 @@ const CartPage = () => {
                                     <AttractionsOutlinedIcon />
                                   ) : item.type === "restaurant" ? (
                                     <RestaurantOutlinedIcon />
+                                  ) : item.type === "guide" ? (
+                                    <PersonOutlinedIcon />
                                   ) : (
                                     <DirectionsCarFilledOutlinedIcon />
                                   )}
@@ -456,7 +461,9 @@ const CartPage = () => {
                                           ? item.AttractionName || "Attraction"
                                           : item.type === "restaurant"
                                             ? item.restaurantName || "Restaurant"
-                                            : item.vehicles_name || "Vehicle"}
+                                            : item.type === "guide"
+                                              ? item.guide_name || "Guide"
+                                              : item.vehicles_name || "Vehicle"}
                                     </Typography>
                                     <Chip
                                       size="small"
@@ -701,6 +708,84 @@ const CartPage = () => {
                                             color="text.secondary"
                                           >
                                             {item.visitTime || getTime(item)}
+                                          </Typography>
+                                        </Stack>
+                                        <Stack
+                                          direction="row"
+                                          spacing={0.75}
+                                          alignItems="center"
+                                        >
+                                          <PeopleOutlineIcon
+                                            sx={{ fontSize: 16, color: "#64748b" }}
+                                          />
+                                          <Typography
+                                            variant="body2"
+                                            color="text.secondary"
+                                          >
+                                            {item.adults || 0} adults,{" "}
+                                            {item.children || 0} children
+                                          </Typography>
+                                        </Stack>
+                                      </Stack>
+                                    </Stack>
+                                  ) : item.type === "guide" ? (
+                                    <Stack spacing={0.75}>
+                                      <Stack
+                                        direction="row"
+                                        spacing={1}
+                                        alignItems="flex-start"
+                                      >
+                                        <PlaceOutlinedIcon
+                                          sx={{
+                                            fontSize: 18,
+                                            color: "#64748b",
+                                            mt: "2px",
+                                          }}
+                                        />
+                                        <Typography
+                                          variant="body2"
+                                          color="text.secondary"
+                                        >
+                                          <strong>Pickup:</strong>{" "}
+                                          {item.entrypickup || getPickup(item)}
+                                          {item.hours
+                                            ? ` · ${item.hours} hr package`
+                                            : ""}
+                                        </Typography>
+                                      </Stack>
+                                      <Stack
+                                        direction="row"
+                                        spacing={2}
+                                        flexWrap="wrap"
+                                      >
+                                        <Stack
+                                          direction="row"
+                                          spacing={0.75}
+                                          alignItems="center"
+                                        >
+                                          <CalendarMonthOutlinedIcon
+                                            sx={{ fontSize: 16, color: "#64748b" }}
+                                          />
+                                          <Typography
+                                            variant="body2"
+                                            color="text.secondary"
+                                          >
+                                            {item.bookingDate || getDate(item)}
+                                          </Typography>
+                                        </Stack>
+                                        <Stack
+                                          direction="row"
+                                          spacing={0.75}
+                                          alignItems="center"
+                                        >
+                                          <AccessTimeOutlinedIcon
+                                            sx={{ fontSize: 16, color: "#64748b" }}
+                                          />
+                                          <Typography
+                                            variant="body2"
+                                            color="text.secondary"
+                                          >
+                                            {item.entrytime || getTime(item)}
                                           </Typography>
                                         </Stack>
                                         <Stack
