@@ -922,11 +922,36 @@ class TourController extends Controller
         $markup_percentage = $request->markup_percentage ?? 0;
 
         $user = Agent::where('agent_id', $request->header('agent-id'))->first();
+        if (!$user) {
+            return response()->json(['message' => 'Agent not found.'], 404);
+        }
         $userId = $request->header('agent-id');
-        
-        $salesmanager = User::where('userId', $user->sales_manager_dmc)->first();
-        $salesmanagerId = $salesmanager->userId;
         $agent_id = $userId;
+
+        // Resolve DMC via agency: agent -> agency -> agencies.dmc_id (JSON) -> users
+        $salesmanager = null;
+        $salesmanagerId = null;
+        if (!empty($user->agency_id)) {
+            $agency = Agency::where('agency_id', $user->agency_id)->first();
+            $agencyDmcIds = $agency
+                ? array_values(array_map('intval', array_filter((array) ($agency->dmc_id ?? []))))
+                : [];
+
+            if (!empty($agencyDmcIds)) {
+                $preferredDmcId = $request->dmc_id ?? null;
+                if ($preferredDmcId && in_array((int) $preferredDmcId, $agencyDmcIds, true)) {
+                    $salesmanager = User::where('userId', (int) $preferredDmcId)
+                        ->where('role_id', 11)
+                        ->first();
+                }
+                if (!$salesmanager) {
+                    $salesmanager = User::whereIn('userId', $agencyDmcIds)
+                        ->where('role_id', 11)
+                        ->first();
+                }
+                $salesmanagerId = $salesmanager?->userId;
+            }
+        }
 
         $tour_id = $validatedData['tour_id'];
         
@@ -1489,29 +1514,29 @@ class TourController extends Controller
                    
                     $hotel_agent_id = $request->agent_id;
                     if(!$hotel_agent_id){
-                        $hotel_agent_id = auth()->user()->agent_id;
+                        $hotel_agent_id = auth()->user()->agent_id ?? $request->header('agent-id');
                     }
                     $agent = Agent::where('agent_id', $hotel_agent_id)->first();
-                    $sales_manager_dmc = $agent->sales_manager_dmc;
                     $dmcId = null;
-                    
-                    if($agent->role_id == 11){
-                        $dmcId = $sales_manager_dmc;
-                    }
-                    elseif($agent->role_id == 33 || $agent->role_id == 128 || $agent->role_id == 129 || $agent->role_id == 130 || $agent->role_id == 134 || $agent->role_id == 135 || $agent->role_id == 136 || $agent->role_id == 138){
-                        $sales_head = User::where('userId', $sales_manager_dmc)->first();
-                        $dmcId = $sales_head->created_by;
-                    }
-                    elseif($agent->role_id == 37){
-                        $sales_manager = User::where('userId', $sales_manager_dmc)->first();
-                        $sales_head = User::where('userId', $sales_manager->created_by)->first();
-                        $dmcId = $sales_head->created_by;
-                    }
-                    elseif($agent->role_id == 38){
-                        $assistant_sales_manager = User::where('userId', $sales_manager_dmc)->first();
-                        $sales_manager = User::where('userId', $assistant_sales_manager->created_by)->first();
-                        $sales_head = User::where('userId', $sales_manager->created_by)->first();
-                        $dmcId = $sales_head->created_by;
+
+                    // Resolve DMC via agency: agent -> agency -> agencies.dmc_id -> users
+                    if ($agent && !empty($agent->agency_id)) {
+                        $agency = Agency::where('agency_id', $agent->agency_id)->first();
+                        $agencyDmcIds = $agency
+                            ? array_values(array_map('intval', array_filter((array) ($agency->dmc_id ?? []))))
+                            : [];
+
+                        if (!empty($agencyDmcIds)) {
+                            $preferredDmcId = $request->dmc_id ?? null;
+                            if ($preferredDmcId && in_array((int) $preferredDmcId, $agencyDmcIds, true)) {
+                                $dmcId = (int) $preferredDmcId;
+                            } else {
+                                $dmcId = $agencyDmcIds[0];
+                            }
+
+                            $dmcUser = User::where('userId', $dmcId)->where('role_id', 11)->first();
+                            $dmcId = $dmcUser?->userId;
+                        }
                     }
 
                     $dmc_email = null;
@@ -2010,7 +2035,8 @@ class TourController extends Controller
                 
                 $finalPrice = round($finalPrice, 2);
                 
-                if($finalPrice == $priceWithoutCommission){
+                // Compare against frontend totalPrice (and allow base match when markup is zero)
+                if ((float) $totalPrice == (float) $finalPrice || (float) $totalPrice == (float) $priceWithoutCommission) {
                     $adminProfit = $finalPrice - $priceWithoutCommission;
                     $flag = 1;
                 }
@@ -2589,6 +2615,7 @@ class TourController extends Controller
 
     /*
     * Book all services at once.
+    * Accepts frontend trip cart payload, formats each booking for createBooking, books sequentially.
     * Date 03-09-2026
     */
     public function bookAll(Request $request)
@@ -2598,28 +2625,28 @@ class TourController extends Controller
             $input = $request->all();
         }
 
-        if (isset($input['services']) && is_array($input['services'])) {
-            $services = $input['services'];
-        } elseif (isset($input['bookings']) && is_array($input['bookings'])) {
-            $services = $input['bookings'];
+        // Frontend: [ { trip..., bookings: [...] } ]  OR  { trip..., bookings: [...] }
+        $trips = [];
+        if (is_array($input) && array_is_list($input) && isset($input[0]['bookings'])) {
+            $trips = $input;
+        } elseif (is_array($input) && isset($input['bookings']) && is_array($input['bookings'])) {
+            $trips = [$input];
+        } elseif (is_array($input) && array_is_list($input) && isset($input[0]['type'], $input[0]['data'])) {
+            // Legacy: already createBooking-shaped items
+            $trips = [[
+                'tour_id' => $input[0]['tour_id'] ?? 0,
+                'bookingType' => $input[0]['bookingType'] ?? 'booking',
+                'check_in' => $input[0]['check_in'] ?? null,
+                'check_out' => $input[0]['check_out'] ?? null,
+                'destination' => $input[0]['destination'] ?? '',
+                'adult' => $input[0]['adult'] ?? 0,
+                'child' => $input[0]['child'] ?? 0,
+                'infant' => $input[0]['infant'] ?? 0,
+                'bookings' => array_map(fn ($item) => array_merge($item, ['_ready' => true]), $input),
+            ]];
         } else {
-            $services = $input;
-        }
-
-        if (!is_array($services) || empty($services)) {
             return response()->json([
-                'message' => 'Services data is required. Send a JSON array of booking objects.',
-            ], 400);
-        }
-
-        // Single createBooking payload posted to this endpoint
-        if (isset($services['type']) && array_key_exists('data', $services)) {
-            $services = [$services];
-        }
-
-        if (!array_is_list($services)) {
-            return response()->json([
-                'message' => 'Services data must be a JSON array of booking objects.',
+                'message' => 'Invalid payload. Expected [{ trip, bookings: [...] }].',
             ], 400);
         }
 
@@ -2627,75 +2654,92 @@ class TourController extends Controller
         $resolvedTourId = null;
         $successCount = 0;
 
-        foreach ($services as $index => $serviceData) {
-            if (!is_array($serviceData)) {
+        foreach ($trips as $tripIndex => $trip) {
+            $bookings = $trip['bookings'] ?? [];
+            if (!is_array($bookings) || $bookings === []) {
                 $results[] = [
-                    'message' => 'Invalid service payload at index ' . $index,
+                    'trip_index' => $tripIndex,
+                    'message' => 'Trip bookings are required.',
                 ];
                 continue;
             }
 
-            // Reuse tour created by an earlier service in this batch
-            if ($resolvedTourId && (empty($serviceData['tour_id']) || $serviceData['tour_id'] == 0)) {
-                $serviceData['tour_id'] = $resolvedTourId;
-            }
+            $tripContext = $this->bookAllBuildTripContext($trip, $request);
+            $tourId = !empty($tripContext['tour_id']) ? (int) $tripContext['tour_id'] : $resolvedTourId;
 
-            $jsonPayload = json_encode($serviceData);
-            $server = $request->server->all();
-            $server['CONTENT_TYPE'] = 'application/json';
-            $server['HTTP_CONTENT_TYPE'] = 'application/json';
-            $server['CONTENT_LENGTH'] = strlen($jsonPayload);
-
-            $serviceRequest = Request::create(
-                $request->getUri(),
-                'POST',
-                [],
-                $request->cookies->all(),
-                [],
-                $server,
-                $jsonPayload
-            );
-            $serviceRequest->headers->replace($request->headers->all());
-            $serviceRequest->headers->set('Content-Type', 'application/json');
-            $serviceRequest->setUserResolver($request->getUserResolver());
-            $serviceRequest->setRouteResolver($request->getRouteResolver());
-            if ($request->hasSession()) {
-                $serviceRequest->setLaravelSession($request->session());
-            }
-
-            try {
-                $response = $this->createBooking($serviceRequest);
-                $status = $response->getStatusCode();
-                $payload = json_decode($response->getContent(), true);
-                $success = $status >= 200 && $status < 300;
-
-                if ($success) {
-                    $successCount++;
-                    if (!empty($payload['tour_data']['tour_id'])) {
-                        $resolvedTourId = $payload['tour_data']['tour_id'];
-                    } elseif (!empty($payload['order']['tour_id'])) {
-                        $resolvedTourId = $payload['order']['tour_id'];
-                    } elseif (!empty($serviceData['tour_id']) && $serviceData['tour_id'] != 0) {
-                        $resolvedTourId = $serviceData['tour_id'];
-                    }
+            foreach ($bookings as $bookingIndex => $booking) {
+                if (!is_array($booking)) {
+                    $results[] = [
+                        'trip_index' => $tripIndex,
+                        'booking_index' => $bookingIndex,
+                        'message' => 'Invalid booking item.',
+                    ];
+                    continue;
                 }
 
-                $results[] = $payload;
-            } catch (\Illuminate\Validation\ValidationException $e) {
-                $results[] = [
-                    'message' => 'Validation failed',
-                    'errors' => $e->errors(),
-                ];
-            } catch (\Throwable $e) {
-                $results[] = [
-                    'message' => $e->getMessage(),
-                ];
+                if ($tourId) {
+                    $tripContext['tour_id'] = $tourId;
+                }
+
+                try {
+                    $payload = !empty($booking['_ready'])
+                        ? $booking
+                        : $this->bookAllFormatBooking($booking, $tripContext);
+
+                    if (!empty($payload['_ready'])) {
+                        unset($payload['_ready']);
+                    }
+
+                    if ($tourId && (empty($payload['tour_id']) || (int) $payload['tour_id'] === 0)) {
+                        $payload['tour_id'] = $tourId;
+                    }
+
+                    $response = $this->bookAllCallCreateBooking($request, $payload);
+                    $status = $response->getStatusCode();
+                    $body = json_decode($response->getContent(), true);
+                    $ok = $status >= 200 && $status < 300;
+
+                    if ($ok) {
+                        $successCount++;
+                        $newTourId = $body['tour_data']['tour_id']
+                            ?? $body['order']['tour_id']
+                            ?? ($payload['tour_id'] ?? null);
+                        if (!empty($newTourId) && (int) $newTourId !== 0) {
+                            $tourId = (int) $newTourId;
+                            $resolvedTourId = (int) $newTourId;
+                        }
+                    }
+
+                    $results[] = array_merge(is_array($body) ? $body : ['raw' => $body], [
+                        'trip_index' => $tripIndex,
+                        'booking_index' => $bookingIndex,
+                        'cartItemId' => $booking['cartItemId'] ?? null,
+                        'type' => $payload['type'] ?? ($booking['type'] ?? null),
+                        'http_status' => $status,
+                    ]);
+                } catch (\Illuminate\Validation\ValidationException $e) {
+                    $results[] = [
+                        'trip_index' => $tripIndex,
+                        'booking_index' => $bookingIndex,
+                        'cartItemId' => $booking['cartItemId'] ?? null,
+                        'type' => $booking['type'] ?? null,
+                        'message' => 'Validation failed',
+                        'errors' => $e->errors(),
+                    ];
+                } catch (\Throwable $e) {
+                    $results[] = [
+                        'trip_index' => $tripIndex,
+                        'booking_index' => $bookingIndex,
+                        'cartItemId' => $booking['cartItemId'] ?? null,
+                        'type' => $booking['type'] ?? null,
+                        'message' => $e->getMessage(),
+                    ];
+                }
             }
         }
 
         $failedCount = count($results) - $successCount;
-
-        if ($failedCount === 0) {
+        if ($failedCount === 0 && $successCount > 0) {
             $message = 'All services booked successfully.';
             $httpStatus = 201;
         } elseif ($successCount === 0) {
@@ -2714,6 +2758,343 @@ class TourController extends Controller
             'failed_count' => $failedCount,
             'results' => $results,
         ], $httpStatus);
+    }
+
+    /**
+     * Shared trip-level fields for createBooking.
+     */
+    private function bookAllBuildTripContext(array $trip, Request $request): array
+    {
+        $adult = (int) ($trip['adult'] ?? 0);
+        $destination = $this->bookAllDestinationString($trip['destination'] ?? '');
+        $cities = [];
+        if (is_array($trip['destination'] ?? null)) {
+            foreach ($trip['destination'] as $row) {
+                if (is_array($row) && !empty($row['city'])) {
+                    $cities[] = trim((string) $row['city']);
+                }
+            }
+        }
+
+        $tourId = $trip['tour_id'] ?? 0;
+        if ($tourId === null || $tourId === '' || $tourId === 'null') {
+            $tourId = 0;
+        }
+
+        $dmcId = $trip['dmc_id'] ?? null;
+        if (empty($dmcId) && !empty($trip['bookings']) && is_array($trip['bookings'])) {
+            foreach ($trip['bookings'] as $b) {
+                $dmcId = $b['dmc_id'] ?? $b['dmc_Id'] ?? ($b['bookingPayload']['data'][0]['dmc_id'] ?? null);
+                if (!empty($dmcId)) {
+                    break;
+                }
+            }
+        }
+
+        return [
+            'tour_id' => (int) $tourId,
+            'bookingType' => $trip['bookingType'] ?? 'booking',
+            'check_in' => $trip['check_in'] ?? null,
+            'check_out' => $trip['check_out'] ?? null,
+            'destination' => $destination,
+            'adult' => $adult,
+            'child' => (int) ($trip['child'] ?? 0),
+            'infant' => (int) ($trip['infant'] ?? 0),
+            'male' => (int) ($trip['male'] ?? $adult),
+            'female' => (int) ($trip['female'] ?? 0),
+            'children_ages' => $trip['children_ages'] ?? null,
+            'city' => $cities !== [] ? implode(', ', array_unique($cities)) : $destination,
+            'dmc_id' => $dmcId,
+            'agent_id' => $trip['agent_id'] ?? $request->header('agent-id'),
+            'commission' => $trip['commission'] ?? 0,
+            'markup_percentage' => $trip['markup_percentage'] ?? 0,
+            'customerInfo' => is_array($trip['customerInfo'] ?? null) ? $trip['customerInfo'] : [],
+        ];
+    }
+
+    private function bookAllDestinationString($destination): string
+    {
+        if (is_string($destination)) {
+            return trim($destination);
+        }
+        if (!is_array($destination)) {
+            return '';
+        }
+        $countries = [];
+        foreach ($destination as $row) {
+            if (is_string($row)) {
+                $countries[] = trim($row);
+            } elseif (is_array($row) && !empty($row['country'])) {
+                $countries[] = trim((string) $row['country']);
+            }
+        }
+
+        return implode(', ', array_values(array_unique(array_filter($countries))));
+    }
+
+    private function bookAllNormalizeType(string $type): string
+    {
+        $type = strtolower(trim($type));
+        return match ($type) {
+            'exitport', 'exit', 'exit-port' => 'exit_port',
+            'entryport', 'entry', 'entry-port' => 'entry_port',
+            'travelpoint', 'travel-point' => 'travel_point',
+            'localtransfer', 'local_transfer', 'local-transport' => 'local_transport',
+            'travelhourly', 'travel-hourly' => 'travel_hourly',
+            'attractionpackage', 'packaged_attraction' => 'attraction_package',
+            default => $type,
+        };
+    }
+
+    private function bookAllBasePayload(array $ctx, string $type): array
+    {
+        return [
+            'tour_id' => (int) ($ctx['tour_id'] ?? 0),
+            'type' => $type,
+            'bookingType' => $ctx['bookingType'] ?? 'booking',
+            'destination' => $ctx['destination'] ?? '',
+            'adult' => $ctx['adult'] ?? 0,
+            'child' => $ctx['child'] ?? 0,
+            'infant' => $ctx['infant'] ?? 0,
+            'male' => $ctx['male'] ?? 0,
+            'female' => $ctx['female'] ?? 0,
+            'children_ages' => $ctx['children_ages'] ?? null,
+            'check_in' => $ctx['check_in'] ?? null,
+            'check_out' => $ctx['check_out'] ?? null,
+            'city' => $ctx['city'] ?? null,
+            'dmc_id' => $ctx['dmc_id'] ?? null,
+            'agent_id' => $ctx['agent_id'] ?? null,
+            'commission' => $ctx['commission'] ?? 0,
+            'markup_percentage' => $ctx['markup_percentage'] ?? 0,
+        ];
+    }
+
+    /**
+     * Convert one cart booking into createBooking request body.
+     */
+    private function bookAllFormatBooking(array $booking, array $ctx): array
+    {
+        // Attraction (and similar) may already include bookingPayload
+        if (!empty($booking['bookingPayload']) && is_array($booking['bookingPayload'])) {
+            $bp = $booking['bookingPayload'];
+            $type = $this->bookAllNormalizeType((string) ($bp['type'] ?? $booking['type'] ?? 'attraction'));
+            $data = $bp['data'] ?? [];
+            if (!is_array($data) || $data === []) {
+                throw new \InvalidArgumentException('bookingPayload.data is required for ' . ($booking['cartItemId'] ?? $type));
+            }
+            if (isset($data[0]) && is_array($data[0])) {
+                if (!isset($data[0]['nri']) && isset($data[0]['ticket_details']['nri'])) {
+                    $data[0]['nri'] = $data[0]['ticket_details']['nri'];
+                }
+                if (empty($data[0]['dmc_id'])) {
+                    $data[0]['dmc_id'] = $booking['dmc_id'] ?? $ctx['dmc_id'] ?? null;
+                }
+                unset($data[0]['type'], $data[0]['tour_id']);
+                $data[0] = array_merge($ctx['customerInfo'] ?? [], $data[0]);
+            }
+
+            return array_merge($this->bookAllBasePayload($ctx, $type), [
+                'agent_id' => $bp['agent_id'] ?? $ctx['agent_id'] ?? null,
+                'data' => $data,
+            ]);
+        }
+
+        $type = $this->bookAllNormalizeType((string) ($booking['type'] ?? ''));
+        if ($type === '') {
+            throw new \InvalidArgumentException('Booking type is required.');
+        }
+
+        $customer = $ctx['customerInfo'] ?? [];
+
+        if ($type === 'hotel') {
+            $rooms = $booking['bookingArray'] ?? $booking['rooms'] ?? [];
+            foreach ($rooms as $i => $room) {
+                if (!is_array($room)) {
+                    continue;
+                }
+                $roomType = $room['room_type'] ?? '';
+                $selectedMeals = $room['selectedMeals'] ?? null;
+                foreach (($room['beds'] ?? []) as $j => $bed) {
+                    if (!is_array($bed)) {
+                        continue;
+                    }
+                    if (empty($bed['room_type'])) {
+                        $rooms[$i]['beds'][$j]['room_type'] = $roomType;
+                    }
+                    if (empty($bed['selectedMeals']) && is_array($selectedMeals)) {
+                        $rooms[$i]['beds'][$j]['selectedMeals'] = $selectedMeals;
+                    }
+                    if (empty($bed['mealTypes']) && !empty($room['type'])) {
+                        $rooms[$i]['beds'][$j]['mealTypes'] = [$room['type']];
+                    }
+                }
+            }
+
+            $checkIn = $booking['check_in'] ?? $ctx['check_in'] ?? null;
+            $checkOut = $booking['check_out'] ?? $ctx['check_out'] ?? null;
+            $inYmd = $this->bookAllToYmd($checkIn) ?? $checkIn;
+            $outYmd = $this->bookAllToYmd($checkOut) ?? $checkOut;
+            $hotelId = $booking['hotel_id'] ?? null;
+            $hotel = $hotelId ? Hotel::where('hotel_unique_id', $hotelId)->first() : null;
+            $location = trim((string) ($booking['location'] ?? ''));
+            if ($location === '') {
+                $location = $booking['address'] ?? $booking['city'] ?? ($hotel?->city ?? '');
+            }
+
+            return array_merge($this->bookAllBasePayload($ctx, 'hotel'), [
+                'data' => [array_merge($customer, [
+                    'bookingDate' => [$inYmd, $outYmd],
+                    'bookingType' => $ctx['bookingType'] ?? 'booking',
+                    'totalPrice' => $booking['totalPrice'] ?? 0,
+                    'priceMode' => $booking['priceMode'] ?? $booking['pricemode'] ?? 'dmc',
+                    'hotelDetails' => [
+                        'hotel_id' => $hotelId,
+                        'hotel_name' => $booking['hotel_name'] ?? 'Hotel',
+                        'image' => $booking['image'] ?? ($hotel?->main_image ?? ''),
+                        'location' => $location,
+                        'checkInTime' => $hotel?->check_in_time ?? '15:00:00',
+                        'checkOutTime' => $hotel?->check_out_time ?? '12:00:00',
+                    ],
+                    'rooms' => $rooms,
+                ])],
+            ]);
+        }
+
+        if ($type === 'guide') {
+            $country = $booking['country'] ?? $ctx['destination'] ?? null;
+            if (is_array($country)) {
+                $country = $this->bookAllDestinationString($country);
+            }
+
+            return array_merge($this->bookAllBasePayload($ctx, 'guide'), [
+                'data' => [array_merge($customer, [
+                    'guide_id' => $booking['guide_id'] ?? null,
+                    'guide_name' => $booking['guide_name'] ?? null,
+                    'Mode' => $booking['Mode'] ?? $booking['mode'] ?? 'dmc',
+                    'dmc_Id' => $booking['dmc_Id'] ?? $booking['dmc_id'] ?? $ctx['dmc_id'] ?? null,
+                    'entrytime' => $booking['entrytime'] ?? null,
+                    'hours' => $booking['hours'] ?? null,
+                    'totalPrice' => $booking['totalPrice'] ?? 0,
+                    'bookingDate' => $booking['bookingDate'] ?? $booking['pickupdate'] ?? null,
+                    'pickupdate' => $booking['pickupdate'] ?? null,
+                    'adults' => $booking['adults'] ?? $ctx['adult'] ?? 0,
+                    'children' => $booking['children'] ?? $ctx['child'] ?? 0,
+                    'city' => $booking['city'] ?? null,
+                    'country' => $country,
+                    'basePrice' => $booking['basePrice'] ?? null,
+                    'surcharge' => $booking['surcharge'] ?? null,
+                    'Tax' => $booking['Tax'] ?? null,
+                    'Night_Start_Time' => $booking['Night_Start_Time'] ?? null,
+                    'Night_End_Time' => $booking['Night_End_Time'] ?? null,
+                    'entrypickup' => $booking['entrypickup'] ?? null,
+                    'image' => $booking['image'] ?? null,
+                ])],
+            ]);
+        }
+
+        if (in_array($type, ['entry_port', 'exit_port', 'travel_point', 'local_transport'], true)) {
+            // createBooking uses data[0].type as Sharable/Private
+            $priceMode = $booking['pricemode'] ?? $booking['priceMode'] ?? 'Private';
+            if (strcasecmp((string) $priceMode, 'shared') === 0) {
+                $priceMode = 'Sharable';
+            }
+
+            return array_merge($this->bookAllBasePayload($ctx, $type), [
+                'data' => [array_merge($customer, [
+                    'bookingDate' => $booking['bookingDate'] ?? null,
+                    'vehicles_id' => $booking['vehicles_id'] ?? $booking['vehicle_id'] ?? null,
+                    'vehicles_name' => $booking['vehicles_name'] ?? null,
+                    'Mode' => $booking['Mode'] ?? $booking['mode'] ?? 'dmc',
+                    'type' => $priceMode,
+                    'dmc_id' => $booking['dmc_id'] ?? $ctx['dmc_id'] ?? null,
+                    'exitpickup' => $booking['exitpickup'] ?? null,
+                    'exitdropoff' => $booking['exitdropoff'] ?? null,
+                    'entrypickup' => $booking['entrypickup'] ?? null,
+                    'entrydropoff' => $booking['entrydropoff'] ?? null,
+                    'PickupPlaceid' => $booking['PickupPlaceid'] ?? null,
+                    'DropoffPlaceid' => $booking['DropoffPlaceid'] ?? null,
+                    'exitpickupdate' => $booking['exitpickupdate'] ?? null,
+                    'entrytime' => $booking['entrytime'] ?? null,
+                    'adults' => $booking['adults'] ?? $ctx['adult'] ?? 0,
+                    'children' => $booking['children'] ?? $ctx['child'] ?? 0,
+                    'totalPrice' => $booking['totalPrice'] ?? 0,
+                    'city' => $booking['city'] ?? null,
+                    'country' => is_string($booking['country'] ?? null) ? $booking['country'] : ($ctx['destination'] ?? null),
+                    'to_zone_id' => $booking['to_zone_id'] ?? null,
+                    'from_zone_id' => $booking['from_zone_id'] ?? null,
+                    'seatingCapacity' => $booking['seatingCapacity'] ?? null,
+                    'distance' => $booking['distance'] ?? null,
+                    'image' => $booking['image'] ?? null,
+                ])],
+            ]);
+        }
+
+        if ($type === 'attraction') {
+            $ticketDetails = $booking['ticket_details'] ?? [];
+            return array_merge($this->bookAllBasePayload($ctx, 'attraction'), [
+                'data' => [array_merge($customer, [
+                    'bookingDate' => $booking['bookingDate'] ?? null,
+                    'visitTime' => $booking['visitTime'] ?? null,
+                    'adultCount' => $booking['adultCount'] ?? $booking['adults'] ?? $ctx['adult'] ?? 0,
+                    'childCount' => $booking['childCount'] ?? $booking['children'] ?? $ctx['child'] ?? 0,
+                    'seniorCount' => $booking['seniorCount'] ?? 0,
+                    'AttractionId' => $booking['AttractionId'] ?? null,
+                    'AttractionName' => $booking['AttractionName'] ?? null,
+                    'ticketId' => $booking['ticketId'] ?? null,
+                    'ticketName' => $booking['ticketName'] ?? null,
+                    'ticket_details' => $ticketDetails,
+                    'Selection' => $booking['Selection'] ?? 'withoutTransport',
+                    'transport' => $booking['transport'] ?? null,
+                    'mode' => $booking['mode'] ?? 'dmc',
+                    'totalPrice' => $booking['totalPrice'] ?? 0,
+                    'dmc_id' => $booking['dmc_id'] ?? $ctx['dmc_id'] ?? null,
+                    'nri' => $booking['nri'] ?? ($ticketDetails['nri'] ?? 'residential'),
+                ])],
+            ]);
+        }
+
+        // restaurant / travel_hourly / others: wrap cart item
+        $dataItem = array_merge($customer, $booking);
+        unset($dataItem['type'], $dataItem['cartItemId'], $dataItem['addedAt'], $dataItem['bookingPayload']);
+
+        return array_merge($this->bookAllBasePayload($ctx, $type), [
+            'data' => [$dataItem],
+        ]);
+    }
+
+    private function bookAllToYmd(?string $value): ?string
+    {
+        if ($value === null || trim($value) === '') {
+            return null;
+        }
+        $value = trim($value);
+        foreach (['d/m/Y', 'Y-m-d', 'd-m-Y'] as $format) {
+            try {
+                return Carbon::createFromFormat($format, $value)->format('Y-m-d');
+            } catch (\Throwable $e) {
+            }
+        }
+        try {
+            return Carbon::parse($value)->format('Y-m-d');
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    /**
+     * Call createBooking with a formatted payload.
+     * Replaces the current JSON input bag so validate() sees the booking, not the trip cart.
+     */
+    private function bookAllCallCreateBooking(Request $request, array $payload)
+    {
+        $original = $request->json()->all();
+        $request->json()->replace($payload);
+
+        try {
+            return $this->createBooking($request);
+        } finally {
+            $request->json()->replace($original);
+        }
     }
 
     /* 
