@@ -214,6 +214,9 @@
                                     </option>
                                 @endforeach
                             </select>
+                            @error('country_names')
+                                <div class="text-danger mt-1">{{ $message }}</div>
+                            @enderror
                         </div>
                     </div>
 

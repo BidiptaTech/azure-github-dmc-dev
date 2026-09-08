@@ -1581,8 +1581,17 @@ class HotelController extends Controller
             ];
         
             // For admin and role_id 20, DMC selection is required
+            $dmcId = null;
             if ($auth_user->role_id == 1 || $auth_user->role_id == 20) {
                 $rules['dmc_id'] = 'required|exists:users,userId';
+                $selected = $request->input('dmc_id');
+                $dmcId = $selected ? (int) $selected : null;
+            }
+            else{
+                $dmcId = CommonHelper::getDmcId($auth_user);
+            }
+            if(!$dmcId){
+                return redirect()->back()->with('error', 'Unable to determine DMC for this rate.');
             }
         
             $request->validate($rules);
@@ -1604,6 +1613,7 @@ class HotelController extends Controller
             // Check for overlapping dates
             $overlappingRates = Rate::where('hotel_id', $request->hotel_id)
                 ->where('event_type', 'Season')
+                ->where('dmc_id', $dmcId)
                 ->where(function ($query) use ($firstDate, $lastDate) {
                     $query->whereBetween('start_date', [$firstDate, $lastDate])
                         ->orWhereBetween('end_date', [$firstDate, $lastDate])
@@ -1620,10 +1630,7 @@ class HotelController extends Controller
             }
 
             // Set DMC ID based on user role (DMC, product head, multi-role staff use parent DMC via created_by)
-            $dmcId = $this->resolveHotelRateDmcIdForStore($auth_user, $request);
-            if (!$dmcId) {
-                return redirect()->back()->with('error', 'Unable to determine DMC for this season.');
-            }
+            
 
             $rate = Rate::create([
                 'event' => $request->event, 
@@ -3980,7 +3987,7 @@ class HotelController extends Controller
      */
     public function dmcHotelsSelection(Request $request)
     {
-        // Check if user is DMC (role_id = 11)
+        // Check if user is DMC (role_id = 11) or an employee under that DMC
         $user = auth()->user();
         $allowedRoles = [11, 35, 77, 84, 130, 132, 133, 135, 136, 137, 138, 139, 140];
 
@@ -3988,93 +3995,73 @@ class HotelController extends Controller
             abort(403, 'You do not have permission to access this page.');
         }
 
-        if($user->role_id == 11){
-            $dmc_id = $user->userId;
-        }else if($user->role_id == 35 || in_array($user->role_id, [130, 132, 133, 135, 136, 137, 138])){
-            $dmc_id = $user->created_by;
-        }else if($user->role_id == 77 || $user->role_id == 139){
-            $product_head = User::where('userId', $user->created_by)->first();
-            $dmc_id = $product_head->created_by;
-        }else if($user->role_id == 84 || $user->role_id == 140){
-            $product_manager = User::where('userId', $user->created_by)->first();
-            $product_head = User::where('userId', $product_manager->created_by)->first();
-            $dmc_id = $product_head->created_by;
-        }
-        else{
+        $dmc_id = $this->resolveServicesHotelsDmcId($user);
+        if (!$dmc_id) {
             return redirect()->back()->with('error', 'You do not have permission to access this page.');
         }
 
-        // We want Master DMC countries' hotels that are added from Travclicks.
-        // Important: for role_id=11 (DMC user), $dmc_id is the DMC id, not the Master DMC.
-        // Resolve the Master DMC via master_dmc_id, or by walking created_by chain until role_id=3.
-        $masterDmcId = $user->master_dmc_id ?? null;
-        if (empty($masterDmcId)) {
-            $dmcUser = User::where('userId', $dmc_id)->first();
-            $masterDmcId = $dmcUser->master_dmc_id ?? null;
-        }
-        if (empty($masterDmcId)) {
-            $visited = [];
-            $candidateId = $user->created_by ?? null;
-            $safety = 0;
-            while (!empty($candidateId) && $safety < 8 && !in_array($candidateId, $visited, true)) {
-                $visited[] = $candidateId;
-                $candidate = User::where('userId', $candidateId)->first();
-                if (! $candidate) {
-                    break;
-                }
-                if ((int) ($candidate->role_id ?? 0) === 3) {
-                    $masterDmcId = $candidate->userId;
-                    break;
-                }
-                $candidateId = $candidate->created_by ?? null;
-                $safety++;
-            }
-        }
+        $dmcUser = User::where('userId', $dmc_id)->first();
+        $dmcCountry = trim((string) ($dmcUser->country ?? ''));
 
-        // Fall back to current DMC id if we cannot resolve a master
-        $masterDmc = User::where('userId', $masterDmcId ?: $dmc_id)->first();
-        $masterDmcCountries = [];
-        if ($masterDmc && !empty($masterDmc->country)) {
-            $masterDmcCountries = array_values(array_filter(array_map(
-                static fn ($c) => trim($c),
-                preg_split('/\s*,\s*/', (string) $masterDmc->country)
-            )));
-        }
-
-        // Get all available hotels
+        // DMC may only select hotels from their own single country (not all Master DMC countries).
         $allHotelsQuery = Hotel::where('status', 1)
-            // Hotels added from Travclicks are treated as platform/admin hotels
             ->where('user_type', 1)
             ->with(['category'])
             ->orderBy('name', 'asc');
 
-        if (!empty($masterDmcCountries)) {
-            $allHotelsQuery->whereIn('country', $masterDmcCountries);
+        if ($dmcCountry !== '') {
+            $allHotelsQuery->where(function ($query) use ($dmcCountry) {
+                $query->where('country', $dmcCountry)
+                    ->orWhereRaw('LOWER(TRIM(country)) = ?', [strtolower($dmcCountry)]);
+            });
+        } else {
+            // No country on DMC profile — show nothing selectable until country is set.
+            $allHotelsQuery->whereRaw('1 = 0');
         }
 
         $allHotels = $allHotelsQuery->get();
 
-        // Country dropdown should show only countries that actually have Travclicks hotels
-        // within the Master DMC allowed countries.
-        $allowedCountries = $allHotels
-            ->pluck('country')
-            ->filter()
-            ->unique()
-            ->sort()
-            ->values()
-            ->all();
-        
-        // Filter hotels that are selected by the current DMC
-        $selectedHotels = $allHotels->filter(function($hotel) use ($dmc_id) {
+        $selectedHotels = $allHotels->filter(function ($hotel) use ($dmc_id) {
             return $hotel->hasSelectedByDmc($dmc_id);
         });
 
-        // Get hotels that are not selected by the current DMC
-        $availableHotels = $allHotels->filter(function($hotel) use ($dmc_id) {
+        $availableHotels = $allHotels->filter(function ($hotel) use ($dmc_id) {
             return !$hotel->hasSelectedByDmc($dmc_id);
         });
 
-        return view('services.hotels', compact('availableHotels', 'selectedHotels', 'allowedCountries'));
+        // City filter options: cities belonging to the DMC's country.
+        $allowedCities = collect();
+        if ($dmcCountry !== '') {
+            $allowedCities = City::query()
+                ->where(function ($query) use ($dmcCountry) {
+                    $query->where('country', $dmcCountry)
+                        ->orWhereRaw('LOWER(TRIM(country)) = ?', [strtolower($dmcCountry)]);
+                })
+                ->orderBy('name', 'asc')
+                ->pluck('name')
+                ->map(static fn ($name) => trim((string) $name))
+                ->filter()
+                ->unique(static fn ($name) => strtolower($name))
+                ->values();
+        }
+
+        // Fallback: if cities table has none, derive from hotels already loaded for this country.
+        if ($allowedCities->isEmpty()) {
+            $allowedCities = $allHotels
+                ->pluck('city')
+                ->map(static fn ($name) => trim((string) $name))
+                ->filter()
+                ->unique(static fn ($name) => strtolower($name))
+                ->sort()
+                ->values();
+        }
+
+        return view('services.hotels', compact(
+            'availableHotels',
+            'selectedHotels',
+            'dmcCountry',
+            'allowedCities'
+        ));
     }
 
     /**
@@ -4090,33 +4077,28 @@ class HotelController extends Controller
             abort(403, 'You do not have permission to access this page.');
         }
 
-        if($user->role_id == 11){
-            $dmc_id = $user->userId;
-        }else if($user->role_id == 35 || in_array($user->role_id, [130, 132, 133, 135, 136, 137, 138])){
-            $dmc_id = $user->created_by;
-        }else if($user->role_id == 77 || $user->role_id == 139){
-            $product_head = User::where('userId', $user->created_by)->first();
-            $dmc_id = $product_head->created_by;
-        }else if($user->role_id == 84 || $user->role_id == 140){
-            $product_manager = User::where('userId', $user->created_by)->first();
-            $product_head = User::where('userId', $product_manager->created_by)->first();
-            $dmc_id = $product_head->created_by;
-        }
-        else{
+        $dmc_id = $this->resolveServicesHotelsDmcId($user);
+        if (!$dmc_id) {
             return redirect()->back()->with('error', 'You do not have permission to access this page.');
         }
 
+        $dmcCountry = trim((string) (User::where('userId', $dmc_id)->value('country') ?? ''));
         $selectedHotels = $request->input('selected_hotels', []);
-        
+
         // Reset all hotels for this DMC (remove from dmc_ids)
         $allHotelsForUser = Hotel::whereJsonContains('dmc_id', $dmc_id)->get();
         foreach ($allHotelsForUser as $hotel) {
             $hotel->removeDmcId($dmc_id);
         }
-        
-        // Add dmc_id for selected hotels
-        if (!empty($selectedHotels)) {
-            $hotelsToSelect = Hotel::whereIn('hotel_unique_id', $selectedHotels)->get();
+
+        // Add dmc_id only for selected hotels that belong to the DMC's country
+        if (!empty($selectedHotels) && $dmcCountry !== '') {
+            $hotelsToSelect = Hotel::whereIn('hotel_unique_id', $selectedHotels)
+                ->where(function ($query) use ($dmcCountry) {
+                    $query->where('country', $dmcCountry)
+                        ->orWhereRaw('LOWER(TRIM(country)) = ?', [strtolower($dmcCountry)]);
+                })
+                ->get();
             foreach ($hotelsToSelect as $hotel) {
                 $hotel->addDmcId($dmc_id);
             }
@@ -4129,7 +4111,7 @@ class HotelController extends Controller
      * Select Individual Hotel for DMC
      * Handle individual hotel selection with AJAX
      */
-        public function selectHotel(Request $request)
+    public function selectHotel(Request $request)
     {
         try {
             $hotelId = $request->input('hotel_id');
@@ -4141,44 +4123,44 @@ class HotelController extends Controller
                 abort(403, 'You do not have permission to access this page.');
             }
 
-            if($user->role_id == 11){
-                $dmc_id = $user->userId;
-            }else if($user->role_id == 35 || in_array($user->role_id, [130, 132, 133, 135, 136, 137, 138])){
-                $dmc_id = $user->created_by;
-            }else if($user->role_id == 77 || $user->role_id == 139){
-                $product_head = User::where('userId', $user->created_by)->first();
-                $dmc_id = $product_head->created_by;
-            }else if($user->role_id == 84 || $user->role_id == 140){
-                $product_manager = User::where('userId', $user->created_by)->first();
-                $product_head = User::where('userId', $product_manager->created_by)->first();
-                $dmc_id = $product_head->created_by;
+            $dmc_id = $this->resolveServicesHotelsDmcId($user);
+            if (!$dmc_id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You do not have permission to select hotels.',
+                ], 403);
             }
-            else{
-                return redirect()->back()->with('error', 'You do not have permission to access this page.');
-            }
-            
+
+            $dmcCountry = trim((string) (User::where('userId', $dmc_id)->value('country') ?? ''));
+
             // Find the hotel
             $hotel = Hotel::find($hotelId);
             if (!$hotel) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Hotel not found.'
+                    'message' => 'Hotel not found.',
                 ], 404);
             }
-            
+
+            if ($dmcCountry === '' || strcasecmp(trim((string) $hotel->country), $dmcCountry) !== 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You can only select hotels from your own country (' . ($dmcCountry ?: 'not set') . ').',
+                ], 403);
+            }
+
             // Add the DMC ID to the hotel's dmc_id array
             $hotel->addDmcId($dmc_id);
-            
+
             return response()->json([
                 'success' => true,
-                'message' => 'Hotel selected successfully!'
+                'message' => 'Hotel selected successfully!',
             ]);
-            
         } catch (\Exception $e) {
             \Log::error('Hotel selection error: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'An error occurred while selecting the hotel.'
+                'message' => 'An error occurred while selecting the hotel.',
             ], 500);
         }
     }
@@ -4199,20 +4181,12 @@ class HotelController extends Controller
                 abort(403, 'You do not have permission to access this page.');
             }
 
-            if($user->role_id == 11){
-                $dmc_id = $user->userId;
-            }else if($user->role_id == 35 || in_array($user->role_id, [130, 132, 133, 135, 136, 137, 138])){
-                $dmc_id = $user->created_by;
-            }else if($user->role_id == 77 || $user->role_id == 139){
-                $product_head = User::where('userId', $user->created_by)->first();
-                $dmc_id = $product_head->created_by;
-            }else if($user->role_id == 84 || $user->role_id == 140){
-                $product_manager = User::where('userId', $user->created_by)->first();
-                $product_head = User::where('userId', $product_manager->created_by)->first();
-                $dmc_id = $product_head->created_by;
-            }
-            else{
-                return redirect()->back()->with('error', 'You do not have permission to access this page.');
+            $dmc_id = $this->resolveServicesHotelsDmcId($user);
+            if (!$dmc_id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You do not have permission to remove hotels.',
+                ], 403);
             }
             
             // Find the hotel
@@ -4401,6 +4375,45 @@ class HotelController extends Controller
     /**
      * DMC userId used for room ownership (created_by), hotel access, and imports (delegated staff use parent DMC).
      */
+    /**
+     * Resolve the owning DMC userId for the services hotels selection page.
+     * Supports DMC (11) and staff under that DMC (product head / manager / multi-role).
+     */
+    private function resolveServicesHotelsDmcId(?User $user): ?int
+    {
+        if (!$user) {
+            return null;
+        }
+
+        $roleId = (int) $user->role_id;
+
+        if ($roleId === 11) {
+            return (int) $user->userId;
+        }
+
+        if ($roleId === 35 || in_array($roleId, [130, 132, 133, 135, 136, 137, 138], true)) {
+            return $user->created_by ? (int) $user->created_by : null;
+        }
+
+        if ($roleId === 77 || $roleId === 139) {
+            $productHead = User::where('userId', $user->created_by)->first();
+
+            return ($productHead && $productHead->created_by) ? (int) $productHead->created_by : null;
+        }
+
+        if ($roleId === 84 || $roleId === 140) {
+            $productManager = User::where('userId', $user->created_by)->first();
+            if (!$productManager) {
+                return null;
+            }
+            $productHead = User::where('userId', $productManager->created_by)->first();
+
+            return ($productHead && $productHead->created_by) ? (int) $productHead->created_by : null;
+        }
+
+        return null;
+    }
+
     private function resolveRoomPricingDmcUserId(User $user): ?int
     {
         if ((int) $user->role_id === 11) {
