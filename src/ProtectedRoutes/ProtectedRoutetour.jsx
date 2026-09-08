@@ -28,6 +28,7 @@ const BOOKING_FLOW_PATHS = [
   "/CheckOut",
   "/ThankYou",
   "/cart",
+  "/cart-checkout",
 ];
 
 const ProtectedRoutetour = ({ children }) => {

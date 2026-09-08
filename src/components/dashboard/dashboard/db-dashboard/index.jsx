@@ -98,6 +98,7 @@ const BOOKING_FLOW_SEGMENTS = [
   "ThankYou",
   "updatebooking",
   "cart",
+  "cart-checkout",
 ];
 
 

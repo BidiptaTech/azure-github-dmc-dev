@@ -6,17 +6,51 @@ import { createSlice, current } from "@reduxjs/toolkit";
  *   {
  *     tripId, check_in, check_out, destination, adult, child, infant, tour_id,
  *     cityWiseDates: [{ city, checkIn, checkOut }, ...],
- *     searchLocation: ["SG", "ID"], // country codes from bookings.searchLocation
+ *     searchLocation: ["SG", "ID"],
+ *     customerInfo: {
+ *       fullName, email, phone, countryCode, address1, address2, state, zip, specialRequests
+ *     } | null,
  *     bookings: [
- *       { type: "entryport", cartItemId, ... },
- *       { type: "exitport", cartItemId, ... },
- *       { type: "travelhourly"|"travelpointzone"|..., cartItemId, ... },
+ *       { type: "hotel"|"attraction"|"restaurant"|"guide"|"entryport"|..., cartItemId, ... },
  *     ]
  *   },
  * ]
+ *
+ * Final submit (Book Now / Make an Enquiry) reads trip.bookings + trip.customerInfo.
  */
 export const MAX_CART_TRIPS = 1;
 const CART_STORAGE_KEY = "dmc_cart";
+
+export const emptyCartCustomerInfo = () => ({
+  fullName: "",
+  email: "",
+  phone: "",
+  countryCode: "",
+  address1: "",
+  address2: "",
+  state: "",
+  zip: "",
+  specialRequests: "",
+});
+
+export const normalizeCartCustomerInfo = (raw) => {
+  if (!raw || typeof raw !== "object") return null;
+  const source = raw.userInfo || raw.customer_info || raw.customerInfo || raw;
+  const normalized = {
+    fullName: source.fullName || source.full_name || source.name || "",
+    email: source.email || "",
+    phone: source.phone || source.phone_number || "",
+    countryCode: source.countryCode || source.country_code || "",
+    address1: source.address1 || source.address_1 || source.address || "",
+    address2: source.address2 || source.address_2 || "",
+    state: source.state || "",
+    zip: source.zip || source.postal_code || "",
+    specialRequests:
+      source.specialRequests || source.special_requests || source.comment || "",
+  };
+  const hasAny = Object.values(normalized).some((v) => String(v || "").trim());
+  return hasAny ? normalized : null;
+};
 
 const loadCartFromStorage = () => {
   try {
@@ -26,7 +60,11 @@ const loadCartFromStorage = () => {
     const parsed = JSON.parse(raw);
     const list = Array.isArray(parsed) ? parsed : [];
     // Enforce single-trip cart (trim older multi-trip data)
-    return list.slice(0, MAX_CART_TRIPS);
+    return list.slice(0, MAX_CART_TRIPS).map((trip) => ({
+      ...trip,
+      customerInfo: normalizeCartCustomerInfo(trip?.customerInfo) || null,
+      bookings: Array.isArray(trip?.bookings) ? trip.bookings : [],
+    }));
   } catch (error) {
     console.error("Failed to load cart from localStorage:", error);
     return [];
@@ -183,6 +221,9 @@ const cartSlice = createSlice({
         if (meta.tour_id != null) {
           state.cart[existingIndex].tour_id = meta.tour_id;
         }
+        if (state.cart[existingIndex].customerInfo === undefined) {
+          state.cart[existingIndex].customerInfo = null;
+        }
         state.cart[existingIndex].bookings.push(booking);
       } else {
         if (state.cart.length >= MAX_CART_TRIPS) {
@@ -193,10 +234,39 @@ const cartSlice = createSlice({
         state.cart.push({
           tripId: `trip-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
           ...meta,
+          customerInfo: null,
           bookings: [booking],
         });
       }
 
+      persistCart(state);
+    },
+    /**
+     * Attach / update customer details on a trip (persisted with dmc_cart).
+     * Used before final Book Now / Make an Enquiry submit.
+     */
+    setTripCustomerInfo: (state, action) => {
+      const { tripId, customerInfo } = action.payload || {};
+      state.lastActionError = null;
+      if (!tripId || !Array.isArray(state.cart)) {
+        state.lastActionError = "Trip not found for customer info.";
+        return;
+      }
+      const trip = state.cart.find((t) => t.tripId === tripId);
+      if (!trip) {
+        state.lastActionError = "Trip not found for customer info.";
+        return;
+      }
+      trip.customerInfo = normalizeCartCustomerInfo(customerInfo);
+      persistCart(state);
+    },
+    clearTripCustomerInfo: (state, action) => {
+      const tripId = action.payload;
+      state.lastActionError = null;
+      if (!tripId || !Array.isArray(state.cart)) return;
+      const trip = state.cart.find((t) => t.tripId === tripId);
+      if (!trip) return;
+      trip.customerInfo = null;
       persistCart(state);
     },
     removeFromCart: (state, action) => {
@@ -245,6 +315,8 @@ const cartSlice = createSlice({
 
 export const {
   addToCart,
+  setTripCustomerInfo,
+  clearTripCustomerInfo,
   removeFromCart,
   clearCartByTrip,
   clearCart,
@@ -266,6 +338,28 @@ export const selectCartItemCount = (state) => {
       sum + (Array.isArray(trip.bookings) ? trip.bookings.length : 0),
     0
   );
+};
+
+export const selectCartTripById = (tripId) => (state) => {
+  const cart = Array.isArray(state.cart?.cart) ? state.cart.cart : [];
+  return cart.find((trip) => trip.tripId === tripId) || null;
+};
+
+export const selectTripCustomerInfo = (tripId) => (state) => {
+  const trip = (Array.isArray(state.cart?.cart) ? state.cart.cart : []).find(
+    (t) => t.tripId === tripId
+  );
+  return trip?.customerInfo || null;
+};
+
+/** Active checkout trip (checkoutTripId or first/only trip) */
+export const selectCheckoutTrip = (state) => {
+  const cart = Array.isArray(state.cart?.cart) ? state.cart.cart : [];
+  const id = state.cart?.checkoutTripId;
+  if (id) {
+    return cart.find((trip) => trip.tripId === id) || cart[0] || null;
+  }
+  return cart[0] || null;
 };
 
 export default cartSlice.reducer;
