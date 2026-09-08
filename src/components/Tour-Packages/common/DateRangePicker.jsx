@@ -1,0 +1,132 @@
+import React, { useState, useEffect, useRef } from "react";
+import DatePicker, { DateObject } from "react-multi-date-picker";
+import Snackbar from "@mui/material/Snackbar";
+import MuiAlert from "@mui/material/Alert";
+import { useMediaQuery, useTheme } from "@mui/material";
+import "./dateRangePickerStyles.css";
+
+// Create a reusable alert component
+const Alert = React.forwardRef(function Alert(props, ref) {
+  return <MuiAlert elevation={6} ref={ref} variant="filled" {...props} />;
+});
+
+const DateRangePicker = ({ onDateChange, defaultCheckIn, defaultCheckOut ,isDataFromEnquiryDetail}) => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const isTablet = useMediaQuery(theme.breakpoints.down('lg'));
+  
+  const today = new DateObject(); // Current date
+  const tomorrow = new DateObject().add(1, "day"); // Tomorrow's date
+
+  // Check if dates are coming from packageData
+  const isFromPackageData = Boolean(defaultCheckIn && defaultCheckOut);
+
+  // Initialize dates with defaults from packageData if available
+  const getInitialDates = () => {
+    if (defaultCheckIn && defaultCheckOut) {
+      try {
+        // Convert date strings to DateObject
+        const checkInDate = new DateObject(defaultCheckIn);
+        const checkOutDate = new DateObject(defaultCheckOut);
+        console.log('Auto-setting dates from packageData:', { checkInDate, checkOutDate });
+        return [checkInDate, checkOutDate];
+      } catch (error) {
+        console.error('Error parsing default dates:', error);
+        return [today, tomorrow];
+      }
+    }
+    return [today, tomorrow];
+  };
+
+  const [dates, setDates] = useState(getInitialDates()); // Use initial dates
+  const [openSnackbar, setOpenSnackbar] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState("");
+  const prevDatesRef = useRef(getInitialDates());
+
+  // Update dates when defaultCheckIn/defaultCheckOut changes
+  React.useEffect(() => {
+    if (defaultCheckIn && defaultCheckOut) {
+      try {
+        const checkInDate = new DateObject(defaultCheckIn);
+        const checkOutDate = new DateObject(defaultCheckOut);
+        setDates([checkInDate, checkOutDate]);
+        prevDatesRef.current = [checkInDate, checkOutDate];
+      } catch (error) {
+        console.error('Error updating dates from props:', error);
+      }
+    }
+  }, [defaultCheckIn, defaultCheckOut]);
+
+  useEffect(() => {
+    // Only call onDateChange if dates actually changed
+    const prevDatesStr = JSON.stringify(prevDatesRef.current);
+    const currentDatesStr = JSON.stringify(dates);
+    
+    if (prevDatesStr !== currentDatesStr) {
+      onDateChange(dates);
+      prevDatesRef.current = dates;
+    }
+  }, [dates]);
+
+  // Handle date changes
+  const handleDateChange = (newDates) => {
+    setDates(newDates);
+    
+    // Reset to default if all dates are cleared
+    if (!newDates || (Array.isArray(newDates) && newDates.length === 0)) {
+      const defaultDates = [today, tomorrow];
+      setDates(defaultDates);
+    }
+  };
+
+  const handleCloseSnackbar = () => {
+    setOpenSnackbar(false);
+  };
+
+  // Determine number of months based on screen size
+  const getNumberOfMonths = () => {
+    if (isMobile) return 1; // Mobile: 1 month
+    if (isTablet) return 1; // Tablet: 1 month  
+    return 2; // Desktop: 2 months
+  };
+
+  return (
+    <div className="text-15 text-light-1 ls-2 lh-16 custom_dual_datepicker">
+      <DatePicker
+        inputClass="custom_input-picker"
+        containerClassName="custom_container-picker"
+        value={dates}
+        onChange={handleDateChange}
+        numberOfMonths={getNumberOfMonths()}
+        offsetY={10}
+        range
+        rangeHover
+        format="MMMM DD"
+        minDate={today}     // Keep minimum date as today
+        // Remove maxDate prop to allow selection of any future date
+        editable={false} 
+        style={{
+          zIndex: 9999
+        }} 
+        calendarPosition={isMobile ? "bottom-center" : "bottom-left"}
+        zIndex={9999}
+        portal={true}
+        portalTarget={document.body}
+        disabled={isDataFromEnquiryDetail}
+        // Prevent manual typing while still allowing calendar selection
+      />
+      <Snackbar
+        open={openSnackbar}
+        autoHideDuration={4000}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+      >
+        <Alert onClose={handleCloseSnackbar} severity="warning">
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
+    </div>
+  );
+};
+
+export default DateRangePicker; 
