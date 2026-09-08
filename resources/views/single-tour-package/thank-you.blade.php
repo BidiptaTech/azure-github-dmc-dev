@@ -2,6 +2,22 @@
 @section('title', 'Thank You - Enquiry Created')
 @section('content')
 
+@php
+    // Always resolve from session at the top. Quotation buttons used $tourDetails outside
+    // the @if below, which caused intermittent "Undefined variable $tourDetails" on refresh
+    // or when session data was missing.
+    $tourDetails = session('tour_details');
+    if (!is_array($tourDetails)) {
+        $tourDetails = [];
+    }
+    $createdOrders = session('created_orders');
+    if (!is_array($createdOrders)) {
+        $createdOrders = [];
+    }
+    $tourId = $tourDetails['tour_id'] ?? null;
+    $encryptedTourId = $tourId ? \Illuminate\Support\Facades\Crypt::encrypt($tourId) : null;
+@endphp
+
 <div class="content-wrapper">
     <div class="container-xxl flex-grow-1 container-p-y">
         
@@ -33,8 +49,7 @@
                         <h4 class="text-muted mb-4">Your Enquiry Has Been Successfully Created</h4>
                         
                         <!-- Tour Details -->
-                        @if(session('tour_details'))
-                            @php $tourDetails = session('tour_details'); @endphp
+                        @if(!empty($tourDetails))
                             <div class="row justify-content-center mb-4">
                                 <div class="col-md-8">
                                     <div class="card bg-light border-0">
@@ -73,8 +88,7 @@
                         @endif
 
                         <!-- Service Summary -->
-                        @if(session('created_orders'))
-                            @php $createdOrders = session('created_orders'); @endphp
+                        @if(!empty($createdOrders))
                             <div class="row justify-content-center mb-4">
                                 <div class="col-md-10">
                                     <h5 class="text-primary mb-3">
@@ -95,10 +109,10 @@
                                                                 'entry_port' => 'ri-login-circle-line text-success',
                                                                 'exit_port' => 'ri-logout-circle-line text-danger'
                                                             ];
-                                                            $icon = $icons[$order['type']] ?? 'ri-service-line';
+                                                            $icon = $icons[$order['type'] ?? ''] ?? 'ri-service-line';
                                                         @endphp
                                                         <i class="{{ $icon }} fs-2 mb-2"></i>
-                                                        <h6 class="mb-1">{{ ucfirst($order['type']) }}</h6>
+                                                        <h6 class="mb-1">{{ ucfirst($order['type'] ?? 'service') }}</h6>
                                                         <small class="text-muted">{{ $order['data_count'] ?? 0 }} item(s) booked</small>
                                                         @if(isset($order['order_id']))
                                                             <div class="mt-1">
@@ -127,8 +141,9 @@
                                 <i class="ri-add-line"></i>
                             </a>
 
+                            @if($encryptedTourId)
                             <a
-                                href="{{ route('tour.itinerary.preview', ['encryptedTourId' => Crypt::encrypt($tourDetails['tour_id'])]) }}"
+                                href="{{ route('tour.itinerary.preview', ['encryptedTourId' => $encryptedTourId]) }}"
                                 class="btn btn-outline-secondary btn-lg px-3"
                                 target="_blank"
                                 data-bs-toggle="tooltip"
@@ -139,7 +154,7 @@
                                 <i class="ri-file-list-3-line"></i>
                             </a>
                             <a
-                                href="{{ route('tour.detailed-quotation.preview', ['encryptedTourId' => Crypt::encrypt($tourDetails['tour_id'])]) }}"
+                                href="{{ route('tour.detailed-quotation.preview', ['encryptedTourId' => $encryptedTourId]) }}"
                                 class="btn btn-outline-secondary btn-lg px-3"
                                 target="_blank"
                                 data-bs-toggle="tooltip"
@@ -151,7 +166,7 @@
                             </a>
 
                             <a
-                                href="{{ route('tour.email.preview', ['encryptedTourId' => Crypt::encrypt($tourDetails['tour_id'])]) }}"
+                                href="{{ route('tour.email.preview', ['encryptedTourId' => $encryptedTourId]) }}"
                                 class="btn btn-outline-info btn-lg px-3"
                                 target="_blank"
                                 data-bs-toggle="tooltip"
@@ -161,6 +176,7 @@
                             >
                                 <i class="ri-mail-line"></i>
                             </a>
+                            @endif
                         </div>
 
                         <!-- Additional Info -->
