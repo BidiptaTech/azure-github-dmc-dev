@@ -2853,9 +2853,12 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 if ($key === '') {
                     continue;
                 }
-                // Prefer a dedicated match; do not overwrite an existing mapping unless
-                // it currently points at the base DMC and this sibling is more specific.
-                if (!isset($map[$key]) || ((int) $map[$key] === $baseDmcId && $dmcId !== $baseDmcId)) {
+                // Prefer the operating/base DMC for countries it owns.
+                // Never let another sibling overwrite a base-DMC mapping
+                // (e.g. Indonesia DMC listing "Singapore" must not steal SG inventory).
+                if (!isset($map[$key])) {
+                    $map[$key] = $dmcId;
+                } elseif ($dmcId === $baseDmcId && (int) $map[$key] !== $baseDmcId) {
                     $map[$key] = $dmcId;
                 }
             }
@@ -2934,12 +2937,23 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         }
 
         $country = trim((string) $country);
-        if ($country === '') {
-            $city = trim((string) $city);
-            if ($city !== '') {
-                $cityRow = City::whereRaw('LOWER(name) = ?', [mb_strtolower($city)])->first();
-                $country = trim((string) ($cityRow->country ?? ''));
+        $city = trim((string) $city);
+
+        // City name may equal a sibling country label (e.g. city "Singapore")
+        if ($country === '' && $city !== '') {
+            $map = self::getSiblingDmcCountryMap($baseDmcId);
+            $cityNorm = self::normalizeCountryName($city);
+            if ($cityNorm !== '' && isset($map[$cityNorm])) {
+                return (int) $map[$cityNorm];
             }
+            foreach ($map as $mappedCountry => $dmcId) {
+                if (self::countriesMatch((string) $mappedCountry, $city)) {
+                    return (int) $dmcId;
+                }
+            }
+
+            $cityRow = City::whereRaw('LOWER(name) = ?', [mb_strtolower($city)])->first();
+            $country = trim((string) ($cityRow->country ?? ''));
         }
 
         if ($country === '') {
