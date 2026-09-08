@@ -1,5 +1,6 @@
- import { addToCart } from "@/slice/cart/carSlice";
+import { addToCart } from "@/slice/cart/carSlice";
 import { store } from "@/store/store";
+import { lockCartDmc } from "@/utils/lockCartDmc";
 
 const clonePayload = (value) => {
   try {
@@ -48,6 +49,11 @@ export const buildAttractionCartItem = ({
     pricemode: row.mode || null,
     totalPrice: Math.ceil(Number(row.totalPrice) || 0),
     bookingPayload: clonePayload(bookingDetails),
+    dmc_id:
+      row.dmc_id ||
+      attractionDetails?.prices?.dmc_id ||
+      attraction?.dmc_id ||
+      null,
   };
 };
 
@@ -57,13 +63,25 @@ export const addAttractionBookingToCart = (dispatch, payload) => {
     return "Please complete attraction selections first.";
   }
 
+  const item = buildAttractionCartItem(payload);
+  if (item.dmc_id == null) {
+    item.dmc_id = store.getState().dmc?.dmcId || null;
+  }
+
   dispatch(
     addToCart({
       bookingType: "attraction",
-      item: buildAttractionCartItem(payload),
-      tourDetails: payload.tourDetails,
+      item,
+      tourDetails: {
+        ...(payload.tourDetails || {}),
+        dmc_id: item.dmc_id,
+      },
     })
   );
 
-  return store.getState().cart?.lastActionError || null;
+  const cartError = store.getState().cart?.lastActionError;
+  if (!cartError) {
+    lockCartDmc(dispatch, item);
+  }
+  return cartError || null;
 };

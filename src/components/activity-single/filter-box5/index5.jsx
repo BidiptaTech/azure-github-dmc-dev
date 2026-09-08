@@ -43,6 +43,7 @@ import Pickuptime3 from "./Pickuptime1";
 import Pickuptimezone from "@/components/activity-list/activity-list-v3/Pickuptimezone";
 import { addToCart } from "@/slice/cart/carSlice";
 import { store } from "@/store/store";
+import { lockCartDmc } from "@/utils/lockCartDmc";
 
 const Index5 = () => {
   const pickUpLocation = useSelector((state) => state.localtour.entrypickup);
@@ -326,6 +327,7 @@ const Index5 = () => {
       toast.error(cartError);
       return;
     }
+    lockCartDmc(dispatch, details);
     toast.success("Added to cart successfully.");
     navigate(`/dashboard/db-dashboard/cart`);
 

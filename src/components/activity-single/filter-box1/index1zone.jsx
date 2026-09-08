@@ -39,6 +39,7 @@ import { setDateService } from "@/slice/common/dateServicesSlice";
 import { setbookingImage, setbookingType } from "@/slice/tourguide/guideslice";
 import { addToCart } from "@/slice/cart/carSlice";
 import { store } from "@/store/store";
+import { lockCartDmc } from "@/utils/lockCartDmc";
 
 const Index1Zone = () => {
   const pickUpLocation = useSelector((state) => state.pickupDrop.entrypickup);
@@ -224,6 +225,7 @@ const Index1Zone = () => {
       toast.error(cartError);
       return;
     }
+    lockCartDmc(dispatch, details);
     toast.success("Added to cart successfully.");
     navigate(`/dashboard/db-dashboard/cart`);
   };
