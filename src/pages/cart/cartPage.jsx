@@ -169,7 +169,7 @@ const CartPage = () => {
   const handleTripCheckout = (trip) => {
     restoreTripToRedux(trip);
     dispatch(setCheckoutTripId(trip.tripId));
-    navigate("/dashboard/db-dashboard/CheckOut", {
+    navigate("/dashboard/db-dashboard/cart-checkout", {
       state: {
         cartTripId: trip.tripId,
         cartTrip: trip,
