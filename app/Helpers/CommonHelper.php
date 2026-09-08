@@ -28,6 +28,7 @@ use App\Models\EmailsSetup;
 use App\Models\DmcFuncApp;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Country;
+use App\Models\City;
 use App\Models\Invoice;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
@@ -2810,7 +2811,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         }
 
         $ids = User::where('master_dmc_id', $masterDmcId)
-            ->where('role_id', 11)
+            ->whereIn('role_id', self::NORMAL_DMC_ROLE_IDS)
             ->pluck('userId')
             ->map(fn ($id) => (int) $id)
             ->filter()
@@ -2823,6 +2824,129 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         }
 
         return array_values(array_unique(array_filter($ids)));
+    }
+
+    /**
+     * Country → sibling DMC id map under the same Master DMC as $baseDmcId.
+     * Example: ["Singapore" => 4, "India" => 12]
+     *
+     * @return array<string, int>
+     */
+    public static function getSiblingDmcCountryMap($baseDmcId): array
+    {
+        $baseDmcId = (int) $baseDmcId;
+        if ($baseDmcId <= 0) {
+            return [];
+        }
+
+        $siblingIds = self::getSiblingDmcIds($baseDmcId);
+        if ($siblingIds === []) {
+            return [];
+        }
+
+        $map = [];
+        $dmcs = User::whereIn('userId', $siblingIds)->get(['userId', 'country', 'role_id']);
+        foreach ($dmcs as $dmc) {
+            $dmcId = (int) $dmc->userId;
+            foreach (self::resolveSupportedCountriesForDmc($dmc) as $country) {
+                $key = self::normalizeCountryName($country);
+                if ($key === '') {
+                    continue;
+                }
+                // Prefer a dedicated match; do not overwrite an existing mapping unless
+                // it currently points at the base DMC and this sibling is more specific.
+                if (!isset($map[$key]) || ((int) $map[$key] === $baseDmcId && $dmcId !== $baseDmcId)) {
+                    $map[$key] = $dmcId;
+                }
+            }
+        }
+
+        return $map;
+    }
+
+    /**
+     * Allow a requested DMC id only when it is the auth/base DMC or a sibling
+     * under the same Master DMC. Otherwise fall back to $baseDmcId.
+     */
+    public static function coerceSiblingDmcId($baseDmcId, $candidateDmcId): int
+    {
+        $baseDmcId = (int) $baseDmcId;
+        $candidateDmcId = (int) $candidateDmcId;
+        if ($baseDmcId <= 0) {
+            return $candidateDmcId > 0 ? $candidateDmcId : 0;
+        }
+        if ($candidateDmcId <= 0 || $candidateDmcId === $baseDmcId) {
+            return $baseDmcId;
+        }
+
+        $siblings = self::getSiblingDmcIds($baseDmcId);
+        if (in_array($candidateDmcId, $siblings, true)) {
+            return $candidateDmcId;
+        }
+
+        return $baseDmcId;
+    }
+
+    /**
+     * Resolve inventory DMC for a destination country among Master-DMC siblings.
+     * Singapore city → Singapore DMC; India city → India DMC (same Master).
+     */
+    public static function resolveSiblingDmcIdForCountry($baseDmcId, ?string $country): int
+    {
+        $baseDmcId = (int) $baseDmcId;
+        if ($baseDmcId <= 0) {
+            return 0;
+        }
+
+        $country = trim((string) $country);
+        if ($country === '') {
+            return $baseDmcId;
+        }
+
+        $map = self::getSiblingDmcCountryMap($baseDmcId);
+        if ($map === []) {
+            return $baseDmcId;
+        }
+
+        $normalized = self::normalizeCountryName($country);
+        if ($normalized !== '' && isset($map[$normalized])) {
+            return (int) $map[$normalized];
+        }
+
+        foreach ($map as $mappedCountry => $dmcId) {
+            if (self::countriesMatch((string) $mappedCountry, $country)) {
+                return (int) $dmcId;
+            }
+        }
+
+        return $baseDmcId;
+    }
+
+    /**
+     * Resolve inventory DMC for a city (via city.country) among Master-DMC siblings.
+     * Optional $country short-circuits the City lookup when already known.
+     */
+    public static function resolveSiblingDmcIdForCity($baseDmcId, ?string $city, ?string $country = null): int
+    {
+        $baseDmcId = (int) $baseDmcId;
+        if ($baseDmcId <= 0) {
+            return 0;
+        }
+
+        $country = trim((string) $country);
+        if ($country === '') {
+            $city = trim((string) $city);
+            if ($city !== '') {
+                $cityRow = City::whereRaw('LOWER(name) = ?', [mb_strtolower($city)])->first();
+                $country = trim((string) ($cityRow->country ?? ''));
+            }
+        }
+
+        if ($country === '') {
+            return $baseDmcId;
+        }
+
+        return self::resolveSiblingDmcIdForCountry($baseDmcId, $country);
     }
 
     /**
