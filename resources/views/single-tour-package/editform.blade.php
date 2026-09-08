@@ -2508,16 +2508,17 @@
                                                         
                                                         const mealPlans = [];
                                                         
-                                                        // Same rule as create.blade.php: show "room only" unless rooms_only = 1
                                                         const hasRoomsOnly = room.rooms_only == 1 || room.rooms_only === true || room.rooms_only === '1';
-                                                        if (!hasRoomsOnly) {
+                                                        const hasComplementaryBreakfast = room.breakfast_included == 1 || room.breakfast_included === true || room.breakfast_included === '1';
+                                                        // Hide "room only" when complementary breakfast is included with the room.
+                                                        if (!hasRoomsOnly && !hasComplementaryBreakfast) {
                                                             mealPlans.push({ value: 'room_only', text: `room only${paxInfo}` });
                                                         }
                                                         
-                                                        // Add meal plans with same labels as create/reference: "room with breakfast", "room with breakfast + lunch", etc.
+                                                        // Add meal plans with same labels as create (no "chargeable" text).
                                                         if (hasBreakfast) {
-                                                            mealPlans.push({ value: 'bed_&_breakfast', text: `room with breakfast${paxInfo}` });
-                                                            
+                                                            const bfLabel = hasComplementaryBreakfast ? 'breakfast (complementary)' : 'breakfast';
+                                                            mealPlans.push({ value: 'bed_&_breakfast', text: `room with ${bfLabel}${paxInfo}` });
                                                         }
                                                         if (hasLunch) {
                                                             mealPlans.push({ value: 'lunch_only', text: `room with lunch${paxInfo}` });
@@ -2526,23 +2527,28 @@
                                                             mealPlans.push({ value: 'dinner_only', text: `room with dinner${paxInfo}` });
                                                         }
                                                         if (hasBreakfast && hasLunch) {
-                                                            mealPlans.push({ value: 'half_board_breakfast_lunch', text: `room with breakfast + lunch${paxInfo}` });
+                                                            const bfLabel = hasComplementaryBreakfast ? 'breakfast (complementary)' : 'breakfast';
+                                                            mealPlans.push({ value: 'half_board_breakfast_lunch', text: `room with ${bfLabel} + lunch${paxInfo}` });
                                                         }
                                                         if (hasBreakfast && hasDinner) {
-                                                            mealPlans.push({ value: 'half_board_breakfast_dinner', text: `room with breakfast + dinner${paxInfo}` });
+                                                            const bfLabel = hasComplementaryBreakfast ? 'breakfast (complementary)' : 'breakfast';
+                                                            mealPlans.push({ value: 'half_board_breakfast_dinner', text: `room with ${bfLabel} + dinner${paxInfo}` });
                                                         }
                                                         if (hasLunch && hasDinner) {
                                                             mealPlans.push({ value: 'half_board_lunch_dinner', text: `room with lunch + dinner${paxInfo}` });
                                                         }
                                                         if (hasBreakfast && hasLunch && hasDinner) {
-                                                            
-                                                            mealPlans.push({ value: 'all_inclusive', text: `room with all meals (breakfast + lunch + dinner)${paxInfo}` });
+                                                            const bfLabel = hasComplementaryBreakfast ? 'breakfast (complementary)' : 'breakfast';
+                                                            mealPlans.push({ value: 'all_inclusive', text: `room with all meals (${bfLabel} + lunch + dinner)${paxInfo}` });
                                                         }
                                                         
-                                                        // Populate meal plans dynamically
-                                                        // If DMC hides list prices but saved booking is room-only, still offer room_only
+                                                        // If no plans built, fall back carefully (never force room-only when complementary breakfast).
                                                         if (mealPlans.length === 0) {
-                                                            mealPlans.push({ value: 'room_only', text: `room only${paxInfo}` });
+                                                            if (hasComplementaryBreakfast || hasBreakfast) {
+                                                                mealPlans.push({ value: 'bed_&_breakfast', text: `room with breakfast${paxInfo}` });
+                                                            } else {
+                                                                mealPlans.push({ value: 'room_only', text: `room only${paxInfo}` });
+                                                            }
                                                         }
 
                                                         if (mealPlans.length > 0) {
@@ -2733,11 +2739,8 @@
                                                                 const pax = parseInt(paxValue, 10) || 0;
                                                                 const extraBedPrice = parseFloat(bedData.extra_bed_price) || 0;
                                                                 const extraBedEnabled = !!(bedData.extra_bed) && extraBedPrice > 0;
-                                                                const bookedHeadCount = typeof getEditHotelBookedHeadCount_{{ $hotelOrder->booking_id }} === 'function'
-                                                                    ? getEditHotelBookedHeadCount_{{ $hotelOrder->booking_id }}()
-                                                                    : 0;
-                                                                const occupancyBaseline = Math.max(maxOccupancy, bookedHeadCount > 0 ? bookedHeadCount : 0);
-                                                                const maxWithExtra = extraBedEnabled ? occupancyBaseline + 1 : occupancyBaseline;
+                                                                // Match create: base capacity only (not booked head count)
+                                                                const maxWithExtra = extraBedEnabled ? maxOccupancy + 1 : maxOccupancy;
 
                                                                 if (maxOccupancy) {
                                                                     let info = `Max occupancy: ${maxOccupancy} pax`;
@@ -2749,8 +2752,8 @@
                                                                     if (pax > maxWithExtra) {
                                                                         paxInfoEl.textContent = `Warning: Exceeds max ${maxWithExtra} pax (incl. extra bed)`;
                                                                         paxInfoEl.style.color = '#dc3545';
-                                                                    } else if (pax > occupancyBaseline && extraBedEnabled) {
-                                                                        paxInfoEl.textContent = info + ` — extra bed applies (${pax - occupancyBaseline} person)`;
+                                                                    } else if (pax > maxOccupancy && extraBedEnabled) {
+                                                                        paxInfoEl.textContent = info + ` — extra bed applies (${pax - maxOccupancy} person)`;
                                                                         paxInfoEl.style.color = '#d97706';
                                                                     } else {
                                                                         paxInfoEl.textContent = info;
@@ -2917,14 +2920,20 @@
                                                                 } catch (e) { /* ignore */ }
                                                             }
                                                         }
-                                                        if (maxOccupancy <= 0) {
+                                                        if (maxOccupancy <= 0 || !extraBedAvailable) {
                                                             const originalJsonEl = document.getElementById('original_rooms_json_{{ $hotelOrder->booking_id }}');
                                                             if (originalJsonEl && originalJsonEl.value) {
                                                                 try {
                                                                     const orig = JSON.parse(originalJsonEl.value);
                                                                     const firstRoom = Array.isArray(orig) ? orig[0] : orig;
                                                                     const firstBed = (firstRoom && firstRoom.beds && firstRoom.beds[0]) ? firstRoom.beds[0] : {};
-                                                                    maxOccupancy = window.getEditBaseMaxOccupancyFromBedData(firstBed);
+                                                                    if (maxOccupancy <= 0) {
+                                                                        maxOccupancy = window.getEditBaseMaxOccupancyFromBedData(firstBed);
+                                                                    }
+                                                                    if (!extraBedAvailable) {
+                                                                        extraBedPrice = parseFloat(firstBed.extra_bed_price) || extraBedPrice || 0;
+                                                                        extraBedAvailable = !!(firstBed.extra_bed) && extraBedPrice > 0;
+                                                                    }
                                                                 } catch (e) { /* ignore */ }
                                                             }
                                                         }
@@ -2932,16 +2941,18 @@
                                                     }
 
                                                     function calculateEditHotelExtraBedCost_{{ $hotelOrder->booking_id }}(numberOfPersons, numberOfRooms, numberOfNights) {
+                                                        // Same rule as create: extra beds = pax − base max occupancy
+                                                        // (e.g. capacity 3, pax 4 → 1 extra bed). Do NOT use booked
+                                                        // head_count as baseline or existing 4-pax bookings never charge.
                                                         const ctx = getEditHotelBedContext_{{ $hotelOrder->booking_id }}();
                                                         const pax = parseInt(numberOfPersons, 10) || 1;
                                                         const rooms = parseInt(numberOfRooms, 10) || 1;
                                                         const nights = parseInt(numberOfNights, 10) || 1;
-                                                        const bookedHeadCount = getEditHotelBookedHeadCount_{{ $hotelOrder->booking_id }}();
-                                                        const occupancyBaseline = Math.max(ctx.maxOccupancy, bookedHeadCount > 0 ? bookedHeadCount : 0);
-                                                        if (!ctx.extraBedAvailable || ctx.extraBedPrice <= 0 || pax <= occupancyBaseline) {
-                                                            return { extraPersons: 0, total: 0, perNightRate: ctx.extraBedPrice };
+                                                        const maxOccupancy = parseInt(ctx.maxOccupancy, 10) || 0;
+                                                        if (!ctx.extraBedAvailable || ctx.extraBedPrice <= 0 || maxOccupancy <= 0 || pax <= maxOccupancy) {
+                                                            return { extraPersons: 0, total: 0, perNightRate: ctx.extraBedPrice || 0 };
                                                         }
-                                                        const extraPersons = pax - occupancyBaseline;
+                                                        const extraPersons = pax - maxOccupancy;
                                                         return {
                                                             extraPersons,
                                                             perNightRate: ctx.extraBedPrice,
@@ -3123,40 +3134,51 @@
                                                         const extraBedCalc = calculateEditHotelExtraBedCost_{{ $hotelOrder->booking_id }}(numberOfPersons, numberOfRooms, numberOfNights);
                                                         const extraBedSubtotal = extraBedCalc.total;
                                                         
-                                                        // Meal plan: use saved price only when selected plan matches saved meal type; else use room's meal prices (so changing meal updates price)
+                                                        // Meal plan: prefer saved booking meal total (selectedMeals.price) on load
+                                                        // so default total includes meals (e.g. 141) before Get Price.
                                                         let mealPlanSubtotal = 0;
                                                         const selectedMealPlan = mealPlanSelect ? mealPlanSelect.value : '';
-                                                        if (selectedMealPlan && selectedMealPlan !== 'room_only') {
-                                                            let savedMealPrice = null;
-                                                            let savedMealType = null;
-                                                            const originalJsonEl = document.getElementById('original_rooms_json_{{ $hotelOrder->booking_id }}');
-                                                            if (originalJsonEl && originalJsonEl.value) {
-                                                                try {
-                                                                    const orig = JSON.parse(originalJsonEl.value);
-                                                                    const firstRoom = Array.isArray(orig) ? orig[0] : orig;
-                                                                    const beds = firstRoom && firstRoom.beds;
-                                                                    if (beds && beds[0] && beds[0].selectedMeals) {
-                                                                        const firstMeal = beds[0].selectedMeals.meal_1 || Object.values(beds[0].selectedMeals)[0];
-                                                                        if (firstMeal) {
-                                                                            if (typeof firstMeal.price !== 'undefined') savedMealPrice = parseFloat(firstMeal.price) || 0;
-                                                                            if (firstMeal.type) savedMealType = String(firstMeal.type).toLowerCase().trim();
-                                                                        }
+                                                        let savedMealPrice = null;
+                                                        let savedMealType = null;
+                                                        const originalJsonEl = document.getElementById('original_rooms_json_{{ $hotelOrder->booking_id }}');
+                                                        if (originalJsonEl && originalJsonEl.value) {
+                                                            try {
+                                                                const orig = JSON.parse(originalJsonEl.value);
+                                                                const firstRoom = Array.isArray(orig) ? orig[0] : orig;
+                                                                const beds = firstRoom && firstRoom.beds;
+                                                                if (beds && beds[0] && beds[0].selectedMeals) {
+                                                                    const firstMeal = beds[0].selectedMeals.meal_1 || Object.values(beds[0].selectedMeals)[0];
+                                                                    if (firstMeal) {
+                                                                        if (typeof firstMeal.price !== 'undefined') savedMealPrice = parseFloat(firstMeal.price) || 0;
+                                                                        if (firstMeal.type) savedMealType = String(firstMeal.type).toLowerCase().trim();
                                                                     }
-                                                                } catch (e) {}
+                                                                }
+                                                            } catch (e) {}
+                                                        }
+                                                        function savedMealTypeMatchesPlan(savedType, planValue) {
+                                                            if (!savedType) return false;
+                                                            if (!planValue) return true;
+                                                            const s = String(savedType).toLowerCase().trim();
+                                                            const p = String(planValue).toLowerCase().trim();
+                                                            const pNorm = p.replace(/_/g, ' ');
+                                                            // Exact / contains match (e.g. "room with breakfast (chargable)")
+                                                            if (s === p || s === pNorm || s.includes(pNorm) || pNorm.includes(s.replace(/\s*\(.*?\)\s*/g, '').trim())) {
+                                                                return true;
                                                             }
-                                                            // Map saved meal type to dropdown value for comparison (e.g. "room with breakfast" -> bed_&_breakfast)
-                                                            function savedMealTypeMatchesPlan(savedType, planValue) {
-                                                                if (!savedType || !planValue) return false;
-                                                                const p = planValue.toLowerCase();
-                                                                if (p === 'bed_&_breakfast' || p === 'bed_and_breakfast') return savedType.includes('breakfast') && (savedType.includes('room') || savedType.includes('bed'));
-                                                                if (p === 'breakfast_only') return savedType.includes('breakfast') && !savedType.includes('lunch') && !savedType.includes('dinner');
-                                                                if (p === 'lunch_only') return savedType.includes('lunch') && !savedType.includes('breakfast') && !savedType.includes('dinner');
-                                                                if (p === 'dinner_only') return savedType.includes('dinner') && !savedType.includes('breakfast') && !savedType.includes('lunch');
-                                                                if (p.includes('half_board')) return savedType.includes('half') || (savedType.includes('breakfast') && savedType.includes('lunch')) || (savedType.includes('breakfast') && savedType.includes('dinner')) || (savedType.includes('lunch') && savedType.includes('dinner'));
-                                                                if (p.includes('full_board') || p === 'all_inclusive') return savedType.includes('full') || savedType.includes('all');
-                                                                return false;
+                                                            if (p === 'bed_&_breakfast' || p === 'bed_and_breakfast' || pNorm.includes('breakfast')) {
+                                                                return s.includes('breakfast') && !s.includes('lunch') && !s.includes('dinner');
                                                             }
-                                                            const useSavedPrice = savedMealPrice !== null && savedMealPrice > 0 && savedMealType && savedMealTypeMatchesPlan(savedMealType, selectedMealPlan);
+                                                            if (p === 'breakfast_only') return s.includes('breakfast') && !s.includes('lunch') && !s.includes('dinner');
+                                                            if (p === 'lunch_only') return s.includes('lunch') && !s.includes('breakfast') && !s.includes('dinner');
+                                                            if (p === 'dinner_only') return s.includes('dinner') && !s.includes('breakfast') && !s.includes('lunch');
+                                                            if (p.includes('half_board')) return s.includes('half') || (s.includes('breakfast') && s.includes('lunch')) || (s.includes('breakfast') && s.includes('dinner')) || (s.includes('lunch') && s.includes('dinner'));
+                                                            if (p.includes('full_board') || p === 'all_inclusive') return s.includes('full') || s.includes('all');
+                                                            return false;
+                                                        }
+                                                        if (selectedMealPlan && selectedMealPlan !== 'room_only') {
+                                                            const useSavedPrice = savedMealPrice !== null && savedMealPrice > 0 && (
+                                                                !savedMealType || savedMealTypeMatchesPlan(savedMealType, selectedMealPlan)
+                                                            );
                                                             if (useSavedPrice) {
                                                                 mealPlanSubtotal = savedMealPrice;
                                                             } else if (selectedRoom) {
@@ -3167,7 +3189,6 @@
                                                                 const dinnerPrice = parseFloat(selectedRoom.dinner_price || 0);
                                                                 const bf = skipBreakfastMealCost ? 0 : breakfastPrice;
                                                                 let mealPlanPrice = 0;
-                                                                // room with all meals: value is full_board_all_meals or all_inclusive (no "breakfast" in value)
                                                                 if (selectedMealPlan === 'full_board_all_meals' || selectedMealPlan === 'all_inclusive') {
                                                                     mealPlanPrice = bf + lunchPrice + dinnerPrice;
                                                                 } else if (selectedMealPlan.includes('breakfast') && selectedMealPlan.includes('lunch') && selectedMealPlan.includes('dinner')) {
@@ -3187,6 +3208,9 @@
                                                                 }
                                                                 mealPlanSubtotal = mealPlanPrice * numberOfPersons * numberOfNights * numberOfRooms;
                                                             }
+                                                        } else if ((!selectedMealPlan || selectedMealPlan === '') && savedMealPrice !== null && savedMealPrice > 0) {
+                                                            // Dropdown not hydrated yet — still include saved meal total in default price
+                                                            mealPlanSubtotal = savedMealPrice;
                                                         }
                                                         
                                                         // Calculate child with bed price
@@ -3288,16 +3312,27 @@
                                                         
                                                         gridBody.innerHTML = gridHTML;
                                                         
-                                                        // Calculate and display the same grand total everywhere
+                                                        // Calculate client-side grand total (no fair/season rates).
                                                         const grandTotal = roomSubtotal + extraBedSubtotal + mealPlanSubtotal + childWithBedSubtotal + childWithoutBedSubtotal;
+                                                        const priceInput = document.getElementById('total_price_{{ $hotelOrder->booking_id }}');
+                                                        const originalDb = priceInput
+                                                            ? (parseFloat(priceInput.getAttribute('data-original-db-total') || priceInput.dataset.originalDbTotal || '0') || 0)
+                                                            : 0;
+                                                        // Keep saved DB total (e.g. 891) until Get Price / user edit —
+                                                        // client calc misses fair charge and shows a lower amount (e.g. 641).
+                                                        const preserveDb = originalDb > 0
+                                                            && priceInput
+                                                            && priceInput.dataset.preservedFromDb !== 'false'
+                                                            && !(window.hotelNeedsGetPrice && window.hotelNeedsGetPrice[{{ $hotelOrder->booking_id }}]);
+                                                        const displayTotal = preserveDb ? originalDb : grandTotal;
                                                         if (typeof window.syncHotelBookingPriceDisplays === 'function') {
-                                                            window.syncHotelBookingPriceDisplays({{ $hotelOrder->booking_id }}, grandTotal);
+                                                            window.syncHotelBookingPriceDisplays({{ $hotelOrder->booking_id }}, displayTotal);
                                                         } else {
                                                             const currencyLabel = '{{ trim($displayCurrency) }}';
-                                                            grandTotalEl.textContent = currencyLabel + ' ' + grandTotal.toFixed(2);
+                                                            grandTotalEl.textContent = currencyLabel + ' ' + displayTotal.toFixed(2);
                                                         }
                                                         try {
-                                                            refreshRoomTypeStayPriceLabels_{{ $hotelOrder->booking_id }}(grandTotal);
+                                                            refreshRoomTypeStayPriceLabels_{{ $hotelOrder->booking_id }}(displayTotal);
                                                         } catch (e) {}
                                                     }
                                                     
@@ -3317,7 +3352,8 @@
                                                         if (priceInput && priceInput.dataset.manualEdit === 'true' && !forceUpdate) {
                                                             return;
                                                         }
-                                                        if (forceUpdate && priceInput) {
+                                                        // Hydration / bed reload must not discard the saved DB total.
+                                                        if (forceUpdate && priceInput && priceInput.dataset.hydrating !== 'true') {
                                                             priceInput.dataset.preservedFromDb = 'false';
                                                             priceInput.dataset.manualEdit = 'false';
                                                         }
@@ -3361,7 +3397,17 @@
                                                         }
                                                         setTimeout(() => {
                                                             try { updateHotelPriceGrid_{{ $hotelOrder->booking_id }}(true); } catch (e) {}
+                                                            // Keep showing saved DB total, then rate-engine refresh.
+                                                            if (typeof window.autoGetHotelHelperPriceForBooking === 'function') {
+                                                                window.autoGetHotelHelperPriceForBooking({{ $hotelOrder->booking_id }});
+                                                            }
                                                         }, 600);
+
+                                                        // End hydration window so later user edits can clear preserved DB total.
+                                                        setTimeout(() => {
+                                                            const priceInput = document.getElementById('total_price_{{ $hotelOrder->booking_id }}');
+                                                            if (priceInput) priceInput.dataset.hydrating = 'false';
+                                                        }, 2500);
 
                                                         if (typeof window.setHotelSaveBlocked === 'function') {
                                                             window.setHotelSaveBlocked({{ $hotelOrder->booking_id }}, true);
@@ -3493,18 +3539,31 @@
                                                     <i class="ri-information-line me-1"></i>Please add child first (select children or infants in Guests).
                                                 </small>
                                             </div>
-                                            <div class="col-md-3">
+                                            <div class="col-md-6 col-lg-5">
                                                 <label class="form-label fw-semibold text-muted mb-2">
                                                     <i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price
                                                 </label>
-                                                <div class="input-group">
-                                                    <span class="input-group-text border-2" style="height: 35px; line-height: 35px;">{{ $displayCurrency }}</span>
-                                                    <input type="number" class="form-control border-2" name="total_price" style="height: 35px;" id="total_price_{{ $hotelOrder->booking_id }}" step="0.01" min="0" value="{{ number_format((float)$totalPrice, 2, '.', '') }}" placeholder="0.00" data-manual-edit="false" data-db-total="{{ number_format((float)$totalPrice, 2, '.', '') }}">
-                                                    <button type="button" class="btn d-flex align-items-center get-hotel-price-btn" id="get_price_btn_{{ $hotelOrder->booking_id }}" style="height: 35px; border-radius: 0 6px 6px 0; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); border: none; color: #ffffff; font-size: 0.75rem; font-weight: 500; padding: 0 10px; white-space: nowrap;" onclick="getHotelHelperPriceForBooking({{ $hotelOrder->booking_id }}, this)" data-bs-toggle="tooltip" data-bs-placement="top" title="Click here to get the price">
-                                                        <i class="ri-money-dollar-circle-line me-1"></i> Get Price
+                                                <div class="d-flex flex-wrap align-items-stretch gap-2">
+                                                    <div class="input-group flex-grow-1" style="min-width: 200px;">
+                                                        <span class="input-group-text border-2" style="height: 35px; line-height: 35px;">{{ $displayCurrency }}</span>
+                                                        <input type="number" class="form-control border-2" name="total_price" style="height: 35px;" id="total_price_{{ $hotelOrder->booking_id }}" step="0.01" min="0" value="{{ number_format((float)$totalPrice, 2, '.', '') }}" placeholder="0.00" data-manual-edit="false" data-db-total="{{ number_format((float)$totalPrice, 2, '.', '') }}" data-original-db-total="{{ number_format((float)$totalPrice, 2, '.', '') }}" data-preserved-from-db="true" data-hydrating="true">
+                                                        <button type="button" class="btn d-flex align-items-center get-hotel-price-btn" id="get_price_btn_{{ $hotelOrder->booking_id }}" style="height: 35px; border-radius: 0 6px 6px 0; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); border: none; color: #ffffff; font-size: 0.75rem; font-weight: 500; padding: 0 10px; white-space: nowrap;" onclick="getHotelHelperPriceForBooking({{ $hotelOrder->booking_id }}, this)" data-bs-toggle="tooltip" data-bs-placement="top" title="Click here to get the price">
+                                                            <i class="ri-money-dollar-circle-line me-1"></i> Get Price
+                                                        </button>
+                                                    </div>
+                                                    <button type="button"
+                                                        class="btn btn-outline-primary d-inline-flex align-items-center gap-1"
+                                                        id="hotel_price_info_btn_{{ $hotelOrder->booking_id }}"
+                                                        style="height: 35px; font-size: 0.75rem; font-weight: 500; border-radius: 6px; padding: 0 0.75rem; white-space: nowrap;"
+                                                        onclick="window.toggleHotelPricingDetails({{ $hotelOrder->booking_id }})"
+                                                        title="View hotel price breakdown"
+                                                        aria-expanded="false"
+                                                        aria-controls="hotel_price_details_{{ $hotelOrder->booking_id }}">
+                                                        <i class="ri-file-list-3-line" id="hotel_price_breakdown_btn_icon_{{ $hotelOrder->booking_id }}"></i>
+                                                        <span id="hotel_price_breakdown_btn_label_{{ $hotelOrder->booking_id }}">View price breakdown</span>
                                                     </button>
                                                 </div>
-                                                <small class="text-muted d-block mt-2" style="font-size: 0.7rem; line-height: 1.7; word-wrap: break-word;">Total for all rooms, nights &amp; extra beds</small>
+                                                <small class="text-muted d-block mt-2" style="font-size: 0.7rem; line-height: 1.5;">Total for all rooms, nights &amp; extra beds</small>
                                             </div>
                                         </div>
                                         
@@ -3525,23 +3584,28 @@
                                             </div>
                                         </div>
                                         
-                                        <!-- Price Breakdown Grid -->
-                                        <div class="row mt-2">
+                                        <!-- Price Breakdown Grid (hidden until info icon click) -->
+                                        <div class="row mt-2" id="hotel_price_details_{{ $hotelOrder->booking_id }}" style="display: none;">
                                             <div class="col-12">
                                                 <div class="card shadow-sm" style="border-radius: 8px; border: 2px solid #60a5fa; overflow: hidden;">
                                                     <!-- Header Section -->
                                                     <div style="background: linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%); padding: 10px 15px; border-bottom: 1px solid #cbd5e1;">
-                                                        <div class="d-flex align-items-center">
-                                                            <i class="ri-hotel-line me-2" style="font-size: 1.1rem; color: #2563eb;"></i>
-                                                            <span class="fw-bold" style="font-size: 0.85rem; color: #1e293b;">Hotel Pricing Details</span>
+                                                        <div class="d-flex align-items-center justify-content-between">
+                                                            <div class="d-flex align-items-center">
+                                                                <i class="ri-hotel-line me-2" style="font-size: 1.1rem; color: #2563eb;"></i>
+                                                                <span class="fw-bold" style="font-size: 0.85rem; color: #1e293b;">Hotel Pricing Details</span>
+                                                            </div>
+                                                            <button type="button" class="btn btn-sm btn-link p-0 text-decoration-none" onclick="window.toggleHotelPricingDetails({{ $hotelOrder->booking_id }})" title="Hide pricing details" style="color: #2563eb;">
+                                                                <i class="ri-close-line" style="font-size: 1.1rem;"></i>
+                                                            </button>
                                                         </div>
                                                     </div>
                                                     
                                                     <!-- Content Section -->
-                                                    <div class="card-body p-3" style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);">
+                                                    <div class="card-body p-3" id="hotel_price_breakdown_body_{{ $hotelOrder->booking_id }}" style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);">
                                                         <div id="hotel_price_grid_body_{{ $hotelOrder->booking_id }}">
                                                             <div class="text-muted text-center py-2" style="font-size: 0.75rem;">
-                                                                Select room type to see price breakdown
+                                                                Click Get Price, then open this panel for the breakdown
                                                             </div>
                                                         </div>
                                                         
@@ -5259,9 +5323,29 @@
                                                             }
                                                         @endphp
                                                         @foreach($filteredRestaurants as $restaurant)
+                                                            @php
+                                                                $restaurantOptionData = [
+                                                                    'restaurant_id' => $restaurant->restaurant_id ?? null,
+                                                                    'name' => $restaurant->name ?? null,
+                                                                    'city' => $restaurant->city ?? null,
+                                                                    'cuisine' => $restaurant->cuisine ?? null,
+                                                                    'meals' => collect($restaurant->meals ?? [])->map(function ($m) {
+                                                                        return [
+                                                                            'meal_id' => $m->meal_id ?? null,
+                                                                            'type' => $m->type ?? null,
+                                                                            'meal_period' => $m->meal_period ?? null,
+                                                                            'category' => $m->category ?? null,
+                                                                            'item_type' => $m->item_type ?? null,
+                                                                            'adult_price' => $m->adult_price ?? null,
+                                                                            'child_price' => $m->child_price ?? null,
+                                                                            'name' => $m->name ?? null,
+                                                                        ];
+                                                                    })->values()->all(),
+                                                                ];
+                                                            @endphp
                                                             <option value="{{ $restaurant->name }}" {{ $restaurantName == $restaurant->name && !$multiRestaurantSelected ? 'selected' : '' }} 
                                                                 data-restaurant-id="{{ $restaurant->restaurant_id ?? '' }}"
-                                                                data-restaurant-data="{{ json_encode($restaurant) }}">
+                                                                data-restaurant-data="{{ json_encode($restaurantOptionData) }}">
                                                                 {{ $restaurant->name }}
                                                                 @if(isset($restaurant->city))
                                                                     - {{ $restaurant->city }}
@@ -5272,9 +5356,32 @@
                                                             </option>
                                                         @endforeach
                                                         @if($restaurantName && !$filteredRestaurants->pluck('name')->contains($restaurantName) && !$multiRestaurantSelected)
+                                                            @php
+                                                                $selectedRestaurantOptionData = null;
+                                                                if ($selectedRestaurantMaster) {
+                                                                    $selectedRestaurantOptionData = [
+                                                                        'restaurant_id' => $selectedRestaurantMaster->restaurant_id ?? null,
+                                                                        'name' => $selectedRestaurantMaster->name ?? null,
+                                                                        'city' => $selectedRestaurantMaster->city ?? null,
+                                                                        'cuisine' => $selectedRestaurantMaster->cuisine ?? null,
+                                                                        'meals' => collect($selectedRestaurantMaster->meals ?? [])->map(function ($m) {
+                                                                            return [
+                                                                                'meal_id' => $m->meal_id ?? null,
+                                                                                'type' => $m->type ?? null,
+                                                                                'meal_period' => $m->meal_period ?? null,
+                                                                                'category' => $m->category ?? null,
+                                                                                'item_type' => $m->item_type ?? null,
+                                                                                'adult_price' => $m->adult_price ?? null,
+                                                                                'child_price' => $m->child_price ?? null,
+                                                                                'name' => $m->name ?? null,
+                                                                            ];
+                                                                        })->values()->all(),
+                                                                    ];
+                                                                }
+                                                            @endphp
                                                             <option value="{{ $restaurantName }}" selected
                                                                 data-restaurant-id="{{ $payload['restaurantId'] ?? $payload['restaurant_id'] ?? ($selectedRestaurantMaster->restaurant_id ?? '') }}"
-                                                                @if($selectedRestaurantMaster) data-restaurant-data="{{ json_encode($selectedRestaurantMaster) }}" @endif>
+                                                                @if($selectedRestaurantOptionData) data-restaurant-data="{{ json_encode($selectedRestaurantOptionData) }}" @endif>
                                                                 {{ $restaurantName }}
                                                             </option>
                                                         @endif
@@ -8895,8 +9002,8 @@
                                 </label>
                                 <select class="form-select modern-select pickup-zone-select" id="modal_transport_pickup_zone" name="pickup_zone_id" style="height: 36px; font-size: 0.8rem;">
                                     <option value="">Select pickup location</option>
-                                    @foreach($ports as $port)
-                                        <option data-type="Port" value="{{ $port->port_id }}" data-port="{{ json_encode($port) }}">{{ $port->port_name }}</option>
+                                    @foreach(($locationPorts ?? []) as $port)
+                                        <option data-type="Port" value="{{ $port['port_id'] ?? '' }}" data-port="{{ json_encode($port) }}">{{ $port['port_name'] ?? '' }}</option>
                                     @endforeach
                                 </select>
                             </div>
@@ -8909,22 +9016,22 @@
                                     
                                     <!-- Hotels -->
                                     <optgroup label="Hotels">
-                                    @foreach($hotels as $hotel)
-                                        <option data-type="Hotel" value="{{ $hotel->hotel_unique_id }}" data-hotel="{{ json_encode($hotel) }}">{{ $hotel->name }}</option>
+                                    @foreach(($locationHotels ?? []) as $hotel)
+                                        <option data-type="Hotel" value="{{ $hotel['hotel_unique_id'] ?? '' }}" data-hotel="{{ json_encode($hotel) }}">{{ $hotel['name'] ?? '' }}</option>
                                     @endforeach
                                     </optgroup>
                                     
                                     <!-- Attractions -->
                                     <optgroup label="Attractions">
-                                    @foreach($attractions as $attraction)
-                                        <option data-type="Attraction" value="{{ $attraction->attraction_id }}" data-attraction="{{ json_encode($attraction) }}">{{ $attraction->name }}</option>
+                                    @foreach(($locationAttractions ?? []) as $attraction)
+                                        <option data-type="Attraction" value="{{ $attraction['attraction_id'] ?? '' }}" data-attraction="{{ json_encode($attraction) }}">{{ $attraction['name'] ?? '' }}</option>
                                     @endforeach
                                     </optgroup>
                                     
                                     <!-- Restaurants -->
                                     <optgroup label="Restaurants">
-                                    @foreach($restaurants as $restaurant)
-                                        <option data-type="Restaurant" value="{{ $restaurant->restaurant_id }}" data-restaurant="{{ json_encode($restaurant) }}">{{ $restaurant->name }}</option>
+                                    @foreach(($locationRestaurants ?? []) as $restaurant)
+                                        <option data-type="Restaurant" value="{{ $restaurant['restaurant_id'] ?? '' }}" data-restaurant="{{ json_encode($restaurant) }}">{{ $restaurant['name'] ?? '' }}</option>
                                     @endforeach
                                     </optgroup>
                                 </select>
@@ -9182,23 +9289,23 @@
                                         <select class="form-select modern-select pickup-zone-select" id="local_transfer_pickup_zone" name="pickup_zone_id" style="height: 36px; font-size: 0.8rem;">
                                             <option value="">Select pickup location</option>
                                             <optgroup label="Ports">
-                                            @foreach($ports as $port)
-                                                <option data-type="Port" value="{{ $port->port_id }}" data-port="{{ json_encode($port) }}">{{ $port->port_name }}</option>
+                                            @foreach(($locationPorts ?? []) as $port)
+                                                <option data-type="Port" value="{{ $port['port_id'] ?? '' }}" data-port="{{ json_encode($port) }}">{{ $port['port_name'] ?? '' }}</option>
                                             @endforeach
                                             </optgroup>
                                             <optgroup label="Hotels">
-                                            @foreach($hotels as $hotel)
-                                            <option data-type="Hotel" value="{{ $hotel->hotel_unique_id }}" data-hotel="{{ json_encode($hotel) }}">{{ $hotel->name }}</option>
+                                            @foreach(($locationHotels ?? []) as $hotel)
+                                            <option data-type="Hotel" value="{{ $hotel['hotel_unique_id'] ?? '' }}" data-hotel="{{ json_encode($hotel) }}">{{ $hotel['name'] ?? '' }}</option>
                                             @endforeach
                                             </optgroup>
                                             <optgroup label="Attractions">
-                                            @foreach($attractions as $attraction)
-                                            <option data-type="Attraction" value="{{ $attraction->attraction_id }}" data-attraction="{{ json_encode($attraction) }}">{{ $attraction->name }}</option>
+                                            @foreach(($locationAttractions ?? []) as $attraction)
+                                            <option data-type="Attraction" value="{{ $attraction['attraction_id'] ?? '' }}" data-attraction="{{ json_encode($attraction) }}">{{ $attraction['name'] ?? '' }}</option>
                                             @endforeach
                                             </optgroup>
                                             <optgroup label="Restaurants">
-                                            @foreach($restaurants as $restaurant)
-                                            <option data-type="Restaurant" value="{{ $restaurant->restaurant_id }}" data-restaurant="{{ json_encode($restaurant) }}">{{ $restaurant->name }}</option>
+                                            @foreach(($locationRestaurants ?? []) as $restaurant)
+                                            <option data-type="Restaurant" value="{{ $restaurant['restaurant_id'] ?? '' }}" data-restaurant="{{ json_encode($restaurant) }}">{{ $restaurant['name'] ?? '' }}</option>
                                             @endforeach
                                             </optgroup>
                                         </select>
@@ -9210,23 +9317,23 @@
                                         <select class="form-select modern-select dropoff-zone-select" id="local_transfer_dropoff_zone" name="dropoff_zone_id" style="height: 36px; font-size: 0.8rem;">
                                             <option value="">Select dropoff location</option>
                                             <optgroup label="Ports">
-                                            @foreach($ports as $port)
-                                            <option data-type="Port" value="{{ $port->port_id }}" data-port="{{ json_encode($port) }}">{{ $port->port_name }}</option>
+                                            @foreach(($locationPorts ?? []) as $port)
+                                            <option data-type="Port" value="{{ $port['port_id'] ?? '' }}" data-port="{{ json_encode($port) }}">{{ $port['port_name'] ?? '' }}</option>
                                             @endforeach
                                             </optgroup>
                                             <optgroup label="Hotels">
-                                            @foreach($hotels as $hotel)
-                                                <option data-type="Hotel" value="{{ $hotel->hotel_unique_id }}" data-hotel="{{ json_encode($hotel) }}">{{ $hotel->name }}</option>
+                                            @foreach(($locationHotels ?? []) as $hotel)
+                                                <option data-type="Hotel" value="{{ $hotel['hotel_unique_id'] ?? '' }}" data-hotel="{{ json_encode($hotel) }}">{{ $hotel['name'] ?? '' }}</option>
                                             @endforeach
                                             </optgroup>
                                             <optgroup label="Attractions">
-                                            @foreach($attractions as $attraction)
-                                            <option data-type="Attraction" value="{{ $attraction->attraction_id }}" data-attraction="{{ json_encode($attraction) }}">{{ $attraction->name }}</option>
+                                            @foreach(($locationAttractions ?? []) as $attraction)
+                                            <option data-type="Attraction" value="{{ $attraction['attraction_id'] ?? '' }}" data-attraction="{{ json_encode($attraction) }}">{{ $attraction['name'] ?? '' }}</option>
                                             @endforeach
                                             </optgroup>
                                             <optgroup label="Restaurants">
-                                            @foreach($restaurants as $restaurant)
-                                            <option data-type="Restaurant" value="{{ $restaurant->restaurant_id }}" data-restaurant="{{ json_encode($restaurant) }}">{{ $restaurant->name }}</option>
+                                            @foreach(($locationRestaurants ?? []) as $restaurant)
+                                            <option data-type="Restaurant" value="{{ $restaurant['restaurant_id'] ?? '' }}" data-restaurant="{{ json_encode($restaurant) }}">{{ $restaurant['name'] ?? '' }}</option>
                                             @endforeach
                                             </optgroup>
                                         </select>
@@ -9606,22 +9713,22 @@
                                                 <option value="">Select pickup location</option>
                                                 <!-- Hotels -->
                                                 <optgroup label="Hotels">
-                                                @foreach($hotels as $hotel)
-                                                    <option value="{{ $hotel->hotel_unique_id }}" data-hotel="{{ json_encode($hotel) }}">{{ $hotel->name }}</option>
+                                                @foreach(($locationHotels ?? []) as $hotel)
+                                                    <option value="{{ $hotel['hotel_unique_id'] ?? '' }}" data-hotel="{{ json_encode($hotel) }}">{{ $hotel['name'] ?? '' }}</option>
                                                 @endforeach
                                                 </optgroup>
                                                 
                                                 <!-- Attractions -->
                                                 <optgroup label="Attractions">
-                                                @foreach($attractions as $attraction)
-                                                <option value="{{ $attraction->attraction_id }}" data-attraction="{{ json_encode($attraction) }}">{{ $attraction->name }}</option>
+                                                @foreach(($locationAttractions ?? []) as $attraction)
+                                                <option value="{{ $attraction['attraction_id'] ?? '' }}" data-attraction="{{ json_encode($attraction) }}">{{ $attraction['name'] ?? '' }}</option>
                                                 @endforeach
                                                 </optgroup>
                                                 
                                                 <!-- Restaurants -->
                                                 <optgroup label="Restaurants">
-                                                @foreach($restaurants as $restaurant)
-                                                <option value="{{ $restaurant->restaurant_id }}" data-restaurant="{{ json_encode($restaurant) }}">{{ $restaurant->name }}</option>
+                                                @foreach(($locationRestaurants ?? []) as $restaurant)
+                                                <option value="{{ $restaurant['restaurant_id'] ?? '' }}" data-restaurant="{{ json_encode($restaurant) }}">{{ $restaurant['name'] ?? '' }}</option>
                                                 @endforeach
                                                 </optgroup>
                                             </select>
@@ -9637,8 +9744,8 @@
                                         <div class="position-relative">
                                             <select class="form-select dropoff-zone-select border-2" id="modal_dropoff_transport_dropoff_zone" name="dropoff_zone_id" style="padding-left: 45px;">
                                                 <option value="">Select dropoff location</option>
-                                                @foreach($ports as $port)
-                                                    <option value="{{ $port->port_id }}" data-port="{{ json_encode($port) }}">{{ $port->port_name }}</option>
+                                                @foreach(($locationPorts ?? []) as $port)
+                                                    <option value="{{ $port['port_id'] ?? '' }}" data-port="{{ json_encode($port) }}">{{ $port['port_name'] ?? '' }}</option>
                                                 @endforeach
                                             </select>
                                             <i class="ri-flag-fill position-absolute text-danger" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
@@ -14118,7 +14225,7 @@
 
                 // Fallback to preloaded list if API returned nothing
                 if (!attractions.length && !bundles.length) {
-                    const all_attractions = @json($attractions ?? []);
+                    const all_attractions = @json($locationAttractions ?? []);
                     const cityKey = (typeof cityMatchKey === 'function') ? cityMatchKey(city) : (city || '').trim().toLowerCase();
                     (all_attractions || []).filter(function (attraction) {
                         const loc = (typeof cityMatchKey === 'function') ? cityMatchKey(attraction.location) : (attraction.location || '').trim().toLowerCase();
@@ -15634,7 +15741,7 @@
         });
     }
 
-    window.ALL_TOUR_PORTS = @json($ports ?? []);
+    window.ALL_TOUR_PORTS = @json($locationPorts ?? []);
 
     function getCountryFromCitySelect(selectEl) {
         if (!selectEl) return '';
@@ -15804,11 +15911,11 @@
             return;
         }
 
-        // Backend data
-        const allPorts = window.ALL_TOUR_PORTS || @json($ports ?? []);
-        const allHotels = @json($hotels ?? []);
-        const allRestaurants = @json($restaurants ?? []);
-        const allAttractions = @json($attractions ?? []);
+        // Backend data (slim location payloads — never dump full Eloquent graphs here)
+        const allPorts = window.ALL_TOUR_PORTS || @json($locationPorts ?? []);
+        const allHotels = @json($locationHotels ?? []);
+        const allRestaurants = @json($locationRestaurants ?? []);
+        const allAttractions = @json($locationAttractions ?? []);
         const cityCtx = getTransportModalCityContext();
         const citySelect = document.getElementById('modal_entryport_transport_city');
         const country = getCountryFromCitySelect(citySelect);
@@ -19725,26 +19832,49 @@
         const hasLunch = roomsOfType.some(r => mealFlag(r, 'lunch', 'lunch_included'));
         const hasDinner = roomsOfType.some(r => mealFlag(r, 'dinner', 'dinner_included'));
         const hasRoomsOnly = roomsOfType.some(r => r.rooms_only == 1 || r.rooms_only === true || r.rooms_only === '1');
+        const hasComplementaryBreakfast = roomsOfType.some(r =>
+            r.breakfast_included == 1 || r.breakfast_included === true || r.breakfast_included === '1'
+        );
 
         const sample = roomsOfType[0];
         const mealPlans = [];
         const roomText = 'room';
 
-        // Same rule as create.blade.php: show "room only" unless rooms_only = 1
-        if (!hasRoomsOnly) {
+        // Hide "room only" when complementary breakfast is included with the room.
+        if (!hasRoomsOnly && !hasComplementaryBreakfast) {
             mealPlans.push(`${roomText} only`);
         }
-        if (hasBreakfast) mealPlans.push(`${roomText} with breakfast`);
+        if (hasBreakfast) {
+            mealPlans.push(hasComplementaryBreakfast
+                ? `${roomText} with breakfast (complementary)`
+                : `${roomText} with breakfast`);
+        }
         if (hasLunch) mealPlans.push(`${roomText} with lunch`);
         if (hasDinner) mealPlans.push(`${roomText} with dinner`);
-        if (hasBreakfast && hasLunch) mealPlans.push(`${roomText} with breakfast + lunch`);
-        if (hasBreakfast && hasDinner) mealPlans.push(`${roomText} with breakfast + dinner`);
+        if (hasBreakfast && hasLunch) {
+            mealPlans.push(hasComplementaryBreakfast
+                ? `${roomText} with breakfast (complementary) + lunch`
+                : `${roomText} with breakfast + lunch`);
+        }
+        if (hasBreakfast && hasDinner) {
+            mealPlans.push(hasComplementaryBreakfast
+                ? `${roomText} with breakfast (complementary) + dinner`
+                : `${roomText} with breakfast + dinner`);
+        }
         if (hasLunch && hasDinner) mealPlans.push(`${roomText} with lunch + dinner`);
         if (hasBreakfast && hasLunch && hasDinner) {
-            mealPlans.push(`${roomText} with all meals (breakfast + lunch + dinner)`);
+            mealPlans.push(hasComplementaryBreakfast
+                ? `${roomText} with all meals (breakfast (complementary) + lunch + dinner)`
+                : `${roomText} with all meals (breakfast + lunch + dinner)`);
         }
         if (!mealPlans.length) {
-            mealPlans.push(`${roomText} only`);
+            if (hasComplementaryBreakfast || hasBreakfast) {
+                mealPlans.push(hasComplementaryBreakfast
+                    ? `${roomText} with breakfast (complementary)`
+                    : `${roomText} with breakfast`);
+            } else {
+                mealPlans.push(`${roomText} only`);
+            }
         }
 
         mealPlanSelect.innerHTML = '<option value="">Select meal plan</option>';
@@ -20791,6 +20921,32 @@
     // True after a successful Get Price so the client-side grid does not overwrite helper totals.
     window.hotelPricedByHelper = window.hotelPricedByHelper || {};
 
+    /** Show / hide Hotel Pricing Details (View price breakdown button). */
+    window.toggleHotelPricingDetails = function(bookingId, forceShow) {
+        const panel = document.getElementById('hotel_price_details_' + bookingId);
+        const btn = document.getElementById('hotel_price_info_btn_' + bookingId);
+        const label = document.getElementById('hotel_price_breakdown_btn_label_' + bookingId);
+        const icon = document.getElementById('hotel_price_breakdown_btn_icon_' + bookingId);
+        if (!panel) return;
+        const willShow = forceShow === true
+            ? true
+            : (forceShow === false ? false : panel.style.display === 'none');
+        panel.style.display = willShow ? '' : 'none';
+        if (btn) {
+            btn.setAttribute('aria-expanded', willShow ? 'true' : 'false');
+            btn.title = willShow ? 'Hide hotel price breakdown' : 'View hotel price breakdown';
+            btn.classList.toggle('btn-primary', willShow);
+            btn.classList.toggle('btn-outline-primary', !willShow);
+        }
+        if (label) label.textContent = willShow ? 'Hide price breakdown' : 'View price breakdown';
+        if (icon) {
+            icon.className = willShow ? 'ri-eye-off-line' : 'ri-file-list-3-line';
+        }
+        if (willShow) {
+            try { panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch (e) {}
+        }
+    };
+
     // Keep header, Total Price field, grid total, and selected room-type label on the same figure.
     window.syncHotelBookingPriceDisplays = function(bookingId, amount) {
         const n = parseFloat(amount) || 0;
@@ -20803,6 +20959,7 @@
 
         if (totalInput && document.activeElement !== totalInput) {
             totalInput.value = formatted;
+            // data-db-total tracks last displayed amount; never wipe data-original-db-total.
             totalInput.dataset.dbTotal = formatted;
         }
         if (headerTotalEl) headerTotalEl.textContent = currencyLabel + ' ' + formatted;
@@ -20861,6 +21018,11 @@
     // Mark a booking dirty: zero its price and block saving until "Get Price".
     window.markHotelBookingNeedsGetPrice = function(bookingId) {
         window.hotelNeedsGetPrice[bookingId] = true;
+        const totalInput = document.getElementById('total_price_' + bookingId);
+        if (totalInput) {
+            totalInput.dataset.preservedFromDb = 'false';
+            totalInput.dataset.hydrating = 'false';
+        }
         window.zeroOutHotelBookingPrice(bookingId);
         window.setHotelSaveBlocked(bookingId, true);
         const feedback = document.getElementById('hotel_feedback_' + bookingId);
@@ -20882,24 +21044,70 @@
         let html = '';
 
         if (Array.isArray(data.breakdown)) {
+            html += `<div class="mb-2" style="font-size:0.7rem; color:#64748b; font-weight:600; text-transform:uppercase; letter-spacing:0.03em;">Per-night price cut</div>`;
             data.breakdown.forEach(function(n) {
+                if (typeof window.formatHotelNightPriceCutHtml === 'function') {
+                    html += window.formatHotelNightPriceCutHtml(n, currencyLabel, rooms);
+                    return;
+                }
                 const evt = n.event_type
                     ? ` <span style="color:#b45309; font-weight:600;">(${n.event_type})</span>`
                     : '';
-                html += `<div class="d-flex justify-content-between align-items-center mb-1" style="${rowStyle}">
-                    <div class="d-flex align-items-center">
-                        <i class="ri-calendar-line me-2" style="font-size: 0.9rem; color: #2563eb;"></i>
-                        <span style="color:#475569;">${n.date} (${n.day})${evt}</span>
+                const roomBase = Number(n.room_base || 0);
+                const fairAmt = Number(n.surcharge || 0);
+                const variant = Number(n.variant_price || 0);
+                const extraBed = Number(n.extra_bed_total || 0);
+                const bf = Number(n.breakfast_meal || 0);
+                const ln = Number(n.lunch_meal || 0);
+                const dn = Number(n.dinner_meal || 0);
+                const parts = [];
+                if (roomBase > 0) parts.push(`Room ${currencyLabel} ${(roomBase * rooms).toFixed(2)}`);
+                if (fairAmt > 0) parts.push(`Fair ${currencyLabel} ${(fairAmt * rooms).toFixed(2)}`);
+                if (variant > 0) parts.push(`Variant ${currencyLabel} ${(variant * rooms).toFixed(2)}`);
+                if (extraBed > 0) parts.push(`Extra bed ${currencyLabel} ${(extraBed * rooms).toFixed(2)}`);
+                if (bf > 0) parts.push(`Breakfast ${currencyLabel} ${(bf * rooms).toFixed(2)}`);
+                if (ln > 0) parts.push(`Lunch ${currencyLabel} ${(ln * rooms).toFixed(2)}`);
+                if (dn > 0) parts.push(`Dinner ${currencyLabel} ${(dn * rooms).toFixed(2)}`);
+                const cutLine = parts.length
+                    ? parts.join(' + ') + ` = ${currencyLabel} ${(Number(n.night_total) * rooms).toFixed(2)}`
+                    : '';
+                html += `<div class="mb-2 pb-2" style="border-bottom: 1px dashed #bfdbfe; font-size: 0.75rem;">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <div style="color:#475569; font-weight:600;">${n.date} (${n.day})${evt}</div>
+                            ${cutLine ? `<div style="color:#64748b; font-size:0.68rem; margin-top:2px;">${cutLine}</div>` : ''}
+                        </div>
+                        <span style="color:#1e293b; font-weight:600;">${currencyLabel} ${(Number(n.night_total) * rooms).toFixed(2)}</span>
                     </div>
-                    <span style="color:#1e293b; font-weight:500;">${currencyLabel} ${Number(n.night_total).toFixed(2)}</span>
                 </div>`;
             });
         }
 
+        html += `<div class="mb-2 mt-1" style="font-size:0.7rem; color:#64748b; font-weight:600; text-transform:uppercase; letter-spacing:0.03em;">Summary</div>`;
+
+        const fairCharge = Number(data.fair_charge_total || 0) * rooms;
+        const roomBase = Math.max(0, roomTotal - fairCharge);
         html += `<div class="d-flex justify-content-between align-items-center mb-1 border-top pt-2 mt-1" style="${rowStyle}">
             <span style="color:#475569;"><strong>Room${rooms > 1 ? ' (× ' + rooms + ' rooms)' : ''}:</strong></span>
-            <span style="color:#1e293b; font-weight:500;">${currencyLabel} ${roomTotal.toFixed(2)}</span>
+            <span style="color:#1e293b; font-weight:500;">${currencyLabel} ${roomBase.toFixed(2)}</span>
         </div>`;
+        if (fairCharge > 0) {
+            const fairNights = parseInt(data.fair_nights, 10) || 0;
+            const fairUnit = fairNights > 0 ? (Number(data.fair_charge_total || 0) / fairNights) : 0;
+            let fairDetail = '';
+            if (fairNights > 0) {
+                fairDetail = `${currencyLabel} ${fairUnit.toFixed(2)} × ${fairNights} fair night(s)`;
+                if (rooms > 1) fairDetail += ` × ${rooms} room(s)`;
+                fairDetail += ` = ${currencyLabel} ${fairCharge.toFixed(2)}`;
+            }
+            html += `<div class="mb-1" style="${rowStyle}">
+                <div class="d-flex justify-content-between align-items-start">
+                    <span style="color:#b45309;"><strong>Fair Charge:</strong></span>
+                    <span style="color:#b45309; font-weight:500;">${currencyLabel} ${fairCharge.toFixed(2)}</span>
+                </div>
+                ${fairDetail ? `<div style="color:#92400e; font-size:0.7rem; text-align:right;">${fairDetail}</div>` : ''}
+            </div>`;
+        }
         if (mealTotal > 0) {
             html += `<div class="d-flex justify-content-between align-items-center mb-1" style="${rowStyle}">
                 <span style="color:#475569;"><strong>Meals:</strong></span>
@@ -20910,6 +21118,22 @@
             html += `<div class="d-flex justify-content-between align-items-center mb-1" style="${rowStyle}">
                 <span style="color:#475569;"><strong>Extra bed(s):</strong> <small class="text-muted">(incl. in room)</small></span>
                 <span style="color:#1e293b; font-weight:500;">${data.extra_bed} @ ${currencyLabel} ${Number(data.extra_bed_price).toFixed(2)}</span>
+            </div>`;
+        }
+        const cwb = data.child_with_bed || null;
+        const cnb = data.child_without_bed || null;
+        if (cwb && Number(cwb.total || 0) > 0) {
+            const cwbTotal = Number(cwb.total) * rooms;
+            html += `<div class="d-flex justify-content-between align-items-center mb-1" style="${rowStyle}">
+                <span style="color:#475569;"><strong>Child with Bed:</strong></span>
+                <span style="color:#1e293b; font-weight:500;">${currencyLabel} ${cwbTotal.toFixed(2)}</span>
+            </div>`;
+        }
+        if (cnb && Number(cnb.total || 0) > 0) {
+            const cnbTotal = Number(cnb.total) * rooms;
+            html += `<div class="d-flex justify-content-between align-items-center mb-1" style="${rowStyle}">
+                <span style="color:#475569;"><strong>Child without Bed:</strong></span>
+                <span style="color:#1e293b; font-weight:500;">${currencyLabel} ${cnbTotal.toFixed(2)}</span>
             </div>`;
         }
 
@@ -20949,9 +21173,38 @@
             }
         }
 
-        const mealPlan = (mealSelect && mealSelect.selectedIndex >= 0)
-            ? (mealSelect.options[mealSelect.selectedIndex].text || mealSelect.value)
-            : '';
+        const mealPlan = (function resolveMealPlanForHelper() {
+            if (mealSelect && mealSelect.selectedIndex >= 0) {
+                const opt = mealSelect.options[mealSelect.selectedIndex];
+                const val = (opt && opt.value) ? String(opt.value).trim() : '';
+                if (val && val !== 'room_only') {
+                    // Prefer option text (human plan name) when it mentions meals; else value
+                    const txt = (opt.text || '').trim();
+                    if (txt && /breakfast|lunch|dinner|meal/i.test(txt)) return txt;
+                    return txt || val;
+                }
+                if (val === 'room_only') return 'room only';
+            }
+            const savedAttr = mealSelect ? (mealSelect.getAttribute('data-saved-meal') || '') : '';
+            if (savedAttr) return savedAttr.replace(/_/g, ' ');
+            const originalJsonEl = document.getElementById('original_rooms_json_' + bookingId);
+            if (originalJsonEl && originalJsonEl.value) {
+                try {
+                    const orig = JSON.parse(originalJsonEl.value);
+                    const firstRoom = Array.isArray(orig) ? orig[0] : orig;
+                    const bed = firstRoom && firstRoom.beds && firstRoom.beds[0] ? firstRoom.beds[0] : null;
+                    if (bed) {
+                        if (Array.isArray(bed.mealTypes) && bed.mealTypes[0]) return String(bed.mealTypes[0]);
+                        if (bed.selectedMeals) {
+                            const firstMeal = bed.selectedMeals.meal_1 || Object.values(bed.selectedMeals)[0];
+                            if (firstMeal && firstMeal.type) return String(firstMeal.type);
+                        }
+                    }
+                    if (firstRoom && firstRoom.meal_plan) return String(firstRoom.meal_plan);
+                } catch (e) {}
+            }
+            return '';
+        })();
         const pax = parseInt(personsInput ? personsInput.value : '1', 10) || 1;
         const numberOfRooms = parseInt(roomsInput ? roomsInput.value : '1', 10) || 1;
         const dates = window.buildNightDatesRange(checkIn, checkOut);
@@ -20984,14 +21237,29 @@
             bed_id: bedId,
             meal_plan: mealPlan,
             pax: pax,
+            children: Math.min(
+                Math.max(0, parseInt((document.getElementById('children') || {}).value || '0', 10) || 0),
+                Math.max(0, parseInt(pax, 10) || 1)
+            ),
+            child_with_bed: !!(document.getElementById('child_with_bed_' + bookingId)?.checked),
+            child_without_bed: !!(document.getElementById('child_without_bed_' + bookingId)?.checked),
             extra_bed: extraBed,
             dates: dates
         })
         .then(data => {
             const currencyLabel = '{{ trim($displayCurrency) }}';
             if (data && data.success) {
-                // Helper grand_total is per single room (room + meals + extra bed).
-                const finalTotal = Number(data.grand_total) * numberOfRooms;
+                // Helper grand_total is per single room (room + meals + extra bed + child beds).
+                let finalTotal = Number(data.grand_total) * numberOfRooms;
+                // If auto-get ran before meal plan was available, meal_total can be 0 and
+                // total looks short (e.g. 750 instead of 891). Prefer saved DB total then.
+                const originalDb = totalInput
+                    ? (parseFloat(totalInput.getAttribute('data-original-db-total') || '0') || 0)
+                    : 0;
+                const helperMeal = Number(data.meal_total || 0) * numberOfRooms;
+                if (silent && helperMeal <= 0 && originalDb > finalTotal + 0.01) {
+                    finalTotal = originalDb;
+                }
                 if (totalInput) {
                     totalInput.dataset.manualEdit = 'false';
                 }
@@ -21001,6 +21269,11 @@
                 window.renderBookingHelperGrid(bookingId, data, numberOfRooms, currencyLabel);
                 if (typeof window.syncHotelBookingPriceDisplays === 'function') {
                     window.syncHotelBookingPriceDisplays(bookingId, finalTotal);
+                }
+                if (totalInput) {
+                    totalInput.dataset.preservedFromDb = 'false';
+                    totalInput.dataset.hydrating = 'false';
+                    totalInput.dataset.manualEdit = 'false';
                 }
 
                 // Re-priced via the rate engine: clear the dirty flag and re-enable saving.
@@ -21032,16 +21305,26 @@
     };
 
     // Auto-fetch the rate-aware price on page load for a pre-booked hotel.
-    // Waits (polls) until the room/bed dropdowns have hydrated, then calls the
-    // helper silently so the saved booking shows the calculated price.
+    // Waits (polls) until the room/bed/meal dropdowns have hydrated, then calls the
+    // helper silently so the saved booking shows the calculated price (incl. meals).
     window.autoGetHotelHelperPriceForBooking = function(bookingId, attempt) {
         attempt = attempt || 0;
-        const maxAttempts = 30; // ~9s safety cap
+        const maxAttempts = 40; // ~12s safety cap
 
         const roomSelect = document.getElementById('room_type_' + bookingId);
         const bedSelect = document.getElementById('bed_type_' + bookingId);
+        const mealSelect = document.getElementById('meal_plan_' + bookingId);
         const checkIn = (document.getElementById('check_in_date_' + bookingId) || {}).value || '';
         const checkOut = (document.getElementById('check_out_date_' + bookingId) || {}).value || '';
+        const totalInput = document.getElementById('total_price_' + bookingId);
+
+        // Keep saved DB total visible while waiting (includes meal 141 → 891).
+        if (totalInput && totalInput.dataset.preservedFromDb !== 'false') {
+            const originalDb = parseFloat(totalInput.getAttribute('data-original-db-total') || '0') || 0;
+            if (originalDb > 0 && typeof window.syncHotelBookingPriceDisplays === 'function') {
+                window.syncHotelBookingPriceDisplays(bookingId, originalDb);
+            }
+        }
 
         let roomId = '';
         if (roomSelect && roomSelect.selectedIndex >= 0) {
@@ -21049,15 +21332,33 @@
             if (o && o.dataset && o.dataset.roomId) roomId = o.dataset.roomId;
         }
 
-        // Bed is "ready" once a bed option with an id is selected. Give it a few
-        // seconds; if it never resolves, proceed anyway with whatever exists.
+        // Bed is "ready" once a bed option with an id is selected.
         let bedReady = false;
         if (bedSelect && bedSelect.value) {
             const bo = bedSelect.options[bedSelect.selectedIndex];
             if (bo && (bo.getAttribute('data-bed-id') || bo.getAttribute('data-bed'))) bedReady = true;
         }
 
-        const ready = roomId && checkIn && checkOut && (bedReady || attempt >= 12);
+        // Meal ready: selected value, or saved meal attr / original JSON (so breakfast is not dropped).
+        let mealReady = false;
+        if (mealSelect) {
+            const mv = (mealSelect.value || '').trim();
+            const saved = (mealSelect.getAttribute('data-saved-meal') || '').trim();
+            if (mv || saved) mealReady = true;
+        }
+        if (!mealReady) {
+            const originalJsonEl = document.getElementById('original_rooms_json_' + bookingId);
+            if (originalJsonEl && originalJsonEl.value) {
+                try {
+                    const orig = JSON.parse(originalJsonEl.value);
+                    const firstRoom = Array.isArray(orig) ? orig[0] : orig;
+                    const bed = firstRoom && firstRoom.beds && firstRoom.beds[0] ? firstRoom.beds[0] : null;
+                    if (bed && ((bed.mealTypes && bed.mealTypes[0]) || bed.selectedMeals)) mealReady = true;
+                } catch (e) {}
+            }
+        }
+
+        const ready = roomId && checkIn && checkOut && (bedReady || attempt >= 12) && (mealReady || attempt >= 16);
         if (ready) {
             window.getHotelHelperPriceForBooking(bookingId, null, true);
             return;
@@ -21066,6 +21367,12 @@
             setTimeout(function() {
                 window.autoGetHotelHelperPriceForBooking(bookingId, attempt + 1);
             }, 300);
+        } else if (totalInput && totalInput.dataset.preservedFromDb !== 'false') {
+            // Timed out — keep saved DB total rather than a meal-less helper total.
+            const originalDb = parseFloat(totalInput.getAttribute('data-original-db-total') || '0') || 0;
+            if (originalDb > 0 && typeof window.syncHotelBookingPriceDisplays === 'function') {
+                window.syncHotelBookingPriceDisplays(bookingId, originalDb);
+            }
         }
     };
 
@@ -21138,6 +21445,12 @@
             bed_id: bedId,
             meal_plan: mealPlan,
             pax: pax,
+            children: Math.min(
+                Math.max(0, parseInt((document.getElementById('children') || {}).value || '0', 10) || 0),
+                Math.max(0, parseInt(pax, 10) || 1)
+            ),
+            child_with_bed: !!(document.getElementById('child_with_bed_modal')?.checked),
+            child_without_bed: !!(document.getElementById('child_without_bed_modal')?.checked),
             extra_bed: extraBed,
             dates: dates
         })
@@ -23210,7 +23523,7 @@
             .then(function (data) {
                 let restaurants = (data && data.success && Array.isArray(data.restaurants)) ? data.restaurants : [];
                 if (!restaurants.length) {
-                    const all_restaurants = @json($restaurants ?? []);
+                    const all_restaurants = @json($locationRestaurants ?? []);
                     const restaurantsArray = Array.isArray(all_restaurants) ? all_restaurants : Object.values(all_restaurants || {});
                     restaurants = restaurantsArray.filter(function (restaurant) { return restaurant.city == city; });
                 }
@@ -23218,7 +23531,7 @@
             })
             .catch(function (err) {
                 console.error('Error loading restaurants by DMC/city:', err);
-                const all_restaurants = @json($restaurants ?? []);
+                const all_restaurants = @json($locationRestaurants ?? []);
                 const restaurantsArray = Array.isArray(all_restaurants) ? all_restaurants : Object.values(all_restaurants || {});
                 finishRestaurantOptions(restaurantsArray.filter(function (restaurant) { return restaurant.city == city; }));
             });
@@ -27073,7 +27386,7 @@
 
         // Fall back to master restaurants list loaded on the page
         try {
-            window.__editformRestaurants = window.__editformRestaurants || @json($restaurants ?? []);
+            window.__editformRestaurants = window.__editformRestaurants || @json($locationRestaurants ?? []);
             const match = (window.__editformRestaurants || []).find(function (r) {
                 return String(r.name || '').toLowerCase() === name.toLowerCase();
             });

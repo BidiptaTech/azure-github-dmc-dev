@@ -873,6 +873,84 @@ class SingleTourPackageController extends Controller
             $tour->taxes = !empty($taxArray) ? json_encode($taxArray) : null;
             $tour->reference_id = $request->reference_number ?? null;
             $tour->created_by = Auth::user()->userId;
+
+            // City-wise markup/discount (same shape as enquiry proform)
+            $rawMarkups = $request->input('currency_markups');
+            if (is_string($rawMarkups)) {
+                $decoded = json_decode($rawMarkups, true);
+                $rawMarkups = (json_last_error() === JSON_ERROR_NONE) ? $decoded : null;
+            }
+            $normalizedMarkups = [];
+            if (is_array($rawMarkups)) {
+                foreach ($rawMarkups as $row) {
+                    if (!is_array($row)) {
+                        continue;
+                    }
+                    $city = trim((string) ($row['city'] ?? ''));
+                    if ($city === '' || str_starts_with($city, '__lite_markup_pad__')) {
+                        continue;
+                    }
+                    $markupType = strtolower(trim((string) ($row['markup_type'] ?? '')));
+                    $discountType = strtolower(trim((string) ($row['discount_type'] ?? '')));
+                    if ($markupType === 'fixed') {
+                        $markupType = 'flat';
+                    }
+                    if ($discountType === 'fixed') {
+                        $discountType = 'flat';
+                    }
+                    if (!in_array($markupType, ['percentage', 'flat'], true)) {
+                        $markupType = '';
+                    }
+                    if (!in_array($discountType, ['percentage', 'flat', 'foc'], true)) {
+                        $discountType = '';
+                    }
+                    $normalizedMarkups[] = [
+                        'city' => $city,
+                        'currency' => strtoupper(trim((string) ($row['currency'] ?? ''))),
+                        'country' => trim((string) ($row['country'] ?? '')),
+                        'markup_type' => $markupType !== '' ? $markupType : null,
+                        'markup_value' => (float) ($row['markup_value'] ?? 0),
+                        'discount_type' => $discountType !== '' ? $discountType : null,
+                        'discount_value' => (float) ($row['discount_value'] ?? 0),
+                    ];
+                }
+            }
+            // Always persist array (even empty) when client sent currency_markups, so column updates reliably
+            if ($request->has('currency_markups')) {
+                $tour->currency_markups = !empty($normalizedMarkups) ? array_values($normalizedMarkups) : [];
+            }
+
+            \Log::info('Lite tour currency_markups save', [
+                'raw' => $request->input('currency_markups'),
+                'normalized' => $normalizedMarkups,
+            ]);
+
+            // Keep tour-level markup/discount columns in sync with the first city row (when provided)
+            $primaryMarkup = $normalizedMarkups[0] ?? null;
+            $reqMarkupType = strtolower(trim((string) $request->input('markup_type', $primaryMarkup['markup_type'] ?? '')));
+            if ($reqMarkupType === 'fixed') {
+                $reqMarkupType = 'flat';
+            }
+            $reqMarkupValue = (float) $request->input('markup_value', $primaryMarkup['markup_value'] ?? 0);
+            $reqDiscountType = strtolower(trim((string) $request->input('discount_type', $primaryMarkup['discount_type'] ?? '')));
+            if ($reqDiscountType === 'fixed') {
+                $reqDiscountType = 'flat';
+            }
+            $reqDiscountValue = (float) $request->input('discount_value', $primaryMarkup['discount_value'] ?? 0);
+            if (!in_array($reqMarkupType, ['percentage', 'flat'], true)) {
+                $reqMarkupType = '';
+            }
+            if (!in_array($reqDiscountType, ['percentage', 'flat', 'foc'], true)) {
+                $reqDiscountType = '';
+            }
+            $markupSelected = ($reqMarkupValue > 0 && $reqMarkupType !== '') ? 1 : 0;
+            $tour->markup = $markupSelected;
+            $tour->markup_type = $markupSelected ? $reqMarkupType : null;
+            $tour->markup_amount = $markupSelected ? $reqMarkupValue : 0;
+            if ($reqDiscountType !== '') {
+                $tour->discount_type = $reqDiscountType;
+            }
+
             $mainGuestData = null;
             $additionalGuestData = [];
 
@@ -1199,6 +1277,9 @@ class SingleTourPackageController extends Controller
      */
     public function edit(Request $request, $id)
     {
+        // editform.blade.php is very large; location dropdowns used to embed full Eloquent graphs.
+        @ini_set('memory_limit', '1024M');
+
         $user = Auth::user();
         $allowedRoleIds = [33, 34, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138, 37, 38];
 
@@ -1341,7 +1422,9 @@ class SingleTourPackageController extends Controller
                 });
             };
 
-            $hotelsQuery = Hotel::with(['rooms.bed']);
+            // Do not eager-load rooms/beds here — rooms are fetched via AJAX on hotel select.
+            // Embedding rooms into every location <option> exhausted 512MB on editform render.
+            $hotelsQuery = Hotel::query();
             $hotels = $applyJsonDmcScope($hotelsQuery)
                 ->where(function ($q) use ($cityMatchValues, $tourDestinationNames) {
                     if (!empty($cityMatchValues)) {
@@ -1615,6 +1698,53 @@ class SingleTourPackageController extends Controller
             }
         }
 
+        // Slim location payloads for transfer/local-transfer dropdowns + JS filters.
+        // Full models (esp. restaurants.meals / attractions.tickets) must not be json_encode'd
+        // into every <option data-*> attribute — that alone can exceed hundreds of MB.
+        $locationPorts = collect($ports ?? [])->map(function ($p) {
+            return [
+                'port_id' => $p->port_id ?? null,
+                'port_name' => $p->port_name ?? null,
+                'country' => $p->country ?? null,
+                'city_id' => $p->city_id ?? null,
+                'city' => $p->city ?? $p->city_name ?? null,
+                'location' => $p->location ?? $p->city ?? $p->city_name ?? null,
+            ];
+        })->values();
+
+        $locationHotels = collect($hotels ?? [])->map(function ($h) {
+            return [
+                'hotel_unique_id' => $h->hotel_unique_id ?? null,
+                'name' => $h->name ?? null,
+                'city' => $h->city ?? null,
+                'country' => $h->country ?? null,
+                'location' => $h->location ?? $h->city ?? null,
+                'city_id' => $h->city_id ?? null,
+            ];
+        })->values();
+
+        $locationRestaurants = collect($restaurants ?? [])->map(function ($r) {
+            return [
+                'restaurant_id' => $r->restaurant_id ?? null,
+                'name' => $r->name ?? null,
+                'city' => $r->city ?? null,
+                'country' => $r->country ?? null,
+                'location' => $r->location ?? $r->city ?? null,
+                'cuisine' => $r->cuisine ?? null,
+            ];
+        })->values();
+
+        $locationAttractions = collect($attractions ?? [])->map(function ($a) {
+            return [
+                'attraction_id' => $a->attraction_id ?? null,
+                'name' => $a->name ?? null,
+                'location' => $a->location ?? null,
+                'city' => $a->city ?? $a->location ?? null,
+                'country' => $a->country ?? null,
+                'city_id' => $a->city_id ?? null,
+            ];
+        })->values();
+
         return view('single-tour-package.editform', compact(
             'tour',
             'countries',
@@ -1634,7 +1764,11 @@ class SingleTourPackageController extends Controller
             'multiRestaurants',
             'agencies',
             'isRestrictedThirdParty',
-            'ownDmcCountryNames'
+            'ownDmcCountryNames',
+            'locationPorts',
+            'locationHotels',
+            'locationRestaurants',
+            'locationAttractions'
         ));
     }
 
@@ -2163,12 +2297,17 @@ class SingleTourPackageController extends Controller
         $city = trim((string) $city);
         $country = trim((string) $country);
 
+        // Destination city/country is the source of truth for inventory DMC
+        // (Singapore city → Singapore DMC hotels/rooms/prices).
         if ($city !== '' || $country !== '') {
-            return CommonHelper::resolveSiblingDmcIdForCity(
+            $geoDmcId = CommonHelper::resolveSiblingDmcIdForCity(
                 $authDmcId,
                 $city !== '' ? $city : null,
                 $country !== '' ? $country : null
             );
+            if ($geoDmcId > 0) {
+                return $geoDmcId;
+            }
         }
 
         if ($requestedDmcId !== null && $requestedDmcId !== '') {
@@ -2673,11 +2812,12 @@ class SingleTourPackageController extends Controller
             }
 
             // Fetch hotels where dmc_id JSON contains city-resolved DMC ID and city matches
+            // Singapore salesperson + Singapore city → only Singapore DMC hotels
             $hotels = \App\Models\Hotel::whereJsonContains('dmc_id', (int) $dmcId)
                 ->where('status', 1)
                 ->where('is_active', 1)
                 ->where(function ($q) use ($city) {
-                    $q->whereRaw('LOWER(city) = ?', [strtolower($city)]);
+                    $q->whereRaw('LOWER(TRIM(city)) = ?', [strtolower(trim($city))]);
                 })
                 ->select(
                     'hotel_unique_id',
@@ -2689,7 +2829,8 @@ class SingleTourPackageController extends Controller
                     'longitude',
                     'check_in_time',
                     'check_out_time',
-                    'weekend_days'
+                    'weekend_days',
+                    'dmc_id'
                 )
                 ->orderBy('name')
                 ->get();
@@ -2699,6 +2840,7 @@ class SingleTourPackageController extends Controller
                 'hotels' => $hotels,
                 'total_hotels' => count($hotels),
                 'city' => $city,
+                'country' => $country,
                 'dmc_id' => $dmcId,
             ]);
 
@@ -2817,15 +2959,41 @@ class SingleTourPackageController extends Controller
             // Prefer city/country sibling DMC; otherwise coerce requested dmc_id within Master siblings
             $dmcId = $this->resolveInventoryDmcId($city, $country, $request->input('dmc_id') ?? CommonHelper::getDmcId(Auth::user()));
 
-            // If city not provided, derive inventory DMC from the hotel's city
-            if ((!$city && !$country) && $hotelId) {
-                $hotelForCity = \App\Models\Hotel::where('hotel_unique_id', $hotelId)->select('city')->first();
+            // Always derive inventory DMC from the hotel's city when hotel is known —
+            // prevents wrong sibling rooms/prices if frontend dmc_id/city is stale.
+            if ($hotelId) {
+                $hotelForCity = \App\Models\Hotel::where('hotel_unique_id', $hotelId)
+                    ->select('city', 'dmc_id', 'country')
+                    ->first();
                 if ($hotelForCity) {
-                    $dmcId = $this->resolveInventoryDmcId(
-                        $hotelForCity->city ?? null,
-                        null,
-                        $request->input('dmc_id')
-                    );
+                    $hotelCity = trim((string) ($hotelForCity->city ?? ''));
+                    $hotelCountry = trim((string) ($hotelForCity->country ?? $country ?? ''));
+                    if ($hotelCity !== '' || $hotelCountry !== '') {
+                        $dmcId = $this->resolveInventoryDmcId(
+                            $hotelCity !== '' ? $hotelCity : null,
+                            $hotelCountry !== '' ? $hotelCountry : null,
+                            $request->input('dmc_id')
+                        );
+                    }
+
+                    // Only allow rooms when this hotel is assigned to the resolved DMC
+                    $hotelDmcIds = $hotelForCity->dmc_id;
+                    if (is_string($hotelDmcIds)) {
+                        $hotelDmcIds = json_decode($hotelDmcIds, true) ?: [];
+                    }
+                    if (!is_array($hotelDmcIds)) {
+                        $hotelDmcIds = [];
+                    }
+                    $hotelDmcIds = array_map('intval', $hotelDmcIds);
+                    if ($hotelDmcIds !== [] && !in_array((int) $dmcId, $hotelDmcIds, true)) {
+                        // Hotel not linked to resolved DMC — try requested sibling if it owns the hotel
+                        $requested = (int) ($request->input('dmc_id') ?: 0);
+                        $authDmcId = (int) (CommonHelper::getDmcId(Auth::user()) ?: 0);
+                        $candidate = CommonHelper::coerceSiblingDmcId($authDmcId, $requested);
+                        if ($candidate > 0 && in_array($candidate, $hotelDmcIds, true)) {
+                            $dmcId = $candidate;
+                        }
+                    }
                 }
             }
 
@@ -2849,7 +3017,7 @@ class SingleTourPackageController extends Controller
                 ->select('room_id', 'room_type', 'weekday_price', 'weekend_price', 'double_weekday_price', 'double_weekend_price', 
                         'breakfast', 'breakfast_type', 'breakfast_price', 'lunch', 'lunch_type', 'lunch_price', 'dinner', 'dinner_type', 'dinner_price',
                         'breakfast_included', 'dimension', 'features', 'created_by', 'rooms_only',
-                        'child_with_bed', 'child_without_bed')
+                        'children_price', 'child_with_bed', 'child_without_bed')
                 ->orderBy('room_type')
                 ->get();
             // If no rooms found with created_by, try alternative field names
@@ -2864,7 +3032,7 @@ class SingleTourPackageController extends Controller
                     ->select('room_id', 'room_type', 'weekday_price', 'weekend_price', 'double_weekday_price', 'double_weekend_price', 
                             'breakfast', 'breakfast_type','breakfast_price','lunch', 'lunch_type', 'lunch_price', 'dinner', 'dinner_type', 'dinner_price',
                             'breakfast_included', 'dimension', 'features', 'created_by', 'dmc_id', 'rooms_only',
-                            'child_with_bed', 'child_without_bed')
+                            'children_price', 'child_with_bed', 'child_without_bed')
                     ->orderBy('room_type')
                     ->get();
             }
@@ -2955,7 +3123,12 @@ class SingleTourPackageController extends Controller
             $mealPlan      = $request->input('meal_plan');
             $pax           = (int) $request->input('pax', 1);
             $extraBed      = (int) $request->input('extra_bed', 0);
+            $children      = (int) $request->input('children', 0);
+            $childWithBed = filter_var($request->input('child_with_bed', false), FILTER_VALIDATE_BOOLEAN);
+            $childWithoutBed = filter_var($request->input('child_without_bed', false), FILTER_VALIDATE_BOOLEAN);
             $dates         = $request->input('dates', []);
+            $city          = $request->input('city');
+            $country       = $request->input('country');
 
             if (is_string($dates)) {
                 $decoded = json_decode($dates, true);
@@ -2977,7 +3150,30 @@ class SingleTourPackageController extends Controller
                 ], 422);
             }
 
-            $result = HotelPriceHelper::calculatePrice($hotelUniqueId, $roomId, $bedId, $dates, $mealPlan, $pax, $extraBed);
+            // Prefer city-resolved sibling DMC; fall back to room owner DMC
+            $dmcId = $this->resolveInventoryDmcId(
+                $city,
+                $country,
+                $request->input('dmc_id') ?? CommonHelper::getDmcId(Auth::user())
+            );
+            if ($dmcId <= 0) {
+                $roomOwner = \App\Models\Room::where('room_id', $roomId)->select('created_by', 'dmc_id')->first();
+                $dmcId = (int) ($roomOwner->created_by ?? $roomOwner->dmc_id ?? 0);
+            }
+
+            $result = HotelPriceHelper::calculatePrice(
+                $hotelUniqueId,
+                $roomId,
+                $bedId,
+                $dates,
+                $mealPlan,
+                $pax,
+                $extraBed,
+                $dmcId > 0 ? $dmcId : null,
+                $children,
+                $childWithBed,
+                $childWithoutBed
+            );
 
             return response()->json($result, $result['success'] ? 200 : 422);
         } catch (\Exception $e) {
