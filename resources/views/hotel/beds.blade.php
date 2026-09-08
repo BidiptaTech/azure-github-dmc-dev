@@ -591,8 +591,8 @@
                     <table class="datatables-basic table table-bordered">
                         <thead>
                             <tr>
-                                <th>Bed Type</th>
                                 <th>Room Type</th>
+                                <th>Bed Type</th>
                                 @if($auth_user->role_id == 1)
                                 <th>DMC</th>
                                 @endif
@@ -602,14 +602,14 @@
                                 <th>Baby Cot</th>
                                 <th>Active</th>
                                 <th>Action</th>
-                                
                             </tr>
                         </thead>
                         <tbody>
                             @foreach ($bedsData as $bed)
                             <tr data-dmc-id="{{ $bed->dmc_id ?? 'unknown' }}">
-                                <td>{{ $bed->room_type }}</td>
-                                <td>{{ $bed->room->room_type }}</td>
+                            <td>{{ $bed->room->room_type }}</td>
+                            <td>{{ $bed->room_type }}</td>
+                                
                                 @if($auth_user->role_id == 1)
                                 <td>
                                     <span class="badge {{ $bed->dmc_id ? 'bg-primary' : 'bg-secondary' }}">
