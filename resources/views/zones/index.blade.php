@@ -12,6 +12,13 @@
 
         $currentSort = request()->query('sort', 'updated_at');
         $currentDir = strtolower(request()->query('direction', 'desc')) === 'asc' ? 'asc' : 'desc';
+        $zoneListQuery = array_filter([
+            'zone_type' => $currentZoneType,
+            'country' => request()->query('country'),
+            'city' => request()->query('city'),
+            'sort' => request()->query('sort'),
+            'direction' => request()->query('direction'),
+        ], static fn ($value) => $value !== null && $value !== '');
 
         $sortIcon = function (string $key) use ($currentSort, $currentDir) {
             if ($currentSort !== $key) return '';
@@ -84,13 +91,7 @@
                     </a>
                 </div>
             </div>
-            <a href="{{ route('zones.create', array_filter([
-                    'zone_type' => $currentZoneType,
-                    'country' => request()->query('country'),
-                    'city' => request()->query('city'),
-                    'sort' => request()->query('sort'),
-                    'direction' => request()->query('direction'),
-                ], static fn ($value) => $value !== null && $value !== '')) }}" class="btn btn-primary">Add New Zone</a>
+            <a href="{{ route('zones.create', $zoneListQuery) }}" class="btn btn-primary">Add New Zone</a>
         </div>
         <div class="card-body">
             <form method="GET" id="zone-location-filter-form" class="row mb-4 align-items-end g-3">
@@ -474,7 +475,7 @@
                             <td>
                                 <div class="d-flex gap-1">
                                     <!-- View -->
-                                    <a href="{{ route('zones.show', Crypt::encrypt($zone->zone_id)) }}" 
+                                    <a href="{{ route('zones.show', ['zone' => Crypt::encrypt($zone->zone_id)] + $zoneListQuery) }}" 
                                     class="btn btn-info btn-sm rounded-circle d-flex justify-content-center align-items-center"
                                     style="width: 28px; height: 28px; padding: 0;" title="View">
                                         <i class="ri-eye-line" style="font-size: 16px;"></i>
@@ -494,7 +495,7 @@
                                     @endphp
                                     <!-- Edit -->
                                     @if($canManageThisZone)
-                                    <a href="{{ route('zones.edit', Crypt::encrypt($zone->zone_id)) }}" 
+                                    <a href="{{ route('zones.edit', ['zone' => Crypt::encrypt($zone->zone_id)] + $zoneListQuery) }}" 
                                     class="btn btn-primary btn-sm rounded-circle d-flex justify-content-center align-items-center"
                                     style="width: 28px; height: 28px; padding: 0;" title="Edit">
                                         <i class="ri-pencil-line" style="font-size: 16px;"></i>

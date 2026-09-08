@@ -819,7 +819,9 @@ class VehicleController extends Controller
                 ];
             }
             
-            return view('vehicles.edit-vehicle', compact('vehicle', 'drivers', 'dmcs', 'city', 'countries', 'selectedCountry', 'zoneMappingFilterCountry', 'masterDmcCountryNames', 'defaultFilterCityId', 'zones', 'ports', 'mappings', 'mappingZoneItems', 'hasZoneMappings'));
+            $zoneSyncSourceVehicles = $this->vehiclesForZoneMappingSync($vehicle);
+
+            return view('vehicles.edit-vehicle', compact('vehicle', 'drivers', 'dmcs', 'city', 'countries', 'selectedCountry', 'zoneMappingFilterCountry', 'masterDmcCountryNames', 'defaultFilterCityId', 'zones', 'ports', 'mappings', 'mappingZoneItems', 'hasZoneMappings', 'zoneSyncSourceVehicles'));
         }
         
         return view('vehicles.edit-vehicle', compact('vehicle', 'drivers', 'dmcs', 'city', 'countries', 'selectedCountry', 'masterDmcCountryNames', 'hasZoneMappings'));
@@ -1373,6 +1375,222 @@ class VehicleController extends Controller
             'zone_mapping' => true,
             'mapping_type' => $mappingType,
         ])->with('success', "Imported {$updated} mapping price(s) successfully." . ($skipped ? " Skipped {$skipped} row(s)." : ''));
+    }
+
+    public function syncZoneMappingsFromVehicle(Request $request, $vehicle)
+    {
+        if (!hasPermission('edit vehicle')) {
+            abort(403, 'You do not have permission to access this page.');
+        }
+
+        $targetId = Crypt::decrypt($vehicle);
+        $target = Vehicle::where('vehicle_id', $targetId)->firstOrFail();
+
+        $validated = $request->validate([
+            'source_vehicle_id' => 'required',
+            'private_variant' => 'required|numeric',
+            'shared_variant' => 'required|numeric',
+            'mapping_type' => 'nullable|string',
+        ]);
+
+        $source = Vehicle::where('vehicle_id', $validated['source_vehicle_id'])->first();
+        if (!$source) {
+            return response()->json(['success' => false, 'message' => 'Source vehicle not found.'], 422);
+        }
+        if ((string) $source->vehicle_id === (string) $target->vehicle_id) {
+            return response()->json(['success' => false, 'message' => 'Cannot sync from the currently edited vehicle.'], 422);
+        }
+        if (!$this->vehiclesShareCountryAndCity($source, $target)) {
+            return response()->json(['success' => false, 'message' => 'Source vehicle must belong to the same country and city.'], 422);
+        }
+
+        $privateVariant = round((float) $validated['private_variant'], 2);
+        $sharedVariant = round((float) $validated['shared_variant'], 2);
+
+        $sourceMappings = VehicleZoneMapping::where('vehicle_id', $source->vehicle_id)->get();
+        if ($sourceMappings->isEmpty()) {
+            return response()->json(['success' => false, 'message' => 'The selected vehicle has no zone mappings to copy.'], 422);
+        }
+
+        $updated = 0;
+        $skipped = 0;
+
+        try {
+            DB::beginTransaction();
+
+            foreach ($sourceMappings as $mapping) {
+                $fromType = (string) ($mapping->from_zone_type ?? '');
+                $toType = (string) ($mapping->to_zone_type ?? '');
+                $mappingTypeKey = $this->mappingTypeFromZoneTypes($fromType, $toType);
+                if (!$mappingTypeKey) {
+                    $skipped++;
+                    continue;
+                }
+
+                $targetFromId = $this->resolveSyncLocationId((string) $mapping->from_zone_id, $fromType, $target);
+                $targetToId = $this->resolveSyncLocationId((string) $mapping->to_zone_id, $toType, $target);
+                if ($targetFromId === null || $targetToId === null) {
+                    $skipped++;
+                    continue;
+                }
+                if ($mappingTypeKey === 'port_port' && $targetFromId === $targetToId) {
+                    $skipped++;
+                    continue;
+                }
+
+                $this->upsertVehicleZoneMapping(
+                    (string) $target->vehicle_id,
+                    $targetFromId,
+                    $targetToId,
+                    $fromType,
+                    $toType,
+                    $this->applyPriceVariant($mapping->private_price, $privateVariant),
+                    $this->applyPriceVariant($mapping->shared_price, $sharedVariant),
+                    $this->applyPriceVariant($mapping->private_cost_price ?? $mapping->private_price, $privateVariant),
+                    $this->applyPriceVariant($mapping->shared_cost_price ?? $mapping->shared_price, $sharedVariant),
+                    $mapping->private_profit_type ?? 'percentage',
+                    $mapping->private_profit_amount ?? 0,
+                    $mapping->shared_profit_type ?? 'percentage',
+                    $mapping->shared_profit_amount ?? 0
+                );
+                $updated++;
+            }
+
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            \Log::error('VehicleController::syncZoneMappingsFromVehicle failed', [
+                'error' => $e->getMessage(),
+                'target_vehicle' => $target->vehicle_id,
+                'source_vehicle' => $source->vehicle_id,
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Unable to sync zone mappings. Please try again.',
+            ], 500);
+        }
+
+        if ($updated === 0) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No matching zone mappings were found to update.',
+                'updated' => 0,
+                'skipped' => $skipped,
+            ], 422);
+        }
+
+        $currentMappingType = trim((string) ($validated['mapping_type'] ?? ''));
+        if (!$this->isValidZoneMappingType($currentMappingType)) {
+            $currentMappingType = 'port_port';
+        }
+
+        $message = "Synced {$updated} zone mapping price(s) successfully."
+            . ($skipped ? " Skipped {$skipped} unmatched mapping(s)." : '');
+
+        session()->flash('success', $message);
+
+        return response()->json([
+            'success' => true,
+            'message' => $message,
+            'updated' => $updated,
+            'skipped' => $skipped,
+            'redirect' => route('vehicle.edit', [
+                'vehicle' => Crypt::encrypt($target->vehicle_id),
+                'zone_mapping' => true,
+                'mapping_type' => $currentMappingType,
+            ]),
+        ]);
+    }
+
+    private function vehiclesForZoneMappingSync(Vehicle $target)
+    {
+        $targetCountry = mb_strtolower(trim($this->resolveVehicleCountryName($target)));
+        $targetCity = mb_strtolower(trim((string) ($target->city ?? '')));
+        if ($targetCountry === '' || $targetCity === '') {
+            return collect();
+        }
+
+        $candidates = Vehicle::query()
+            ->where('vehicle_id', '!=', $target->vehicle_id)
+            ->when($target->dmc_id, function ($query) use ($target) {
+                $query->where('dmc_id', $target->dmc_id);
+            })
+            ->orderBy('vehicle_name')
+            ->get();
+
+        return $candidates
+            ->filter(function ($vehicle) use ($target) {
+                return $this->vehiclesShareCountryAndCity($vehicle, $target);
+            })
+            ->values();
+    }
+
+    private function vehiclesShareCountryAndCity(Vehicle $left, Vehicle $right): bool
+    {
+        $leftCountry = mb_strtolower(trim($this->resolveVehicleCountryName($left)));
+        $rightCountry = mb_strtolower(trim($this->resolveVehicleCountryName($right)));
+        $leftCity = mb_strtolower(trim((string) ($left->city ?? '')));
+        $rightCity = mb_strtolower(trim((string) ($right->city ?? '')));
+
+        return $leftCountry !== ''
+            && $rightCountry !== ''
+            && $leftCity !== ''
+            && $rightCity !== ''
+            && $leftCountry === $rightCountry
+            && $leftCity === $rightCity;
+    }
+
+    private function mappingTypeFromZoneTypes(string $fromType, string $toType): ?string
+    {
+        foreach ($this->zoneMappingTypeConfig() as $mappingType => $config) {
+            if ($config['from'] === $fromType && $config['to'] === $toType) {
+                return $mappingType;
+            }
+        }
+
+        return null;
+    }
+
+    private function applyPriceVariant($price, float $variant): float
+    {
+        $base = is_numeric($price) ? (float) $price : 0;
+
+        return round(max(0, $base + $variant), 2);
+    }
+
+    private function resolveSyncLocationId(string $sourceId, string $type, Vehicle $target): ?string
+    {
+        $sourceId = trim($sourceId);
+        if ($sourceId === '' || $type === '') {
+            return null;
+        }
+
+        if ($type === 'Port') {
+            $port = Port::where('port_id', $sourceId)->first();
+
+            return $port ? (string) $port->port_id : null;
+        }
+
+        $zone = Zone::where('zone_id', $sourceId)->first();
+        if (!$zone) {
+            return null;
+        }
+
+        $targetDmcId = (int) ($target->dmc_id ?? 0);
+        $zoneDmcId = $zone->dmc_id === null || $zone->dmc_id === '' ? null : (int) $zone->dmc_id;
+        if ($zoneDmcId === null || $zoneDmcId === $targetDmcId) {
+            return (string) $zone->zone_id;
+        }
+
+        $match = Zone::where('zone_type', $zone->zone_type)
+            ->where('zone_name', $zone->zone_name)
+            ->where(function ($query) use ($targetDmcId) {
+                $query->where('dmc_id', $targetDmcId)->orWhereNull('dmc_id');
+            })
+            ->first();
+
+        return $match ? (string) $match->zone_id : null;
     }
 
     private function isValidZoneMappingType(string $mappingType): bool
