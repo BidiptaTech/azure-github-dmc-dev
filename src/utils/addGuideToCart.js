@@ -1,11 +1,13 @@
 import { addToCart } from "@/slice/cart/carSlice";
 import { store } from "@/store/store";
+import { lockCartDmc } from "@/utils/lockCartDmc";
 
 export const buildGuideCartItem = (details = {}) => ({
   guide_id: details.guide_id || "",
   guide_name: details.guide_name || "Guide",
   image: details.image || "",
   dmc_Id: details.dmc_Id || null,
+  dmc_id: details.dmc_id ?? details.dmc_Id ?? null,
   Mode: details.Mode || null,
   pricemode: details.Mode || null,
   entrypickup: details.entrypickup || "",
@@ -32,13 +34,25 @@ export const addGuideBookingToCart = (dispatch, { details, tourDetails }) => {
     return "Please select a guide and complete the booking details.";
   }
 
+  const item = buildGuideCartItem(details);
+  if (item.dmc_id == null) {
+    item.dmc_id = store.getState().dmc?.dmcId || null;
+  }
+
   dispatch(
     addToCart({
       bookingType: "guide",
-      item: buildGuideCartItem(details),
-      tourDetails,
+      item,
+      tourDetails: {
+        ...(tourDetails || {}),
+        dmc_id: item.dmc_id,
+      },
     })
   );
 
-  return store.getState().cart?.lastActionError || null;
+  const cartError = store.getState().cart?.lastActionError;
+  if (!cartError) {
+    lockCartDmc(dispatch, item);
+  }
+  return cartError || null;
 };

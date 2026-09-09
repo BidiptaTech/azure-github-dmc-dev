@@ -125,6 +125,7 @@ const MainFilterSearchBox = () => {
       setOpenSnackbar(true);
       return;
     }
+
     setShowCityDateRows(true);
     setSelectedLocation(selectedCities[0]?.country || selectedLocation);
   };
@@ -162,14 +163,15 @@ const MainFilterSearchBox = () => {
   };
 
   const allCityDatesFilled =
-    showCityDateRows &&
     hasTotalDates &&
     selectedCities.length > 0 &&
-    selectedCities.every(
-      (city) =>
-        Array.isArray(cityDates[city.city_id]) &&
-        cityDates[city.city_id].length === 2
-    );
+    (selectedCities.length === 1 ||
+      (showCityDateRows &&
+        selectedCities.every(
+          (city) =>
+            Array.isArray(cityDates[city.city_id]) &&
+            cityDates[city.city_id].length === 2
+        )));
 
   const handleGuestChange = (updatedGuestCounts) => {
     setGuestCounts(updatedGuestCounts);
@@ -186,6 +188,14 @@ const MainFilterSearchBox = () => {
   }, [dispatch]);
 
   useEffect(() => {
+    // Single city: use total trip dates automatically — no city-wise panel
+    if (selectedCities.length === 1 && hasTotalDates) {
+      const onlyCityId = selectedCities[0].city_id;
+      setCityDates({ [onlyCityId]: selectedDates });
+      setShowCityDateRows(false);
+      return;
+    }
+
     setCityDates((prev) => {
       const next = {};
       selectedCities.forEach((city) => {
@@ -195,10 +205,10 @@ const MainFilterSearchBox = () => {
       });
       return next;
     });
-    if (!selectedCities.length) {
+    if (selectedCities.length <= 1) {
       setShowCityDateRows(false);
     }
-  }, [selectedCities]);
+  }, [selectedCities, selectedDates, hasTotalDates]);
 
   const validateForm = () => {
     if (!selectedCities.length) {
@@ -223,7 +233,7 @@ const MainFilterSearchBox = () => {
       return false;
     }
 
-    if (!allCityDatesFilled) {
+    if (selectedCities.length > 1 && !allCityDatesFilled) {
       setSnackbarMessage("Please select check-in and check-out dates for each city.");
       setSnackbarSeverity("error");
       setOpenSnackbar(true);
@@ -361,7 +371,10 @@ const MainFilterSearchBox = () => {
 
     // City-wise check-in / check-out as array of key-value objects
     const cityWiseDatesPayload = selectedCities.map((city) => {
-      const range = cityDates[city.city_id] || [];
+      const range =
+        selectedCities.length === 1
+          ? selectedDates
+          : cityDates[city.city_id] || [];
       return {
         city: city.city,
         checkIn: formatDateValue(range[0]),
@@ -474,7 +487,7 @@ const MainFilterSearchBox = () => {
     <div className="position-relative mt-30 md:mt-20 js-tabs-content hero-search-reserve">
       <div
         className="mainSearch -w-900 -col-city-date-guest bg-white px-10 py-10 lg:px-20 lg:pt-5 lg:pb-20 rounded-100"
-        style={{ position: "relative", zIndex: 30 }}
+        style={{ position: "relative", zIndex: 50 }}
       >
         <div className="button-grid items-center">
           <LocationSearch onLocationSelect={handleLocationSelect} />
@@ -498,22 +511,38 @@ const MainFilterSearchBox = () => {
           />
 
           <div className="button-item">
-            <button
-              type="button"
-              className="mainSearch__submit button -dark-1 h-60 px-35 col-12 rounded-100 bg-blue-1 text-white"
-              onClick={handleAddCities}
-            >
-              <i className="icon-plus text-20 mr-10" />
-              Add
-            </button>
+            {selectedCities.length <= 1 ? (
+              <button
+                type="button"
+                className={`mainSearch__submit button -dark-1 h-60 px-35 col-12 rounded-100 ${
+                  selectedCities.length === 1 && hasTotalDates
+                    ? "bg-blue-1 text-white"
+                    : "bg-light-2 text-light-1"
+                }`}
+                onClick={handleSearch}
+                disabled={!(selectedCities.length === 1 && hasTotalDates)}
+              >
+                <i className="icon-search text-20 mr-10" />
+                Search
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="mainSearch__submit button -dark-1 h-60 px-35 col-12 rounded-100 bg-blue-1 text-white"
+                onClick={handleAddCities}
+              >
+                <i className="icon-plus text-20 mr-10" />
+                Add
+              </button>
+            )}
           </div>
         </div>
       </div>
 
-      {showCityDateRows && selectedCities.length > 0 && (
+      {showCityDateRows && selectedCities.length > 1 && (
         <div
           className="mainSearch -w-900 bg-white px-20 py-20 mt-15 rounded-24"
-          style={{ position: "relative", zIndex: 30 }}
+          style={{ position: "relative", zIndex: 20 }}
         >
           <div className="text-14 text-light-1 mb-15">
             Set city-wise dates within your total trip dates

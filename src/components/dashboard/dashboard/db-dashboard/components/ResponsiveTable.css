@@ -112,6 +112,15 @@
   text-align: center;
 }
 
+.responsive-table .tour-details-column {
+  min-width: 168px;
+  width: 180px !important;
+  max-width: 180px;
+  white-space: normal !important;
+  vertical-align: top;
+  padding: 6px 8px !important;
+}
+
 /* Add some padding on mobile for better touch experience */
 @media (max-width: 768px) {
   .responsive-table-container {

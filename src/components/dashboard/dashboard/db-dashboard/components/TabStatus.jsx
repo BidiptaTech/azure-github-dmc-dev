@@ -11,13 +11,14 @@ import {
   Menu,
   MenuItem,
   IconButton,
-  Grid,
   TextField,
   FormControl,
   InputLabel,
   Select,
-  Button,
   Chip,
+  InputAdornment,
+  Tooltip,
+  Stack,
 } from "@mui/material";
 import {
   DonutLarge,
@@ -26,6 +27,10 @@ import {
   Menu as MenuIcon,
   Search,
   Clear,
+  PersonOutline,
+  Public,
+  CalendarMonth,
+  FilterList,
 } from "@mui/icons-material";
 import Pending from "./Pending";
 import Upcoming from "./Upcoming";
@@ -116,6 +121,37 @@ export default function TabStatus() {
   // Check if any filters are active
   const hasActiveFilters = Object.values(filters).some(value => value !== '');
 
+  const filterFieldSx = {
+    '& .MuiOutlinedInput-root': {
+      borderRadius: 1.5,
+      backgroundColor: '#fff',
+      fontSize: '0.875rem',
+      '& fieldset': {
+        borderColor: 'rgba(19, 53, 123, 0.12)',
+      },
+      '&:hover fieldset': {
+        borderColor: 'rgba(67, 97, 238, 0.45)',
+      },
+      '&.Mui-focused fieldset': {
+        borderColor: '#4361ee',
+        borderWidth: 1.5,
+      },
+    },
+    '& .MuiInputLabel-root': {
+      fontSize: '0.875rem',
+      '&.Mui-focused': { color: '#4361ee' },
+    },
+  };
+
+  const FILTER_LABELS = {
+    searchId: 'Booking ID',
+    customerName: 'Customer',
+    country: 'Country',
+    checkInDate: 'Check-in',
+    checkOutDate: 'Check-out',
+    status: 'Status',
+  };
+
   // Tab configuration
   const tabs = [
     { icon: <DonutLarge />, label: 'Ongoing' },
@@ -201,354 +237,241 @@ export default function TabStatus() {
         </Card>
       )}
 
-      {/* Search Filters Section */}
-      <Card sx={{ mb: 3, p: 3, boxShadow: '0 2px 10px rgba(0,0,0,0.05)' }}>
-        <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Search sx={{ color: '#4361ee', fontSize: '1.2rem' }} />
-            <Box sx={{ fontWeight: 600, fontSize: '1.1rem', color: '#4361ee' }}>
-              Search & Filter
+      {/* Compact filter toolbar */}
+      <Box
+        sx={{
+          mb: 2.5,
+          borderRadius: 2,
+          border: '1px solid rgba(19, 53, 123, 0.1)',
+          backgroundColor: '#f8fafc',
+          overflow: 'hidden',
+        }}
+      >
+        <Box
+          sx={{
+            px: { xs: 1.5, sm: 2 },
+            py: 1.25,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 1,
+            borderBottom: hasActiveFilters ? '1px solid rgba(19, 53, 123, 0.08)' : 'none',
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+            <FilterList sx={{ color: '#4361ee', fontSize: '1.1rem' }} />
+            <Box sx={{ fontWeight: 600, fontSize: '0.85rem', color: '#13357b', letterSpacing: 0.2 }}>
+              Filters
             </Box>
+            {hasActiveFilters && (
+              <Chip
+                size="small"
+                label={`${Object.values(filters).filter(Boolean).length} active`}
+                sx={{
+                  height: 22,
+                  fontSize: '0.7rem',
+                  fontWeight: 600,
+                  backgroundColor: 'rgba(67, 97, 238, 0.12)',
+                  color: '#4361ee',
+                }}
+              />
+            )}
           </Box>
           {hasActiveFilters && (
-            <Button
-              onClick={handleClearFilters}
-              startIcon={<Clear />}
-              sx={{
-                color: '#f44336',
-                '&:hover': {
-                  backgroundColor: 'rgba(244, 67, 54, 0.1)',
-                },
-              }}
-            >
-              Clear Filters
-            </Button>
+            <Tooltip title="Clear all filters">
+              <IconButton
+                size="small"
+                onClick={handleClearFilters}
+                sx={{
+                  color: '#64748b',
+                  '&:hover': { color: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.08)' },
+                }}
+              >
+                <Clear fontSize="small" />
+              </IconButton>
+            </Tooltip>
           )}
         </Box>
 
-        <Grid container spacing={{ xs: 2, sm: 3, md: 4 }}>
-          <Grid item xs={12} sm={6} md={3}>
-            <TextField
-              name="searchId"
-              label="🔍 Search by Booking ID"
-              variant="outlined"
-              fullWidth
-              value={filters.searchId}
+        <Stack
+          direction="row"
+          flexWrap="wrap"
+          useFlexGap
+          spacing={1.25}
+          sx={{ px: { xs: 1.5, sm: 2 }, py: 1.5 }}
+        >
+          <TextField
+            name="searchId"
+            placeholder="Booking / enquiry ID"
+            variant="outlined"
+            size="small"
+            value={filters.searchId}
+            onChange={handleFilterChange}
+            sx={{ ...filterFieldSx, flex: { xs: '1 1 100%', sm: '1 1 180px' }, minWidth: { sm: 180 } }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Search sx={{ fontSize: '1.1rem', color: '#94a3b8' }} />
+                </InputAdornment>
+              ),
+            }}
+          />
+          <TextField
+            name="customerName"
+            placeholder="Customer"
+            variant="outlined"
+            size="small"
+            value={filters.customerName}
+            onChange={handleFilterChange}
+            sx={{ ...filterFieldSx, flex: '1 1 140px', minWidth: 140 }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <PersonOutline sx={{ fontSize: '1.1rem', color: '#94a3b8' }} />
+                </InputAdornment>
+              ),
+            }}
+          />
+          <TextField
+            name="country"
+            placeholder="Country"
+            variant="outlined"
+            size="small"
+            value={filters.country}
+            onChange={handleFilterChange}
+            sx={{ ...filterFieldSx, flex: '1 1 130px', minWidth: 130 }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Public sx={{ fontSize: '1.1rem', color: '#94a3b8' }} />
+                </InputAdornment>
+              ),
+            }}
+          />
+          <TextField
+            name="checkInDate"
+            type="date"
+            size="small"
+            variant="outlined"
+            value={filters.checkInDate}
+            onChange={handleFilterChange}
+            sx={{ ...filterFieldSx, flex: '1 1 145px', minWidth: 145 }}
+            InputLabelProps={{ shrink: true }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Tooltip title="Check-in">
+                    <CalendarMonth sx={{ fontSize: '1.05rem', color: '#94a3b8' }} />
+                  </Tooltip>
+                </InputAdornment>
+              ),
+            }}
+          />
+          <TextField
+            name="checkOutDate"
+            type="date"
+            size="small"
+            variant="outlined"
+            value={filters.checkOutDate}
+            onChange={handleFilterChange}
+            sx={{ ...filterFieldSx, flex: '1 1 145px', minWidth: 145 }}
+            InputLabelProps={{ shrink: true }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Tooltip title="Check-out">
+                    <CalendarMonth sx={{ fontSize: '1.05rem', color: '#94a3b8' }} />
+                  </Tooltip>
+                </InputAdornment>
+              ),
+            }}
+          />
+          <FormControl size="small" sx={{ ...filterFieldSx, flex: '1 1 140px', minWidth: 140 }}>
+            <InputLabel>Status</InputLabel>
+            <Select
+              name="status"
+              value={filters.status}
+              label="Status"
               onChange={handleFilterChange}
-              size="medium"
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: { xs: 2, sm: 2.5, md: 3 },
-                  background: 'rgba(255,255,255,0.8)',
-                  backdropFilter: 'blur(10px)',
-                  transition: 'all 0.3s ease',
-                  '&:hover': {
-                    background: 'rgba(255,255,255,0.95)',
-                    transform: 'translateY(-2px)',
-                    boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+              MenuProps={{
+                PaperProps: {
+                  sx: {
+                    borderRadius: 1.5,
+                    mt: 0.5,
+                    maxHeight: 320,
+                    boxShadow: '0 8px 24px rgba(19, 53, 123, 0.12)',
+                    '& .MuiMenuItem-root': {
+                      fontSize: '0.85rem',
+                      py: 1,
+                      '&:hover': { backgroundColor: 'rgba(67, 97, 238, 0.08)' },
+                      '&.Mui-selected': {
+                        backgroundColor: 'rgba(67, 97, 238, 0.12)',
+                        '&:hover': { backgroundColor: 'rgba(67, 97, 238, 0.16)' },
+                      },
+                    },
                   },
-                  '&:hover fieldset': {
-                    borderColor: '#667eea',
-                    borderWidth: 2,
-                  },
-                  '&.Mui-focused': {
-                    background: 'rgba(255,255,255,1)',
-                    boxShadow: '0 4px 20px rgba(102, 126, 234, 0.2)',
-                  },
-                  '&.Mui-focused fieldset': {
-                    borderColor: '#667eea',
-                    borderWidth: 2,
-                  }
                 },
-                '& .MuiInputLabel-root': {
-                  fontWeight: 600,
-                  '&.Mui-focused': {
-                    color: '#667eea',
-                  }
-                }
               }}
-              placeholder="Enter booking ID or multi-enquiry ID..."
-            />
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <TextField
-              name="customerName"
-              label="👤 Customer Name"
-              variant="outlined"
-              fullWidth
-              value={filters.customerName}
-              onChange={handleFilterChange}
-              size="medium"
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: { xs: 2, sm: 2.5, md: 3 },
-                  background: 'rgba(255,255,255,0.8)',
-                  backdropFilter: 'blur(10px)',
-                  transition: 'all 0.3s ease',
-                  '&:hover': {
-                    background: 'rgba(255,255,255,0.95)',
-                    transform: 'translateY(-2px)',
-                    boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
-                  },
-                  '&:hover fieldset': {
-                    borderColor: '#fd79a8',
-                    borderWidth: 2,
-                  },
-                  '&.Mui-focused': {
-                    background: 'rgba(255,255,255,1)',
-                    boxShadow: '0 4px 20px rgba(253, 121, 168, 0.2)',
-                  },
-                  '&.Mui-focused fieldset': {
-                    borderColor: '#fd79a8',
-                    borderWidth: 2,
-                  }
-                },
-                '& .MuiInputLabel-root': {
-                  fontWeight: 600,
-                  '&.Mui-focused': {
-                    color: '#fd79a8',
-                  }
-                }
-              }}
-              placeholder="Enter customer name..."
-            />
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <TextField
-              name="country"
-              label="🌍 Filter by Country"
-              variant="outlined"
-              fullWidth
-              value={filters.country}
-              onChange={handleFilterChange}
-              size="medium"
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: { xs: 2, sm: 2.5, md: 3 },
-                  background: 'rgba(255,255,255,0.8)',
-                  backdropFilter: 'blur(10px)',
-                  transition: 'all 0.3s ease',
-                  '&:hover': {
-                    background: 'rgba(255,255,255,0.95)',
-                    transform: 'translateY(-2px)',
-                    boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
-                  },
-                  '&:hover fieldset': {
-                    borderColor: '#fdcb6e',
-                    borderWidth: 2,
-                  },
-                  '&.Mui-focused': {
-                    background: 'rgba(255,255,255,1)',
-                    boxShadow: '0 4px 20px rgba(253, 203, 110, 0.2)',
-                  },
-                  '&.Mui-focused fieldset': {
-                    borderColor: '#fdcb6e',
-                    borderWidth: 2,
-                  }
-                },
-                '& .MuiInputLabel-root': {
-                  fontWeight: 600,
-                  '&.Mui-focused': {
-                    color: '#fdcb6e',
-                  }
-                }
-              }}
-              placeholder="Enter country name..."
-            />
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <TextField
-              name="checkInDate"
-              label="📅 Check-in Date"
-              type="date"
-              variant="outlined"
-              fullWidth
-              value={filters.checkInDate}
-              onChange={handleFilterChange}
-              size="medium"
-              InputLabelProps={{ shrink: true }}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: { xs: 2, sm: 2.5, md: 3 },
-                  background: 'rgba(255,255,255,0.8)',
-                  backdropFilter: 'blur(10px)',
-                  transition: 'all 0.3s ease',
-                  '&:hover': {
-                    background: 'rgba(255,255,255,0.95)',
-                    transform: 'translateY(-2px)',
-                    boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
-                  },
-                  '&:hover fieldset': {
-                    borderColor: '#4caf50',
-                    borderWidth: 2,
-                  },
-                  '&.Mui-focused': {
-                    background: 'rgba(255,255,255,1)',
-                    boxShadow: '0 4px 20px rgba(76, 175, 80, 0.2)',
-                  },
-                  '&.Mui-focused fieldset': {
-                    borderColor: '#4caf50',
-                    borderWidth: 2,
-                  }
-                },
-                '& .MuiInputLabel-root': {
-                  fontWeight: 600,
-                  '&.Mui-focused': {
-                    color: '#4caf50',
-                  }
-                }
-              }}
-            />
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <TextField
-              name="checkOutDate"
-              label="📅 Check-out Date"
-              type="date"
-              variant="outlined"
-              fullWidth
-              value={filters.checkOutDate}
-              onChange={handleFilterChange}
-              size="medium"
-              InputLabelProps={{ shrink: true }}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: { xs: 2, sm: 2.5, md: 3 },
-                  background: 'rgba(255,255,255,0.8)',
-                  backdropFilter: 'blur(10px)',
-                  transition: 'all 0.3s ease',
-                  '&:hover': {
-                    background: 'rgba(255,255,255,0.95)',
-                    transform: 'translateY(-2px)',
-                    boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
-                  },
-                  '&:hover fieldset': {
-                    borderColor: '#ff9800',
-                    borderWidth: 2,
-                  },
-                  '&.Mui-focused': {
-                    background: 'rgba(255,255,255,1)',
-                    boxShadow: '0 4px 20px rgba(255, 152, 0, 0.2)',
-                  },
-                  '&.Mui-focused fieldset': {
-                    borderColor: '#ff9800',
-                    borderWidth: 2,
-                  }
-                },
-                '& .MuiInputLabel-root': {
-                  fontWeight: 600,
-                  '&.Mui-focused': {
-                    color: '#ff9800',
-                  }
-                }
-              }}
-            />
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <FormControl fullWidth size="medium">
-              <InputLabel sx={{ 
-                fontWeight: 600,
-                '&.Mui-focused': {
-                  color: '#9c27b0',
-                }
-              }}>📊 Status</InputLabel>
-              <Select
-                name="status"
-                value={filters.status}
-                label="📊 Status"
-                onChange={handleFilterChange}
-                sx={{
-                  borderRadius: { xs: 2, sm: 2.5, md: 3 },
-                  background: 'rgba(255,255,255,0.8)',
-                  backdropFilter: 'blur(10px)',
-                  transition: 'all 0.3s ease',
-                  '&:hover': {
-                    background: 'rgba(255,255,255,0.95)',
-                    transform: 'translateY(-2px)',
-                    boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
-                  },
-                  '&:hover .MuiOutlinedInput-notchedOutline': {
-                    borderColor: '#9c27b0',
-                    borderWidth: 2,
-                  },
-                  '&.Mui-focused': {
-                    background: 'rgba(255,255,255,1)',
-                    boxShadow: '0 4px 20px rgba(156, 39, 176, 0.2)',
-                  },
-                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                    borderColor: '#9c27b0',
-                    borderWidth: 2,
-                  }
-                }}
-                MenuProps={{
-                  PaperProps: {
-                    sx: {
-                      borderRadius: { xs: 2, sm: 2.5, md: 3 },
-                      mt: 1,
-                      boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
-                      border: '1px solid rgba(255,255,255,0.3)',
-                      '& .MuiMenuItem-root': {
-                        borderRadius: 2,
-                        mx: 1,
-                        my: 0.5,
-                        '&:hover': {
-                          background: '#13357b',
-                          color: 'white',
-                        }
-                      }
-                    }
-                  }
-                }}
-              >
-                <MenuItem value="">🌐 All Status</MenuItem>
-                <MenuItem value="Confirmed">✅ Confirmed</MenuItem>
-                <MenuItem value="Definite">🎯 Definite</MenuItem>
-                <MenuItem value="Actual">✅ Actual</MenuItem>
-                <MenuItem value="Pending">⏳ Pending</MenuItem>
-                <MenuItem value="Tentative">🤔 Tentative</MenuItem>
-                <MenuItem value="New Enquiry">🆕 New Enquiry</MenuItem>
-                <MenuItem value="Prospect">👀 Prospect</MenuItem>
-                <MenuItem value="Closed">🔒 Closed</MenuItem>
-                <MenuItem value="Auto Cancel">🔄 Auto Cancel</MenuItem>
-                <MenuItem value="Refunded">💰 Refunded</MenuItem>
-                <MenuItem value="On Hold">⏸️ On Hold</MenuItem>
-                <MenuItem value="Refund - Pending">⏳ Refund - Pending</MenuItem>
-                <MenuItem value="Cancel">❌ Cancel</MenuItem>
-              </Select>
-            </FormControl>
-          </Grid>
-        </Grid>
+            >
+              <MenuItem value="">All statuses</MenuItem>
+              <MenuItem value="Confirmed">Confirmed</MenuItem>
+              <MenuItem value="Definite">Definite</MenuItem>
+              <MenuItem value="Actual">Actual</MenuItem>
+              <MenuItem value="Pending">Pending</MenuItem>
+              <MenuItem value="Tentative">Tentative</MenuItem>
+              <MenuItem value="New Enquiry">New Enquiry</MenuItem>
+              <MenuItem value="Prospect">Prospect</MenuItem>
+              <MenuItem value="Closed">Closed</MenuItem>
+              <MenuItem value="Auto Cancel">Auto Cancel</MenuItem>
+              <MenuItem value="Refunded">Refunded</MenuItem>
+              <MenuItem value="On Hold">On Hold</MenuItem>
+              <MenuItem value="Refund - Pending">Refund - Pending</MenuItem>
+              <MenuItem value="Cancel">Cancel</MenuItem>
+            </Select>
+          </FormControl>
+        </Stack>
 
-        {/* Active Filters Display */}
-        {/* {hasActiveFilters && (
-          <Box sx={{ mt: 2, display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-            {Object.entries(filters).map(([key, value]) => {
-              if (value) {
-                return (
-                  <Chip
-                    key={key}
-                    label={`${key}: ${value}`}
-                    onDelete={() => {
-                      setFilters(prev => ({
-                        ...prev,
-                        [key]: ''
-                      }));
-                    }}
-                    sx={{
-                      backgroundColor: 'rgba(67, 97, 238, 0.1)',
-                      color: '#4361ee',
-                      '& .MuiChip-deleteIcon': {
-                        color: '#4361ee',
-                      }
-                    }}
-                  />
-                );
-              }
-              return null;
-            })}
+        {hasActiveFilters && (
+          <Box
+            sx={{
+              px: { xs: 1.5, sm: 2 },
+              pb: 1.5,
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: 0.75,
+            }}
+          >
+            {Object.entries(filters).map(([key, value]) =>
+              value ? (
+                <Chip
+                  key={key}
+                  size="small"
+                  label={`${FILTER_LABELS[key]}: ${value}`}
+                  onDelete={() =>
+                    setFilters((prev) => ({
+                      ...prev,
+                      [key]: '',
+                    }))
+                  }
+                  sx={{
+                    height: 24,
+                    fontSize: '0.72rem',
+                    fontWeight: 500,
+                    backgroundColor: '#fff',
+                    border: '1px solid rgba(67, 97, 238, 0.25)',
+                    color: '#13357b',
+                    '& .MuiChip-deleteIcon': {
+                      fontSize: '0.95rem',
+                      color: '#94a3b8',
+                      '&:hover': { color: '#ef4444' },
+                    },
+                  }}
+                />
+              ) : null
+            )}
           </Box>
-        )} */}
-      </Card>
+        )}
+      </Box>
 
       {/* Desktop Tabs */}
       {!isMobile && (

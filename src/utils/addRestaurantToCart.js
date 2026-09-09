@@ -1,5 +1,6 @@
 import { addToCart } from "@/slice/cart/carSlice";
 import { store } from "@/store/store";
+import { lockCartDmc } from "@/utils/lockCartDmc";
 
 const clonePayload = (value) => {
   try {
@@ -57,6 +58,12 @@ export const buildRestaurantCartItem = ({
     pricemode: row.mealType || null,
     totalPrice: Math.ceil(Number(row.totalPrice) || 0),
     bookingPayload: clonePayload(bookingDetails),
+    dmc_id:
+      row.dmc_id ||
+      restaurant?.dmc_id ||
+      restaurantsDetails?.dmc_id ||
+      restaurantsDetails?.prices?.dmc_id ||
+      null,
   };
 };
 
@@ -66,13 +73,25 @@ export const addRestaurantBookingToCart = (dispatch, payload) => {
     return "Please complete restaurant selections first.";
   }
 
+  const item = buildRestaurantCartItem(payload);
+  if (item.dmc_id == null) {
+    item.dmc_id = store.getState().dmc?.dmcId || null;
+  }
+
   dispatch(
     addToCart({
       bookingType: "restaurant",
-      item: buildRestaurantCartItem(payload),
-      tourDetails: payload.tourDetails,
+      item,
+      tourDetails: {
+        ...(payload.tourDetails || {}),
+        dmc_id: item.dmc_id,
+      },
     })
   );
 
-  return store.getState().cart?.lastActionError || null;
+  const cartError = store.getState().cart?.lastActionError;
+  if (!cartError) {
+    lockCartDmc(dispatch, item);
+  }
+  return cartError || null;
 };

@@ -33,6 +33,7 @@ import Pickuptime1 from "./Pickuptime1";
 import { setbookingImage, setbookingType } from "@/slice/tourguide/guideslice";
 import { addToCart } from "@/slice/cart/carSlice";
 import { store } from "@/store/store";
+import { lockCartDmc } from "@/utils/lockCartDmc";
 
 const Index4 = () => {
   const dispatch = useDispatch();
@@ -384,6 +385,7 @@ const Index4 = () => {
       toast.error(cartError);
       return;
     }
+    lockCartDmc(dispatch, details);
     toast.success("Added to cart successfully.");
     navigate(`/dashboard/db-dashboard/cart`);
 
