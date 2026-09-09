@@ -1134,21 +1134,22 @@
                         <input type="hidden" id="enquiryProChildAges" value="{{ is_array($initialData['child_ages'] ?? null) ? json_encode($initialData['child_ages']) : ($initialData['child_ages'] ?? '[]') }}">
                     </div>
                     <div class="col-auto d-flex align-items-center">
-                        <span class="detail-label me-1" style="font-size: 9px;">Sal:</span>
-                        <select class="form-select form-select-sm" id="salutationSelect" style="width: 50px; font-size: 9px; padding: 1px 3px;">
+                        <span class="detail-label me-1" style="font-size: 9px;">Salutation:</span>
+                        <select class="form-select form-select-sm" id="salutationSelect" style="width: 55px; font-size: 9px; padding: 1px 3px;">
                             <option value="Mr" {{ (isset($initialData['salutation']) && $initialData['salutation'] == 'Mr') || !isset($initialData) ? 'selected' : '' }}>Mr</option>
                             <option value="Mrs" {{ isset($initialData['salutation']) && $initialData['salutation'] == 'Mrs' ? 'selected' : '' }}>Mrs</option>
                             <option value="Ms" {{ isset($initialData['salutation']) && $initialData['salutation'] == 'Ms' ? 'selected' : '' }}>Ms</option>
+                            <option value="Miss" {{ isset($initialData['salutation']) && $initialData['salutation'] == 'Miss' ? 'selected' : '' }}>Miss</option>
                             <option value="Dr" {{ isset($initialData['salutation']) && $initialData['salutation'] == 'Dr' ? 'selected' : '' }}>Dr</option>
-                            <option value="Prof">Prof</option>
+                            <option value="Prof" {{ isset($initialData['salutation']) && $initialData['salutation'] == 'Prof' ? 'selected' : '' }}>Prof</option>
                         </select>
                     </div>
                     <div class="col-auto d-flex align-items-center">
-                        <span class="detail-label me-1" style="font-size: 9px;">Name:</span>
+                        <span class="detail-label me-1" style="font-size: 9px;">Full Name:</span>
                         <input type="text" class="form-control form-control-sm" value="{{ $initialData['customer_name'] ?? 'To Be Advised' }}" id="customerNameInput" style="font-size: 9px; width: 110px; padding: 1px 3px;">
                     </div>
                     <div class="col-auto d-flex align-items-center">
-                        <span class="detail-label me-1" style="font-size: 9px;">Contact:</span>
+                        <span class="detail-label me-1" style="font-size: 9px;">Phone:</span>
                         <input type="text" class="form-control form-control-sm" value="{{ $initialData['contact_number'] ?? '' }}" id="contactNumberInput" placeholder="Opt" style="font-size: 9px; width: 85px; padding: 1px 3px;">
                     </div>
                     <div class="col-auto d-flex align-items-center">
@@ -1705,6 +1706,26 @@
             </div>
         </div>
 
+        @php
+            $customer_info = [
+                'salutation' => $initialData['salutation'] ?? 'Mr',
+                'fullName' => $initialData['customer_name'] ?? '',
+                'email' => $initialData['email'] ?? '',
+                'phone' => $initialData['contact_number'] ?? '',
+                'countryCode' => $initialData['customer_country_code'] ?? '',
+                'address1' => $initialData['customer_address1'] ?? '',
+                'address2' => $initialData['customer_address2'] ?? '',
+                'state' => $initialData['customer_state'] ?? '',
+                'zip' => $initialData['customer_zip'] ?? '',
+                'specialRequests' => $initialData['customer_special_requests'] ?? '',
+                'passport' => $initialData['customer_passport'] ?? '',
+                'passportExpiry' => $initialData['customer_passport_expiry'] ?? '',
+            ];
+            $additionalGuests = [];
+            $showAppPassword = false;
+        @endphp
+        @include('enquiryform_pro.partials.guest-information')
+
     </div>
 
     <!-- Fixed Bottom Action Bar (Red Box) -->
@@ -1755,7 +1776,7 @@
                                     <option value="" selected>Type</option>
                                     <option value="percentage">%</option>
                                     <option value="flat">Fixed</option>
-                                    <option value="foc">FOC</option>
+                                    <option value="foc" hidden>FOC</option>
                                 </select>
                                 <input type="number" id="discountValue" class="enquiry-md-control" value="0" step="1" min="0" disabled
                                        oninput="applyMarkupDiscount()"
@@ -7853,12 +7874,8 @@
         if (visible) visible.checked = !!checked;
         const hidden = document.getElementById('enquiryProGroupDiscount');
         if (hidden) hidden.value = flag;
-        if (flag === 1) {
-            const dt = document.getElementById('discountType');
-            if (dt && dt.value !== 'foc') {
-                dt.value = 'foc';
-                if (typeof handleDiscountTypeChange === 'function') handleDiscountTypeChange();
-            }
+        if (typeof applyTreatFocDiscountToPricingUi === 'function') {
+            applyTreatFocDiscountToPricingUi();
         }
         if (typeof recalculateTotals === 'function') recalculateTotals();
         const chk = document.querySelector('.room-combination-checkbox:checked');
@@ -25302,16 +25319,9 @@
             wrap.classList.toggle('enquiry-pro-group-foc-discount-active', active);
         }
         refreshOutsideFocCheckboxState();
-        const focOpt = document.querySelector('#discountType option[value="foc"]');
-        const dt = document.getElementById('discountType');
-        // Clear invalid "FOC" selection BEFORE hiding the option — some browsers keep the old
-        // value if the selected <option> is hidden first, which broke the edit form footer.
-        if (!active && dt && dt.value === 'foc') {
-            if (focOpt) focOpt.hidden = false;
-            dt.value = '';
-            if (typeof handleDiscountTypeChange === 'function') handleDiscountTypeChange();
+        if (typeof applyTreatFocDiscountToPricingUi === 'function') {
+            applyTreatFocDiscountToPricingUi();
         }
-        if (focOpt) focOpt.hidden = !active;
     }
 
     /**
@@ -26121,14 +26131,23 @@
      * GROUP + FOC: monetary value absorbed for FOC adults (× foc_size).
      * - Hotels: only when "Treat FOC pax as discount (free)" is on (no per-room checkbox).
      * - Attractions, meals, misc, guides, transfers: only services with "FOC discount" checked in their modal.
+     * - cityName: when set (pricing-by-city row), only services booked for that city are included.
      * Mirrors hotelFactor / otherFactor from getEnquiryProGroupFocFactors (same as footer totals).
      */
-    function computeAutoFocDiscount() {
+    function computeAutoFocDiscount(cityName) {
         const f = (typeof getEnquiryProGroupFocFactors === 'function')
             ? getEnquiryProGroupFocFactors()
             : { isGroup: false, focSize: 0, discountOn: false, hotelFactor: 1, otherFactor: 1 };
         if (!f.isGroup || f.focSize <= 0) return 0;
         if (!f.discountOn) return 0;
+
+        const cityFilter = String(cityName || '').trim();
+        const belongsToCity = function (item) {
+            if (!cityFilter) return true;
+            return typeof enquiryProServiceMatchesCity === 'function'
+                ? enquiryProServiceMatchesCity(item, cityFilter)
+                : true;
+        };
 
         const htlF = f.hotelFactor;
         const othF = f.otherFactor;
@@ -26140,6 +26159,7 @@
 
         accommodationList.forEach((hotel) => {
             if (hotel.supplement) return;
+            if (!belongsToCity(hotel)) return;
             if (hotel.focServiceDiscount === false) return;
             const nights = parseInt(String(hotel.nights || 0), 10) || 0;
             const sell = parseFloat(hotel.sell) || 0;
@@ -26154,6 +26174,7 @@
 
         tourList.forEach((tour, tourIndex) => {
             if (tour.supplement || !tour.focServiceDiscount) return;
+            if (!belongsToCity(tour)) return;
             const adultsQty = parseInt(tour.adultsQty, 10) || 0;
             const childQty = parseInt(tour.childQty, 10) || 0;
             const infantQty = parseInt(tour.infantQty, 10) || 0;
@@ -26236,6 +26257,7 @@
         const mealTableBody = document.getElementById('mealTableBody');
         mealList.forEach((meal, mealIndex) => {
             if (meal.supplement || !meal.focServiceDiscount) return;
+            if (!belongsToCity(meal)) return;
             let adultSell = parseFloat(meal.adultSell) || 0;
             if (mealTableBody) {
                 const tableRows = Array.from(mealTableBody.querySelectorAll('tr'));
@@ -26250,6 +26272,7 @@
         const miscTableBody = document.getElementById('miscTableBody');
         miscList.forEach((misc, miscIndex) => {
             if (misc.supplement || !misc.focServiceDiscount) return;
+            if (!belongsToCity(misc)) return;
             let adultSell = parseFloat(misc.adultSell) || 0;
             if (miscTableBody) {
                 const tableRows = Array.from(miscTableBody.querySelectorAll('tr'));
@@ -26263,6 +26286,7 @@
 
         transferList.forEach((transfer, transferIndex) => {
             if (transfer.supplement || !transfer.focServiceDiscount) return;
+            if (!belongsToCity(transfer)) return;
             if (transfer.sourceType === 'tour' && transfer.sourceId) {
                 const ownerTour = tourList.find(tu => String(tu.id) === String(transfer.sourceId));
                 if (ownerTour && ownerTour.focServiceDiscount) return;
@@ -26302,6 +26326,7 @@
 
         guideList.forEach((guide, guideIndex) => {
             if (guide.supplement || !guide.focServiceDiscount) return;
+            if (!belongsToCity(guide)) return;
             if (guide.sourceTourId) {
                 const ownerTour = tourList.find(tu => String(tu.id) === String(guide.sourceTourId));
                 if (ownerTour && ownerTour.focServiceDiscount) return;
@@ -26350,6 +26375,7 @@
         } else if (discountType.value === 'foc') {
             const f = (typeof getEnquiryProGroupFocFactors === 'function') ? getEnquiryProGroupFocFactors() : { isGroup: false, focSize: 0, discountOn: false };
             if (!f.isGroup || f.focSize <= 0 || !f.discountOn) {
+                discountType.disabled = false;
                 discountType.value = '';
                 discountValue.disabled = true;
                 discountValue.value = 0;
@@ -26359,11 +26385,19 @@
                 return;
             }
             // Auto-computed; field is locked so the value can't drift from the live calculation.
+            discountType.disabled = true;
             discountValue.disabled = true;
-            discountValue.value = computeAutoFocDiscount();
+            const singleCity = (typeof getEnquiryProCityMarkupTargets === 'function' && getEnquiryProCityMarkupTargets()[0])
+                ? getEnquiryProCityMarkupTargets()[0].city : '';
+            discountValue.value = (typeof focDiscountAmountForCity === 'function')
+                ? focDiscountAmountForCity(singleCity)
+                : computeAutoFocDiscount(singleCity);
             discountValue.style.backgroundColor = '#fff8e1';
             discountValue.title = 'Auto-computed FOC discount: hotels when “Free” is on, plus checked services (adult/twin share × FOC size).';
         } else {
+            if (typeof isTreatFocDiscountActive !== 'function' || !isTreatFocDiscountActive()) {
+                discountType.disabled = false;
+            }
             discountValue.disabled = false;
             discountValue.style.backgroundColor = '';
             discountValue.title = 'Discount value. When type = FOC, this is auto-computed and locked.';
@@ -26391,12 +26425,17 @@
         
         const focHdr = (typeof getEnquiryProGroupFocFactors === 'function') ? getEnquiryProGroupFocFactors() : null;
         const focDiscountUiActive = focHdr && focHdr.isGroup && focHdr.focSize > 0 && focHdr.discountOn;
+        const isMultiCity = typeof isEnquiryProMultiCity === 'function' && isEnquiryProMultiCity();
 
-        // Keep FOC auto value in sync for the currently selected currency when type is FOC
+        // Keep single-city FOC auto value in sync. Multi-city rows are refreshed in syncActiveCurrencyMarkupToStore.
         const activeDiscountType = discountTypeElem.value || '';
-        if (activeDiscountType === 'foc' && focDiscountUiActive && typeof computeAutoFocDiscount === 'function') {
-            discountValueElem.value = computeAutoFocDiscount();
-        } else if (activeDiscountType === 'foc') {
+        if (!isMultiCity && activeDiscountType === 'foc' && focDiscountUiActive && typeof computeAutoFocDiscount === 'function') {
+            const singleCity = (typeof getEnquiryProCityMarkupTargets === 'function' && getEnquiryProCityMarkupTargets()[0])
+                ? getEnquiryProCityMarkupTargets()[0].city : '';
+            discountValueElem.value = (typeof focDiscountAmountForCity === 'function')
+                ? focDiscountAmountForCity(singleCity)
+                : computeAutoFocDiscount(singleCity);
+        } else if (!isMultiCity && activeDiscountType === 'foc') {
             discountValueElem.value = 0;
         }
         if (typeof syncActiveCurrencyMarkupToStore === 'function') {
@@ -26598,6 +26637,10 @@
         }
 
         (function syncFooterFocWhenTreatFocFreeOnInit() {
+            if (typeof applyTreatFocDiscountToPricingUi === 'function') {
+                applyTreatFocDiscountToPricingUi();
+                return;
+            }
             const h = document.getElementById('enquiryProGroupDiscount');
             if (!h || String(h.value) !== '1') return;
             if (discountType && discountType.value !== 'foc') {
@@ -26717,6 +26760,23 @@
     }
     
     function getCustomerInfo() {
+        if (typeof collectProLeadGuestData === 'function') {
+            const lead = collectProLeadGuestData();
+            return {
+                fullName: lead.full_name || document.getElementById('customerNameInput')?.value || "",
+                email: lead.email || document.getElementById('emailInput')?.value || "",
+                phone: lead.phone || document.getElementById('contactNumberInput')?.value || "",
+                countryCode: lead.country_code || "",
+                address1: lead.address1 || "",
+                address2: lead.address2 || null,
+                state: lead.state || null,
+                zip: lead.zip || "",
+                specialRequests: lead.special_requests || null,
+                salutation: lead.salutation || document.getElementById('salutationSelect')?.value || "",
+                passport: lead.passport || "",
+                passportExpiry: lead.passport_exp || ""
+            };
+        }
         return {
             fullName: document.getElementById('customerNameInput')?.value || "",
             email: document.getElementById('emailInput')?.value || "",
@@ -28685,7 +28745,7 @@
             formData.append('discount', 0);
         }
         
-        // Add customer details (salutation, name, contact, email)
+        // Add customer details (lead guest + additional guests — Lite payload)
         const salutation = document.getElementById('salutationSelect')?.value || 'Mr';
         const customerName = document.getElementById('customerNameInput')?.value || 'To Be Advised';
         const contactNumber = document.getElementById('contactNumberInput')?.value || '';
@@ -28694,6 +28754,9 @@
         formData.append('customer_name', customerName);
         formData.append('contact_number', contactNumber);
         formData.append('email', email);
+        if (typeof appendProGuestFormData === 'function') {
+            appendProGuestFormData(formData);
+        }
         
         // Transform and add service data in required format (await async functions)
         const { entryPortData, exitPortData } = await transformArrivalDepartureData();
