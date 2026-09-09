@@ -10,14 +10,210 @@
         window.enquiryProCityMarkups = {};
     }
 
+    function enquiryProNormalizeCityLabel(name) {
+        return String(name || '').trim().toLowerCase().replace(/\s+/g, ' ');
+    }
+
+    function enquiryProCitiesMatch(a, b) {
+        const left = enquiryProNormalizeCityLabel(a);
+        const right = enquiryProNormalizeCityLabel(b);
+        if (!left || !right) return false;
+        return left === right || left.indexOf(right) !== -1 || right.indexOf(left) !== -1;
+    }
+
+    function enquiryProServiceMatchesCity(item, cityFilter) {
+        const want = String(cityFilter || '').trim();
+        if (!want) return true;
+        if (!item || typeof item !== 'object') return false;
+        const candidates = [];
+        if (typeof getHotelServiceCity === 'function') {
+            const hotelCity = getHotelServiceCity(item);
+            if (hotelCity) candidates.push(hotelCity);
+        }
+        if (typeof resolveServiceCity === 'function') {
+            const resolved = resolveServiceCity(item);
+            if (resolved) candidates.push(resolved);
+        }
+        [
+            item.destination, item.city, item.hotelCity, item.hotel_city,
+            item.hotelCityKey, item.hotelDestination, item.city_name, item.location
+        ].forEach(function (v) {
+            const s = String(v || '').trim();
+            if (s) candidates.push(s);
+        });
+        for (let i = 0; i < candidates.length; i++) {
+            if (enquiryProCitiesMatch(candidates[i], want)) return true;
+        }
+        return false;
+    }
+    window.enquiryProServiceMatchesCity = enquiryProServiceMatchesCity;
+
+    function isTreatFocDiscountActive() {
+        const f = (typeof getEnquiryProGroupFocFactors === 'function') ? getEnquiryProGroupFocFactors() : null;
+        return !!(f && f.isGroup && f.focSize > 0 && f.discountOn);
+    }
+    window.isTreatFocDiscountActive = isTreatFocDiscountActive;
+
+    function snapshotServerFocDiscountByCity() {
+        window._enquiryProServerFocByCity = window._enquiryProServerFocByCity || {};
+        const entries = window.enquiryProCityMarkups || {};
+        Object.keys(entries).forEach(function (city) {
+            const row = entries[city] || {};
+            if (String(row.discount_type || '').toLowerCase() !== 'foc') return;
+            const value = parseFloat(row.discount_value || 0) || 0;
+            if (value > 0) {
+                window._enquiryProServerFocByCity[String(city).trim()] = value;
+            }
+        });
+        window._enquiryProFocDiscountFromServer = Object.keys(window._enquiryProServerFocByCity).length > 0;
+    }
+
+    function lookupCityAmount(map, city) {
+        if (!map || typeof map !== 'object') return 0;
+        const name = String(city || '').trim();
+        if (!name) return 0;
+        if (map[name] != null && map[name] !== '') return parseFloat(map[name]) || 0;
+        const lower = name.toLowerCase();
+        const key = Object.keys(map).find(function (k) {
+            return String(k).toLowerCase() === lower;
+        });
+        return key ? (parseFloat(map[key]) || 0) : 0;
+    }
+
+    function storedFocDiscountForCity(city) {
+        return lookupCityAmount(window._enquiryProServerFocByCity, city);
+    }
+
+    /**
+     * Create: live FOC total.
+     * Edit: saved city FOC + (live now − live at load) so add/remove/FOC toggles match create.
+     */
+    function focDiscountAmountForCity(city) {
+        if (!isTreatFocDiscountActive()) return 0;
+        const live = (typeof computeAutoFocDiscount === 'function')
+            ? (computeAutoFocDiscount(city || '') || 0)
+            : 0;
+        const stored = storedFocDiscountForCity(city);
+        if (stored > 0) {
+            if (!window._enquiryProFocBaselineCaptured) return stored;
+            const base = lookupCityAmount(window._enquiryProFocLiveBaseline, city);
+            return Math.max(0, Math.round(stored + live - base));
+        }
+        return live;
+    }
+
+    function captureFocLiveBaseline(opts) {
+        opts = opts || {};
+        if (window._enquiryProFocBaselineCaptured && !opts.force) return;
+        if (typeof computeAutoFocDiscount !== 'function') return;
+        const targets = (typeof getEnquiryProCityMarkupTargets === 'function')
+            ? getEnquiryProCityMarkupTargets()
+            : [];
+        if (!targets.length) return;
+        const map = {};
+        targets.forEach(function (t) {
+            map[t.city] = computeAutoFocDiscount(t.city) || 0;
+        });
+        window._enquiryProFocLiveBaseline = map;
+        window._enquiryProFocBaselineCaptured = true;
+    }
+    window.captureFocLiveBaseline = captureFocLiveBaseline;
+
+    function ensureFocOption(selectEl, visible) {
+        if (!selectEl) return null;
+        let opt = selectEl.querySelector('option[value="foc"]');
+        if (!opt) {
+            opt = document.createElement('option');
+            opt.value = 'foc';
+            opt.textContent = 'FOC';
+            selectEl.appendChild(opt);
+        }
+        opt.hidden = !visible;
+        return opt;
+    }
+
+    /**
+     * FOC is not a manual Disc type. It is applied only when
+     * "Treat FOC pax as discount (free)" is on, per city.
+     */
+    function applyTreatFocToDiscountSelect(typeSel, valInp, city, active) {
+        if (!typeSel || !valInp) return;
+        if (active) {
+            ensureFocOption(typeSel, true);
+            typeSel.value = 'foc';
+            typeSel.disabled = true;
+            valInp.disabled = true;
+            valInp.classList.add('is-foc-locked');
+            valInp.style.backgroundColor = '';
+            valInp.value = focDiscountAmountForCity(city);
+            valInp.title = city
+                ? ('Auto FOC discount for ' + city + ' (Treat FOC pax as discount). Locked.')
+                : 'Auto FOC discount from Treat FOC pax as discount (free). Locked.';
+            return;
+        }
+        typeSel.disabled = false;
+        if (typeSel.value === 'foc') {
+            ensureFocOption(typeSel, true);
+            typeSel.value = '';
+            valInp.value = 0;
+            valInp.disabled = true;
+            valInp.classList.remove('is-foc-locked');
+            valInp.style.backgroundColor = '';
+            valInp.title = 'Discount value. FOC is applied only when Treat FOC pax as discount is on.';
+        }
+        ensureFocOption(typeSel, false);
+    }
+
+    function applyTreatFocDiscountToPricingUi() {
+        if (window._enquiryProApplyingTreatFoc) return;
+        window._enquiryProApplyingTreatFoc = true;
+        try {
+        const active = isTreatFocDiscountActive();
+        const dt = document.getElementById('discountType');
+        const dv = document.getElementById('discountValue');
+        const targets = (typeof getEnquiryProCityMarkupTargets === 'function')
+            ? getEnquiryProCityMarkupTargets()
+            : [];
+        const singleCity = targets.length === 1 ? targets[0].city : '';
+
+        applyTreatFocToDiscountSelect(dt, dv, singleCity, active);
+
+        document.querySelectorAll('#enquiryProCityMarkupBody tr[data-city]').forEach(function (tr) {
+            const city = String(tr.getAttribute('data-city') || '').trim();
+            applyTreatFocToDiscountSelect(
+                tr.querySelector('.city-discount-type'),
+                tr.querySelector('.city-discount-value'),
+                city,
+                active
+            );
+        });
+
+        if (typeof syncActiveCurrencyMarkupToStore === 'function') {
+            syncActiveCurrencyMarkupToStore();
+        }
+        } finally {
+            window._enquiryProApplyingTreatFoc = false;
+        }
+    }
+    window.applyTreatFocDiscountToPricingUi = applyTreatFocDiscountToPricingUi;
+
     function emptyMarkupDiscountEntry(opts) {
         opts = opts || {};
+        const markupValue = parseFloat(opts.markup_value || 0) || 0;
+        const hotelMarkup = opts.hotel_markup != null
+            ? (parseFloat(opts.hotel_markup) || 0)
+            : markupValue;
+        const otherMarkup = opts.other_markup != null
+            ? (parseFloat(opts.other_markup) || 0)
+            : hotelMarkup;
         return {
             city: String(opts.city || '').trim(),
             country: String(opts.country || '').trim(),
             currency: String(opts.currency || '').trim().toUpperCase(),
             markup_type: opts.markup_type || '',
-            markup_value: parseFloat(opts.markup_value || 0) || 0,
+            markup_value: markupValue || hotelMarkup,
+            hotel_markup: hotelMarkup,
+            other_markup: otherMarkup,
             discount_type: opts.discount_type || '',
             discount_value: parseFloat(opts.discount_value || 0) || 0
         };
@@ -100,8 +296,9 @@
         const focDiscountUiActive = focHdr && focHdr.isGroup && focHdr.focSize > 0 && focHdr.discountOn;
         const discountType = document.getElementById('discountType')?.value || '';
         let discountValue = parseFloat(document.getElementById('discountValue')?.value || 0) || 0;
-        if (discountType === 'foc' && focDiscountUiActive && typeof computeAutoFocDiscount === 'function') {
-            discountValue = computeAutoFocDiscount();
+        if (discountType === 'foc' && focDiscountUiActive) {
+            const singleCity = (getEnquiryProCityMarkupTargets()[0] || {}).city || '';
+            discountValue = focDiscountAmountForCity(singleCity);
         } else if (discountType === 'foc') {
             discountValue = 0;
         }
@@ -140,10 +337,11 @@
                 discountValue.disabled = true;
                 discountValue.classList.add('is-foc-locked');
                 discountValue.style.backgroundColor = '';
-                if (typeof computeAutoFocDiscount === 'function') {
+                if (typeof focDiscountAmountForCity === 'function') {
                     const focHdr = (typeof getEnquiryProGroupFocFactors === 'function') ? getEnquiryProGroupFocFactors() : null;
                     const active = focHdr && focHdr.isGroup && focHdr.focSize > 0 && focHdr.discountOn;
-                    discountValue.value = active ? computeAutoFocDiscount() : 0;
+                    const singleCity = (getEnquiryProCityMarkupTargets()[0] || {}).city || '';
+                    discountValue.value = active ? focDiscountAmountForCity(singleCity) : 0;
                 } else {
                     discountValue.value = dv;
                 }
@@ -167,13 +365,22 @@
             const country = String(tr.getAttribute('data-country') || '').trim();
             const currency = String(tr.getAttribute('data-currency') || '').trim().toUpperCase();
             const mt = tr.querySelector('.city-markup-type')?.value || '';
-            const mv = parseFloat(tr.querySelector('.city-markup-value')?.value || 0) || 0;
+            const hotelEl = tr.querySelector('.city-hotel-markup');
+            const otherEl = tr.querySelector('.city-other-markup');
+            const markupEl = tr.querySelector('.city-markup-value');
+            const hotelMk = hotelEl
+                ? (parseFloat(hotelEl.value || 0) || 0)
+                : (parseFloat(markupEl?.value || 0) || 0);
+            const otherMk = otherEl
+                ? (parseFloat(otherEl.value || 0) || 0)
+                : hotelMk;
+            const mv = hotelMk;
             let dt = tr.querySelector('.city-discount-type')?.value || '';
             let dv = parseFloat(tr.querySelector('.city-discount-value')?.value || 0) || 0;
-            if (dt === 'foc' && typeof computeAutoFocDiscount === 'function') {
+            if (dt === 'foc') {
                 const focHdr = (typeof getEnquiryProGroupFocFactors === 'function') ? getEnquiryProGroupFocFactors() : null;
                 const active = focHdr && focHdr.isGroup && focHdr.focSize > 0 && focHdr.discountOn;
-                dv = active ? computeAutoFocDiscount() : 0;
+                dv = active ? focDiscountAmountForCity(city) : 0;
                 const inp = tr.querySelector('.city-discount-value');
                 if (inp) inp.value = dv;
             }
@@ -183,6 +390,8 @@
                 currency: currency,
                 markup_type: mt,
                 markup_value: mv,
+                hotel_markup: hotelMk,
+                other_markup: otherMk,
                 discount_type: dt,
                 discount_value: dv
             });
@@ -219,6 +428,8 @@
             return {
                 markup_type: e.markup_type || '',
                 markup_value: parseFloat(e.markup_value || 0) || 0,
+                hotel_markup: e.hotel_markup != null ? (parseFloat(e.hotel_markup) || 0) : (parseFloat(e.markup_value || 0) || 0),
+                other_markup: e.other_markup != null ? (parseFloat(e.other_markup) || 0) : (parseFloat(e.markup_value || 0) || 0),
                 discount_type: e.discount_type || '',
                 discount_value: parseFloat(e.discount_value || 0) || 0
             };
@@ -234,6 +445,8 @@
                 return {
                     markup_type: e.markup_type || '',
                     markup_value: parseFloat(e.markup_value || 0) || 0,
+                    hotel_markup: e.hotel_markup != null ? (parseFloat(e.hotel_markup) || 0) : (parseFloat(e.markup_value || 0) || 0),
+                    other_markup: e.other_markup != null ? (parseFloat(e.other_markup) || 0) : (parseFloat(e.markup_value || 0) || 0),
                     discount_type: e.discount_type || '',
                     discount_value: parseFloat(e.discount_value || 0) || 0
                 };
@@ -245,6 +458,8 @@
             return {
                 markup_type: e.markup_type || '',
                 markup_value: parseFloat(e.markup_value || 0) || 0,
+                hotel_markup: e.hotel_markup != null ? (parseFloat(e.hotel_markup) || 0) : (parseFloat(e.markup_value || 0) || 0),
+                other_markup: e.other_markup != null ? (parseFloat(e.other_markup) || 0) : (parseFloat(e.markup_value || 0) || 0),
                 discount_type: e.discount_type || '',
                 discount_value: parseFloat(e.discount_value || 0) || 0
             };
@@ -252,7 +467,7 @@
         if (!isEnquiryProMultiCity()) {
             return readSingleMarkupDiscountInputs();
         }
-        return { markup_type: '', markup_value: 0, discount_type: '', discount_value: 0 };
+        return { markup_type: '', markup_value: 0, hotel_markup: 0, other_markup: 0, discount_type: '', discount_value: 0 };
     }
     window.getCurrencyMarkupDiscountSettings = getCurrencyMarkupDiscountSettings;
 
@@ -266,14 +481,17 @@
         }
         return targets.map(function (t) {
             const existing = window.enquiryProCityMarkups[t.city] || {};
+            const treatFoc = isTreatFocDiscountActive();
             return emptyMarkupDiscountEntry({
                 city: t.city,
                 country: t.country || existing.country || '',
                 currency: t.currency || existing.currency || '',
                 markup_type: existing.markup_type || '',
                 markup_value: existing.markup_value || 0,
-                discount_type: existing.discount_type || '',
-                discount_value: existing.discount_value || 0
+                hotel_markup: existing.hotel_markup != null ? existing.hotel_markup : (existing.markup_value || 0),
+                other_markup: existing.other_markup != null ? existing.other_markup : (existing.markup_value || 0),
+                discount_type: treatFoc ? 'foc' : ((existing.discount_type === 'foc') ? '' : (existing.discount_type || '')),
+                discount_value: treatFoc ? focDiscountAmountForCity(t.city) : ((existing.discount_type === 'foc') ? 0 : (existing.discount_value || 0))
             });
         });
     }
@@ -283,12 +501,14 @@
         const city = target.city;
         const country = target.country || '';
         const currency = target.currency || '';
+        const treatFoc = isTreatFocDiscountActive();
         const mt = entry.markup_type || '';
         const mv = entry.markup_value || 0;
-        const dt = entry.discount_type || '';
-        const dv = entry.discount_value || 0;
+        let dt = treatFoc ? 'foc' : ((entry.discount_type === 'foc') ? '' : (entry.discount_type || ''));
+        let dv = treatFoc ? focDiscountAmountForCity(city) : ((dt === 'foc') ? 0 : (entry.discount_value || 0));
         const markupDisabled = mt ? '' : 'disabled';
-        const discountDisabled = (!dt || dt === 'foc') ? 'disabled' : '';
+        const discountTypeDisabled = treatFoc ? 'disabled' : '';
+        const discountDisabled = (!dt || dt === 'foc' || treatFoc) ? 'disabled' : '';
         const focClass = dt === 'foc' ? ' is-foc-locked' : '';
         const label = currency
             ? (city + ' · ' + currency + (country ? ' (' + country + ')' : ''))
@@ -315,11 +535,11 @@
             + ' placeholder="0" oninput="handleCityMarkupRowChange(this)">'
             + '</td>'
             + '<td class="enquiry-md-cell-discount">'
-            + '<select class="city-discount-type enquiry-md-control" onchange="handleCityMarkupRowChange(this)">'
+            + '<select class="city-discount-type enquiry-md-control" onchange="handleCityMarkupRowChange(this)" ' + discountTypeDisabled + '>'
             + '<option value=""' + (!dt ? ' selected' : '') + '>Type</option>'
             + '<option value="percentage"' + (dt === 'percentage' ? ' selected' : '') + '>%</option>'
             + '<option value="flat"' + (dt === 'flat' ? ' selected' : '') + '>Fixed</option>'
-            + '<option value="foc"' + (dt === 'foc' ? ' selected' : '') + '>FOC</option>'
+            + '<option value="foc"' + (dt === 'foc' ? ' selected' : '') + (treatFoc ? '' : ' hidden') + '>FOC</option>'
             + '</select>'
             + '</td>'
             + '<td class="enquiry-md-cell-discount">'
@@ -346,13 +566,30 @@
         if (tr) {
             const mt = tr.querySelector('.city-markup-type');
             const mv = tr.querySelector('.city-markup-value');
+            const hotelMk = tr.querySelector('.city-hotel-markup');
+            const otherMk = tr.querySelector('.city-other-markup');
             const dt = tr.querySelector('.city-discount-type');
             const dv = tr.querySelector('.city-discount-value');
+            const enabled = !!(mt && mt.value);
             if (mv && mt) {
-                mv.disabled = !mt.value;
-                if (!mt.value) mv.value = 0;
+                mv.disabled = !enabled;
+                if (!enabled) mv.value = 0;
             }
+            [hotelMk, otherMk].forEach(function (inp) {
+                if (!inp) return;
+                inp.disabled = !enabled;
+                if (!enabled) inp.value = 0;
+            });
+            const suffix = (mt && mt.value === 'flat')
+                ? (String(tr.getAttribute('data-currency') || '').trim().toUpperCase() || 'AMT')
+                : '%';
+            tr.querySelectorAll('.city-markup-suffix').forEach(function (s) {
+                s.textContent = suffix;
+            });
             if (dv && dt) {
+                if (dt.value === 'foc' && !isTreatFocDiscountActive()) {
+                    dt.value = '';
+                }
                 if (!dt.value) {
                     dv.disabled = true;
                     dv.value = 0;
@@ -362,10 +599,11 @@
                     dv.disabled = true;
                     dv.classList.add('is-foc-locked');
                     dv.style.backgroundColor = '';
-                    if (typeof computeAutoFocDiscount === 'function') {
+                    if (typeof focDiscountAmountForCity === 'function') {
                         const focHdr = (typeof getEnquiryProGroupFocFactors === 'function') ? getEnquiryProGroupFocFactors() : null;
                         const active = focHdr && focHdr.isGroup && focHdr.focSize > 0 && focHdr.discountOn;
-                        dv.value = active ? computeAutoFocDiscount() : 0;
+                        const rowCity = String(tr.getAttribute('data-city') || '').trim();
+                        dv.value = active ? focDiscountAmountForCity(rowCity) : 0;
                     }
                 } else {
                     dv.disabled = false;
@@ -415,6 +653,9 @@
                     writeSingleMarkupDiscountInputs(window.enquiryProCityMarkups[t.city]);
                 }
             }
+            if (typeof applyTreatFocDiscountToPricingUi === 'function') {
+                applyTreatFocDiscountToPricingUi();
+            }
             return;
         }
 
@@ -433,9 +674,16 @@
             if (entry.currency) {
                 window.enquiryProCurrencyMarkups[entry.currency] = Object.assign({}, entry);
             }
-            return buildCityMarkupRowHtml(t, entry);
+            const rowBuilder = (typeof window.buildCityMarkupRowHtml === 'function')
+                ? window.buildCityMarkupRowHtml
+                : buildCityMarkupRowHtml;
+            return rowBuilder(t, entry);
         }).join('');
+        if (typeof applyTreatFocDiscountToPricingUi === 'function') {
+            applyTreatFocDiscountToPricingUi();
+        }
     }
+    window.buildCityMarkupRowHtml = buildCityMarkupRowHtml;
     window.refreshEnquiryProCurrencyMarkupOptions = refreshEnquiryProCurrencyMarkupOptions;
 
     function initEnquiryProCurrencyMarkupUi(seed) {
@@ -458,6 +706,7 @@
                     window.enquiryProCurrencyMarkups[entry.currency] = entry;
                 }
             });
+            snapshotServerFocDiscountByCity();
         }
         refreshEnquiryProCurrencyMarkupOptions();
     }

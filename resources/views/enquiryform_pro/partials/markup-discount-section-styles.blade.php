@@ -141,8 +141,10 @@
     #enquiryProMarkupSingleWrap input[type="number"],
     #enquiryProMarkupMultiWrap input.city-markup-value,
     #enquiryProMarkupMultiWrap input.city-discount-value {
-        width: 52px;
+        width: 92px;
+        min-width: 84px;
         text-align: right;
+        padding-right: 4px;
     }
     #enquiryProMarkupSingleWrap select:focus,
     #enquiryProMarkupSingleWrap input:focus,
@@ -168,7 +170,7 @@
     }
     .enquiry-md-table {
         width: 100%;
-        min-width: 480px;
+        min-width: 560px;
         margin: 0 !important;
         border-collapse: separate;
         border-spacing: 0;

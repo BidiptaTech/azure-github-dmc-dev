@@ -972,7 +972,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-2 breakfast-options" style="display: none;">
+                    <div class="col-md-2 breakfast-options">
                         <label for="breakfast_type" class="form-label"><strong>Type</strong><span class="text-danger">*</span></label>
                         <select name="breakfast_type" id="breakfast_type" class="form-control">
                             <option value="">Select Type</option>
@@ -980,11 +980,11 @@
                             <option value="Set Menu">Set Menu</option>
                         </select>
                     </div>
-                    <div class="col-md-2 breakfast-options" style="display: none;">
+                    <div class="col-md-2 breakfast-options">
                         <label for="breakfast_cost_price" class="form-label"><strong>Cost Price</strong></label>
                         <input type="number" name="breakfast_cost_price" id="breakfast_cost_price" class="form-control js-room-cost" data-sell-target="breakfast_price" placeholder="Enter Cost Price" min="0" step="0.01">
                     </div>
-                    <div class="col-md-3 breakfast-options" style="display: none;">
+                    <div class="col-md-3 breakfast-options">
                         <label for="breakfast_price" class="form-label"><strong>Sell Price</strong><span class="text-danger">*</span></label>
                         <input type="number" name="breakfast_price" id="breakfast_price" class="form-control js-room-sell" placeholder="Enter Sell Price" min="0" step="0.01">
                     </div>
@@ -999,7 +999,7 @@
                             <option value="0">No</option>
                         </select>
                     </div>
-                    <div class="col-md-3 lunch-options" style="display: none;">
+                    <div class="col-md-3 lunch-options">
                         <label for="lunch_type" class="form-label"><strong>Type</strong><span class="text-danger">*</span></label>
                         <select name="lunch_type" id="lunch_type" class="form-control">
                             <option value="">Select Type</option>
@@ -1007,11 +1007,11 @@
                             <option value="Set Menu">Set Menu</option>
                         </select>
                     </div>
-                    <div class="col-md-3 lunch-options" style="display: none;">
+                    <div class="col-md-3 lunch-options">
                         <label for="lunch_cost_price" class="form-label"><strong>Cost Price</strong></label>
                         <input type="number" name="lunch_cost_price" id="lunch_cost_price" class="form-control js-room-cost" data-sell-target="lunch_price" placeholder="Enter Cost Price" min="0" step="0.01">
                     </div>
-                    <div class="col-md-3 lunch-options" style="display: none;">
+                    <div class="col-md-3 lunch-options">
                         <label for="lunch_price" class="form-label"><strong>Sell Price</strong><span class="text-danger">*</span></label>
                         <input type="number" name="lunch_price" id="lunch_price" class="form-control js-room-sell" placeholder="Enter Sell Price" min="0" step="0.01">
                     </div>
@@ -1026,7 +1026,7 @@
                             <option value="0">No</option>
                         </select>
                     </div>
-                    <div class="col-md-3 dinner-options" style="display: none;">
+                    <div class="col-md-3 dinner-options">
                         <label for="dinner_type" class="form-label"><strong>Type</strong><span class="text-danger">*</span></label>
                         <select name="dinner_type" id="dinner_type" class="form-control">
                             <option value="">Select Type</option>
@@ -1034,11 +1034,11 @@
                             <option value="Set Menu">Set Menu</option>
                         </select>
                     </div>
-                    <div class="col-md-3 dinner-options" style="display: none;">
+                    <div class="col-md-3 dinner-options">
                         <label for="dinner_cost_price" class="form-label"><strong>Cost Price</strong></label>
                         <input type="number" name="dinner_cost_price" id="dinner_cost_price" class="form-control js-room-cost" data-sell-target="dinner_price" placeholder="Enter Cost Price" min="0" step="0.01">
                     </div>
-                    <div class="col-md-3 dinner-options" style="display: none;">
+                    <div class="col-md-3 dinner-options">
                         <label for="dinner_price" class="form-label"><strong>Sell Price</strong><span class="text-danger">*</span></label>
                         <input type="number" name="dinner_price" id="dinner_price" class="form-control js-room-sell" placeholder="Enter Sell Price" min="0" step="0.01">
                     </div>
@@ -2882,30 +2882,35 @@ $(document).ready(function() {
 <script>
     // Function to handle meal option toggles
     function toggleMealOptions(mealType) {
-        const isIncluded = document.getElementById(`${mealType}_included`).value === "1";
+        const includedEl = document.getElementById(`${mealType}_included`);
+        const isIncluded = includedEl && includedEl.value === "1";
         const optionElements = document.querySelectorAll(`.${mealType}-options`);
-        
+        const typeInput = document.getElementById(`${mealType}_type`);
+        const priceInput = document.getElementById(`${mealType}_price`);
+        const costInput = document.getElementById(`${mealType}_cost_price`);
+
         optionElements.forEach(element => {
-            if (isIncluded) {
-                element.style.display = "block";
-                
-                // Set required attribute for inputs when visible
-                const typeInput = document.getElementById(`${mealType}_type`);
-                const priceInput = document.getElementById(`${mealType}_price`);
-                
-                if (typeInput) typeInput.required = true;
-                if (priceInput) priceInput.required = true;
-            } else {
-                element.style.display = "none";
-                
-                // Remove required attribute when hidden
-                const typeInput = document.getElementById(`${mealType}_type`);
-                const priceInput = document.getElementById(`${mealType}_price`);
-                
-                if (typeInput) typeInput.required = false;
-                if (priceInput) priceInput.required = false;
-            }
+            element.style.display = "block";
         });
+
+        if (typeInput) typeInput.required = isIncluded;
+        if (priceInput) priceInput.required = isIncluded;
+        if (typeInput) {
+            typeInput.disabled = false;
+            typeInput.classList.remove('bg-light');
+        }
+        if (priceInput) {
+            priceInput.disabled = false;
+            priceInput.classList.remove('bg-light');
+        }
+        if (costInput) {
+            costInput.disabled = false;
+            costInput.classList.remove('bg-light');
+        }
+        if (!isIncluded) {
+            if (costInput) costInput.value = '0';
+            if (priceInput) priceInput.value = '0';
+        }
     }
     
     // Initialize meal options on page load

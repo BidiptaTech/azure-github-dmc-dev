@@ -23,11 +23,16 @@ use App\Models\Rate;
 use App\Models\VehicleZoneMapping;
 use App\Models\Zone;
 use App\Models\MiscellaneousItem;
+use App\Models\Guest;
+use App\Models\Setting;
 use App\Helpers\CommonHelper;
 use App\Helpers\HotelPriceHelper;
+use App\Mail\TravclicksMail;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 
 class EnquiryFormPro extends Controller
 {
@@ -1108,10 +1113,18 @@ class EnquiryFormPro extends Controller
             'child_ages' => 'nullable|string|max:2000',
             'agency_id' => 'required|exists:agencies,agency_id',
             'agent_id' => 'required|exists:agents,agent_id',
-            'salutation' => 'required|in:Mr,Mrs,Ms,Dr',
+            'salutation' => 'required|in:Mr,Mrs,Ms,Miss,Dr,Prof',
             'customer_name' => 'required|string|max:255',
             'contact_number' => 'nullable|string|max:20',
             'email' => 'nullable|email|max:255',
+            'customer_country_code' => 'nullable|string|max:20',
+            'customer_address1' => 'nullable|string|max:255',
+            'customer_address2' => 'nullable|string|max:255',
+            'customer_state' => 'nullable|string|max:100',
+            'customer_zip' => 'nullable|string|max:30',
+            'customer_passport' => 'nullable|string|max:50',
+            'customer_passport_expiry' => 'nullable|date',
+            'customer_special_requests' => 'nullable|string|max:2000',
             'multiple_destination' => 'nullable|boolean',
             'destination_single' => 'nullable|string',
             'destinations' => 'nullable|json',
@@ -1951,58 +1964,7 @@ class EnquiryFormPro extends Controller
             // Store user currency for this tour based on DMC/user country
             $tour->user_currency = CommonHelper::getDmcCurrencyByCountry();
             // Note: salutation, customer_name, contact_number are stored in orders JSON, not in tours table
-            
-            // Store main guest data as JSON
-            if ($request->has('mainguest') && $request->mainguest) {
-                try {
-                    $mainGuestData = $request->mainguest;
-                    if (is_string($mainGuestData)) {
-                        $mainGuestData = json_decode($mainGuestData, true);
-                        if (json_last_error() !== JSON_ERROR_NONE) {
-                            \Log::warning('Invalid JSON in mainguest data', [
-                                'error' => json_last_error_msg(),
-                                'data' => $request->mainguest
-                            ]);
-                            $mainGuestData = null;
-                        }
-                    }
-                    $tour->mainguest = !empty($mainGuestData) ? json_encode($mainGuestData) : null;
-                } catch (\Exception $e) {
-                    \Log::error('Error processing main guest data', [
-                        'error' => $e->getMessage(),
-                        // 'tour_id' => $tourId
-                    ]);
-                    $tour->mainguest = null;
-                }
-            }
-            
-            // Store additional guests data as JSON
-            if ($request->has('additionalguest') && $request->additionalguest) {
-                try {
-                    $additionalGuestData = $request->additionalguest;
-                    if (is_string($additionalGuestData)) {
-                        $additionalGuestData = json_decode($additionalGuestData, true);
-                        if (json_last_error() !== JSON_ERROR_NONE) {
-                            \Log::warning('Invalid JSON in additionalguest data', [
-                                'error' => json_last_error_msg(),
-                                'data' => $request->additionalguest
-                            ]);
-                            $additionalGuestData = null;
-                        }
-                    }
-                    // Ensure it's an array
-                    if (!is_array($additionalGuestData)) {
-                        $additionalGuestData = [];
-                    }
-                    $tour->additionalguest = !empty($additionalGuestData) ? json_encode($additionalGuestData) : null;
-                } catch (\Exception $e) {
-                    \Log::error('Error processing additional guest data', [
-                        'error' => $e->getMessage(),
-                        // 'tour_id' => $tourId
-                    ]);
-                    $tour->additionalguest = null;
-                }
-            }
+            $this->applyGuestPayloadToTour($request, $tour);
             
             $tour->save();
             $tour->refresh();
@@ -2843,6 +2805,8 @@ class EnquiryFormPro extends Controller
                 }
             }
             
+            $this->syncProGuestsToGuestsTable($tour);
+
             DB::commit();
             
             // Send tour proposal email
@@ -3617,6 +3581,27 @@ class EnquiryFormPro extends Controller
             'foc_size' => (int) ($tour->foc_size ?? 0),
             'discount' => (int) ($tour->discount ?? 0),
         ];
+
+        $customer_info = $this->buildCustomerInfoForProEdit(
+            $mainGuestData,
+            $customerName,
+            $contactNumber,
+            $salutation,
+            $customerEmail
+        );
+        $additionalGuests = is_array($additionalGuestData) ? array_values($additionalGuestData) : [];
+        if (!empty($customer_info['fullName'])) {
+            $initialData['customer_name'] = $customer_info['fullName'];
+        }
+        if (!empty($customer_info['email'])) {
+            $initialData['email'] = $customer_info['email'];
+        }
+        if (!empty($customer_info['phone'])) {
+            $initialData['contact_number'] = $customer_info['phone'];
+        }
+        if (!empty($customer_info['salutation'])) {
+            $initialData['salutation'] = $customer_info['salutation'];
+        }
         
         // Load agencies filtered by DMC ID
         $agencyQuery = Agency::where('status', 1);
@@ -3698,6 +3683,8 @@ class EnquiryFormPro extends Controller
             'initialData',
             'mainGuestData',
             'additionalGuestData',
+            'customer_info',
+            'additionalGuests',
             'countries',
             'master_dmc_destinations',
             'cityCountryMap',
@@ -3763,6 +3750,7 @@ class EnquiryFormPro extends Controller
             $this->hydrateProCurrencyMarkupsFromRequest($request);
             
             DB::beginTransaction();
+            $guestCredentialContext = [];
             
             // Get the tour (latest row if legacy duplicate tour_id exists)
             $tour = Tour::where('tour_id', $tour_id)->orderByDesc('id')->firstOrFail();
@@ -3837,68 +3825,7 @@ class EnquiryFormPro extends Controller
                 ? $this->currencyMarkupsListForStorage()
                 : null;
             // Note: salutation, customer_name, contact_number are stored in orders JSON, not in tours table
-            
-            // Update main guest data as JSON
-            if ($request->has('mainguest')) {
-                try {
-                    $mainGuestData = $request->mainguest;
-                    if (is_string($mainGuestData) && !empty(trim($mainGuestData))) {
-                        $decoded = json_decode($mainGuestData, true);
-                        if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
-                            $mainGuestData = $decoded;
-                        } else {
-                            \Log::warning('Invalid JSON in mainguest data during update', [
-                                'error' => json_last_error_msg(),
-                                'data' => $request->mainguest,
-                                'tour_id' => $tour_id,
-                            ]);
-                            $mainGuestData = [];
-                        }
-                    } elseif (is_string($mainGuestData) && empty(trim($mainGuestData))) {
-                        $mainGuestData = [];
-                    } elseif (!is_array($mainGuestData)) {
-                        $mainGuestData = [];
-                    }
-                    
-                    $tour->mainguest = !empty($mainGuestData) ? json_encode($mainGuestData) : null;
-                } catch (\Throwable $e) {
-                    \Log::error('Error processing main guest data during update', [
-                        'error' => $e->getMessage(),
-                        'tour_id' => $tour_id,
-                    ]);
-                }
-            }
-            
-            // Update additional guests data as JSON
-            if ($request->has('additionalguest')) {
-                try {
-                    $additionalGuestData = $request->additionalguest;
-                    if (is_string($additionalGuestData) && !empty(trim($additionalGuestData))) {
-                        $decoded = json_decode($additionalGuestData, true);
-                        if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
-                            $additionalGuestData = $decoded;
-                        } else {
-                            \Log::warning('Invalid JSON in additionalguest data during update', [
-                                'error' => json_last_error_msg(),
-                                'data' => $request->additionalguest,
-                                'tour_id' => $tour_id,
-                            ]);
-                            $additionalGuestData = [];
-                        }
-                    } elseif (is_string($additionalGuestData) && empty(trim($additionalGuestData))) {
-                        $additionalGuestData = [];
-                    } elseif (!is_array($additionalGuestData)) {
-                        $additionalGuestData = [];
-                    }
-                    
-                    $tour->additionalguest = !empty($additionalGuestData) ? json_encode($additionalGuestData) : null;
-                } catch (\Throwable $e) {
-                    \Log::error('Error processing additional guest data during update', [
-                        'error' => $e->getMessage(),
-                        'tour_id' => $tour_id,
-                    ]);
-                }
-            }
+            $guestCredentialContext = $this->applyGuestPayloadToTour($request, $tour);
             
             // Save tour with updated dates
             $saved = $tour->save();
@@ -4439,7 +4366,11 @@ class EnquiryFormPro extends Controller
                 $syncedOrders[] = ['type' => 'miscellaneous', 'booking_id' => $bookingId, 'action' => 'created'];
             }
 
+            $this->syncProGuestsToGuestsTable($tour);
+
             DB::commit();
+
+            $guestCredentialMessage = $this->handleDefiniteGuestPasswords($tour, $guestCredentialContext ?? []);
 
             // If any existing service was removed, revert a negotiated tour (Prospect/Tentative/Confirmed)
             // back to "New Enquiry" and clear payment/negotiation history - same rule as the
@@ -4456,10 +4387,15 @@ class EnquiryFormPro extends Controller
                 'updated' => $updatedCount,
                 'total_touched' => count($syncedOrders),
             ]);
+
+            $successMessage = 'Tour enquiry updated successfully';
+            if ($guestCredentialMessage !== '') {
+                $successMessage .= '. ' . $guestCredentialMessage;
+            }
             
             return response()->json([
                 'success' => true,
-                'message' => 'Tour enquiry updated successfully',
+                'message' => $successMessage,
                 'display_id' => $tour->display_id,
                 'tour_id' => $tour_id,
                 'total_orders' => count($syncedOrders),
@@ -5240,6 +5176,459 @@ class EnquiryFormPro extends Controller
                 'message' => 'Error calculating hotel price: ' . $e->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * Decode mainguest / additionalguest JSON or array payload.
+     */
+    private function decodeGuestPayload($value): array
+    {
+        if (is_array($value)) {
+            return $value;
+        }
+        if (is_string($value) && trim($value) !== '') {
+            $decoded = json_decode($value, true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                return $decoded;
+            }
+        }
+
+        return [];
+    }
+
+    /**
+     * Persist lead + additional guests onto the tour (Lite array storage, not double-encoded JSON).
+     */
+    private function applyGuestPayloadToTour(Request $request, Tour $tour): array
+    {
+        $context = [
+            'mainGuestPassword' => null,
+            'mainGuestEmail' => null,
+            'mainGuestName' => null,
+            'mainGuestCountryCode' => null,
+            'mainGuestPhone' => null,
+            'additionalGuestPasswords' => [],
+        ];
+
+        $mainGuestData = [];
+        if ($request->has('mainguest')) {
+            $mainGuestData = $this->decodeGuestPayload($request->mainguest);
+        }
+        if (empty($mainGuestData) && ($request->filled('customer_name') || $request->filled('email') || $request->filled('contact_number'))) {
+            $mainGuestData = [
+                'salutation' => $request->input('salutation'),
+                'full_name' => $request->input('customer_name'),
+                'email' => $request->input('email'),
+                'phone' => $request->input('contact_number'),
+                'country_code' => $request->input('customer_country_code'),
+            ];
+        }
+
+        $context['mainGuestEmail'] = trim((string) ($mainGuestData['email'] ?? $mainGuestData['Email'] ?? ''));
+        $context['mainGuestName'] = $mainGuestData['full_name'] ?? $mainGuestData['fullName'] ?? $request->input('customer_name');
+        $context['mainGuestCountryCode'] = $mainGuestData['country_code'] ?? $mainGuestData['countryCode'] ?? null;
+        $context['mainGuestPhone'] = $mainGuestData['phone'] ?? $request->input('contact_number');
+        if (!empty($mainGuestData['app_password'])) {
+            $context['mainGuestPassword'] = $mainGuestData['app_password'];
+        }
+        unset($mainGuestData['app_password']);
+
+        if (!empty($mainGuestData['salutation']) && is_string($mainGuestData['salutation'])) {
+            $mainGuestData['salutation'] = rtrim($mainGuestData['salutation'], '.');
+        }
+        if ($context['mainGuestEmail'] === '') {
+            $context['mainGuestEmail'] = null;
+        }
+
+        $mainGuestHasData = !empty($mainGuestData) && (
+            trim((string) ($mainGuestData['full_name'] ?? $mainGuestData['fullName'] ?? '')) !== ''
+            || trim((string) ($mainGuestData['email'] ?? '')) !== ''
+            || trim((string) ($mainGuestData['phone'] ?? '')) !== ''
+        );
+        $tour->mainguest = $mainGuestHasData ? $mainGuestData : null;
+
+        $additionalGuestData = [];
+        if ($request->has('additionalguest')) {
+            $additionalGuestData = $this->decodeGuestPayload($request->additionalguest);
+        }
+        if (!is_array($additionalGuestData)) {
+            $additionalGuestData = [];
+        }
+
+        $passwords = [];
+        foreach ($additionalGuestData as $idx => &$guestItem) {
+            if (!is_array($guestItem)) {
+                continue;
+            }
+            if (!empty($guestItem['app_password'])) {
+                $passwords[] = [
+                    'name' => $guestItem['name'] ?? '',
+                    'email' => $guestItem['email'] ?? '',
+                    'contact_no' => $guestItem['contact_no'] ?? '',
+                    'password' => $guestItem['app_password'],
+                ];
+            }
+            unset($guestItem['app_password']);
+            if (!empty($guestItem['salutation']) && is_string($guestItem['salutation'])) {
+                $guestItem['salutation'] = rtrim($guestItem['salutation'], '.');
+            }
+        }
+        unset($guestItem);
+        $context['additionalGuestPasswords'] = $passwords;
+        $tour->additionalguest = !empty($additionalGuestData) ? $additionalGuestData : null;
+
+        return $context;
+    }
+
+    /**
+     * Map stored mainguest JSON onto the Lite customer_info keys used by the accordion.
+     */
+    private function buildCustomerInfoForProEdit($mainGuestData, $customerName, $contactNumber, $salutation, $customerEmail): array
+    {
+        $info = [
+            'salutation' => $salutation ?? '',
+            'fullName' => $customerName ?? '',
+            'email' => $customerEmail ?? '',
+            'phone' => $contactNumber ?? '',
+            'countryCode' => '',
+            'address1' => '',
+            'address2' => '',
+            'state' => '',
+            'zip' => '',
+            'specialRequests' => '',
+            'passport' => '',
+            'passportExpiry' => '',
+        ];
+
+        if (is_array($mainGuestData) && !empty(array_filter($mainGuestData))) {
+            $info['salutation'] = $mainGuestData['salutation'] ?? $info['salutation'];
+            $info['fullName'] = $mainGuestData['full_name'] ?? $mainGuestData['fullName'] ?? $info['fullName'];
+            $info['email'] = $mainGuestData['email'] ?? $info['email'];
+            $info['phone'] = $mainGuestData['phone'] ?? $info['phone'];
+            $info['countryCode'] = $mainGuestData['country_code'] ?? $mainGuestData['countryCode'] ?? '';
+            $info['address1'] = $mainGuestData['address1'] ?? '';
+            $info['address2'] = $mainGuestData['address2'] ?? '';
+            $info['state'] = $mainGuestData['state'] ?? '';
+            $info['zip'] = $mainGuestData['zip'] ?? '';
+            $info['specialRequests'] = $mainGuestData['special_requests'] ?? $mainGuestData['specialRequests'] ?? '';
+            $info['passport'] = $mainGuestData['passport'] ?? '';
+            $exp = $mainGuestData['passport_exp'] ?? $mainGuestData['passportExpiry'] ?? '';
+            if ($exp instanceof \DateTimeInterface) {
+                $exp = $exp->format('Y-m-d');
+            }
+            $info['passportExpiry'] = $exp;
+        }
+
+        return $info;
+    }
+
+    /**
+     * Create or update Guest rows from the tour lead/additional guest JSON (Lite store/update flow).
+     */
+    private function syncProGuestsToGuestsTable(Tour $tour): void
+    {
+        $tourIdInt = is_numeric($tour->tour_id) ? (int) $tour->tour_id : $tour->tour_id;
+        $mainguest = $tour->mainguest;
+        if (is_string($mainguest)) {
+            $decoded = json_decode($mainguest, true);
+            $mainguest = json_last_error() === JSON_ERROR_NONE ? $decoded : null;
+        }
+
+        try {
+            if (is_array($mainguest) && (
+                trim((string) ($mainguest['full_name'] ?? $mainguest['fullName'] ?? '')) !== ''
+                || trim((string) ($mainguest['email'] ?? '')) !== ''
+                || trim((string) ($mainguest['phone'] ?? '')) !== ''
+            )) {
+                $salutation = $mainguest['salutation'] ?? null;
+                if (is_string($salutation)) {
+                    $salutation = rtrim($salutation, '.');
+                }
+                $this->createOrLinkProGuestByEmail([
+                    'guest_name' => $mainguest['full_name'] ?? $mainguest['fullName'] ?? 'Guest',
+                    'email' => $mainguest['email'] ?? null,
+                    'country_code' => $mainguest['country_code'] ?? $mainguest['countryCode'] ?? null,
+                    'contact' => filled($mainguest['phone'] ?? null) ? $mainguest['phone'] : null,
+                    'whatsapp_no' => filled($mainguest['phone'] ?? null) ? $mainguest['phone'] : null,
+                    'passport' => $mainguest['passport'] ?? null,
+                    'passport_exp' => !empty($mainguest['passport_exp']) ? $mainguest['passport_exp'] : null,
+                    'salutation' => $salutation,
+                ], $tourIdInt);
+            }
+
+            $additionalguest = $tour->additionalguest;
+            if (is_string($additionalguest)) {
+                $decoded = json_decode($additionalguest, true);
+                $additionalguest = json_last_error() === JSON_ERROR_NONE ? $decoded : null;
+            }
+            if (!is_array($additionalguest)) {
+                return;
+            }
+            foreach ($additionalguest as $row) {
+                if (!is_array($row)) {
+                    continue;
+                }
+                $name = trim((string) ($row['name'] ?? $row['guest_name'] ?? ''));
+                $contact = trim((string) ($row['contact_no'] ?? $row['contact'] ?? ''));
+                $email = trim((string) ($row['email'] ?? ''));
+                if ($name === '' && $contact === '' && $email === '') {
+                    continue;
+                }
+                $salutation = $row['salutation'] ?? null;
+                if (is_string($salutation)) {
+                    $salutation = rtrim($salutation, '.');
+                }
+                $countryCode = trim((string) ($row['country_code'] ?? $row['countryCode'] ?? ''));
+                $passport = trim((string) ($row['passport_no'] ?? $row['passport'] ?? ''));
+                $this->createOrLinkProGuestByEmail([
+                    'guest_name' => $name !== '' ? $name : 'Guest',
+                    'email' => $email !== '' ? $email : null,
+                    'country_code' => $countryCode !== '' ? $countryCode : null,
+                    'contact' => $contact !== '' ? $contact : null,
+                    'whatsapp_no' => $contact !== '' ? $contact : null,
+                    'passport' => $passport !== '' ? $passport : null,
+                    'passport_exp' => !empty($row['passport_exp']) ? $row['passport_exp'] : null,
+                    'salutation' => $salutation,
+                ], $tourIdInt);
+            }
+        } catch (\Exception $e) {
+            \Log::error('Error storing Pro guests in guests table', [
+                'tour_id' => $tour->tour_id ?? null,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    private function createOrLinkProGuestByEmail(array $guestData, $tourId): Guest
+    {
+        $email = trim((string) ($guestData['email'] ?? ''));
+        $tourId = is_numeric($tourId) ? (int) $tourId : $tourId;
+
+        $existing = null;
+        if ($email !== '') {
+            $existing = Guest::whereRaw('LOWER(TRIM(email)) = ?', [strtolower($email)])->first();
+        }
+
+        if ($existing) {
+            if (method_exists($existing, 'hasTourId') && !$existing->hasTourId($tourId)) {
+                $existing->addTourId($tourId);
+            }
+            $existing->guest_name = $guestData['guest_name'] ?? $existing->guest_name;
+            $existing->country_code = $guestData['country_code'] ?? $existing->country_code;
+            $existing->contact = $guestData['contact'] ?? $existing->contact;
+            $existing->whatsapp_no = $guestData['whatsapp_no'] ?? $existing->whatsapp_no;
+            $existing->passport = $guestData['passport'] ?? $existing->passport;
+            $existing->passport_exp = $guestData['passport_exp'] ?? $existing->passport_exp;
+            $existing->salutation = $guestData['salutation'] ?? $existing->salutation;
+            $existing->save();
+
+            return $existing;
+        }
+
+        $guestData['email'] = $email !== '' ? $email : null;
+        $guestData['tour_id'] = [$tourId];
+
+        return Guest::create($guestData);
+    }
+
+    /**
+     * Set app password and send credentials email when tour status is Definite/Actual (Lite edit flow).
+     */
+    private function handleDefiniteGuestPasswords(Tour $tour, array $context): string
+    {
+        $status = strtolower(trim((string) ($tour->tour_status ?? '')));
+        if (!in_array($status, ['definite', 'actual'], true)) {
+            return '';
+        }
+
+        $mainGuestPassword = $context['mainGuestPassword'] ?? null;
+        $additionalGuestPasswords = $context['additionalGuestPasswords'] ?? [];
+        if (empty($mainGuestPassword) && empty($additionalGuestPasswords)) {
+            return '';
+        }
+        $mainGuestEmail = $context['mainGuestEmail'] ?? null;
+        $mainGuestName = $context['mainGuestName'] ?? null;
+        $mainGuestCountryCode = $context['mainGuestCountryCode'] ?? null;
+        $mainGuestPhone = $context['mainGuestPhone'] ?? null;
+        $additionalGuestPasswords = $context['additionalGuestPasswords'] ?? [];
+        $emailResults = [];
+
+        if ($mainGuestPassword && $mainGuestEmail) {
+            try {
+                $guest = $this->findOrCreateProGuestForPassword(
+                    $mainGuestName,
+                    $mainGuestEmail,
+                    $mainGuestCountryCode,
+                    $mainGuestPhone,
+                    $tour->tour_id,
+                    $mainGuestPassword
+                );
+                $this->sendProGuestCredentialsEmail($guest, $mainGuestPassword, $tour->display_id ?? null);
+                $emailResults[] = ['email' => $mainGuestEmail, 'sent' => true];
+            } catch (\Exception $e) {
+                \Log::warning('Failed to process Pro lead guest credentials: ' . $e->getMessage());
+                $emailResults[] = ['email' => $mainGuestEmail, 'sent' => false, 'error' => $e->getMessage()];
+            }
+        }
+
+        foreach ($additionalGuestPasswords as $ag) {
+            if (empty($ag['password']) || empty($ag['name'])) {
+                continue;
+            }
+            try {
+                $guest = $this->findOrCreateProGuestForPassword(
+                    $ag['name'],
+                    $ag['email'] ?? null,
+                    null,
+                    $ag['contact_no'] ?? null,
+                    $tour->tour_id,
+                    $ag['password']
+                );
+                if ($guest->email) {
+                    $this->sendProGuestCredentialsEmail($guest, $ag['password'], $tour->display_id ?? null);
+                    $emailResults[] = ['name' => $ag['name'], 'sent' => true];
+                } else {
+                    $emailResults[] = ['name' => $ag['name'], 'sent' => false, 'error' => 'No email address'];
+                }
+            } catch (\Exception $e) {
+                \Log::warning('Failed to process Pro additional guest credentials: ' . $e->getMessage());
+                $emailResults[] = ['name' => $ag['name'], 'sent' => false, 'error' => $e->getMessage()];
+            }
+        }
+
+        if (!empty($emailResults)) {
+            $sentCount = count(array_filter($emailResults, fn ($r) => $r['sent'] ?? false));
+            if ($sentCount > 0) {
+                return "Credentials email sent to {$sentCount} guest(s).";
+            }
+            $failed = array_filter($emailResults, fn ($r) => !($r['sent'] ?? false));
+            $firstError = $failed[array_key_first($failed)]['error'] ?? null;
+
+            return 'Credentials email could not be sent.' . ($firstError ? ' ' . $firstError : '');
+        }
+
+        if (!$mainGuestEmail && !$mainGuestPassword) {
+            return 'Credentials email not sent: enter Lead Guest email and App Password to send login credentials.';
+        }
+        if (!$mainGuestEmail) {
+            return 'Credentials email not sent: Lead Guest email is required.';
+        }
+        if (!$mainGuestPassword) {
+            return 'Credentials email not sent: enter App Password for the lead guest to receive login credentials.';
+        }
+
+        return '';
+    }
+
+    private function findOrCreateProGuestForPassword($name, $email, $countryCode, $phone, $tourId, $plainPassword): Guest
+    {
+        $tourIdInt = is_numeric($tourId) ? (int) $tourId : $tourId;
+        $existingGuest = null;
+        if (!empty($email)) {
+            $existingGuest = Guest::where('email', $email)->first();
+        }
+        if (!$existingGuest && !empty($name)) {
+            $query = Guest::where('guest_name', $name);
+            if ($phone) {
+                $query->where('contact', $phone);
+            }
+            $existingGuest = $query->first();
+        }
+
+        if ($existingGuest) {
+            if (method_exists($existingGuest, 'hasTourId') && !$existingGuest->hasTourId($tourIdInt)) {
+                $existingGuest->addTourId($tourIdInt);
+            }
+            $existingGuest->app_password = Hash::make($plainPassword);
+            if (!empty($email) && empty($existingGuest->email)) {
+                $existingGuest->email = $email;
+            }
+            if (!empty($name)) {
+                $existingGuest->guest_name = $name;
+            }
+            if (!empty($countryCode)) {
+                $existingGuest->country_code = $countryCode;
+            }
+            if (!empty($phone)) {
+                $existingGuest->contact = $phone;
+            }
+            $existingGuest->save();
+            if (method_exists(CommonHelper::class, 'invalidateAccessTokens')) {
+                CommonHelper::invalidateAccessTokens(Guest::class, [
+                    $existingGuest->id,
+                    $existingGuest->guest_id,
+                ]);
+            }
+
+            return $existingGuest;
+        }
+
+        $guest = Guest::create([
+            'tour_id' => [$tourIdInt],
+            'guest_name' => $name ?: 'Guest',
+            'email' => $email ?: null,
+            'country_code' => $countryCode,
+            'contact' => $phone,
+            'app_password' => Hash::make($plainPassword),
+        ]);
+        $guest->refresh();
+
+        return $guest;
+    }
+
+    private function sendProGuestCredentialsEmail(Guest $guest, string $plainPassword, ?string $currentTourDisplayId = null): bool
+    {
+        if (empty($guest->email)) {
+            return false;
+        }
+
+        $logoSetting = Setting::where('name', 'logo')->where('status', 1)->first();
+        $nameSetting = Setting::where('name', 'name')->where('status', 1)->first();
+        $supportEmailSetting = Setting::where('name', 'support_email')->first();
+        $supportPhoneSetting = Setting::where('name', 'support_phone')->first();
+
+        $dmcId = CommonHelper::getDmcId(auth()->user());
+        $dmc = User::where('userId', $dmcId)->first();
+
+        $tourDisplayId = $currentTourDisplayId;
+        if ($tourDisplayId === null && !empty($guest->tour_id)) {
+            $tourIdValue = $guest->tour_id;
+            if (is_array($tourIdValue)) {
+                $tourIdValue = end($tourIdValue);
+            }
+            $tourDisplayId = Tour::where('tour_id', $tourIdValue)->value('display_id');
+        }
+
+        $emailData = [
+            'guest_name' => $guest->guest_name,
+            'email' => $guest->email,
+            'app_password' => $plainPassword,
+            'country_code' => $guest->country_code ?? '+91',
+            'contact' => $guest->contact,
+            'tour_id' => $tourDisplayId,
+            'company_name' => $nameSetting ? $nameSetting->value : config('app.name'),
+            'company_logo' => $logoSetting ? $logoSetting->value : null,
+            'support_email' => $supportEmailSetting ? $supportEmailSetting->value : null,
+            'support_phone' => $supportPhoneSetting ? $supportPhoneSetting->value : null,
+            'dmc_company_name' => $dmc->company_name ?? null,
+        ];
+
+        $html = view('mails.guest_credentials', $emailData)->render();
+        preg_match('/<style>(.*?)<\/style>/s', $html, $styleMatches);
+        $styles = !empty($styleMatches[0]) ? $styleMatches[0] : '';
+        preg_match('/<div class="email-container">(.*?)<\/div>\s*<\/body>/s', $html, $matches);
+
+        if (empty($matches[0])) {
+            \Log::error('Email container div not found in guest credentials template');
+
+            return false;
+        }
+
+        $subject = 'Welcome! Your Tour Tracking Credentials';
+        $emailHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>' . $subject . '</title>' . $styles . '</head><body>' . $matches[0] . '</body></html>';
+        Mail::to($guest->email)->send(new TravclicksMail($emailHtml, $subject));
+
+        return true;
     }
    
 }
