@@ -904,14 +904,16 @@ class SingleTourPackageController extends Controller
                     if (!in_array($discountType, ['percentage', 'flat', 'foc'], true)) {
                         $discountType = '';
                     }
+                    $hotelMarkup = (float) ($row['hotel_markup'] ?? $row['markup_value'] ?? 0);
+                    $otherMarkup = (float) ($row['other_markup'] ?? 0);
                     $normalizedMarkups[] = [
                         'city' => $city,
                         'currency' => strtoupper(trim((string) ($row['currency'] ?? ''))),
                         'country' => trim((string) ($row['country'] ?? '')),
                         'markup_type' => $markupType !== '' ? $markupType : null,
-                        'markup_value' => (float) ($row['hotel_markup'] ?? $row['markup_value'] ?? 0),
-                        'hotel_markup' => (float) ($row['hotel_markup'] ?? $row['markup_value'] ?? 0),
-                        'other_markup' => (float) ($row['other_markup'] ?? $row['hotel_markup'] ?? $row['markup_value'] ?? 0),
+                        'markup_value' => $hotelMarkup + $otherMarkup,
+                        'hotel_markup' => $hotelMarkup,
+                        'other_markup' => $otherMarkup,
                         'discount_type' => $discountType !== '' ? $discountType : null,
                         'discount_value' => (float) ($row['discount_value'] ?? 0),
                     ];
@@ -933,10 +935,9 @@ class SingleTourPackageController extends Controller
             if ($reqMarkupType === 'fixed') {
                 $reqMarkupType = 'flat';
             }
-            $reqMarkupValue = (float) $request->input(
-                'markup_value',
-                $primaryMarkup['hotel_markup'] ?? $primaryMarkup['markup_value'] ?? 0
-            );
+            $reqMarkupValue = isset($primaryMarkup)
+                ? ((float) ($primaryMarkup['hotel_markup'] ?? 0) + (float) ($primaryMarkup['other_markup'] ?? 0))
+                : (float) $request->input('markup_value', 0);
             $reqDiscountType = strtolower(trim((string) $request->input('discount_type', $primaryMarkup['discount_type'] ?? '')));
             if ($reqDiscountType === 'fixed') {
                 $reqDiscountType = 'flat';
