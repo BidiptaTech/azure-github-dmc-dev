@@ -730,7 +730,11 @@
             border: 1px solid #dee2e6;
             border-radius: 10px;
             box-shadow: 0 2px 8px rgba(102, 126, 234, 0.08);
-            overflow: hidden;
+            overflow: visible;
+        }
+        #submitSection .enquiry-md-panel__body {
+            overflow-x: auto;
+            overflow-y: visible;
         }
         #submitSection .enquiry-md-panel__head {
             padding: 0.65rem 1rem;
@@ -756,15 +760,25 @@
         }
         #submitSection .enquiry-md-table {
             width: 100%;
+            min-width: 560px;
+            table-layout: auto;
+        }
+        #submitSection .enquiry-md-table-wrap {
+            overflow-x: auto;
         }
         #submitSection .enquiry-md-table th {
             font-size: 0.72rem;
             padding: 0.5rem 0.65rem;
             background: #f8f9fa;
+            white-space: nowrap;
         }
         #submitSection .enquiry-md-table td {
-            padding: 0.55rem 0.65rem;
+            padding: 0.65rem 0.75rem;
             vertical-align: middle;
+            overflow: visible;
+        }
+        #submitSection .enquiry-md-table td.enquiry-md-cell-markup {
+            min-width: 120px;
         }
         #submitSection .enquiry-md-city__name {
             font-size: 0.85rem;
@@ -788,6 +802,8 @@
         #submitSection #enquiryProMarkupMultiWrap select.city-markup-type,
         #submitSection #enquiryProMarkupMultiWrap select.city-discount-type,
         #submitSection #enquiryProMarkupMultiWrap input.city-markup-value,
+        #submitSection #enquiryProMarkupMultiWrap input.city-hotel-markup,
+        #submitSection #enquiryProMarkupMultiWrap input.city-other-markup,
         #submitSection #enquiryProMarkupMultiWrap input.city-discount-value,
         #submitSection #enquiryProMarkupSingleWrap select,
         #submitSection #enquiryProMarkupSingleWrap input[type="number"] {
@@ -797,12 +813,59 @@
             border-radius: 8px;
             border: 1px solid #dee2e6;
             padding: 0.25rem 0.5rem;
+            box-sizing: border-box;
+        }
+        /* Markup type select was forced to 58px by shared styles — widen so Flat/Type fit */
+        #submitSection #enquiryProMarkupMultiWrap select.city-markup-type {
+            width: 100% !important;
+            min-width: 110px !important;
+            max-width: 140px;
+            padding-right: 1.75rem !important;
+            appearance: auto;
+            -webkit-appearance: menulist;
+        }
+        #submitSection #enquiryProMarkupMultiWrap input.city-hotel-markup,
+        #submitSection #enquiryProMarkupMultiWrap input.city-other-markup {
+            width: 100% !important;
+            min-width: 64px;
+            text-align: right;
         }
         #submitSection .city-discount-value.is-foc-locked {
             background: #fff7ed !important;
             border-color: #fdba74 !important;
             color: #9a3412;
             font-weight: 600;
+        }
+        #submitSection .enquiry-md-markup-input {
+            display: flex;
+            align-items: stretch;
+            min-width: 120px;
+            max-width: 170px;
+        }
+        #submitSection .enquiry-md-markup-input .enquiry-md-control {
+            border-top-right-radius: 0 !important;
+            border-bottom-right-radius: 0 !important;
+            flex: 1 1 auto;
+            min-width: 0;
+            width: 100% !important;
+            height: 36px;
+        }
+        #submitSection .enquiry-md-markup-input .city-markup-suffix {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 42px;
+            height: 36px;
+            padding: 0 0.45rem;
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: #64748b;
+            background: #f1f5f9;
+            border: 1px solid #dee2e6;
+            border-left: 0;
+            border-radius: 0 8px 8px 0;
+            white-space: nowrap;
+            box-sizing: border-box;
         }
     </style>
     <div class="content-wrapper">
@@ -1515,13 +1578,18 @@
                                             <i class="ri-add-line me-1"></i> Add
                                         </button>
 
+                                        <button type="button" class="btn btn-outline-primary d-none align-items-center gap-1" id="liteHotelViewDetailsBtn" onclick="window.toggleLiteHotelPriceBreakdownPanel && window.toggleLiteHotelPriceBreakdownPanel()" title="View hotel pricing details" style="height: 36px; border-radius: 6px; font-size: 0.85rem; font-weight: 500; padding: 0.375rem 1rem; white-space: nowrap;">
+                                            <i class="ri-file-list-3-line" id="liteHotelViewDetailsBtnIcon"></i>
+                                            <span id="liteHotelViewDetailsBtnLabel">View details</span>
+                                        </button>
+
                                         <button type="button" class="btn btn-outline-secondary" id="clearHotelFormBtn" onclick="clearHotelForm()" title="Reset hotel form fields" style="height: 36px; border-radius: 6px; font-size: 0.85rem; font-weight: 500; padding: 0.375rem 1rem; white-space: nowrap;">
                                             <i class="ri-eraser-line me-1"></i>Clear
                                         </button>
                                     </div>
                                 </div>
 
-                                <!-- Hotel Pricing Details — below Get Price / Add / Clear -->
+                                <!-- Hotel Pricing Details — toggled by View details / Hide details -->
                                 <div id="liteHotelPriceBreakdownPanel" class="row g-2 mt-2 mb-2" style="display: none;">
                                     <div class="col-12">
                                         <div class="card shadow-sm" style="border-radius: 8px; border: 2px solid #60a5fa; overflow: hidden;">
@@ -1531,8 +1599,8 @@
                                                         <i class="ri-hotel-line me-2" style="font-size: 1.1rem; color: #0d9488;"></i>
                                                         <span class="fw-bold" style="font-size: 0.85rem; color: #1e293b;">Hotel Pricing Details</span>
                                                     </div>
-                                                    <button type="button" class="btn btn-sm btn-link p-0 text-decoration-none" id="liteHotelPriceInfoBtn" onclick="window.toggleLiteHotelPriceBreakdownBody && window.toggleLiteHotelPriceBreakdownBody()" title="Toggle price breakdown" style="color: #2563eb;">
-                                                        <i class="ri-information-line" style="font-size: 1.1rem;"></i>
+                                                    <button type="button" class="btn btn-sm btn-link p-0 text-decoration-none" id="liteHotelPriceInfoBtn" onclick="window.toggleLiteHotelPriceBreakdownPanel && window.toggleLiteHotelPriceBreakdownPanel(false)" title="Hide pricing details" style="color: #2563eb;">
+                                                        <i class="ri-close-line" style="font-size: 1.1rem;"></i>
                                                     </button>
                                                 </div>
                                             </div>
@@ -1558,6 +1626,27 @@
 
                             <!-- Selected Hotels Display -->
                             <div id="selectedHotels"></div>
+
+                            <!-- Selected hotel price breakdown modal (after Add) -->
+                            <div class="modal fade" id="selectedHotelPriceBreakdownModal" tabindex="-1" aria-labelledby="selectedHotelPriceBreakdownModalLabel" aria-hidden="true">
+                                <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+                                    <div class="modal-content" style="border-radius: 10px; border: 2px solid #60a5fa; overflow: hidden;">
+                                        <div class="modal-header py-2" style="background: linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%); border-bottom: 1px solid #cbd5e1;">
+                                            <div class="d-flex align-items-center">
+                                                <i class="ri-calculator-line me-2" style="font-size: 1.1rem; color: #2563eb;"></i>
+                                                <h5 class="modal-title fw-bold mb-0" id="selectedHotelPriceBreakdownModalLabel" style="font-size: 0.95rem; color: #1e293b;">Price Breakdown</h5>
+                                            </div>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                        </div>
+                                        <div class="modal-body p-3" id="selectedHotelPriceBreakdownModalBody" style="background: #ffffff;">
+                                            <div class="text-muted text-center py-2" style="font-size: 0.8rem;">No breakdown available</div>
+                                        </div>
+                                        <div class="modal-footer py-2" style="background: #f8fafc;">
+                                            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Close</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
 
                             <!-- Hotel Summary -->
                             <div class="row mt-3">
@@ -1858,11 +1947,9 @@
                                                 <thead>
                                                     <tr>
                                                         <th scope="col">City</th>
-                                                        <th scope="col">Cur</th>
-                                                        <th scope="col" class="enquiry-md-th-markup">Mk type</th>
-                                                        <th scope="col" class="enquiry-md-th-markup">Mk value</th>
-                                                        <th scope="col" class="enquiry-md-th-discount">Disc type</th>
-                                                        <th scope="col" class="enquiry-md-th-discount">Disc value</th>
+                                                        <th scope="col" class="enquiry-md-th-markup">Markup type</th>
+                                                        <th scope="col" class="enquiry-md-th-markup">Hotel markup</th>
+                                                        <th scope="col" class="enquiry-md-th-markup">Other markup</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody id="enquiryProCityMarkupBody"></tbody>
@@ -7655,7 +7742,7 @@
             hidden.dataset.focDiscountAuto = hasFoc ? '1' : (hidden.dataset.focDiscountAuto || '0');
         };
 
-        /** Read markup/discount rows directly from the Pricing-by-city table (authoritative for save). */
+        /** Read markup rows directly from the Pricing-by-city table (authoritative for save). */
         window.collectLiteCurrencyMarkupsFromDom = function () {
             const rows = [];
             const body = document.getElementById('enquiryProCityMarkupBody');
@@ -7666,28 +7753,37 @@
                     const country = String(tr.getAttribute('data-country') || '').trim();
                     const currency = String(tr.getAttribute('data-currency') || '').trim().toUpperCase();
                     const mt = String(tr.querySelector('.city-markup-type')?.value || '').trim();
-                    const mv = parseFloat(tr.querySelector('.city-markup-value')?.value || 0) || 0;
-                    const dt = String(tr.querySelector('.city-discount-type')?.value || '').trim();
-                    let dv = parseFloat(tr.querySelector('.city-discount-value')?.value || 0) || 0;
+                    const hotelEl = tr.querySelector('.city-hotel-markup');
+                    const otherEl = tr.querySelector('.city-other-markup');
+                    const markupEl = tr.querySelector('.city-markup-value');
+                    const hotelMk = hotelEl
+                        ? (parseFloat(hotelEl.value || 0) || 0)
+                        : (parseFloat(markupEl?.value || 0) || 0);
+                    const otherMk = otherEl
+                        ? (parseFloat(otherEl.value || 0) || 0)
+                        : hotelMk;
                     rows.push({
                         city: city,
                         country: country,
                         currency: currency,
                         markup_type: mt || null,
-                        markup_value: mv,
-                        discount_type: dt || null,
-                        discount_value: dv
+                        markup_value: hotelMk,
+                        hotel_markup: hotelMk,
+                        other_markup: otherMk,
+                        discount_type: null,
+                        discount_value: 0
                     });
-                    // Keep JS store aligned
                     window.enquiryProCityMarkups = window.enquiryProCityMarkups || {};
                     window.enquiryProCityMarkups[city] = {
                         city: city,
                         country: country,
                         currency: currency,
                         markup_type: mt,
-                        markup_value: mv,
-                        discount_type: dt,
-                        discount_value: dv
+                        markup_value: hotelMk,
+                        hotel_markup: hotelMk,
+                        other_markup: otherMk,
+                        discount_type: '',
+                        discount_value: 0
                     };
                     if (currency) {
                         window.enquiryProCurrencyMarkups = window.enquiryProCurrencyMarkups || {};
@@ -7695,7 +7791,6 @@
                     }
                 });
             }
-            // Fallback: single-city controls (if multi table not visible)
             if (!rows.length) {
                 const city = (window.selectedDestinations && window.selectedDestinations[0])
                     ? String(window.selectedDestinations[0]).trim()
@@ -7703,8 +7798,6 @@
                 if (city) {
                     const mt = String(document.getElementById('markupType')?.value || '').trim();
                     const mv = parseFloat(document.getElementById('markupValue')?.value || 0) || 0;
-                    const dt = String(document.getElementById('discountType')?.value || '').trim();
-                    const dv = parseFloat(document.getElementById('discountValue')?.value || 0) || 0;
                     const country = (typeof window.resolveCountryForCity === 'function')
                         ? String(window.resolveCountryForCity(city) || '').trim()
                         : '';
@@ -7717,8 +7810,10 @@
                         currency: currency,
                         markup_type: mt || null,
                         markup_value: mv,
-                        discount_type: dt || null,
-                        discount_value: dv
+                        hotel_markup: mv,
+                        other_markup: mv,
+                        discount_type: null,
+                        discount_value: 0
                     });
                 }
             }
@@ -7772,27 +7867,69 @@
 
         @include('enquiryform_pro.partials.markup-discount-currency-scripts')
 
+        // Lite create: Pricing by city = Markup type + Hotel markup + Other markup (no discount)
+        window.buildCityMarkupRowHtml = function (target, entry) {
+            const city = target.city || '';
+            const country = target.country || '';
+            const currency = target.currency || '';
+            const mt = entry.markup_type || '';
+            const hotelMk = entry.hotel_markup != null
+                ? (parseFloat(entry.hotel_markup) || 0)
+                : (parseFloat(entry.markup_value || 0) || 0);
+            const otherMk = entry.other_markup != null
+                ? (parseFloat(entry.other_markup) || 0)
+                : hotelMk;
+            const markupDisabled = mt ? '' : 'disabled';
+            const suffix = (mt === 'flat') ? (currency || 'AMT') : '%';
+            const esc = function (s) {
+                return String(s || '')
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#39;');
+            };
+            const label = currency
+                ? (city + ' · ' + currency + (country ? ' (' + country + ')' : ''))
+                : city;
+
+            return ''
+                + '<tr data-city="' + esc(city) + '" data-country="' + esc(country) + '" data-currency="' + esc(currency) + '">'
+                + '<td>'
+                + '<div class="enquiry-md-city" title="' + esc(label) + '">'
+                + '<span class="enquiry-md-city__name">' + esc(city) + '</span>'
+                + (country ? '<span class="enquiry-md-city__meta">' + esc(country) + '</span>' : '')
+                + '</div>'
+                + '</td>'
+                + '<td class="enquiry-md-cell-markup">'
+                + '<select class="city-markup-type enquiry-md-control" onchange="handleCityMarkupRowChange(this)">'
+                + '<option value=""' + (!mt ? ' selected' : '') + '>Type</option>'
+                + '<option value="percentage"' + (mt === 'percentage' ? ' selected' : '') + '>%</option>'
+                + '<option value="flat"' + (mt === 'flat' ? ' selected' : '') + '>Flat</option>'
+                + '</select>'
+                + '</td>'
+                + '<td class="enquiry-md-cell-markup">'
+                + '<div class="enquiry-md-markup-input">'
+                + '<input type="number" class="city-hotel-markup enquiry-md-control" value="' + hotelMk + '" step="1" min="0" ' + markupDisabled
+                + ' placeholder="0" oninput="handleCityMarkupRowChange(this)">'
+                + '<span class="city-markup-suffix">' + esc(suffix) + '</span>'
+                + '</div>'
+                + '</td>'
+                + '<td class="enquiry-md-cell-markup">'
+                + '<div class="enquiry-md-markup-input">'
+                + '<input type="number" class="city-other-markup enquiry-md-control" value="' + otherMk + '" step="1" min="0" ' + markupDisabled
+                + ' placeholder="0" oninput="handleCityMarkupRowChange(this)">'
+                + '<span class="city-markup-suffix">' + esc(suffix) + '</span>'
+                + '</div>'
+                + '</td>'
+                + '</tr>';
+        };
+
         // After city-row change, keep hidden discount_price in sync + FOC auto amount
         (function () {
             const _cityChange = window.handleCityMarkupRowChange;
             window.handleCityMarkupRowChange = function (el) {
                 if (typeof _cityChange === 'function') _cityChange(el);
-                const tr = el && el.closest ? el.closest('tr[data-city]') : null;
-                if (tr) {
-                    const dt = tr.querySelector('.city-discount-type');
-                    const dv = tr.querySelector('.city-discount-value');
-                    if (dt && dv && dt.value === 'foc') {
-                        const focAmt = (typeof window.computeAutoFocDiscount === 'function')
-                            ? window.computeAutoFocDiscount()
-                            : 0;
-                        dv.value = focAmt || 0;
-                        dv.disabled = true;
-                        dv.classList.add('is-foc-locked');
-                        if (typeof window.syncActiveCurrencyMarkupToStore === 'function') {
-                            window.syncActiveCurrencyMarkupToStore();
-                        }
-                    }
-                }
                 if (typeof window.syncDiscountPriceFromCityMarkups === 'function') {
                     window.syncDiscountPriceFromCityMarkups();
                 }
@@ -18573,16 +18710,12 @@
         };
 
         /**
-         * Hotel Pricing Details for Lite create — night rows, Room Cost, meal lines, Total.
-         * Complementary breakfast shows as Included (no charge).
+         * Build Hotel Pricing Details HTML (per-night cut + summary + total).
+         * Same content for Get Price "View details" and post-Add "View price breakdown".
+         * Returns object: html, grand, cur
          */
-        window.renderLiteHotelHelperBreakdown = function (data, numberOfRooms) {
-            const panel = document.getElementById('liteHotelPriceBreakdownPanel');
-            const body = document.getElementById('liteHotelPriceBreakdownBody');
-            const gridBody = document.getElementById('liteHotelPriceGridBody');
-            const grandEl = document.getElementById('liteHotelGrandTotal');
-            if (!panel || !gridBody || !data) return;
-
+        window.buildLiteHotelHelperBreakdownHtml = function (data, numberOfRooms) {
+            if (!data) return { html: '', grand: 0, cur: '' };
             const cur = (typeof getTourCurrency === 'function' ? getTourCurrency() : '{{ $dmcCurrency }}');
             const rooms = parseInt(numberOfRooms, 10) || 1;
             const pax = parseInt(data.pax, 10) || 1;
@@ -18664,7 +18797,6 @@
                         ? window.getChildMealFactor(data.children_price)
                         : 1);
 
-                // Collect unique meal units across nights (room default vs rate e.g. 12 vs 35).
                 const unitBuckets = {};
                 if (Array.isArray(data.breakdown)) {
                     data.breakdown.forEach(function (n) {
@@ -18725,7 +18857,7 @@
                             nights: nights,
                             rooms: rooms,
                             total: total,
-                                                        suffix: m.key === 'breakfast' ? '' : ''
+                            suffix: m.key === 'breakfast' ? '' : ''
                         });
                     } else {
                         detail = `${cur} ${unit.toFixed(2)} × ${nights} night(s) = ${cur} ${total.toFixed(2)}`;
@@ -18790,16 +18922,78 @@
                 </div>`;
             }
 
-            gridBody.innerHTML = html;
-            if (grandEl) grandEl.textContent = cur + ' ' + grand.toFixed(2);
-            panel.style.display = '';
+            return { html: html, grand: grand, cur: cur };
+        };
+
+        /**
+         * Hotel Pricing Details for Lite create — night rows, Room Cost, meal lines, Total.
+         * Complementary breakfast shows as Included (no charge).
+         */
+        window.renderLiteHotelHelperBreakdown = function (data, numberOfRooms) {
+            const panel = document.getElementById('liteHotelPriceBreakdownPanel');
+            const body = document.getElementById('liteHotelPriceBreakdownBody');
+            const gridBody = document.getElementById('liteHotelPriceGridBody');
+            const grandEl = document.getElementById('liteHotelGrandTotal');
+            if (!panel || !gridBody || !data) return;
+
+            const built = window.buildLiteHotelHelperBreakdownHtml(data, numberOfRooms);
+            gridBody.innerHTML = built.html;
+            if (grandEl) grandEl.textContent = built.cur + ' ' + Number(built.grand || 0).toFixed(2);
+            // Keep panel hidden; show View details button so user can open/hide it
+            if (panel) panel.style.display = 'none';
             if (body) body.style.display = 'block';
+            if (typeof window.setLiteHotelViewDetailsButtonVisible === 'function') {
+                window.setLiteHotelViewDetailsButtonVisible(true);
+            }
+            if (typeof window.syncLiteHotelViewDetailsButtonState === 'function') {
+                window.syncLiteHotelViewDetailsButtonState(false);
+            }
+        };
+
+        window.setLiteHotelViewDetailsButtonVisible = function (visible) {
+            const btn = document.getElementById('liteHotelViewDetailsBtn');
+            if (!btn) return;
+            if (visible) {
+                btn.classList.remove('d-none');
+                btn.classList.add('d-inline-flex');
+            } else {
+                btn.classList.add('d-none');
+                btn.classList.remove('d-inline-flex');
+            }
+        };
+
+        window.syncLiteHotelViewDetailsButtonState = function (isOpen) {
+            const btn = document.getElementById('liteHotelViewDetailsBtn');
+            const label = document.getElementById('liteHotelViewDetailsBtnLabel');
+            const icon = document.getElementById('liteHotelViewDetailsBtnIcon');
+            if (label) label.textContent = isOpen ? 'Hide details' : 'View details';
+            if (icon) icon.className = isOpen ? 'ri-eye-off-line' : 'ri-file-list-3-line';
+            if (btn) {
+                btn.title = isOpen ? 'Hide hotel pricing details' : 'View hotel pricing details';
+                btn.classList.toggle('btn-primary', !!isOpen);
+                btn.classList.toggle('btn-outline-primary', !isOpen);
+                btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+            }
+        };
+
+        /** Show / hide Hotel Pricing Details panel (View details / Hide details). */
+        window.toggleLiteHotelPriceBreakdownPanel = function (forceShow) {
+            const panel = document.getElementById('liteHotelPriceBreakdownPanel');
+            if (!panel) return;
+            const willShow = forceShow === true
+                ? true
+                : (forceShow === false ? false : panel.style.display === 'none');
+            panel.style.display = willShow ? '' : 'none';
+            if (typeof window.syncLiteHotelViewDetailsButtonState === 'function') {
+                window.syncLiteHotelViewDetailsButtonState(willShow);
+            }
+            if (willShow) {
+                try { panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch (e) { /* ignore */ }
+            }
         };
 
         window.toggleLiteHotelPriceBreakdownBody = function () {
-            const body = document.getElementById('liteHotelPriceBreakdownBody');
-            if (!body) return;
-            body.style.display = (body.style.display === 'none') ? 'block' : 'none';
+            window.toggleLiteHotelPriceBreakdownPanel();
         };
 
         window.clearLiteHotelHelperBreakdown = function () {
@@ -18807,6 +19001,12 @@
             const gridBody = document.getElementById('liteHotelPriceGridBody');
             const grandEl = document.getElementById('liteHotelGrandTotal');
             if (panel) panel.style.display = 'none';
+            if (typeof window.setLiteHotelViewDetailsButtonVisible === 'function') {
+                window.setLiteHotelViewDetailsButtonVisible(false);
+            }
+            if (typeof window.syncLiteHotelViewDetailsButtonState === 'function') {
+                window.syncLiteHotelViewDetailsButtonState(false);
+            }
             if (gridBody) {
                 gridBody.innerHTML = '<div class="text-muted text-center py-2" style="font-size: 0.75rem;">Click Get Price to see breakdown</div>';
             }
@@ -19137,7 +19337,11 @@
                 child_meal_factor: childMealFactorFromHelper,
                 remarks: hotelRemarks,
                 breakfast_included_room: roomBreakfastIncluded ? 1 : 0,
-                supplement_breakfast_included: supplementBreakfastIncluded
+                supplement_breakfast_included: supplementBreakfastIncluded,
+                // Full Get Price helper payload for post-Add "View price breakdown" (same as View details)
+                helperPriceResult: (window.lastHotelPriceResult && window.lastHotelPriceResult.success)
+                    ? JSON.parse(JSON.stringify(window.lastHotelPriceResult))
+                    : null
             };
             
             console.log('=== ADDING HOTEL ===');
@@ -19535,57 +19739,19 @@
                                                 <span class="fw-semibold" style="color: #495057; font-size: 0.8rem;">REMARKS :: </span><span style="color: #212529; font-size: 0.8rem;">${hotel.remarks || ''}</span>
                                             </div>
                                         </div>
-                                        
-                                        <!-- Meal Costs Breakdown -->
-                                        ${hotel.mealPlan && !hotel.mealPlan.includes('only') ? `
-                                            <div class="mt-2 p-2 rounded" style="background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 6px;">
-                                                <small class="d-block mb-1" style="color: #495057; font-size: 0.8rem; font-weight: 600;">
-                                                    <i class="ri-restaurant-line me-1" style="color: #667eea;"></i>Meal Costs Breakdown:
-                                                </small>
-                                                ${hotel.mealPrices ? `
-                                                    <div style="font-size: 0.8rem;">
-                                                        ${hotel.mealPlan.includes('breakfast') || hotel.mealPlan.includes('bf') ? `
-                                                            <div class="mb-2">
-                                                                <div class="d-flex justify-content-between mb-1">
-                                                                    <span style="color: #495057;">Breakfast:</span>
-                                                                    <span style="color: #212529; font-weight: 500; text-align: right; max-width: 72%;">${window.formatHotelMealBreakdownLine(hotel, 'breakfast')}</span>
-                                                                </div>
-                                                            </div>
-                                                        ` : ''}
-                                                        ${hotel.mealPlan.includes('lunch') ? `
-                                                            <div class="mb-2">
-                                                                <div class="d-flex justify-content-between mb-1">
-                                                                    <span style="color: #495057;">Lunch:</span>
-                                                                    <span style="color: #212529; font-weight: 500; text-align: right; max-width: 72%;">${window.formatHotelMealBreakdownLine(hotel, 'lunch')}</span>
-                                                                </div>
-                                                            </div>
-                                                        ` : ''}
-                                                        ${hotel.mealPlan.includes('dinner') ? `
-                                                            <div class="mb-2">
-                                                                <div class="d-flex justify-content-between mb-1">
-                                                                    <span style="color: #495057;">Dinner:</span>
-                                                                    <span style="color: #212529; font-weight: 500; text-align: right; max-width: 72%;">${window.formatHotelMealBreakdownLine(hotel, 'dinner')}</span>
-                                                                </div>
-                                                            </div>
-                                                        ` : ''}
-                                                    </div>
-                                                ` : '<small style="color: #6c757d; font-size: 0.8rem;">Meal prices not available</small>'}
-                                            </div>
-                                        ` : ''}
-                                        
-                                        <!-- Cost Summary -->
-                                        <div class="mt-2 p-2 rounded" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; border-radius: 6px; color: #ffffff;">
-                                            <small class="d-block mb-2" style="font-size: 0.85rem; font-weight: 600; color: #ffffff !important;">
-                                                <i class="ri-calculator-line me-1"></i>Cost Summary:
-                                            </small>
-                                            <div style="font-size: 0.8rem;">
-                                                ${window.renderHotelCostSummaryBreakdownHtml(hotel, cwbChildren, cnbChildren)}
-                                                <hr class="my-2" style="border-color: rgba(255, 255, 255, 0.3);">
-                                                <div class="d-flex justify-content-between" style="font-weight: 700; font-size: 0.9rem; color: #ffffff !important;">
-                                                    <span>Total:</span>
-                                                    <span>${getTourCurrency()} ${window.computeHotelBookingGrandTotal(hotel, cwbChildren, cnbChildren).toFixed(2)}</span>
-                                                </div>
-                                            </div>
+
+                                        <div class="mt-2 d-flex flex-wrap align-items-center gap-2">
+                                            <button type="button"
+                                                class="btn btn-outline-primary btn-sm d-inline-flex align-items-center gap-1"
+                                                onclick="window.openSelectedHotelPriceBreakdown(${index})"
+                                                title="View meal and cost breakdown"
+                                                style="border-radius: 6px; font-size: 0.8rem; font-weight: 500; padding: 0.35rem 0.75rem;">
+                                                <i class="ri-file-list-3-line"></i>
+                                                <span>View price breakdown</span>
+                                            </button>
+                                            <span class="badge" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; border-radius: 6px; font-size: 0.8rem; font-weight: 600; padding: 0.4rem 0.75rem;">
+                                                Total: ${getTourCurrency()} ${window.computeHotelBookingGrandTotal(hotel, cwbChildren, cnbChildren).toFixed(2)}
+                                            </span>
                                         </div>
                                         
                                         <!-- Is Supplement -->
@@ -19634,6 +19800,71 @@
         }
 
         window.displaySelectedHotels = displaySelectedHotels;
+
+        /** Full Hotel Pricing Details for selected hotel popup (same as Get Price View details). */
+        window.buildSelectedHotelPriceBreakdownHtml = function (hotel) {
+            if (!hotel) return '<div class="text-muted text-center py-2">No breakdown available</div>';
+
+            const helperData = hotel.helperPriceResult || null;
+            if (helperData && typeof window.buildLiteHotelHelperBreakdownHtml === 'function') {
+                const rooms = parseInt(hotel.numberOfRooms, 10) || 1;
+                const built = window.buildLiteHotelHelperBreakdownHtml(helperData, rooms);
+                return `<div class="card shadow-sm mb-0" style="border-radius: 8px; border: 2px solid #60a5fa; overflow: hidden;">
+                    <div style="background: linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%); padding: 10px 15px; border-bottom: 1px solid #cbd5e1;">
+                        <div class="d-flex align-items-center">
+                            <i class="ri-hotel-line me-2" style="font-size: 1.1rem; color: #0d9488;"></i>
+                            <span class="fw-bold" style="font-size: 0.85rem; color: #1e293b;">Hotel Pricing Details</span>
+                        </div>
+                    </div>
+                    <div class="card-body p-3" style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);">
+                        ${built.html || '<div class="text-muted text-center py-2" style="font-size:0.75rem;">No night breakdown available</div>'}
+                        <div class="border-top pt-2 mt-2" style="border-color: #93c5fd !important;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="fw-bold" style="font-size: 0.8rem; color: #1e40af;">Total:</span>
+                                <span class="fw-bold" style="font-size: 0.9rem; color: #198754;">${built.cur} ${Number(built.grand || 0).toFixed(2)}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+            }
+
+            return '<div class="text-muted text-center py-3" style="font-size: 0.85rem;">Full price breakup is available when the hotel was added after <strong>Get Price</strong>.</div>';
+        };
+
+        window.openSelectedHotelPriceBreakdown = function (index) {
+            const hotel = (typeof selectedHotels !== 'undefined' && Array.isArray(selectedHotels))
+                ? selectedHotels[index]
+                : null;
+            if (!hotel) {
+                alert('Hotel breakdown not found.');
+                return;
+            }
+
+            const modalEl = document.getElementById('selectedHotelPriceBreakdownModal');
+            const bodyEl = document.getElementById('selectedHotelPriceBreakdownModalBody');
+            const titleEl = document.getElementById('selectedHotelPriceBreakdownModalLabel');
+            if (!modalEl || !bodyEl) return;
+
+            if (titleEl) {
+                titleEl.textContent = (hotel.name ? (String(hotel.name).split('(')[0].trim() + ' — ') : '') + 'Hotel Pricing Details';
+            }
+            bodyEl.innerHTML = window.buildSelectedHotelPriceBreakdownHtml(hotel);
+
+            try {
+                if (modalEl.parentElement !== document.body) {
+                    document.body.appendChild(modalEl);
+                }
+                if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                    bootstrap.Modal.getOrCreateInstance(modalEl).show();
+                    return;
+                }
+            } catch (e) { /* fall through */ }
+            modalEl.classList.add('show');
+            modalEl.style.display = 'block';
+            modalEl.removeAttribute('aria-hidden');
+            document.body.classList.add('modal-open');
+        };
+
         window.pushSelectedHotel = function (hotelData) {
             selectedHotels.push(hotelData);
             lastSelectedHotelId = hotelData.id;
