@@ -1820,13 +1820,42 @@
     #createTourProModal .select2-container {
         width: 100% !important;
     }
+    #createTourProModal .modal-content {
+        max-height: 92vh;
+    }
+    #createTourProModal .modal-body {
+        max-height: calc(92vh - 96px);
+        overflow-y: auto;
+    }
+    #createTourProModal .ctp-lead-guest-toggle {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        border-radius: 6px;
+        padding: 0.55rem 0.75rem;
+        width: 100%;
+        text-align: left;
+    }
+    #createTourProModal .ctp-lead-guest-toggle.collapsed .ctp-lead-chevron {
+        transform: rotate(-90deg);
+    }
+    #createTourProModal .ctp-lead-chevron {
+        transition: transform 0.2s ease;
+        font-size: 1rem;
+    }
+    #createTourProModal #ctpLeadGuestBody {
+        background: #fff;
+        border: 1px solid #ece8f8;
+        border-top: 0;
+        border-radius: 0 0 6px 6px;
+        padding: 8px;
+    }
     .select2-container--open .select2-dropdown--below {
         z-index: 1065;
     }
 </style>
 <!-- Modal for Create Single Tour Pro Initial Information -->
 <div class="modal fade" id="createTourProModal" tabindex="-1" aria-labelledby="createTourProModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-lg" style="max-width: 860px;">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg" style="max-width: 860px;">
         <div class="modal-content" style="border: none; border-radius: 10px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.15);">
             <div class="modal-header text-white py-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none;">
                 <h6 class="modal-title mb-0 text-white d-flex align-items-center" id="createTourProModalLabel">
@@ -1964,42 +1993,114 @@
                         </div>
                     </div>
 
-                    <!-- Row 4: Customer Details -->
-                    <div class="row g-2 mb-1">
-                        <div class="col-2">   <!-- Increased from col-1 -->
-                            <label class="form-label small mb-0" style="font-size: 10px;">
-                                Sal. <span class="text-danger">*</span>
-                            </label>
-                            <select class="form-select form-select-sm" id="salutation" name="salutation" required>
-                                <option value="Mr">Mr</option>
-                                <option value="Mrs">Mrs</option>
-                                <option value="Ms">Ms</option>
-                                <option value="Dr">Dr</option>
-                            </select>
+                    <!-- Lead Guest Information (click header to expand, then scroll) -->
+                    <div class="accordion mb-1 mt-1" id="ctpLeadGuestAccordion">
+                        <div class="accordion-item border-0">
+                            <button type="button"
+                                    class="ctp-lead-guest-toggle collapsed d-flex justify-content-between align-items-center text-white"
+                                    data-bs-toggle="collapse"
+                                    data-bs-target="#ctpLeadGuestBody"
+                                    aria-expanded="false"
+                                    aria-controls="ctpLeadGuestBody"
+                                    id="ctpLeadGuestToggle">
+                                <span class="d-flex align-items-center">
+                                    <span class="d-inline-flex align-items-center justify-content-center me-2" style="width:22px;height:22px;background:rgba(255,255,255,0.2);border-radius:6px;">
+                                        <i class="ri-user-line" style="font-size: 12px;"></i>
+                                    </span>
+                                    <span>
+                                        <span class="d-block fw-semibold" style="font-size: 11px; line-height: 1.2;">Lead Guest Information</span>
+                                        <span class="d-block" style="font-size: 9px; opacity: 0.9;">Click to enter customer details</span>
+                                    </span>
+                                </span>
+                                <i class="ri-arrow-down-s-line ctp-lead-chevron"></i>
+                            </button>
+                            <div id="ctpLeadGuestBody" class="collapse" data-bs-parent="#ctpLeadGuestAccordion">
+                        <div class="row g-2 mb-1">
+                            <div class="col-2">
+                                <label class="form-label small mb-0" style="font-size: 10px;">
+                                    Salutation <span class="text-danger">*</span>
+                                </label>
+                                <select class="form-select form-select-sm" id="salutation" name="salutation" required>
+                                    <option value="Mr">Mr</option>
+                                    <option value="Mrs">Mrs</option>
+                                    <option value="Ms">Ms</option>
+                                    <option value="Miss">Miss</option>
+                                    <option value="Dr">Dr</option>
+                                    <option value="Prof">Prof</option>
+                                </select>
+                            </div>
+                            <div class="col-5">
+                                <label class="form-label small mb-0" style="font-size: 10px;">
+                                    Full Name <span class="text-danger">*</span>
+                                </label>
+                                <input type="text" class="form-control form-control-sm" id="customerName" name="customer_name" placeholder="Enter full name" required>
+                            </div>
+                            <div class="col-5">
+                                <label class="form-label small mb-0" style="font-size: 10px;">Email</label>
+                                <input type="text" class="form-control form-control-sm" id="customerEmail" name="email" placeholder="Enter email" inputmode="email" autocomplete="email" style="font-size: 10px;">
+                            </div>
                         </div>
-                    
-                        <div class="col-5">   <!-- Reduced from col-6 -->
-                            <label class="form-label small mb-0" style="font-size: 10px;">
-                                Customer Name <span class="text-danger">*</span>
-                            </label>
-                            <input type="text" class="form-control form-control-sm" id="customerName" name="customer_name" required>
+                        <div class="row g-2 mb-0">
+                            <div class="col-6">
+                                <label class="form-label small mb-0" style="font-size: 10px;">Country Code</label>
+                                @php
+                                    $ctpCountriesForCode = \App\Models\Country::query()->orderBy('name')->get(['name', 'country_code']);
+                                    $ctpSingapore = $ctpCountriesForCode->firstWhere('name', 'Singapore');
+                                    $ctpDefaultCountryCode = $ctpSingapore->country_code ?? ($ctpCountriesForCode->first()->country_code ?? '');
+                                @endphp
+                                <select class="form-select form-select-sm" id="ctpCustomerCountryCode" name="customer_country_code" style="font-size: 10px;">
+                                    <option value="">Select</option>
+                                    @foreach($ctpCountriesForCode as $ctpCountry)
+                                        @if(!empty($ctpCountry->country_code))
+                                            <option value="{{ $ctpCountry->country_code }}" {{ (string) $ctpDefaultCountryCode === (string) $ctpCountry->country_code ? 'selected' : '' }}>{{ $ctpCountry->name }} ({{ $ctpCountry->country_code }})</option>
+                                        @endif
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small mb-0" style="font-size: 10px;">Phone Number</label>
+                                <input type="text" class="form-control form-control-sm" id="contactNumber" name="contact_number" placeholder="Enter phone number">
+                            </div>
                         </div>
-                    
-                        <div class="col-5">
-                            <label class="form-label small mb-0" style="font-size: 10px;">
-                                Contact Number
-                            </label>
-                            <input type="text" class="form-control form-control-sm" id="contactNumber" name="contact_number">
+                        <div class="row g-2 mb-1 mt-1">
+                            <div class="col-6">
+                                <label class="form-label small mb-0" style="font-size: 10px;">Address Line 1</label>
+                                <input type="text" class="form-control form-control-sm" id="ctpCustomerAddress1" name="customer_address1" placeholder="Enter address line 1" style="font-size: 10px;">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small mb-0" style="font-size: 10px;">Address Line 2</label>
+                                <input type="text" class="form-control form-control-sm" id="ctpCustomerAddress2" name="customer_address2" placeholder="Enter address line 2" style="font-size: 10px;">
+                            </div>
+                        </div>
+                        <div class="row g-2 mb-1">
+                            <div class="col-6">
+                                <label class="form-label small mb-0" style="font-size: 10px;">State</label>
+                                <input type="text" class="form-control form-control-sm" id="ctpCustomerState" name="customer_state" placeholder="Enter state" style="font-size: 10px;">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small mb-0" style="font-size: 10px;">ZIP Code</label>
+                                <input type="text" class="form-control form-control-sm" id="ctpCustomerZip" name="customer_zip" placeholder="Enter ZIP code" style="font-size: 10px;">
+                            </div>
+                        </div>
+                        <div class="row g-2 mb-1">
+                            <div class="col-6">
+                                <label class="form-label small mb-0" style="font-size: 10px;">Passport</label>
+                                <input type="text" class="form-control form-control-sm" id="ctpCustomerPassport" name="customer_passport" placeholder="Passport number" style="font-size: 10px;">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small mb-0" style="font-size: 10px;">Passport Expiry Date</label>
+                                <input type="date" class="form-control form-control-sm" id="ctpCustomerPassportExpiry" name="customer_passport_expiry" style="font-size: 10px;">
+                            </div>
+                        </div>
+                        <div class="row g-2 mb-0">
+                            <div class="col-12">
+                                <label class="form-label small mb-0" style="font-size: 10px;">Special Requests</label>
+                                <textarea class="form-control form-control-sm" id="ctpCustomerSpecialRequests" name="customer_special_requests" rows="2" placeholder="Enter any special requests or notes" style="font-size: 10px;"></textarea>
+                            </div>
+                        </div>
+                            </div>
                         </div>
                     </div>
-
-                    <!-- Row 5: Email (optional) -->
-                    <div class="row g-2 mb-1">
-                        <div class="col-12">
-                            <label class="form-label small mb-0" style="font-size: 10px;">Email</label>
-                            <input type="text" class="form-control form-control-sm" id="customerEmail" name="email" placeholder="Optional" inputmode="email" autocomplete="email" style="font-size: 10px;">
-                        </div>
-                    </div>                    
 
                 </div>
                 <div class="modal-footer py-1" style="padding: 8px 15px;">
@@ -2458,6 +2559,7 @@
                         ctpInitTourProSelect2();
                         if (typeof window.ctpApplyTourStartFloor === 'function') window.ctpApplyTourStartFloor();
                         if (typeof ctpUpdateSubmitButtonState === 'function') ctpUpdateSubmitButtonState();
+                        if (typeof ctpBindLeadGuestAccordion === 'function') ctpBindLeadGuestAccordion();
                     });
                 }
             });
@@ -2480,6 +2582,30 @@
         }
 
         /** Enable Continue when required fields are set. Contact number and email are optional. */
+        function ctpExpandLeadGuestAccordion() {
+            const body = document.getElementById('ctpLeadGuestBody');
+            if (!body) return;
+            if (typeof bootstrap !== 'undefined' && bootstrap.Collapse) {
+                bootstrap.Collapse.getOrCreateInstance(body, { toggle: false }).show();
+            } else {
+                body.classList.add('show');
+                document.getElementById('ctpLeadGuestToggle')?.classList.remove('collapsed');
+            }
+        }
+        function ctpBindLeadGuestAccordion() {
+            const body = document.getElementById('ctpLeadGuestBody');
+            const modalBody = document.querySelector('#createTourProModal .modal-body');
+            if (!body || body.dataset.ctpBound === '1') return;
+            body.dataset.ctpBound = '1';
+            body.addEventListener('shown.bs.collapse', function () {
+                if (!modalBody) return;
+                requestAnimationFrame(function () {
+                    const toggle = document.getElementById('ctpLeadGuestToggle');
+                    const top = (toggle ? toggle.offsetTop : body.offsetTop) - 6;
+                    modalBody.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+                });
+            });
+        }
         function ctpUpdateSubmitButtonState() {
             const btn = document.getElementById('submitTourProBtn');
             if (!btn) return;
@@ -3383,8 +3509,13 @@
         // Form validation (contact number and email are optional)
         document.getElementById('createTourProForm').addEventListener('submit', function(e) {
             const emailVal = (document.getElementById('customerEmail')?.value || '').trim();
+            const custName = (document.getElementById('customerName')?.value || '').trim();
+            if (!custName) {
+                if (typeof ctpExpandLeadGuestAccordion === 'function') ctpExpandLeadGuestAccordion();
+            }
             if (emailVal && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailVal)) {
                 e.preventDefault();
+                if (typeof ctpExpandLeadGuestAccordion === 'function') ctpExpandLeadGuestAccordion();
                 alert('Please enter a valid email address or leave email blank.');
                 return false;
             }
