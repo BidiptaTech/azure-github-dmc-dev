@@ -199,12 +199,21 @@
 
     function emptyMarkupDiscountEntry(opts) {
         opts = opts || {};
+        const markupValue = parseFloat(opts.markup_value || 0) || 0;
+        const hotelMarkup = opts.hotel_markup != null
+            ? (parseFloat(opts.hotel_markup) || 0)
+            : markupValue;
+        const otherMarkup = opts.other_markup != null
+            ? (parseFloat(opts.other_markup) || 0)
+            : hotelMarkup;
         return {
             city: String(opts.city || '').trim(),
             country: String(opts.country || '').trim(),
             currency: String(opts.currency || '').trim().toUpperCase(),
             markup_type: opts.markup_type || '',
-            markup_value: parseFloat(opts.markup_value || 0) || 0,
+            markup_value: markupValue || hotelMarkup,
+            hotel_markup: hotelMarkup,
+            other_markup: otherMarkup,
             discount_type: opts.discount_type || '',
             discount_value: parseFloat(opts.discount_value || 0) || 0
         };
@@ -356,7 +365,16 @@
             const country = String(tr.getAttribute('data-country') || '').trim();
             const currency = String(tr.getAttribute('data-currency') || '').trim().toUpperCase();
             const mt = tr.querySelector('.city-markup-type')?.value || '';
-            const mv = parseFloat(tr.querySelector('.city-markup-value')?.value || 0) || 0;
+            const hotelEl = tr.querySelector('.city-hotel-markup');
+            const otherEl = tr.querySelector('.city-other-markup');
+            const markupEl = tr.querySelector('.city-markup-value');
+            const hotelMk = hotelEl
+                ? (parseFloat(hotelEl.value || 0) || 0)
+                : (parseFloat(markupEl?.value || 0) || 0);
+            const otherMk = otherEl
+                ? (parseFloat(otherEl.value || 0) || 0)
+                : hotelMk;
+            const mv = hotelMk;
             let dt = tr.querySelector('.city-discount-type')?.value || '';
             let dv = parseFloat(tr.querySelector('.city-discount-value')?.value || 0) || 0;
             if (dt === 'foc') {
@@ -372,6 +390,8 @@
                 currency: currency,
                 markup_type: mt,
                 markup_value: mv,
+                hotel_markup: hotelMk,
+                other_markup: otherMk,
                 discount_type: dt,
                 discount_value: dv
             });
@@ -408,6 +428,8 @@
             return {
                 markup_type: e.markup_type || '',
                 markup_value: parseFloat(e.markup_value || 0) || 0,
+                hotel_markup: e.hotel_markup != null ? (parseFloat(e.hotel_markup) || 0) : (parseFloat(e.markup_value || 0) || 0),
+                other_markup: e.other_markup != null ? (parseFloat(e.other_markup) || 0) : (parseFloat(e.markup_value || 0) || 0),
                 discount_type: e.discount_type || '',
                 discount_value: parseFloat(e.discount_value || 0) || 0
             };
@@ -423,6 +445,8 @@
                 return {
                     markup_type: e.markup_type || '',
                     markup_value: parseFloat(e.markup_value || 0) || 0,
+                    hotel_markup: e.hotel_markup != null ? (parseFloat(e.hotel_markup) || 0) : (parseFloat(e.markup_value || 0) || 0),
+                    other_markup: e.other_markup != null ? (parseFloat(e.other_markup) || 0) : (parseFloat(e.markup_value || 0) || 0),
                     discount_type: e.discount_type || '',
                     discount_value: parseFloat(e.discount_value || 0) || 0
                 };
@@ -434,6 +458,8 @@
             return {
                 markup_type: e.markup_type || '',
                 markup_value: parseFloat(e.markup_value || 0) || 0,
+                hotel_markup: e.hotel_markup != null ? (parseFloat(e.hotel_markup) || 0) : (parseFloat(e.markup_value || 0) || 0),
+                other_markup: e.other_markup != null ? (parseFloat(e.other_markup) || 0) : (parseFloat(e.markup_value || 0) || 0),
                 discount_type: e.discount_type || '',
                 discount_value: parseFloat(e.discount_value || 0) || 0
             };
@@ -441,7 +467,7 @@
         if (!isEnquiryProMultiCity()) {
             return readSingleMarkupDiscountInputs();
         }
-        return { markup_type: '', markup_value: 0, discount_type: '', discount_value: 0 };
+        return { markup_type: '', markup_value: 0, hotel_markup: 0, other_markup: 0, discount_type: '', discount_value: 0 };
     }
     window.getCurrencyMarkupDiscountSettings = getCurrencyMarkupDiscountSettings;
 
@@ -462,6 +488,8 @@
                 currency: t.currency || existing.currency || '',
                 markup_type: existing.markup_type || '',
                 markup_value: existing.markup_value || 0,
+                hotel_markup: existing.hotel_markup != null ? existing.hotel_markup : (existing.markup_value || 0),
+                other_markup: existing.other_markup != null ? existing.other_markup : (existing.markup_value || 0),
                 discount_type: treatFoc ? 'foc' : ((existing.discount_type === 'foc') ? '' : (existing.discount_type || '')),
                 discount_value: treatFoc ? focDiscountAmountForCity(t.city) : ((existing.discount_type === 'foc') ? 0 : (existing.discount_value || 0))
             });
@@ -538,12 +566,26 @@
         if (tr) {
             const mt = tr.querySelector('.city-markup-type');
             const mv = tr.querySelector('.city-markup-value');
+            const hotelMk = tr.querySelector('.city-hotel-markup');
+            const otherMk = tr.querySelector('.city-other-markup');
             const dt = tr.querySelector('.city-discount-type');
             const dv = tr.querySelector('.city-discount-value');
+            const enabled = !!(mt && mt.value);
             if (mv && mt) {
-                mv.disabled = !mt.value;
-                if (!mt.value) mv.value = 0;
+                mv.disabled = !enabled;
+                if (!enabled) mv.value = 0;
             }
+            [hotelMk, otherMk].forEach(function (inp) {
+                if (!inp) return;
+                inp.disabled = !enabled;
+                if (!enabled) inp.value = 0;
+            });
+            const suffix = (mt && mt.value === 'flat')
+                ? (String(tr.getAttribute('data-currency') || '').trim().toUpperCase() || 'AMT')
+                : '%';
+            tr.querySelectorAll('.city-markup-suffix').forEach(function (s) {
+                s.textContent = suffix;
+            });
             if (dv && dt) {
                 if (dt.value === 'foc' && !isTreatFocDiscountActive()) {
                     dt.value = '';
@@ -632,12 +674,16 @@
             if (entry.currency) {
                 window.enquiryProCurrencyMarkups[entry.currency] = Object.assign({}, entry);
             }
-            return buildCityMarkupRowHtml(t, entry);
+            const rowBuilder = (typeof window.buildCityMarkupRowHtml === 'function')
+                ? window.buildCityMarkupRowHtml
+                : buildCityMarkupRowHtml;
+            return rowBuilder(t, entry);
         }).join('');
         if (typeof applyTreatFocDiscountToPricingUi === 'function') {
             applyTreatFocDiscountToPricingUi();
         }
     }
+    window.buildCityMarkupRowHtml = buildCityMarkupRowHtml;
     window.refreshEnquiryProCurrencyMarkupOptions = refreshEnquiryProCurrencyMarkupOptions;
 
     function initEnquiryProCurrencyMarkupUi(seed) {

@@ -28,23 +28,44 @@ class HotelPriceHelper
      *  - When several rates overlap a date the priority is:
      *      Blackout Date > Fair Date > Season.
      *
-     * Meal prices are treated as per-person-per-night and multiplied by pax.
+     * Meal prices are per-person-per-night.
+     * Adults pay full meal unit. When children are present, rooms.children_price applies:
+     *   0 = free, 1 = half price, 2 = full price.
      *
      * @param string       $hotelUniqueId  hotels.hotel_unique_id
      * @param string|int   $roomId         rooms.room_id
      * @param string|int   $bedId          beds.bed_id (used for the extra-bed price)
      * @param array        $dates          array of date strings (one per night), e.g. ['2026-06-11', '2026-06-12']
      * @param string       $mealPlan       e.g. "room with breakfast + dinner"
-     * @param int          $pax            number of guests
+     * @param int          $pax            number of guests in the room (adults + children)
      * @param int          $extraBed       number of extra beds selected (extra-bed price is charged per this count, not per pax)
      * @param int|string|null $dmcId       optional DMC id when Auth is unavailable (e.g. external API)
+     * @param int          $children          children among pax (capped to pax); meal rate uses children_price
+     * @param bool         $childWithBed      when true, charge rooms.child_with_bed × children × nights
+     * @param bool         $childWithoutBed   when true, charge rooms.child_without_bed × children × nights
      * @return array
      */
-    public static function calculatePrice($hotelUniqueId, $roomId, $bedId, array $dates = [], $mealPlan = '', $pax = 1, $extraBed = 0, $dmcId = null): array
+    public static function calculatePrice(
+        $hotelUniqueId,
+        $roomId,
+        $bedId,
+        array $dates = [],
+        $mealPlan = '',
+        $pax = 1,
+        $extraBed = 0,
+        $dmcId = null,
+        $children = 0,
+        $childWithBed = false,
+        $childWithoutBed = false
+    ): array
     {
         try {
             $pax = max(1, (int) $pax);
             $extraBed = max(0, (int) $extraBed);
+            $children = max(0, min((int) $children, $pax));
+            $adults = max(0, $pax - $children);
+            $childWithBed = filter_var($childWithBed, FILTER_VALIDATE_BOOLEAN);
+            $childWithoutBed = filter_var($childWithoutBed, FILTER_VALIDATE_BOOLEAN);
 
             $hotel = Hotel::where('hotel_unique_id', $hotelUniqueId)->first();
             if (!$hotel) {
@@ -57,6 +78,16 @@ class HotelPriceHelper
             if (!$room) {
                 return self::errorResponse("Room not found for room_id: {$roomId}");
             }
+
+            // Resolve inventory DMC so season/fair/blackout rates (and their meal prices)
+            // come from the same DMC that owns this room — not a sibling DMC's rate.
+            if (empty($dmcId) && Auth::check()) {
+                $dmcId = CommonHelper::getDmcId(Auth::user());
+            }
+            if (empty($dmcId)) {
+                $dmcId = $room->created_by ?? $room->dmc_id ?? null;
+            }
+            $dmcId = (int) $dmcId;
 
             // Extra-bed price. Charged per the number of extra beds selected (not per pax).
             $extraBedPrice = 0.0;
@@ -72,6 +103,14 @@ class HotelPriceHelper
 
             // Which meals are included in the selected plan.
             $meals = self::parseMealPlan($mealPlan);
+
+            // Complementary breakfast (rooms.breakfast_included): included free — do not charge.
+            // Charge breakfast only when the plan includes breakfast and it is NOT complementary.
+            $breakfastComplementary = (
+                (int) ($room->breakfast_included ?? 0) === 1
+                || $room->breakfast_included === true
+                || $room->breakfast_included === '1'
+            );
 
             // Weekend days for this hotel (defaults to Sat/Sun).
             $weekendDays = ['Saturday', 'Sunday'];
@@ -93,6 +132,11 @@ class HotelPriceHelper
             $roomLunch     = floatval($room->lunch_price ?? 0);
             $roomDinner    = floatval($room->dinner_price ?? 0);
 
+            // Child meal multiplier: rooms.children_price → 0=free, 1=half, 2=full.
+            $childrenPriceCode = (int) round(floatval($room->children_price ?? 2));
+            $childMealFactor = self::resolveChildMealFactor($childrenPriceCode);
+            $mealPaxEquivalent = $adults + ($children * $childMealFactor);
+
             // Variant price handling (applies to Season + Blackout Date).
             // If the selected room has no explicit varient_price and is not the base room,
             // the variant is the price difference between the selected room and the hotel's
@@ -101,18 +145,14 @@ class HotelPriceHelper
             $isSelectedBaseRoom = (int) ($room->base_room ?? 0) === 1;
             $baseRoom = null;
             if ($selectedVarient == 0.0 && !$isSelectedBaseRoom) {
-                if (empty($dmcId) && Auth::check()) {
-                    $dmcId = CommonHelper::getDmcId(Auth::user());
-                }
-                if (empty($dmcId)) {
-                    $dmcId = $room->dmc_id ?? null;
-                }
-                if (empty($dmcId)) {
+                if ($dmcId <= 0) {
                     return self::errorResponse('No DMC found for the current user.');
                 }
                 $baseRoom = Room::where('base_room', 1)
                     ->where('hotel_id', $hotelUniqueId)
-                    ->where('dmc_id', $dmcId)
+                    ->where(function ($q) use ($dmcId) {
+                        $q->where('dmc_id', $dmcId)->orWhere('created_by', $dmcId);
+                    })
                     ->first();
             }
 
@@ -121,6 +161,8 @@ class HotelPriceHelper
             $breakfastTotal = 0.0;
             $lunchTotal = 0.0;
             $dinnerTotal = 0.0;
+            $fairChargeTotal = 0.0;
+            $fairNights = 0;
             $breakdown = [];
 
             foreach ($dates as $rawDate) {
@@ -128,11 +170,15 @@ class HotelPriceHelper
                 $dateString = $date->format('Y-m-d');
                 $isWeekend = in_array($date->format('l'), $weekendDays);
 
-                // Look for an applicable rate (Blackout > Fair > Season).
-                $rate = Rate::where('hotel_id', $hotelUniqueId)
+                // Look for an applicable rate for THIS DMC only (Blackout > Fair > Season).
+                $rateQuery = Rate::where('hotel_id', $hotelUniqueId)
                     ->where('is_active', 1)
                     ->whereDate('start_date', '<=', $dateString)
-                    ->whereDate('end_date', '>=', $dateString)
+                    ->whereDate('end_date', '>=', $dateString);
+                if ($dmcId > 0) {
+                    $rateQuery->where('dmc_id', $dmcId);
+                }
+                $rate = $rateQuery
                     ->orderByRaw("
                         CASE
                             WHEN event_type = 'Blackout Date' THEN 1
@@ -147,11 +193,19 @@ class HotelPriceHelper
                 $eventType  = $rate ? $rate->event_type : null;
                 $surcharge  = 0.0;
 
-                // Meal prices: from the rate when a rate applies, otherwise the rooms-table defaults.
+                // Meal prices: prefer this DMC's rate when set (>0), else room defaults.
+                // Avoids sibling-DMC rates (e.g. breakfast 35) overriding room breakfast 12.
+                $mealSource = 'room';
                 if ($rate) {
-                    $breakfastPrice = floatval($rate->breakfast_price ?? 0);
-                    $lunchPrice     = floatval($rate->lunch_price ?? 0);
-                    $dinnerPrice    = floatval($rate->dinner_price ?? 0);
+                    $rateBf = floatval($rate->breakfast_price ?? 0);
+                    $rateLn = floatval($rate->lunch_price ?? 0);
+                    $rateDn = floatval($rate->dinner_price ?? 0);
+                    if ($rateBf > 0 || $rateLn > 0 || $rateDn > 0) {
+                        $mealSource = 'rate';
+                    }
+                    $breakfastPrice = $rateBf > 0 ? $rateBf : $roomBreakfast;
+                    $lunchPrice     = $rateLn > 0 ? $rateLn : $roomLunch;
+                    $dinnerPrice    = $rateDn > 0 ? $rateDn : $roomDinner;
                 } else {
                     $breakfastPrice = $roomBreakfast;
                     $lunchPrice     = $roomLunch;
@@ -161,39 +215,53 @@ class HotelPriceHelper
                 // Variant price for this night (Season + Blackout only).
                 $variantPrice = self::resolveVariantPrice($room, $baseRoom, $selectedVarient, $isSelectedBaseRoom, $isWeekend, $pax);
 
+                // Room components for this night (segregated for UI cut-down).
+                $roomBase = 0.0;
+                $surcharge = 0.0;
+                $appliedVariant = 0.0;
+
                 // Room price for this night. Extra-bed charge is added based on the
                 // selected number of extra beds ($extraBedTotal), independent of pax.
                 if ($rate && $eventType === 'Blackout Date') {
                     // Blackout Date: use the rate's flat price column as-is + variant + extra beds.
-                    $roomPrice = floatval($rate->price ?? 0) + $variantPrice + $extraBedTotal;
+                    $roomBase = floatval($rate->price ?? 0);
+                    $appliedVariant = $variantPrice;
+                    $roomPrice = $roomBase + $appliedVariant + $extraBedTotal;
                 } elseif ($rate && $eventType === 'Fair Date') {
                     // Fair Date: rooms-table price (pax based) + the rate's price as a surcharge.
                     $singlePrice = $isWeekend ? $roomWeekendSingle : $roomWeekdaySingle;
                     $doublePrice = $isWeekend ? $roomWeekendDouble : $roomWeekdayDouble;
                     $surcharge   = floatval($rate->price ?? 0);
 
-                    $basePrice = ($pax <= 1) ? $singlePrice : $doublePrice;
-                    $roomPrice = $basePrice + $surcharge + $extraBedTotal;
+                    $roomBase = ($pax <= 1) ? $singlePrice : $doublePrice;
+                    $roomPrice = $roomBase + $surcharge + $extraBedTotal;
+                    if ($surcharge > 0) {
+                        $fairChargeTotal += $surcharge;
+                        $fairNights++;
+                    }
                 } elseif ($rate && $eventType === 'Season') {
                     // Season: rate's weekday/weekend (single/double) price + variant + extra beds.
                     $singlePrice = $isWeekend ? floatval($rate->weekend_price ?? 0) : floatval($rate->weekday_price ?? 0);
                     $doublePrice = $isWeekend ? floatval($rate->double_weekend_price ?? 0) : floatval($rate->double_weekday_price ?? 0);
 
-                    $basePrice = ($pax <= 1) ? $singlePrice : $doublePrice;
-                    $roomPrice = $basePrice + $variantPrice + $extraBedTotal;
+                    $roomBase = ($pax <= 1) ? $singlePrice : $doublePrice;
+                    $appliedVariant = $variantPrice;
+                    $roomPrice = $roomBase + $appliedVariant + $extraBedTotal;
                 } else {
                     // No applicable rate: use the rooms-table prices directly (no variant adjustment).
                     $singlePrice = $isWeekend ? $roomWeekendSingle : $roomWeekdaySingle;
                     $doublePrice = $isWeekend ? $roomWeekendDouble : $roomWeekdayDouble;
 
-                    $basePrice = ($pax <= 1) ? $singlePrice : $doublePrice;
-                    $roomPrice = $basePrice + $extraBedTotal;
+                    $roomBase = ($pax <= 1) ? $singlePrice : $doublePrice;
+                    $roomPrice = $roomBase + $extraBedTotal;
                 }
 
-                // Meal price for this night (per person * pax), tracked per meal type.
-                $nightBreakfast = $meals['breakfast'] ? $breakfastPrice * $pax : 0.0;
-                $nightLunch     = $meals['lunch'] ? $lunchPrice * $pax : 0.0;
-                $nightDinner    = $meals['dinner'] ? $dinnerPrice * $pax : 0.0;
+                // Meal price for this night.
+                // Adults × full unit; children × children_price (0 free / 0.5 half / 1 full).
+                $chargeBreakfast = $meals['breakfast'] && !$breakfastComplementary;
+                $nightBreakfast = $chargeBreakfast ? $breakfastPrice * $mealPaxEquivalent : 0.0;
+                $nightLunch     = $meals['lunch'] ? $lunchPrice * $mealPaxEquivalent : 0.0;
+                $nightDinner    = $meals['dinner'] ? $dinnerPrice * $mealPaxEquivalent : 0.0;
                 $mealPrice = $nightBreakfast + $nightLunch + $nightDinner;
 
                 $roomTotal += $roomPrice;
@@ -202,44 +270,93 @@ class HotelPriceHelper
                 $lunchTotal     += $nightLunch;
                 $dinnerTotal    += $nightDinner;
 
-                // Variant only applies for Season and Blackout Date.
-                $appliedVariant = ($eventType === 'Season' || $eventType === 'Blackout Date') ? $variantPrice : 0.0;
-
                 $breakdown[] = [
                     'date'            => $dateString,
                     'day'             => $date->format('l'),
                     'is_weekend'      => $isWeekend,
                     'source'          => $source,
                     'event_type'      => $eventType,
+                    'room_base'       => round($roomBase, 2),
                     'surcharge'       => round($surcharge, 2),
                     'variant_price'   => round($appliedVariant, 2),
                     'extra_bed_total' => round($extraBedTotal, 2),
                     'room_price'      => round($roomPrice, 2),
                     'meal_price'      => round($mealPrice, 2),
+                    'meal_source'     => $mealSource,
                     'breakfast_meal'  => round($nightBreakfast, 2),
                     'lunch_meal'      => round($nightLunch, 2),
                     'dinner_meal'     => round($nightDinner, 2),
+                    'breakfast_unit'  => round($chargeBreakfast ? $breakfastPrice : 0, 2),
+                    'lunch_unit'      => round($lunchPrice, 2),
+                    'dinner_unit'     => round($dinnerPrice, 2),
+                    'room_breakfast_unit' => round($roomBreakfast, 2),
+                    'room_lunch_unit'     => round($roomLunch, 2),
+                    'room_dinner_unit'    => round($roomDinner, 2),
+                    'adults'          => $adults,
+                    'children'        => $children,
+                    'child_meal_factor' => $childMealFactor,
+                    'meal_pax_equivalent' => round($mealPaxEquivalent, 2),
+                    'breakfast_complementary' => $breakfastComplementary && !empty($meals['breakfast']),
                     'night_total'     => round($roomPrice + $mealPrice, 2),
                 ];
             }
+
+            // Child with/without bed (rooms table) — only when checkbox enabled and children present.
+            $nightCount = count($dates);
+            $childWithBedUnit = floatval($room->child_with_bed ?? 0);
+            $childWithoutBedUnit = floatval($room->child_without_bed ?? 0);
+            $childWithBedTotal = ($childWithBed && $children > 0 && $childWithBedUnit > 0)
+                ? $childWithBedUnit * $children * $nightCount
+                : 0.0;
+            $childWithoutBedTotal = ($childWithoutBed && $children > 0 && $childWithoutBedUnit > 0)
+                ? $childWithoutBedUnit * $children * $nightCount
+                : 0.0;
 
             return [
                 'success'         => true,
                 'hotel_unique_id' => $hotelUniqueId,
                 'room_id'         => $roomId,
                 'bed_id'          => $bedId,
+                'dmc_id'          => $dmcId,
                 'meal_plan'       => $mealPlan,
                 'meals'           => $meals,
+                'breakfast_complementary' => $breakfastComplementary,
                 'pax'             => $pax,
+                'adults'          => $adults,
+                'children'        => $children,
+                'children_price'  => $childrenPriceCode,
+                'child_meal_factor' => $childMealFactor,
+                'meal_pax_equivalent' => round($mealPaxEquivalent, 2),
                 'extra_bed'       => $extraBed,
-                'nights'          => count($dates),
+                'nights'          => $nightCount,
                 'extra_bed_price' => round($extraBedPrice, 2),
                 'room_total'      => round($roomTotal, 2),
+                'fair_charge_total' => round($fairChargeTotal, 2),
+                'fair_nights'     => $fairNights,
                 'meal_total'      => round($mealTotal, 2),
                 'breakfast_total' => round($breakfastTotal, 2),
                 'lunch_total'     => round($lunchTotal, 2),
                 'dinner_total'    => round($dinnerTotal, 2),
-                'grand_total'     => round($roomTotal + $mealTotal, 2),
+                'child_with_bed'  => [
+                    'enabled'    => $childWithBed,
+                    'unit_price' => round($childWithBedUnit, 2),
+                    'children'   => $children,
+                    'nights'     => $nightCount,
+                    'total'      => round($childWithBedTotal, 2),
+                ],
+                'child_without_bed' => [
+                    'enabled'    => $childWithoutBed,
+                    'unit_price' => round($childWithoutBedUnit, 2),
+                    'children'   => $children,
+                    'nights'     => $nightCount,
+                    'total'      => round($childWithoutBedTotal, 2),
+                ],
+                'room_meal_defaults' => [
+                    'breakfast_price' => round($roomBreakfast, 2),
+                    'lunch_price'     => round($roomLunch, 2),
+                    'dinner_price'    => round($roomDinner, 2),
+                ],
+                'grand_total'     => round($roomTotal + $mealTotal + $childWithBedTotal + $childWithoutBedTotal, 2),
                 'breakdown'       => $breakdown,
             ];
         } catch (\Exception $e) {
@@ -297,6 +414,22 @@ class HotelPriceHelper
         }
 
         return $isWeekend ? floatval($room->double_weekend_price ?? 0) : floatval($room->double_weekday_price ?? 0);
+    }
+
+    /**
+     * rooms.children_price → meal multiplier per child.
+     * 0 = free, 1 = half, 2 = full. Unknown values default to full.
+     */
+    private static function resolveChildMealFactor($childrenPriceCode): float
+    {
+        $code = (int) $childrenPriceCode;
+        if ($code === 0) {
+            return 0.0;
+        }
+        if ($code === 1) {
+            return 0.5;
+        }
+        return 1.0;
     }
 
     /**
