@@ -2005,20 +2005,40 @@
                                     for (const opt of opts) {
                                         const optCity = String(opt.value || '').trim().toLowerCase();
                                         const optText = String(opt.textContent || '').replace(/\s*\([^)]*\)\s*$/, '').trim().toLowerCase();
-                                        if (optCity === target || optText === target) {
+                                        const optCityName = String(opt.getAttribute('data-city-name') || '').trim().toLowerCase();
+                                        if (optCity === target || optText === target || (optCityName && optCityName === target)) {
                                             const dc = String(opt.getAttribute('data-country') || '').trim();
                                             if (dc) return dc;
                                         }
                                     }
                                 }
                             }
-                            // single_city selected option
+                            // single_city: value is often numeric city_id — match by name / select2 country
                             const sc = document.getElementById('single_city');
-                            if (sc && sc.selectedOptions && sc.selectedOptions[0]) {
+                            if (sc && String(sc.value || '').trim()) {
+                                const opt = sc.selectedOptions && sc.selectedOptions[0] ? sc.selectedOptions[0] : null;
                                 const selCity = String(sc.value || '').trim().toLowerCase();
-                                if (selCity === target) {
-                                    const dc = String(sc.selectedOptions[0].getAttribute('data-country') || '').trim();
-                                    if (dc) return dc;
+                                const optCityName = opt
+                                    ? (String(opt.getAttribute('data-city-name') || '').trim().toLowerCase()
+                                        || String(opt.textContent || '').replace(/\s*\([^)]*\)\s*$/, '').trim().toLowerCase())
+                                    : '';
+                                let matched = (selCity === target || (optCityName && optCityName === target));
+                                if (!matched && typeof window.getSingleCityName === 'function') {
+                                    matched = String(window.getSingleCityName() || '').trim().toLowerCase() === target;
+                                }
+                                if (matched) {
+                                    if (opt) {
+                                        const dc = String(opt.getAttribute('data-country') || '').trim();
+                                        if (dc) return dc;
+                                    }
+                                    try {
+                                        if (typeof $ !== 'undefined' && $(sc).data('select2')) {
+                                            const d = $(sc).select2('data');
+                                            if (d && d[0] && d[0].country) {
+                                                return String(d[0].country).trim();
+                                            }
+                                        }
+                                    } catch (eSc) { /* ignore */ }
                                 }
                             }
                             const uc = document.getElementById('user_country');
@@ -2032,7 +2052,12 @@
                         try {
                             const sc = document.getElementById('single_city');
                             if (!sc) return false;
-                            return String(sc.value || '').trim().toLowerCase() === target;
+                            const selVal = String(sc.value || '').trim().toLowerCase();
+                            if (selVal === target) return true;
+                            if (typeof window.getSingleCityName === 'function') {
+                                return String(window.getSingleCityName() || '').trim().toLowerCase() === target;
+                            }
+                            return false;
                         } catch (e) { return false; }
                     }
                     window.resolveDmcIdForCity = function (cityName, countryHint) {
@@ -2059,10 +2084,16 @@
                     };
                     window.getActiveServiceDmcId = function (cityName) {
                         const city = String(cityName || (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : '') || '').trim();
-                        // Country must come from the city itself (Singapore city → Singapore DMC)
-                        const countryFromCity = city ? window.resolveCountryForCityName(city) : '';
-                        const countryHint = countryFromCity || '';
-                        return window.resolveDmcIdForCity(city, countryHint) || window.operatingDmcId || 0;
+                        // Country must come from the city itself (e.g. Batam → Indonesia sibling DMC)
+                        let countryFromCity = city ? window.resolveCountryForCityName(city) : '';
+                        if (!countryFromCity && typeof window.getActiveServiceGeo === 'function') {
+                            const geo = window.getActiveServiceGeo() || {};
+                            const activeCity = String(geo.city || '').trim().toLowerCase();
+                            if (!city || !activeCity || city.toLowerCase() === activeCity) {
+                                countryFromCity = String(geo.country || '').trim();
+                            }
+                        }
+                        return window.resolveDmcIdForCity(city, countryFromCity) || window.operatingDmcId || 0;
                     };
                     /** Build hotel/room inventory query params for a city. */
                     window.buildInventoryDmcQuery = function (cityName) {
@@ -8016,6 +8047,11 @@
             }
             const cityValue = cityName;
             const cityId = meta.id ? String(meta.id) : '';
+            const country = String(meta.country || '').trim();
+            const displayLabel = country ? (cityName + ' (' + country + ')') : cityName;
+            const escAttr = function (s) {
+                return String(s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+            };
 
             window.SERVICE_CITY_SELECTORS.forEach(function (sel) {
                 $(sel).each(function () {
@@ -8023,14 +8059,14 @@
                     if (!$dd.length) return;
 
                     const prevVal = String($dd.val() || '');
-                    const idAttr = cityId ? ' data-id="' + cityId.replace(/"/g, '&quot;') + '"' : '';
-                    $dd.html(
-                        '<option value="' + cityValue.replace(/"/g, '&quot;') + '"' + idAttr + ' selected>' +
-                        cityName.replace(/</g, '&lt;') + '</option>'
-                    );
+                    let attrs = ' value="' + escAttr(cityValue) + '" selected';
+                    if (cityId) attrs += ' data-id="' + escAttr(cityId) + '"';
+                    if (country) attrs += ' data-country="' + escAttr(country) + '"';
+                    attrs += ' data-city-name="' + escAttr(cityName) + '"';
+                    $dd.html('<option' + attrs + '>' + escAttr(displayLabel) + '</option>');
                     $dd.val(cityValue);
                     $dd.prop('disabled', true);
-                    window.refreshServiceCitySelect2($dd, cityName, true);
+                    window.refreshServiceCitySelect2($dd, displayLabel, true);
 
                     if (prevVal !== cityValue) {
                         $dd.trigger('change');
@@ -8077,21 +8113,40 @@
             const selectedVal = String($sc.val() || '').trim();
             let selectedText = window.getSingleCityName() || selectedVal;
             let selectedDataId = '';
+            let selectedCountry = '';
+            let rawLabel = '';
 
             try {
                 const data = $sc.select2('data');
                 if (data && data.length && data[0]) {
-                    if (data[0].text) selectedText = String(data[0].text).split('(')[0].trim();
+                    if (data[0].text) {
+                        rawLabel = String(data[0].text);
+                        selectedText = rawLabel.split('(')[0].trim();
+                    }
                     if (data[0].id !== undefined && data[0].id !== null) {
                         selectedDataId = String(data[0].id).trim();
+                    }
+                    if (data[0].country) {
+                        selectedCountry = String(data[0].country).trim();
                     }
                 }
             } catch (e) { /* select2 not ready */ }
 
+            const $opt = $sc.find('option:selected');
+            if (!selectedCountry && $opt.length) {
+                selectedCountry = String($opt.attr('data-country') || '').trim();
+            }
+            if (!selectedCountry) {
+                if (!rawLabel && $opt.length) rawLabel = String($opt.text() || '').trim();
+                const m = String(rawLabel || '').match(/\(([^)]+)\)\s*$/);
+                if (m && m[1]) selectedCountry = String(m[1]).trim();
+            }
+
             return {
                 value: selectedVal,
                 text: selectedText,
-                id: selectedDataId
+                id: selectedDataId,
+                country: selectedCountry
             };
         };
 
@@ -8255,9 +8310,34 @@
                 }
             });
             $('#single_city').on('select2:select', function (e) {
-                const country = e.params && e.params.data && e.params.data.country;
-                if (country && typeof window.setTourPackageCurrency === 'function') {
-                    window.setTourPackageCurrency(window.getCurrencyForCountryName(country));
+                const data = (e.params && e.params.data) ? e.params.data : {};
+                let country = data.country ? String(data.country).trim() : '';
+                if (!country && data.text) {
+                    const m = String(data.text).match(/\(([^)]+)\)\s*$/);
+                    if (m && m[1]) country = String(m[1]).trim();
+                }
+                const cityName = String(data.text || '').split('(')[0].trim()
+                    || (typeof window.getSingleCityName === 'function' ? window.getSingleCityName() : '');
+
+                // Persist country on the option so sibling-DMC resolution works like multi-city
+                const $opt = $('#single_city option:selected');
+                if ($opt.length) {
+                    if (country) $opt.attr('data-country', country);
+                    if (cityName) $opt.attr('data-city-name', cityName);
+                }
+
+                if (country) {
+                    const $uc = $('#user_country');
+                    if ($uc.length && String($uc.val() || '') !== country) {
+                        if (!$uc.find('option').filter(function () { return String($(this).val()) === country; }).length) {
+                            $uc.append($('<option></option>').attr('value', country).text(country));
+                        }
+                        // Ports/currency follow city country; re-lock service cities after populate
+                        $uc.val(country).trigger('change');
+                    }
+                    if (typeof window.setTourPackageCurrency === 'function') {
+                        window.setTourPackageCurrency(window.getCurrencyForCountryName(country));
+                    }
                 }
             });
 
@@ -9328,6 +9408,12 @@
                     // Populate cities for the selected country
                     if (typeof populateAllCityDropdowns === 'function') {
                         populateAllCityDropdowns(selectedCountry);
+                    }
+
+                    // Single-city: re-lock service cities after country populate (sibling-country inventory)
+                    if (typeof window.isSingleCityMode === 'function' && window.isSingleCityMode()
+                        && typeof window.scheduleSyncSingleCityToAllServices === 'function') {
+                        window.scheduleSyncSingleCityToAllServices();
                     }
                     
                     // Fetch ports for the selected country using country ID
