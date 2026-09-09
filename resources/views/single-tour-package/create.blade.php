@@ -824,11 +824,23 @@
             appearance: auto;
             -webkit-appearance: menulist;
         }
+        #submitSection #enquiryProMarkupMultiWrap select.city-discount-type {
+            width: 100% !important;
+            min-width: 100px !important;
+            max-width: 130px;
+            padding-right: 1.75rem !important;
+            appearance: auto;
+            -webkit-appearance: menulist;
+        }
         #submitSection #enquiryProMarkupMultiWrap input.city-hotel-markup,
-        #submitSection #enquiryProMarkupMultiWrap input.city-other-markup {
+        #submitSection #enquiryProMarkupMultiWrap input.city-other-markup,
+        #submitSection #enquiryProMarkupMultiWrap input.city-discount-value {
             width: 100% !important;
             min-width: 64px;
             text-align: right;
+        }
+        #submitSection .enquiry-md-table td.enquiry-md-cell-discount {
+            min-width: 110px;
         }
         #submitSection .city-discount-value.is-foc-locked {
             background: #fff7ed !important;
@@ -1950,6 +1962,8 @@
                                                         <th scope="col" class="enquiry-md-th-markup">Markup type</th>
                                                         <th scope="col" class="enquiry-md-th-markup">Hotel markup</th>
                                                         <th scope="col" class="enquiry-md-th-markup">Other markup</th>
+                                                        <th scope="col" class="enquiry-md-th-discount">Disc type</th>
+                                                        <th scope="col" class="enquiry-md-th-discount">Disc value</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody id="enquiryProCityMarkupBody"></tbody>
@@ -7536,13 +7550,30 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
     <!-- Select2 Initialization Script -->
     @php
-        $countryCurrencyMap = $countries
-            ->filter(fn ($c) => !empty($c->name) && !empty($c->currency))
-            ->mapWithKeys(fn ($c) => [$c->name => strtoupper(trim((string) $c->currency))]);
+        // Full country → currency map so multi-city rows show IDR/INR/SGD correctly (not only DMC list)
+        $countryCurrencyMap = \App\Models\Country::query()
+            ->whereNotNull('currency')
+            ->where('currency', '!=', '')
+            ->get(['name', 'currency'])
+            ->mapWithKeys(static function ($c) {
+                return [trim((string) $c->name) => strtoupper(trim((string) $c->currency))];
+            })
+            ->all();
+        $cityCountryMap = \App\Models\City::query()
+            ->whereNotNull('country')
+            ->where('country', '!=', '')
+            ->get(['name', 'country'])
+            ->mapWithKeys(static function ($c) {
+                return [trim((string) $c->name) => trim((string) $c->country)];
+            })
+            ->all();
     @endphp
     <script>
         window.TOUR_PACKAGE_CURRENCY = @json($dmcCurrency);
         window.COUNTRY_CURRENCY_MAP = @json($countryCurrencyMap);
+        window.CITY_COUNTRY_MAP = @json($cityCountryMap);
+        // Runtime geo from Select2 / option stamps (authoritative for multi-city rows)
+        window.LITE_CITY_GEO = window.LITE_CITY_GEO || {};
         window.getTourCurrency = function () {
             const el = document.getElementById('tour_package_currency');
             return (el && el.value) ? el.value : (window.TOUR_PACKAGE_CURRENCY || 'SGD');
@@ -7550,69 +7581,171 @@
         window.getCurrencyForCountryName = function (countryName) {
             const name = String(countryName || '').trim();
             if (!name) {
-                return window.getTourCurrency();
+                return '';
             }
             const map = window.COUNTRY_CURRENCY_MAP || {};
             if (map[name]) {
-                return map[name];
+                return String(map[name]).trim().toUpperCase();
             }
             const lower = name.toLowerCase();
             for (const key of Object.keys(map)) {
                 if (String(key).toLowerCase() === lower) {
-                    return map[key];
+                    return String(map[key] || '').trim().toUpperCase();
                 }
             }
-            return window.TOUR_PACKAGE_CURRENCY || 'SGD';
+            // Hard fallbacks so Flat suffixes never wrongly inherit tour SGD
+            const fallback = {
+                indonesia: 'IDR', india: 'INR', singapore: 'SGD', malaysia: 'MYR',
+                thailand: 'THB', vietnam: 'VND', philippines: 'PHP', 'sri lanka': 'LKR',
+                'united arab emirates': 'AED', uae: 'AED', dubai: 'AED'
+            };
+            return fallback[lower] || '';
         };
 
         // Bridges for enquiry-pro currency markup scripts (city-wise markup table)
         window.resolveCurrencyForCountry = window.getCurrencyForCountryName;
         window.resolveCountryForCity = function (cityName) {
+            const city = String(cityName || '').trim();
+            if (!city) return '';
+            const geo = window.LITE_CITY_GEO && window.LITE_CITY_GEO[city];
+            if (geo && geo.country) return String(geo.country).trim();
+            // Prefer DB city→country map (reliable for Batam→Indonesia, etc.)
+            const map = window.CITY_COUNTRY_MAP || {};
+            if (map[city]) return String(map[city]).trim();
+            const lower = city.toLowerCase();
+            for (const key of Object.keys(map)) {
+                if (String(key).toLowerCase() === lower) {
+                    return String(map[key] || '').trim();
+                }
+            }
             if (typeof window.resolveCountryForCityName === 'function') {
-                return window.resolveCountryForCityName(cityName) || '';
+                const fromOpts = window.resolveCountryForCityName(city);
+                if (fromOpts) return fromOpts;
             }
             return '';
+        };
+        /** Resolve display/save currency for a city (country currency — not tour SGD). */
+        window.resolveCurrencyForCityName = function (cityName, countryHint) {
+            const city = String(cityName || '').trim();
+            const geo = city && window.LITE_CITY_GEO ? window.LITE_CITY_GEO[city] : null;
+            if (geo && geo.currency) {
+                return String(geo.currency).trim().toUpperCase();
+            }
+            let country = String(countryHint || (geo && geo.country) || '').trim();
+            if (!country && typeof window.resolveCountryForCity === 'function') {
+                country = String(window.resolveCountryForCity(cityName) || '').trim();
+            }
+            let currency = '';
+            if (country && typeof window.resolveCurrencyForCountry === 'function') {
+                currency = String(window.resolveCurrencyForCountry(country) || '').trim().toUpperCase();
+            }
+            // Only use tour currency when city/country truly unknown
+            if (!currency && !country) {
+                currency = String(window.getTourCurrency() || 'SGD').trim().toUpperCase();
+            }
+            return currency;
         };
         var selectedDestinations = [];
         window.selectedDestinations = selectedDestinations;
 
+        window.rememberLiteCityGeo = function (cityName, country, currencyHint) {
+            const city = String(cityName || '').replace(/\s*\([^)]*\)\s*$/, '').trim();
+            if (!city || /^\d+$/.test(city)) return;
+            let countryName = String(country || '').trim();
+            if (!countryName && typeof window.resolveCountryForCity === 'function') {
+                countryName = String(window.resolveCountryForCity(city) || '').trim();
+            }
+            let currency = String(currencyHint || '').trim().toUpperCase();
+            if (!currency && countryName) {
+                currency = String(window.getCurrencyForCountryName(countryName) || '').trim().toUpperCase();
+            }
+            window.LITE_CITY_GEO[city] = {
+                country: countryName,
+                currency: currency
+            };
+        };
+
+        window.stampMultiCitiesGeoFromSelect2 = function () {
+            if (typeof jQuery === 'undefined') return;
+            const $mc = jQuery('#multi_cities');
+            if (!$mc.length || !$mc.data('select2')) return;
+            const data = $mc.select2('data') || [];
+            data.forEach(function (item) {
+                if (!item) return;
+                const id = String(item.id != null ? item.id : '');
+                let country = item.country ? String(item.country).trim() : '';
+                const rawText = String(item.text || '');
+                if (!country) {
+                    const m = rawText.match(/\(([^)]+)\)\s*$/);
+                    if (m && m[1]) country = String(m[1]).trim();
+                }
+                const cityName = rawText.replace(/\s*\([^)]*\)\s*$/, '').trim()
+                    || String(item.city_name || item.name || '').trim();
+                const $opt = $mc.find('option').filter(function () {
+                    return String(jQuery(this).val()) === id;
+                });
+                if ($opt.length) {
+                    if (cityName) $opt.attr('data-city-name', cityName);
+                    if (country) $opt.attr('data-country', country);
+                }
+                if (cityName) {
+                    window.rememberLiteCityGeo(cityName, country);
+                }
+            });
+        };
+
         window.syncLiteTourSelectedDestinations = function () {
             const cities = [];
-            const addCity = function (name) {
+            const addCity = function (name, country) {
                 const label = String(name || '').replace(/\s*\([^)]*\)\s*$/, '').trim();
                 if (!label || /^\d+$/.test(label)) return;
                 if (cities.indexOf(label) === -1) cities.push(label);
+                if (country || label) {
+                    window.rememberLiteCityGeo(label, country);
+                }
             };
             const labelFromOption = function (opt) {
-                if (!opt) return '';
-                return String(opt.getAttribute('data-city-name') || '').trim()
+                if (!opt) return { name: '', country: '' };
+                const name = String(opt.getAttribute('data-city-name') || '').trim()
                     || String(opt.textContent || '').replace(/\s*\([^)]*\)\s*$/, '').trim();
+                let country = String(opt.getAttribute('data-country') || '').trim();
+                if (!country) {
+                    const m = String(opt.textContent || '').match(/\(([^)]+)\)\s*$/);
+                    if (m && m[1]) country = String(m[1]).trim();
+                }
+                return { name: name, country: country };
             };
             const mode = (document.querySelector('input[name="city_mode"]:checked') || {}).value || 'single';
             if (mode === 'multi') {
+                window.stampMultiCitiesGeoFromSelect2();
                 const multi = document.getElementById('multi_cities');
                 if (multi) {
                     Array.from(multi.selectedOptions || []).forEach(function (opt) {
-                        addCity(labelFromOption(opt) || opt.value);
+                        const parsed = labelFromOption(opt);
+                        addCity(parsed.name || opt.value, parsed.country);
                     });
                 }
                 document.querySelectorAll('#segmentsWrapper .city-select').forEach(function (sel) {
                     const opt = sel.options && sel.selectedIndex >= 0 ? sel.options[sel.selectedIndex] : null;
-                    addCity(labelFromOption(opt) || sel.value);
+                    const parsed = labelFromOption(opt);
+                    addCity(parsed.name || (opt ? opt.value : sel.value), parsed.country);
                 });
             } else {
                 const sc = document.getElementById('single_city');
                 if (sc) {
                     const opt = sc.options && sc.selectedIndex >= 0 ? sc.options[sc.selectedIndex] : null;
-                    let name = labelFromOption(opt);
-                    if ((!name || /^\d+$/.test(name)) && typeof jQuery !== 'undefined' && jQuery(sc).data('select2')) {
+                    let parsed = labelFromOption(opt);
+                    if ((!parsed.name || /^\d+$/.test(parsed.name)) && typeof jQuery !== 'undefined' && jQuery(sc).data('select2')) {
                         const d = jQuery(sc).select2('data');
                         if (d && d[0]) {
-                            name = String(d[0].text || d[0].city_name || d[0].name || '')
+                            parsed.name = String(d[0].text || d[0].city_name || d[0].name || '')
                                 .replace(/\s*\([^)]*\)\s*$/, '').trim();
+                            if (!parsed.country && d[0].country) {
+                                parsed.country = String(d[0].country).trim();
+                            }
                         }
                     }
-                    addCity(name);
+                    addCity(parsed.name, parsed.country);
                 }
             }
             selectedDestinations.length = 0;
@@ -7720,24 +7853,26 @@
         window.syncDiscountPriceFromCityMarkups = function () {
             const hidden = document.getElementById('discount_price');
             if (!hidden) return;
-            // Prefer live DOM rows so we don't depend on a stale store
             const payload = (typeof window.collectLiteCurrencyMarkupsFromDom === 'function')
                 ? window.collectLiteCurrencyMarkupsFromDom()
                 : ((typeof window.getCurrencyMarkupsPayload === 'function')
                     ? window.getCurrencyMarkupsPayload()
                     : []);
-            let total = 0;
+            let flatTotal = 0;
+            let focTotal = 0;
             let hasFoc = false;
             (payload || []).forEach(function (row) {
                 const dt = String(row.discount_type || '').toLowerCase();
                 const dv = parseFloat(row.discount_value) || 0;
                 if (dt === 'foc') {
                     hasFoc = true;
-                    total += dv;
+                    // FOC is tour-level and mirrored on each city row — do not multiply by city count
+                    focTotal = Math.max(focTotal, dv);
                 } else if (dt === 'flat') {
-                    total += dv;
+                    flatTotal += dv;
                 }
             });
+            const total = (hasFoc ? focTotal : 0) + flatTotal;
             hidden.value = String(Math.ceil(total > 0 ? total : 0));
             hidden.dataset.focDiscountAuto = hasFoc ? '1' : (hidden.dataset.focDiscountAuto || '0');
         };
@@ -7750,8 +7885,16 @@
                 body.querySelectorAll('tr[data-city]').forEach(function (tr) {
                     const city = String(tr.getAttribute('data-city') || '').trim();
                     if (!city || city.indexOf('__lite_markup_pad__') === 0) return;
-                    const country = String(tr.getAttribute('data-country') || '').trim();
-                    const currency = String(tr.getAttribute('data-currency') || '').trim().toUpperCase();
+                    const countryRaw = String(tr.getAttribute('data-country') || '').trim();
+                    const country = countryRaw
+                        || ((typeof window.resolveCountryForCity === 'function')
+                            ? String(window.resolveCountryForCity(city) || '').trim()
+                            : '');
+                    const currency = (typeof window.resolveCurrencyForCityName === 'function')
+                        ? window.resolveCurrencyForCityName(city, country)
+                        : String(tr.getAttribute('data-currency') || '').trim().toUpperCase();
+                    if (country) tr.setAttribute('data-country', country);
+                    if (currency) tr.setAttribute('data-currency', currency);
                     const mt = String(tr.querySelector('.city-markup-type')?.value || '').trim();
                     const hotelEl = tr.querySelector('.city-hotel-markup');
                     const otherEl = tr.querySelector('.city-other-markup');
@@ -7761,17 +7904,31 @@
                         : (parseFloat(markupEl?.value || 0) || 0);
                     const otherMk = otherEl
                         ? (parseFloat(otherEl.value || 0) || 0)
-                        : hotelMk;
+                        : 0;
+                    const markupTotal = hotelMk + otherMk;
+                    let dt = String(tr.querySelector('.city-discount-type')?.value || '').trim();
+                    let dv = parseFloat(tr.querySelector('.city-discount-value')?.value || 0) || 0;
+                    if (dt === 'foc' && typeof window.computeAutoFocDiscount === 'function') {
+                        const focHdr = (typeof window.getEnquiryProGroupFocFactors === 'function')
+                            ? window.getEnquiryProGroupFocFactors()
+                            : null;
+                        const active = focHdr && focHdr.isGroup && focHdr.focSize > 0 && focHdr.discountOn;
+                        if (active) {
+                            dv = window.computeAutoFocDiscount() || dv;
+                            const inp = tr.querySelector('.city-discount-value');
+                            if (inp) inp.value = dv;
+                        }
+                    }
                     rows.push({
                         city: city,
                         country: country,
                         currency: currency,
                         markup_type: mt || null,
-                        markup_value: hotelMk,
+                        markup_value: markupTotal,
                         hotel_markup: hotelMk,
                         other_markup: otherMk,
-                        discount_type: null,
-                        discount_value: 0
+                        discount_type: dt || null,
+                        discount_value: dv
                     });
                     window.enquiryProCityMarkups = window.enquiryProCityMarkups || {};
                     window.enquiryProCityMarkups[city] = {
@@ -7779,11 +7936,11 @@
                         country: country,
                         currency: currency,
                         markup_type: mt,
-                        markup_value: hotelMk,
+                        markup_value: markupTotal,
                         hotel_markup: hotelMk,
                         other_markup: otherMk,
-                        discount_type: '',
-                        discount_value: 0
+                        discount_type: dt,
+                        discount_value: dv
                     };
                     if (currency) {
                         window.enquiryProCurrencyMarkups = window.enquiryProCurrencyMarkups || {};
@@ -7798,11 +7955,13 @@
                 if (city) {
                     const mt = String(document.getElementById('markupType')?.value || '').trim();
                     const mv = parseFloat(document.getElementById('markupValue')?.value || 0) || 0;
+                    const dt = String(document.getElementById('discountType')?.value || '').trim();
+                    const dv = parseFloat(document.getElementById('discountValue')?.value || 0) || 0;
                     const country = (typeof window.resolveCountryForCity === 'function')
                         ? String(window.resolveCountryForCity(city) || '').trim()
                         : '';
-                    const currency = (typeof window.resolveCurrencyForCountry === 'function')
-                        ? String(window.resolveCurrencyForCountry(country) || '').trim().toUpperCase()
+                    const currency = (typeof window.resolveCurrencyForCityName === 'function')
+                        ? window.resolveCurrencyForCityName(city, country)
                         : '';
                     rows.push({
                         city: city,
@@ -7811,9 +7970,9 @@
                         markup_type: mt || null,
                         markup_value: mv,
                         hotel_markup: mv,
-                        other_markup: mv,
-                        discount_type: null,
-                        discount_value: 0
+                        other_markup: 0,
+                        discount_type: dt || null,
+                        discount_value: dv
                     });
                 }
             }
@@ -7867,19 +8026,44 @@
 
         @include('enquiryform_pro.partials.markup-discount-currency-scripts')
 
-        // Lite create: Pricing by city = Markup type + Hotel markup + Other markup (no discount)
+        // Lite create: Pricing by city = Hotel/Other markup + Disc (FOC auto when Treat FOC is on)
         window.buildCityMarkupRowHtml = function (target, entry) {
             const city = target.city || '';
-            const country = target.country || '';
-            const currency = target.currency || '';
+            let country = String(target.country || '').trim();
+            if (!country && typeof window.resolveCountryForCity === 'function') {
+                country = String(window.resolveCountryForCity(city) || '').trim();
+            }
+            let currency = String(target.currency || '').trim().toUpperCase();
+            if (typeof window.resolveCurrencyForCityName === 'function') {
+                currency = window.resolveCurrencyForCityName(city, country) || currency;
+            }
+            if (!currency && country && typeof window.getCurrencyForCountryName === 'function') {
+                currency = String(window.getCurrencyForCountryName(country) || '').trim().toUpperCase();
+            }
+            window.rememberLiteCityGeo(city, country, currency);
             const mt = entry.markup_type || '';
             const hotelMk = entry.hotel_markup != null
                 ? (parseFloat(entry.hotel_markup) || 0)
                 : (parseFloat(entry.markup_value || 0) || 0);
             const otherMk = entry.other_markup != null
                 ? (parseFloat(entry.other_markup) || 0)
-                : hotelMk;
+                : 0;
+            let dt = entry.discount_type || '';
+            let dv = entry.discount_value != null ? (parseFloat(entry.discount_value) || 0) : 0;
+            // Prefer live FOC amount when Treat FOC is active
+            const focHdr = (typeof window.getEnquiryProGroupFocFactors === 'function')
+                ? window.getEnquiryProGroupFocFactors()
+                : null;
+            const focActive = !!(focHdr && focHdr.isGroup && focHdr.focSize > 0 && focHdr.discountOn);
+            if (focActive) {
+                dt = 'foc';
+                if (typeof window.computeAutoFocDiscount === 'function') {
+                    dv = window.computeAutoFocDiscount() || dv;
+                }
+            }
             const markupDisabled = mt ? '' : 'disabled';
+            const discountDisabled = (!dt || dt === 'foc') ? 'disabled' : '';
+            const focClass = dt === 'foc' ? ' is-foc-locked' : '';
             const suffix = (mt === 'flat') ? (currency || 'AMT') : '%';
             const esc = function (s) {
                 return String(s || '')
@@ -7922,14 +8106,48 @@
                 + '<span class="city-markup-suffix">' + esc(suffix) + '</span>'
                 + '</div>'
                 + '</td>'
+                + '<td class="enquiry-md-cell-discount">'
+                + '<select class="city-discount-type enquiry-md-control" onchange="handleCityMarkupRowChange(this)"'
+                + (focActive ? ' disabled' : '') + '>'
+                + '<option value=""' + (!dt ? ' selected' : '') + '>Type</option>'
+                + '<option value="percentage"' + (dt === 'percentage' ? ' selected' : '') + '>%</option>'
+                + '<option value="flat"' + (dt === 'flat' ? ' selected' : '') + '>Fixed</option>'
+                + '<option value="foc"' + (dt === 'foc' ? ' selected' : '') + '>FOC</option>'
+                + '</select>'
+                + '</td>'
+                + '<td class="enquiry-md-cell-discount">'
+                + '<input type="number" class="city-discount-value enquiry-md-control' + focClass + '" value="' + dv + '" step="1" min="0" ' + discountDisabled
+                + ' placeholder="0" oninput="handleCityMarkupRowChange(this)"'
+                + ' title="' + (dt === 'foc'
+                    ? 'Auto FOC discount (Treat FOC pax as discount)'
+                    : 'Discount value') + '">'
+                + '</td>'
                 + '</tr>';
         };
 
-        // After city-row change, keep hidden discount_price in sync + FOC auto amount
+        // After city-row change, refresh Flat currency suffix from city country + sync discount_price
         (function () {
             const _cityChange = window.handleCityMarkupRowChange;
             window.handleCityMarkupRowChange = function (el) {
                 if (typeof _cityChange === 'function') _cityChange(el);
+                const tr = el && el.closest ? el.closest('tr[data-city]') : null;
+                if (tr) {
+                    const city = String(tr.getAttribute('data-city') || '').trim();
+                    let country = String(tr.getAttribute('data-country') || '').trim();
+                    if (!country && typeof window.resolveCountryForCity === 'function') {
+                        country = String(window.resolveCountryForCity(city) || '').trim();
+                        if (country) tr.setAttribute('data-country', country);
+                    }
+                    const currency = (typeof window.resolveCurrencyForCityName === 'function')
+                        ? window.resolveCurrencyForCityName(city, country)
+                        : String(tr.getAttribute('data-currency') || '').trim().toUpperCase();
+                    if (currency) tr.setAttribute('data-currency', currency);
+                    const mt = tr.querySelector('.city-markup-type');
+                    const suffix = (mt && mt.value === 'flat') ? (currency || 'AMT') : '%';
+                    tr.querySelectorAll('.city-markup-suffix').forEach(function (s) {
+                        s.textContent = suffix;
+                    });
+                }
                 if (typeof window.syncDiscountPriceFromCityMarkups === 'function') {
                     window.syncDiscountPriceFromCityMarkups();
                 }
@@ -7972,6 +8190,12 @@
                 }
                 if (singleWrap) singleWrap.style.display = 'none';
                 if (multiWrap) multiWrap.style.display = 'block';
+                // Re-apply FOC discount into Disc type/value after row rebuild
+                if (typeof window.recomputeFOCDiscountPrice === 'function') {
+                    window.recomputeFOCDiscountPrice();
+                } else if (typeof window.syncDiscountPriceFromCityMarkups === 'function') {
+                    window.syncDiscountPriceFromCityMarkups();
+                }
             };
         })();
 
@@ -8494,6 +8718,14 @@
                         return data;
                     },
                     cache: true
+                }
+            });
+            $('#multi_cities').on('select2:select select2:unselect', function () {
+                if (typeof window.stampMultiCitiesGeoFromSelect2 === 'function') {
+                    window.stampMultiCitiesGeoFromSelect2();
+                }
+                if (typeof window.syncLiteTourSelectedDestinations === 'function') {
+                    window.syncLiteTourSelectedDestinations();
                 }
             });
 

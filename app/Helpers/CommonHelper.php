@@ -11629,6 +11629,163 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
     }
 
     /**
+     * Normalize negotiation offer rows (including hotel/other markup + discount).
+     *
+     * @param  array<int, array<string, mixed>>  $rawOffers
+     * @return array<int, array<string, mixed>>
+     */
+    public static function normalizeNegotiationOffers(array $rawOffers): array
+    {
+        $out = [];
+        foreach ($rawOffers as $offer) {
+            if (! is_array($offer)) {
+                continue;
+            }
+            $hotelMarkup = round((float) ($offer['hotel_markup'] ?? 0), 2);
+            $otherMarkup = round((float) ($offer['other_markup'] ?? 0), 2);
+            $discountValue = round((float) ($offer['discount_value'] ?? 0), 2);
+            $markupType = strtolower(trim((string) ($offer['markup_type'] ?? 'flat')));
+            if ($markupType === 'fixed') {
+                $markupType = 'flat';
+            }
+            if (! in_array($markupType, ['percentage', 'flat'], true)) {
+                $markupType = 'flat';
+            }
+            $discountType = strtolower(trim((string) ($offer['discount_type'] ?? 'flat')));
+            if ($discountType === 'fixed') {
+                $discountType = 'flat';
+            }
+            if (! in_array($discountType, ['percentage', 'flat', 'foc'], true)) {
+                $discountType = 'flat';
+            }
+
+            $out[] = [
+                'country' => trim((string) ($offer['country'] ?? '')),
+                'currency' => strtoupper(trim((string) ($offer['currency'] ?? ''))),
+                'amount' => round((float) ($offer['amount'] ?? 0), 2),
+                'actual_amount' => round((float) ($offer['actual_amount'] ?? 0), 2),
+                'gross' => round((float) ($offer['gross'] ?? 0), 2),
+                'markup_type' => $markupType,
+                'hotel_markup' => $hotelMarkup,
+                'other_markup' => $otherMarkup,
+                'markup_value' => $hotelMarkup + $otherMarkup,
+                'discount_type' => $discountType,
+                'discount_value' => $discountValue,
+            ];
+        }
+
+        return array_values($out);
+    }
+
+    /**
+     * Persist hotel/other markup + discount from negotiation offers onto tours.currency_markups
+     * (and tour-level markup/discount columns).
+     *
+     * @param  \App\Models\Tour  $tour
+     * @param  array<int, array<string, mixed>>  $offers
+     */
+    public static function applyNegotiationOffersToTourCurrencyMarkups($tour, array $offers): void
+    {
+        if (! $tour || $offers === []) {
+            return;
+        }
+
+        $offers = self::normalizeNegotiationOffers($offers);
+        if ($offers === []) {
+            return;
+        }
+
+        $raw = $tour->currency_markups ?? ($tour->getAttributes()['currency_markups'] ?? null);
+        if (is_string($raw)) {
+            $decoded = json_decode($raw, true);
+            $raw = (json_last_error() === JSON_ERROR_NONE) ? $decoded : null;
+        }
+        $existing = is_array($raw) ? $raw : [];
+
+        $updatedMarkups = [];
+        if ($existing !== []) {
+            foreach ($existing as $row) {
+                if (! is_array($row)) {
+                    continue;
+                }
+                $match = null;
+                foreach ($offers as $offer) {
+                    $sameCountry = strcasecmp((string) ($row['country'] ?? ''), (string) ($offer['country'] ?? '')) === 0
+                        && trim((string) ($offer['country'] ?? '')) !== '';
+                    $sameCurrency = strtoupper(trim((string) ($row['currency'] ?? ''))) === strtoupper((string) ($offer['currency'] ?? ''))
+                        && trim((string) ($offer['currency'] ?? '')) !== '';
+                    $sameCityCountry = trim((string) ($row['city'] ?? '')) !== ''
+                        && strcasecmp((string) ($row['country'] ?? ''), (string) ($offer['country'] ?? '')) === 0;
+                    if ($sameCountry || $sameCityCountry || $sameCurrency) {
+                        $match = $offer;
+                        break;
+                    }
+                }
+                if ($match) {
+                    $hotel = (float) ($match['hotel_markup'] ?? 0);
+                    $other = (float) ($match['other_markup'] ?? 0);
+                    $updatedMarkups[] = [
+                        'city' => trim((string) ($row['city'] ?? '')),
+                        'currency' => $match['currency'] ?? ($row['currency'] ?? ''),
+                        'country' => $match['country'] ?? ($row['country'] ?? ''),
+                        'markup_type' => $match['markup_type'] ?? ($row['markup_type'] ?? null),
+                        'markup_value' => $hotel + $other,
+                        'hotel_markup' => $hotel,
+                        'other_markup' => $other,
+                        'discount_type' => $match['discount_type'] ?? ($row['discount_type'] ?? null),
+                        'discount_value' => (float) ($match['discount_value'] ?? 0),
+                    ];
+                } else {
+                    $updatedMarkups[] = [
+                        'city' => trim((string) ($row['city'] ?? '')),
+                        'currency' => strtoupper(trim((string) ($row['currency'] ?? ''))),
+                        'country' => trim((string) ($row['country'] ?? '')),
+                        'markup_type' => $row['markup_type'] ?? null,
+                        'markup_value' => (float) ($row['markup_value'] ?? ((float) ($row['hotel_markup'] ?? 0) + (float) ($row['other_markup'] ?? 0))),
+                        'hotel_markup' => (float) ($row['hotel_markup'] ?? $row['markup_value'] ?? 0),
+                        'other_markup' => (float) ($row['other_markup'] ?? 0),
+                        'discount_type' => $row['discount_type'] ?? null,
+                        'discount_value' => (float) ($row['discount_value'] ?? 0),
+                    ];
+                }
+            }
+        } else {
+            foreach ($offers as $offer) {
+                $hotel = (float) ($offer['hotel_markup'] ?? 0);
+                $other = (float) ($offer['other_markup'] ?? 0);
+                $updatedMarkups[] = [
+                    'city' => '',
+                    'currency' => $offer['currency'] ?? '',
+                    'country' => $offer['country'] ?? '',
+                    'markup_type' => $offer['markup_type'] ?? 'flat',
+                    'markup_value' => $hotel + $other,
+                    'hotel_markup' => $hotel,
+                    'other_markup' => $other,
+                    'discount_type' => $offer['discount_type'] ?? 'flat',
+                    'discount_value' => (float) ($offer['discount_value'] ?? 0),
+                ];
+            }
+        }
+
+        $tour->currency_markups = array_values($updatedMarkups);
+        $primaryOffer = $offers[0] ?? null;
+        if ($primaryOffer) {
+            $hotel = (float) ($primaryOffer['hotel_markup'] ?? 0);
+            $other = (float) ($primaryOffer['other_markup'] ?? 0);
+            $markupTotal = $hotel + $other;
+            $markupType = $primaryOffer['markup_type'] ?? 'flat';
+            $discountType = $primaryOffer['discount_type'] ?? null;
+            $discountValue = (float) ($primaryOffer['discount_value'] ?? 0);
+            $tour->markup = $markupTotal > 0 ? 1 : 0;
+            $tour->markup_type = $markupTotal > 0 ? $markupType : null;
+            $tour->markup_amount = $markupTotal > 0 ? $markupTotal : 0;
+            $tour->discount_type = ($discountValue > 0 && $discountType) ? $discountType : null;
+            $tour->discount_amount = $discountValue > 0 ? $discountValue : 0;
+        }
+        $tour->save();
+    }
+
+    /**
      * One order's contribution to the tour gross, unrounded.
      *
      * Split out of calculateTourGrossAmount so anything that needs the value of a

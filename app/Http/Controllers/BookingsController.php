@@ -361,8 +361,12 @@ class BookingsController extends Controller
                 );
                 $markupMoney = (float) ($applied['markup'] ?? 0);
                 $discountMoney = (float) ($applied['discount'] ?? 0);
+                $hotelMarkupMoney = (float) ($applied['hotel_markup'] ?? $markupMoney);
+                $otherMarkupMoney = (float) ($applied['other_markup'] ?? 0);
                 $markupTypeOut = $applied['markup_type'] ?? $markupType;
                 $markupRawOut = (float) ($applied['markup_raw'] ?? $markupRaw);
+                $hotelMarkupRawOut = (float) ($applied['hotel_markup_raw'] ?? $markupRawOut);
+                $otherMarkupRawOut = (float) ($applied['other_markup_raw'] ?? 0);
                 $discountTypeOut = $applied['discount_type'] ?? $discountType;
                 $discountRawOut = (float) ($applied['discount_raw'] ?? $discountRaw);
 
@@ -394,6 +398,8 @@ class BookingsController extends Controller
                     'currency' => $group['currency'],
                     'gross' => $gross,
                     'markup' => round($markupMoney, 2),
+                    'hotel_markup' => round($hotelMarkupMoney, 2),
+                    'other_markup' => round($otherMarkupMoney, 2),
                     'discount' => round($discountMoney, 2),
                     'payable' => $payable,
                     'order_count' => $group['order_count'],
@@ -404,6 +410,8 @@ class BookingsController extends Controller
                     'services' => $serviceRows,
                     'markup_type' => $markupTypeOut,
                     'markup_raw' => $markupRawOut,
+                    'hotel_markup_raw' => $hotelMarkupRawOut,
+                    'other_markup_raw' => $otherMarkupRawOut,
                     'discount_type' => $discountTypeOut,
                     'discount_raw' => $discountRawOut,
                     'cities' => array_values(array_filter(array_keys($group['city_gross'] ?? []))),
@@ -457,6 +465,8 @@ class BookingsController extends Controller
                 'country' => trim((string) ($row['country'] ?? '')),
                 'markup_type' => $markupType !== '' ? $markupType : null,
                 'markup_value' => (float) ($row['markup_value'] ?? 0),
+                'hotel_markup' => (float) ($row['hotel_markup'] ?? $row['markup_value'] ?? 0),
+                'other_markup' => (float) ($row['other_markup'] ?? 0),
                 'discount_type' => $discountType !== '' ? $discountType : null,
                 'discount_value' => (float) ($row['discount_value'] ?? 0),
             ];
@@ -595,33 +605,68 @@ class BookingsController extends Controller
         if ($parts !== []) {
             $markupMoney = 0.0;
             $discountMoney = 0.0;
+            $hotelMarkupMoney = 0.0;
+            $otherMarkupMoney = 0.0;
             $markupType = null;
             $markupRaw = 0.0;
+            $hotelMarkupRaw = 0.0;
+            $otherMarkupRaw = 0.0;
             $discountType = null;
             $discountRaw = 0.0;
             foreach ($parts as $i => $part) {
                 $row = $part['row'];
                 $partGross = count($parts) === 1 ? $gross : (float) ceil($part['gross']);
-                $computed = $this->computeMarkupDiscountMoney(
+                $hotelRaw = (float) ($row['hotel_markup'] ?? $row['markup_value'] ?? 0);
+                $otherRaw = (float) ($row['other_markup'] ?? 0);
+                // Prefer split hotel/other; fall back to single markup_value when split missing
+                if ($hotelRaw <= 0 && $otherRaw <= 0 && (float) ($row['markup_value'] ?? 0) > 0) {
+                    $hotelRaw = (float) $row['markup_value'];
+                }
+                $hotelComputed = $this->computeMarkupDiscountMoney(
                     $partGross,
                     $row['markup_type'] ?? null,
-                    (float) ($row['markup_value'] ?? 0),
+                    $hotelRaw,
+                    null,
+                    0
+                );
+                $otherComputed = $this->computeMarkupDiscountMoney(
+                    $partGross,
+                    $row['markup_type'] ?? null,
+                    $otherRaw,
+                    null,
+                    0
+                );
+                $combinedMarkupRaw = $hotelRaw + $otherRaw;
+                $discountComputed = $this->computeMarkupDiscountMoney(
+                    $partGross,
+                    $row['markup_type'] ?? null,
+                    $combinedMarkupRaw,
                     $row['discount_type'] ?? null,
                     (float) ($row['discount_value'] ?? 0)
                 );
-                $markupMoney += $computed['markup'];
-                $discountMoney += $computed['discount'];
+                $hotelPart = (float) ($hotelComputed['markup'] ?? 0);
+                $otherPart = (float) ($otherComputed['markup'] ?? 0);
+                $hotelMarkupMoney += $hotelPart;
+                $otherMarkupMoney += $otherPart;
+                $markupMoney += $hotelPart + $otherPart;
+                $discountMoney += (float) ($discountComputed['discount'] ?? 0);
                 if ($i === 0) {
-                    $markupType = $computed['markup_type'];
-                    $markupRaw = $computed['markup_raw'];
-                    $discountType = $computed['discount_type'];
-                    $discountRaw = $computed['discount_raw'];
+                    $markupType = $row['markup_type'] ?? null;
+                    $markupRaw = $combinedMarkupRaw;
+                    $hotelMarkupRaw = $hotelRaw;
+                    $otherMarkupRaw = $otherRaw;
+                    $discountType = $discountComputed['discount_type'];
+                    $discountRaw = $discountComputed['discount_raw'];
                 }
             }
 
             return [
                 'markup' => $markupMoney,
                 'discount' => $discountMoney,
+                'hotel_markup' => $hotelMarkupMoney,
+                'other_markup' => $otherMarkupMoney,
+                'hotel_markup_raw' => $hotelMarkupRaw,
+                'other_markup_raw' => $otherMarkupRaw,
                 'markup_type' => $markupType,
                 'markup_raw' => $markupRaw,
                 'discount_type' => $discountType,
@@ -630,12 +675,15 @@ class BookingsController extends Controller
         }
 
         $markupMoney = 0.0;
+        $hotelMarkupMoney = 0.0;
+        $otherMarkupMoney = 0.0;
         if ($tourMarkupOn) {
             if ($tourMarkupType === 'percentage') {
                 $markupMoney = $gross * $tourMarkupRaw / 100;
             } elseif ($index === 0) {
                 $markupMoney = $tourMarkupRaw;
             }
+            $hotelMarkupMoney = $markupMoney;
         }
 
         $discountMoney = 0.0;
@@ -649,6 +697,10 @@ class BookingsController extends Controller
         return [
             'markup' => $markupMoney,
             'discount' => $discountMoney,
+            'hotel_markup' => $hotelMarkupMoney,
+            'other_markup' => $otherMarkupMoney,
+            'hotel_markup_raw' => $tourMarkupOn ? $tourMarkupRaw : 0.0,
+            'other_markup_raw' => 0.0,
             'markup_type' => $tourMarkupType,
             'markup_raw' => $tourMarkupRaw,
             'discount_type' => $tourDiscountType,
@@ -1063,6 +1115,11 @@ class BookingsController extends Controller
             'offers.*.amount' => 'required_with:offers|numeric|min:0.01',
             'offers.*.actual_amount' => 'required_with:offers|numeric|min:0',
             'offers.*.gross' => 'nullable|numeric|min:0',
+            'offers.*.hotel_markup' => 'nullable|numeric|min:0',
+            'offers.*.other_markup' => 'nullable|numeric|min:0',
+            'offers.*.discount_value' => 'nullable|numeric|min:0',
+            'offers.*.markup_type' => 'nullable|string|in:percentage,flat,fixed',
+            'offers.*.discount_type' => 'nullable|string|in:percentage,flat,foc,fixed',
             // Legacy single-amount fields kept optional for older clients.
             'amount' => 'nullable|numeric|min:0.01',
             'currency' => 'required_if:action,confirm|nullable|string|max:10',
@@ -1086,15 +1143,8 @@ class BookingsController extends Controller
             ->first();
 
         if ($action === 'negotiate') {
-            $offers = array_values(array_map(function ($offer) {
-                return [
-                    'country' => trim((string) ($offer['country'] ?? '')),
-                    'currency' => strtoupper(trim((string) ($offer['currency'] ?? ''))),
-                    'amount' => round((float) ($offer['amount'] ?? 0), 2),
-                    'actual_amount' => round((float) ($offer['actual_amount'] ?? 0), 2),
-                    'gross' => round((float) ($offer['gross'] ?? 0), 2),
-                ];
-            }, $validated['offers'] ?? []));
+            $offers = \App\Helpers\CommonHelper::normalizeNegotiationOffers($validated['offers'] ?? []);
+            \App\Helpers\CommonHelper::applyNegotiationOffersToTourCurrencyMarkups($tour, $offers);
 
             $primary = $offers[0] ?? null;
             $amountOffered = (float) ($primary['amount'] ?? 0);
@@ -1170,19 +1220,17 @@ class BookingsController extends Controller
 
             $offerRows = [];
             if (! empty($validated['offers']) && is_array($validated['offers'])) {
-                $offerRows = array_values(array_map(function ($offer) {
-                    return [
-                        'country' => trim((string) ($offer['country'] ?? '')),
-                        'currency' => strtoupper(trim((string) ($offer['currency'] ?? ''))),
-                        'amount' => round((float) ($offer['amount'] ?? 0), 2),
-                        'actual_amount' => round((float) ($offer['actual_amount'] ?? 0), 2),
-                        'gross' => round((float) ($offer['gross'] ?? 0), 2),
-                    ];
-                }, $validated['offers']));
+                $offerRows = \App\Helpers\CommonHelper::normalizeNegotiationOffers($validated['offers']);
             } elseif (is_array($activeEnquiry?->negotiation_details) && ! empty($activeEnquiry->negotiation_details)) {
-                $offerRows = $activeEnquiry->negotiation_details;
+                $offerRows = \App\Helpers\CommonHelper::normalizeNegotiationOffers($activeEnquiry->negotiation_details);
             } elseif (is_array($latestEnquiry?->negotiation_details) && ! empty($latestEnquiry->negotiation_details)) {
-                $offerRows = $latestEnquiry->negotiation_details;
+                $offerRows = \App\Helpers\CommonHelper::normalizeNegotiationOffers($latestEnquiry->negotiation_details);
+            }
+
+            // Persist markup/discount edits onto tours.currency_markups on confirm as well
+            if ($offerRows !== []) {
+                \App\Helpers\CommonHelper::applyNegotiationOffersToTourCurrencyMarkups($tour, $offerRows);
+                $tour->refresh();
             }
 
             $converted = $this->convertNegotiationOffersToCurrency($offerRows, $confirmCurrency);
