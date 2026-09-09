@@ -909,7 +909,9 @@ class SingleTourPackageController extends Controller
                         'currency' => strtoupper(trim((string) ($row['currency'] ?? ''))),
                         'country' => trim((string) ($row['country'] ?? '')),
                         'markup_type' => $markupType !== '' ? $markupType : null,
-                        'markup_value' => (float) ($row['markup_value'] ?? 0),
+                        'markup_value' => (float) ($row['hotel_markup'] ?? $row['markup_value'] ?? 0),
+                        'hotel_markup' => (float) ($row['hotel_markup'] ?? $row['markup_value'] ?? 0),
+                        'other_markup' => (float) ($row['other_markup'] ?? $row['hotel_markup'] ?? $row['markup_value'] ?? 0),
                         'discount_type' => $discountType !== '' ? $discountType : null,
                         'discount_value' => (float) ($row['discount_value'] ?? 0),
                     ];
@@ -931,7 +933,10 @@ class SingleTourPackageController extends Controller
             if ($reqMarkupType === 'fixed') {
                 $reqMarkupType = 'flat';
             }
-            $reqMarkupValue = (float) $request->input('markup_value', $primaryMarkup['markup_value'] ?? 0);
+            $reqMarkupValue = (float) $request->input(
+                'markup_value',
+                $primaryMarkup['hotel_markup'] ?? $primaryMarkup['markup_value'] ?? 0
+            );
             $reqDiscountType = strtolower(trim((string) $request->input('discount_type', $primaryMarkup['discount_type'] ?? '')));
             if ($reqDiscountType === 'fixed') {
                 $reqDiscountType = 'flat';
