@@ -491,6 +491,8 @@ class TourController extends Controller
                 $dmc_company_name = User::where('userId', $tour->dmc_id)->first();
             }
             $service = CommonHelper::CommonResponse($agent_id, $tour_id);
+            $destinationPairs = $this->formatTourDestinationCityPairs($tour->destination, $tour->city);
+            $cityWiseDates = $this->formatTourCityWiseDates($tour->city);
             // LogActivityService::log('fetch_tour', 'App\Models\Tour', $tour_id, $tour);
             return response()->json([
                 'message' => 'Tour fetched successfully',
@@ -498,7 +500,8 @@ class TourController extends Controller
                 'data' => [
                     'tour_id' => $tour->tour_id,
                     'agent_id' => $tour->agent_id,
-                    'destination' => $tour->destination,
+                    'destination' => $destinationPairs,
+                    'cityWiseDates' => $cityWiseDates,
                     'short_code' => $short_code,
                     'child' => $tour->child,
                     'infant' => $tour->infant,
@@ -2776,6 +2779,12 @@ class TourController extends Controller
             }
         }
 
+        // Prefer cityWiseDates for tours.city, e.g. "Singapore [2026-09-06→2026-09-08], Batam [2026-09-09→2026-09-12]"
+        $cityColumn = $this->bookAllFormatCityWiseDates($trip['cityWiseDates'] ?? null);
+        if ($cityColumn === '') {
+            $cityColumn = $cities !== [] ? implode(', ', array_unique($cities)) : $destination;
+        }
+
         $tourId = $trip['tour_id'] ?? 0;
         if ($tourId === null || $tourId === '' || $tourId === 'null') {
             $tourId = 0;
@@ -2803,13 +2812,45 @@ class TourController extends Controller
             'male' => (int) ($trip['male'] ?? $adult),
             'female' => (int) ($trip['female'] ?? 0),
             'children_ages' => $trip['children_ages'] ?? null,
-            'city' => $cities !== [] ? implode(', ', array_unique($cities)) : $destination,
+            'city' => $cityColumn,
+            'cityWiseDates' => $trip['cityWiseDates'] ?? [],
             'dmc_id' => $dmcId,
             'agent_id' => $trip['agent_id'] ?? $request->header('agent-id'),
             'commission' => $trip['commission'] ?? 0,
             'markup_percentage' => $trip['markup_percentage'] ?? 0,
             'customerInfo' => is_array($trip['customerInfo'] ?? null) ? $trip['customerInfo'] : [],
         ];
+    }
+
+    /**
+     * Format cityWiseDates for tours.city column.
+     * Example: "Singapore [2026-09-06→2026-09-08], Batam [2026-09-09→2026-09-12]"
+     */
+    private function bookAllFormatCityWiseDates($cityWiseDates): string
+    {
+        if (!is_array($cityWiseDates) || $cityWiseDates === []) {
+            return '';
+        }
+
+        $parts = [];
+        foreach ($cityWiseDates as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $city = trim((string) ($row['city'] ?? ''));
+            $checkIn = $row['checkIn'] ?? $row['checkin'] ?? $row['check_in'] ?? null;
+            $checkOut = $row['checkOut'] ?? $row['checkout'] ?? $row['check_out'] ?? null;
+            $inYmd = $this->bookAllToYmd(is_string($checkIn) ? $checkIn : null);
+            $outYmd = $this->bookAllToYmd(is_string($checkOut) ? $checkOut : null);
+
+            if ($city === '' || !$inYmd || !$outYmd) {
+                continue;
+            }
+
+            $parts[] = $city . ' [' . $inYmd . '→' . $outYmd . ']';
+        }
+
+        return implode(', ', $parts);
     }
 
     private function bookAllDestinationString($destination): string
@@ -3460,6 +3501,101 @@ class TourController extends Controller
         ];
 
         return response()->json($formattedData);
+    }
+
+    /**
+     * Pair tours.destination countries with tours.city names (index-aligned).
+     * destination: "Singapore, Indonesia"
+     * city: "Singapore [2026-09-06→2026-09-08], Batam [2026-09-09→2026-09-12]"
+     * => [{city: Singapore, country: Singapore}, {city: Batam, country: Indonesia}]
+     */
+    private function formatTourDestinationCityPairs($destination, $cityColumn): array
+    {
+        $countries = array_values(array_filter(array_map(
+            static fn ($value) => trim((string) $value),
+            explode(',', (string) ($destination ?? ''))
+        )));
+
+        $cityNames = [];
+        $cityColumn = (string) ($cityColumn ?? '');
+        if (preg_match_all('/([^,\[\]]+?)\s*\[[^\]]*\]/', $cityColumn, $matches)) {
+            $cityNames = array_map(static fn ($name) => trim((string) $name), $matches[1]);
+        } elseif (trim($cityColumn) !== '') {
+            $cityNames = array_values(array_filter(array_map(
+                static fn ($value) => trim((string) $value),
+                explode(',', $cityColumn)
+            )));
+        }
+
+        $count = max(count($countries), count($cityNames));
+        $pairs = [];
+        for ($i = 0; $i < $count; $i++) {
+            $pairs[] = [
+                'city' => $cityNames[$i] ?? '',
+                'country' => $countries[$i] ?? '',
+            ];
+        }
+
+        return $pairs;
+    }
+
+    /**
+     * Parse tours.city into cityWiseDates for API response.
+     * city: "Singapore [2026-09-06→2026-09-08], Batam [2026-09-09→2026-09-12]"
+     * => [{city, checkin: d/m/Y, checkout: d/m/Y}, ...]
+     */
+    private function formatTourCityWiseDates($cityColumn): array
+    {
+        $cityColumn = (string) ($cityColumn ?? '');
+        if ($cityColumn === '') {
+            return [];
+        }
+
+        $items = [];
+        if (!preg_match_all('/([^,\[\]]+?)\s*\[([^\]]*)\]/', $cityColumn, $matches, PREG_SET_ORDER)) {
+            return [];
+        }
+
+        foreach ($matches as $match) {
+            $city = trim((string) ($match[1] ?? ''));
+            $range = trim((string) ($match[2] ?? ''));
+            if ($city === '' || $range === '') {
+                continue;
+            }
+
+            $parts = preg_split('/\s*(?:→|->|–|—)\s*/u', $range);
+            $checkInRaw = trim((string) ($parts[0] ?? ''));
+            $checkOutRaw = trim((string) ($parts[1] ?? ''));
+
+            $items[] = [
+                'city' => $city,
+                'checkin' => $this->formatTourDateToDmY($checkInRaw),
+                'checkout' => $this->formatTourDateToDmY($checkOutRaw),
+            ];
+        }
+
+        return $items;
+    }
+
+    private function formatTourDateToDmY(?string $value): string
+    {
+        if ($value === null || trim($value) === '') {
+            return '';
+        }
+
+        $value = trim($value);
+        foreach (['Y-m-d', 'd/m/Y', 'd-m-Y'] as $format) {
+            try {
+                return Carbon::createFromFormat($format, $value)->format('d/m/Y');
+            } catch (\Throwable $e) {
+            }
+        }
+
+        try {
+            return Carbon::parse($value)->format('d/m/Y');
+        } catch (\Throwable $e) {
+            return $value;
+        }
     }
 
     /*
