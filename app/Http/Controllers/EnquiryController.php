@@ -109,6 +109,11 @@ class EnquiryController extends Controller
             'offers.*.amount' => 'required_with:offers|numeric|min:0.01',
             'offers.*.actual_amount' => 'required_with:offers|numeric|min:0',
             'offers.*.gross' => 'nullable|numeric|min:0',
+            'offers.*.hotel_markup' => 'nullable|numeric|min:0',
+            'offers.*.other_markup' => 'nullable|numeric|min:0',
+            'offers.*.discount_value' => 'nullable|numeric|min:0',
+            'offers.*.markup_type' => 'nullable|string|in:percentage,flat,fixed',
+            'offers.*.discount_type' => 'nullable|string|in:percentage,flat,foc,fixed',
         ]);
 
         if (! $request->filled('enquiry_id') && ! $request->filled('tour_id')) {
@@ -117,15 +122,7 @@ class EnquiryController extends Controller
 
         $offers = [];
         if ($request->filled('offers') && is_array($request->input('offers'))) {
-            $offers = array_values(array_map(function ($offer) {
-                return [
-                    'country' => trim((string) ($offer['country'] ?? '')),
-                    'currency' => strtoupper(trim((string) ($offer['currency'] ?? ''))),
-                    'amount' => round((float) ($offer['amount'] ?? 0), 2),
-                    'actual_amount' => round((float) ($offer['actual_amount'] ?? 0), 2),
-                    'gross' => round((float) ($offer['gross'] ?? 0), 2),
-                ];
-            }, $request->input('offers')));
+            $offers = \App\Helpers\CommonHelper::normalizeNegotiationOffers($request->input('offers'));
         }
 
         $primaryOffer = $offers[0] ?? null;
@@ -188,6 +185,12 @@ class EnquiryController extends Controller
         $tour = $tour ?? Tour::where('tour_id', $currentEnquiry->tour_id)->first();
         if (! $tour) {
             return back()->with('error', 'Tour Not found!');
+        }
+
+        // Persist hotel/other markup + discount edits onto tours.currency_markups
+        if (! empty($offers)) {
+            \App\Helpers\CommonHelper::applyNegotiationOffersToTourCurrencyMarkups($tour, $offers);
+            $tour->refresh();
         }
 
         // Read before updating: amount = incoming (what came to me), actualAmount = outgoing (what I am sending)
