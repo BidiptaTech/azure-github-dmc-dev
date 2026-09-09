@@ -251,15 +251,18 @@ const formatDate1 = (dateString) => {
   return `${formattedDay}/${formattedMonth}/${formattedYear}`;
 };
 
-// Truncate long customer names with word-aware cutoff
-const truncateName = (name, maxLength = 10) => {
-  if (!name) return "N/A";
-  const trimmed = String(name).trim();
-  if (trimmed.length <= maxLength) return trimmed;
-  const slice = trimmed.slice(0, maxLength);
-  const lastSpaceIndex = slice.lastIndexOf(" ");
-  const base = lastSpaceIndex > 0 ? slice.slice(0, lastSpaceIndex) : slice;
-  return `${base.trim()}...`;
+const formatDestinationLabel = (destination, countryMappings = {}) => {
+  if (!destination) return "N/A";
+  const { codeToName = {}, nameToCode = {} } = countryMappings;
+  return destination
+    .split(",")
+    .map((code) => {
+      const trimmedCode = code.trim();
+      if (codeToName[trimmedCode]) return codeToName[trimmedCode];
+      if (nameToCode[trimmedCode]) return trimmedCode;
+      return trimmedCode;
+    })
+    .join(", ");
 };
 
 export default function Pending({ filters = {} }) {
@@ -2477,6 +2480,7 @@ export default function Pending({ filters = {} }) {
                       </div>
                     </th>
                     <th
+                      className="tour-details-column"
                       style={{
                         backgroundColor: "#f5f7fc",
                         padding: "8px 12px",
@@ -2484,21 +2488,11 @@ export default function Pending({ filters = {} }) {
                         color: "#3554D1",
                         cursor: "pointer",
                         transition: "background-color 0.3s ease",
-                        width: "90px",
-                        minWidth: "90px",
-                        maxWidth: "90px",
+                        textAlign: "left",
                       }}
                       onClick={() => handleColumnSort("startDate")}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = "#e6eafb";
-                        e.currentTarget.querySelector("i").style.transform =
-                          "scale(1.2)";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = "#f5f7fc";
-                        e.currentTarget.querySelector("i").style.transform =
-                          "scale(1)";
-                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#e6eafb")}
+                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#f5f7fc")}
                       title={`Sort by Start Date (${sortColumn === "startDate"
                           ? order === "asc"
                             ? "ascending"
@@ -2510,7 +2504,7 @@ export default function Pending({ filters = {} }) {
                         style={{
                           display: "flex",
                           alignItems: "center",
-                          justifyContent: "center",
+                          justifyContent: "flex-start",
                           gap: "6px",
                           fontSize: "13px",
                           fontWeight: "600",
@@ -2523,7 +2517,7 @@ export default function Pending({ filters = {} }) {
                             color: "#3554D1",
                           }}
                         ></i>
-                        Start Date
+                        Tour Details
                         {sortColumn === "startDate" && (
                           <i
                             className={`icon-up-down text-blue-1 mr-5 ${order === "asc" ? "rotate-180" : ""
@@ -2535,220 +2529,6 @@ export default function Pending({ filters = {} }) {
                             }}
                           ></i>
                         )}
-                      </div>
-                    </th>
-                    <th
-                      style={{
-                        backgroundColor: "#f5f7fc",
-                        padding: "8px 12px",
-                        fontWeight: "600",
-                        color: "#3554D1",
-                        cursor: "pointer",
-                        transition: "background-color 0.3s ease",
-                        width: "90px",
-                        minWidth: "90px",
-                        maxWidth: "90px",
-                      }}
-                      onClick={() => handleColumnSort("endDate")}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = "#e6eafb";
-                        e.currentTarget.querySelector("i").style.transform =
-                          "scale(1.2)";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = "#f5f7fc";
-                        e.currentTarget.querySelector("i").style.transform =
-                          "scale(1)";
-                      }}
-                      title={`Sort by End Date (${sortColumn === "endDate"
-                          ? order === "asc"
-                            ? "ascending"
-                            : "descending"
-                          : "click to sort"
-                        })`}
-                    >
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          gap: "6px",
-                          fontSize: "13px",
-                          fontWeight: "600",
-                        }}
-                      >
-                        <i
-                          className="icon-calendar-2"
-                          style={{
-                            fontSize: "14px",
-                            color: "#3554D1",
-                          }}
-                        ></i>
-                        End Date
-                        {sortColumn === "endDate" && (
-                          <i
-                            className={`icon-up-down text-blue-1 mr-5 ${order === "asc" ? "rotate-180" : ""
-                              }`}
-                            style={{
-                              fontSize: "10px",
-                              opacity: order === "asc" ? 1 : 0.7,
-                              fontWeight: order === "asc" ? "normal" : "bold",
-                            }}
-                          ></i>
-                        )}
-                      </div>
-                    </th>
-                    <th
-                      style={{
-                        backgroundColor: "#f5f7fc",
-                        padding: "6px 8px",
-                        fontWeight: "600",
-                        color: "#3554D1",
-                        cursor: "pointer",
-                        transition: "background-color 0.3s ease",
-                        width: "60px",
-                        minWidth: "60px",
-                        maxWidth: "60px",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                      }}
-                      onClick={() => handleColumnSort("pax")}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = "#e6eafb";
-                        e.currentTarget.querySelector("i").style.transform =
-                          "rotate(15deg)";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = "#f5f7fc";
-                        e.currentTarget.querySelector("i").style.transform =
-                          "rotate(0deg)";
-                      }}
-                      title={`Sort by Pax Count (${sortColumn === "pax"
-                          ? order === "asc"
-                            ? "ascending"
-                            : "descending"
-                          : "click to sort"
-                        })`}
-                    >
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          gap: "6px",
-                          fontSize: "13px",
-                          fontWeight: "600",
-                        }}
-                      >
-                        <i
-                          className="icon-group"
-                          style={{
-                            fontSize: "14px",
-                            color: "#3554D1",
-                          }}
-                        ></i>
-                        Pax
-                        {sortColumn === "pax" && (
-                          <i
-                            className={`icon-arrow-${order === "asc" ? "down" : "up"
-                              }`}
-                            style={{
-                              fontSize: "10px",
-                              opacity: order === "asc" ? 1 : 0.7,
-                              fontWeight: order === "asc" ? "bold" : "normal",
-                            }}
-                          ></i>
-                        )}
-                      </div>
-                    </th>
-                    <th
-                      style={{
-                        backgroundColor: "#f5f7fc",
-                        padding: "8px 12px",
-                        fontWeight: "600",
-                        color: "#3554D1",
-                        cursor: "pointer",
-                        transition: "background-color 0.3s ease",
-                        width: "150px",
-                        minWidth: "150px",
-                        maxWidth: "150px",
-                      }}
-                      onClick={() => handleColumnSort("destination")}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = "#e6eafb";
-                        e.currentTarget.querySelector("i").style.transform =
-                          "translateY(-3px)";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = "#f5f7fc";
-                        e.currentTarget.querySelector("i").style.transform =
-                          "translateY(0)";
-                      }}
-                    >
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          gap: "6px",
-                          fontSize: "13px",
-                          fontWeight: "600",
-                        }}
-                      >
-                        <i
-                          className="icon-destination"
-                          style={{
-                            fontSize: "14px",
-                            color: "#3554D1",
-                          }}
-                        ></i>
-                        Destination
-                      </div>
-                    </th>
-                    <th
-                      style={{
-                        backgroundColor: "#f5f7fc",
-                        padding: "8px 12px",
-                        fontWeight: "600",
-                        color: "#3554D1",
-                        cursor: "pointer",
-                        transition: "background-color 0.3s ease",
-                        whiteSpace: "nowrap",
-                        width: "130px",
-                        minWidth: "130px",
-                        maxWidth: "130px",
-                      }}
-                      // onClick={() => handleColumnSort("status")}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = "#e6eafb";
-                        e.currentTarget.querySelector("i").style.transform =
-                          "scale(1.2)";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = "#f5f7fc";
-                        e.currentTarget.querySelector("i").style.transform =
-                          "scale(1)";
-                      }}
-                    >
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          gap: "6px",
-                          fontSize: "13px",
-                          fontWeight: "600",
-                        }}
-                      >
-                        <i
-                          className="icon-customer"
-                          style={{
-                            fontSize: "14px",
-                            color: "#3554D1",
-                          }}
-                        ></i>
-                        Customer Name
                       </div>
                     </th>
                     <th
@@ -2882,22 +2662,10 @@ export default function Pending({ filters = {} }) {
                           <Skeleton variant="text" width={80} />
                         </td>
                         <td>
+                          <Skeleton variant="rectangular" width={180} height={64} />
+                        </td>
+                        <td>
                           <Skeleton variant="text" width={80} />
-                        </td>
-                        <td>
-                          <Skeleton variant="text" width={60} />
-                        </td>
-                        <td>
-                          <Skeleton variant="text" width={60} />
-                        </td>
-                        <td>
-                          <Skeleton variant="text" width={60} />
-                        </td>
-                        <td>
-                          <Skeleton variant="text" width={60} />
-                        </td>
-                        <td>
-                          <Skeleton variant="text" width={60} />
                         </td>
                         <td>
                           <Skeleton
@@ -2906,7 +2674,7 @@ export default function Pending({ filters = {} }) {
                             height={80}
                           />
                         </td>
-                        <td className="actions-column" style={{ whiteSpace: "nowrap" }}>
+                        <td>
                           <Skeleton variant="text" width={100} />
                         </td>
                       </tr>
@@ -3130,167 +2898,103 @@ export default function Pending({ filters = {} }) {
                           </div>
                         </td>
 
-                        <td className="date-column">
-                          <Tooltip
-                            title={formatDateTooltip(list.check_in_time)}
-                            arrow
-                            placement="top"
-                          >
-                            <div
-                              style={{
-                                backgroundColor: "rgba(76, 175, 80, 0.1)",
-                                padding: "4px 6px",
-                                borderRadius: "8px",
-                                fontSize: "10px",
-                                color: "#4CAF50",
-                                fontWeight: "600",
-                                display: "inline-flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                whiteSpace: "nowrap",
-                                cursor: "pointer",
-                              }}
-                            >
-                              <span style={{ fontWeight: "600", fontSize: "12px" }}>{formatDate(list.check_in_time)}</span>
-                            </div>
-                          </Tooltip>
-                        </td>
-                        <td className="date-column">
-                          <Tooltip
-                            title={formatDateTooltip(list.check_out_time)}
-                            arrow
-                            placement="top"
-                          >
-                            <div
-                              style={{
-                                backgroundColor: "rgba(244, 67, 54, 0.1)",
-                                padding: "4px 6px",
-                                borderRadius: "8px",
-                                fontSize: "10px",
-                                color: "#F44336",
-                                fontWeight: "600",
-                                display: "inline-flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                whiteSpace: "nowrap",
-                                cursor: "pointer",
-                              }}
-                            >
-                              <span style={{ fontWeight: "600", fontSize: "12px" }}>{formatDate(list.check_out_time)}</span>
-                            </div>
-                          </Tooltip>
-                        </td>
-                        <td
-                          style={{
-                            padding: "16px 10px",
-                            whiteSpace: "nowrap",
-                            width: "60px",
-                            minWidth: "60px",
-                            maxWidth: "60px",
-                            textAlign: "center",
-                          }}
-                        >
-                          <div
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              gap: "4px",
-                              backgroundColor: "rgba(255, 152, 0, 0.1)",
-                              padding: "5px 8px",
-                              borderRadius: "20px",
-                              whiteSpace: "nowrap",
-                              width: "fit-content",
-                              margin: "0 auto",
-                            }}
-                          >
-                            <i
-                              className="icon-passenger"
-                              style={{ fontSize: "18px", color: "#FF9800" }}
-                            ></i>
-                            <span
-                              style={{
-                                fontWeight: "600",
-                                fontSize: "15px",
-                                color: "#FF9800",
-                                whiteSpace: "nowrap",
-                              }}
-                            >
-                              {list.total_pax}
-                            </span>
-                          </div>
-                        </td>
-
-                        <td className="destination-column">
-                          <div
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: "8px",
-                            }}
-                          >
-                            <i
-                              className="icon-destination"
-                              style={{ fontSize: "18px", color: "#4CAF50" }}
-                            ></i>
-                            <span
-                              style={{
-                                fontWeight: "500",
-                                color: "#4CAF50",
-                                whiteSpace: "nowrap",
-                              }}
-                            >
-                              {list.destination
-                                ? list.destination
-                                  .split(",")
-                                  .map((code) => {
-                                    const trimmedCode = code.trim();
-                                    // First try to get the name from codeToName mapping
-                                    const countryName =
-                                      countryMappings.codeToName[trimmedCode];
-                                    if (countryName) {
-                                      return countryName;
-                                    }
-                                    // If not found in codeToName, check if it's already a name
-                                    if (
-                                      countryMappings.nameToCode[trimmedCode]
-                                    ) {
-                                      return trimmedCode;
-                                    }
-                                    // If neither found, return the original code
-                                    return trimmedCode;
-                                  })
-                                  .join(", ")
-                                : "N/A"}
-                            </span>
-                          </div>
-                        </td>
-                          <td className="customer-column">
+                        <td className="tour-details-column">
                             <div
                               style={{
                                 display: "flex",
-                                alignItems: "center",
-                                gap: "8px",
-                                maxWidth: "150px",
+                                flexDirection: "column",
+                                gap: "3px",
+                                alignItems: "flex-start",
+                                lineHeight: 1.2,
                               }}
                             >
-                              <i
-                                className="icon-customer"
-                                style={{ fontSize: "18px", color: "#F44336" }}
-                              ></i>
                               <Tooltip title={list.customer_name || "N/A"} placement="top" arrow>
                                 <span
                                   style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: "4px",
+                                    fontWeight: 700,
+                                    fontSize: "12px",
+                                    color: "#13357b",
+                                    maxWidth: "164px",
                                     overflow: "hidden",
                                     textOverflow: "ellipsis",
                                     whiteSpace: "nowrap",
-                                    display: "inline-block",
-                                    maxWidth: "110px",
                                   }}
                                 >
-                                  {truncateName(list.customer_name, 10)}
+                                  <i className="icon-customer" style={{ fontSize: "12px", color: "#64748b", flexShrink: 0 }}></i>
+                                  {list.customer_name || "N/A"}
                                 </span>
                               </Tooltip>
+                              <span
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "4px",
+                                  fontSize: "11px",
+                                  fontWeight: 500,
+                                  color: "#475569",
+                                  maxWidth: "164px",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                <i className="icon-destination" style={{ fontSize: "12px", color: "#64748b", flexShrink: 0 }}></i>
+                                {formatDestinationLabel(list.destination, countryMappings)}
+                              </span>
+                              <div
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  flexWrap: "wrap",
+                                  gap: "4px",
+                                }}
+                              >
+                                <Tooltip
+                                  title={`${formatDateTooltip(list.check_in_time)} – ${formatDateTooltip(list.check_out_time)}`}
+                                  arrow
+                                  placement="top"
+                                >
+                                  <span
+                                    style={{
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      gap: "4px",
+                                      fontSize: "10px",
+                                      fontWeight: 600,
+                                      color: "#3554D1",
+                                      backgroundColor: "rgba(53, 84, 209, 0.08)",
+                                      borderRadius: "4px",
+                                      padding: "2px 5px",
+                                      whiteSpace: "nowrap",
+                                    }}
+                                  >
+                                    <i className="icon-calendar" style={{ fontSize: "11px", color: "#3554D1" }}></i>
+                                    {formatDate(list.check_in_time)} – {formatDate(list.check_out_time)}
+                                  </span>
+                                </Tooltip>
+                                <Tooltip title={`${list.total_pax || 0} pax`} arrow placement="top">
+                                  <span
+                                    style={{
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      gap: "3px",
+                                      fontSize: "10px",
+                                      fontWeight: 600,
+                                      color: "#b45309",
+                                      backgroundColor: "rgba(255, 152, 0, 0.12)",
+                                      borderRadius: "4px",
+                                      padding: "2px 5px",
+                                      whiteSpace: "nowrap",
+                                    }}
+                                  >
+                                    <PeopleIcon sx={{ fontSize: "13px", color: "#b45309" }} />
+                                    {list.total_pax}
+                                  </span>
+                                </Tooltip>
+                              </div>
                             </div>
                           </td>
                         <td className="status-column"
@@ -3937,7 +3641,7 @@ export default function Pending({ filters = {} }) {
                   ) : (
                     <tr>
                       <td
-                        colSpan="11"
+                        colSpan="6"
                         style={{ textAlign: "center", padding: "40px 20px" }}
                       >
                         <div
