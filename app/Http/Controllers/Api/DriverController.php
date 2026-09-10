@@ -385,170 +385,124 @@ class DriverController extends Controller
                     }
                 return response()->json($vehicleList);    
             }
-        //If only pickup lat long is found
-        else if($pickup && !$dropoff){
-            
-            $url = $url = "https://maps.googleapis.com/maps/api/geocode/json?latlng={$pickup['lat']},{$pickup['lng']}&key={$apiKey}";
-            $curl = curl_init($url);
-            curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
-            $json_response = curl_exec($curl);
-            $status = curl_getinfo($curl, CURLINFO_HTTP_CODE);
-            curl_close($curl);
-            
-            $response = json_decode($json_response, true);
-            if (json_last_error() !== JSON_ERROR_NONE) {
-                $error = array("error" => "Error fetching address. Please retry.");
-                echo json_encode($error);
-                exit;
-            }
-
-            //geocode api for getting city
-            $pickupLat = $pickup['lat'];
-            $pickupLng = $pickup['lng'];
-            $geocodeUrl = "https://maps.googleapis.com/maps/api/geocode/json?latlng={$pickupLat},{$pickupLng}&key={$apiKey}";
-
-            $curl = curl_init($geocodeUrl);
-            curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
-            $geocodeResponse = curl_exec($curl);
-            curl_close($curl);
-
-            $geocodeData = json_decode($geocodeResponse, true);
-            $city = null;
-            if (!json_last_error() && !empty($geocodeData['results'][0]['address_components'])) {
-                $matchedCity = null;
-                $country = null;
-            
-                foreach ($geocodeData['results'][0]['address_components'] as $component) {
-                    if (in_array('country', $component['types'])) {
-                        $country = $component['long_name'] ?? null;
-                    }
-                    if($country == 'Singapore'){
-                        $matchedCity = 'Singapore';
-                    }
-                    else{
-                        // Primary: locality
-                        if (in_array('locality', $component['types']) && !empty($component['long_name'])) {
-                            $matchedCity = $component['long_name'];
-                        }
-                
-                        // Fallback 1: administrative_area_level_2
-                        if (!$matchedCity && in_array('administrative_area_level_2', $component['types']) && !empty($component['long_name'])) {
-                            $matchedCity = $component['long_name'];
-                        }
-                
-                        // Fallback 2: postal_town
-                        if (!$matchedCity && in_array('postal_town', $component['types']) && !empty($component['long_name'])) {
-                            $matchedCity = $component['long_name'];
-                        }
-                    }
+        // If only pickup is present (hourly): city + dmc_id → vehicles
+        // pickup is a location name string from frontend (not used for querying)
+        else if ($pickup && !$dropoff) {
+            try {
+                $city = trim((string) ($request->input('city') ?? $request->query('city') ?? ''));
+                if ($city === '') {
+                    return response()->json(['message' => 'City is required.'], 422);
                 }
-            }
-            if (!$country) {
-                $country = "Unknown Country";
-            }
-            if (!$matchedCity) {
-                $matchedCity = "Unknown City";
-            }
-            $cityDetails = OperationalCountry::where('name', $country)->where('city', $matchedCity)->first();
-            if(!$cityDetails){
-                return response()->json(['error' => 'Please add this city details in operational cities.',
-                        'message' => $matchedCity , 'geocode' => $geocodeData, 'geocode address' => $geocodeData['results'][0]['address_components']], 404);
-            }
-            $dmcs = User::where('role_id', 11)
-                ->where('country', $country)
-                ->get();
-            $vehicles_row = Vehicle::orderBy('vehicle_id', 'desc')->where('city', $matchedCity)
-                ->whereNotNull('driver_id')
-                ->where('dmc_id', $dmcId)
-                ->skip($start)
-                ->take($limit)
-                ->get();
-            if (!$vehicles_row) {
-                return response()->json(['error' => 'Not Getting vehicles for this city'], 404);
-            }
-                if (!$dmcId || $dmcId == 0) {
-                    return response()->json(['error' => 'DMC not found for Sales Manager'], 404);
+
+                if (empty($dmcId) || (int) $dmcId === 0) {
+                    return response()->json(['message' => 'DMC not found.'], 404);
                 }
+
+                /*
+                 * Google Maps geocode (disabled) — city now comes from the frontend.
+                 *
+                 * $url = "https://maps.googleapis.com/maps/api/geocode/json?latlng={$pickup['lat']},{$pickup['lng']}&key={$apiKey}";
+                 * ... geocode curl + address_components city/country matching ...
+                 */
+
+                $country = trim((string) ($request->input('country') ?? $request->query('country') ?? ''));
+                $city = ucfirst($city);
+                if ($country !== '') {
+                    $country = ucfirst($country);
+                }
+
+                $vehiclesQuery = Vehicle::orderBy('vehicle_id', 'desc')
+                    ->where('city', $city)
+                    ->whereNotNull('driver_id')
+                    ->where('dmc_id', $dmcId);
+
+                if ($start !== null && $start !== '' && $limit) {
+                    $vehicles_row = $vehiclesQuery->skip((int) $start)->take((int) $limit)->get();
+                } else {
+                    $vehicles_row = $vehiclesQuery->get();
+                }
+
+                if ($vehicles_row->isEmpty()) {
+                    return response()->json(['message' => 'No vehicles found for this city and DMC.'], 404);
+                }
+
+                $check_country = $country !== ''
+                    ? Country::whereRaw('LOWER(name) = ?', [strtolower($country)])->first()
+                    : null;
+                $country_tax = $check_country->tax_percentage ?? 0;
+
+                // No OperationalCountry lookup — use day hourly rates by default
+                $night_start_time = null;
+                $night_end_time = null;
+                $isNight = false;
+
                 $vehicleList = [];
-                if ($vehicles_row->isNotEmpty()) {
-                    foreach ($vehicles_row as $vehicle) {
-                        $basePrice = $vehicle->base_price;
-                        $night_start_time = $cityDetails->night_start_time;
-                        $night_end_time = $cityDetails->night_end_time;
-                        $base_price = $vehicle->cost_per_hour;
-                        $base_price_night = $vehicle->night_cost_per_hour;
+                foreach ($vehicles_row as $vehicle) {
+                    $basePrice = $vehicle->base_price;
 
-                        $check_country = Country::whereRaw('LOWER(name) = ?', [strtolower($country)])->first();
-                        $country_tax = $check_country->tax_percentage ?? 0;
-
-                        $isNight = false;
-                        if ($night_start_time < $night_end_time) {
-                            // Range does not cross midnight
-                            $isNight = ($time >= $night_start_time && $time <= $night_end_time);
-                        } else {
-                            // Range crosses midnight (e.g., 22:00 to 06:00)
-                            $isNight = ($time >= $night_start_time || $time <= $night_end_time);
-                        }
-                        if($isNight){
-                            $private_price = $vehicle->night_cost_per_hour;
-                            $sharable_price = $vehicle->sharable_night_cost_per_hour;
-                        }
-                        else{
-                            $private_price = $vehicle->cost_per_hour;
-                            $sharable_price = $vehicle->sharable_cost_per_hour;
-                        }
-                        
-                        $trav_privatePrice = 0;
-                        $trav_sharablePrice = 0;
-                        $travclicks_id = 0;
-                        $dmcPrivatePrice = 0;
-                        $dmcSharablePrice = 0;
-                        $dmc_dmc_id = 0;
-                        // Fetch DMC Vehicle price
-                        if ($vehicle->dmc_id == $dmcId){
-                            $dmc_result = CommonHelper::calculateDmcModePricehotel(
-                                $private_price, $dmcId, $vehicle->vehicle_name, 'vehicle',$vehicle->city);
-                            $dmcPrivatePrice = $dmc_result[0] ?? 0;
-                            $dmc_night_price = CommonHelper::calculateDmcModePricehotel(
-                                $sharable_price, $dmcId, $vehicle->vehicle_name, 'vehicle',$vehicle->city);
-                            $dmcSharablePrice = $dmc_night_price[0] ?? 0;
-                            $dmc_dmc_id = $dmc_night_price[1] ?? 0;
-                        }
-        
-                        else{
-                            list($trav_privatePrice) = CommonHelper::CalculatePriceDetails(
-                                $private_price, $vehicle->dmc_id);
-                            list($trav_sharablePrice) = CommonHelper::CalculatePriceDetails($sharable_price, $vehicle->dmc_id);
-                            $travclicks_id = $vehicle->dmc_id;
-                        }
-                            $vehicleList[] = [
-                            'id' => $vehicle->vehicle_id,
-                            'vehicle_name' => $vehicle->vehicle_name,
-                            'vehicle_type' => $vehicle->vehicle_type,
-                            'vehicle_model' => $vehicle->vehicle_model,
-                            'model_year' => $vehicle->model_year,
-                            'description' => $vehicle->description,
-                            'seating_capacity' => $vehicle->seating_capacity,
-                            'image' => $vehicle->image,
-                            'sharable' => 1,
-                            'dmc_private_price' => $dmcPrivatePrice > 0 ? $basePrice + $dmcPrivatePrice : 0,
-                            'dmc_sharable_price' => $dmcSharablePrice > 0 ? $basePrice + $dmcSharablePrice : 0,
-                            'dmc_id' => $dmc_dmc_id,
-                            'trav_private_price' => 0,
-                            'trav_sharable_price' => 0,
-                            'travclicks_dmc_id' => 0,
-                            'night_start_time' => $cityDetails->night_start_time,
-                            'night_end_time' => $cityDetails->night_end_time,
-                            'city' => $vehicle->city,
-                            'country' => $country,
-                            'tax_percentage' => $country_tax,
-                            'created_at' => $vehicle->created_at,
-                        ];
+                    if ($isNight) {
+                        $private_price = $vehicle->night_cost_per_hour;
+                        $sharable_price = $vehicle->sharable_night_cost_per_hour;
+                    } else {
+                        $private_price = $vehicle->cost_per_hour;
+                        $sharable_price = $vehicle->sharable_cost_per_hour;
                     }
+
+                    $dmcPrivatePrice = 0;
+                    $dmcSharablePrice = 0;
+                    $dmc_dmc_id = 0;
+
+                    if ((string) $vehicle->dmc_id === (string) $dmcId) {
+                        $dmc_result = CommonHelper::calculateDmcModePricehotel(
+                            $private_price, $dmcId, $vehicle->vehicle_name, 'vehicle', $vehicle->city
+                        );
+                        $dmcPrivatePrice = $dmc_result[0] ?? 0;
+
+                        $dmc_shared_result = CommonHelper::calculateDmcModePricehotel(
+                            $sharable_price, $dmcId, $vehicle->vehicle_name, 'vehicle', $vehicle->city
+                        );
+                        $dmcSharablePrice = $dmc_shared_result[0] ?? 0;
+                        $dmc_dmc_id = $dmc_shared_result[1] ?? 0;
+                    }
+
+                    $vehicleList[] = [
+                        'id' => $vehicle->vehicle_id,
+                        'vehicle_name' => $vehicle->vehicle_name,
+                        'vehicle_type' => $vehicle->vehicle_type,
+                        'vehicle_model' => $vehicle->vehicle_model,
+                        'model_year' => $vehicle->model_year,
+                        'description' => $vehicle->description,
+                        'seating_capacity' => $vehicle->seating_capacity,
+                        'image' => $vehicle->image,
+                        'sharable' => 1,
+                        'dmc_private_price' => $dmcPrivatePrice > 0 ? $basePrice + $dmcPrivatePrice : 0,
+                        'dmc_sharable_price' => $dmcSharablePrice > 0 ? $basePrice + $dmcSharablePrice : 0,
+                        'dmc_id' => $dmc_dmc_id,
+                        'trav_private_price' => 0,
+                        'trav_sharable_price' => 0,
+                        'travclicks_dmc_id' => 0,
+                        'night_start_time' => $night_start_time,
+                        'night_end_time' => $night_end_time,
+                        'city' => $vehicle->city,
+                        'country' => $country,
+                        'tax_percentage' => $country_tax,
+                        'created_at' => $vehicle->created_at,
+                    ];
                 }
+
                 return response()->json($vehicleList);
+            } catch (\Throwable $e) {
+                \Log::error('vehicleListing hourly (pickup-only) failed', [
+                    'error' => $e->getMessage(),
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine(),
+                ]);
+
+                return response()->json([
+                    'message' => 'Failed to fetch vehicles.',
+                    'error' => $e->getMessage(),
+                ], 500);
+            }
         }
     }
 
@@ -856,44 +810,41 @@ class DriverController extends Controller
                     'country' => $country,
                 ];
         }
-        //If only pickup lat long is found
-        else if($pickup && !$dropoff){
-            $url = $url = "https://maps.googleapis.com/maps/api/geocode/json?latlng={$pickup['lat']},{$pickup['lng']}&key={$apiKey}";
-            $curl = curl_init($url);
-            curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
-            $json_response = curl_exec($curl);
-            $status = curl_getinfo($curl, CURLINFO_HTTP_CODE);
-            curl_close($curl);
-            
-            $response = json_decode($json_response, true);
+        // If only pickup is present (hourly): use city from request (pickup is location name, unused)
+        else if ($pickup && !$dropoff) {
+            try {
+                $city = trim((string) ($city ?? $request->input('city') ?? $request->query('city') ?? ''));
+                $country = trim((string) ($country ?? $request->input('country') ?? $request->query('country') ?? ''));
 
-            if (json_last_error() !== JSON_ERROR_NONE) {
-                $error = array("error" => "Error fetching address. Please retry.");
-                echo json_encode($error);
-                exit;
-            }
-            $completeAddress = null;
-            $cityName = null;
-            $countryName = null;
-
-                // Search for country in `name` column
-                $cityDetails = OperationalCountry::where('name', $country)->where('city', $city)->first();
-                
-                $dmcPrice=null;
-                $night_start_time = null;
-                $night_end_time = null;
-                $base_price = null;
-                $base_night_price = null;
-
-                if(!$cityDetails){
-                    return response()->json(['message' => 'It seems service is not available in  this city!', 'country'=>$country, 'city'=>$city], 409);
+                if ($city === '') {
+                    return response()->json(['message' => 'City is required.'], 422);
                 }
-                else{
-                    $night_start_time = $cityDetails->night_start_time;
-                    $night_end_time = $cityDetails->night_end_time;
+
+                /*
+                 * Google Maps geocode (disabled) — city/country now come from the frontend.
+                 *
+                 * $url = "https://maps.googleapis.com/maps/api/geocode/json?latlng={$pickup['lat']},{$pickup['lng']}&key={$apiKey}";
+                 * ... geocode curl ...
+                 */
+
+                $cityDetailsQuery = OperationalCountry::where('city', $city);
+                if ($country !== '') {
+                    $cityDetailsQuery->where('name', $country);
                 }
-                $country_tax = 0;
+                $cityDetails = $cityDetailsQuery->first();
+
+                if (!$cityDetails) {
+                    return response()->json([
+                        'message' => 'It seems service is not available in this city!',
+                        'country' => $country !== '' ? $country : null,
+                        'city' => $city,
+                    ], 409);
+                }
+
+                $country = $country !== '' ? $country : (string) ($cityDetails->name ?? '');
+                $night_start_time = $cityDetails->night_start_time;
+                $night_end_time = $cityDetails->night_end_time;
+
                 $check_country = Country::whereRaw('LOWER(name) = ?', [strtolower($country)])->first();
                 $country_tax = $check_country->tax_percentage ?? 0;
 
@@ -901,59 +852,74 @@ class DriverController extends Controller
                 $day_sharable_price = $vehicle->sharable_cost_per_hour;
                 $night_private_price = $vehicle->night_cost_per_hour;
                 $night_sharable_price = $vehicle->sharable_night_cost_per_hour;
+                $dmc_dmc_id = $get_dmc_id;
 
-            if($vehicle->dmc_id == $dmc_id){
-                list($day_private_price, $dmc_dmc_id) = CommonHelper::calculateDmcModePricehotel(
-                    $day_private_price, $dmc_id, $vehicle->vehicle_name, 'vehicle',$vehicle->city);
-                list($day_sharable_price, $dmc_dmc_id) = CommonHelper::calculateDmcModePricehotel(
-                    $day_sharable_price, $dmc_id, $vehicle->vehicle_name, 'vehicle',$vehicle->city);
-                list($night_private_price, $dmc_dmc_id) = CommonHelper::calculateDmcModePricehotel(
-                    $night_private_price, $dmc_id, $vehicle->vehicle_name, 'vehicle',$vehicle->city);
-                list($night_sharable_price, $dmc_dmc_id) = CommonHelper::calculateDmcModePricehotel(
-                    $night_sharable_price, $dmc_id, $vehicle->vehicle_name, 'vehicle',$vehicle->city);
-            }
-            else{
-                $dmc = User::where('userId', $get_dmc_id)->first();
-                if ($dmc) {
+                if ((string) $vehicle->dmc_id === (string) $dmc_id) {
+                    list($day_private_price, $dmc_dmc_id) = CommonHelper::calculateDmcModePricehotel(
+                        $day_private_price, $dmc_id, $vehicle->vehicle_name, 'vehicle', $vehicle->city);
+                    list($day_sharable_price, $dmc_dmc_id) = CommonHelper::calculateDmcModePricehotel(
+                        $day_sharable_price, $dmc_id, $vehicle->vehicle_name, 'vehicle', $vehicle->city);
+                    list($night_private_price, $dmc_dmc_id) = CommonHelper::calculateDmcModePricehotel(
+                        $night_private_price, $dmc_id, $vehicle->vehicle_name, 'vehicle', $vehicle->city);
+                    list($night_sharable_price, $dmc_dmc_id) = CommonHelper::calculateDmcModePricehotel(
+                        $night_sharable_price, $dmc_id, $vehicle->vehicle_name, 'vehicle', $vehicle->city);
+                } else {
+                    $dmc = User::where('userId', $get_dmc_id)->first();
+                    if (!$dmc) {
+                        return response()->json(['message' => 'Travclicks dmc_id not found!'], 404);
+                    }
                     $markup_value = is_numeric($dmc->markup_price) ? $dmc->markup_price : 0;
-                    $dmc_markup = ($dmc->markup_type == 0) ? $markup_value : ($base_price * $markup_value / 100);
+                    $dmc_markup = ($dmc->markup_type == 0)
+                        ? $markup_value
+                        : ($vehicle->base_price * $markup_value / 100);
+
+                    $day_private_price = ($day_private_price + $dmc_markup) ?? 0;
+                    $day_sharable_price = ($day_sharable_price + $dmc_markup) ?? 0;
+                    $night_private_price = ($night_private_price + $dmc_markup) ?? 0;
+                    $night_sharable_price = ($night_sharable_price + $dmc_markup) ?? 0;
                 }
-                else{
-                    return response()->json(['message' => 'Travclicks dmc_id not found!'], 404);
-                }
-                $day_private_price = ($day_private_price + $dmc_markup) ?? 0;
-                $day_sharable_price = ($day_sharable_price + $dmc_markup) ?? 0;
-                $night_private_price = ($night_private_price + $dmc_markup) ?? 0;
-                $night_sharable_price = ($night_sharable_price + $dmc_markup) ?? 0;
+
+                $prices = (object) [
+                    'day_private_price' => round((float) $day_private_price, 2),
+                    'day_sharable_price' => round((float) $day_sharable_price, 2),
+                    'night_private_price' => round((float) $night_private_price, 2),
+                    'night_sharable_price' => round((float) $night_sharable_price, 2),
+                    'private_day_base_price' => $vehicle->base_price,
+                    'private_night_base_price' => $vehicle->night_base_price,
+                    'sharable_day_base_price' => $vehicle->sharable_base_price,
+                    'sharable_night_base_price' => $vehicle->sharable_night_base_price,
+                    'dmc_id' => $get_dmc_id,
+                ];
+
+                return [
+                    'id' => $vehicle->vehicle_id,
+                    'vehicle_name' => $vehicle->vehicle_name,
+                    'vehicle_type' => $vehicle->vehicle_type,
+                    'vehicle_model' => $vehicle->vehicle_model,
+                    'model_year' => $vehicle->model_year,
+                    'description' => $vehicle->description,
+                    'seating_capacity' => $vehicle->seating_capacity,
+                    'image' => $vehicle->image,
+                    'prices' => $prices,
+                    'tax_percentage' => $country_tax,
+                    'sharable' => 1,
+                    'night_start_time' => $night_start_time,
+                    'night_end_time' => $night_end_time,
+                    'city' => $vehicle->city,
+                    'country' => $country,
+                ];
+            } catch (\Throwable $e) {
+                \Log::error('vehicleDetails hourly (pickup-only) failed', [
+                    'error' => $e->getMessage(),
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine(),
+                ]);
+
+                return response()->json([
+                    'message' => 'Failed to fetch vehicle details.',
+                    'error' => $e->getMessage(),
+                ], 500);
             }
-            $prices = (object) [
-                'day_private_price' => round((float)$day_private_price, 2),
-                'day_sharable_price' => round((float)$day_sharable_price, 2),
-                'night_private_price' => round((float)$night_private_price, 2),
-                'night_sharable_price' => round((float)$night_sharable_price, 2),
-                'private_day_base_price' => $vehicle->base_price,
-                'private_night_base_price' => $vehicle->night_base_price,
-                'sharable_day_base_price' => $vehicle->sharable_base_price,
-                'sharable_night_base_price' => $vehicle->sharable_night_base_price,
-                'dmc_id' => $get_dmc_id,
-            ];
-            return [
-                'id' => $vehicle->vehicle_id,
-                'vehicle_name' => $vehicle->vehicle_name,
-                'vehicle_type' => $vehicle->vehicle_type,
-                'vehicle_model' => $vehicle->vehicle_model,
-                'model_year' => $vehicle->model_year,
-                'description' => $vehicle->description,
-                'seating_capacity' => $vehicle->seating_capacity,
-                'image' => $vehicle->image,
-                'prices' => $prices,
-                'tax_percentage' => $country_tax,
-                'sharable' => 1,
-                'night_start_time' =>$night_start_time,
-                'night_end_time' =>$night_end_time,
-                'city' => $vehicle->city,
-                'country' => $country,
-            ];
         }
     }
 }
