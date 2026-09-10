@@ -63,7 +63,13 @@ import {
   resetBookingState,
   clearUserInfo,
 } from "@/slice/common/customerInfo";
-import { setBookingType, setHaveBooking } from "../../../../../slice/common/commonSlice";
+import { clearCart, setTripCustomerInfo } from "@/slice/cart/carSlice";
+import {
+  setBookingType,
+  setHaveBooking,
+  setCityWiseDates,
+  clearCityWiseDates,
+} from "../../../../../slice/common/commonSlice";
 import HotelIcon from "@mui/icons-material/Hotel";
 import LocalShippingIcon from "@mui/icons-material/LocalShipping";
 import TourIcon from "@mui/icons-material/Tour";
@@ -749,8 +755,8 @@ export default function Pending({ filters = {} }) {
     // Clear attractions and restaurants data first
     dispatch(clearAttractions());
     dispatch(clearRestaurants());
-
-
+    dispatch(clearCityWiseDates());
+    dispatch(clearCart());
     // Reset stepper button state for edit
     dispatch(resetAllServiceResponses());
 
@@ -795,17 +801,33 @@ export default function Pending({ filters = {} }) {
           if(data.customerInfo.fullName) {
             dispatch(setHaveBooking(true));
           }
+          const cartCustomerInfo = {
+            fullName: data.customerInfo.fullName || "",
+            email: data.customerInfo.email || "",
+            phone: data.customerInfo.phone || "",
+            countryCode: data.customerInfo.countryCode || data.customerInfo.country_code || "",
+            address1: data.customerInfo.address1 || "",
+            address2: data.customerInfo.address2 || "",
+            state: data.customerInfo.state || "",
+            zip: data.customerInfo.zip || "",
+            specialRequests:
+              data.customerInfo.specialRequest ||
+              data.customerInfo.specialRequests ||
+              "",
+          };
           // Directly use the customerInfo object
+          dispatch(customerInfoSetUserInfo(cartCustomerInfo));
+          // Persist on cart trip.customerInfo (creates shell trip if cart empty)
           dispatch(
-            customerInfoSetUserInfo({
-              fullName: data.customerInfo.fullName || "",
-              email: data.customerInfo.email || "",
-              phone: data.customerInfo.phone || "",
-              address1: data.customerInfo.address1 || "",
-              address2: data.customerInfo.address2 || "",
-              state: data.customerInfo.state || "",
-              zip: data.customerInfo.zip || "",
-              specialRequests: data.customerInfo.specialRequest || "",
+            setTripCustomerInfo({
+              tourId: data.tour_id,
+              customerInfo: cartCustomerInfo,
+              tourDetails: {
+                ...data,
+                check_in: data.CheckInTime || data.check_in || list.check_in_time,
+                check_out: data.CheckOutTime || data.check_out || list.check_out_time,
+                tour_id: data.tour_id,
+              },
             })
           );
         } else {
@@ -818,6 +840,10 @@ export default function Pending({ filters = {} }) {
         const id = data.tour_id;
         setTId(id);
         const destination = data.destination;
+
+        if (Array.isArray(data.cityWiseDates)) {
+          dispatch(setCityWiseDates(data.cityWiseDates));
+        }
 
         if (!id || !destination) {
           //console.error("Tour ID or destination not found in response.");

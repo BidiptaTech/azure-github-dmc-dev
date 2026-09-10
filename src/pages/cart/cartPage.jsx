@@ -258,7 +258,7 @@ const CartPage = () => {
         >
           <Box>
             <Typography variant="h4" fontWeight={800} color="#0f172a">
-              Shopping Cart
+              Cart
             </Typography>
             <Typography color="text.secondary" mt={0.5}>
               {totals.itemCount} item{totals.itemCount === 1 ? "" : "s"} in cart
@@ -316,14 +316,14 @@ const CartPage = () => {
                         <Stack direction="row" spacing={1.5} alignItems="flex-start">
                           <FlightTakeoffOutlinedIcon sx={{ mt: 0.3 }} />
                           <Box>
-                            <Typography fontWeight={700}>
-                              Trip {tripIndex + 1}:{" "}
+                            <Typography fontWeight={700} color="#ffffff">
+                              Trip City:{""}
                               {formatDestination(trip.destination)}
                             </Typography>
-                            <Typography variant="body2" sx={{ opacity: 0.95 }}>
+                            <Typography variant="body2" sx={{ opacity: 0.95 ,color: "#ffffff"}}>
                               {trip.check_in || "—"} → {trip.check_out || "—"}
                             </Typography>
-                            <Typography variant="caption" sx={{ opacity: 0.9 }}>
+                            <Typography variant="caption" sx={{ opacity: 0.9 ,color: "#ffffff"}}>
                               {trip.adult || 0} adults · {trip.child || 0}{" "}
                               children · {trip.infant || 0} infants ·{" "}
                               {trip.bookings.length} booking
@@ -344,7 +344,7 @@ const CartPage = () => {
                                     label={`${cityDate.city}: ${cityDate.checkIn} – ${cityDate.checkOut}`}
                                     sx={{
                                       bgcolor: "rgba(255,255,255,0.18)",
-                                      color: "#fff",
+                                      color: "#ffffff",
                                       fontWeight: 600,
                                       fontSize: "0.7rem",
                                     }}
@@ -1009,7 +1009,7 @@ const CartPage = () => {
                         >
                           <Box>
                             <Typography variant="body2" fontWeight={700}>
-                              Trip {index + 1} ({trip.bookings.length})
+                              Tour bookings({trip.bookings.length})
                             </Typography>
                             <Typography variant="caption" color="text.secondary">
                               {formatDestination(trip.destination)}
@@ -1032,7 +1032,7 @@ const CartPage = () => {
                             "&:hover": { bgcolor: "#2a43b0" },
                           }}
                         >
-                          Checkout Trip {index + 1}
+                          Checkout the Trip
                         </Button>
                       </Box>
                     );
