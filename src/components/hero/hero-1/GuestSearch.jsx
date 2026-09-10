@@ -434,22 +434,57 @@ const GuestSearch = ({ onGuestChange, guestCounts }) => {
     onGuestChange({ ...guestCounts, infantAges: updatedInfantAges });
   };
 
+  const totalPax =
+    (guestCounts.Adults || 0) +
+    (guestCounts.Children || 0) +
+    (guestCounts.Infants || 0);
+
   return (
-    <div className="searchMenu-guests px-30 lg:py-20 lg:px-0 js-form-dd js-form-counters position-relative">
+    <div className="searchMenu-guests px-20 lg:py-15 lg:px-0 js-form-dd js-form-counters position-relative">
       <div
         data-bs-toggle="dropdown"
         data-bs-auto-close="outside"
         aria-expanded="false"
         data-bs-offset="0,22"
+        className="cursor-pointer"
       >
-        <h4 className="text-15 fw-500 ls-2 lh-16">Guest</h4>
-        <div className="text-15 text-light-1 ls-2 lh-16">
-          <span className="js-count-adult">{guestCounts.Adults}</span> adults 
-          (<span className="js-count-male">{guestCounts.maleCount || 0}</span> male, 
-          <span className="js-count-female">{guestCounts.femaleCount || 0}</span> female) - 
-          <span className="js-count-child">{guestCounts.Children}</span>{" "}
-          children -{" "}
-          <span className="js-count-room">{guestCounts.Infants}</span> infants
+        <div
+          style={{
+            fontSize: "11px",
+            fontWeight: 600,
+            letterSpacing: "0.04em",
+            textTransform: "uppercase",
+            color: "#64748b",
+            marginBottom: 4,
+          }}
+        >
+          Travellers
+        </div>
+        <div
+          style={{
+            fontSize: "22px",
+            fontWeight: 700,
+            color: "#0f172a",
+            lineHeight: 1.2,
+          }}
+        >
+          {totalPax} Traveller{totalPax === 1 ? "" : "s"}
+        </div>
+        <div style={{ fontSize: "12px", color: "#64748b", marginTop: 2 }}>
+          <span className="js-count-adult">{guestCounts.Adults}</span> Adult
+          {guestCounts.Adults === 1 ? "" : "s"}
+          {guestCounts.Children > 0 && (
+            <>
+              {" · "}
+              <span className="js-count-child">{guestCounts.Children}</span> Child
+            </>
+          )}
+          {guestCounts.Infants > 0 && (
+            <>
+              {" · "}
+              <span className="js-count-room">{guestCounts.Infants}</span> Infant
+            </>
+          )}
         </div>
       </div>
 

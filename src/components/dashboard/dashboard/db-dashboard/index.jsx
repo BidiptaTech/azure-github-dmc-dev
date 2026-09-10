@@ -1874,7 +1874,7 @@ const DashboardLayout = () => {
           </DashboardEntrance>
         )}
       </main>
-      {!isBookTourHeroPage && <DefaultFooter />}
+      <DefaultFooter />
     </>
   );
 };

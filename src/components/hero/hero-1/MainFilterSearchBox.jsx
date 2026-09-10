@@ -38,7 +38,7 @@ import { resetVehicles1 } from "../../../slice/localtour/Localslice";
 import { resetAllServiceResponses } from "../../../slice/common/stepperButtonSlice";
 import { setCity } from "../../../slice/common/citySlice";
 import { clearSelectedDmc, fetchDMCsByCountry } from "@/slice/dmc/dmcSlice";
-import { clearSelectedCities } from "@/slice/common/citiesSlice";
+import { clearSelectedCities, addSelectedCity } from "@/slice/common/citiesSlice";
 import { clearBookingFlow } from "@/utils/clearBookingFlow";
 import { clearViewDetails } from "@/slice/common/ViewDetails";
 import { clearCart } from "@/slice/cart/carSlice";
@@ -69,6 +69,23 @@ const MainFilterSearchBox = () => {
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackbarSeverity, setSnackbarSeverity] = useState("error");
+  const [tripType, setTripType] = useState("single"); // single | multi
+
+  const formatGoibiboDate = (date) => {
+    if (!date) return { primary: "Select date", secondary: "Tap to choose" };
+    try {
+      const m =
+        typeof date.format === "function"
+          ? moment(date.format("YYYY-MM-DD"))
+          : moment(date);
+      return {
+        primary: m.format("DD MMM'YY"),
+        secondary: m.format("dddd"),
+      };
+    } catch {
+      return { primary: "Select date", secondary: "Tap to choose" };
+    }
+  };
 
   const formatDateValue = (date) => {
     if (!date) return "";
@@ -111,6 +128,21 @@ const MainFilterSearchBox = () => {
 
   const hasTotalDates =
     Array.isArray(selectedDates) && selectedDates.length === 2;
+
+  const checkInDisplay = hasTotalDates
+    ? formatGoibiboDate(selectedDates[0])
+    : { primary: "Select date", secondary: "Check-in" };
+  const checkOutDisplay = hasTotalDates
+    ? formatGoibiboDate(selectedDates[1])
+    : { primary: "Select date", secondary: "Check-out" };
+
+  useEffect(() => {
+    if (tripType === "single" && selectedCities.length > 1) {
+      const keep = selectedCities[0];
+      dispatch(clearSelectedCities());
+      if (keep) dispatch(addSelectedCity(keep));
+    }
+  }, [tripType, selectedCities, dispatch]);
 
   const handleAddCities = () => {
     if (!selectedCities.length) {
@@ -166,12 +198,22 @@ const MainFilterSearchBox = () => {
     hasTotalDates &&
     selectedCities.length > 0 &&
     (selectedCities.length === 1 ||
-      (showCityDateRows &&
-        selectedCities.every(
-          (city) =>
-            Array.isArray(cityDates[city.city_id]) &&
-            cityDates[city.city_id].length === 2
-        )));
+      selectedCities.every(
+        (city) =>
+          Array.isArray(cityDates[city.city_id]) &&
+          cityDates[city.city_id].length === 2
+      ));
+
+  const showItineraryPlanner =
+    (tripType === "multi" || selectedCities.length > 1) &&
+    selectedCities.length > 1 &&
+    hasTotalDates;
+
+  useEffect(() => {
+    if (showItineraryPlanner) {
+      setShowCityDateRows(true);
+    }
+  }, [showItineraryPlanner]);
 
   const handleGuestChange = (updatedGuestCounts) => {
     setGuestCounts(updatedGuestCounts);
@@ -483,20 +525,177 @@ const MainFilterSearchBox = () => {
     navigate(`/dashboard/db-dashboard/view-hotel-search/0?${searchParams}`);
   };
 
+  const canSearchSingle = selectedCities.length === 1 && hasTotalDates;
+  const canSearchMulti = showItineraryPlanner && allCityDatesFilled;
+  const canSearch =
+    selectedCities.length <= 1 || tripType === "single"
+      ? canSearchSingle
+      : canSearchMulti;
+
+  const formatRangeLabel = (range) => {
+    if (!Array.isArray(range) || range.length !== 2) return "Select dates";
+    const a =
+      typeof range[0]?.format === "function"
+        ? range[0].format("DD MMM")
+        : formatDateValue(range[0]);
+    const b =
+      typeof range[1]?.format === "function"
+        ? range[1].format("DD MMM")
+        : formatDateValue(range[1]);
+    return `${a} → ${b}`;
+  };
+
   return (
     <div className="position-relative mt-30 md:mt-20 js-tabs-content hero-search-reserve">
       <div
-        className="mainSearch -w-900 -col-city-date-guest bg-white px-10 py-10 lg:px-20 lg:pt-5 lg:pb-20 rounded-100"
-        style={{ position: "relative", zIndex: 50 }}
+        className="bg-white"
+        style={{
+          position: "relative",
+          zIndex: 50,
+          borderRadius: 16,
+          boxShadow: "0 12px 40px rgba(15, 23, 42, 0.16)",
+          border: "1px solid rgba(15, 23, 42, 0.06)",
+          padding: "18px 18px 14px",
+          maxWidth: 1100,
+          margin: "0 auto",
+        }}
       >
-        <div className="button-grid items-center">
-          <LocationSearch onLocationSelect={handleLocationSelect} />
+        <div
+          className="d-flex items-center justify-between flex-wrap"
+          style={{ gap: 12, marginBottom: 14 }}
+        >
+          <div className="d-flex items-center flex-wrap" style={{ gap: 18 }}>
+            {[
+              { id: "single", label: "Single City" },
+              { id: "multi", label: "Multi City" },
+            ].map((opt) => (
+              <label
+                key={opt.id}
+                className="d-flex items-center cursor-pointer"
+                style={{ gap: 8, fontSize: 14, fontWeight: 600, color: "#0f172a" }}
+              >
+                <input
+                  type="radio"
+                  name="tripType"
+                  checked={tripType === opt.id}
+                  onChange={() => {
+                    setTripType(opt.id);
+                    if (opt.id === "single") {
+                      setShowCityDateRows(false);
+                      if (selectedCities.length > 1) {
+                        const keep = selectedCities[0];
+                        dispatch(clearSelectedCities());
+                        if (keep) dispatch(addSelectedCity(keep));
+                      }
+                    }
+                  }}
+                  style={{ accentColor: "#3554D1", width: 16, height: 16 }}
+                />
+                {opt.label}
+              </label>
+            ))}
+          </div>
+          <div style={{ fontSize: 13, color: "#64748b", fontWeight: 500 }}>
+            Book hotels, transfers & experiences for your clients
+          </div>
+        </div>
 
-          <div className="searchMenu-date px-30 lg:py-20 lg:px-0 js-form-dd js-calendar">
-            <div>
-              <h4 className="text-15 fw-500 ls-2 lh-16">
-                Check in - Check out
-              </h4>
+        <div
+          className="d-flex flex-wrap"
+          style={{
+            border: "1px solid #e2e8f0",
+            borderRadius: 12,
+            overflow: "visible",
+            background: "#fff",
+          }}
+        >
+          <div
+            style={{
+              flex: "1.4 1 220px",
+              minWidth: 200,
+              borderRight: "1px solid #e2e8f0",
+            }}
+          >
+            <LocationSearch
+              onLocationSelect={handleLocationSelect}
+              multiSelect={tripType === "multi"}
+            />
+          </div>
+
+          <div
+            className="searchMenu-date js-form-dd js-calendar position-relative cursor-pointer d-flex"
+            style={{
+              flex: "2 1 320px",
+              minWidth: 280,
+              borderRight: "1px solid #e2e8f0",
+            }}
+            onClick={(e) => {
+              const input = e.currentTarget.querySelector("input");
+              if (input) input.focus();
+            }}
+          >
+            <div style={{ flex: 1, padding: "16px 18px" }}>
+              <div
+                style={{
+                  fontSize: "11px",
+                  fontWeight: 600,
+                  letterSpacing: "0.04em",
+                  textTransform: "uppercase",
+                  color: "#64748b",
+                  marginBottom: 4,
+                }}
+              >
+                Check-in
+              </div>
+              <div
+                style={{
+                  fontSize: 22,
+                  fontWeight: 700,
+                  color: "#0f172a",
+                  lineHeight: 1.2,
+                }}
+              >
+                {checkInDisplay.primary}
+              </div>
+              <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
+                {checkInDisplay.secondary}
+              </div>
+            </div>
+            <div
+              style={{
+                width: 1,
+                background: "#e2e8f0",
+                alignSelf: "stretch",
+              }}
+            />
+            <div style={{ flex: 1, padding: "16px 18px" }}>
+              <div
+                style={{
+                  fontSize: "11px",
+                  fontWeight: 600,
+                  letterSpacing: "0.04em",
+                  textTransform: "uppercase",
+                  color: "#64748b",
+                  marginBottom: 4,
+                }}
+              >
+                Check-out
+              </div>
+              <div
+                style={{
+                  fontSize: 22,
+                  fontWeight: 700,
+                  color: hasTotalDates ? "#0f172a" : "#94a3b8",
+                  lineHeight: 1.2,
+                }}
+              >
+                {checkOutDisplay.primary}
+              </div>
+              <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
+                {checkOutDisplay.secondary}
+              </div>
+            </div>
+            <div style={{ position: "absolute", inset: 0, opacity: 0 }}>
               <DateSearch
                 onDateChange={handleDateChange}
                 value={selectedDates.length === 2 ? selectedDates : undefined}
@@ -505,134 +704,249 @@ const MainFilterSearchBox = () => {
             </div>
           </div>
 
-          <GuestSearch
-            onGuestChange={handleGuestChange}
-            guestCounts={guestCounts}
-          />
-
-          <div className="button-item">
-            {selectedCities.length <= 1 ? (
-              <button
-                type="button"
-                className={`mainSearch__submit button -dark-1 h-60 px-35 col-12 rounded-100 ${
-                  selectedCities.length === 1 && hasTotalDates
-                    ? "bg-blue-1 text-white"
-                    : "bg-light-2 text-light-1"
-                }`}
-                onClick={handleSearch}
-                disabled={!(selectedCities.length === 1 && hasTotalDates)}
-              >
-                <i className="icon-search text-20 mr-10" />
-                Search
-              </button>
-            ) : (
-              <button
-                type="button"
-                className="mainSearch__submit button -dark-1 h-60 px-35 col-12 rounded-100 bg-blue-1 text-white"
-                onClick={handleAddCities}
-              >
-                <i className="icon-plus text-20 mr-10" />
-                Add
-              </button>
-            )}
+          <div style={{ flex: "1 1 180px", minWidth: 160 }}>
+            <GuestSearch
+              onGuestChange={handleGuestChange}
+              guestCounts={guestCounts}
+            />
           </div>
+        </div>
+
+        {showItineraryPlanner && (
+          <div
+            style={{
+              marginTop: 16,
+              border: "1px solid #e2e8f0",
+              borderRadius: 12,
+              background: "#f8fafc",
+              overflow: "hidden",
+            }}
+          >
+            <div
+              className="d-flex items-center justify-between flex-wrap"
+              style={{
+                gap: 8,
+                padding: "12px 16px",
+                borderBottom: "1px solid #e2e8f0",
+                background: "#fff",
+              }}
+            >
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: "#0f172a" }}>
+                  City itinerary
+                </div>
+                <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
+                  Split the tour period across cities in order
+                  {hasTotalDates && (
+                    <span style={{ fontWeight: 600, color: "#3554D1" }}>
+                      {" "}
+                      (
+                      {typeof selectedDates[0]?.format === "function"
+                        ? selectedDates[0].format("DD MMM")
+                        : ""}
+                      {" – "}
+                      {typeof selectedDates[1]?.format === "function"
+                        ? selectedDates[1].format("DD MMM")
+                        : ""}
+                      )
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div
+                style={{
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: allCityDatesFilled ? "#15803d" : "#b45309",
+                  background: allCityDatesFilled
+                    ? "rgba(22, 163, 74, 0.1)"
+                    : "rgba(245, 158, 11, 0.12)",
+                  borderRadius: 999,
+                  padding: "4px 10px",
+                }}
+              >
+                {allCityDatesFilled
+                  ? "Ready to search"
+                  : `${selectedCities.filter((c) => cityDates[c.city_id]?.length === 2).length}/${selectedCities.length} cities dated`}
+              </div>
+            </div>
+
+            <div style={{ padding: "8px 0" }}>
+              {selectedCities.map((city, index) => {
+                const constraints = getCityDateConstraints(index);
+                const filled =
+                  Array.isArray(cityDates[city.city_id]) &&
+                  cityDates[city.city_id].length === 2;
+                return (
+                  <div
+                    key={city.city_id}
+                    className="d-flex items-stretch flex-wrap"
+                    style={{
+                      gap: 12,
+                      padding: "14px 16px",
+                      borderTop: index === 0 ? "none" : "1px solid #e2e8f0",
+                    }}
+                  >
+                    <div
+                      className="d-flex items-start"
+                      style={{ gap: 12, flex: "1 1 180px", minWidth: 160 }}
+                    >
+                      <div
+                        style={{
+                          width: 28,
+                          height: 28,
+                          borderRadius: "50%",
+                          background: filled ? "#3554D1" : "#cbd5e1",
+                          color: "#fff",
+                          fontSize: 12,
+                          fontWeight: 700,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          flexShrink: 0,
+                          marginTop: 2,
+                        }}
+                      >
+                        {index + 1}
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 15, fontWeight: 700, color: "#0f172a" }}>
+                          {city.city}
+                        </div>
+                        <div style={{ fontSize: 12, color: "#64748b" }}>
+                          {city.country}
+                        </div>
+                        {index < selectedCities.length - 1 && (
+                          <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 6 }}>
+                            then → {selectedCities[index + 1]?.city}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div
+                      className="searchMenu-date js-form-dd js-calendar"
+                      style={{ flex: "1.4 1 240px", minWidth: 220 }}
+                    >
+                      <div
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 600,
+                          letterSpacing: "0.04em",
+                          textTransform: "uppercase",
+                          color: "#64748b",
+                          marginBottom: 6,
+                        }}
+                      >
+                        Stay dates
+                      </div>
+                      <div
+                        style={{
+                          background: "#fff",
+                          border: "1px solid #e2e8f0",
+                          borderRadius: 10,
+                          padding: "8px 12px",
+                          opacity: constraints.disabled ? 0.55 : 1,
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize: 13,
+                            fontWeight: 600,
+                            color: filled ? "#0f172a" : "#94a3b8",
+                            marginBottom: 4,
+                          }}
+                        >
+                          {formatRangeLabel(cityDates[city.city_id])}
+                        </div>
+                        <DateSearch
+                          key={city.city_id}
+                          onDateChange={(dates) =>
+                            handleCityDateChange(city.city_id, dates, index)
+                          }
+                          minDate={constraints.minDate}
+                          maxDate={constraints.maxDate}
+                          blockedRanges={constraints.blockedRanges}
+                          value={
+                            cityDates[city.city_id]?.length === 2
+                              ? cityDates[city.city_id]
+                              : undefined
+                          }
+                          disabled={constraints.disabled}
+                          notifyOnMount={false}
+                          calendarPosition="bottom-left"
+                        />
+                      </div>
+                      {constraints.disabled && index > 0 && (
+                        <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 6 }}>
+                          Complete previous city dates first
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {(tripType === "multi" || selectedCities.length > 1) &&
+          selectedCities.length > 1 &&
+          !hasTotalDates && (
+            <div
+              style={{
+                marginTop: 14,
+                padding: "12px 14px",
+                borderRadius: 10,
+                background: "rgba(53, 84, 209, 0.06)",
+                color: "#3554D1",
+                fontSize: 13,
+                fontWeight: 500,
+              }}
+            >
+              Select total trip check-in and check-out to allocate dates per city.
+            </div>
+          )}
+
+        <div className="d-flex justify-center" style={{ marginTop: 12 }}>
+          <button
+            type="button"
+            onClick={handleSearch}
+            disabled={!canSearch}
+            style={{
+              minWidth: 220,
+              height: 52,
+              borderRadius: 28,
+              border: "none",
+              fontSize: 18,
+              fontWeight: 800,
+              letterSpacing: "0.04em",
+              color: "#fff",
+              background: !canSearch ? "#94a3b8" : "#3554D1",
+              cursor: !canSearch ? "not-allowed" : "pointer",
+              boxShadow: !canSearch
+                ? "none"
+                : "0 10px 24px rgba(53, 84, 209, 0.35)",
+            }}
+          >
+            SEARCH
+          </button>
         </div>
       </div>
 
-      {showCityDateRows && selectedCities.length > 1 && (
-        <div
-          className="mainSearch -w-900 bg-white px-20 py-20 mt-15 rounded-24"
-          style={{ position: "relative", zIndex: 20 }}
-        >
-          <div className="text-14 text-light-1 mb-15">
-            Set city-wise dates within your total trip dates
-            {hasTotalDates ? (
-              <span className="fw-500 text-dark-1">
-                {" "}
-                (
-                {typeof selectedDates[0]?.format === "function"
-                  ? selectedDates[0].format("MMM DD")
-                  : ""}
-                {" - "}
-                {typeof selectedDates[1]?.format === "function"
-                  ? selectedDates[1].format("MMM DD")
-                  : ""}
-                )
-              </span>
-            ) : null}
-          </div>
-          {selectedCities.map((city, index) => {
-            const isLastRow = index === selectedCities.length - 1;
-            const constraints = getCityDateConstraints(index);
-            return (
-              <div
-                key={city.city_id}
-                className={`d-flex items-center y-gap-10 flex-wrap ${
-                  index > 0 ? "border-top-light pt-15 mt-15" : ""
-                }`}
-              >
-                <div className="col-md-4 col-12 px-10">
-                  <h4 className="text-15 fw-500 ls-2 lh-16">City</h4>
-                  <div className="text-15 text-dark-1 fw-500">{city.city}</div>
-                  <div className="text-13 text-light-1">{city.country}</div>
-                </div>
-
-                <div className="col-md-5 col-12 px-10 searchMenu-date js-form-dd js-calendar">
-                  <h4 className="text-15 fw-500 ls-2 lh-16">
-                    Check in - Check out
-                  </h4>
-                  <DateSearch
-                    key={city.city_id}
-                    onDateChange={(dates) =>
-                      handleCityDateChange(city.city_id, dates, index)
-                    }
-                    minDate={constraints.minDate}
-                    maxDate={constraints.maxDate}
-                    blockedRanges={constraints.blockedRanges}
-                    value={
-                      cityDates[city.city_id]?.length === 2
-                        ? cityDates[city.city_id]
-                        : undefined
-                    }
-                    disabled={constraints.disabled}
-                    notifyOnMount={false}
-                    calendarPosition="bottom-left"
-                  />
-                  {constraints.disabled && index > 0 && (
-                    <div className="text-12 text-light-1 mt-5">
-                      Select previous city dates first
-                    </div>
-                  )}
-                </div>
-
-                {isLastRow && (
-                  <div className="col-md-3 col-12 px-10 button-item">
-                    <button
-                      type="button"
-                      className={`mainSearch__submit button -dark-1 h-60 px-35 col-12 rounded-100 ${
-                        allCityDatesFilled
-                          ? "bg-blue-1 text-white"
-                          : "bg-light-2 text-light-1"
-                      }`}
-                      onClick={handleSearch}
-                      disabled={!allCityDatesFilled}
-                    >
-                      <i className="icon-search text-20 mr-10" />
-                      Search
-                    </button>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
       <Snackbar
         open={openSnackbar}
         autoHideDuration={6000}
         onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+        sx={{ top: { xs: 16, sm: 24 } }}
       >
-        <Alert onClose={handleCloseSnackbar} severity={snackbarSeverity}>
+        <Alert
+          onClose={handleCloseSnackbar}
+          severity={snackbarSeverity}
+          variant="filled"
+          sx={{ width: "100%", boxShadow: "0 8px 24px rgba(15, 23, 42, 0.18)" }}
+        >
           {snackbarMessage}
         </Alert>
       </Snackbar>
