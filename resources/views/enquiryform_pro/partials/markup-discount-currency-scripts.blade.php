@@ -199,19 +199,22 @@
 
     function emptyMarkupDiscountEntry(opts) {
         opts = opts || {};
-        const markupValue = parseFloat(opts.markup_value || 0) || 0;
         const hotelMarkup = opts.hotel_markup != null
             ? (parseFloat(opts.hotel_markup) || 0)
-            : markupValue;
+            : (opts.markup_value != null ? (parseFloat(opts.markup_value) || 0) : 0);
         const otherMarkup = opts.other_markup != null
             ? (parseFloat(opts.other_markup) || 0)
-            : hotelMarkup;
+            : 0;
+        // Always prefer hotel + other when either split field is present
+        const markupValue = (opts.hotel_markup != null || opts.other_markup != null)
+            ? (hotelMarkup + otherMarkup)
+            : (opts.markup_value != null ? (parseFloat(opts.markup_value) || 0) : (hotelMarkup + otherMarkup));
         return {
             city: String(opts.city || '').trim(),
             country: String(opts.country || '').trim(),
             currency: String(opts.currency || '').trim().toUpperCase(),
             markup_type: opts.markup_type || '',
-            markup_value: markupValue || hotelMarkup,
+            markup_value: markupValue,
             hotel_markup: hotelMarkup,
             other_markup: otherMarkup,
             discount_type: opts.discount_type || '',
@@ -233,10 +236,15 @@
             : [];
         return cities.map(function (cityName) {
             const city = String(cityName || '').trim();
-            const country = (typeof resolveCountryForCity === 'function') ? resolveCountryForCity(city) : '';
-            const currency = (typeof resolveCurrencyForCountry === 'function')
-                ? String(resolveCurrencyForCountry(country) || '').trim().toUpperCase()
-                : '';
+            const country = (typeof window.resolveCountryForCity === 'function')
+                ? String(window.resolveCountryForCity(city) || '').trim()
+                : ((typeof resolveCountryForCity === 'function') ? String(resolveCountryForCity(city) || '').trim() : '');
+            let currency = '';
+            if (typeof window.resolveCurrencyForCityName === 'function') {
+                currency = String(window.resolveCurrencyForCityName(city, country) || '').trim().toUpperCase();
+            } else if (typeof resolveCurrencyForCountry === 'function') {
+                currency = String(resolveCurrencyForCountry(country) || '').trim().toUpperCase();
+            }
             return { city: city, country: country || '', currency: currency };
         }).filter(function (x) { return !!x.city; });
     }
@@ -373,8 +381,8 @@
                 : (parseFloat(markupEl?.value || 0) || 0);
             const otherMk = otherEl
                 ? (parseFloat(otherEl.value || 0) || 0)
-                : hotelMk;
-            const mv = hotelMk;
+                : 0;
+            const mv = hotelMk + otherMk;
             let dt = tr.querySelector('.city-discount-type')?.value || '';
             let dv = parseFloat(tr.querySelector('.city-discount-value')?.value || 0) || 0;
             if (dt === 'foc') {
@@ -429,7 +437,7 @@
                 markup_type: e.markup_type || '',
                 markup_value: parseFloat(e.markup_value || 0) || 0,
                 hotel_markup: e.hotel_markup != null ? (parseFloat(e.hotel_markup) || 0) : (parseFloat(e.markup_value || 0) || 0),
-                other_markup: e.other_markup != null ? (parseFloat(e.other_markup) || 0) : (parseFloat(e.markup_value || 0) || 0),
+                other_markup: e.other_markup != null ? (parseFloat(e.other_markup) || 0) : 0,
                 discount_type: e.discount_type || '',
                 discount_value: parseFloat(e.discount_value || 0) || 0
             };
@@ -446,7 +454,7 @@
                     markup_type: e.markup_type || '',
                     markup_value: parseFloat(e.markup_value || 0) || 0,
                     hotel_markup: e.hotel_markup != null ? (parseFloat(e.hotel_markup) || 0) : (parseFloat(e.markup_value || 0) || 0),
-                    other_markup: e.other_markup != null ? (parseFloat(e.other_markup) || 0) : (parseFloat(e.markup_value || 0) || 0),
+                    other_markup: e.other_markup != null ? (parseFloat(e.other_markup) || 0) : 0,
                     discount_type: e.discount_type || '',
                     discount_value: parseFloat(e.discount_value || 0) || 0
                 };
@@ -459,7 +467,7 @@
                 markup_type: e.markup_type || '',
                 markup_value: parseFloat(e.markup_value || 0) || 0,
                 hotel_markup: e.hotel_markup != null ? (parseFloat(e.hotel_markup) || 0) : (parseFloat(e.markup_value || 0) || 0),
-                other_markup: e.other_markup != null ? (parseFloat(e.other_markup) || 0) : (parseFloat(e.markup_value || 0) || 0),
+                other_markup: e.other_markup != null ? (parseFloat(e.other_markup) || 0) : 0,
                 discount_type: e.discount_type || '',
                 discount_value: parseFloat(e.discount_value || 0) || 0
             };
@@ -489,7 +497,7 @@
                 markup_type: existing.markup_type || '',
                 markup_value: existing.markup_value || 0,
                 hotel_markup: existing.hotel_markup != null ? existing.hotel_markup : (existing.markup_value || 0),
-                other_markup: existing.other_markup != null ? existing.other_markup : (existing.markup_value || 0),
+                other_markup: existing.other_markup != null ? existing.other_markup : 0,
                 discount_type: treatFoc ? 'foc' : ((existing.discount_type === 'foc') ? '' : (existing.discount_type || '')),
                 discount_value: treatFoc ? focDiscountAmountForCity(t.city) : ((existing.discount_type === 'foc') ? 0 : (existing.discount_value || 0))
             });
@@ -669,7 +677,11 @@
             // Ensure currency/country stay current if city map changed
             entry.city = t.city;
             entry.country = t.country || entry.country || '';
+            // Always prefer freshly resolved city currency (never keep stale tour SGD)
             entry.currency = t.currency || entry.currency || '';
+            if (typeof window.resolveCurrencyForCityName === 'function') {
+                entry.currency = window.resolveCurrencyForCityName(t.city, entry.country) || entry.currency;
+            }
             window.enquiryProCityMarkups[t.city] = entry;
             if (entry.currency) {
                 window.enquiryProCurrencyMarkups[entry.currency] = Object.assign({}, entry);
