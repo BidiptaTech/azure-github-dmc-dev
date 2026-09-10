@@ -58,6 +58,27 @@ const hasCartCustomerInfo = (info) =>
       (String(info.fullName || "").trim() || String(info.email || "").trim())
   );
 
+/** Stable section wrapper — must stay outside the form component to avoid remount/focus loss */
+const FormSection = ({ title, children }) => (
+  <Box sx={{ mb: 1.75 }}>
+    <Typography
+      variant="caption"
+      fontWeight={700}
+      color="#64748b"
+      sx={{
+        mb: 1,
+        display: "block",
+        textTransform: "uppercase",
+        letterSpacing: "0.04em",
+        fontSize: "0.7rem",
+      }}
+    >
+      {title}
+    </Typography>
+    <Stack spacing={1.25}>{children}</Stack>
+  </Box>
+);
+
 /**
  * Cart checkout customer form — same fields/validation as hotel CustomerInfo,
  * compact layout for checkout.
@@ -71,6 +92,8 @@ const CartCustomerInfo = forwardRef(function CartCustomerInfo(
   const existingUserInfo = useSelector(
     (state) => state.customerInfo?.userInfo
   );
+  const onFormChangeRef = useRef(onFormChange);
+  onFormChangeRef.current = onFormChange;
 
   const [isStaticFromCart] = useState(() =>
     hasCartCustomerInfo(initialCustomerInfo)
@@ -85,9 +108,9 @@ const CartCustomerInfo = forwardRef(function CartCustomerInfo(
   const countryManuallyOverriddenRef = useRef(false);
   const hasInitializedCountryRef = useRef(false);
   const lockedFromCartRef = useRef(isStaticFromCart);
+  const hasNotifiedInitialRef = useRef(false);
 
   const [form, setForm] = useState(() => {
-    // Prefer cart trip customerInfo (persisted with services)
     if (hasCartCustomerInfo(initialCustomerInfo)) {
       return { ...emptyForm, ...initialCustomerInfo };
     }
@@ -112,12 +135,15 @@ const CartCustomerInfo = forwardRef(function CartCustomerInfo(
     lockedFromCartRef.current = true;
     const updated = { ...emptyForm, ...initialCustomerInfo };
     setForm(updated);
-    onFormChange?.(updated);
+    onFormChangeRef.current?.(updated);
+    // Only on mount lock — avoid resetting while parent re-renders
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isStaticFromCart]);
 
   useEffect(() => {
-    onFormChange?.(form);
+    if (hasNotifiedInitialRef.current) return;
+    hasNotifiedInitialRef.current = true;
+    onFormChangeRef.current?.(form);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -152,7 +178,6 @@ const CartCustomerInfo = forwardRef(function CartCustomerInfo(
     if (!countries.length || hasInitializedCountryRef.current) return;
 
     let defaultCountry = null;
-    // Prefer dial code already on cart / form customerInfo
     if (form.countryCode) {
       defaultCountry = countries.find(
         (c) => c.country_code === form.countryCode
@@ -184,10 +209,12 @@ const CartCustomerInfo = forwardRef(function CartCustomerInfo(
         countryCode: prev.countryCode || defaultCountry.country_code,
       };
       localStorage.setItem("lastHotelUserInfo", JSON.stringify(updated));
-      onFormChange?.(updated);
+      onFormChangeRef.current?.(updated);
       return updated;
     });
-  }, [countries, searchLocation, isStaticFromCart, form.countryCode]);
+    // Intentionally omit form.countryCode — only run once countries load
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [countries, searchLocation, isStaticFromCart]);
 
   const validateField = (name, value) => {
     switch (name) {
@@ -223,7 +250,7 @@ const CartCustomerInfo = forwardRef(function CartCustomerInfo(
   const persist = (updated) => {
     if (lockedFromCartRef.current || isStaticFromCart) return;
     localStorage.setItem("lastHotelUserInfo", JSON.stringify(updated));
-    onFormChange?.(updated);
+    onFormChangeRef.current?.(updated);
   };
 
   const handleChange = (e) => {
@@ -294,7 +321,6 @@ const CartCustomerInfo = forwardRef(function CartCustomerInfo(
   useImperativeHandle(ref, () => ({
     getFormData: () => form,
     isFormValid: () => {
-      // Cart-sourced customer info is already trusted / locked
       if (isStaticFromCart && (form.fullName?.trim() || form.email?.trim())) {
         return true;
       }
@@ -315,26 +341,6 @@ const CartCustomerInfo = forwardRef(function CartCustomerInfo(
       return isValid;
     },
   }));
-
-  const Section = ({ title, children }) => (
-    <Box sx={{ mb: 1.75 }}>
-      <Typography
-        variant="caption"
-        fontWeight={700}
-        color="#64748b"
-        sx={{
-          mb: 1,
-          display: "block",
-          textTransform: "uppercase",
-          letterSpacing: "0.04em",
-          fontSize: "0.7rem",
-        }}
-      >
-        {title}
-      </Typography>
-      <Stack spacing={1.25}>{children}</Stack>
-    </Box>
-  );
 
   const lockedFieldSx = isStaticFromCart
     ? {
@@ -385,7 +391,7 @@ const CartCustomerInfo = forwardRef(function CartCustomerInfo(
         )}
       </Stack>
 
-      <Section title="Contact">
+      <FormSection title="Contact">
         <TextField
           fullWidth
           size="small"
@@ -484,11 +490,11 @@ const CartCustomerInfo = forwardRef(function CartCustomerInfo(
             sx={lockedFieldSx}
           />
         </Stack>
-      </Section>
+      </FormSection>
 
       <Divider sx={{ my: 1.5 }} />
 
-      <Section title="Address">
+      <FormSection title="Address">
         <TextField
           fullWidth
           size="small"
@@ -542,11 +548,11 @@ const CartCustomerInfo = forwardRef(function CartCustomerInfo(
             sx={lockedFieldSx}
           />
         </Stack>
-      </Section>
+      </FormSection>
 
       <Divider sx={{ my: 1.5 }} />
 
-      <Section title="Notes">
+      <FormSection title="Notes">
         <TextField
           fullWidth
           size="small"
@@ -561,7 +567,7 @@ const CartCustomerInfo = forwardRef(function CartCustomerInfo(
           InputProps={{ readOnly: isStaticFromCart }}
           sx={lockedFieldSx}
         />
-      </Section>
+      </FormSection>
     </Box>
   );
 });

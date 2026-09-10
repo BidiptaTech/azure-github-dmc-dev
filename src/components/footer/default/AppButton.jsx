@@ -22,13 +22,21 @@ const AppButton = () => {
     <>
       {appContent.map((item) => (
         <div
-          className={`d-flex items-center px-20 py-10 rounded-4 border-light  ${item.colClass}`}
+          className={`d-flex items-center px-20 py-10 rounded-4 ${item.colClass}`}
           key={item.id}
+          style={{
+            border: "1px solid rgba(255,255,255,0.25)",
+            background: "rgba(255,255,255,0.06)",
+          }}
         >
-          <i className={`${item.icon} text-24`} />
-          <a href={item.link} className="ml-20 d-block">
-            <div className="text-14 text-light-1">{item.text}</div>
-            <div className="text-15 lh-1 fw-500">{item.market}</div>
+          <i className={`${item.icon} text-24`} style={{ color: "#fff" }} />
+          <a href={item.link} className="ml-20 d-block" style={{ color: "#fff" }}>
+            <div className="text-14" style={{ color: "rgba(255,255,255,0.7)" }}>
+              {item.text}
+            </div>
+            <div className="text-15 lh-1 fw-500" style={{ color: "#fff" }}>
+              {item.market}
+            </div>
           </a>
         </div>
       ))}

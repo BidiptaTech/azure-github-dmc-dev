@@ -286,22 +286,6 @@ const CartCheckout = () => {
               initialCustomerInfo={cartCustomerInfo}
               onFormChange={(next) => {
                 setFormData(next);
-                // Don't overwrite locked cart customerInfo while typing is blocked;
-                // only persist when form is editable (no existing cart customerInfo)
-                if (
-                  trip?.tripId &&
-                  !(
-                    cartCustomerInfo?.fullName ||
-                    cartCustomerInfo?.email
-                  )
-                ) {
-                  dispatch(
-                    setTripCustomerInfo({
-                      tripId: trip.tripId,
-                      customerInfo: next,
-                    })
-                  );
-                }
               }}
             />
           </Grid>
