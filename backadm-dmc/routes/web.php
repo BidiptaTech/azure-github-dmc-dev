@@ -716,6 +716,8 @@ Route::get('/clear', function () {
         Route::resource('discount', SpecialDiscountController::class);
         // Vehicles
         Route::resource('vehicle', VehicleController::class);
+        Route::get('/vehicle-hourly-prices/export', [VehicleController::class, 'exportHourlyPricesFormat'])->name('vehicle.hourly_prices.export');
+        Route::post('/vehicle-hourly-prices/import', [VehicleController::class, 'importHourlyPrices'])->name('vehicle.hourly_prices.import');
 
         // In web.php routes
         Route::post('/vehicle/map-zones', [VehicleController::class, 'mapZones'])->name('vehicle.map_zones');
