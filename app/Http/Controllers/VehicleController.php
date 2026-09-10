@@ -443,7 +443,7 @@ class VehicleController extends Controller
     public function store(Request $request)
     {
         // Validate the incoming request data
-        $request->validate([
+        $request->validate(array_merge([
             'vehicle_name' => 'required|string|max:255',
             'vehicle_type' => 'required|string|max:255',
             'vehicle_model' => 'required|string|max:255',
@@ -456,7 +456,7 @@ class VehicleController extends Controller
             'city_tour_seating_capacity' => 'required|integer|min:1',
             // 'city_tour_guides' => 'required|integer|min:1',
             // Add validation for sharable prices when sharable is checked
-        ]);
+        ], $this->hourlyPriceValidationRules()));
 
         // $lastVehicle = Vehicle::withTrashed()->orderBy('created_at', 'desc')->first();
         // $vehicle_max_id = $lastVehicle->vehicle_id ?? 0;
@@ -525,7 +525,7 @@ class VehicleController extends Controller
             // If vehicle exists but is trashed, restore it
             if ($existingVehicle->trashed()) {
                 $existingVehicle->restore();
-                $existingVehicle->update([
+                $existingVehicle->update(array_merge([
                     'vehicle_name' => $request->input('vehicle_name'),
                     'vehicle_type' => $request->input('vehicle_type'),
                     'vehicle_model' => $request->input('vehicle_model'),
@@ -583,7 +583,7 @@ class VehicleController extends Controller
                     'restaurant_private_transport_price' => $request->input('restaurant_private_transport_price') ?? 0,
                     'restaurant_shared_transport_price' => $request->input('restaurant_shared_transport_price') ?? 0,
                     // 'status' => $status,
-                ]);
+                ], $this->hourlyPricesFromRequest($request)));
 
                 // LogActivityService::log('restore_vehicle', 'App\Models\Vehicle', $existingVehicle->id, $existingVehicle);
 
@@ -627,6 +627,7 @@ class VehicleController extends Controller
         $vehicle->cost_per_km_10_to_25 = $request->input('cost_per_km_10_to_25')?? 0;
         $vehicle->cost_per_km_above_25 = $request->input('cost_per_km_above_25')?? 0;
         $vehicle->cost_per_hour = $request->input('cost_per_hour')?? 0;
+        $this->applyHourlyPricesFromRequest($vehicle, $request);
         $vehicle->cancellation_cost = $request->input('cancellation_cost') ?? 0;
         $vehicle->cancellation_sell = $request->input('cancellation_sell') ?? 0;
         $vehicle->cancel_cost = $request->input('cancellation_sell') ?? $request->input('cancel_cost') ?? 0;
@@ -910,7 +911,7 @@ class VehicleController extends Controller
         $vehiclePlateRules = ['required', 'string'];
         
         try {
-            $validatedData = $request->validate([
+            $validatedData = $request->validate(array_merge([
                 'vehicle_name' => 'required|string|max:255',
                 'vehicle_type' => 'required|string|max:255',
                 'vehicle_model' => 'required|string|max:255',
@@ -949,7 +950,7 @@ class VehicleController extends Controller
                 // 'night_per_km_above_25_cost_price' => 'required|numeric',
                 'night_per_hour_cost_price' => 'required|numeric',
                 'night_cancel_cost_price' => 'nullable|numeric',
-            ],[
+            ], $this->hourlyPriceValidationRules()), [
                 'vehicle_plate_no.required' => 'Vehicle plate number is required.',
             ]);
         } catch (ValidationException $e) {
@@ -1017,6 +1018,7 @@ class VehicleController extends Controller
             $vehicle->cost_per_km_above_25 = $request->input('cost_per_km_above_25') ?? 0;
         }
         $vehicle->cost_per_hour = $request->input('cost_per_hour')?? 0;
+        $this->applyHourlyPricesFromRequest($vehicle, $request);
         $vehicle->cancellation_cost = $request->input('cancellation_cost') ?? 0;
         $vehicle->cancellation_sell = $request->input('cancellation_sell') ?? 0;
         $vehicle->cancel_cost = $request->input('cancellation_sell') ?? $request->input('cancel_cost') ?? 0;
@@ -2248,5 +2250,46 @@ class VehicleController extends Controller
         // Remove all non-alphanumeric characters (spaces, hyphens, slashes, etc.)
         // Convert to uppercase for case-insensitive comparison
         return preg_replace('/[^A-Za-z0-9]/', '', strtoupper($plateNumber));
+    }
+
+    /**
+     * Validation rules for hourly package prices (1–12 hrs).
+     */
+    private function hourlyPriceValidationRules(): array
+    {
+        $rules = [];
+        for ($hour = 1; $hour <= 12; $hour++) {
+            $rules['hourly_price_' . $hour] = 'nullable|numeric|min:0';
+        }
+
+        return $rules;
+    }
+
+    /**
+     * Build hourly price attributes from request for mass assignment / update arrays.
+     */
+    private function hourlyPricesFromRequest(Request $request): array
+    {
+        $data = [];
+        for ($hour = 1; $hour <= 12; $hour++) {
+            $field = 'hourly_price_' . $hour;
+            if (!\Schema::hasColumn('vehicles', $field)) {
+                continue;
+            }
+            $value = $request->input($field);
+            $data[$field] = ($value !== null && $value !== '') ? $value : null;
+        }
+
+        return $data;
+    }
+
+    /**
+     * Apply hourly package prices from request onto a vehicle model instance.
+     */
+    private function applyHourlyPricesFromRequest(Vehicle $vehicle, Request $request): void
+    {
+        foreach ($this->hourlyPricesFromRequest($request) as $field => $value) {
+            $vehicle->{$field} = $value;
+        }
     }
 }

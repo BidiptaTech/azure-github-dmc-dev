@@ -828,6 +828,32 @@
                                 </fieldset>
                             </fieldset>
 
+                            <fieldset id="hourlyPrices" class="border p-4 rounded mb-4">
+                                <h5 class="card-title mb-3">Hourly prices</h5>
+                                <div class="row">
+                                    @for($hour = 1; $hour <= 12; $hour++)
+                                        @php $hourlyField = 'hourly_price_' . $hour; @endphp
+                                        <div class="col-md-3 mb-3">
+                                            <label for="{{ $hourlyField }}" class="form-label">
+                                                <strong>{{ $hour }} Hour{{ $hour > 1 ? 's' : '' }} Price</strong>
+                                            </label>
+                                            <input type="number"
+                                                   step="0.01"
+                                                   min="0"
+                                                   class="form-control hourly-price-input"
+                                                   id="{{ $hourlyField }}"
+                                                   name="{{ $hourlyField }}"
+                                                   data-hour="{{ $hour }}"
+                                                   placeholder="Enter {{ $hour }} hr price"
+                                                   value="{{ old($hourlyField, $vehicle->{$hourlyField} ?? '') }}">
+                                            @error($hourlyField)
+                                                <div class="text-danger mt-1">{{ $message }}</div>
+                                            @enderror
+                                        </div>
+                                    @endfor
+                                </div>
+                            </fieldset>
+
                             
                             <!-- Sharable Toggle Switch -->
                             <div class="col-md-3 mb-3">
@@ -6912,4 +6938,46 @@ $(document).ready(function() {
 @endif
 
 @include('components.currency-price-note-dmc-script')
+
+<script>
+(function () {
+    function parseHourlyAmount(value) {
+        const n = parseFloat(String(value || '').replace(',', '.'));
+        return isNaN(n) ? null : n;
+    }
+
+    function fillHourlyPricesFromOneHour() {
+        const oneHourInput = document.getElementById('hourly_price_1');
+        if (!oneHourInput) return;
+
+        const raw = String(oneHourInput.value || '').trim();
+        const base = parseHourlyAmount(raw);
+
+        for (let hour = 2; hour <= 12; hour++) {
+            const input = document.getElementById('hourly_price_' + hour);
+            if (!input) continue;
+
+            if (raw === '' || base === null) {
+                input.value = '';
+            } else {
+                input.value = Number((base * hour).toFixed(2));
+            }
+        }
+    }
+
+    function initHourlyPricesAutoFill() {
+        const oneHourInput = document.getElementById('hourly_price_1');
+        if (!oneHourInput) return;
+
+        oneHourInput.addEventListener('change', fillHourlyPricesFromOneHour);
+        oneHourInput.addEventListener('input', fillHourlyPricesFromOneHour);
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initHourlyPricesAutoFill);
+    } else {
+        initHourlyPricesAutoFill();
+    }
+})();
+</script>
 @endsection
