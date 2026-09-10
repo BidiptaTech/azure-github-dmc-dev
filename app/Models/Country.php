@@ -10,7 +10,7 @@ class Country extends Model
     use HasFactory;
 
     /** Roles that may view/edit per-DMC remittance charge & exchange rate on the countries listing. */
-    public const DMC_REMITTANCE_EXCHANGE_ROLE_IDS = [11, 20, 34, 124, 125, 36, 126, 127];
+    public const DMC_REMITTANCE_EXCHANGE_ROLE_IDS = [11, 20, 34, 124, 125, 36, 126, 127, 138];
 
     protected $table = 'countries';
     protected $guarded = [];
