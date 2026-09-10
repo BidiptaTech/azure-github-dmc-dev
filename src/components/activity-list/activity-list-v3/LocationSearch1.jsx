@@ -11,7 +11,7 @@ const SearchBar1 = ({
 }) => {
   const autocompletePickUpRef = useRef(null);
   const [isPickupValid, setIsPickupValid] = useState(true);
-
+  console.log("location search 1", Location);
   useEffect(() => {
     if (!window.google || !window.google.maps || !window.google.maps.places) {
       console.error("Google Maps API not loaded.");

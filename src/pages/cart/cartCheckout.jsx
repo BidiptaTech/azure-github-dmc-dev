@@ -96,19 +96,27 @@ const CartCheckout = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isEnquiring, setIsEnquiring] = useState(false);
   const [progress, setProgress] = useState(null);
-  const priceMode = useSelector((state) => state.category?.priceMode);
-  // Same gate as hotel / activity CustomerInfo
-  const showEnquiry =
-    priceMode === "dmc" ||
-    (Array.isArray(priceMode) && priceMode[0] === "dmc");
+  const bookingType = useSelector((state) => state.common?.bookingType);
+  const hasBookingType = Boolean(String(bookingType || "").trim());
+  const showBookNow = !hasBookingType || bookingType === "booking";
+  const showEnquiry = !hasBookingType || bookingType === "enquiry";
 
   const trip = useMemo(() => {
-    const fromState = location.state?.cartTrip;
-    if (fromState?.tripId) return fromState;
-    const id = location.state?.cartTripId || checkoutTripId;
-    if (!id) return null;
-    return (Array.isArray(cart) ? cart : []).find((t) => t.tripId === id) || null;
+    const id =
+      location.state?.cartTripId ||
+      location.state?.cartTrip?.tripId ||
+      checkoutTripId;
+    // Prefer live cart so customerInfo from Redux is current
+    if (id) {
+      const fromCart = (Array.isArray(cart) ? cart : []).find(
+        (t) => t.tripId === id
+      );
+      if (fromCart) return fromCart;
+    }
+    return location.state?.cartTrip || null;
   }, [location.state, cart, checkoutTripId]);
+
+  const cartCustomerInfo = trip?.customerInfo || null;
 
   const tripTotal = useMemo(() => {
     if (!trip?.bookings) return 0;
@@ -275,10 +283,18 @@ const CartCheckout = () => {
           <Grid item xs={12} md={7}>
             <CartCustomerInfo
               ref={customerRef}
-              initialCustomerInfo={trip?.customerInfo}
+              initialCustomerInfo={cartCustomerInfo}
               onFormChange={(next) => {
                 setFormData(next);
-                if (trip?.tripId) {
+                // Don't overwrite locked cart customerInfo while typing is blocked;
+                // only persist when form is editable (no existing cart customerInfo)
+                if (
+                  trip?.tripId &&
+                  !(
+                    cartCustomerInfo?.fullName ||
+                    cartCustomerInfo?.email
+                  )
+                ) {
                   dispatch(
                     setTripCustomerInfo({
                       tripId: trip.tripId,
@@ -384,30 +400,32 @@ const CartCheckout = () => {
                 )}
 
                 <Stack spacing={1.25}>
-                  <Button
-                    fullWidth
-                    variant="contained"
-                    disabled={isSubmitting}
-                    onClick={handleBookNow}
-                    sx={{
-                      bgcolor: "#3554d1",
-                      textTransform: "none",
-                      borderRadius: 2,
-                      fontWeight: 700,
-                      py: 1.4,
-                      opacity: isSubmitting ? 0.7 : 1,
-                      "&:hover": { bgcolor: "#2a43b0" },
-                    }}
-                  >
-                    {isSubmitting ? (
-                      <Stack direction="row" spacing={1} alignItems="center">
-                        <CircularProgress size={18} color="inherit" />
-                        <span>Booking…</span>
-                      </Stack>
-                    ) : (
-                      "Book Now"
-                    )}
-                  </Button>
+                  {showBookNow && (
+                    <Button
+                      fullWidth
+                      variant="contained"
+                      disabled={isSubmitting}
+                      onClick={handleBookNow}
+                      sx={{
+                        bgcolor: "#3554d1",
+                        textTransform: "none",
+                        borderRadius: 2,
+                        fontWeight: 700,
+                        py: 1.4,
+                        opacity: isSubmitting ? 0.7 : 1,
+                        "&:hover": { bgcolor: "#2a43b0" },
+                      }}
+                    >
+                      {isSubmitting ? (
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <CircularProgress size={18} color="inherit" />
+                          <span>Booking…</span>
+                        </Stack>
+                      ) : (
+                        "Book Now"
+                      )}
+                    </Button>
+                  )}
                   {showEnquiry && (
                     <Button
                       fullWidth
@@ -456,22 +474,24 @@ const CartCheckout = () => {
         }}
       >
         <Stack spacing={1} direction="row">
-          <Button
-            fullWidth
-            variant="contained"
-            disabled={isSubmitting}
-            onClick={handleBookNow}
-            sx={{
-              bgcolor: "#3554d1",
-              textTransform: "none",
-              borderRadius: 2,
-              fontWeight: 700,
-              py: 1.4,
-              opacity: isSubmitting ? 0.7 : 1,
-            }}
-          >
-            {isSubmitting ? "Booking…" : "Book Now"}
-          </Button>
+          {showBookNow && (
+            <Button
+              fullWidth
+              variant="contained"
+              disabled={isSubmitting}
+              onClick={handleBookNow}
+              sx={{
+                bgcolor: "#3554d1",
+                textTransform: "none",
+                borderRadius: 2,
+                fontWeight: 700,
+                py: 1.4,
+                opacity: isSubmitting ? 0.7 : 1,
+              }}
+            >
+              {isSubmitting ? "Booking…" : "Book Now"}
+            </Button>
+          )}
           {showEnquiry && (
             <Button
               fullWidth

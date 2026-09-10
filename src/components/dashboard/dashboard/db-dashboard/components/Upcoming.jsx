@@ -43,7 +43,12 @@ import MuiAlert from "@mui/material/Alert";
 import { setDateService } from "@/slice/common/dateServicesSlice";
 import { fetchLists, setTourType } from "@/slice/common/TourlistSlice";
 import Pagination from "../../common/Pagination";
-import { setBookingType, setHaveBooking } from "../../../../../slice/common/commonSlice";
+import {
+  setBookingType,
+  setHaveBooking,
+  setCityWiseDates,
+  clearCityWiseDates,
+} from "../../../../../slice/common/commonSlice";
 import dayjs from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat";
 
@@ -59,6 +64,7 @@ import {
   resetBookingState,
   clearUserInfo,
 } from "@/slice/common/customerInfo";
+import { clearCart, setTripCustomerInfo } from "@/slice/cart/carSlice";
 import TourDetailsModal from "./TourDetailsModal";
 import EnquiryModal from "./EnquiryModal";
 import PrintModal from "./PrintModal";
@@ -757,6 +763,7 @@ export default function Pending({ filters = {} }) {
     setSnackbarSeverity("info");
     setOpenSnackbar(true);
     dispatch(setHaveBooking(false));
+    dispatch(clearCityWiseDates());
     // Dispatch necessary actions
     dispatch(setId(list.id));
     dispatch(setTourId(list.id));
@@ -767,7 +774,7 @@ export default function Pending({ filters = {} }) {
     dispatch(resetVehicles());
     dispatch(resetVehicles1());
     dispatch(resetguide());
-
+    dispatch(clearCart());
     // Trigger fetchViewDetails just like handleViewDetails
     dispatch(fetchViewDetails({ tour_id: list.id }));
 
@@ -788,17 +795,33 @@ export default function Pending({ filters = {} }) {
           if(data.customerInfo.fullName) {
             dispatch(setHaveBooking(true));
           }
+          const cartCustomerInfo = {
+            fullName: data.customerInfo.fullName || "",
+            email: data.customerInfo.email || "",
+            phone: data.customerInfo.phone || "",
+            countryCode: data.customerInfo.countryCode || data.customerInfo.country_code || "",
+            address1: data.customerInfo.address1 || "",
+            address2: data.customerInfo.address2 || "",
+            state: data.customerInfo.state || "",
+            zip: data.customerInfo.zip || "",
+            specialRequests:
+              data.customerInfo.specialRequest ||
+              data.customerInfo.specialRequests ||
+              "",
+          };
           // Directly use the customerInfo object
+          dispatch(customerInfoSetUserInfo(cartCustomerInfo));
+          // Persist on cart trip.customerInfo (creates shell trip if cart empty)
           dispatch(
-            customerInfoSetUserInfo({
-              fullName: data.customerInfo.fullName || "",
-              email: data.customerInfo.email || "",
-              phone: data.customerInfo.phone || "",
-              address1: data.customerInfo.address1 || "",
-              address2: data.customerInfo.address2 || "",
-              state: data.customerInfo.state || "",
-              zip: data.customerInfo.zip || "",
-              specialRequests: data.customerInfo.specialRequest || "",
+            setTripCustomerInfo({
+              tourId: data.tour_id,
+              customerInfo: cartCustomerInfo,
+              tourDetails: {
+                ...data,
+                check_in: data.CheckInTime || data.check_in,
+                check_out: data.CheckOutTime || data.check_out,
+                tour_id: data.tour_id,
+              },
             })
           );
         } else {
@@ -811,6 +834,10 @@ export default function Pending({ filters = {} }) {
         const id = data.tour_id;
         setTId(id);
         const destination = data.destination;
+
+        if (Array.isArray(data.cityWiseDates)) {
+          dispatch(setCityWiseDates(data.cityWiseDates));
+        }
 
         if (!id || !destination) {
           //console.error("Tour ID or destination not found in response.");
