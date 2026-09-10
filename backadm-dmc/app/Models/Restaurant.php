@@ -72,8 +72,13 @@ class Restaurant extends Model
      */
     public function hasSelectedByDmc($dmcId)
     {
-        $dmcIds = $this->getDmcIdsArray();
-        return in_array($dmcId, $dmcIds);
+        $needle = (string) $dmcId;
+        foreach ($this->getDmcIdsArray() as $id) {
+            if ((string) $id === $needle) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

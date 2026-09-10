@@ -2827,6 +2827,104 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
     }
 
     /**
+     * Restrict a query to rows whose JSON dmc_id array contains any of the given DMC ids.
+     * Matches both integer and string storage (e.g. [4] vs ["4"]).
+     */
+    public static function whereJsonContainsDmcIds($query, $dmcIds)
+    {
+        $normalized = [];
+        $seen = [];
+        foreach ((array) $dmcIds as $id) {
+            $intId = (int) $id;
+            if ($intId <= 0) {
+                continue;
+            }
+            foreach ([$intId, (string) $intId] as $value) {
+                $key = gettype($value) . ':' . $value;
+                if (isset($seen[$key])) {
+                    continue;
+                }
+                $seen[$key] = true;
+                $normalized[] = $value;
+            }
+        }
+        if ($normalized === []) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query->where(function ($q) use ($normalized) {
+            foreach ($normalized as $id) {
+                $q->orWhereJsonContains('dmc_id', $id);
+            }
+        });
+    }
+
+    public static function modelSelectedByAnyDmc($model, $dmcIds): bool
+    {
+        if (!is_object($model) || !method_exists($model, 'hasSelectedByDmc')) {
+            return false;
+        }
+
+        foreach ((array) $dmcIds as $id) {
+            if ($id === null || $id === '') {
+                continue;
+            }
+            if ($model->hasSelectedByDmc($id)
+                || $model->hasSelectedByDmc((int) $id)
+                || $model->hasSelectedByDmc((string) $id)
+            ) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Unselect a hotel/attraction/restaurant for the logged-in DMC and any
+     * sibling city DMCs under the same Master. Returns true when at least one
+     * family DMC id was removed.
+     */
+    public static function removeDmcFamilySelectionFromModel($model, $baseDmcId): bool
+    {
+        if (!is_object($model) || !method_exists($model, 'getSelectedDmcIds')) {
+            return false;
+        }
+
+        $familyIds = self::getSiblingDmcIds($baseDmcId);
+        if ($familyIds === []) {
+            $familyIds = [(int) $baseDmcId];
+        }
+
+        $familyLookup = [];
+        foreach ($familyIds as $sid) {
+            $intId = (int) $sid;
+            if ($intId > 0) {
+                $familyLookup[(string) $intId] = true;
+            }
+        }
+
+        $kept = [];
+        $removed = false;
+        foreach ($model->getSelectedDmcIds() as $sid) {
+            if (isset($familyLookup[(string) ((int) $sid)])) {
+                $removed = true;
+                continue;
+            }
+            $kept[] = $sid;
+        }
+
+        if (!$removed) {
+            return false;
+        }
+
+        $model->dmc_id = $kept;
+        $model->save();
+
+        return true;
+    }
+
+    /**
      * Country → sibling DMC id map under the same Master DMC as $baseDmcId.
      * Example: ["Singapore" => 4, "India" => 12]
      *
@@ -2865,6 +2963,197 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         }
 
         return $map;
+    }
+
+    /**
+     * Actual sibling-DMC destination rows under the same Master DMC as $baseDmcId.
+     * Uses each child DMC's country + city mapping — not the Master DMC country list.
+     *
+     * @return list<array{dmc_id:int, country:string, city:string, city_id:?int}>
+     */
+    public static function getSiblingDmcDestinations($baseDmcId): array
+    {
+        $baseDmcId = (int) $baseDmcId;
+        if ($baseDmcId <= 0) {
+            return [];
+        }
+
+        $siblingIds = self::getSiblingDmcIds($baseDmcId);
+        if ($siblingIds === []) {
+            return [];
+        }
+
+        $dmcs = User::whereIn('userId', $siblingIds)->get(['userId', 'country', 'user_country', 'city', 'role_id']);
+        $rows = [];
+        $seen = [];
+
+        foreach ($dmcs as $dmc) {
+            $dmcId = (int) $dmc->userId;
+            $countries = self::resolveSupportedCountriesForDmc($dmc);
+            if ($countries === []) {
+                $fallbackCountry = self::normalizeCountryName(trim((string) ($dmc->user_country ?? '')));
+                if ($fallbackCountry !== '') {
+                    $countries = [$fallbackCountry];
+                }
+            }
+            if ($countries === []) {
+                continue;
+            }
+
+            $mappedCities = self::parseUserCountryList($dmc->city ?? null);
+            if ($mappedCities !== []) {
+                foreach ($mappedCities as $cityName) {
+                    $cityName = trim((string) $cityName);
+                    if ($cityName === '') {
+                        continue;
+                    }
+                    $cityRow = City::query()
+                        ->whereRaw('LOWER(name) = ?', [mb_strtolower($cityName)])
+                        ->first(['city_id', 'id', 'name', 'country']);
+                    $country = $cityRow
+                        ? self::normalizeCountryName((string) ($cityRow->country ?? ''))
+                        : '';
+                    if ($country === '') {
+                        $userCountry = self::normalizeCountryName(trim((string) ($dmc->user_country ?? '')));
+                        $country = $userCountry !== '' ? $userCountry : (string) ($countries[0] ?? '');
+                    }
+                    if ($country === '') {
+                        continue;
+                    }
+                    $canonicalCity = trim((string) ($cityRow->name ?? $cityName));
+                    $cityId = $cityRow ? (int) ($cityRow->city_id ?? $cityRow->id ?? 0) : 0;
+                    $key = mb_strtolower($country) . '|' . mb_strtolower($canonicalCity);
+                    if (isset($seen[$key])) {
+                        continue;
+                    }
+                    $seen[$key] = true;
+                    $rows[] = [
+                        'dmc_id' => $dmcId,
+                        'country' => $country,
+                        'city' => $canonicalCity,
+                        'city_id' => $cityId > 0 ? $cityId : null,
+                    ];
+                }
+                continue;
+            }
+
+            // DMC has a country but no city: expose all cities in that DMC country.
+            $cityRecords = City::query()
+                ->whereIn('country', $countries)
+                ->orderBy('name')
+                ->get(['city_id', 'id', 'name', 'country']);
+            foreach ($cityRecords as $cityRow) {
+                $canonicalCity = trim((string) ($cityRow->name ?? ''));
+                $country = self::normalizeCountryName((string) ($cityRow->country ?? ''));
+                if ($canonicalCity === '' || $country === '') {
+                    continue;
+                }
+                $key = mb_strtolower($country) . '|' . mb_strtolower($canonicalCity);
+                if (isset($seen[$key])) {
+                    continue;
+                }
+                $seen[$key] = true;
+                $cityId = (int) ($cityRow->city_id ?? $cityRow->id ?? 0);
+                $rows[] = [
+                    'dmc_id' => $dmcId,
+                    'country' => $country,
+                    'city' => $canonicalCity,
+                    'city_id' => $cityId > 0 ? $cityId : null,
+                ];
+            }
+        }
+
+        return $rows;
+    }
+
+    /**
+     * City name → sibling DMC id (exact mapped cities first).
+     *
+     * @return array<string, int>
+     */
+    public static function getSiblingDmcCityMap($baseDmcId): array
+    {
+        $map = [];
+        foreach (self::getSiblingDmcDestinations($baseDmcId) as $row) {
+            $city = trim((string) ($row['city'] ?? ''));
+            if ($city === '') {
+                continue;
+            }
+            $key = mb_strtolower($city);
+            if ($key === '' || isset($map[$key])) {
+                continue;
+            }
+            $map[$key] = (int) $row['dmc_id'];
+            $map[$city] = (int) $row['dmc_id'];
+        }
+
+        return $map;
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function getSiblingDmcCountryNames($baseDmcId): array
+    {
+        $names = [];
+        foreach (self::getSiblingDmcDestinations($baseDmcId) as $row) {
+            $country = trim((string) ($row['country'] ?? ''));
+            if ($country === '') {
+                continue;
+            }
+            $exists = false;
+            foreach ($names as $existing) {
+                if (self::countriesMatch($existing, $country)) {
+                    $exists = true;
+                    break;
+                }
+            }
+            if (!$exists) {
+                $names[] = $country;
+            }
+        }
+
+        return $names;
+    }
+
+    /**
+     * Select2 / destination-picker options from actual sibling DMC mappings.
+     *
+     * @return list<array{id:string, text:string, country:string, city:string, dmc_id:int}>
+     */
+    public static function getSiblingDmcCityOptions($baseDmcId, ?string $search = null): array
+    {
+        $search = trim((string) $search);
+        $needle = $search !== '' ? mb_strtolower($search) : '';
+        $options = [];
+
+        foreach (self::getSiblingDmcDestinations($baseDmcId) as $row) {
+            $city = trim((string) ($row['city'] ?? ''));
+            $country = trim((string) ($row['country'] ?? ''));
+            if ($city === '') {
+                continue;
+            }
+            if ($needle !== '') {
+                $hay = mb_strtolower($city . ' ' . $country);
+                if (mb_strpos($hay, $needle) === false) {
+                    continue;
+                }
+            }
+            $cityId = (int) ($row['city_id'] ?? 0);
+            $options[] = [
+                'id' => $cityId > 0 ? (string) $cityId : $city,
+                'text' => $country !== '' ? ($city . ' (' . $country . ')') : $city,
+                'country' => $country,
+                'city' => $city,
+                'dmc_id' => (int) $row['dmc_id'],
+            ];
+        }
+
+        usort($options, static function ($a, $b) {
+            return strcasecmp((string) $a['text'], (string) $b['text']);
+        });
+
+        return $options;
     }
 
     /**
@@ -2938,6 +3227,44 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
 
         $country = trim((string) $country);
         $city = trim((string) $city);
+
+        // Tours can store multiple cities as CSV ("Kuala Lumpur,Singapore").
+        // Prefer the sibling-city token so Malaysia DMC booking Singapore uses Singapore inventory.
+        if ($city !== '' && str_contains($city, ',')) {
+            $parts = array_values(array_filter(array_map('trim', explode(',', $city))));
+            $fallback = 0;
+            foreach ($parts as $part) {
+                if ($part === '') {
+                    continue;
+                }
+                $found = self::resolveSiblingDmcIdForCity($baseDmcId, $part, $country !== '' ? $country : null);
+                if ($found > 0 && $found !== $baseDmcId) {
+                    return $found;
+                }
+                if ($found > 0) {
+                    $fallback = $found;
+                }
+            }
+            if ($fallback > 0) {
+                return $fallback;
+            }
+        }
+
+        if ($city !== '') {
+            $cityMap = self::getSiblingDmcCityMap($baseDmcId);
+            $cityKey = mb_strtolower($city);
+            if ($cityKey !== '' && isset($cityMap[$cityKey])) {
+                return (int) $cityMap[$cityKey];
+            }
+            if (isset($cityMap[$city])) {
+                return (int) $cityMap[$city];
+            }
+            foreach ($cityMap as $mappedCity => $dmcId) {
+                if (mb_strtolower((string) $mappedCity) === $cityKey) {
+                    return (int) $dmcId;
+                }
+            }
+        }
 
         // City name may equal a sibling country label (e.g. city "Singapore")
         if ($country === '' && $city !== '') {
@@ -11659,6 +11986,20 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 $discountType = 'flat';
             }
 
+            $cities = [];
+            $rawCities = $offer['cities'] ?? ($offer['city'] ?? '');
+            if (is_array($rawCities)) {
+                $cityList = $rawCities;
+            } else {
+                $cityList = preg_split('/\s*,\s*/', trim((string) $rawCities)) ?: [];
+            }
+            foreach ($cityList as $cityName) {
+                $cityName = trim((string) $cityName);
+                if ($cityName !== '') {
+                    $cities[] = $cityName;
+                }
+            }
+
             $out[] = [
                 'country' => trim((string) ($offer['country'] ?? '')),
                 'currency' => strtoupper(trim((string) ($offer['currency'] ?? ''))),
@@ -11671,6 +12012,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 'markup_value' => $hotelMarkup + $otherMarkup,
                 'discount_type' => $discountType,
                 'discount_value' => $discountValue,
+                'cities' => array_values(array_unique($cities)),
             ];
         }
 
@@ -11690,6 +12032,27 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             return;
         }
 
+        // DMC counter-only posts have amount/country but no markup fields. Do not wipe
+        // hotel_markup / other_markup / discount that agent negotiation already saved.
+        $hasMarkupPayload = false;
+        foreach ($offers as $offer) {
+            if (! is_array($offer)) {
+                continue;
+            }
+            if (array_key_exists('hotel_markup', $offer)
+                || array_key_exists('other_markup', $offer)
+                || array_key_exists('discount_value', $offer)
+                || array_key_exists('markup_type', $offer)
+                || array_key_exists('discount_type', $offer)
+            ) {
+                $hasMarkupPayload = true;
+                break;
+            }
+        }
+        if (! $hasMarkupPayload) {
+            return;
+        }
+
         $offers = self::normalizeNegotiationOffers($offers);
         if ($offers === []) {
             return;
@@ -11702,6 +12065,44 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         }
         $existing = is_array($raw) ? $raw : [];
 
+        $buildMarkupRow = static function (array $offer, array $row = []): array {
+            $hotel = (float) ($offer['hotel_markup'] ?? ($row['hotel_markup'] ?? $row['markup_value'] ?? 0));
+            $other = (float) ($offer['other_markup'] ?? ($row['other_markup'] ?? 0));
+
+            return [
+                'city' => trim((string) ($row['city'] ?? '')),
+                'currency' => $offer['currency'] ?? ($row['currency'] ?? ''),
+                'country' => $offer['country'] ?? ($row['country'] ?? ''),
+                'markup_type' => $offer['markup_type'] ?? ($row['markup_type'] ?? 'flat'),
+                'markup_value' => $hotel + $other,
+                'hotel_markup' => $hotel,
+                'other_markup' => $other,
+                'discount_type' => $offer['discount_type'] ?? ($row['discount_type'] ?? 'flat'),
+                'discount_value' => (float) ($offer['discount_value'] ?? ($row['discount_value'] ?? 0)),
+            ];
+        };
+
+        $offerMatchesRow = static function (array $row, array $offer): bool {
+            $rowCity = trim((string) ($row['city'] ?? ''));
+            $offerCities = is_array($offer['cities'] ?? null) ? $offer['cities'] : [];
+            if ($rowCity !== '' && $offerCities !== []) {
+                foreach ($offerCities as $city) {
+                    if (strcasecmp($rowCity, trim((string) $city)) === 0) {
+                        return true;
+                    }
+                }
+            }
+            $rowCountry = trim((string) ($row['country'] ?? ''));
+            $offerCountry = trim((string) ($offer['country'] ?? ''));
+            if ($rowCountry !== '' && $offerCountry !== '' && strcasecmp($rowCountry, $offerCountry) === 0) {
+                return true;
+            }
+            $rowCurrency = strtoupper(trim((string) ($row['currency'] ?? '')));
+            $offerCurrency = strtoupper(trim((string) ($offer['currency'] ?? '')));
+
+            return $rowCurrency !== '' && $offerCurrency !== '' && $rowCurrency === $offerCurrency;
+        };
+
         $updatedMarkups = [];
         if ($existing !== []) {
             foreach ($existing as $row) {
@@ -11710,31 +12111,13 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 }
                 $match = null;
                 foreach ($offers as $offer) {
-                    $sameCountry = strcasecmp((string) ($row['country'] ?? ''), (string) ($offer['country'] ?? '')) === 0
-                        && trim((string) ($offer['country'] ?? '')) !== '';
-                    $sameCurrency = strtoupper(trim((string) ($row['currency'] ?? ''))) === strtoupper((string) ($offer['currency'] ?? ''))
-                        && trim((string) ($offer['currency'] ?? '')) !== '';
-                    $sameCityCountry = trim((string) ($row['city'] ?? '')) !== ''
-                        && strcasecmp((string) ($row['country'] ?? ''), (string) ($offer['country'] ?? '')) === 0;
-                    if ($sameCountry || $sameCityCountry || $sameCurrency) {
+                    if ($offerMatchesRow($row, $offer)) {
                         $match = $offer;
                         break;
                     }
                 }
                 if ($match) {
-                    $hotel = (float) ($match['hotel_markup'] ?? 0);
-                    $other = (float) ($match['other_markup'] ?? 0);
-                    $updatedMarkups[] = [
-                        'city' => trim((string) ($row['city'] ?? '')),
-                        'currency' => $match['currency'] ?? ($row['currency'] ?? ''),
-                        'country' => $match['country'] ?? ($row['country'] ?? ''),
-                        'markup_type' => $match['markup_type'] ?? ($row['markup_type'] ?? null),
-                        'markup_value' => $hotel + $other,
-                        'hotel_markup' => $hotel,
-                        'other_markup' => $other,
-                        'discount_type' => $match['discount_type'] ?? ($row['discount_type'] ?? null),
-                        'discount_value' => (float) ($match['discount_value'] ?? 0),
-                    ];
+                    $updatedMarkups[] = $buildMarkupRow($match, $row);
                 } else {
                     $updatedMarkups[] = [
                         'city' => trim((string) ($row['city'] ?? '')),
@@ -11749,21 +12132,35 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                     ];
                 }
             }
-        } else {
-            foreach ($offers as $offer) {
-                $hotel = (float) ($offer['hotel_markup'] ?? 0);
-                $other = (float) ($offer['other_markup'] ?? 0);
-                $updatedMarkups[] = [
-                    'city' => '',
-                    'currency' => $offer['currency'] ?? '',
-                    'country' => $offer['country'] ?? '',
-                    'markup_type' => $offer['markup_type'] ?? 'flat',
-                    'markup_value' => $hotel + $other,
-                    'hotel_markup' => $hotel,
-                    'other_markup' => $other,
-                    'discount_type' => $offer['discount_type'] ?? 'flat',
-                    'discount_value' => (float) ($offer['discount_value'] ?? 0),
-                ];
+        }
+
+        $seenCities = [];
+        foreach ($updatedMarkups as $row) {
+            $cityKey = mb_strtolower(trim((string) ($row['city'] ?? '')));
+            if ($cityKey !== '') {
+                $seenCities[$cityKey] = true;
+            }
+        }
+
+        foreach ($offers as $offer) {
+            $cities = is_array($offer['cities'] ?? null) ? $offer['cities'] : [];
+            if ($cities === []) {
+                if ($existing === []) {
+                    $updatedMarkups[] = $buildMarkupRow($offer, ['city' => '']);
+                }
+                continue;
+            }
+            foreach ($cities as $city) {
+                $city = trim((string) $city);
+                if ($city === '') {
+                    continue;
+                }
+                $cityKey = mb_strtolower($city);
+                if (isset($seenCities[$cityKey])) {
+                    continue;
+                }
+                $seenCities[$cityKey] = true;
+                $updatedMarkups[] = $buildMarkupRow($offer, ['city' => $city]);
             }
         }
 

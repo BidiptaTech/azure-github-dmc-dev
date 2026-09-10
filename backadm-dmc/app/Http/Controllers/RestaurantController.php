@@ -954,9 +954,18 @@ class RestaurantController extends Controller
 
         $allRestaurants = $allRestaurantsQuery->get();
 
-        $selectedRestaurants = $allRestaurants->filter(function ($restaurant) use ($dmc_id) {
-            return $restaurant->hasSelectedByDmc($dmc_id);
-        });
+        $dmcFamilyIds = CommonHelper::getSiblingDmcIds($dmc_id);
+        if ($dmcFamilyIds === []) {
+            $dmcFamilyIds = [(int) $dmc_id];
+        }
+
+        $selectedQuery = Restaurant::where('status', 1)->orderBy('name', 'asc');
+        $selectedRestaurants = CommonHelper::whereJsonContainsDmcIds($selectedQuery, $dmcFamilyIds)
+            ->get()
+            ->filter(function ($restaurant) use ($dmcFamilyIds) {
+                return CommonHelper::modelSelectedByAnyDmc($restaurant, $dmcFamilyIds);
+            })
+            ->values();
 
         $availableRestaurants = $allRestaurants->filter(function ($restaurant) use ($dmc_id) {
             return !$restaurant->hasSelectedByDmc($dmc_id);
@@ -991,7 +1000,8 @@ class RestaurantController extends Controller
             'availableRestaurants',
             'selectedRestaurants',
             'dmcCountry',
-            'allowedCities'
+            'allowedCities',
+            'dmc_id'
         ));
     }
 
@@ -1126,8 +1136,12 @@ class RestaurantController extends Controller
                 ], 404);
             }
 
-            // Remove the DMC from the restaurant's selected DMCs
-            $restaurant->removeDmcId($dmc_id);
+            if (!CommonHelper::removeDmcFamilySelectionFromModel($restaurant, $dmc_id)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Restaurant not selected by you.',
+                ], 400);
+            }
 
             return response()->json([
                 'success' => true,

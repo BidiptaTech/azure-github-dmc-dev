@@ -5,7 +5,7 @@
         border-radius: 5px;
         box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
         overflow: hidden;
-        max-width: min(100%, 640px);
+        max-width: min(100%, 760px);
     }
     .enquiry-md-panel__head {
         display: flex;
@@ -119,6 +119,8 @@
     #enquiryProMarkupMultiWrap select.city-markup-type,
     #enquiryProMarkupMultiWrap select.city-discount-type,
     #enquiryProMarkupMultiWrap input.city-markup-value,
+    #enquiryProMarkupMultiWrap input.city-hotel-markup,
+    #enquiryProMarkupMultiWrap input.city-other-markup,
     #enquiryProMarkupMultiWrap input.city-discount-value {
         height: 22px;
         min-height: 22px;
@@ -140,11 +142,24 @@
     }
     #enquiryProMarkupSingleWrap input[type="number"],
     #enquiryProMarkupMultiWrap input.city-markup-value,
+    #enquiryProMarkupMultiWrap input.city-hotel-markup,
+    #enquiryProMarkupMultiWrap input.city-other-markup,
     #enquiryProMarkupMultiWrap input.city-discount-value {
         width: 92px;
-        min-width: 84px;
+        min-width: 72px;
         text-align: right;
         padding-right: 4px;
+    }
+    .enquiry-md-markup-input {
+        display: flex;
+        align-items: center;
+        gap: 3px;
+    }
+    .enquiry-md-markup-input .city-markup-suffix {
+        font-size: 9px;
+        font-weight: 650;
+        color: #64748b;
+        min-width: 22px;
     }
     #enquiryProMarkupSingleWrap select:focus,
     #enquiryProMarkupSingleWrap input:focus,
@@ -170,7 +185,7 @@
     }
     .enquiry-md-table {
         width: 100%;
-        min-width: 560px;
+        min-width: 620px;
         margin: 0 !important;
         border-collapse: separate;
         border-spacing: 0;

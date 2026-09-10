@@ -182,6 +182,7 @@
         }
         // Master multi-country: country → sibling DMC id (Singapore→SG DMC, India→IN DMC)
         $siblingDmcCountryMap = \App\Helpers\CommonHelper::getSiblingDmcCountryMap((int) $finalDmcId);
+        $siblingDmcCityMap = \App\Helpers\CommonHelper::getSiblingDmcCityMap((int) $finalDmcId);
         // Determine created_by based on role hierarchy (for backward compatibility)
         $createdBy = null;
         if ($currentUserRole == 34) { // Operation Head
@@ -208,6 +209,7 @@
         window.CITY_COUNTRY_MAP = @json($cityCountryMapForUi ?? new \stdClass());
         window.operatingDmcId = parseInt('{{ (int) $finalDmcId }}', 10) || 0;
         window.siblingDmcCountryMap = @json($siblingDmcCountryMap ?? []);
+        window.siblingDmcCityMap = @json($siblingDmcCityMap ?? []);
 
         window.resolveDmcIdForCountry = function (country) {
             const c = String(country || '').trim();
@@ -224,6 +226,18 @@
         };
 
         window.resolveDmcIdForCity = function (cityName, countryHint) {
+            const city = String(cityName || '').trim();
+            const cityMap = window.siblingDmcCityMap || {};
+            if (city) {
+                const lower = city.toLowerCase();
+                if (cityMap[city]) return parseInt(cityMap[city], 10) || 0;
+                if (cityMap[lower]) return parseInt(cityMap[lower], 10) || 0;
+                for (const key of Object.keys(cityMap)) {
+                    if (String(key).toLowerCase() === lower) {
+                        return parseInt(cityMap[key], 10) || 0;
+                    }
+                }
+            }
             let country = String(countryHint || '').trim();
             if (!country && cityName) {
                 const map = window.CITY_COUNTRY_MAP || {};
@@ -303,6 +317,48 @@
                 country = String(window.CITY_COUNTRY_MAP[city] || '').trim();
             }
             return window.resolveDmcIdForCity(city, country) || window.operatingDmcId || 0;
+        };
+        window.pickInventoryCityName = function (cityHint) {
+            let city = String(cityHint || '').trim();
+            if (!city || city.indexOf(',') === -1) {
+                return city;
+            }
+            const parts = city.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+            const active = (typeof window.getActiveServiceCity === 'function')
+                ? String(window.getActiveServiceCity() || '').trim()
+                : '';
+            if (active) {
+                const hit = parts.find(function (p) { return p.toLowerCase() === active.toLowerCase(); });
+                if (hit) return hit;
+            }
+            if (typeof window.resolveDmcIdForCity === 'function') {
+                for (let i = 0; i < parts.length; i++) {
+                    const id = window.resolveDmcIdForCity(parts[i]);
+                    if (id && String(id) !== String(window.operatingDmcId || '')) {
+                        return parts[i];
+                    }
+                }
+            }
+            return parts[0] || city;
+        };
+        window.withInventoryDmcPayload = function (payload, cityHint) {
+            const base = payload && typeof payload === 'object' ? payload : {};
+            let city = String(cityHint || base.city || (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : '') || '').trim();
+            if (typeof window.pickInventoryCityName === 'function') {
+                city = window.pickInventoryCityName(city) || city;
+            }
+            let country = String(base.country || '').trim();
+            if (!country && city && window.CITY_COUNTRY_MAP) {
+                country = String(window.CITY_COUNTRY_MAP[city] || '').trim();
+            }
+            const dmcId = (typeof window.getActiveServiceDmcId === 'function')
+                ? window.getActiveServiceDmcId(city)
+                : (window.operatingDmcId || '');
+            return Object.assign({}, base, {
+                city: city || base.city || '',
+                country: country || base.country || '',
+                dmc_id: dmcId || base.dmc_id || ''
+            });
         };
 
         window.isRoomBreakfastIncluded = function(room) {
@@ -10210,7 +10266,16 @@
         fetch('{{ route("fetch-vehicles-by-zones") }}', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
-            body: JSON.stringify({
+            body: JSON.stringify((typeof window.withInventoryDmcPayload === 'function')
+                ? window.withInventoryDmcPayload({
+                from_zone_id: pickupZoneId,
+                to_zone_id: dropoffZoneId,
+                from_zone_type: fromZoneType,
+                to_zone_type: toZoneType,
+                zone_status: zoneStatus,
+                city: city
+            }, city)
+                : {
                 from_zone_id: pickupZoneId,
                 to_zone_id: dropoffZoneId,
                 from_zone_type: fromZoneType,
@@ -11262,7 +11327,9 @@
 
             // Get zone status
             const zoneStatus = {{ $UserDmc->zone_on ?? 0 }};
-            const city = '{{ $tour->city ?? "" }}';
+        const city = (typeof window.pickInventoryCityName === 'function')
+            ? window.pickInventoryCityName('{{ $tour->city ?? "" }}')
+            : '{{ $tour->city ?? "" }}';
             const dmcId = {{ $UserDmc->userId ?? 0 }};
 
             // Get transport type
@@ -11279,7 +11346,16 @@
                             'Content-Type': 'application/json',
                             'X-CSRF-TOKEN': csrfToken
                         },
-                        body: JSON.stringify({
+                        body: JSON.stringify((typeof window.withInventoryDmcPayload === 'function')
+                            ? window.withInventoryDmcPayload({
+                            from_zone_id: restaurantId,
+                            to_zone_id: destinationId,
+                            from_zone_type: 'restaurant',
+                            to_zone_type: destinationType,
+                            city: city,
+                            zone_status: zoneStatus
+                        })
+                            : {
                             from_zone_id: restaurantId,
                             to_zone_id: destinationId,
                             from_zone_type: 'restaurant',
@@ -11496,7 +11572,9 @@
 
             // Get zone status
             const zoneStatus = {{ $UserDmc->zone_on ?? 0 }};
-            const city = '{{ $tour->city ?? "" }}';
+        const city = (typeof window.pickInventoryCityName === 'function')
+            ? window.pickInventoryCityName('{{ $tour->city ?? "" }}')
+            : '{{ $tour->city ?? "" }}';
             const dmcId = {{ $UserDmc->userId ?? 0 }};
 
             // Get transport type
@@ -11513,7 +11591,16 @@
                             'Content-Type': 'application/json',
                             'X-CSRF-TOKEN': csrfToken
                         },
-                        body: JSON.stringify({
+                        body: JSON.stringify((typeof window.withInventoryDmcPayload === 'function')
+                            ? window.withInventoryDmcPayload({
+                            from_zone_id: attractionId,
+                            to_zone_id: destinationId,
+                            from_zone_type: 'attraction',
+                            to_zone_type: destinationType,
+                            city: city,
+                            zone_status: zoneStatus
+                        })
+                            : {
                             from_zone_id: attractionId,
                             to_zone_id: destinationId,
                             from_zone_type: 'attraction',
@@ -11802,7 +11889,9 @@
 
             // Get zone status and city
             const zoneStatus = {{ $UserDmc->zone_on ?? 0 }};
-            const city = '{{ $tour->city ?? "" }}';
+        const city = (typeof window.pickInventoryCityName === 'function')
+            ? window.pickInventoryCityName('{{ $tour->city ?? "" }}')
+            : '{{ $tour->city ?? "" }}';
 
             // Fetch vehicles - try zone mapping first, then fallback to city-based
             let vehicles = [];
@@ -11817,7 +11906,16 @@
                             'Content-Type': 'application/json',
                             'X-CSRF-TOKEN': csrfToken
                         },
-                        body: JSON.stringify({
+                        body: JSON.stringify((typeof window.withInventoryDmcPayload === 'function')
+                            ? window.withInventoryDmcPayload({
+                            from_zone_id: restaurantId,
+                            to_zone_id: destinationId,
+                            from_zone_type: 'restaurant',
+                            to_zone_type: destinationType,
+                            city: city,
+                            zone_status: zoneStatus
+                        })
+                            : {
                             from_zone_id: restaurantId,
                             to_zone_id: destinationId,
                             from_zone_type: 'restaurant',
@@ -12193,7 +12291,9 @@
 
             // Get zone status
             const zoneStatus = {{ $UserDmc->zone_on ?? 0 }};
-            const city = '{{ $tour->city ?? "" }}';
+        const city = (typeof window.pickInventoryCityName === 'function')
+            ? window.pickInventoryCityName('{{ $tour->city ?? "" }}')
+            : '{{ $tour->city ?? "" }}';
 
             // Fetch vehicles using zone mapping
             if (zoneStatus == 1 && fetchVehiclesByZonesUrl) {
@@ -12205,7 +12305,16 @@
                             'Content-Type': 'application/json',
                             'X-CSRF-TOKEN': csrfToken
                         },
-                        body: JSON.stringify({
+                        body: JSON.stringify((typeof window.withInventoryDmcPayload === 'function')
+                            ? window.withInventoryDmcPayload({
+                            from_zone_id: attractionId,
+                            to_zone_id: destinationId,
+                            from_zone_type: 'attraction',
+                            to_zone_type: destinationType,
+                            city: city,
+                            zone_status: zoneStatus
+                        })
+                            : {
                             from_zone_id: attractionId,
                             to_zone_id: destinationId,
                             from_zone_type: 'attraction',
@@ -16626,7 +16735,16 @@
                 'Content-Type': 'application/json',
                 'X-CSRF-TOKEN': '{{ csrf_token() }}'
             },
-            body: JSON.stringify({
+            body: JSON.stringify((typeof window.withInventoryDmcPayload === 'function')
+                ? window.withInventoryDmcPayload({
+                from_zone_id: pickupZoneId,
+                to_zone_id: dropoffZoneId,
+                from_zone_type: zone_status == 1 ? fromZoneType : '',
+                to_zone_type: zone_status == 1 ? toZoneType : '',
+                zone_status: zone_status,
+                city: selectedCity
+            }, selectedCity)
+                : {
                 from_zone_id: pickupZoneId,
                 to_zone_id: dropoffZoneId,
                 from_zone_type: zone_status == 1 ? fromZoneType : '',
@@ -17054,7 +17172,16 @@
         const user_dmc = @json($UserDmc);
         const zone_status = user_dmc.zone_on;
         
-        const params = {
+        const params = (typeof window.withInventoryDmcPayload === 'function')
+            ? window.withInventoryDmcPayload({
+            from_zone_id: actualFromZoneId,
+            to_zone_id: actualToZoneId,
+            from_zone_type: fromZoneType,
+            to_zone_type: toZoneType,
+            city: selectedCity,
+            zone_status: zone_status
+        }, selectedCity)
+            : {
             from_zone_id: actualFromZoneId,
             to_zone_id: actualToZoneId,
             from_zone_type: fromZoneType,
@@ -17448,13 +17575,20 @@
                 'Content-Type': 'application/json',
                 'X-CSRF-TOKEN': '{{ csrf_token() }}'
             },
-            body: JSON.stringify({
+            body: JSON.stringify((typeof window.withInventoryDmcPayload === 'function')
+                ? window.withInventoryDmcPayload({
                 from_zone_id: pickupZoneId,
                 to_zone_id: dropoffZoneId,
                 from_zone_type: 'zone',
                 to_zone_type: 'zone',
-                zone_status: zone_status,
-                // city parameter removed
+                zone_status: zone_status
+            })
+                : {
+                from_zone_id: pickupZoneId,
+                to_zone_id: dropoffZoneId,
+                from_zone_type: 'zone',
+                to_zone_type: 'zone',
+                zone_status: zone_status
             })
         })
         .then(response => response.json())
@@ -28044,7 +28178,9 @@
     
     const fetchVehiclesByZonesUrl = "{{ route('fetch-vehicles-by-zones') }}";
     const userDmcZoneStatus = {{ (int) ($UserDmc->zone_on ?? 0) }};
-    const defaultLocalTransferCity = @json($tour->city ?? $tour->destination ?? '');
+    const defaultLocalTransferCity = (typeof window.pickInventoryCityName === 'function')
+        ? window.pickInventoryCityName(@json($tour->city ?? $tour->destination ?? ''))
+        : @json($tour->city ?? $tour->destination ?? '');
     
     function initializeLocalTransportEditForms() {
         const localTransportForms = document.querySelectorAll('.transport-edit-form[data-form-type="local_transport"]');
@@ -28163,7 +28299,16 @@
             return;
         }
         
-        const payload = {
+        const payload = (typeof window.withInventoryDmcPayload === 'function')
+            ? window.withInventoryDmcPayload({
+            from_zone_id: pickupReference,
+            to_zone_id: dropoffReference,
+            from_zone_type: pickupTypeInput?.value || 'zone',
+            to_zone_type: dropoffTypeInput?.value || 'zone',
+            city: form.dataset.city || defaultLocalTransferCity || '',
+            zone_status: parseInt(form.dataset.zoneStatus || userDmcZoneStatus || 0, 10)
+        }, form.dataset.city || defaultLocalTransferCity || '')
+            : {
             from_zone_id: pickupReference,
             to_zone_id: dropoffReference,
             from_zone_type: pickupTypeInput?.value || 'zone',
@@ -29680,14 +29825,23 @@
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': '{{ csrf_token() }}'
                 },
-                body: JSON.stringify({
-                    from_zone_id: pickupZoneId,
-                    to_zone_id: dropoffZoneId,
-                    from_zone_type: zone_status == 1 ? pickupZoneType : '',
-                    to_zone_type: zone_status == 1 ? dropoffZoneType : '',
-                    zone_status: zone_status,
-                    city: city
-                })
+            body: JSON.stringify((typeof window.withInventoryDmcPayload === 'function')
+                ? window.withInventoryDmcPayload({
+                from_zone_id: pickupZoneId,
+                to_zone_id: dropoffZoneId,
+                from_zone_type: zone_status == 1 ? fromZoneType : '',
+                to_zone_type: zone_status == 1 ? toZoneType : '',
+                zone_status: zone_status,
+                city: city
+            }, city)
+                : {
+                from_zone_id: pickupZoneId,
+                to_zone_id: dropoffZoneId,
+                from_zone_type: zone_status == 1 ? fromZoneType : '',
+                to_zone_type: zone_status == 1 ? toZoneType : '',
+                zone_status: zone_status,
+                city: city
+            })
             });
             
             const data = await response.json();
