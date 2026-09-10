@@ -24,6 +24,7 @@ import {
   setDropoffZoneid,
   setPickupZoneid,
   setZonetype,
+  setHourlyCity,
 } from "@/slice/localtour/Localslice";
 import SearchBar1 from "./LocationSearch1";
 import DateSearch1 from "./DateSearch1";
@@ -36,6 +37,7 @@ import Pickuptimezone from "./Pickuptimezone";
 import DateSearchZone from "./DateSearchZone";
 import { triggerSearch, clearTriggerSearch } from "@/slice/common/stepsSlice";
 import { selectCart } from "@/slice/cart/carSlice";
+import CityLocation from "./CityLocation";
 
 const MainFilterSearchBox = ({ Location }) => {
   const dispatch = useDispatch();
@@ -50,6 +52,10 @@ const MainFilterSearchBox = ({ Location }) => {
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedDate1, setSelectedDate1] = useState("");
   const [selectedDateZone, setSelectedDateZone] = useState("");
+  // Hourly: selected city name (from CityLocation)
+  const [hourlyCityName, setHourlyCityName] = useState("");
+  const [hourlyCityAddress, setHourlyCityAddress] = useState("");
+  const [hourlyCityError, setHourlyCityError] = useState(false);
   //const [selectedPort, setSelectedPort] = useState("Point To Point"); // Default selection
   const selectedPort = useSelector((state) => state.localtour.selectedPort);
   console.log("selectedPort2", selectedPort);
@@ -134,7 +140,14 @@ const MainFilterSearchBox = ({ Location }) => {
     } else if (selectedPort === "Hourly") {
       // Only proceed if pickup location is selected from autocomplete
       const locationValid = exitPickupFromAutocomplete;
+      const cityName =
+        hourlyCityName ||
+        String(hourlyCityAddress || "")
+          .split(",")[0]
+          .trim();
+      const cityValid = Boolean(cityName);
 
+      dispatch(setHourlyCity(cityName));
       dispatch(setexitpickup(exitpickUpLocation));
       dispatch(setpickdate(selectedDate1));
       dispatch(setentrytime(entryytime1));
@@ -144,10 +157,12 @@ const MainFilterSearchBox = ({ Location }) => {
       dispatch(setDropoffPlaceid(null));
       dispatch(setZonetype(""));
 
-      // Only fetch vehicles if location and time are valid
-      if (locationValid && time1) {
+      // Only fetch vehicles if city, location and time are valid
+      if (cityValid && locationValid && time1) {
         setTimeout(() => {
-          dispatch(fetchVehicles({ start: 0, limit: 5 }));
+          dispatch(
+            fetchVehicles({ start: 0, limit: 5, city: cityName })
+          );
         }, 500);
       }
     } else if (selectedPort === "Local Transfer") {
@@ -214,6 +229,9 @@ const MainFilterSearchBox = ({ Location }) => {
                 dispatch(setSelectedPort(e.target.value));
                 dispatch(resetVehicles1()); // Reset vehicles when port type changes
                 setValidationTriggered(false); // Reset validation when port type changes
+                setHourlyCityName("");
+                setHourlyCityAddress("");
+                setHourlyCityError(false);
               }}
             >
               {selectedPort === "" && (
@@ -228,6 +246,36 @@ const MainFilterSearchBox = ({ Location }) => {
               )}
             </select>
           </div>
+
+          {/* City field — Hourly only, own column before pickup */}
+          {selectedPort === "Hourly" && (
+            <div className="hourly-city-wrapper">
+              <CityLocation
+                label="City"
+                setPickUpLocation={(address) => {
+                  setHourlyCityAddress(address || "");
+                  const name = String(address || "")
+                    .split(",")[0]
+                    .trim();
+                  setHourlyCityName(name);
+                  setHourlyCityError(false);
+                }}
+                pickUpLocation={hourlyCityAddress}
+                onCitySelect={(item) => {
+                  const name = item?.name || "";
+                  setHourlyCityName(name);
+                  setHourlyCityAddress(item?.address || name);
+                  setHourlyCityError(false);
+                }}
+                hasError={
+                  validationTriggered &&
+                  !hourlyCityName &&
+                  !String(hourlyCityAddress || "").trim()
+                }
+                setError={setHourlyCityError}
+              />
+            </div>
+          )}
 
           {/* Second Section - Location Search */}
           <div className="location-search-wrapper">
@@ -354,10 +402,12 @@ const MainFilterSearchBox = ({ Location }) => {
       <style jsx>{`
         .button-grid-v2 {
           display: grid;
-          grid-template-columns:
-            160px minmax(300px, ${selectedPort === "Hourly" ? "3fr" : "4fr"})
-            ${selectedPort === "Hourly" ? "2fr" : "1fr"} minmax(140px, 1fr) minmax(120px, 1fr);
-          gap: 5px;
+          grid-template-columns: ${
+            selectedPort === "Hourly"
+              ? "160px minmax(140px, 180px) minmax(220px, 2.2fr) minmax(170px, 1.1fr) minmax(150px, 1fr) minmax(120px, 1fr)"
+              : "160px minmax(280px, 3fr) minmax(180px, 1.2fr) minmax(150px, 1fr) minmax(130px, 1fr)"
+          };
+          gap: 12px;
           align-items: center;
           width: 100%;
           max-width: 1730px;
@@ -373,11 +423,43 @@ const MainFilterSearchBox = ({ Location }) => {
           padding: 8px;
         }
 
+        .hourly-city-wrapper {
+          width: 100%;
+          min-width: 0;
+          position: relative;
+          align-self: center;
+        }
+
+        .hourly-city-wrapper :global(.searchMenu-loc) {
+          padding-left: 10px !important;
+          padding-right: 10px !important;
+        }
+
+        .hourly-city-wrapper :global(input.js-search) {
+          width: 100%;
+          max-width: 100%;
+        }
+
         .location-search-wrapper,
         .time-selection-wrapper,
         .date-selection-wrapper,
         .search-button-wrapper {
           width: 100%;
+          min-width: 0;
+          box-sizing: border-box;
+        }
+
+        .time-selection-wrapper,
+        .date-selection-wrapper {
+          overflow: hidden;
+          padding-right: 4px;
+        }
+
+        .time-selection-wrapper :global(.MuiFormControl-root),
+        .time-selection-wrapper :global(.MuiInputBase-root) {
+          width: 100% !important;
+          min-width: 0 !important;
+          max-width: 100% !important;
         }
 
         .search-button-wrapper button {
@@ -395,8 +477,12 @@ const MainFilterSearchBox = ({ Location }) => {
             max-width: 100%;
           }
 
+          .hourly-city-wrapper {
+            grid-column: span 1;
+          }
+
           .location-search-wrapper {
-            grid-column: span 2;
+            grid-column: span 1;
           }
 
           .search-button-wrapper {
@@ -411,6 +497,7 @@ const MainFilterSearchBox = ({ Location }) => {
             gap: 15px;
           }
 
+          .hourly-city-wrapper,
           .location-search-wrapper,
           .search-button-wrapper {
             grid-column: span 1;

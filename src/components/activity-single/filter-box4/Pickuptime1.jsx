@@ -105,7 +105,7 @@ const Pickuptime1 = ({
         htmlFor="pickup-time-select"
         className="text-15 fw-500 ls-2 lh-16 mt-5"
       >
-        Select the Pick Up Time
+        Pick Up Time
       </label>
       <StyledSelect
         id="pickup-time-select"
