@@ -79,7 +79,7 @@ class DriverController extends Controller
 
     //Vehicles Listing
     public function vehicleListing(Request $request)
-    {
+    { 
         
         $agent_id = $request->header('agent-id');
         if(!$agent_id){
@@ -93,8 +93,6 @@ class DriverController extends Controller
         $time = Carbon::createFromFormat('h:i A', $rawTime)->format('H:i:s');
         $dmcId = $request->dmc_id;
         $agentId = auth()->user()->agent_id;
-        
-
             $agent = Agent::where('agent_id', $agentId)->first();
             
             $dmc_id = null;

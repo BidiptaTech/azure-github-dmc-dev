@@ -93,6 +93,30 @@
         color: #fff;
     }
 
+    .btn-premium.btn-success {
+        background: linear-gradient(135deg, #10b981, #059669);
+        border: none;
+        color: #fff;
+    }
+
+    .btn-premium.btn-success:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 18px rgba(16, 185, 129, 0.25);
+        color: #fff;
+    }
+
+    .btn-premium.btn-info {
+        background: linear-gradient(135deg, #0ea5e9, #0284c7);
+        border: none;
+        color: #fff;
+    }
+
+    .btn-premium.btn-info:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 18px rgba(14, 165, 233, 0.25);
+        color: #fff;
+    }
+
     .vehicle-detail-meta {
         font-size: 11.5px;
         color: #64748b;
@@ -399,6 +423,18 @@
                         <p class="page-subtitle">Manage vehicles, types, capacity, and availability</p>
                     </div>
                     <div class="toolbar-actions">
+                        @if(hasPermission('edit vehicle') || hasPermission('view vehicle'))
+                        <a href="{{ route('vehicle.hourly_prices.export') }}" class="btn btn-success btn-premium">
+                            <i class="fas fa-file-excel"></i> Excel Format
+                        </a>
+                        @endif
+
+                        @if(hasPermission('edit vehicle'))
+                        <button type="button" class="btn btn-info btn-premium text-white" data-bs-toggle="modal" data-bs-target="#importHourlyPricesModal">
+                            <i class="fas fa-file-upload"></i> Import
+                        </button>
+                        @endif
+
                         @if(hasPermission('create vehicle'))
                         <a href="{{ route('vehicle.create') }}" class="btn btn-primary btn-premium">
                             <i class="fas fa-plus"></i> Add New Vehicle
@@ -589,6 +625,45 @@
         </div>
     </div>
 </div>
+
+@if(hasPermission('edit vehicle'))
+<!-- Import Hourly Prices Modal -->
+<div class="modal fade" id="importHourlyPricesModal" tabindex="-1" aria-labelledby="importHourlyPricesModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <form action="{{ route('vehicle.hourly_prices.import') }}" method="POST" enctype="multipart/form-data" class="modal-content">
+            @csrf
+            <div class="modal-header">
+                <h5 class="modal-title" id="importHourlyPricesModalLabel">Import Hourly Prices</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-2 text-muted" style="font-size: 13px;">
+                    Download the Excel format first, fill only the hourly price columns (1–12), then upload the same file here.
+                    Vehicle ID, name, and plate number are read-only and will not be changed.
+                </p>
+                <div class="mb-3">
+                    <label for="hourly_prices_import_file" class="form-label fw-semibold">Excel file (.xlsx / .xls)</label>
+                    <input type="file"
+                           class="form-control"
+                           id="hourly_prices_import_file"
+                           name="import_file"
+                           accept=".xlsx,.xls,.csv"
+                           required>
+                </div>
+                <a href="{{ route('vehicle.hourly_prices.export') }}" class="btn btn-sm btn-outline-success">
+                    <i class="fas fa-file-excel"></i> Download format
+                </a>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-upload"></i> Import
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+@endif
 @endsection
 
 @section('scripts')
