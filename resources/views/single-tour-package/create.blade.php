@@ -20200,7 +20200,7 @@
             displaySelectedHotels();
         };
 
-            // Generate daily services based on tour dates
+            /* Generate daily services based on tour dates */
         function generateDailyServices() {
             const liveBundle = document.getElementById('segmentServicesBundle');
             const container = (liveBundle && liveBundle.querySelector('#dailyServicesContainer'))
