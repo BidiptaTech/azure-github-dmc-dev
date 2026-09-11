@@ -289,6 +289,71 @@
         $showGroupDiscountAmount = ($tourType === 'GROUP' && $hasDiscount);
         $groupDiscountAmount = (float)($tour->discount_amount ?? 0);
 
+        // currency_markups.discount_value — shown under Rooming; subtracted from TOTAL COST only
+        $markupDiscountRows = is_array($tourPrices['discounts'] ?? null) ? $tourPrices['discounts'] : [];
+        $markupDiscountTotalNative = (float) ($tourPrices['discount_total'] ?? 0);
+        $markupDiscountDisplayAmount = 0.0;
+        $markupDiscountDisplayCurrency = $selectedCurrency;
+        $markupDiscountConvertedOk = true;
+        if (!empty($markupDiscountRows)) {
+            foreach ($markupDiscountRows as $dRow) {
+                $dAmount = (float) ($dRow['amount'] ?? 0);
+                if ($dAmount <= 0) {
+                    continue;
+                }
+                $dCurrency = strtoupper(trim((string) ($dRow['currency'] ?? $baseCurrency)));
+                if ($dCurrency === '') {
+                    $dCurrency = strtoupper((string) $baseCurrency);
+                }
+                $converted = \App\Helpers\CurrencyHelper::convertAmount($dAmount, $dCurrency, $selectedCurrency);
+                if ($converted === null) {
+                    if ($dCurrency === $selectedCurrency) {
+                        $converted = $dAmount;
+                    } else {
+                        $markupDiscountConvertedOk = false;
+                        $converted = $dAmount;
+                        $markupDiscountDisplayCurrency = $dCurrency;
+                    }
+                }
+                $markupDiscountDisplayAmount += (float) $converted;
+            }
+            $markupDiscountDisplayAmount = ceil($markupDiscountDisplayAmount);
+        } elseif ($markupDiscountTotalNative > 0) {
+            $markupDiscountDisplayAmount = ceil($markupDiscountTotalNative);
+        }
+        $showMarkupDiscount = $markupDiscountDisplayAmount > 0;
+
+        // currency_markups hotel_markup + other_markup — added to TOTAL COST
+        $markupAddRows = is_array($tourPrices['markups'] ?? null) ? $tourPrices['markups'] : [];
+        $markupAddTotalNative = (float) ($tourPrices['markup_total'] ?? 0);
+        $markupAddDisplayAmount = 0.0;
+        $markupAddConvertedOk = true;
+        if (!empty($markupAddRows)) {
+            foreach ($markupAddRows as $mRow) {
+                $mAmount = (float) ($mRow['amount'] ?? 0);
+                if ($mAmount <= 0) {
+                    continue;
+                }
+                $mCurrency = strtoupper(trim((string) ($mRow['currency'] ?? $baseCurrency)));
+                if ($mCurrency === '') {
+                    $mCurrency = strtoupper((string) $baseCurrency);
+                }
+                $converted = \App\Helpers\CurrencyHelper::convertAmount($mAmount, $mCurrency, $selectedCurrency);
+                if ($converted === null) {
+                    if ($mCurrency === $selectedCurrency) {
+                        $converted = $mAmount;
+                    } else {
+                        $markupAddConvertedOk = false;
+                        $converted = $mAmount;
+                    }
+                }
+                $markupAddDisplayAmount += (float) $converted;
+            }
+            $markupAddDisplayAmount = ceil($markupAddDisplayAmount);
+        } elseif ($markupAddTotalNative > 0) {
+            $markupAddDisplayAmount = ceil($markupAddTotalNative);
+        }
+
         $otherTotalForOccupancy = $occupancyKey === 'double' ? $otherDoubleTotal : $otherSingleTotal;
 
         // Hotel-only totals per-head (supplements excluded)
@@ -885,17 +950,15 @@
                             <div class="top-line"><span class="bold">Total Pax:</span> {{ $totalPax }}</div>
                         @endif
                         <div class="top-line"><span class="bold">Travelling Date:</span> {{ $travellingDate }}</div>
-                        <div class="top-line"><span class="bold">Rooming:</span> {{ $roomingText }}</div>
-                        @if($showGroupDiscountAmount)
-                            <div class="top-line"><span class="bold">Discount amount:</span> {{ $formatMoney($groupDiscountAmount) }}</div>
+                        @if(trim((string) $roomingText) !== '')
+                            <div class="top-line"><span class="bold">Rooming:</span> {{ $roomingText }}</div>
                         @endif
                     </div>
                 </td>
             </tr>
         </table>
 
-
-        
+        {{-- Country Hotels + Other Services (inclusions) — keep above pricing --}}
         @if(!empty($allCountryKeys))
             @foreach($allCountryKeys as $bucketKey)
                 @php
@@ -1094,94 +1157,41 @@
             </div>
         @endif
 
-        {{-- Country-wise Single / Double / Triple (same CommonHelper calculation, native currency) --}}
+{{-- ========== SKETCH LAYOUT: Country → Overall → Supplement → Total ========== --}}
         @php
+            $formatSelectedPersonsCells = function ($single, $double, $triple, $selectedPersons, callable $moneyFormatter) {
+                return [
+                    ((float) $single > 0) ? $moneyFormatter($single) : '--',
+                    ((float) $double > 0) ? $moneyFormatter($double) : '--',
+                    ((float) $triple > 0) ? $moneyFormatter($triple) : '--',
+                ];
+            };
+
+            $hotelSelectedPersons = 1;
+            foreach (($tourPrices['hotel_price_options'] ?? []) as $hpRow) {
+                $hotelSelectedPersons = max($hotelSelectedPersons, (int) ($hpRow['selected_persons'] ?? 0));
+            }
+            if ($hotelSelectedPersons < 1) {
+                $hotelSelectedPersons = ($displayOccupancyKey === 'triple') ? 3
+                    : (($displayOccupancyKey === 'double') ? 2 : 1);
+            }
+
             $countrySharingRows = is_array($tourPrices['country_sharing'] ?? null)
                 ? $tourPrices['country_sharing']
                 : [];
-            // Hide non-DMC country price blocks when thirdparty_enabled is off
             if (!$thirdPartyEnabled && $dmcCountryNorm !== '') {
                 $countrySharingRows = array_values(array_filter($countrySharingRows, function ($share) use ($isPricedCountry) {
                     return $isPricedCountry($share['country'] ?? '');
                 }));
             }
-        @endphp
-        @if(!empty($countrySharingRows))
-        <div class="overall-price-box">
-            <div class="panel-title" style="margin: 0; border: none; border-bottom: 1px solid #000;">Package Price by Country</div>
-                @foreach($countrySharingRows as $share)
-                    @php
-                        $shareCountry = $share['country'] ?? 'Other';
-                        $shareCurrency = strtoupper((string)($share['currency'] ?? $baseCurrency));
-                        $shareHotelSingle = (float)($share['hotel_single'] ?? 0);
-                        $shareHotelDouble = (float)($share['hotel_double'] ?? 0);
-                        $shareHotelTriple = (float)($share['hotel_triple'] ?? 0);
-                        $shareKey = (string)($share['key'] ?? (mb_strtolower($shareCountry) . '|' . $shareCurrency));
-                        $shareOther = (float)($otherOrderTotalByBucketKey[$shareKey] ?? 0);
-                        if ($isProTour) {
-                            $shareHotelSingle = $shareHotelDouble > 0 ? $shareHotelDouble : $shareHotelSingle;
-                        }
-                        $shareTripleAvailable = $shareHotelTriple > 0;
-                        [$shareCellSingle, $shareCellDouble, $shareCellTriple] = $formatOccupancyHotelCells(
-                            $shareHotelSingle,
-                            $shareHotelDouble,
-                            $shareHotelTriple,
-                            $shareTripleAvailable,
-                            fn ($amount) => $formatNativeMoney($amount, $shareCurrency)
-                        );
-                    @endphp
-                    <div style="border-top: 1px solid #000;">
-                        <div class="country-box-title" style="border-bottom: 1px solid #000;">{{ $shareCountry }} ({{ $shareCurrency }})</div>
-                        <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
-                            <tr>
-                                <td style="width: 50%; vertical-align: top; padding: 8px; border-right: 1px solid #000;">
-                                    <div class="country-col-label">Hotel cost</div>
-                                    <table style="width: 100%; border-collapse: collapse; border: 1px solid #000; table-layout: fixed;">
-                                        <thead>
-                                            <tr>
-                                                <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 33.33%;">Single</th>
-                                                <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 33.33%;">Double</th>
-                                                <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 33.33%;">Triple</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <tr>
-                                                <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $shareCellSingle }}</td>
-                                                <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $shareCellDouble }}</td>
-                                                <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $shareCellTriple }}</td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </td>
-                                <td style="width: 50%; vertical-align: top; padding: 8px;">
-                                    <div class="country-col-label">Other services cost</div>
-                                    <table style="width: 100%; border-collapse: collapse; border: 1px solid #000; table-layout: fixed;">
-                                        <thead>
-                                            <tr>
-                                                <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center;">Total Price</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <tr>
-                                                <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatNativeMoney($shareOther, $shareCurrency) }}</td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </td>
-                            </tr>
-                        </table>
-                    </div>
-                @endforeach
-        </div>
-        @endif
 
-        {{-- Overall package price in selected/display currency (country amounts converted & summed) --}}
-        @php
             $overallHotelSingle = 0.0;
             $overallHotelDouble = 0.0;
             $overallHotelTriple = 0.0;
             $overallOther = 0.0;
             $overallConvertedOk = false;
+            $overallDisplayCurrency = $selectedCurrency;
+            $overallDisplayLabel = $currencyLabel;
 
             if (!empty($countrySharingRows)) {
                 $overallConvertedOk = true;
@@ -1194,17 +1204,14 @@
                     if ($isProTour) {
                         $hSingle = $hDouble > 0 ? $hDouble : $hSingle;
                     }
-
                     $cSingle = \App\Helpers\CurrencyHelper::convertAmount($hSingle, $fromCurrency, $selectedCurrency);
                     $cDouble = \App\Helpers\CurrencyHelper::convertAmount($hDouble, $fromCurrency, $selectedCurrency);
                     $cTriple = \App\Helpers\CurrencyHelper::convertAmount($hTriple, $fromCurrency, $selectedCurrency);
                     $cOther  = \App\Helpers\CurrencyHelper::convertAmount($oOther, $fromCurrency, $selectedCurrency);
-
                     if ($cSingle === null || $cDouble === null || $cOther === null) {
                         $overallConvertedOk = false;
                         break;
                     }
-
                     $overallHotelSingle += (float)$cSingle;
                     $overallHotelDouble += (float)$cDouble;
                     $overallHotelTriple += ($cTriple !== null) ? (float)$cTriple : 0.0;
@@ -1212,303 +1219,497 @@
                 }
             }
 
-            $overallDisplayCurrency = $selectedCurrency;
-            $overallDisplayLabel = $currencyLabel;
-
-            if (!$overallConvertedOk) {
-                // Fallback: sum filtered country rows in one currency when possible
-                // (avoids mixing in non-DMC totals when thirdparty_enabled is off)
-                if (!empty($countrySharingRows)) {
-                    $fallbackCurrency = null;
-                    $sameCurrency = true;
-                    $fbHotelSingle = 0.0;
-                    $fbHotelDouble = 0.0;
-                    $fbHotelTriple = 0.0;
-                    $fbOther = 0.0;
-                    foreach ($countrySharingRows as $share) {
-                        $fromCurrency = strtoupper((string)($share['currency'] ?? $baseCurrency));
-                        if ($fallbackCurrency === null) {
-                            $fallbackCurrency = $fromCurrency;
-                        } elseif ($fallbackCurrency !== $fromCurrency) {
-                            $sameCurrency = false;
-                            break;
-                        }
-                        $hSingle = (float)($share['hotel_single'] ?? 0);
-                        $hDouble = (float)($share['hotel_double'] ?? 0);
-                        $hTriple = (float)($share['hotel_triple'] ?? 0);
-                        $oOther = (float)($share['other_services_single'] ?? ($share['other_services_double'] ?? 0));
-                        if ($isProTour) {
-                            $hSingle = $hDouble > 0 ? $hDouble : $hSingle;
-                        }
-                        $fbHotelSingle += $hSingle;
-                        $fbHotelDouble += $hDouble;
-                        $fbHotelTriple += $hTriple;
-                        $fbOther += $oOther;
+            if (!$overallConvertedOk && !empty($countrySharingRows)) {
+                $fallbackCurrency = null;
+                $sameCurrency = true;
+                $fbHotelSingle = $fbHotelDouble = $fbHotelTriple = $fbOther = 0.0;
+                foreach ($countrySharingRows as $share) {
+                    $fromCurrency = strtoupper((string)($share['currency'] ?? $baseCurrency));
+                    if ($fallbackCurrency === null) {
+                        $fallbackCurrency = $fromCurrency;
+                    } elseif ($fallbackCurrency !== $fromCurrency) {
+                        $sameCurrency = false;
+                        break;
                     }
-                    if ($sameCurrency && $fallbackCurrency) {
-                        $overallConvertedOk = true;
-                        $overallDisplayCurrency = $fallbackCurrency;
-                        $overallDisplayLabel = $fallbackCurrency === 'INR' ? 'INR' : $fallbackCurrency;
-                        $overallHotelSingle = ceil($fbHotelSingle);
-                        $overallHotelDouble = ceil($fbHotelDouble);
-                        $overallHotelTriple = $fbHotelTriple > 0 ? ceil($fbHotelTriple) : 0;
-                        $overallOther = ceil($fbOther);
-                    } else {
-                        $overallHotelSingle = null;
-                        $overallHotelDouble = null;
-                        $overallHotelTriple = null;
-                        $overallOther = null;
+                    $hSingle = (float)($share['hotel_single'] ?? 0);
+                    $hDouble = (float)($share['hotel_double'] ?? 0);
+                    $hTriple = (float)($share['hotel_triple'] ?? 0);
+                    $oOther = (float)($share['other_services_single'] ?? ($share['other_services_double'] ?? 0));
+                    if ($isProTour) {
+                        $hSingle = $hDouble > 0 ? $hDouble : $hSingle;
                     }
-                } else {
-                    $overallHotelSingle = null;
-                    $overallHotelDouble = null;
-                    $overallHotelTriple = null;
-                    $overallOther = null;
+                    $fbHotelSingle += $hSingle;
+                    $fbHotelDouble += $hDouble;
+                    $fbHotelTriple += $hTriple;
+                    $fbOther += $oOther;
                 }
-            } else {
+                if ($sameCurrency && $fallbackCurrency) {
+                    $overallConvertedOk = true;
+                    $overallDisplayCurrency = $fallbackCurrency;
+                    $overallDisplayLabel = $fallbackCurrency === 'INR' ? 'INR' : $fallbackCurrency;
+                    $overallHotelSingle = ceil($fbHotelSingle);
+                    $overallHotelDouble = ceil($fbHotelDouble);
+                    $overallHotelTriple = $fbHotelTriple > 0 ? ceil($fbHotelTriple) : 0;
+                    $overallOther = ceil($fbOther);
+                }
+            } elseif ($overallConvertedOk) {
                 $overallHotelSingle = ceil($overallHotelSingle);
                 $overallHotelDouble = ceil($overallHotelDouble);
                 $overallHotelTriple = $overallHotelTriple > 0 ? ceil($overallHotelTriple) : 0;
                 $overallOther = ceil($overallOther);
             }
 
-            $overallTripleAvailable = $overallConvertedOk
-                ? ($overallHotelTriple > 0)
-                : ($hotelOnlyTripleTotal > 0);
             $overallHotelSingleDisplay = $overallConvertedOk ? $overallHotelSingle : $hotelOnlySingleTotal;
             $overallHotelDoubleDisplay = $overallConvertedOk ? $overallHotelDouble : $hotelOnlyDoubleTotal;
             $overallHotelTripleDisplay = $overallConvertedOk ? $overallHotelTriple : $hotelOnlyTripleTotal;
+            $otherServicesDisplayPerPax = $overallConvertedOk
+                ? (float) $overallOther
+                : (float) ($occupancyKey === 'double' ? $otherDoubleTotal : $otherSingleTotal);
 
-            $hotelPerPaxFromOrders = \App\Helpers\CommonHelper::resolveHotelQuotationPerPaxFromOrders(
-                $orders ?? collect(),
-                $tour,
-                $selectedCurrency
-            );
-            if ($hotelPerPaxFromOrders && ($hotelPerPaxFromOrders['per_pax'] ?? 0) > 0) {
-                $orderHotelPerPax = (float) $hotelPerPaxFromOrders['per_pax'];
-                $overallHotelSingleDisplay = $orderHotelPerPax;
-                $overallHotelDoubleDisplay = $orderHotelPerPax;
-                $overallHotelTripleDisplay = $orderHotelPerPax;
+            $moneyFmt = function ($amount) use ($formatMoney) {
+                return $formatMoney($amount);
+            };
+            $moneyFmtNative = function ($amount, $currency) use ($formatNativeMoney) {
+                return $formatNativeMoney($amount, $currency);
+            };
+            $overallMoneyFmt = $overallConvertedOk
+                ? function ($amount) use ($formatNativeMoney, $overallDisplayCurrency) {
+                    return $formatNativeMoney($amount, $overallDisplayCurrency);
+                }
+                : function ($amount) use ($formatMoney) {
+                    return $formatMoney($amount);
+                };
+
+            $overallShowSp = 1;
+            if ((float) $overallHotelTripleDisplay > 0) {
+                $overallShowSp = 3;
+            } elseif ((float) $overallHotelDoubleDisplay > 0) {
+                $overallShowSp = 2;
             }
-
-            $overallHotelMoneyFormatter = $overallConvertedOk
-                ? fn ($amount) => $formatNativeMoney($amount, $overallDisplayCurrency) . ' /pax'
-                : fn ($amount) => $formatMoney($amount) . ' /pax';
-            [$overallCellSingle, $overallCellDouble, $overallCellTriple] = $formatOccupancyHotelCells(
+            [$overallCellSingle, $overallCellDouble, $overallCellTriple] = $formatSelectedPersonsCells(
                 $overallHotelSingleDisplay,
                 $overallHotelDoubleDisplay,
                 $overallHotelTripleDisplay,
-                $overallTripleAvailable,
-                $overallHotelMoneyFormatter
+                $overallShowSp,
+                $overallMoneyFmt
             );
-        @endphp
-        <div class="overall-price-box" style="margin-top: 10px;">
-            <div class="panel-title" style="margin: 0; border: none; border-bottom: 1px solid #000;">Overall Package Price ({{ $overallDisplayLabel }})</div>
-            <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
-                <tr>
-                    <td style="width: 50%; vertical-align: top; padding: 8px; border-right: 1px solid #000;">
-                        <div class="country-col-label">Hotel cost for entire package</div>
-                        <table style="width: 100%; border-collapse: collapse; border: 1px solid #000; table-layout: fixed;">
-                            <thead>
-                                <tr>
-                                    <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 33.33%;">Single</th>
-                                    <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 33.33%;">Double</th>
-                                    <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 33.33%;">Triple</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $overallCellSingle }}</td>
-                                    <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $overallCellDouble }}</td>
-                                    <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $overallCellTriple }}</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </td>
-                    <td style="width: 50%; vertical-align: top; padding: 8px;">
-                        <div class="country-col-label">Other services cost for entire package</div>
-                        <table style="width: 100%; border-collapse: collapse; border: 1px solid #000; table-layout: fixed;">
-                            <thead>
-                                <tr>
-                                    <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center;">Total Price</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">
-                                        {{ $formatMoney($otherServicesDisplayPerPax) }} /pax
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </td>
-                </tr>
-            </table>
-        </div>
 
-        @if(!empty($quotationOrderRows))
-            <div class="overall-price-box" style="margin-top: 10px;">
-                <div class="panel-title" style="margin: 0; border: none; border-bottom: 1px solid #000;">Overall Quotation Price ({{ $currencyLabel }})</div>
-                <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
-                    <thead>
-                        <tr>
-                            <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: left; width: 70%;">Order</th>
-                            <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 30%;">Total Price</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach($quotationOrderRows as $orderRow)
-                            <tr>
-                                <td style="border: 1px solid #000; padding: 6px; vertical-align: top;">{{ $orderRow['label'] }}</td>
-                                <td style="border: 1px solid #000; padding: 6px; text-align: center; font-weight: bold;">
-                                    @if($overallQuotationConvertedOk)
-                                        {{ $formatMoney($orderRow['converted_amount']) }}
-                                    @else
-                                        {{ $formatNativeMoney($orderRow['amount'], $orderRow['currency']) }}
-                                    @endif
-                                </td>
-                            </tr>
-                        @endforeach
-                        <tr>
-                            <td style="border: 1px solid #000; padding: 8px; text-align: right; font-weight: bold;">Overall Quotation Price</td>
-                            <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">
-                                @if($overallQuotationConvertedOk)
-                                    {{ $formatMoney($overallQuotationTotal) }}
-                                @else
-                                    {{ $formatNativeMoney($overallQuotationTotal, $selectedCurrency) }}
-                                @endif
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        @endif
-
-        
-
-        @php
-            // Helper: format raw "YYYY-MM-DD to YYYY-MM-DD" into "01 Jun 2026 to 03 Jun 2026"
-            $formatDateRange = function ($raw) {
-                if (empty($raw)) return '';
-                $parts = array_map('trim', explode(' to ', (string)$raw));
-                if (count($parts) === 2) {
-                    try {
-                        $from = \Carbon\Carbon::parse($parts[0])->format('d M Y');
-                        $to   = \Carbon\Carbon::parse($parts[1])->format('d M Y');
-                        return $from . ' to ' . $to;
-                    } catch (\Throwable $e) {}
-                }
-                return $raw;
-            };
-
-            // Split supplements into hotel vs other-service buckets
-            $suppHotels   = [];
+            $suppHotels = [];
             $suppServices = [];
             foreach ($supplements as $s) {
-                $t = strtolower((string)($s['type'] ?? ''));
-                if ($t === 'hotel') {
+                if (strtolower((string)($s['type'] ?? '')) === 'hotel') {
                     $suppHotels[] = $s;
                 } else {
                     $suppServices[] = $s;
                 }
             }
+
+            $paxForOverall = max(1, (int) $totalPax);
+            $sharingLabel = function (int $sp): string {
+                return match (max(1, min(3, $sp))) {
+                    3 => 'Triple Sharing',
+                    2 => 'Double Sharing',
+                    default => 'Single Sharing',
+                };
+            };
+
+            $overallTargetCurrency = $overallConvertedOk
+                ? strtoupper((string) $overallDisplayCurrency)
+                : strtoupper((string) $selectedCurrency);
+            if ($overallTargetCurrency === '') {
+                $overallTargetCurrency = strtoupper((string) $baseCurrency);
+            }
+            $convertToOverall = function ($amount, $fromCurrency) use ($overallTargetCurrency, $baseCurrency): float {
+                $amount = (float) $amount;
+                if ($amount <= 0) {
+                    return 0.0;
+                }
+                $from = strtoupper(trim((string) $fromCurrency));
+                if ($from === '') {
+                    $from = strtoupper((string) $baseCurrency);
+                }
+                if ($from === $overallTargetCurrency) {
+                    return $amount;
+                }
+                $converted = \App\Helpers\CurrencyHelper::convertAmount($amount, $from, $overallTargetCurrency);
+                return $converted !== null ? (float) $converted : $amount;
+            };
+            $fmtOverallAmt = function ($amount) use ($overallTargetCurrency, $formatNativeMoney) {
+                $amount = (float) $amount;
+                if ($amount <= 0) {
+                    return '0.00';
+                }
+                return $formatNativeMoney(ceil($amount), $overallTargetCurrency);
+            };
+            // Keep Price × multiplier = Total Price (ceil unit first, then multiply).
+            $overallLine = function (string $name, float $unit, int $multiplier) use ($fmtOverallAmt): array {
+                $unitCeil = (float) ceil(max(0.0, $unit));
+                $mult = max(1, $multiplier);
+                return [
+                    'name' => $name,
+                    'price' => $unitCeil,
+                    'multiplier' => $mult,
+                    'total' => $unitCeil * $mult,
+                ];
+            };
+
+            // City markups from tours.currency_markups — bake into services (hidden)
+            $cityMarkupIndex = [];
+            $rawCityMarkups = $tour->currency_markups ?? ($tour->getAttributes()['currency_markups'] ?? null);
+            if (is_string($rawCityMarkups)) {
+                $decodedMarkups = json_decode($rawCityMarkups, true);
+                $rawCityMarkups = (json_last_error() === JSON_ERROR_NONE) ? $decodedMarkups : null;
+            }
+            if (is_array($rawCityMarkups)) {
+                foreach ($rawCityMarkups as $mRow) {
+                    if (!is_array($mRow)) {
+                        continue;
+                    }
+                    $mCountry = trim((string) ($mRow['country'] ?? $mRow['city'] ?? ''));
+                    $mCurrency = strtoupper(trim((string) ($mRow['currency'] ?? '')));
+                    if ($mCountry === '' && $mCurrency === '') {
+                        continue;
+                    }
+                    $cityMarkupIndex[mb_strtolower($mCountry) . '|' . $mCurrency] = [
+                        'markup_type' => strtolower(trim((string) ($mRow['markup_type'] ?? 'flat'))) ?: 'flat',
+                        'hotel_markup' => (float) ($mRow['hotel_markup'] ?? 0),
+                        'other_markup' => (float) ($mRow['other_markup'] ?? 0),
+                        'discount_type' => strtolower(trim((string) ($mRow['discount_type'] ?? 'flat'))) ?: 'flat',
+                        'discount_value' => (float) ($mRow['discount_value'] ?? 0),
+                        'currency' => $mCurrency !== '' ? $mCurrency : strtoupper((string) $baseCurrency),
+                        'country' => $mCountry,
+                    ];
+                }
+            }
+            $lookupCityMarkup = function ($country, $currency) use ($cityMarkupIndex) {
+                $country = trim((string) $country);
+                $currency = strtoupper(trim((string) $currency));
+                $key = mb_strtolower($country) . '|' . $currency;
+                if (isset($cityMarkupIndex[$key])) {
+                    return $cityMarkupIndex[$key];
+                }
+                foreach ($cityMarkupIndex as $row) {
+                    if ($country !== '' && strcasecmp((string) ($row['country'] ?? ''), $country) === 0) {
+                        return $row;
+                    }
+                }
+                foreach ($cityMarkupIndex as $row) {
+                    if ($currency !== '' && strtoupper((string) ($row['currency'] ?? '')) === $currency) {
+                        return $row;
+                    }
+                }
+                return null;
+            };
+
+            $overallPackageRows = [];
+            $hotelMarkupAppliedKeys = [];
+            $hotelPriceOptions = is_array($tourPrices['hotel_price_options'] ?? null)
+                ? $tourPrices['hotel_price_options']
+                : [];
+
+            if (!empty($hotelPriceOptions)) {
+                foreach ($hotelPriceOptions as $hpRow) {
+                    if (!is_array($hpRow)) {
+                        continue;
+                    }
+                    $sp = (int) ($hpRow['selected_persons'] ?? 0);
+                    if ($sp <= 0) {
+                        if (!empty($hpRow['show_triple']) || (float) ($hpRow['triple'] ?? 0) > 0) {
+                            $sp = 3;
+                        } elseif (!empty($hpRow['show_double']) || (float) ($hpRow['double'] ?? 0) > 0) {
+                            $sp = 2;
+                        } else {
+                            $sp = 1;
+                        }
+                    }
+                    $unitNative = $sp >= 3
+                        ? (float) ($hpRow['triple'] ?? 0)
+                        : ($sp >= 2 ? (float) ($hpRow['double'] ?? 0) : (float) ($hpRow['single'] ?? 0));
+                    if ($unitNative <= 0) {
+                        continue;
+                    }
+                    $fromCurrency = $hpRow['currency'] ?? $baseCurrency;
+                    $unit = $convertToOverall($unitNative, $fromCurrency);
+                    $mInfo = $lookupCityMarkup($hpRow['country'] ?? '', $fromCurrency);
+                    $applyKey = mb_strtolower(trim((string) ($hpRow['country'] ?? ''))) . '|' . strtoupper((string) $fromCurrency);
+                    if ($mInfo && (float) ($mInfo['hotel_markup'] ?? 0) > 0 && empty($hotelMarkupAppliedKeys[$applyKey])) {
+                        $hotelMarkupAppliedKeys[$applyKey] = true;
+                        $hmNative = (float) $mInfo['hotel_markup'];
+                        if (($mInfo['markup_type'] ?? 'flat') === 'percentage') {
+                            $hmNative = $unitNative * $hmNative / 100.0;
+                        }
+                        $unit += $convertToOverall($hmNative, $mInfo['currency'] ?? $fromCurrency) / max(1, $sp);
+                    }
+                    if ($unit <= 0) {
+                        continue;
+                    }
+                    $hotelName = trim((string) ($hpRow['display_name'] ?? ($hpRow['hotel_name'] ?? 'Hotel')));
+                    if ($hotelName === '') {
+                        $hotelName = 'Hotel';
+                    }
+                    $overallPackageRows[] = $overallLine(
+                        $hotelName . ' (' . $sharingLabel($sp) . ')',
+                        $unit,
+                        $sp
+                    );
+                }
+            } elseif ((float) $overallHotelSingleDisplay > 0 || (float) $overallHotelDoubleDisplay > 0 || (float) $overallHotelTripleDisplay > 0) {
+                $sp = (int) $overallShowSp;
+                $unit = $sp >= 3
+                    ? (float) $overallHotelTripleDisplay
+                    : ($sp >= 2 ? (float) $overallHotelDoubleDisplay : (float) $overallHotelSingleDisplay);
+                if ($unit > 0) {
+                    $overallPackageRows[] = $overallLine(
+                        'Hotel (' . $sharingLabel($sp) . ')',
+                        $unit,
+                        $sp
+                    );
+                }
+            }
+
+            // Other already includes city other_markup via country_sharing
+            if ((float) $otherServicesDisplayPerPax > 0) {
+                $overallPackageRows[] = $overallLine(
+                    'Other Services',
+                    (float) $otherServicesDisplayPerPax,
+                    $paxForOverall
+                );
+            }
+
+            foreach ($suppHotels as $s) {
+                $hotelLabel = trim((string) ($s['hotel_name'] ?? ($s['display_name'] ?? ($s['name'] ?? 'Hotel'))));
+                if ($hotelLabel === '') {
+                    $hotelLabel = 'Hotel';
+                }
+                $selPersons = (int) ($s['selected_persons'] ?? 0);
+                if ($selPersons <= 0) {
+                    if (!empty($s['show_triple'])) {
+                        $selPersons = 3;
+                    } elseif (!empty($s['show_double'])) {
+                        $selPersons = 2;
+                    } else {
+                        $selPersons = 1;
+                    }
+                }
+                $suppSingle = (float) ($s['single'] ?? 0);
+                $suppDouble = (float) ($s['double'] ?? 0);
+                $suppTriple = (float) ($s['triple'] ?? 0);
+                if ($isProTour && $selPersons >= 2) {
+                    $suppSingle = $suppDouble > 0 ? $suppDouble : $suppSingle;
+                }
+                $unitNative = $selPersons >= 3 ? $suppTriple : ($selPersons >= 2 ? $suppDouble : $suppSingle);
+                if ($unitNative <= 0) {
+                    continue;
+                }
+                $suppCurrency = strtoupper(trim((string) ($s['currency'] ?? '')));
+                if ($suppCurrency === '') {
+                    $suppCurrency = strtoupper((string) $baseCurrency);
+                }
+                $unit = $convertToOverall($unitNative, $suppCurrency);
+                if ($unit <= 0) {
+                    continue;
+                }
+                $overallPackageRows[] = $overallLine(
+                    $hotelLabel . ' (' . $sharingLabel($selPersons) . ') (Supplement)',
+                    $unit,
+                    $selPersons
+                );
+            }
+            foreach ($suppServices as $s) {
+                $suppTypeRaw = trim((string) ($s['type'] ?? ''));
+                $svcName = trim((string) ($s['name'] ?? ($s['AttractionName'] ?? ($s['restaurantName'] ?? ''))));
+                $typePretty = $suppTypeRaw !== '' ? \Illuminate\Support\Str::headline(str_replace([' ', '-'], '_', $suppTypeRaw)) : '';
+                $namePretty = $svcName !== '' ? \Illuminate\Support\Str::headline($svcName) : '';
+                if ($svcName !== '' && $typePretty !== '' && strtolower(preg_replace('/[^a-z0-9]+/', '', $suppTypeRaw)) !== strtolower(preg_replace('/[^a-z0-9]+/', '', $svcName))) {
+                    $svcLabel = $typePretty . ': ' . $namePretty;
+                } elseif ($svcName !== '') {
+                    $svcLabel = $namePretty;
+                } else {
+                    $svcLabel = $typePretty !== '' ? $typePretty : 'Supplement';
+                }
+                $unitNative = $occupancyKey === 'double'
+                    ? (float) ($s['double'] ?? 0)
+                    : (float) ($s['single'] ?? 0);
+                if ($unitNative <= 0) {
+                    $unitNative = (float) ($s['single'] ?? ($s['double'] ?? 0));
+                }
+                if ($unitNative <= 0) {
+                    continue;
+                }
+                $suppCurrency = strtoupper(trim((string) ($s['currency'] ?? '')));
+                if ($suppCurrency === '') {
+                    $suppCurrency = strtoupper((string) $baseCurrency);
+                }
+                $unit = $convertToOverall($unitNative, $suppCurrency);
+                if ($unit <= 0) {
+                    continue;
+                }
+                $overallPackageRows[] = $overallLine(
+                    $svcLabel . ' (Supplement)',
+                    $unit,
+                    $paxForOverall
+                );
+            }
+
+            $overallLinesSubtotal = 0.0;
+            foreach ($overallPackageRows as $r) {
+                $overallLinesSubtotal += (float) ($r['total'] ?? 0);
+            }
+
+            $overallDiscountShown = 0.0;
+            foreach ($cityMarkupIndex as $mInfo) {
+                $dRaw = (float) ($mInfo['discount_value'] ?? 0);
+                if ($dRaw <= 0) {
+                    continue;
+                }
+                if (($mInfo['discount_type'] ?? 'flat') === 'percentage') {
+                    $overallDiscountShown += $overallLinesSubtotal * $dRaw / 100.0;
+                } else {
+                    $overallDiscountShown += $convertToOverall($dRaw, $mInfo['currency'] ?? $overallTargetCurrency);
+                }
+            }
+            if ($overallDiscountShown <= 0 && (float) ($markupDiscountDisplayAmount ?? 0) > 0) {
+                $overallDiscountShown = (float) $markupDiscountDisplayAmount;
+            }
+
+            $overallMarkupShown = 0.0; // never show markup to customer
+            $totalCostAmount = max(0.0, $overallLinesSubtotal - $overallDiscountShown);
+            $overallDisplayLabel = $overallTargetCurrency === 'INR' ? 'INR' : $overallTargetCurrency;
+            $totalCostLabel = $fmtOverallAmt($totalCostAmount);
         @endphp
 
-        {{-- ── Hotel supplements box ── --}}
-        @if(!empty($suppHotels))
-            <div style="margin-top: 10px;">
-                <div class="panel-title">Supplements – Hotels</div>
-                <table style="width: 100%; border-collapse: collapse; border: 2px solid #000; table-layout: fixed;">
-                    <thead>
+        {{-- 1) Package Price by Country --}}
+        @if(!empty($countrySharingRows))
+        <div class="overall-price-box">
+            <div class="panel-title" style="margin: 0; border: none; border-bottom: 1px solid #000;">Package Price by Country</div>
+            @foreach($countrySharingRows as $share)
+                @php
+                    $shareCountry = $share['country'] ?? 'Other';
+                    $shareCurrency = strtoupper((string)($share['currency'] ?? $baseCurrency));
+                    $shareHotelSingle = (float)($share['hotel_single'] ?? 0);
+                    $shareHotelDouble = (float)($share['hotel_double'] ?? 0);
+                    $shareHotelTriple = (float)($share['hotel_triple'] ?? 0);
+                    $shareKey = (string)($share['key'] ?? (mb_strtolower($shareCountry) . '|' . $shareCurrency));
+                    // Other is per-pax (same formula as CommonHelper), not order-line total
+                    $shareOther = (float)($share['other_services_single'] ?? ($share['other_services_double'] ?? 0));
+                    if ($isProTour) {
+                        $shareHotelSingle = $shareHotelDouble > 0 ? $shareHotelDouble : $shareHotelSingle;
+                    }
+                    // Show every occupancy column that has a per-pax value
+                    $shareShowSp = 1;
+                    if ($shareHotelTriple > 0) $shareShowSp = 3;
+                    elseif ($shareHotelDouble > 0) $shareShowSp = 2;
+                    [$shareCellSingle, $shareCellDouble, $shareCellTriple] = $formatSelectedPersonsCells(
+                        $shareHotelSingle,
+                        $shareHotelDouble,
+                        $shareHotelTriple,
+                        $shareShowSp,
+                        fn ($amount) => $formatNativeMoney($amount, $shareCurrency) . ' /pax'
+                    );
+                    $shareHotelForTotal = $shareShowSp >= 3 && $shareHotelTriple > 0
+                        ? $shareHotelTriple
+                        : ($shareShowSp >= 2 && $shareHotelDouble > 0 ? $shareHotelDouble : $shareHotelSingle);
+                    // Total = (hotel/pax + other/pax) × pax
+                    $shareCountryTotal = ((float) $shareHotelForTotal + (float) $shareOther) * max(1, (int) $totalPax);
+                @endphp
+                <div style="border-top: 1px solid #000;">
+                    <div class="country-box-title" style="border-bottom: 1px solid #000;">{{ $shareCountry }}</div>
+                    <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
                         <tr>
-                            <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: left; width: 52%;">Hotel</th>
-                            <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 16%;">Single</th>
-                            <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 16%;">Double</th>
-                            <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 16%;">Triple</th>
+                            <td style="width: 50%; vertical-align: top; padding: 8px; border-right: 1px solid #000;">
+                                <div class="country-col-label">Hotel-Accommodation (per pax)</div>
+                                <table style="width: 100%; border-collapse: collapse; border: 1px solid #000; table-layout: fixed;">
+                                    <thead>
+                                        <tr>
+                                            <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 33.33%;">Single</th>
+                                            <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 33.33%;">Double</th>
+                                            <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 33.33%;">Triple</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $shareCellSingle }}</td>
+                                            <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $shareCellDouble }}</td>
+                                            <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $shareCellTriple }}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </td>
+                            <td style="width: 50%; vertical-align: top; padding: 8px;">
+                                <div class="country-col-label">Other Services (per pax)</div>
+                                <table width="100%" border="1" cellspacing="0" cellpadding="6" style="width: 100%; border-collapse: collapse; table-layout: fixed; border: 1px solid #000;">
+                                    <tr>
+                                        <td width="33%" align="center" bgcolor="#f3f3f3" style="width: 33%; border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; font-weight: bold;">Single</td>
+                                        <td width="33%" align="center" bgcolor="#f3f3f3" style="width: 33%; border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; font-weight: bold;">Double</td>
+                                        <td width="34%" align="center" bgcolor="#f3f3f3" style="width: 34%; border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; font-weight: bold;">Triple</td>
+                                    </tr>
+                                    <tr>
+                                        <td colspan="3" align="center" style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">
+                                            {{ $shareOther > 0 ? ($formatNativeMoney($shareOther, $shareCurrency) . ' /pax') : '--' }}
+                                        </td>
+                                    </tr>
+                                </table>
+                            </td>
                         </tr>
-                    </thead>
-                    <tbody>
-                        @foreach($suppHotels as $s)
-                            @php
-                                $hotelLabel     = $s['hotel_name'] ?? ($s['display_name'] ?? ($s['name'] ?? 'Hotel'));
-                                $rawDateRange   = $s['date_range'] ?? null;
-                                $niceDate       = $rawDateRange ? $formatDateRange($rawDateRange) : '';
-                                $suppSingle     = (float)($s['single'] ?? 0);
-                                $suppDouble     = (float)($s['double'] ?? 0);
-                                $suppTriple     = (float)($s['triple'] ?? 0);
-                                if ($isProTour) {
-                                    $suppSingle = $suppDouble > 0 ? $suppDouble : $suppSingle;
-                                }
-                                $suppTripleAvailable = $suppTriple > 0;
-                                [$suppCellSingle, $suppCellDouble, $suppCellTriple] = $formatOccupancyHotelCells(
-                                    $suppSingle,
-                                    $suppDouble,
-                                    $suppTriple,
-                                    $suppTripleAvailable,
-                                    fn ($amount) => $formatMoney($amount)
-                                );
-                            @endphp
-                            <tr>
-                                <td style="border: 1px solid #000; padding: 6px; vertical-align: top;">
-                                    {{ $hotelLabel }}
-                                    @if($niceDate)
-                                        <span class="subtle"> ({{ $niceDate }})</span>
-                                    @endif
-                                </td>
-                                <td style="border: 1px solid #000; padding: 6px; text-align: center;">{{ $suppCellSingle }}</td>
-                                <td style="border: 1px solid #000; padding: 6px; text-align: center;">{{ $suppCellDouble }}</td>
-                                <td style="border: 1px solid #000; padding: 6px; text-align: center;">{{ $suppCellTriple }}</td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
+                        
+                    </table>
+                </div>
+            @endforeach
+        </div>
         @endif
 
-        {{-- ── Other-service supplements box ── --}}
-        @if(!empty($suppServices))
-            <div style="margin-top: 10px;">
-                <div class="panel-title">Supplements – Other Services</div>
-                <table style="width: 100%; border-collapse: collapse; border: 2px solid #000; table-layout: fixed;">
-                    <thead>
+        {{-- 2) Overall Package — one simple calc table --}}
+        <div class="overall-price-box" style="margin-top: 10px;">
+            <div class="panel-title" style="margin: 0; border: none; border-bottom: 1px solid #000;">Overall Package ({{ $overallDisplayLabel }})</div>
+            <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
+                <thead>
+                    <tr>
+                        <th style="border: 1px solid #000; padding: 8px; background: #f3f3f3; text-align: left; width: 46%;">Particulars</th>
+                        <th style="border: 1px solid #000; padding: 8px; background: #f3f3f3; text-align: center; width: 27%;">Price</th>
+                        <th style="border: 1px solid #000; padding: 8px; background: #f3f3f3; text-align: right; width: 27%;">Total Price</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($overallPackageRows as $row)
                         <tr>
-                            <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: left; width: 70%;">Service</th>
-                            <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 30%;">Price</th>
+                            <td style="border: 1px solid #000; padding: 8px; vertical-align: middle;">{{ $row['name'] }}</td>
+                            <td style="border: 1px solid #000; padding: 8px; text-align: center; vertical-align: middle;">
+                                {{ $fmtOverallAmt($row['price']) }} x {{ (int) $row['multiplier'] }}
+                            </td>
+                            <td style="border: 1px solid #000; padding: 8px; text-align: right; font-weight: bold; vertical-align: middle;">
+                                {{ $fmtOverallAmt($row['total']) }}
+                            </td>
                         </tr>
-                    </thead>
-                    <tbody>
-                        @foreach($suppServices as $s)
-                            @php
-                                $suppTypeRaw = trim((string)($s['type'] ?? ''));
-                                $svcName = trim((string)($s['name'] ?? ($s['AttractionName'] ?? ($s['restaurantName'] ?? ''))));
-                                $tSlug = strtolower(str_replace([' ', '-'], '_', $suppTypeRaw));
-                                $nSlug = strtolower(str_replace([' ', '-'], '_', $svcName));
-                                $typePretty = $tSlug !== '' ? \Illuminate\Support\Str::headline($tSlug) : '';
-                                $namePretty = $nSlug !== '' ? \Illuminate\Support\Str::headline($nSlug) : '';
-                                $typeNorm = strtolower(preg_replace('/[^a-z0-9]+/', '', $suppTypeRaw));
-                                $nameNorm = strtolower(preg_replace('/[^a-z0-9]+/', '', $svcName));
-                                if ($svcName !== '' && $typeNorm !== '' && $typeNorm === $nameNorm) {
-                                    $svcLabel = $typePretty;
-                                } elseif ($svcName !== '' && $typePretty !== '' && $typeNorm !== $nameNorm) {
-                                    $svcLabel = $typePretty . ': ' . $namePretty;
-                                } elseif ($svcName !== '') {
-                                    $svcLabel = $namePretty;
-                                } else {
-                                    $svcLabel = $typePretty !== '' ? $typePretty : 'Supplement';
-                                }
-                                $suppPrice = $occupancyKey === 'double'
-                                    ? (float)($s['double'] ?? 0)
-                                    : (float)($s['single'] ?? 0);
-                            @endphp
-                            <tr>
-                                <td style="border: 1px solid #000; padding: 6px; vertical-align: top;">{{ $svcLabel }}</td>
-                                <td style="border: 1px solid #000; padding: 6px; text-align: center;">{{ $formatMoney($suppPrice) }}</td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
-        @endif
+                    @empty
+                        <tr>
+                            <td style="border: 1px solid #000; padding: 8px;" colspan="3">No package items</td>
+                        </tr>
+                    @endforelse
+
+                    @php
+                        $showSubtotalRow = !empty($overallPackageRows) && (float) $overallDiscountShown > 0;
+                    @endphp
+                    @if($showSubtotalRow)
+                        <tr>
+                            <td style="border: 1px solid #000; padding: 8px; text-align: right; background: #fafafa;" colspan="2"><strong>Subtotal</strong></td>
+                            <td style="border: 1px solid #000; padding: 8px; text-align: right; font-weight: bold; background: #fafafa;">{{ $fmtOverallAmt($overallLinesSubtotal) }}</td>
+                        </tr>
+                    @endif
+                    @if($overallDiscountShown > 0)
+                        <tr>
+                            <td style="border: 1px solid #000; padding: 8px;">Discount</td>
+                            <td style="border: 1px solid #000; padding: 8px; text-align: center;">-</td>
+                            <td style="border: 1px solid #000; padding: 8px; text-align: right; font-weight: bold;">{{ $fmtOverallAmt($overallDiscountShown) }}</td>
+                        </tr>
+                    @endif
+                    <tr>
+                        <td style="border: 1px solid #000; padding: 10px; text-align: right; font-weight: bold; background: #f3f3f3;" colspan="2">TOTAL COST</td>
+                        <td style="border: 1px solid #000; padding: 10px; text-align: right; font-weight: bold; background: #f3f3f3;">{{ $totalCostLabel }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
         @if(!empty($quotationInformationHtml))
             <div class="quotation-information">
                 <div class="section-label">Quotation Information</div>
