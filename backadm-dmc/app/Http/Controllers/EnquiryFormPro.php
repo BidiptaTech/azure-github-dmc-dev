@@ -257,7 +257,8 @@ class EnquiryFormPro extends Controller
     }
 
     /**
-     * Cities for destination pickers: sibling DMC mapped cities only.
+     * Cities for destination pickers: sibling DMC countries from users.country,
+     * cities-table rows for those countries, plus product cities.
      */
     private function getAccessibleCitiesForDmc(?int $dmcId, array $extraCityNames = [])
     {

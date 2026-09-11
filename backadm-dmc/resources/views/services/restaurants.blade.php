@@ -28,13 +28,15 @@
             </div>
         </div>
 
+        <div id="serviceActionAlerts" class="mb-3"></div>
+
         <!-- Selected Restaurants Section -->
         <div class="card mb-4 {{ (!isset($selectedRestaurants) || count($selectedRestaurants) === 0) ? 'd-none' : '' }}" id="selectedRestaurantsSection">
             <div class="card-header">
                 <div class="d-flex flex-wrap justify-content-between align-items-end gap-2">
                     <div>
                         <h5 class="mb-0" id="selectedRestaurantsTitle">Selected Restaurants ({{ isset($selectedRestaurants) ? count($selectedRestaurants) : 0 }})</h5>
-                        <small class="text-muted">All cities — restaurants already selected for this DMC</small>
+                        <small class="text-muted">Restaurants selected by this DMC only</small>
                     </div>
                     <div class="d-flex flex-wrap gap-2">
                         <div class="input-group input-group-sm" style="width: 260px;">
@@ -54,10 +56,28 @@
                 </div>
             </div>
             <div class="card-body">
+                <div id="selectedRestaurantsBulkToolbar" class="selected-restaurants-bulk-toolbar d-none mb-3" role="region" aria-live="polite">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                        <div class="d-flex flex-wrap align-items-center gap-2">
+                            <i class="ri-checkbox-circle-fill text-primary" aria-hidden="true"></i>
+                            <strong id="bulkSelectedCountLabel">0 Restaurants Selected</strong>
+                            <button type="button" class="btn btn-link btn-sm px-1" id="clearRestaurantSelectionBtn">Clear Selection</button>
+                        </div>
+                        <button type="button" class="btn btn-danger btn-sm" id="bulkRemoveSelectedBtn">
+                            <i class="ri-delete-bin-line me-1"></i><span id="bulkRemoveSelectedLabel">Remove Selected</span>
+                        </button>
+                    </div>
+                </div>
                 <div class="table-responsive">
-                    <table class="table table-hover mb-2">
+                    <table class="table table-hover mb-2 align-middle">
                         <thead>
                             <tr>
+                                <th style="width: 130px;">
+                                    <div class="form-check mb-0">
+                                        <input class="form-check-input" type="checkbox" id="selectAllSelectedRestaurants" aria-label="Select all restaurants">
+                                        <label class="form-check-label fw-semibold" for="selectAllSelectedRestaurants">Select All</label>
+                                    </div>
+                                </th>
                                 <th>Restaurant Name</th>
                                 <th>Location</th>
                                 <th>Cuisine</th>
@@ -67,6 +87,13 @@
                         <tbody id="selectedRestaurantsBody">
                             @foreach(($selectedRestaurants ?? []) as $restaurant)
                                 <tr class="selected-restaurant-row" data-restaurant-id="{{ $restaurant->restaurant_id }}" data-name="{{ strtolower($restaurant->name) }}" data-location="{{ strtolower($restaurant->city) }}, {{ strtolower($restaurant->country) }}">
+                                    <td>
+                                        <div class="form-check mb-0">
+                                            <input class="form-check-input selected-restaurant-checkbox" type="checkbox"
+                                                   value="{{ $restaurant->restaurant_id }}"
+                                                   aria-label="Select {{ $restaurant->name }}">
+                                        </div>
+                                    </td>
                                     <td>
                                         <div class="d-flex align-items-center">
                                             @if($restaurant->master_image)
@@ -112,6 +139,7 @@
                     <nav>
                         <ul class="pagination pagination-sm mb-0" id="selectedRestaurantsPagination"></ul>
                     </nav>
+                    <div class="small text-muted mt-2" id="selectedRestaurantsShowingCount"></div>
                 </div>
             </div>
         </div>
@@ -151,7 +179,7 @@
                                 <span class="text-muted fw-normal">({{ $dmcCountry }})</span>
                             @endif
                         </label>
-                        <select id="restaurantCitySelect" class="form-select" onchange="applyRestaurantFilters()">
+                        <select id="restaurantCitySelect" class="form-select city-search-select" data-placeholder="Search and select a city">
                             <option value="">All Cities</option>
                             @foreach(($allowedCities ?? []) as $cityName)
                                 <option value="{{ strtolower($cityName) }}">{{ $cityName }}</option>
@@ -289,6 +317,34 @@
     </div>
 </div>
 
+<!-- Bulk Remove Restaurants Modal -->
+<div class="modal fade" id="bulkRemoveRestaurantsModal" tabindex="-1" aria-labelledby="bulkRemoveRestaurantsTitle" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0 pb-0">
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" id="bulkRemoveModalCloseBtn"></button>
+            </div>
+            <div class="modal-body text-center pt-0 px-4">
+                <div class="bulk-remove-confirm-icon" aria-hidden="true">
+                    <i class="ri-delete-bin-line"></i>
+                </div>
+                <h5 class="modal-title mb-2" id="bulkRemoveRestaurantsTitle">Remove Restaurants?</h5>
+                <p class="text-muted mb-1" id="bulkRemoveRestaurantsBody"></p>
+                <p class="text-muted small mb-0">This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer justify-content-center border-0 pt-0 pb-4">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" id="cancelBulkRemoveRestaurants">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmBulkRemoveRestaurants">
+                    <span class="btn-text">Remove Restaurants</span>
+                    <span class="btn-loader d-none">
+                        <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Removing...
+                    </span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <style>
 .restaurant-card {
     transition: all 0.3s ease;
@@ -322,6 +378,103 @@
     background-color: #d97706;
     border-color: #d97706;
 }
+
+.selected-restaurants-bulk-toolbar {
+    background: #eef4ff;
+    border: 1px solid #d6e4ff;
+    border-radius: 0.5rem;
+    padding: 0.75rem 1rem;
+}
+
+.selected-restaurants-bulk-toolbar .btn-link {
+    color: #0d6efd;
+    text-decoration: underline;
+    font-weight: 500;
+}
+
+.bulk-remove-confirm-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: #fee2e2;
+    color: #dc2626;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.75rem;
+    margin: 0 auto 1rem;
+}
+
+.selected-restaurant-checkbox,
+#selectAllSelectedRestaurants {
+    cursor: pointer;
+}
+
+.city-combobox {
+    position: relative;
+}
+
+.city-combobox .city-search-select {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+    width: 1px;
+    height: 1px;
+}
+
+.city-combobox-input {
+    padding-right: 2.25rem;
+}
+
+.city-combobox-caret {
+    position: absolute;
+    right: 0.85rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #697a8d;
+    pointer-events: none;
+}
+
+.city-combobox-menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    z-index: 1080;
+    background: #fff;
+    border: 1px solid #d9dee3;
+    border-radius: 0.5rem;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+    padding: 0.35rem;
+}
+
+.city-combobox-options {
+    max-height: 220px;
+    overflow-y: auto;
+}
+
+.city-combobox-option {
+    display: block;
+    width: 100%;
+    text-align: left;
+    border: 0;
+    background: transparent;
+    padding: 0.45rem 0.7rem;
+    border-radius: 0.375rem;
+    color: #566a7f;
+}
+
+.city-combobox-option:hover,
+.city-combobox-option.active {
+    background: #f1f5ff;
+    color: #0d6efd;
+}
+
+.city-combobox-empty {
+    padding: 0.55rem 0.7rem;
+    color: #a1acb8;
+    font-size: 0.875rem;
+}
 </style>
 
 <script>
@@ -329,11 +482,170 @@ let currentRestaurantId = null;
 const csrfToken = '{{ csrf_token() }}';
 const dmcCountry = '{{ strtolower(trim($dmcCountry ?? '')) }}';
 let selectedRestaurantsPaginator = null;
+const selectedRestaurantIds = new Set();
+let bulkRemoveIds = [];
+let bulkRemoveInProgress = false;
 
 function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text ?? '';
     return div.innerHTML;
+}
+
+function initServiceCitySearch(selector, onChange) {
+    const select = document.querySelector(selector);
+    if (!select || select.dataset.citySearchReady === '1') return;
+    select.dataset.citySearchReady = '1';
+
+    const options = Array.from(select.options).map(opt => ({
+        value: opt.value,
+        label: (opt.textContent || '').trim()
+    }));
+    const placeholder = select.getAttribute('data-placeholder') || 'Search and select a city';
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'city-combobox';
+    select.parentNode.insertBefore(wrapper, select);
+    wrapper.appendChild(select);
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'form-control city-combobox-input';
+    input.placeholder = placeholder;
+    input.autocomplete = 'off';
+    input.setAttribute('role', 'combobox');
+    input.setAttribute('aria-expanded', 'false');
+    input.setAttribute('aria-autocomplete', 'list');
+
+    const caret = document.createElement('i');
+    caret.className = 'ri-arrow-down-s-line city-combobox-caret';
+    caret.setAttribute('aria-hidden', 'true');
+
+    const menu = document.createElement('div');
+    menu.className = 'city-combobox-menu d-none';
+    const list = document.createElement('div');
+    list.className = 'city-combobox-options';
+    list.setAttribute('role', 'listbox');
+    menu.appendChild(list);
+
+    wrapper.appendChild(input);
+    wrapper.appendChild(caret);
+    wrapper.appendChild(menu);
+
+    function selectedLabel() {
+        const match = options.find(opt => opt.value === select.value);
+        return match ? match.label : '';
+    }
+
+    function syncInput() {
+        input.value = select.value ? selectedLabel() : '';
+    }
+
+    function closeMenu() {
+        menu.classList.add('d-none');
+        input.setAttribute('aria-expanded', 'false');
+    }
+
+    function renderList(term) {
+        const query = (term || '').toLowerCase().trim();
+        const filtered = options.filter(opt => {
+            if (!query) return true;
+            return opt.label.toLowerCase().includes(query) || opt.value.toLowerCase().includes(query);
+        });
+
+        list.innerHTML = '';
+        if (!filtered.length) {
+            list.innerHTML = '<div class="city-combobox-empty">No cities found</div>';
+            return;
+        }
+
+        filtered.forEach(opt => {
+            const item = document.createElement('button');
+            item.type = 'button';
+            item.className = 'city-combobox-option' + (opt.value === select.value ? ' active' : '');
+            item.textContent = opt.label;
+            item.dataset.value = opt.value;
+            item.addEventListener('mousedown', function(event) {
+                event.preventDefault();
+                chooseCity(opt.value, opt.label);
+            });
+            list.appendChild(item);
+        });
+    }
+
+    function openMenu() {
+        menu.classList.remove('d-none');
+        input.setAttribute('aria-expanded', 'true');
+        renderList(select.value ? '' : input.value);
+    }
+
+    function chooseCity(value, label) {
+        select.value = value;
+        input.value = value ? label : '';
+        closeMenu();
+        if (typeof onChange === 'function') onChange();
+    }
+
+    input.addEventListener('focus', function() {
+        if (select.value) {
+            input.value = '';
+        }
+        openMenu();
+    });
+
+    input.addEventListener('input', function() {
+        if (!input.value) {
+            select.value = '';
+            if (typeof onChange === 'function') onChange();
+        }
+        openMenu();
+        renderList(input.value);
+    });
+
+    input.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
+            syncInput();
+            closeMenu();
+            input.blur();
+        }
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            const first = list.querySelector('.city-combobox-option');
+            if (first) {
+                chooseCity(first.dataset.value, first.textContent);
+            }
+        }
+    });
+
+    input.addEventListener('blur', function() {
+        setTimeout(function() {
+            if (!wrapper.contains(document.activeElement)) {
+                syncInput();
+                closeMenu();
+            }
+        }, 120);
+    });
+
+    document.addEventListener('click', function(event) {
+        if (!wrapper.contains(event.target)) {
+            syncInput();
+            closeMenu();
+        }
+    });
+
+    wrapper._syncCitySearch = syncInput;
+    select.addEventListener('change', onChange);
+    syncInput();
+}
+
+function resetCitySearchSelect(selector) {
+    const el = document.querySelector(selector);
+    if (!el) return;
+    el.value = '';
+    const wrapper = el.closest('.city-combobox');
+    if (wrapper && typeof wrapper._syncCitySearch === 'function') {
+        wrapper._syncCitySearch();
+    }
 }
 
 function resetRestaurantButton(btn) {
@@ -381,6 +693,12 @@ function buildSelectedRestaurantRowFromItem(item) {
     row.setAttribute('data-name', name.toLowerCase());
     row.setAttribute('data-location', `${city}, ${country}`.toLowerCase());
     row.innerHTML = `
+        <td>
+            <div class="form-check mb-0">
+                <input class="form-check-input selected-restaurant-checkbox" type="checkbox"
+                       value="${escapeHtml(restaurantId)}" aria-label="Select ${escapeHtml(name)}">
+            </div>
+        </td>
         <td><div class="d-flex align-items-center">${imageHtml}<div><strong>${escapeHtml(name)}</strong></div></div></td>
         <td>${escapeHtml(city)}, ${escapeHtml(country)}</td>
         <td><span class="badge bg-label-info">${cuisineLabel}</span></td>
@@ -408,6 +726,163 @@ function addRestaurantToSelectedTable(item) {
 function removeRestaurantFromSelectedTable(restaurantId) {
     const row = document.querySelector(`#selectedRestaurantsBody .selected-restaurant-row[data-restaurant-id="${restaurantId}"]`);
     if (row) row.remove();
+    selectedRestaurantIds.delete(String(restaurantId));
+    syncRestaurantSelectionUi();
+}
+
+function getSelectedRestaurantRows() {
+    return Array.from(document.querySelectorAll('#selectedRestaurantsBody .selected-restaurant-row'));
+}
+
+function getVisibleSelectedRestaurantRows() {
+    return getSelectedRestaurantRows().filter(row => !row.classList.contains('d-none'));
+}
+
+function restaurantSelectionLabel(count) {
+    return count === 1 ? '1 Restaurant Selected' : `${count} Restaurants Selected`;
+}
+
+function restaurantRemoveLabel(count) {
+    return count === 1 ? 'Remove 1 Restaurant' : `Remove ${count} Restaurants`;
+}
+
+function isRestaurantSelected(restaurantId) {
+    return selectedRestaurantIds.has(String(restaurantId));
+}
+
+function toggleRestaurantSelection(restaurantId, shouldSelect) {
+    const id = String(restaurantId);
+    if (shouldSelect) {
+        selectedRestaurantIds.add(id);
+    } else {
+        selectedRestaurantIds.delete(id);
+    }
+    syncRestaurantSelectionUi();
+}
+
+function toggleSelectAllSelectedRestaurants() {
+    const visibleRows = getVisibleSelectedRestaurantRows();
+    const allVisibleSelected = visibleRows.length > 0 && visibleRows.every(row => {
+        return isRestaurantSelected(row.getAttribute('data-restaurant-id'));
+    });
+
+    visibleRows.forEach(row => {
+        const id = row.getAttribute('data-restaurant-id');
+        if (allVisibleSelected) {
+            selectedRestaurantIds.delete(String(id));
+        } else {
+            selectedRestaurantIds.add(String(id));
+        }
+    });
+
+    syncRestaurantSelectionUi();
+}
+
+function clearRestaurantSelection() {
+    selectedRestaurantIds.clear();
+    syncRestaurantSelectionUi();
+}
+
+function syncRestaurantSelectionUi() {
+    getSelectedRestaurantRows().forEach(row => {
+        const checkbox = row.querySelector('.selected-restaurant-checkbox');
+        if (checkbox) {
+            checkbox.checked = isRestaurantSelected(row.getAttribute('data-restaurant-id'));
+        }
+    });
+
+    const visibleRows = getVisibleSelectedRestaurantRows();
+    const selectedVisibleCount = visibleRows.filter(row => isRestaurantSelected(row.getAttribute('data-restaurant-id'))).length;
+    const selectAll = document.getElementById('selectAllSelectedRestaurants');
+    if (selectAll) {
+        selectAll.checked = visibleRows.length > 0 && selectedVisibleCount === visibleRows.length;
+        selectAll.indeterminate = selectedVisibleCount > 0 && selectedVisibleCount < visibleRows.length;
+    }
+
+    const count = selectedRestaurantIds.size;
+    const toolbar = document.getElementById('selectedRestaurantsBulkToolbar');
+    const countLabel = document.getElementById('bulkSelectedCountLabel');
+    const removeLabel = document.getElementById('bulkRemoveSelectedLabel');
+    if (toolbar) toolbar.classList.toggle('d-none', count === 0);
+    if (countLabel) countLabel.textContent = restaurantSelectionLabel(count);
+    if (removeLabel) removeLabel.textContent = count > 0 ? `Remove Selected (${count})` : 'Remove Selected';
+}
+
+function openBulkRemoveModal() {
+    if (bulkRemoveInProgress || selectedRestaurantIds.size === 0) return;
+
+    bulkRemoveIds = Array.from(selectedRestaurantIds);
+    const count = bulkRemoveIds.length;
+    const noun = count === 1 ? 'Restaurant' : 'Restaurants';
+    const title = document.getElementById('bulkRemoveRestaurantsTitle');
+    const body = document.getElementById('bulkRemoveRestaurantsBody');
+    const confirmBtn = document.getElementById('confirmBulkRemoveRestaurants');
+    const confirmText = confirmBtn?.querySelector('.btn-text');
+
+    if (title) title.textContent = `Remove ${count} ${noun}?`;
+    if (body) {
+        body.textContent = count === 1
+            ? 'Are you sure you want to remove this selected restaurant from your offerings?'
+            : `Are you sure you want to remove these ${count} selected restaurants from your offerings?`;
+    }
+    if (confirmText) confirmText.textContent = restaurantRemoveLabel(count);
+
+    setBulkRemoveLoading(false);
+    const modalEl = document.getElementById('bulkRemoveRestaurantsModal');
+    if (modalEl) new bootstrap.Modal(modalEl).show();
+}
+
+function setBulkRemoveLoading(isLoading) {
+    bulkRemoveInProgress = isLoading;
+    const confirmBtn = document.getElementById('confirmBulkRemoveRestaurants');
+    const toolbarBtn = document.getElementById('bulkRemoveSelectedBtn');
+    const closeBtn = document.getElementById('bulkRemoveModalCloseBtn');
+    const cancelBtn = document.getElementById('cancelBulkRemoveRestaurants');
+    if (confirmBtn) {
+        confirmBtn.disabled = isLoading;
+        const btnText = confirmBtn.querySelector('.btn-text');
+        const btnLoader = confirmBtn.querySelector('.btn-loader');
+        if (btnText) btnText.classList.toggle('d-none', isLoading);
+        if (btnLoader) btnLoader.classList.toggle('d-none', !isLoading);
+    }
+    if (toolbarBtn) toolbarBtn.disabled = isLoading;
+    if (closeBtn) closeBtn.disabled = isLoading;
+    if (cancelBtn) cancelBtn.disabled = isLoading;
+}
+
+function removeSelectedRestaurants() {
+    if (bulkRemoveInProgress || bulkRemoveIds.length === 0) return;
+
+    setBulkRemoveLoading(true);
+
+    fetch('{{ route('services.restaurants.remove-bulk') }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': csrfToken,
+            'Accept': 'application/json',
+        },
+        body: JSON.stringify({ restaurant_ids: bulkRemoveIds })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            selectedRestaurantIds.clear();
+            bulkRemoveInProgress = false;
+            const modal = bootstrap.Modal.getInstance(document.getElementById('bulkRemoveRestaurantsModal'));
+            if (modal) modal.hide();
+            flashAndReload('success', data.message || `${bulkRemoveIds.length} restaurants removed successfully.`);
+            return;
+        }
+
+        setBulkRemoveLoading(false);
+        showAlert('error', data.message || 'Unable to remove the selected restaurants. Please try again.');
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        setBulkRemoveLoading(false);
+        showAlert('error', 'Unable to remove the selected restaurants. Please try again.');
+    });
 }
 
 function refreshSelectedRestaurantPagination() {
@@ -463,7 +938,7 @@ function applyRestaurantFilters() {
 
 function resetRestaurantFilters() {
     document.getElementById('restaurantSearch').value = '';
-    document.getElementById('restaurantCitySelect').value = '';
+    resetCitySearchSelect('#restaurantCitySelect');
     applyRestaurantFilters();
 }
 
@@ -480,15 +955,7 @@ function selectRestaurant(encryptedRestaurantId, restaurantName, buttonEl) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            const item = buttonEl ? buttonEl.closest('.restaurant-item') : null;
-            if (item) {
-                addRestaurantToSelectedTable(item);
-                item.style.display = 'none';
-            }
-            updateSelectedRestaurantCount();
-            refreshSelectedRestaurantPagination();
-            applyRestaurantFilters();
-            showAlert('success', data.message || `${restaurantName} has been selected successfully!`);
+            flashAndReload('success', data.message || `${restaurantName} has been selected successfully!`);
         } else {
             resetRestaurantButton(buttonEl);
             showAlert('error', data.message || 'An error occurred while selecting the restaurant.');
@@ -514,16 +981,7 @@ function removeRestaurant(restaurantId, restaurantName) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            removeRestaurantFromSelectedTable(restaurantId);
-            const item = document.querySelector(`.restaurant-item[data-restaurant-id="${restaurantId}"]`);
-            if (item) {
-                item.classList.remove('restaurant-selected');
-                resetRestaurantButton(item.querySelector('.select-restaurant-btn'));
-            }
-            updateSelectedRestaurantCount();
-            refreshSelectedRestaurantPagination();
-            applyRestaurantFilters();
-            showAlert('success', data.message || `${restaurantName} has been removed successfully!`);
+            flashAndReload('success', data.message || `${restaurantName} has been removed successfully!`);
         } else {
             showAlert('error', data.message || 'An error occurred while removing the restaurant.');
         }
@@ -535,6 +993,8 @@ function removeRestaurant(restaurantId, restaurantName) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+    showStoredFlash();
+    initServiceCitySearch('#restaurantCitySelect', applyRestaurantFilters);
     // Initialize tooltips
     var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
     var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
@@ -563,6 +1023,38 @@ document.addEventListener('DOMContentLoaded', function() {
         removeRestaurant(currentRestaurantId, restaurantName);
         const modal = bootstrap.Modal.getInstance(document.getElementById('removeRestaurantModal'));
         if (modal) modal.hide();
+    });
+
+    const selectAllSelected = document.getElementById('selectAllSelectedRestaurants');
+    if (selectAllSelected) {
+        selectAllSelected.addEventListener('change', function(event) {
+            event.preventDefault();
+            toggleSelectAllSelectedRestaurants();
+        });
+    }
+
+    document.getElementById('selectedRestaurantsBody')?.addEventListener('change', function(event) {
+        const checkbox = event.target.closest('.selected-restaurant-checkbox');
+        if (!checkbox) return;
+        toggleRestaurantSelection(checkbox.value, checkbox.checked);
+    });
+
+    document.getElementById('clearRestaurantSelectionBtn')?.addEventListener('click', function() {
+        clearRestaurantSelection();
+    });
+
+    document.getElementById('bulkRemoveSelectedBtn')?.addEventListener('click', function() {
+        openBulkRemoveModal();
+    });
+
+    document.getElementById('confirmBulkRemoveRestaurants')?.addEventListener('click', function() {
+        removeSelectedRestaurants();
+    });
+
+    document.getElementById('bulkRemoveRestaurantsModal')?.addEventListener('hide.bs.modal', function(event) {
+        if (bulkRemoveInProgress) {
+            event.preventDefault();
+        }
     });
     // Restaurants are already limited to the DMC country server-side.
     // City options come from the DMC country cities list.
@@ -613,6 +1105,12 @@ document.addEventListener('DOMContentLoaded', function() {
             getAllRows().forEach(r => r.classList.add('d-none'));
             filtered.slice(start, end).forEach(r => r.classList.remove('d-none'));
             renderPagination(total, safePage, pageSize);
+            const showingEl = document.getElementById('selectedRestaurantsShowingCount');
+            if (showingEl) {
+                const pageCount = filtered.slice(start, end).length;
+                showingEl.textContent = `Showing ${pageCount} of ${total} restaurants`;
+            }
+            syncRestaurantSelectionUi();
         }
         selectedRestaurantsPaginator = { refresh(page = 1) { render(page); } };
         render(1);
@@ -621,12 +1119,31 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
+function flashAndReload(type, message) {
+    try {
+        sessionStorage.setItem('servicesFlash', JSON.stringify({ type: type || 'success', message: message || '' }));
+    } catch (e) {}
+    window.location.reload();
+}
+
+function showStoredFlash() {
+    try {
+        const raw = sessionStorage.getItem('servicesFlash');
+        if (!raw) return;
+        sessionStorage.removeItem('servicesFlash');
+        const flash = JSON.parse(raw);
+        if (flash && flash.message) {
+            showAlert(flash.type || 'success', flash.message);
+        }
+    } catch (e) {}
+}
+
 function showAlert(type, message) {
     const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
     const alertHtml = `<div class="alert ${alertClass} alert-dismissible fade show" role="alert">${message}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>`;
-    const alertContainer = document.getElementById('availableRestaurantsAlerts');
+    const alertContainer = document.getElementById('serviceActionAlerts') || document.getElementById('availableRestaurantsAlerts');
     if (!alertContainer) return;
-    alertContainer.insertAdjacentHTML('beforeend', alertHtml);
+    alertContainer.innerHTML = alertHtml;
     setTimeout(() => { const alert = alertContainer.querySelector('.alert'); if (alert) alert.remove(); }, 5000);
 }
 </script>

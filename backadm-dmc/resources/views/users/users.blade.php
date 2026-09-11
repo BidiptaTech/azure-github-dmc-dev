@@ -907,6 +907,29 @@
                 }
                 $canEditSettings = (int) auth()->user()->role_id === 10;
                 $showAutoLogin = in_array((int) auth()->user()->user_type, [1, 2, 3], true);
+                $userLocationCountry = trim((string) ($user->user_country ?? ''));
+                $userLocationCity = trim((string) ($user->city ?? ''));
+                $operationalCountries = [];
+                $operationalSeen = [];
+                $operationalRaw = trim((string) ($user->country ?? ''));
+                if ($operationalRaw !== '') {
+                    $decodedOperational = json_decode($operationalRaw, true);
+                    $operationalParts = (json_last_error() === JSON_ERROR_NONE && is_array($decodedOperational))
+                        ? $decodedOperational
+                        : preg_split('/[,|]/', $operationalRaw);
+                    foreach ((array) $operationalParts as $part) {
+                        $name = trim((string) $part);
+                        if ($name === '') {
+                            continue;
+                        }
+                        $operationalKey = mb_strtolower($name);
+                        if (isset($operationalSeen[$operationalKey])) {
+                            continue;
+                        }
+                        $operationalSeen[$operationalKey] = true;
+                        $operationalCountries[] = $name;
+                    }
+                }
               @endphp
               <tr class="{{ ($showSettingsCellForThisRow ? '' : 'no-settings-row') . ($userIsActive ? '' : ' user-inactive-row') }}">
                 <td>
@@ -941,8 +964,14 @@
                         @endif
                         <span>
                           <i class="fas fa-map-marker-alt"></i>
-                          {{ $user->user_country ?? 'N/A' }}{{ $user->city ? ', ' . $user->city : '' }}
+                          {{ $userLocationCountry !== '' ? $userLocationCountry : 'N/A' }}{{ $userLocationCity !== '' ? ', ' . $userLocationCity : '' }}
                         </span>
+                        @if(!empty($operationalCountries))
+                          <span title="Operational country">
+                            <i class="fas fa-globe"></i>
+                            Operational: {{ implode(', ', $operationalCountries) }}
+                          </span>
+                        @endif
                       </div>
                     </div>
                   </div>
@@ -1441,6 +1470,32 @@
         return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
     }
 
+    function uniqueOperationalCountries(raw) {
+        var text = String(raw || '').trim();
+        if (!text) return [];
+        var parts = [];
+        try {
+            var decoded = JSON.parse(text);
+            if (Array.isArray(decoded)) {
+                parts = decoded;
+            }
+        } catch (e) {}
+        if (!parts.length) {
+            parts = text.split(/[,|]/);
+        }
+        var seen = {};
+        var unique = [];
+        parts.forEach(function(part) {
+            var name = String(part || '').trim();
+            if (!name) return;
+            var key = name.toLowerCase();
+            if (seen[key]) return;
+            seen[key] = true;
+            unique.push(name);
+        });
+        return unique;
+    }
+
     function renderMasterDmcTeam(team, meta) {
         var $body = $('#masterDmcTeamBody');
         meta = meta || {};
@@ -1456,6 +1511,7 @@
         var cards = team.map(function(u, idx) {
             var uid = u.userId;
             var inactiveClass = u.is_active ? '' : ' is-inactive';
+            var opsCountries = uniqueOperationalCountries(u.country);
 
             var userHtml =
                 '<div class="d-flex align-items-start gap-3">' +
@@ -1471,7 +1527,11 @@
                             '<span><i class="fas fa-envelope"></i>' + escapeHtml(u.email || '—') + '</span>' +
                             (u.phone ? '<span><i class="fas fa-phone"></i>' + escapeHtml(u.phone) + '</span>' : '') +
                             '<span><i class="fas fa-map-marker-alt"></i>' + escapeHtml(u.user_country || 'N/A') +
-                                (u.city ? ', ' + escapeHtml(u.city) : '') + '</span>' +
+                                (u.city && u.city !== 'N/A' ? ', ' + escapeHtml(u.city) : '') + '</span>' +
+                            (opsCountries.length
+                                ? '<span title="Operational country"><i class="fas fa-globe"></i>Operational: ' +
+                                    escapeHtml(opsCountries.join(', ')) + '</span>'
+                                : '') +
                         '</div>' +
                     '</div>' +
                 '</div>';
