@@ -3790,7 +3790,7 @@
         data-previous-currency="{{ $tour->previous_payment_currency ?? '' }}"
         data-tour-currency="{{ $tourCurrency }}"
     >
-        <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content shadow-lg rounded">
                 <div class="modal-header bg-primary text-white d-flex align-items-center justify-content-start" style="padding: 15px; border-radius: 8px;">
                     <h5 class="modal-title d-flex align-items-center" id="addPaymentModalLabel{{ $tour->tour_id }}" style="margin: 0; font-weight: bold; color: white;">
@@ -3799,47 +3799,21 @@
                     </h5>
                     <button type="button" class="btn-close btn-close-white ms-auto" data-bs-dismiss="modal" aria-label="Close" style="filter: brightness(0) invert(1);"></button>
                 </div>
-                <div class="modal-body p-4">
+                <div class="modal-body p-3">
                     <form id="paymentForm{{ $tour->tour_id }}" action="{{ route('tour.add-payment', $tour->tour_id) }}" method="POST">
                         @csrf
                         <input type="hidden" name="tour_id" value="{{ $tour->tour_id }}">
                         
                         <!-- Display Due Amount Info (Read-only) -->
-                        <div class="mb-4">
-                            <label class="form-label fw-bold">
-                                <i class="fas fa-info-circle text-info me-2"></i>Payment Information
-                            </label>
-                            <div class="mb-2">
-                                <small class="text-muted">Tour currency: <strong>{{ $tourCurrency }}</strong></small>
+                        <div class="mb-3">
+                            <div class="d-flex align-items-center justify-content-between mb-1">
+                                <label class="form-label fw-bold mb-0">
+                                    <i class="fas fa-info-circle text-info me-1"></i>Payment Information
+                                </label>
+                                <small class="text-muted">{{ $tourCurrency }}</small>
                             </div>
-                            <div class="alert alert-info">
-                                <!-- Pricing Breakdown -->
+                            <div class="alert alert-info mb-0 py-2 px-2">
                                 @include('bookings.partials.add-payment-pricing-breakdown', ['tourCurrency' => $tourCurrency])
-                                <div class="row text-center mb-2">
-                                    <div class="col-4">
-                                        <small class="text-muted">Base Amount</small>
-                                        <div class="fw-bold text-dark">{{ number_format(round($baseAmount), 2) }} {{ $tourCurrency }}</div>
-                                    </div>
-                                    <div class="col-4">
-                                        <small class="text-muted">Tax</small>
-                                        <div class="fw-bold text-warning">{{ number_format(round($taxAmount), 2) }} {{ $tourCurrency }}</div>
-                                    </div>
-                                    <div class="col-4">
-                                        <small class="text-muted">Total Amount</small>
-                                        <div class="fw-bold text-primary">{{ number_format(round($finalAmount), 2) }} {{ $tourCurrency }}</div>
-                                    </div>
-                                </div>
-                                <hr class="my-2">
-                                <div class="row text-center">
-                                    <div class="col-6">
-                                        <small class="text-muted">Paid Amount</small>
-                                        <div class="fw-bold text-success">{{ number_format(round($totalPaid), 2) }} {{ $tourCurrency }}</div>
-                                    </div>
-                                    <div class="col-6">
-                                        <small class="text-muted">Remaining</small>
-                                        <div class="fw-bold text-danger">{{ number_format(round($remainingAmount), 2) }} {{ $tourCurrency }}</div>
-                                    </div>
-                                </div>
                             </div>
                             <input type="hidden" id="amount{{ $tour->tour_id }}" value="{{ $remainingAmount }}">
                             <input type="hidden" name="currency" value="{{ $tourCurrency }}">
