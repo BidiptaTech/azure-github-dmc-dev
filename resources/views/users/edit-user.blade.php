@@ -95,7 +95,26 @@
         margin-right: 4px !important;
     }
     
-    /* Invalid field styling */
+    option.dmc-country-occupied {
+        color: #a1acb8;
+    }
+
+    .user-form-grid .form-label {
+        display: block;
+        margin-bottom: 0.35rem;
+        min-height: 1.35rem;
+    }
+
+    .user-form-grid .form-control,
+    .user-form-grid .form-select {
+        min-height: 42px;
+        width: 100%;
+    }
+
+    .user-form-grid .form-control[readonly] {
+        background-color: #f8f9fa;
+        cursor: not-allowed;
+    }
     .form-control.is-invalid, .form-select.is-invalid {
         border-color: #dc3545 !important;
         background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' width='12' height='12' fill='none' stroke='%23dc3545'%3e%3ccircle cx='6' cy='6' r='4.5'/%3e%3cpath stroke-linejoin='round' d='M5.8 3.6h.4L6 6.5z'/%3e%3ccircle cx='6' cy='8.2' r='.6' fill='%23dc3545' stroke='none'/%3e%3c/svg%3e");
@@ -145,9 +164,8 @@
                 <!-- Hidden field to preserve role_id -->
                 <input type="hidden" name="role" value="{{ $users->role_id }}">
 
-                <div class="row">
-                    <!-- Salutation -->
-                    <div class="col-md-3 mb-3">
+                <div class="row g-3 user-form-grid">
+                    <div class="col-md-4">
                         <label for="salutation" class="form-label"><strong>Salutation</strong><span class="text-danger">*</span></label>
                         <select class="form-control" id="salutation" name="salutation" required>
                             <option value="">Select Salutation</option>
@@ -159,188 +177,138 @@
                         @error('salutation')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                     </div>
 
-                    <!-- Name -->
-                    <div class="col-md-3 mb-3">
+                    <div class="col-md-4">
                         <label for="yourname" class="form-label"><strong>Name</strong><span class="text-danger">*</span></label>
                         <input type="text" class="form-control" name="yourname" value="{{ $users->name }}" required>
                         @error('yourname')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                     </div>
 
-                    <!-- Role (Display Only) -->
-                    <div class="col-md-4 mb-3">
+                    <div class="col-md-4">
                         <label for="current_role" class="form-label"><strong>Role</strong></label>
                         <input type="text" class="form-control" value="{{ $users->role->name ?? 'No Role' }}" readonly>
                         <small class="text-muted">Role cannot be changed</small>
                     </div>
 
                     @if(auth()->user()->user_type == 1)
-                        <!-- Master DMC Select -->
-                        <div class="col-md-2" id="inputRoleContainer">
-                            <div class="mb-3">
-                                <label for="master" class="form-label"><strong>Master DMC</strong><span class="text-danger">*</span></label>
-                                @if($users->role_id == 11 && $users->master_dmc_id)
-                                    <!-- Read-only for existing DMC users -->
-                                    <input type="text" class="form-control" value="{{ $users->masterDmc->name ?? 'No Master DMC' }}" readonly style="background-color: #f8f9fa;">
-                                    <input type="hidden" name="master_dmc" value="{{ $users->master_dmc_id }}">
-                                    <small class="text-muted">Master DMC cannot be changed for existing DMC</small>
-                                @else
-                                    <!-- Editable for new users or non-DMC users -->
-                                    <select class="form-select" id="master" name="master_dmc">
-                                        <option disabled value>Choose...</option>
-                                        @foreach($master_dmc as $mdmc)
-                                            <option value="{{ $mdmc->userId }}" {{ $users->master_dmc_id == $mdmc->userId ? 'selected' : '' }}>
-                                                {{ $mdmc->name }}
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                @endif
-                                @error('master_dmc')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                            </div>
+                        <div class="col-md-4" id="inputRoleContainer">
+                            <label for="master" class="form-label"><strong>Master DMC</strong><span class="text-danger">*</span></label>
+                            @if($users->role_id == 11 && $users->master_dmc_id)
+                                <input type="text" class="form-control" value="{{ $users->masterDmc->name ?? 'No Master DMC' }}" readonly>
+                                <input type="hidden" name="master_dmc" value="{{ $users->master_dmc_id }}">
+                                <small class="text-muted">Master DMC cannot be changed</small>
+                            @else
+                                <select class="form-select" id="master" name="master_dmc">
+                                    <option disabled value>Choose...</option>
+                                    @foreach($master_dmc as $mdmc)
+                                        <option value="{{ $mdmc->userId }}" {{ $users->master_dmc_id == $mdmc->userId ? 'selected' : '' }}>
+                                            {{ $mdmc->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            @endif
+                            @error('master_dmc')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                         </div>
                     @endif
-                </div>
-                
-                <!-- Dynamic Sections -->
-                <div class="row">
-                    <!-- Multiple Countries for role 10 (Master DMC) -->
-                    <div class="col-md-4" id="country_names" style="display: none;">
-                        <div class="mb-3">
-                            <label class="form-label"><strong>Country Names</strong><span class="text-danger">*</span></label>
-                            <select class="form-select select2" name="country_names[]" multiple>
-                                @foreach($country as $c)
-                                    <option value="{{ $c->name }}" 
-                                        {{ in_array($c->name, explode(',', $users->country)) ? 'selected' : '' }}>
-                                        {{ $c->name }}
-                                    </option>
-                                @endforeach
-                            </select>
-                            @error('country_names')
-                                <div class="text-danger mt-1">{{ $message }}</div>
-                            @enderror
-                        </div>
-                    </div>
 
-                    <!-- Single Country for role 11 (DMC) -->
-                    <div class="col-md-4" id="country_name" style="display: none;">
-                        <div class="mb-3">
-                            <label class="form-label"><strong>Country Name</strong><span class="text-danger">*</span></label>
-                            <select class="form-select" name="country_name">
-                                @foreach($country as $c)
-                                    <option value="{{ $c->name }}" {{ $users->country == $c->name ? 'selected' : '' }}>
-                                        {{ $c->name }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
-                    </div>
-
-                    <!-- DMC Select -->
-                    <div class="col-md-4" id="inputDmcContainer" style="display: none;">
-                        <div class="mb-3">
-                            <label class="form-label"><strong>DMC</strong><span class="text-danger">*</span></label>
-                            <select class="form-select" name="dmc">
-                                <option disabled value>Choose...</option>
-                                @foreach($dmcs as $dmc)
-                                    <option value="{{ $dmc->userId }}" {{ $users->dmcId == $dmc->userId ? 'selected' : '' }}>
-                                        {{ $dmc->name }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
-                    </div>
-
-                    <!-- Sales Manager Admin -->
-                    <div class="col-md-4" id="inputSalespersonContainerAdmin" style="display: none;">
-                        <div class="mb-3">
-                            <label class="form-label"><strong>Sales Manager (Admin)</strong><span class="text-danger">*</span></label>
-                            <select class="form-select" name="salemg_admin">
-                                <option disabled value>Choose...</option>
-                                @foreach($adminSalesManager as $manager)
-                                    <option value="{{ $manager->userId }}" {{ $users->sales_manager_admin == $manager->userId ? 'selected' : '' }}>
-                                        {{ $manager->name }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Logo and Company Name for roles 10 and 11 -->
-                <div class="row">
-                    <!-- Master/DMC Logo -->
-                    <div class="col-md-4 mb-3" id="master_logo" style="display: none;">
-                        <div class="mb-3">
-                            <label for="master_logo" class="form-label"><strong>Logo</strong></label>
-                            <input type="file" class="form-control" id="master_logo" name="master_logo">
-                            @if($users->logo)
-                                <div class="mt-2">
-                                    <small class="text-muted">Current logo:</small>
-                                    <img src="{{ $users->logo }}" alt="Current Logo" style="max-height: 50px; max-width: 100px;">
-                                </div>
-                            @endif
-                        </div>
-                    </div>
-
-                    <!-- Company Name -->
-                    <div class="col-md-4 mb-3" id="company_name" style="display: none;">
-                        <div class="mb-3">
-                            <label for="company_name" class="form-label"><strong>Company Name</strong><span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="company_name" name="company_name" value="{{ $users->company_name }}" placeholder="Enter Company Name">
-                        </div>
-                    </div>
-
-                    <!-- Company Code (DMC only, when edited by Master DMC) -->
-                    <div class="col-md-4 mb-3" id="company_code_container" style="display: none;">
-                        <div class="mb-3">
-                            <label for="company_code" class="form-label"><strong>Company Code</strong></label>
-                            <input type="text" class="form-control" id="company_code" name="company_code" value="{{ $users->company_code ?? '' }}" placeholder="Enter Company Code">
-                        </div>
-                    </div>
-
-                    <!-- User Code -->
-                    <div class="col-md-4 mb-3" id="user_code_container">
-                        <div class="mb-3">
-                            <label for="user_code" class="form-label"><strong>User Code</strong></label>
-                            <input type="text" class="form-control" id="user_code" name="user_code" value="{{ $users->user_code ?? '' }}" placeholder="Enter User Code">
-                        </div>
-                    </div>
-
-                    <!-- Company Reg. No (DMC only) -->
-                    <div class="col-md-4 mb-3" id="company_reg_no_container" style="display: none;">
-                        <div class="mb-3">
-                            <label for="company_reg_no" class="form-label"><strong>Company Reg. No</strong></label>
-                            <input type="text" class="form-control" id="company_reg_no" name="company_reg_no" value="{{ $users->company_reg_no ?? '' }}" placeholder="Enter Company Reg. No">
-                        </div>
-                    </div>
-
-                    <!-- TA License No (DMC only) -->
-                    <div class="col-md-4 mb-3" id="licence_no_container" style="display: none;">
-                        <div class="mb-3">
-                            <label for="licence_no" class="form-label"><strong>TA License No</strong></label>
-                            <input type="text" class="form-control" id="licence_no" name="licence_no" value="{{ $users->licence_no ?? '' }}" placeholder="Enter TA License No">
-                        </div>
-                    </div>
-
-                    <!-- Third Party (DMC only) — values must be string enum: yes|no -->
-                    <div class="col-md-4 mb-3" id="thirdparty_container" style="display: none;">
-                        <div class="mb-3">
-                            <label for="thirdparty" class="form-label"><strong>Third Party DMC</strong></label>
-                            @php
-                                $currentThirdParty = strtolower((string) old('thirdparty', $users->thirdparty ?? 'no')) === 'yes' ? 'yes' : 'no';
-                            @endphp
-                            <select class="form-select" id="thirdparty" name="thirdparty">
-                                <option value="no" @selected($currentThirdParty === 'no')>No</option>
-                                <option value="yes" @selected($currentThirdParty === 'yes')>Yes</option>
-                            </select>
-                            @error('thirdparty')
+                    <div class="col-md-4 d-none" id="country_names">
+                        <label class="form-label"><strong>Country Names</strong><span class="text-danger">*</span></label>
+                        <select class="form-select select2" name="country_names[]" multiple>
+                            @foreach($country as $c)
+                                <option value="{{ $c->name }}"
+                                    {{ in_array($c->name, explode(',', $users->country)) ? 'selected' : '' }}>
+                                    {{ $c->name }}
+                                </option>
+                            @endforeach
+                        </select>
+                        @error('country_names')
                             <div class="text-danger mt-1">{{ $message }}</div>
-                            @enderror
-                        </div>
+                        @enderror
+                    </div>
+
+                    <div class="col-md-4 d-none" id="country_name">
+                        <label class="form-label"><strong>Country Name</strong></label>
+                        <input type="text" class="form-control" value="{{ $users->country }}" readonly>
+                        <input type="hidden" name="country_name" value="{{ $users->country }}">
+                        <small class="text-muted">Country cannot be changed</small>
+                    </div>
+
+                    <div class="col-md-4 d-none" id="inputDmcContainer">
+                        <label class="form-label"><strong>DMC</strong><span class="text-danger">*</span></label>
+                        <select class="form-select" name="dmc">
+                            <option disabled value>Choose...</option>
+                            @foreach($dmcs as $dmc)
+                                <option value="{{ $dmc->userId }}" {{ $users->dmcId == $dmc->userId ? 'selected' : '' }}>
+                                    {{ $dmc->name }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="col-md-4 d-none" id="inputSalespersonContainerAdmin">
+                        <label class="form-label"><strong>Sales Manager (Admin)</strong><span class="text-danger">*</span></label>
+                        <select class="form-select" name="salemg_admin">
+                            <option disabled value>Choose...</option>
+                            @foreach($adminSalesManager as $manager)
+                                <option value="{{ $manager->userId }}" {{ $users->sales_manager_admin == $manager->userId ? 'selected' : '' }}>
+                                    {{ $manager->name }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="col-md-4 d-none" id="master_logo">
+                        <label for="master_logo_input" class="form-label"><strong>Logo</strong></label>
+                        <input type="file" class="form-control" id="master_logo_input" name="master_logo">
+                        @if($users->logo)
+                            <div class="mt-2 d-flex align-items-center gap-2">
+                                <small class="text-muted mb-0">Current:</small>
+                                <img src="{{ $users->logo }}" alt="Current Logo" style="max-height: 36px; max-width: 80px;">
+                            </div>
+                        @endif
+                    </div>
+
+                    <div class="col-md-4 d-none" id="company_name">
+                        <label for="company_name_input" class="form-label"><strong>Company Name</strong><span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="company_name_input" name="company_name" value="{{ $users->company_name }}" placeholder="Enter Company Name">
+                    </div>
+
+                    <div class="col-md-4 d-none" id="company_code_container">
+                        <label for="company_code" class="form-label"><strong>Company Code</strong></label>
+                        <input type="text" class="form-control" id="company_code" name="company_code" value="{{ $users->company_code ?? '' }}" placeholder="Enter Company Code">
+                    </div>
+
+                    <div class="col-md-4" id="user_code_container">
+                        <label for="user_code" class="form-label"><strong>User Code</strong></label>
+                        <input type="text" class="form-control" id="user_code" name="user_code" value="{{ $users->user_code ?? '' }}" placeholder="Enter User Code">
+                    </div>
+
+                    <div class="col-md-4 d-none" id="company_reg_no_container">
+                        <label for="company_reg_no" class="form-label"><strong>Company Reg. No</strong></label>
+                        <input type="text" class="form-control" id="company_reg_no" name="company_reg_no" value="{{ $users->company_reg_no ?? '' }}" placeholder="Enter Company Reg. No">
+                    </div>
+
+                    <div class="col-md-4 d-none" id="licence_no_container">
+                        <label for="licence_no" class="form-label"><strong>TA License No</strong></label>
+                        <input type="text" class="form-control" id="licence_no" name="licence_no" value="{{ $users->licence_no ?? '' }}" placeholder="Enter TA License No">
+                    </div>
+
+                    <div class="col-md-4 d-none" id="thirdparty_container">
+                        <label for="thirdparty" class="form-label"><strong>Third Party DMC</strong></label>
+                        @php
+                            $currentThirdParty = strtolower((string) old('thirdparty', $users->thirdparty ?? 'no')) === 'yes' ? 'yes' : 'no';
+                        @endphp
+                        <select class="form-select" id="thirdparty" name="thirdparty">
+                            <option value="no" @selected($currentThirdParty === 'no')>No</option>
+                            <option value="yes" @selected($currentThirdParty === 'yes')>Yes</option>
+                        </select>
+                        @error('thirdparty')
+                        <div class="text-danger mt-1">{{ $message }}</div>
+                        @enderror
                     </div>
                 </div>
 
                 <!-- DMC-Level Settings (Group Pax & Markup) -->
-                <div class="row" id="dmc_settings_section" style="display: none;">
+                <div class="row g-3 user-form-grid mt-1 d-none" id="dmc_settings_section">
                     <div class="col-md-12">
                         <hr>
                         <h6 class="text-primary mb-3">
@@ -389,7 +357,7 @@
                         </div>
                     </div>
 
-                    <div class="col-md-12" id="dmc_only_attr_flight_markup" style="display: none;">
+                    <div class="col-md-12 d-none" id="dmc_only_attr_flight_markup">
                         <div class="row">
                             <div class="col-md-3">
                                 <div class="mb-3">
@@ -429,40 +397,30 @@
                     </div>
                 </div>
 
-                <!-- Contact Information -->
-                <div class="row">
+                <div class="row g-3 user-form-grid mt-1">
                     <div class="col-md-4">
-                        <div class="mb-3">
-                            <label class="form-label"><strong> User Country</strong><span class="text-danger">*</span></label>
-                            <select class="form-select" id="user_country" name="user_country">
-                                <option disabled value>Choose a country...</option>
-                                @foreach($country as $c)
-                                    <option value="{{ $c->name }}" {{ $users->user_country == $c->name ? 'selected' : '' }}>{{ $c->name }}</option>
-                                @endforeach
-                            </select>
-                        </div>
+                        <label class="form-label"><strong>User Country</strong><span class="text-danger">*</span></label>
+                        <select class="form-select" id="user_country" name="user_country">
+                            <option disabled value>Choose a country...</option>
+                            @foreach($country as $c)
+                                <option value="{{ $c->name }}" {{ $users->user_country == $c->name ? 'selected' : '' }}>{{ $c->name }}</option>
+                            @endforeach
+                        </select>
                     </div>
 
                     <div class="col-md-4">
-                        <div class="mb-3">
-                            <label class="form-label"><strong> City Name</strong><span class="text-danger">*</span></label>
-                            <select class="form-select" id="city" name="city">
-                                <option disabled value>Loading cities...</option>
-                            </select>
-                        </div>
+                        <label class="form-label"><strong>City Name</strong><span class="text-danger">*</span></label>
+                        <select class="form-select" id="city" name="city">
+                            <option disabled value>Loading cities...</option>
+                        </select>
                     </div>
 
                     <div class="col-md-4">
-                        <div class="mb-3">
-                            <label class="form-label"><strong>Address</strong><span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="address" name="address" value="{{ $users->address }}" required>
-                        </div>
+                        <label class="form-label"><strong>Address</strong><span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="address" name="address" value="{{ $users->address }}" required>
                     </div>
-                </div>
 
-                <div class="row">
-                    <!-- Country Code -->
-                    <div class="col-md-3 mb-3">
+                    <div class="col-md-4">
                         <label class="form-label"><strong>Country Code</strong><span class="text-danger">*</span></label>
                         <select class="form-select" id="inputCountryCode" name="code" required>
                             <option disabled value>Choose...</option>
@@ -474,25 +432,22 @@
                         </select>
                     </div>
 
-                    <!-- Phone -->
-                    <div class="col-md-4 mb-3">
+                    <div class="col-md-4">
                         <label class="form-label"><strong>Phone No</strong><span class="text-danger">*</span></label>
-                        <input type="number" class="form-control" id="phone" name="phone" value="{{ $users->phone }}" required oninput="">
+                        <input type="number" class="form-control" id="phone" name="phone" value="{{ $users->phone }}" required>
                         <small class="validation-message text-danger" id="phone-validation-message"></small>
                     </div>
 
-                    <!-- Email (Read-only) -->
-                    <div class="col-md-4 mb-3">
+                    <div class="col-md-4">
                         <label class="form-label"><strong>Email Address</strong></label>
-                        <input type="text" class="form-control" value="{{ $users->email }}" readonly style="background-color: #f8f9fa;">
+                        <input type="text" class="form-control" value="{{ $users->email }}" readonly>
                         <input type="hidden" name="email" value="{{ $users->email }}">
                         <small class="text-muted">Email cannot be changed</small>
                     </div>
                 </div>
 
-                <!-- Password -->
-                <div class="row">
-                    <div class="col-md-4 mb-3">
+                <div class="row g-3 user-form-grid mt-1">
+                    <div class="col-md-4">
                         <label class="form-label"><strong>Password</strong> <small>(Leave empty to keep current password)</small></label>
                         <input type="password" class="form-control" name="password">
                     </div>
@@ -751,8 +706,11 @@
             };
 
             // Hide all containers
-            Object.values(containers).forEach(container => container.hide());
-            containers.user_code_container.show();
+            Object.values(containers).forEach(container => {
+                container.addClass('d-none');
+                container.css('display', '');
+            });
+            containers.user_code_container.removeClass('d-none');
 
             const $thirdparty = $('#thirdparty');
             // Preserve string enum (yes|no) across visibility toggles; do not coerce to boolean/number
@@ -765,35 +723,35 @@
 
             // Show relevant containers based on role
             if (userRole >= 5 && userRole <= 9) {
-                containers.country_names.show();
+                containers.country_names.removeClass('d-none');
             } else if (userRole === 10 || userRole === 19) {
                 // Master DMC - show multiple countries, logo, company name, user code, and DMC settings
-                containers.country_names.show();
-                containers.master_logo.show();
-                containers.company_name.show();
-                containers.dmc_settings_section.show();
+                containers.country_names.removeClass('d-none');
+                containers.master_logo.removeClass('d-none');
+                containers.company_name.removeClass('d-none');
+                containers.dmc_settings_section.removeClass('d-none');
             } else if (userRole === 11 || userRole === 20) {
                 // DMC - show single country (if edited by Master DMC), company code, user code, company reg no, licence no
                 if (authRole === 10 || authRole === 19) {
-                    containers.country_name.show();
-                    containers.company_code_container.show();
+                    containers.country_name.removeClass('d-none');
+                    containers.company_code_container.removeClass('d-none');
                 }
-                containers.inputRoleContainer.show();
-                containers.master_logo.show();
-                containers.company_name.show();
-                containers.company_reg_no_container.show();
-                containers.licence_no_container.show();
-                containers.thirdparty_container.show();
-                containers.dmc_settings_section.show();
-                containers.dmc_only_attr_flight_markup.show();
+                containers.inputRoleContainer.removeClass('d-none');
+                containers.master_logo.removeClass('d-none');
+                containers.company_name.removeClass('d-none');
+                containers.company_reg_no_container.removeClass('d-none');
+                containers.licence_no_container.removeClass('d-none');
+                containers.thirdparty_container.removeClass('d-none');
+                containers.dmc_settings_section.removeClass('d-none');
+                containers.dmc_only_attr_flight_markup.removeClass('d-none');
                 if ($thirdparty.length) {
                     $thirdparty.prop('disabled', false);
                     $thirdparty.val(preservedThirdParty);
                 }
             } else if (userRole === 4) {
-                containers.inputSalespersonContainerAdmin.show();
+                containers.inputSalespersonContainerAdmin.removeClass('d-none');
             } else if ([3, 24, 25, 26, 27].includes(userRole)) {
-                containers.country_name.show();
+                containers.country_name.removeClass('d-none');
             }
         }
     });

@@ -28,13 +28,15 @@
             </div>
         </div>
 
+        <div id="serviceActionAlerts" class="mb-3"></div>
+
         <!-- Selected Attractions Section -->
         <div class="card mb-4 {{ (!isset($selectedAttractions) || count($selectedAttractions) === 0) ? 'd-none' : '' }}" id="selectedAttractionsSection">
             <div class="card-header">
                 <div class="d-flex flex-wrap justify-content-between align-items-end gap-2">
                     <div>
                         <h5 class="mb-0" id="selectedAttractionsTitle">Selected Attractions ({{ isset($selectedAttractions) ? count($selectedAttractions) : 0 }})</h5>
-                        <small class="text-muted">All cities — attractions already selected for this DMC</small>
+                        <small class="text-muted">Attractions selected by this DMC only</small>
                     </div>
                     <div class="d-flex flex-wrap gap-2">
                         <div class="input-group input-group-sm" style="width: 260px;">
@@ -54,10 +56,28 @@
                 </div>
             </div>
             <div class="card-body">
+                <div id="selectedAttractionsBulkToolbar" class="selected-services-bulk-toolbar d-none mb-3" role="region" aria-live="polite">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                        <div class="d-flex flex-wrap align-items-center gap-2">
+                            <i class="ri-checkbox-circle-fill text-primary" aria-hidden="true"></i>
+                            <strong id="bulkSelectedCountLabel">0 Attractions Selected</strong>
+                            <button type="button" class="btn btn-link btn-sm px-1" id="clearAttractionSelectionBtn">Clear Selection</button>
+                        </div>
+                        <button type="button" class="btn btn-danger btn-sm" id="bulkRemoveSelectedBtn">
+                            <i class="ri-delete-bin-line me-1"></i><span id="bulkRemoveSelectedLabel">Remove Selected</span>
+                        </button>
+                    </div>
+                </div>
                 <div class="table-responsive">
-                    <table class="table table-hover mb-2">
+                    <table class="table table-hover mb-2 align-middle">
                         <thead>
                             <tr>
+                                <th style="width: 130px;">
+                                    <div class="form-check mb-0">
+                                        <input class="form-check-input" type="checkbox" id="selectAllSelectedAttractions" aria-label="Select all attractions">
+                                        <label class="form-check-label fw-semibold" for="selectAllSelectedAttractions">Select All</label>
+                                    </div>
+                                </th>
                                 <th>Attraction Name</th>
                                 <th>Location</th>
                                 {{-- <th>Type</th> --}}
@@ -67,6 +87,13 @@
                         <tbody id="selectedAttractionsBody">
                             @foreach(($selectedAttractions ?? []) as $attraction)
                                 <tr class="selected-attraction-row" data-attraction-id="{{ $attraction->attraction_id }}" data-name="{{ strtolower($attraction->name) }}" data-location="{{ strtolower($attraction->location ?? $attraction->city) }}, {{ strtolower($attraction->country) }}">
+                                    <td>
+                                        <div class="form-check mb-0">
+                                            <input class="form-check-input selected-attraction-checkbox" type="checkbox"
+                                                   value="{{ $attraction->attraction_id }}"
+                                                   aria-label="Select {{ $attraction->name }}">
+                                        </div>
+                                    </td>
                                     <td>
                                         <div class="d-flex align-items-center">
                                             @if($attraction->master_image)
@@ -112,6 +139,7 @@
                     <nav>
                         <ul class="pagination pagination-sm mb-0" id="selectedAttractionsPagination"></ul>
                     </nav>
+                    <div class="small text-muted mt-2" id="selectedAttractionsShowingCount"></div>
                 </div>
             </div>
         </div>
@@ -151,7 +179,7 @@
                                 <span class="text-muted fw-normal">({{ $dmcCountry }})</span>
                             @endif
                         </label>
-                        <select id="attractionCitySelect" class="form-select" onchange="applyAttractionFilters()">
+                        <select id="attractionCitySelect" class="form-select city-search-select" data-placeholder="Search and select a city">
                             <option value="">All Cities</option>
                             @foreach(($allowedCities ?? []) as $cityName)
                                 <option value="{{ strtolower($cityName) }}">{{ $cityName }}</option>
@@ -284,6 +312,34 @@
     </div>
 </div>
 
+<!-- Bulk Remove Attractions Modal -->
+<div class="modal fade" id="bulkRemoveAttractionsModal" tabindex="-1" aria-labelledby="bulkRemoveAttractionsTitle" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0 pb-0">
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" id="bulkRemoveModalCloseBtn"></button>
+            </div>
+            <div class="modal-body text-center pt-0 px-4">
+                <div class="bulk-remove-confirm-icon" aria-hidden="true">
+                    <i class="ri-delete-bin-line"></i>
+                </div>
+                <h5 class="modal-title mb-2" id="bulkRemoveAttractionsTitle">Remove Attractions?</h5>
+                <p class="text-muted mb-1" id="bulkRemoveAttractionsBody"></p>
+                <p class="text-muted small mb-0">This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer justify-content-center border-0 pt-0 pb-4">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" id="cancelBulkRemoveAttractions">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmBulkRemoveAttractions">
+                    <span class="btn-text">Remove Attractions</span>
+                    <span class="btn-loader d-none">
+                        <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Removing...
+                    </span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <style>
 .attraction-card {
     transition: all 0.3s ease;
@@ -313,6 +369,103 @@
     background-color: #4d7c0f;
     border-color: #4d7c0f;
 }
+
+.selected-services-bulk-toolbar {
+    background: #eef4ff;
+    border: 1px solid #d6e4ff;
+    border-radius: 0.5rem;
+    padding: 0.75rem 1rem;
+}
+
+.selected-services-bulk-toolbar .btn-link {
+    color: #0d6efd;
+    text-decoration: underline;
+    font-weight: 500;
+}
+
+.bulk-remove-confirm-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: #fee2e2;
+    color: #dc2626;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.75rem;
+    margin: 0 auto 1rem;
+}
+
+.selected-attraction-checkbox,
+#selectAllSelectedAttractions {
+    cursor: pointer;
+}
+
+.city-combobox {
+    position: relative;
+}
+
+.city-combobox .city-search-select {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+    width: 1px;
+    height: 1px;
+}
+
+.city-combobox-input {
+    padding-right: 2.25rem;
+}
+
+.city-combobox-caret {
+    position: absolute;
+    right: 0.85rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #697a8d;
+    pointer-events: none;
+}
+
+.city-combobox-menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    z-index: 1080;
+    background: #fff;
+    border: 1px solid #d9dee3;
+    border-radius: 0.5rem;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+    padding: 0.35rem;
+}
+
+.city-combobox-options {
+    max-height: 220px;
+    overflow-y: auto;
+}
+
+.city-combobox-option {
+    display: block;
+    width: 100%;
+    text-align: left;
+    border: 0;
+    background: transparent;
+    padding: 0.45rem 0.7rem;
+    border-radius: 0.375rem;
+    color: #566a7f;
+}
+
+.city-combobox-option:hover,
+.city-combobox-option.active {
+    background: #f1f5ff;
+    color: #0d6efd;
+}
+
+.city-combobox-empty {
+    padding: 0.55rem 0.7rem;
+    color: #a1acb8;
+    font-size: 0.875rem;
+}
 </style>
 
 <script>
@@ -320,11 +473,170 @@ let currentAttractionId = null;
 const csrfToken = '{{ csrf_token() }}';
 const dmcCountry = '{{ strtolower(trim($dmcCountry ?? '')) }}';
 let selectedAttractionsPaginator = null;
+const selectedAttractionIds = new Set();
+let bulkRemoveIds = [];
+let bulkRemoveInProgress = false;
 
 function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text ?? '';
     return div.innerHTML;
+}
+
+function initServiceCitySearch(selector, onChange) {
+    const select = document.querySelector(selector);
+    if (!select || select.dataset.citySearchReady === '1') return;
+    select.dataset.citySearchReady = '1';
+
+    const options = Array.from(select.options).map(opt => ({
+        value: opt.value,
+        label: (opt.textContent || '').trim()
+    }));
+    const placeholder = select.getAttribute('data-placeholder') || 'Search and select a city';
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'city-combobox';
+    select.parentNode.insertBefore(wrapper, select);
+    wrapper.appendChild(select);
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'form-control city-combobox-input';
+    input.placeholder = placeholder;
+    input.autocomplete = 'off';
+    input.setAttribute('role', 'combobox');
+    input.setAttribute('aria-expanded', 'false');
+    input.setAttribute('aria-autocomplete', 'list');
+
+    const caret = document.createElement('i');
+    caret.className = 'ri-arrow-down-s-line city-combobox-caret';
+    caret.setAttribute('aria-hidden', 'true');
+
+    const menu = document.createElement('div');
+    menu.className = 'city-combobox-menu d-none';
+    const list = document.createElement('div');
+    list.className = 'city-combobox-options';
+    list.setAttribute('role', 'listbox');
+    menu.appendChild(list);
+
+    wrapper.appendChild(input);
+    wrapper.appendChild(caret);
+    wrapper.appendChild(menu);
+
+    function selectedLabel() {
+        const match = options.find(opt => opt.value === select.value);
+        return match ? match.label : '';
+    }
+
+    function syncInput() {
+        input.value = select.value ? selectedLabel() : '';
+    }
+
+    function closeMenu() {
+        menu.classList.add('d-none');
+        input.setAttribute('aria-expanded', 'false');
+    }
+
+    function renderList(term) {
+        const query = (term || '').toLowerCase().trim();
+        const filtered = options.filter(opt => {
+            if (!query) return true;
+            return opt.label.toLowerCase().includes(query) || opt.value.toLowerCase().includes(query);
+        });
+
+        list.innerHTML = '';
+        if (!filtered.length) {
+            list.innerHTML = '<div class="city-combobox-empty">No cities found</div>';
+            return;
+        }
+
+        filtered.forEach(opt => {
+            const item = document.createElement('button');
+            item.type = 'button';
+            item.className = 'city-combobox-option' + (opt.value === select.value ? ' active' : '');
+            item.textContent = opt.label;
+            item.dataset.value = opt.value;
+            item.addEventListener('mousedown', function(event) {
+                event.preventDefault();
+                chooseCity(opt.value, opt.label);
+            });
+            list.appendChild(item);
+        });
+    }
+
+    function openMenu() {
+        menu.classList.remove('d-none');
+        input.setAttribute('aria-expanded', 'true');
+        renderList(select.value ? '' : input.value);
+    }
+
+    function chooseCity(value, label) {
+        select.value = value;
+        input.value = value ? label : '';
+        closeMenu();
+        if (typeof onChange === 'function') onChange();
+    }
+
+    input.addEventListener('focus', function() {
+        if (select.value) {
+            input.value = '';
+        }
+        openMenu();
+    });
+
+    input.addEventListener('input', function() {
+        if (!input.value) {
+            select.value = '';
+            if (typeof onChange === 'function') onChange();
+        }
+        openMenu();
+        renderList(input.value);
+    });
+
+    input.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
+            syncInput();
+            closeMenu();
+            input.blur();
+        }
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            const first = list.querySelector('.city-combobox-option');
+            if (first) {
+                chooseCity(first.dataset.value, first.textContent);
+            }
+        }
+    });
+
+    input.addEventListener('blur', function() {
+        setTimeout(function() {
+            if (!wrapper.contains(document.activeElement)) {
+                syncInput();
+                closeMenu();
+            }
+        }, 120);
+    });
+
+    document.addEventListener('click', function(event) {
+        if (!wrapper.contains(event.target)) {
+            syncInput();
+            closeMenu();
+        }
+    });
+
+    wrapper._syncCitySearch = syncInput;
+    select.addEventListener('change', onChange);
+    syncInput();
+}
+
+function resetCitySearchSelect(selector) {
+    const el = document.querySelector(selector);
+    if (!el) return;
+    el.value = '';
+    const wrapper = el.closest('.city-combobox');
+    if (wrapper && typeof wrapper._syncCitySearch === 'function') {
+        wrapper._syncCitySearch();
+    }
 }
 
 function resetAttractionButton(btn) {
@@ -376,6 +688,12 @@ function buildSelectedAttractionRowFromItem(attractionItem) {
     row.setAttribute('data-location', `${location}, ${country}`.toLowerCase());
     row.innerHTML = `
         <td>
+            <div class="form-check mb-0">
+                <input class="form-check-input selected-attraction-checkbox" type="checkbox"
+                       value="${escapeHtml(attractionId)}" aria-label="Select ${escapeHtml(name)}">
+            </div>
+        </td>
+        <td>
             <div class="d-flex align-items-center">
                 ${imageHtml}
                 <div><strong>${escapeHtml(name)}</strong></div>
@@ -416,6 +734,163 @@ function removeAttractionFromSelectedTable(attractionId) {
     if (row) {
         row.remove();
     }
+    selectedAttractionIds.delete(String(attractionId));
+    syncAttractionSelectionUi();
+}
+
+function getSelectedAttractionRows() {
+    return Array.from(document.querySelectorAll('#selectedAttractionsBody .selected-attraction-row'));
+}
+
+function getVisibleSelectedAttractionRows() {
+    return getSelectedAttractionRows().filter(row => !row.classList.contains('d-none'));
+}
+
+function attractionSelectionLabel(count) {
+    return count === 1 ? '1 Attraction Selected' : `${count} Attractions Selected`;
+}
+
+function attractionRemoveLabel(count) {
+    return count === 1 ? 'Remove 1 Attraction' : `Remove ${count} Attractions`;
+}
+
+function isAttractionSelected(attractionId) {
+    return selectedAttractionIds.has(String(attractionId));
+}
+
+function toggleAttractionSelection(attractionId, shouldSelect) {
+    const id = String(attractionId);
+    if (shouldSelect) {
+        selectedAttractionIds.add(id);
+    } else {
+        selectedAttractionIds.delete(id);
+    }
+    syncAttractionSelectionUi();
+}
+
+function toggleSelectAllSelectedAttractions() {
+    const visibleRows = getVisibleSelectedAttractionRows();
+    const allVisibleSelected = visibleRows.length > 0 && visibleRows.every(row => {
+        return isAttractionSelected(row.getAttribute('data-attraction-id'));
+    });
+
+    visibleRows.forEach(row => {
+        const id = row.getAttribute('data-attraction-id');
+        if (allVisibleSelected) {
+            selectedAttractionIds.delete(String(id));
+        } else {
+            selectedAttractionIds.add(String(id));
+        }
+    });
+
+    syncAttractionSelectionUi();
+}
+
+function clearAttractionSelection() {
+    selectedAttractionIds.clear();
+    syncAttractionSelectionUi();
+}
+
+function syncAttractionSelectionUi() {
+    getSelectedAttractionRows().forEach(row => {
+        const checkbox = row.querySelector('.selected-attraction-checkbox');
+        if (checkbox) {
+            checkbox.checked = isAttractionSelected(row.getAttribute('data-attraction-id'));
+        }
+    });
+
+    const visibleRows = getVisibleSelectedAttractionRows();
+    const selectedVisibleCount = visibleRows.filter(row => isAttractionSelected(row.getAttribute('data-attraction-id'))).length;
+    const selectAll = document.getElementById('selectAllSelectedAttractions');
+    if (selectAll) {
+        selectAll.checked = visibleRows.length > 0 && selectedVisibleCount === visibleRows.length;
+        selectAll.indeterminate = selectedVisibleCount > 0 && selectedVisibleCount < visibleRows.length;
+    }
+
+    const count = selectedAttractionIds.size;
+    const toolbar = document.getElementById('selectedAttractionsBulkToolbar');
+    const countLabel = document.getElementById('bulkSelectedCountLabel');
+    const removeLabel = document.getElementById('bulkRemoveSelectedLabel');
+    if (toolbar) toolbar.classList.toggle('d-none', count === 0);
+    if (countLabel) countLabel.textContent = attractionSelectionLabel(count);
+    if (removeLabel) removeLabel.textContent = count > 0 ? `Remove Selected (${count})` : 'Remove Selected';
+}
+
+function openBulkRemoveAttractionsModal() {
+    if (bulkRemoveInProgress || selectedAttractionIds.size === 0) return;
+
+    bulkRemoveIds = Array.from(selectedAttractionIds);
+    const count = bulkRemoveIds.length;
+    const noun = count === 1 ? 'Attraction' : 'Attractions';
+    const title = document.getElementById('bulkRemoveAttractionsTitle');
+    const body = document.getElementById('bulkRemoveAttractionsBody');
+    const confirmBtn = document.getElementById('confirmBulkRemoveAttractions');
+    const confirmText = confirmBtn?.querySelector('.btn-text');
+
+    if (title) title.textContent = `Remove ${count} ${noun}?`;
+    if (body) {
+        body.textContent = count === 1
+            ? 'Are you sure you want to remove this selected attraction from your offerings?'
+            : `Are you sure you want to remove these ${count} selected attractions from your offerings?`;
+    }
+    if (confirmText) confirmText.textContent = attractionRemoveLabel(count);
+
+    setBulkRemoveAttractionsLoading(false);
+    const modalEl = document.getElementById('bulkRemoveAttractionsModal');
+    if (modalEl) new bootstrap.Modal(modalEl).show();
+}
+
+function setBulkRemoveAttractionsLoading(isLoading) {
+    bulkRemoveInProgress = isLoading;
+    const confirmBtn = document.getElementById('confirmBulkRemoveAttractions');
+    const toolbarBtn = document.getElementById('bulkRemoveSelectedBtn');
+    const closeBtn = document.getElementById('bulkRemoveModalCloseBtn');
+    const cancelBtn = document.getElementById('cancelBulkRemoveAttractions');
+    if (confirmBtn) {
+        confirmBtn.disabled = isLoading;
+        const btnText = confirmBtn.querySelector('.btn-text');
+        const btnLoader = confirmBtn.querySelector('.btn-loader');
+        if (btnText) btnText.classList.toggle('d-none', isLoading);
+        if (btnLoader) btnLoader.classList.toggle('d-none', !isLoading);
+    }
+    if (toolbarBtn) toolbarBtn.disabled = isLoading;
+    if (closeBtn) closeBtn.disabled = isLoading;
+    if (cancelBtn) cancelBtn.disabled = isLoading;
+}
+
+function removeSelectedAttractions() {
+    if (bulkRemoveInProgress || bulkRemoveIds.length === 0) return;
+
+    setBulkRemoveAttractionsLoading(true);
+
+    fetch('{{ route('services.attractions.remove-bulk') }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': csrfToken,
+            'Accept': 'application/json',
+        },
+        body: JSON.stringify({ attraction_ids: bulkRemoveIds })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            selectedAttractionIds.clear();
+            bulkRemoveInProgress = false;
+            const modal = bootstrap.Modal.getInstance(document.getElementById('bulkRemoveAttractionsModal'));
+            if (modal) modal.hide();
+            flashAndReload('success', data.message || `${bulkRemoveIds.length} attractions removed successfully.`);
+            return;
+        }
+
+        setBulkRemoveAttractionsLoading(false);
+        showAlert('error', data.message || 'Unable to remove the selected attractions. Please try again.');
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        setBulkRemoveAttractionsLoading(false);
+        showAlert('error', 'Unable to remove the selected attractions. Please try again.');
+    });
 }
 
 function refreshSelectedAttractionPagination() {
@@ -473,7 +948,7 @@ function applyAttractionFilters() {
 
 function resetAttractionFilters() {
     document.getElementById('attractionSearch').value = '';
-    document.getElementById('attractionCitySelect').value = '';
+    resetCitySearchSelect('#attractionCitySelect');
     applyAttractionFilters();
 }
 
@@ -492,16 +967,7 @@ function selectAttraction(encryptedAttractionId, attractionName, buttonEl) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            const attractionItem = buttonEl ? buttonEl.closest('.attraction-item') : null;
-            if (attractionItem) {
-                addAttractionToSelectedTable(attractionItem);
-                attractionItem.style.display = 'none';
-            }
-
-            updateSelectedAttractionCount();
-            refreshSelectedAttractionPagination();
-            applyAttractionFilters();
-            showAlert('success', data.message || `${attractionName} has been selected successfully!`);
+            flashAndReload('success', data.message || `${attractionName} has been selected successfully!`);
         } else {
             resetAttractionButton(buttonEl);
             showAlert('error', data.message || 'An error occurred while selecting the attraction.');
@@ -529,18 +995,7 @@ function removeAttraction(attractionId, attractionName) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            removeAttractionFromSelectedTable(attractionId);
-
-            const attractionItem = document.querySelector(`.attraction-item[data-attraction-id="${attractionId}"]`);
-            if (attractionItem) {
-                attractionItem.classList.remove('attraction-selected');
-                resetAttractionButton(attractionItem.querySelector('.select-attraction-btn'));
-            }
-
-            updateSelectedAttractionCount();
-            refreshSelectedAttractionPagination();
-            applyAttractionFilters();
-            showAlert('success', data.message || `${attractionName} has been removed successfully!`);
+            flashAndReload('success', data.message || `${attractionName} has been removed successfully!`);
         } else {
             showAlert('error', data.message || 'An error occurred while removing the attraction.');
         }
@@ -553,6 +1008,8 @@ function removeAttraction(attractionId, attractionName) {
 
 // Document ready
 document.addEventListener('DOMContentLoaded', function() {
+    showStoredFlash();
+    initServiceCitySearch('#attractionCitySelect', applyAttractionFilters);
     // Initialize tooltips
     var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
     var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
@@ -604,6 +1061,37 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         confirmBtn.disabled = false;
+    });
+
+    const selectAllSelected = document.getElementById('selectAllSelectedAttractions');
+    if (selectAllSelected) {
+        selectAllSelected.addEventListener('change', function() {
+            toggleSelectAllSelectedAttractions();
+        });
+    }
+
+    document.getElementById('selectedAttractionsBody')?.addEventListener('change', function(event) {
+        const checkbox = event.target.closest('.selected-attraction-checkbox');
+        if (!checkbox) return;
+        toggleAttractionSelection(checkbox.value, checkbox.checked);
+    });
+
+    document.getElementById('clearAttractionSelectionBtn')?.addEventListener('click', function() {
+        clearAttractionSelection();
+    });
+
+    document.getElementById('bulkRemoveSelectedBtn')?.addEventListener('click', function() {
+        openBulkRemoveAttractionsModal();
+    });
+
+    document.getElementById('confirmBulkRemoveAttractions')?.addEventListener('click', function() {
+        removeSelectedAttractions();
+    });
+
+    document.getElementById('bulkRemoveAttractionsModal')?.addEventListener('hide.bs.modal', function(event) {
+        if (bulkRemoveInProgress) {
+            event.preventDefault();
+        }
     });
     // Attractions are already limited to the DMC country server-side.
     // City options come from the DMC country cities list.
@@ -663,6 +1151,12 @@ document.addEventListener('DOMContentLoaded', function() {
             getAllRows().forEach(r => r.classList.add('d-none'));
             filtered.slice(start, end).forEach(r => r.classList.remove('d-none'));
             renderPagination(total, safePage, pageSize);
+            const showingEl = document.getElementById('selectedAttractionsShowingCount');
+            if (showingEl) {
+                const pageCount = filtered.slice(start, end).length;
+                showingEl.textContent = `Showing ${pageCount} of ${total} attractions`;
+            }
+            syncAttractionSelectionUi();
         }
 
         selectedAttractionsPaginator = {
@@ -677,6 +1171,25 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
+function flashAndReload(type, message) {
+    try {
+        sessionStorage.setItem('servicesFlash', JSON.stringify({ type: type || 'success', message: message || '' }));
+    } catch (e) {}
+    window.location.reload();
+}
+
+function showStoredFlash() {
+    try {
+        const raw = sessionStorage.getItem('servicesFlash');
+        if (!raw) return;
+        sessionStorage.removeItem('servicesFlash');
+        const flash = JSON.parse(raw);
+        if (flash && flash.message) {
+            showAlert(flash.type || 'success', flash.message);
+        }
+    } catch (e) {}
+}
+
 function showAlert(type, message) {
     const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
     const alertHtml = `
@@ -686,10 +1199,10 @@ function showAlert(type, message) {
         </div>
     `;
 
-    const alertContainer = document.getElementById('availableAttractionsAlerts');
+    const alertContainer = document.getElementById('serviceActionAlerts') || document.getElementById('availableAttractionsAlerts');
     if (!alertContainer) return;
 
-    alertContainer.insertAdjacentHTML('beforeend', alertHtml);
+    alertContainer.innerHTML = alertHtml;
 
     setTimeout(() => {
         const alert = alertContainer.querySelector('.alert');

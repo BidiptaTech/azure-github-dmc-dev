@@ -707,18 +707,13 @@ class AttractionController extends Controller
 
         $allAttractions = $allAttractionsQuery->get();
 
-        $dmcFamilyIds = CommonHelper::getSiblingDmcIds($dmc_id);
-        if ($dmcFamilyIds === []) {
-            $dmcFamilyIds = [(int) $dmc_id];
-        }
-
         $selectedAttractions = CommonHelper::whereJsonContainsDmcIds(
             Attraction::where('status', 1)->orderBy('created_at', 'desc'),
-            $dmcFamilyIds
+            [(int) $dmc_id]
         )
             ->get()
-            ->filter(function ($attraction) use ($dmcFamilyIds) {
-                return CommonHelper::modelSelectedByAnyDmc($attraction, $dmcFamilyIds);
+            ->filter(function ($attraction) use ($dmc_id) {
+                return $attraction->hasSelectedByDmc($dmc_id);
             })
             ->values();
 
@@ -867,7 +862,6 @@ class AttractionController extends Controller
     public function removeAttraction(Request $request)
     {
         try {
-            $attractionId = $request->input('attraction_id');
             $user = Auth::user();
 
             $allowedRoles = [11, 35,74, 93, 90, 130, 132, 133, 135, 136, 137, 138, 139, 140];
@@ -883,20 +877,12 @@ class AttractionController extends Controller
                 ], 403);
             }
 
-            // Find the attraction
-            $attraction = Attraction::where('attraction_id', $attractionId)->first();
-            if (!$attraction) {
+            $result = $this->unselectAttractionForDmc($request->input('attraction_id'), $dmc_id);
+            if (!$result['success']) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Attraction not found.',
-                ], 404);
-            }
-
-            if (!CommonHelper::removeDmcFamilySelectionFromModel($attraction, $dmc_id)) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Attraction not selected by you.',
-                ], 400);
+                    'message' => $result['message'],
+                ], $result['status']);
             }
 
             return response()->json([
@@ -913,40 +899,112 @@ class AttractionController extends Controller
     }
 
     /**
+     * Remove multiple attractions from DMC selection using the same unselect rules.
+     */
+    public function removeAttractionsBulk(Request $request)
+    {
+        try {
+            $user = Auth::user();
+
+            $allowedRoles = [11, 35, 74, 93, 90, 130, 132, 133, 135, 136, 137, 138, 139, 140];
+            if (!in_array($user->role_id, $allowedRoles)) {
+                abort(403, 'You do not have permission to perform this action.');
+            }
+
+            $dmc_id = $this->resolveServicesAttractionsDmcId($user);
+            if (!$dmc_id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You do not have permission to remove attractions.',
+                ], 403);
+            }
+
+            $attractionIds = $request->input('attraction_ids', []);
+            if (!is_array($attractionIds) || empty($attractionIds)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Please select at least one attraction to remove.',
+                ], 422);
+            }
+
+            $attractionIds = array_values(array_unique(array_filter($attractionIds, static function ($id) {
+                return $id !== null && $id !== '';
+            })));
+
+            if (count($attractionIds) > 200) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Too many attractions selected. Please remove fewer at a time.',
+                ], 422);
+            }
+
+            $removed = 0;
+            foreach ($attractionIds as $attractionId) {
+                $result = $this->unselectAttractionForDmc($attractionId, $dmc_id);
+                if ($result['success']) {
+                    $removed++;
+                }
+            }
+
+            if ($removed === 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unable to remove the selected attractions. Please try again.',
+                ], 400);
+            }
+
+            $label = $removed === 1 ? 'attraction' : 'attractions';
+
+            return response()->json([
+                'success' => true,
+                'removed' => $removed,
+                'message' => $removed . ' ' . $label . ' removed successfully.',
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Attraction bulk removal error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Unable to remove the selected attractions. Please try again.',
+            ], 500);
+        }
+    }
+
+    /**
+     * Unselect an attraction for the owning DMC using the existing dmc_id removal rules.
+     */
+    private function unselectAttractionForDmc($attractionId, $dmcId): array
+    {
+        $attraction = Attraction::where('attraction_id', $attractionId)->first();
+        if (!$attraction) {
+            return [
+                'success' => false,
+                'status' => 404,
+                'message' => 'Attraction not found.',
+            ];
+        }
+
+        if (!$attraction->hasSelectedByDmc($dmcId)) {
+            return [
+                'success' => false,
+                'status' => 400,
+                'message' => 'Attraction not selected by you.',
+            ];
+        }
+
+        $attraction->removeDmcId($dmcId);
+
+        return [
+            'success' => true,
+            'status' => 200,
+            'message' => 'Attraction removed successfully!',
+        ];
+    }
+
+    /**
      * Resolve the owning DMC userId for the services attractions selection page.
      */
     private function resolveServicesAttractionsDmcId(?User $user): ?int
     {
-        if (!$user) {
-            return null;
-        }
-
-        $roleId = (int) $user->role_id;
-
-        if ($roleId === 11) {
-            return (int) $user->userId;
-        }
-
-        if ($roleId === 35 || in_array($roleId, [130, 132, 133, 135, 136, 137, 138], true)) {
-            return $user->created_by ? (int) $user->created_by : null;
-        }
-
-        if ($roleId === 74 || $roleId === 139) {
-            $productHead = User::where('userId', $user->created_by)->first();
-
-            return ($productHead && $productHead->created_by) ? (int) $productHead->created_by : null;
-        }
-
-        if ($roleId === 93 || $roleId === 140) {
-            $productManager = User::where('userId', $user->created_by)->first();
-            if (!$productManager) {
-                return null;
-            }
-            $productHead = User::where('userId', $productManager->created_by)->first();
-
-            return ($productHead && $productHead->created_by) ? (int) $productHead->created_by : null;
-        }
-
-        return null;
+        return CommonHelper::resolveNearestNormalDmcId($user);
     }
 }
