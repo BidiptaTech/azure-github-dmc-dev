@@ -4470,87 +4470,6 @@ class SingleTourPackageController extends Controller
     }
 
     /**
-     * Highest number of hours an hourly transport slab price is configured for on a vehicle.
-     */
-    private const MAX_HOURLY_PRICE_HOURS = 12;
-
-    /**
-     * Re-price an hourly transport row from the vehicle's per-hour slab price so the stored
-     * total cannot drift from the vehicle master, and record the slab that was applied.
-     */
-    private function applyHourlySlabPrice(array $transport): array
-    {
-        $hours = (int) ($transport['selectedHours'] ?? 0);
-
-        if ($hours < 1 || $hours > self::MAX_HOURLY_PRICE_HOURS) {
-            \Log::warning('Hourly transport has no usable selectedHours, keeping client price', [
-                'selected_hours' => $transport['selectedHours'] ?? null,
-                'vehicles_id' => $transport['vehicles_id'] ?? null,
-            ]);
-
-            return $transport;
-        }
-
-        $transport['selectedHours'] = $hours;
-
-        $column = 'hourly_price_' . $hours;
-        $slabPrice = in_array($column, self::hourlyPriceColumns(), true)
-            ? Vehicle::where('vehicle_id', $transport['vehicles_id'] ?? null)->value($column)
-            : null;
-
-        if ($slabPrice === null) {
-            \Log::warning('Vehicle has no hourly price configured for the selected hours, keeping client price', [
-                'selected_hours' => $hours,
-                'vehicles_id' => $transport['vehicles_id'] ?? null,
-                'client_total_price' => $transport['totalPrice'] ?? null,
-            ]);
-
-            return $transport;
-        }
-
-        $transport['hourly_price'] = (float) $slabPrice;
-        $transport['totalPrice'] = (float) $slabPrice;
-
-        return $transport;
-    }
-
-    /**
-     * Column names of the per-hour slab prices on the vehicles table (hourly_price_1 .. hourly_price_12),
-     * limited to the ones the schema actually has so older databases keep working.
-     */
-    private static function hourlyPriceColumns(): array
-    {
-        static $columns = null;
-
-        if ($columns === null) {
-            $columns = array_values(array_filter(
-                array_map(
-                    fn ($hour) => 'hourly_price_' . $hour,
-                    range(1, self::MAX_HOURLY_PRICE_HOURS)
-                ),
-                fn ($column) => Schema::hasColumn('vehicles', $column)
-            ));
-        }
-
-        return $columns;
-    }
-
-    /**
-     * Per-hour slab prices of a vehicle keyed by hour, with unset slabs left as null.
-     */
-    private static function hourlyPriceMap(Vehicle $vehicle): array
-    {
-        $prices = [];
-
-        foreach (range(1, self::MAX_HOURLY_PRICE_HOURS) as $hour) {
-            $price = $vehicle->{'hourly_price_' . $hour};
-            $prices[$hour] = $price === null ? null : (float) $price;
-        }
-
-        return $prices;
-    }
-
-    /**
      * Fetch vehicles based on city and dmc_id for point to point and hourly services
      */
     public function fetchVehiclesByCityAndDmc(Request $request)
@@ -4583,10 +4502,7 @@ class SingleTourPackageController extends Controller
             // Build query for vehicles
             $query = Vehicle::where('dmc_id', $dmcId)
                 ->where('is_available', 1)
-                ->select(array_merge(
-                    ['vehicle_id', 'vehicle_name', 'vehicle_type', 'seating_capacity', 'city_tour_seating_capacity', 'vehicle_model', 'image', 'base_price', 'sharable_base_price', 'service_type', 'cost_per_hour', 'sharable_cost_per_hour', 'sharable'],
-                    self::hourlyPriceColumns()
-                ));
+                ->select('vehicle_id', 'vehicle_name', 'vehicle_type', 'seating_capacity', 'city_tour_seating_capacity', 'vehicle_model', 'image', 'base_price', 'sharable_base_price', 'service_type', 'cost_per_hour', 'sharable_cost_per_hour', 'sharable');
             
             // Only filter by city if not showing all vehicles
             if (!$showAllVehicles && $city) {
@@ -4611,8 +4527,7 @@ class SingleTourPackageController extends Controller
                     'sharable_cost_per_hour' => $vehicle->sharable_cost_per_hour,
                     'private_price' => $vehicle->base_price,
                     'shared_price' => $vehicle->sharable_base_price,
-                    'sharable' => $vehicle->sharable,
-                    'hourly_prices' => self::hourlyPriceMap($vehicle)
+                    'sharable' => $vehicle->sharable
                 ];
             });
 
@@ -5245,17 +5160,19 @@ class SingleTourPackageController extends Controller
                                     // Process vehicle_id and fetch vehicle name from DB
                                     if (isset($transferOptions['vehicle_id']) && !empty($transferOptions['vehicle_id'])) {
                                         $vehicleId = $transferOptions['vehicle_id'];
-                                        
-                                        // Fetch vehicle from DB using vehicle_id
-                                        $vehicle = Vehicle::where('vehicle_id', $vehicleId)->first();
-                                        
-                                        if ($vehicle && $vehicle->vehicle_name) {
-                                            // Overwrite vehicle_name with value from DB
-                                            $transferOptions['vehicle_name'] = $vehicle->vehicle_name;
-                                            
-                                            // Also update vehicle_details if it exists
-                                            if (isset($transferOptions['vehicle_details']) && is_array($transferOptions['vehicle_details'])) {
-                                                $transferOptions['vehicle_details']['vehicle_name'] = $vehicle->vehicle_name;
+
+                                        // Placeholder option text (e.g. "No vehicles available") must not hit bigint column
+                                        if (!is_numeric($vehicleId)) {
+                                            $transferOptions['vehicle_id'] = null;
+                                        } else {
+                                            $vehicle = Vehicle::where('vehicle_id', $vehicleId)->first();
+
+                                            if ($vehicle && $vehicle->vehicle_name) {
+                                                $transferOptions['vehicle_name'] = $vehicle->vehicle_name;
+
+                                                if (isset($transferOptions['vehicle_details']) && is_array($transferOptions['vehicle_details'])) {
+                                                    $transferOptions['vehicle_details']['vehicle_name'] = $vehicle->vehicle_name;
+                                                }
                                             }
                                         }
                                     }
@@ -5328,17 +5245,19 @@ class SingleTourPackageController extends Controller
                                     // Process vehicle_id and fetch vehicle name from DB
                                     if (isset($transferOptions['vehicle_id']) && !empty($transferOptions['vehicle_id'])) {
                                         $vehicleId = $transferOptions['vehicle_id'];
-                                        
-                                        // Fetch vehicle from DB using vehicle_id
-                                        $vehicle = Vehicle::where('vehicle_id', $vehicleId)->first();
-                                        
-                                        if ($vehicle && $vehicle->vehicle_name) {
-                                            // Overwrite vehicle_name with value from DB
-                                            $transferOptions['vehicle_name'] = $vehicle->vehicle_name;
-                                            
-                                            // Also update vehicle_details if it exists
-                                            if (isset($transferOptions['vehicle_details']) && is_array($transferOptions['vehicle_details'])) {
-                                                $transferOptions['vehicle_details']['vehicle_name'] = $vehicle->vehicle_name;
+
+                                        // Placeholder option text (e.g. "No vehicles available") must not hit bigint column
+                                        if (!is_numeric($vehicleId)) {
+                                            $transferOptions['vehicle_id'] = null;
+                                        } else {
+                                            $vehicle = Vehicle::where('vehicle_id', $vehicleId)->first();
+
+                                            if ($vehicle && $vehicle->vehicle_name) {
+                                                $transferOptions['vehicle_name'] = $vehicle->vehicle_name;
+
+                                                if (isset($transferOptions['vehicle_details']) && is_array($transferOptions['vehicle_details'])) {
+                                                    $transferOptions['vehicle_details']['vehicle_name'] = $vehicle->vehicle_name;
+                                                }
                                             }
                                         }
                                     }
@@ -5492,10 +5411,6 @@ class SingleTourPackageController extends Controller
                                 
                                 // Generate new booking ID for each transport
                                 // $newTransportBookingId = $this->getNextBookingId();
-
-                                if ($orderType === 'travel_hourly') {
-                                    $transport = $this->applyHourlySlabPrice($transport);
-                                }
 
                                 [$transport, $transportGeo] = $this->applyOrderGeoToServiceRow($transport, $request, $tourId);
                                 
