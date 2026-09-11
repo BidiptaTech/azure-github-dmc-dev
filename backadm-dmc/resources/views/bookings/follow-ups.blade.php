@@ -1752,7 +1752,7 @@
 
                         <div id="followupCountryBlocks" class="d-flex flex-column gap-3 mb-3"></div>
                         <div class="alert alert-info py-2 px-3 mb-3">
-                            Hotel markup applies only to hotel services and other markup only to other services. Discount is taken from (gross + markup). Counter price is calculated automatically.
+                            Hotel markup applies only to hotel services and other markup only to other services. Discount is taken from (gross + markup). Counter cannot exceed that payable.
                         </div>
 
                         <div class="negotiation-meta-block mb-3">
@@ -1765,7 +1765,7 @@
                             <textarea id="followup_comment" name="comment" rows="3" class="form-control" placeholder="Add remarks for this negotiation"></textarea>
                         </div>
                         <div id="followup-warning-message" class="alert alert-warning mt-2 py-2 px-3 d-none mb-0">
-                            Counter price is calculated from hotel markup, other markup, and discount.
+                            Counter price cannot exceed the payable amount.
                         </div>
                     </div>
                     <div class="modal-footer negotiation-modal-footer border-0">
@@ -3375,9 +3375,15 @@ function showFilterResetMessage() {
                 updateNegotiationSplitBreakdown(card, 'dmc-nego', currency, pricing);
             }
 
+            const prevMax = parseFloat(offerInput.getAttribute('data-max'));
+            const current = parseFloat(offerInput.value);
             offerInput.setAttribute('data-max', String(pricing.payable));
             offerInput.setAttribute('data-payable', String(pricing.payable));
-            offerInput.value = String(pricing.payable);
+            if (!Number.isFinite(current) || current <= 0 || (Number.isFinite(prevMax) && Math.abs(current - prevMax) < 0.011)) {
+                offerInput.value = String(pricing.payable);
+            } else if (current > pricing.payable) {
+                offerInput.value = String(pricing.payable);
+            }
             const amountHidden = card.querySelector('.dmc-nego-offer-hidden');
             const actualHidden = card.querySelector('input[name*="[actual_amount]"]');
             if (amountHidden) amountHidden.value = offerInput.value;
@@ -3485,13 +3491,13 @@ function showFilterResetMessage() {
                         '<div class="negotiation-value text-success">' +
                             (Number.isFinite(agentAmount) ? (currency + ' ' + formatNegotiationAmount(agentAmount)) : '—') +
                         '</div></div>' +
-                    '<label class="form-label fw-semibold">Your Counter Price (' + escAttr(currency) + ')</label>' +
-                    '<input type="number" class="form-control dmc-nego-offer-input bg-light" min="0" step="0.01" readonly tabindex="-1" ' +
+                    '<label class="form-label fw-semibold">Your Counter Price (' + escAttr(currency) + ') <span class="text-danger">*</span></label>' +
+                    '<input type="number" class="form-control dmc-nego-offer-input" min="0" step="0.01" ' +
                         'data-index="' + index + '" data-max="' + payable + '" data-country="' + escAttr(country) + '" data-currency="' + escAttr(currency) + '" ' +
-                        'data-gross="' + gross + '" data-hotel-gross="' + split.hotelGross + '" data-other-gross="' + split.otherGross + '" data-payable="' + payable + '" ' +
+                        'data-gross="' + gross + '" data-hotel-gross="' + split.hotelGross + '" data-other-gross="' + split.otherGross + '" ' +
                         'data-markup-type="' + escAttr(markupType) + '" data-discount-type="' + escAttr(discountType) + '" ' +
-                        'value="' + (payable > 0 ? payable : '0') + '" placeholder="Auto-calculated counter">' +
-                    '<div class="form-text text-muted mt-1">Hotel markup on hotel services only · Other markup on other services only · Discount on (gross + markup). Counter price is calculated and cannot be typed.</div>' +
+                        'value="' + defaultCounter + '" placeholder="Enter counter in ' + escAttr(currency) + '">' +
+                    '<div class="form-text text-muted mt-1">Hotel markup on hotel services only · Other markup on other services only · Discount on (gross + markup). Counter cannot exceed the calculated payable.</div>' +
                     '<input type="hidden" name="offers[' + index + '][country]" value="' + escAttr(country) + '">' +
                     '<input type="hidden" name="offers[' + index + '][currency]" value="' + escAttr(currency) + '">' +
                     '<input type="hidden" name="offers[' + index + '][cities]" value="' + escAttr(citiesValue) + '">' +
@@ -3502,11 +3508,19 @@ function showFilterResetMessage() {
                     '<input type="hidden" name="offers[' + index + '][hotel_markup]" class="dmc-nego-hotel-hidden" value="' + hotelRaw + '">' +
                     '<input type="hidden" name="offers[' + index + '][other_markup]" class="dmc-nego-other-hidden" value="' + otherRaw + '">' +
                     '<input type="hidden" name="offers[' + index + '][discount_value]" class="dmc-nego-discount-hidden" value="' + discountRaw + '">' +
-                    '<input type="hidden" name="offers[' + index + '][amount]" class="dmc-nego-offer-hidden" value="' + (payable > 0 ? payable : '0') + '">';
+                    '<input type="hidden" name="offers[' + index + '][amount]" class="dmc-nego-offer-hidden" value="' + defaultCounter + '">';
                 blocksEl.appendChild(card);
                 syncFollowupDmcMarkupHidden(card);
             });
 
+            blocksEl.querySelectorAll('.dmc-nego-offer-input').forEach(function (input) {
+                input.addEventListener('input', function () {
+                    const hidden = this.parentElement.querySelector('.dmc-nego-offer-hidden');
+                    if (hidden) hidden.value = this.value;
+                    syncFollowupPrimaryNegotiationAmount();
+                    if (warningMessage) warningMessage.classList.add('d-none');
+                });
+            });
             blocksEl.querySelectorAll('.dmc-nego-hotel-markup, .dmc-nego-other-markup, .dmc-nego-discount').forEach(function (input) {
                 input.addEventListener('input', function () {
                     const card = this.closest('.negotiation-pricing-summary');
@@ -3577,7 +3591,7 @@ function showFilterResetMessage() {
                         e.preventDefault();
                         if (warningMessage) {
                             warningMessage.classList.remove('d-none');
-                            warningMessage.textContent = 'Calculated counter price is missing for a country. Adjust hotel markup, other markup, or discount.';
+                            warningMessage.textContent = 'Please enter a counter price for every country.';
                         }
                         input.focus();
                         return false;

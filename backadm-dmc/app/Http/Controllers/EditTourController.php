@@ -976,7 +976,11 @@ class EditTourController extends Controller
                 $tour->discount = 0.0;
             }
 
-            // Discount amount / currency markups are locked on edit — keep stored values.
+            // UI field discount_price → existing column discount_amount (ceiling, e.g. 847.64 → 848)
+            $tour->discount_amount = (float) ceil((float) ($request->input(
+                'discount_price',
+                $request->input('discount_amount', $tour->discount_amount ?? 0)
+            ) ?: 0));
 
             // If tour date range changed, ensure multi-city plans still fit within the new tour range.
             // Any city plan that is not fully contained in [checkIn, checkOut] is removed from tours.city,

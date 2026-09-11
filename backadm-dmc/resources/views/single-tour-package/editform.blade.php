@@ -17,7 +17,6 @@
 <!-- Date Range Picker CSS (Travel Dates) -->
 <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" />
 <style>
-    @include('enquiryform_pro.partials.markup-discount-section-styles')
     #toast-container { z-index: 999999 !important; }
     #toast-container.toast-top-right { top: 70px; right: 12px; }
     #toast-container .toast { 
@@ -1710,7 +1709,10 @@
                                     </select>
                                 </div>
 
-                                <!-- Discount Amount (view only on edit) -->
+                                <!-- Discount Amount -->
+                                @php
+                                    $isNewEnquiry = trim(strtolower($tour->tour_status ?? '')) === 'new enquiry';
+                                @endphp
                                 <div class="col-md-2 {{ (old('city_type', $tour->city_type ?? 'single') === 'multi') ? 'd-none' : '' }}" id="discountAmountCol">
                                     <label for="discount_price" class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
                                         <i class="ri-price-tag-3-line me-1" style="color: #667eea;"></i>Discount Amount
@@ -1725,130 +1727,20 @@
                                             name="discount_price"
                                             value="{{ old('discount_price', $tour->discount_amount ?? 0) }}"
                                             placeholder="0.00"
-                                            style="height: 40px; border-radius: 8px 0 0 8px; font-size: 0.9rem; border: 1px solid #dee2e6; background: #f3f4f6;"
-                                            disabled
-                                            title="Discount cannot be changed on edit"
+                                            style="height: 40px; border-radius: 8px 0 0 8px; font-size: 0.9rem; border: 1px solid #dee2e6;"
+                                            @unless($isNewEnquiry) disabled title="Discount can only be edited when the tour status is New Enquiry" @endunless
                                         >
                                         <span class="input-group-text fw-semibold" style="height: 40px; border-radius: 0 8px 8px 0; font-size: 0.8rem; background:#f8f9fa; color:#495057;">
                                             {{ $displayCurrency }}
                                         </span>
                                     </div>
-                                    <input type="hidden" name="discount_price" value="{{ old('discount_price', $tour->discount_amount ?? 0) }}">
-                                    <small class="text-muted">View only — cannot be changed on edit.</small>
+                                    @unless($isNewEnquiry)
+                                        <input type="hidden" name="discount_price" value="{{ old('discount_price', $tour->discount_amount ?? 0) }}">
+                                    @endunless
                                 </div>
                             </div>
 
                             <input type="hidden" name="city" id="city" value="{{ old('city', $tour->city ?? '') }}">
-
-                            @php
-                                $editCurrencyMarkups = $tour->currency_markups ?? [];
-                                if (is_string($editCurrencyMarkups)) {
-                                    $decodedMarkups = json_decode($editCurrencyMarkups, true);
-                                    $editCurrencyMarkups = is_array($decodedMarkups) ? $decodedMarkups : [];
-                                }
-                                if (!is_array($editCurrencyMarkups)) {
-                                    $editCurrencyMarkups = [];
-                                }
-                                $editCurrencyMarkups = array_values(array_filter($editCurrencyMarkups, function ($row) {
-                                    return is_array($row)
-                                        && !empty($row['city'])
-                                        && !str_starts_with((string) $row['city'], '__lite_markup_pad__');
-                                }));
-                                if ($editCurrencyMarkups === []) {
-                                    $fallbackCity = $tourSingleCityNormalized ?: 'Tour';
-                                    $editCurrencyMarkups[] = [
-                                        'city' => $fallbackCity,
-                                        'country' => (string) ($tour->destination ?? ''),
-                                        'currency' => (string) ($displayCurrency ?? ''),
-                                        'markup_type' => (string) ($tour->markup_type ?? ''),
-                                        'hotel_markup' => (float) ($tour->markup_amount ?? 0),
-                                        'other_markup' => 0,
-                                        'discount_type' => (string) ($tour->discount_type ?? ''),
-                                        'discount_value' => (float) ($tour->discount_amount ?? 0),
-                                    ];
-                                }
-                                $editMarkupTypeLabel = function ($type) {
-                                    $type = strtolower((string) $type);
-                                    if ($type === 'percentage') return '%';
-                                    if ($type === 'flat' || $type === 'fixed') return 'Fixed';
-                                    if ($type === 'foc') return 'FOC';
-                                    return 'Type';
-                                };
-                            @endphp
-                            <div class="mt-3" id="liteEditMarkupDiscountWrap">
-                                <div class="enquiry-md-panel is-locked" style="max-width: 100%;">
-                                    <div class="enquiry-md-panel__head" aria-expanded="true">
-                                        <div class="enquiry-md-panel__head-left">
-                                            <p class="enquiry-md-panel__title">Pricing by city</p>
-                                            <span class="enquiry-md-panel__count">{{ count($editCurrencyMarkups) }}</span>
-                                        </div>
-                                        <p class="enquiry-md-panel__hint">View only — markup &amp; discount cannot be changed</p>
-                                    </div>
-                                    <div class="enquiry-md-panel__body">
-                                        <div class="enquiry-md-table-wrap">
-                                            <table class="enquiry-md-table">
-                                                <thead>
-                                                    <tr>
-                                                        <th scope="col">City</th>
-                                                        <th scope="col" class="enquiry-md-th-markup">Markup type</th>
-                                                        <th scope="col" class="enquiry-md-th-markup">Hotel markup</th>
-                                                        <th scope="col" class="enquiry-md-th-markup">Other markup</th>
-                                                        <th scope="col" class="enquiry-md-th-discount">Disc type</th>
-                                                        <th scope="col" class="enquiry-md-th-discount">Disc value</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    @foreach($editCurrencyMarkups as $mdRow)
-                                                        @php
-                                                            $mdType = strtolower((string) ($mdRow['markup_type'] ?? ''));
-                                                            $mdDiscType = strtolower((string) ($mdRow['discount_type'] ?? ''));
-                                                            $mdHotel = (float) ($mdRow['hotel_markup'] ?? $mdRow['markup_value'] ?? 0);
-                                                            $mdOther = (float) ($mdRow['other_markup'] ?? 0);
-                                                            $mdDiscVal = (float) ($mdRow['discount_value'] ?? 0);
-                                                            $mdSuffix = ($mdType === 'flat') ? strtoupper((string) ($mdRow['currency'] ?? 'AMT')) : '%';
-                                                        @endphp
-                                                        <tr>
-                                                            <td>
-                                                                <div class="enquiry-md-city">
-                                                                    <span class="enquiry-md-city__name">{{ $mdRow['city'] ?? '' }}</span>
-                                                                    @if(!empty($mdRow['country']))
-                                                                        <span class="enquiry-md-city__meta">{{ $mdRow['country'] }}</span>
-                                                                    @endif
-                                                                </div>
-                                                            </td>
-                                                            <td class="enquiry-md-cell-markup">
-                                                                <select class="enquiry-md-control" disabled>
-                                                                    <option selected>{{ $editMarkupTypeLabel($mdType) }}</option>
-                                                                </select>
-                                                            </td>
-                                                            <td class="enquiry-md-cell-markup">
-                                                                <div class="enquiry-md-markup-input">
-                                                                    <input type="number" class="enquiry-md-control" value="{{ $mdHotel }}" disabled>
-                                                                    <span class="city-markup-suffix">{{ $mdSuffix }}</span>
-                                                                </div>
-                                                            </td>
-                                                            <td class="enquiry-md-cell-markup">
-                                                                <div class="enquiry-md-markup-input">
-                                                                    <input type="number" class="enquiry-md-control" value="{{ $mdOther }}" disabled>
-                                                                    <span class="city-markup-suffix">{{ $mdSuffix }}</span>
-                                                                </div>
-                                                            </td>
-                                                            <td class="enquiry-md-cell-discount">
-                                                                <select class="enquiry-md-control" disabled>
-                                                                    <option selected>{{ $editMarkupTypeLabel($mdDiscType) }}</option>
-                                                                </select>
-                                                            </td>
-                                                            <td class="enquiry-md-cell-discount">
-                                                                <input type="number" class="enquiry-md-control" value="{{ $mdDiscVal }}" disabled>
-                                                            </td>
-                                                        </tr>
-                                                    @endforeach
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
 
                             {{-- Multi City master + planning (match create page design) --}}
                             <div id="multiCityControls" class="mt-2 d-none">
@@ -7289,8 +7181,8 @@
                                     placeholder="00:00"
                                     maxlength="5"
                                     style="border: none; box-shadow: none; width: 70px; height: 36px; padding: 0 4px; font-size: 0.8rem; letter-spacing: 0.02em;"
-                                    oninput="formatTimeInput(this); syncGuideModalPickupTime()"
-                                    onchange="syncGuideModalPickupTime()"
+                                    oninput="formatTimeInput(this); syncGuideModalPickupTimeAndValidate()"
+                                    onchange="syncGuideModalPickupTimeAndValidate()"
                                 >
                                 <span style="width: 1px; align-self: stretch; background: #e5e7eb;"></span>
                                 <select
@@ -7298,7 +7190,7 @@
                                     id="modal_guide_pickup_time_ampm"
                                     data-no-select2="true"
                                     style="width: 70px; height: 36px; font-size: 0.8rem; box-shadow: none; padding: 0 14px 0 6px;"
-                                    onchange="syncGuideModalPickupTime()"
+                                    onchange="syncGuideModalPickupTimeAndValidate()"
                                 >
                                     <option value="AM">AM</option>
                                     <option value="PM">PM</option>
@@ -22318,28 +22210,45 @@
         const minStr = String(min).padStart(2, '0');
         hiddenInput.value = hourStr + ':' + minStr + ' ' + (ampmSelect.value || 'AM');
     }
+
+    window.syncGuideModalPickupTimeAndValidate = function () {
+        syncGuideModalPickupTime();
+        if (typeof calculateGuidePrice === 'function') calculateGuidePrice();
+        if (typeof validateForm === 'function') validateForm();
+    };
     
     function initializeGuideModal() {
         // Hide price container initially
-        document.getElementById('guide_price_container').style.display = 'none';
+        const priceBox = document.getElementById('guide_price_container');
+        if (priceBox) priceBox.style.display = 'none';
         
-        // Add event listeners
-        const citySelect = document.getElementById('modal_guide_city_select');
-        if (citySelect) {
-            citySelect.addEventListener('change', function() {
-                validateForm();
-            });
-        }
-        document.getElementById('modal_guide_select').addEventListener('change', onGuideSelection);
-        document.getElementById('modal_guide_duration').addEventListener('change', onDurationSelection);
+        // Native + Select2 change listeners (Select2 may not always bubble as expected)
+        const bindGuideValidate = function (el, handler) {
+            if (!el || el.dataset.guideValidateBound === '1') return;
+            el.dataset.guideValidateBound = '1';
+            el.addEventListener('change', handler);
+            if (window.jQuery) {
+                window.jQuery(el).off('change.guideValidate select2:select.guideValidate select2:clear.guideValidate')
+                    .on('change.guideValidate select2:select.guideValidate select2:clear.guideValidate', handler);
+            }
+        };
+
+        bindGuideValidate(document.getElementById('modal_guide_city_select'), function () {
+            validateForm();
+        });
+        bindGuideValidate(document.getElementById('modal_guide_select'), onGuideSelection);
+        bindGuideValidate(document.getElementById('modal_guide_duration'), onDurationSelection);
+
         const modalCustomHoursEl = document.getElementById('modal_guide_custom_hours');
-        if (modalCustomHoursEl) {
+        if (modalCustomHoursEl && modalCustomHoursEl.dataset.guideValidateBound !== '1') {
+            modalCustomHoursEl.dataset.guideValidateBound = '1';
             modalCustomHoursEl.addEventListener('input', function() { validateCustomHours(); calculateGuidePrice(); validateForm(); });
             modalCustomHoursEl.addEventListener('change', function() { calculateGuidePrice(); validateForm(); });
         }
         const modalPickupInput = document.getElementById('modal_guide_pickup_time_input');
         const modalPickupAmpm = document.getElementById('modal_guide_pickup_time_ampm');
-        if (modalPickupInput) {
+        if (modalPickupInput && modalPickupInput.dataset.guideValidateBound !== '1') {
+            modalPickupInput.dataset.guideValidateBound = '1';
             modalPickupInput.addEventListener('input', function() {
                 formatTimeInput(modalPickupInput);
                 syncGuideModalPickupTime();
@@ -22352,42 +22261,56 @@
                 validateForm();
             });
         }
-        if (modalPickupAmpm) {
+        if (modalPickupAmpm && modalPickupAmpm.dataset.guideValidateBound !== '1') {
+            modalPickupAmpm.dataset.guideValidateBound = '1';
             modalPickupAmpm.addEventListener('change', function() {
                 syncGuideModalPickupTime();
                 calculateGuidePrice();
                 validateForm();
             });
         }
-        document.getElementById('modal_guide_service_date').addEventListener('change', function() {
-            calculateGuidePrice();
-            validateForm();
-        });
-        document.getElementById('confirm_guide_btn').addEventListener('click', confirmGuideSelection);
+        const serviceDateInput = document.getElementById('modal_guide_service_date');
+        if (serviceDateInput && serviceDateInput.dataset.guideValidateBound !== '1') {
+            serviceDateInput.dataset.guideValidateBound = '1';
+            serviceDateInput.addEventListener('change', function() {
+                calculateGuidePrice();
+                validateForm();
+            });
+            serviceDateInput.addEventListener('input', function() {
+                validateForm();
+            });
+        }
+        const confirmBtn = document.getElementById('confirm_guide_btn');
+        if (confirmBtn && confirmBtn.dataset.guideValidateBound !== '1') {
+            confirmBtn.dataset.guideValidateBound = '1';
+            confirmBtn.addEventListener('click', confirmGuideSelection);
+        }
         
-        // Set default pickup time to 09:00 AM
+        // Set default AM if empty
         const modalPickupHidden = document.getElementById('modal_guide_pickup_time');
         const modalPickupInputEl = document.getElementById('modal_guide_pickup_time_input');
         const modalPickupAmpmEl = document.getElementById('modal_guide_pickup_time_ampm');
         if (modalPickupInputEl && modalPickupAmpmEl && modalPickupHidden) {
-            // modalPickupInputEl.value = '09:00';
-            modalPickupAmpmEl.value = 'AM';
+            if (!modalPickupAmpmEl.value) modalPickupAmpmEl.value = 'AM';
             syncGuideModalPickupTime();
         }
         
         // Set date restrictions and default value
-        const startDate = document.getElementById('start_date').value;
-        const endDate = document.getElementById('end_date').value;
-        const serviceDateInput = document.getElementById('modal_guide_service_date');
+        const startDate = document.getElementById('start_date') ? document.getElementById('start_date').value : '';
+        const endDate = document.getElementById('end_date') ? document.getElementById('end_date').value : '';
         
-        if (startDate && endDate) {
+        if (serviceDateInput && startDate && endDate) {
             serviceDateInput.min = startDate;
             serviceDateInput.max = endDate;
-            serviceDateInput.value = startDate; // Default to start date
+            if (!serviceDateInput.value) {
+                serviceDateInput.value = startDate;
+            }
         }
         
-        // Initial validation
+        // Initial + delayed validation (after Select2 finishes on modal show)
         validateForm();
+        setTimeout(validateForm, 150);
+        setTimeout(validateForm, 400);
     }
     
     function loadGuidesForCity(city, country) {
@@ -22424,37 +22347,45 @@
                     guideSelect.appendChild(option);
                 });
                 if (guideCount) guideCount.textContent = guides.length;
+                if (typeof validateForm === 'function') validateForm();
             })
             .catch(function (err) {
                 console.error('Error loading guides by DMC/city:', err);
                 guideSelect.innerHTML = '<option value="">Error loading guides</option>';
                 if (guideCount) guideCount.textContent = '0';
+                if (typeof validateForm === 'function') validateForm();
             });
     }
     
     function onGuideSelection() {
         const guideSelect = document.getElementById('modal_guide_select');
         const guideDetailsContainer = document.getElementById('guide_details_container');
-        const selectedOption = guideSelect.options[guideSelect.selectedIndex];
+        const selectedOption = guideSelect && guideSelect.options[guideSelect.selectedIndex];
         
-        // Clear only pickup time when guide changes (price is time-dependent, date remains)
-        document.getElementById('modal_guide_pickup_time').value = '';
+        // Do not clear pickup time — user may fill time before selecting guide
+        syncGuideModalPickupTime();
         
-        if (guideSelect.value) {
-            const guideData = JSON.parse(selectedOption.getAttribute('data-guide'));
+        if (guideSelect && guideSelect.value && selectedOption) {
+            let guideData = {};
+            try {
+                guideData = JSON.parse(selectedOption.getAttribute('data-guide') || '{}');
+            } catch (e) {
+                guideData = {};
+            }
             
             // Show guide details
             document.getElementById('selected_guide_image').src = guideData.image || '/assets/images/default-avatar.png';
-            document.getElementById('selected_guide_name').textContent = guideData.name;
-            document.getElementById('selected_guide_specialty').textContent = guideData.specialty;
-            document.getElementById('selected_guide_experience').textContent = `${guideData.experience} experience`;
-            document.getElementById('selected_guide_rating').textContent = guideData.rating;
-            document.getElementById('selected_guide_rate').textContent = guideData.rate;
+            document.getElementById('selected_guide_name').textContent = guideData.name || '';
+            document.getElementById('selected_guide_specialty').textContent = guideData.specialty || '';
+            document.getElementById('selected_guide_experience').textContent = `${guideData.experience || ''} experience`;
+            document.getElementById('selected_guide_rating').textContent = guideData.rating || '';
+            document.getElementById('selected_guide_rate').textContent = guideData.rate || '';
             
-            guideDetailsContainer.style.display = 'block';
+            if (guideDetailsContainer) guideDetailsContainer.style.display = 'block';
         } else {
-            guideDetailsContainer.style.display = 'none';
-            document.getElementById('guide_price_container').style.display = 'none';
+            if (guideDetailsContainer) guideDetailsContainer.style.display = 'none';
+            const priceContainer = document.getElementById('guide_price_container');
+            if (priceContainer) priceContainer.style.display = 'none';
         }
         
         calculateGuidePrice();
@@ -22494,25 +22425,39 @@
     }
     
     function validateForm() {
+        syncGuideModalPickupTime();
+
         const citySelect = document.getElementById('modal_guide_city_select');
         const guideSelect = document.getElementById('modal_guide_select');
         const durationSelect = document.getElementById('modal_guide_duration');
         const customHours = document.getElementById('modal_guide_custom_hours');
         const pickupTime = document.getElementById('modal_guide_pickup_time');
+        const pickupTimeInput = document.getElementById('modal_guide_pickup_time_input');
         const serviceDate = document.getElementById('modal_guide_service_date');
         const confirmBtn = document.getElementById('confirm_guide_btn');
+        if (!confirmBtn) return;
         
         let isValid = true;
         
-        // Check required fields
-        if (!citySelect || !citySelect.value) isValid = false;
-        if (!guideSelect.value) isValid = false;
-        if (!durationSelect.value) isValid = false;
-        if (durationSelect.value === 'custom' && (!customHours.value || customHours.value < 1 || customHours.value > 24)) isValid = false;
-        if (!pickupTime.value) isValid = false;
-        if (!serviceDate.value) isValid = false;
+        // Enable Confirm when all required fields are filled (any order)
+        if (!citySelect || !String(citySelect.value || '').trim()) isValid = false;
+        if (!guideSelect || !String(guideSelect.value || '').trim()) isValid = false;
+        if (!durationSelect || !String(durationSelect.value || '').trim()) isValid = false;
+        if (durationSelect && durationSelect.value === 'custom') {
+            const ch = customHours ? parseFloat(customHours.value) : 0;
+            if (!ch || ch < 1 || ch > 24) isValid = false;
+        }
+        const hasPickupTime = (pickupTime && String(pickupTime.value || '').trim() !== '') ||
+            (pickupTimeInput && (pickupTimeInput.value || '').replace(/\D/g, '').length >= 3);
+        if (!hasPickupTime) isValid = false;
+        if (!serviceDate || !String(serviceDate.value || '').trim()) isValid = false;
         
         confirmBtn.disabled = !isValid;
+        if (isValid) {
+            confirmBtn.removeAttribute('disabled');
+        } else {
+            confirmBtn.setAttribute('disabled', 'disabled');
+        }
     }
 
     // Parse pickup time string (e.g. "07:59 AM" or "19:30") to 24-hour hour (0-23).
@@ -29880,10 +29825,6 @@
             
             // Show success toastr notification
             showToastr('success', data.message || 'Tour information updated successfully.');
-            // Reload so the whole form reflects the saved tour info
-            setTimeout(() => {
-                window.location.reload();
-            }, 500);
         } catch (error) {
             const errorMessage = error.message || 'Failed to update tour information. Please try again.';
             feedback.textContent = errorMessage;
