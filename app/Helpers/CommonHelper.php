@@ -2722,53 +2722,6 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         return null;
     }
 
-    /**
-     * Owning country DMC (role 11/20) for the logged-in user.
-     * Walks created_by up to the nearest normal DMC and never returns a Master DMC.
-     */
-    public static function resolveNearestNormalDmcId($user): ?int
-    {
-        if (!$user) {
-            return null;
-        }
-
-        $roleId = (int) ($user->role_id ?? 0);
-        if (in_array($roleId, self::NORMAL_DMC_ROLE_IDS, true)) {
-            return (int) $user->userId;
-        }
-
-        $current = $user;
-        $visited = [];
-        for ($i = 0; $i < 8; $i++) {
-            $parentId = (int) ($current->created_by ?? 0);
-            if ($parentId <= 0 || in_array($parentId, $visited, true)) {
-                break;
-            }
-            $visited[] = $parentId;
-            $parent = User::where('userId', $parentId)->first();
-            if (!$parent) {
-                break;
-            }
-            $parentRole = (int) ($parent->role_id ?? 0);
-            if (in_array($parentRole, self::NORMAL_DMC_ROLE_IDS, true)) {
-                return (int) $parent->userId;
-            }
-            if (in_array($parentRole, self::MASTER_DMC_ROLE_IDS, true)) {
-                break;
-            }
-            $current = $parent;
-        }
-
-        $fallback = (int) (self::getDmcId($user) ?? 0);
-        if ($fallback > 0) {
-            $owner = User::where('userId', $fallback)->first();
-            if ($owner && in_array((int) $owner->role_id, self::NORMAL_DMC_ROLE_IDS, true)) {
-                return $fallback;
-            }
-        }
-
-        return null;
-    }
 
     /**
      * Country used for multi-country tour visibility.
@@ -2791,7 +2744,8 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             return $first !== '' ? $first : null;
         };
 
-        $country = $pickFirst($user->country ?? null);
+        $country = $pickFirst($user->user_country ?? null)
+            ?: $pickFirst($user->country ?? null);
 
         if ($country) {
             return $country;
@@ -2805,7 +2759,8 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         if ($dmcId && (int) $dmcId !== (int) ($user->userId ?? 0)) {
             $dmcUser = User::where('userId', $dmcId)->first();
             if ($dmcUser) {
-                return $pickFirst($dmcUser->country ?? null);
+                return $pickFirst($dmcUser->user_country ?? null)
+                    ?: $pickFirst($dmcUser->country ?? null);
             }
         }
 
@@ -3011,10 +2966,8 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
     }
 
     /**
-     * Destination rows for Lite/Pro/sidebar city pickers under the same Master DMC.
-     * Uses each child DMC's users.country column, then all matching cities from
-     * the cities table. Also merges cities that already have selected products.
-     * Does not use users.user_country or users.city (those are the person's location).
+     * Actual sibling-DMC destination rows under the same Master DMC as $baseDmcId.
+     * Uses each child DMC's country + city mapping — not the Master DMC country list.
      *
      * @return list<array{dmc_id:int, country:string, city:string, city_id:?int}>
      */
@@ -3030,172 +2983,87 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             return [];
         }
 
-        $dmcs = User::whereIn('userId', $siblingIds)->get(['userId', 'country', 'role_id']);
-        $dmcIdByCountry = [];
-        $allCountries = [];
+        $dmcs = User::whereIn('userId', $siblingIds)->get(['userId', 'country', 'user_country', 'city', 'role_id']);
+        $rows = [];
+        $seen = [];
 
         foreach ($dmcs as $dmc) {
             $dmcId = (int) $dmc->userId;
             $countries = self::resolveSupportedCountriesForDmc($dmc);
-            foreach ($countries as $country) {
-                $country = trim((string) $country);
-                if ($country === '') {
-                    continue;
-                }
-                $allCountries[] = $country;
-                $key = mb_strtolower($country);
-                if (!isset($dmcIdByCountry[$key])) {
-                    $dmcIdByCountry[$key] = $dmcId;
+            if ($countries === []) {
+                $fallbackCountry = self::normalizeCountryName(trim((string) ($dmc->user_country ?? '')));
+                if ($fallbackCountry !== '') {
+                    $countries = [$fallbackCountry];
                 }
             }
-        }
-
-        $allCountries = array_values(array_unique($allCountries));
-        $rows = [];
-        $seen = [];
-
-        $pushRow = static function (int $dmcId, string $country, string $city, $cityId) use (&$rows, &$seen): void {
-            $country = trim($country);
-            $city = trim($city);
-            if ($country === '' || $city === '') {
-                return;
+            if ($countries === []) {
+                continue;
             }
-            $key = mb_strtolower($country) . '|' . mb_strtolower($city);
-            if (isset($seen[$key])) {
-                return;
-            }
-            $seen[$key] = true;
-            $cityId = (int) $cityId;
-            $rows[] = [
-                'dmc_id' => $dmcId,
-                'country' => $country,
-                'city' => $city,
-                'city_id' => $cityId > 0 ? $cityId : null,
-            ];
-        };
 
-        if ($allCountries !== []) {
-            $cityRecords = City::query()
-                ->where(function ($query) use ($allCountries) {
-                    $query->whereIn('country', $allCountries);
-                    foreach ($allCountries as $country) {
-                        $query->orWhereRaw('LOWER(TRIM(country)) = ?', [strtolower($country)]);
+            $mappedCities = self::parseUserCountryList($dmc->city ?? null);
+            if ($mappedCities !== []) {
+                foreach ($mappedCities as $cityName) {
+                    $cityName = trim((string) $cityName);
+                    if ($cityName === '') {
+                        continue;
                     }
-                })
+                    $cityRow = City::query()
+                        ->whereRaw('LOWER(name) = ?', [mb_strtolower($cityName)])
+                        ->first(['city_id', 'id', 'name', 'country']);
+                    $country = $cityRow
+                        ? self::normalizeCountryName((string) ($cityRow->country ?? ''))
+                        : '';
+                    if ($country === '') {
+                        $userCountry = self::normalizeCountryName(trim((string) ($dmc->user_country ?? '')));
+                        $country = $userCountry !== '' ? $userCountry : (string) ($countries[0] ?? '');
+                    }
+                    if ($country === '') {
+                        continue;
+                    }
+                    $canonicalCity = trim((string) ($cityRow->name ?? $cityName));
+                    $cityId = $cityRow ? (int) ($cityRow->city_id ?? $cityRow->id ?? 0) : 0;
+                    $key = mb_strtolower($country) . '|' . mb_strtolower($canonicalCity);
+                    if (isset($seen[$key])) {
+                        continue;
+                    }
+                    $seen[$key] = true;
+                    $rows[] = [
+                        'dmc_id' => $dmcId,
+                        'country' => $country,
+                        'city' => $canonicalCity,
+                        'city_id' => $cityId > 0 ? $cityId : null,
+                    ];
+                }
+                continue;
+            }
+
+            // DMC has a country but no city: expose all cities in that DMC country.
+            $cityRecords = City::query()
+                ->whereIn('country', $countries)
                 ->orderBy('name')
                 ->get(['city_id', 'id', 'name', 'country']);
-
             foreach ($cityRecords as $cityRow) {
                 $canonicalCity = trim((string) ($cityRow->name ?? ''));
                 $country = self::normalizeCountryName((string) ($cityRow->country ?? ''));
                 if ($canonicalCity === '' || $country === '') {
                     continue;
                 }
-                $dmcId = $dmcIdByCountry[mb_strtolower($country)]
-                    ?? $dmcIdByCountry[mb_strtolower((string) ($cityRow->country ?? ''))]
-                    ?? $baseDmcId;
-                $pushRow(
-                    (int) $dmcId,
-                    $country,
-                    $canonicalCity,
-                    $cityRow->city_id ?? $cityRow->id ?? 0
-                );
+                $key = mb_strtolower($country) . '|' . mb_strtolower($canonicalCity);
+                if (isset($seen[$key])) {
+                    continue;
+                }
+                $seen[$key] = true;
+                $cityId = (int) ($cityRow->city_id ?? $cityRow->id ?? 0);
+                $rows[] = [
+                    'dmc_id' => $dmcId,
+                    'country' => $country,
+                    'city' => $canonicalCity,
+                    'city_id' => $cityId > 0 ? $cityId : null,
+                ];
             }
-        }
-
-        foreach (self::collectProductCitiesForSiblingDmcs($siblingIds, $dmcIdByCountry, $baseDmcId) as $productRow) {
-            $pushRow(
-                (int) $productRow['dmc_id'],
-                (string) $productRow['country'],
-                (string) $productRow['city'],
-                $productRow['city_id'] ?? 0
-            );
         }
 
         return $rows;
-    }
-
-    /**
-     * Cities already used on hotels/attractions/restaurants selected by sibling DMCs.
-     *
-     * @param  list<int>  $siblingIds
-     * @param  array<string,int>  $dmcIdByCountry
-     * @return list<array{dmc_id:int, country:string, city:string, city_id:?int}>
-     */
-    private static function collectProductCitiesForSiblingDmcs(array $siblingIds, array $dmcIdByCountry, int $baseDmcId): array
-    {
-        $out = [];
-        $lookup = [];
-        foreach ($siblingIds as $id) {
-            $intId = (int) $id;
-            if ($intId > 0) {
-                $lookup[(string) $intId] = $intId;
-            }
-        }
-
-        $ownerDmcId = static function ($dmcIdField) use ($lookup, $baseDmcId): int {
-            foreach ((array) $dmcIdField as $id) {
-                $key = (string) ((int) $id);
-                if (isset($lookup[$key])) {
-                    return $lookup[$key];
-                }
-            }
-            return $baseDmcId;
-        };
-
-        $pushProduct = static function ($city, $country, $dmcIdField) use (&$out, $ownerDmcId, $dmcIdByCountry, $baseDmcId): void {
-            $city = trim((string) $city);
-            $country = self::normalizeCountryName(trim((string) $country));
-            if ($city === '') {
-                return;
-            }
-            $dmcId = $country !== '' && isset($dmcIdByCountry[mb_strtolower($country)])
-                ? (int) $dmcIdByCountry[mb_strtolower($country)]
-                : $ownerDmcId($dmcIdField);
-            $out[] = [
-                'dmc_id' => $dmcId > 0 ? $dmcId : $baseDmcId,
-                'country' => $country,
-                'city' => $city,
-                'city_id' => null,
-            ];
-        };
-
-        try {
-            $hotels = self::whereJsonContainsDmcIds(Hotel::query()->where('status', 1), $siblingIds)
-                ->get(['city', 'country', 'dmc_id']);
-            foreach ($hotels as $hotel) {
-                $pushProduct($hotel->city ?? '', $hotel->country ?? '', $hotel->dmc_id);
-            }
-        } catch (\Throwable $e) {
-            // Ignore inventory lookup failures; cities-table rows are still returned.
-        }
-
-        try {
-            $attractionCols = ['country', 'dmc_id'];
-            if (\Illuminate\Support\Facades\Schema::hasColumn('attractions', 'city')) {
-                $attractionCols[] = 'city';
-            }
-            if (\Illuminate\Support\Facades\Schema::hasColumn('attractions', 'location')) {
-                $attractionCols[] = 'location';
-            }
-            $attractions = self::whereJsonContainsDmcIds(Attraction::query()->where('status', 1), $siblingIds)
-                ->get($attractionCols);
-            foreach ($attractions as $attraction) {
-                $pushProduct($attraction->city ?? $attraction->location ?? '', $attraction->country ?? '', $attraction->dmc_id);
-            }
-        } catch (\Throwable $e) {
-        }
-
-        try {
-            $restaurants = self::whereJsonContainsDmcIds(Restaurant::query()->where('status', 1), $siblingIds)
-                ->get(['city', 'country', 'dmc_id']);
-            foreach ($restaurants as $restaurant) {
-                $pushProduct($restaurant->city ?? '', $restaurant->country ?? '', $restaurant->dmc_id);
-            }
-        } catch (\Throwable $e) {
-        }
-
-        return $out;
     }
 
     /**
