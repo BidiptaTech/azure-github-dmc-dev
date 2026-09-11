@@ -5066,7 +5066,7 @@
                         hourlyFields.forEach(field => {
                             if (field.value) {
                                 console.log(`Processing Hourly field: ${field.name} = ${field.value}`);
-                                const nameMatch = field.name.match(/day(\d+)_(\w+)(?:_(\d+))?_(?:hourly_pickup_location)/);
+                                const nameMatch = field.name.match(/^day(\d+)_(transport)(?:_(\d+))?_hourly_pickup_location$/);
                                 if (nameMatch) {
                                     const day = nameMatch[1];
                                     const section = nameMatch[2];
@@ -5077,15 +5077,23 @@
                                     const serviceTypeSelect = document.querySelector(`select[name="day${day}_${section}${fieldSuffix}_service_type"]`);
                                     const timeSelect = document.querySelector(`[name="day${day}_${section}${fieldSuffix}_hourly_pickup_time"]`);
                                     const dateInput = document.querySelector(`input[name="day${day}_${section}${fieldSuffix}_hourly_date"]`);
-                                    const selectedHours = document.querySelector(`select[name="day${day}_${section}${fieldSuffix}_hourly_selected_hours"]`);
+                                    const selectedHoursSelect = document.querySelector(`select[name="day${day}_${section}${fieldSuffix}_hourly_selected_hours"]`);
                                     
                                     if (vehicleSelect?.value && serviceTypeSelect?.value) {
                                         const vehicle = vehicleSelect.options[vehicleSelect.selectedIndex];
                                         // Use transport_passengers field if available, otherwise fallback to adult_count
-                                        const passengersField = document.getElementById(`day${day}_transport_passengers`);
+                                        const passengersField = document.getElementById(`day${day}_transport${fieldSuffix}_passengers`);
                                         const adultCount = passengersField ? parseInt(passengersField.value || 1) : parseInt(document.getElementById('adult_count')?.value || 1);
                                         const childCount = parseInt(document.getElementById('child_count')?.value || 0);
-                                        const totalPrice = parseFloat(document.getElementById(`day${day}_${section}${fieldSuffix}_total_price`)?.value || 0);
+                                        // Hourly is billed off the vehicle's slab price for the chosen hours.
+                                        // Hours are optional in the form, so 0 means "not chosen yet" rather than 1 hour.
+                                        const selectedHours = parseInt(selectedHoursSelect?.value || 0) || 0;
+                                        const hourlyPrice = typeof window.getVehicleHourlyPrice === 'function'
+                                            ? window.getVehicleHourlyPrice(vehicle, selectedHours)
+                                            : null;
+                                        const totalPrice = hourlyPrice !== null
+                                            ? hourlyPrice
+                                            : parseFloat(document.getElementById(`day${day}_${section}${fieldSuffix}_total_price`)?.value || 0);
                                         
                                         const formatEntryTime = (time) => {
                                             if (!time) return "12:00 PM";
@@ -5135,7 +5143,8 @@
                                             Tax: parseFloat(document.getElementById(`day${day}_${section}${fieldSuffix}_tax`)?.value || "0.00"),
                                             Night_Start_Time: null,
                                             Night_End_Time: null,
-                                            selectedHours: parseInt(selectedHours?.value || 1),
+                                            selectedHours: selectedHours,
+                                            hourly_price: hourlyPrice,
                                             bookingType: "enquiry",
                                             remarks: document.getElementById(`day${day}_transport_${transportIndex || 1}_remarks`)?.value || '',
                                             supplement: (() => {
@@ -22250,32 +22259,6 @@
                                             </div>
                                         </div>
                                         
-                                        <div class="col-md-3 hourly-field" id="day${day}_transport_hourly_hours_field" style="display: none;">
-                                            <div class="form-group">
-                                                <label class="form-label fw-semibold text-muted mb-2">
-                                                    <i class="ri-time-line text-primary me-2"></i>Number of Hours
-                                                </label>
-                                                <div class="position-relative">
-                                                    <select class="form-select border-1" style="height: 42px; font-size: 0.735rem;" name="day${day}_transport_hourly_selected_hours" style="padding-left: 35px;">
-                                                        <option value="">Select hours</option>
-                                                        <option value="1">1 Hour</option>
-                                                        <option value="2">2 Hours</option>
-                                                        <option value="3">3 Hours</option>
-                                                        <option value="4">4 Hours</option>
-                                                        <option value="5">5 Hours</option>
-                                                        <option value="6">6 Hours</option>
-                                                        <option value="7">7 Hours</option>
-                                                        <option value="8">8 Hours</option>
-                                                        <option value="9">9 Hours</option>
-                                                        <option value="10">10 Hours</option>
-                                                        <option value="11">11 Hours</option>
-                                                        <option value="12">12 Hours</option>
-                                                        <option value="24">24 Hours</option>
-                                                    </select>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        
                                         <div class="col-md-2 hourly-field" id="day${day}_transport_hourly_search_field" style="display: none;">
                                             <button type="button" class="btn btn-danger w-100 py-2" onclick="searchVehicles(${day}, 'transport_hourly', 0)" id="day${day}_transport_hourly_search_btn" disabled>
                                                 <i class="ri-search-line me-2"></i>Search
@@ -22319,6 +22302,14 @@
                                                         <option value="">Select service type</option>
                                                         <option value="Shared">Shared</option>
                                                         <option value="Private">Private</option>
+                                                    </select>
+                                                </div>
+
+                                                <!-- Number of Hours: options are filled from the chosen vehicle's hourly prices -->
+                                                <div class="col-md-2 hourly-field" id="day${day}_transport_hourly_hours_field" style="display: none;">
+                                                    <label class="form-label fw-semibold">Number of Hours</label>
+                                                    <select class="form-select" style="height: 42px; font-size: 0.735rem;" name="day${day}_transport_hourly_selected_hours" id="day${day}_transport_hourly_selected_hours" onchange="updatePricing(${day}, 'transport')">
+                                                        <option value="">Select hours</option>
                                                     </select>
                                                 </div>
                                                 
@@ -26765,32 +26756,6 @@
                                     <input type="hidden" name="day${day}_transport_${newIndex}_hourly_pickup_time" id="day${day}_transport_${newIndex}_hourly_pickup_time">
                                 </div>
                             </div>
-                            <div class="col-md-3 hourly-field" id="day${day}_transport_${newIndex}_hourly_hours_field" style="display: none;">
-                                <div class="form-group">
-                                    <label class="form-label fw-semibold text-muted mb-2">
-                                        <i class="ri-time-line text-primary me-2"></i>Number of Hours
-                                    </label>
-                                    <div class="position-relative">
-                                        <select class="form-select border-1" name="day${day}_transport_${newIndex}_hourly_selected_hours" style="padding-left: 35px;">
-                                            <option value="">Select hours</option>
-                                            <option value="1">1 Hour</option>
-                                            <option value="2">2 Hours</option>
-                                            <option value="3">3 Hours</option>
-                                            <option value="4">4 Hours</option>
-                                            <option value="5">5 Hours</option>
-                                            <option value="6">6 Hours</option>
-                                            <option value="7">7 Hours</option>
-                                            <option value="8">8 Hours</option>
-                                            <option value="9">9 Hours</option>
-                                            <option value="10">10 Hours</option>
-                                            <option value="11">11 Hours</option>
-                                            <option value="12">12 Hours</option>
-                                            <option value="24">24 Hours</option>
-                                        </select>
-                                        <i class="ri-hourglass-line position-absolute text-primary" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
-                                    </div>
-                                </div>
-                            </div>
                             <div class="col-md-2 hourly-field" id="day${day}_transport_${newIndex}_hourly_search_field" style="display: none;">
                                 <button type="button" class="btn btn-danger w-100 py-2" onclick="searchVehicles(${day}, 'transport_${newIndex}_hourly',${newIndex})" id="day${day}_transport_${newIndex}_hourly_search_btn" disabled>
                                     <i class="ri-search-line me-2"></i>Search
@@ -26826,6 +26791,14 @@
                                             <option value="">Select service type</option>
                                             <option value="Shared">Shared</option>
                                             <option value="Private">Private</option>
+                                        </select>
+                                    </div>
+
+                                    <!-- Number of Hours: options are filled from the chosen vehicle's hourly prices -->
+                                    <div class="col-md-2 hourly-field" id="day${day}_transport_${newIndex}_hourly_hours_field" style="display: none;">
+                                        <label class="form-label fw-semibold text-dark mb-1">Number of Hours</label>
+                                        <select class="form-select" style="height: 42px; font-size: 0.735rem;" name="day${day}_transport_${newIndex}_hourly_selected_hours" id="day${day}_transport_${newIndex}_hourly_selected_hours" onchange="updatePricing(${day}, 'transport_${newIndex}')">
+                                            <option value="">Select hours</option>
                                         </select>
                                     </div>
                                     
@@ -30078,16 +30051,13 @@
             const pickupTimeField = document.querySelector(`[name="${fieldNamePattern}_hourly_pickup_time"]`);
             const pickupTimeFilled = pickupTimeField && pickupTimeField.value && pickupTimeField.value.trim() !== '';
             
-            // Check selected hours
-            const selectedHoursField = document.querySelector(`select[name="${fieldNamePattern}_hourly_selected_hours"]`);
-            const selectedHoursFilled = selectedHoursField && selectedHoursField.value && selectedHoursField.value.trim() !== '';
-            
+            // Number of hours is not checked here: it is picked after the search, from the
+            // hours the selected vehicle is actually priced for.
             console.log('Hourly transport validation:', {
                 cityFilled: cityFilled ? citySelect.value : false,
                 pickupLocationFilled: pickupLocationFilled ? pickupLocationField.value : false,
                 pickupCoordinatesFilled: pickupCoordinatesFilled ? `${pickupLatField.value}, ${pickupLngField.value}` : false,
                 pickupTimeFilled: pickupTimeFilled ? pickupTimeField.value : false,
-                selectedHoursFilled: selectedHoursFilled ? selectedHoursField.value : false,
                 fieldIndex: fieldIndex,
                 fieldNamePattern: fieldNamePattern,
                 citySelectId: `day${day}_transport_city_${fieldIndex}`,
@@ -30095,17 +30065,14 @@
                 pickupLocationField: pickupLocationField ? pickupLocationField.name : 'NOT FOUND',
                 pickupLocationValue: pickupLocationField ? pickupLocationField.value : 'N/A',
                 pickupTimeField: pickupTimeField ? pickupTimeField.name : 'NOT FOUND',
-                pickupTimeValue: pickupTimeField ? pickupTimeField.value : 'N/A',
-                selectedHoursField: selectedHoursField ? selectedHoursField.name : 'NOT FOUND',
-                selectedHoursValue: selectedHoursField ? selectedHoursField.value : 'N/A'
+                pickupTimeValue: pickupTimeField ? pickupTimeField.value : 'N/A'
             });
             
             // All fields must be filled - if ANY field is missing, button should be disabled
             const allFieldsFilled = cityFilled && 
                                 pickupLocationFilled && 
                                 pickupCoordinatesFilled && 
-                                pickupTimeFilled && 
-                                selectedHoursFilled;
+                                pickupTimeFilled;
             
             if (allFieldsFilled) {
                 searchBtn.disabled = false;
@@ -30120,8 +30087,7 @@
                     cityFilled,
                     pickupLocationFilled,
                     pickupCoordinatesFilled,
-                    pickupTimeFilled,
-                    selectedHoursFilled
+                    pickupTimeFilled
                 });
             }
         } else if (transportType === 'local_transfer') {
@@ -32724,6 +32690,7 @@
                 privateOption.value = 'Private';
                 privateOption.textContent = 'Private';
                 serviceTypeSelect.appendChild(privateOption);
+                serviceTypeSelect.value = 'Private'; // Only valid choice, so preselect it
                 serviceTypeSelect.disabled = false; // Keep it enabled for hourly
                 serviceTypeSelect.style.backgroundColor = '';
                 serviceTypeSelect.style.cursor = '';
@@ -32837,6 +32804,251 @@
             }
     }
 
+        // ==========================================================================
+        // Hourly transport pricing
+        //
+        // Hourly transport is priced from the vehicle's per-hour slab prices
+        // (vehicles.hourly_price_1 .. hourly_price_12): the slab for the chosen number of
+        // hours IS the total for the trip. base_price / cost_per_hour are not used here.
+        // ==========================================================================
+
+        window.MAX_HOURLY_PRICE_HOURS = 12;
+
+        // Data attributes carrying every slab price of a vehicle onto its <option>
+        window.buildHourlyPriceAttrs = function(vehicle) {
+            const prices = (vehicle && vehicle.hourly_prices) || {};
+            let attrs = '';
+            for (let hour = 1; hour <= window.MAX_HOURLY_PRICE_HOURS; hour++) {
+                const price = prices[hour];
+                attrs += ` data-hourly-price-${hour}="${price === null || price === undefined ? '' : price}"`;
+            }
+            return attrs;
+        };
+
+        // Slab price of a vehicle for a given number of hours, or null when not configured
+        window.getVehicleHourlyPrice = function(vehicleOption, hours) {
+            if (!vehicleOption || !hours) return null;
+            const raw = vehicleOption.getAttribute(`data-hourly-price-${hours}`);
+            if (raw === null || raw.trim() === '') return null;
+            const price = parseFloat(raw);
+            return isNaN(price) ? null : price;
+        };
+
+        // Index suffix used by the field names of a transport section ('' for the first one)
+        window.getTransportFieldSuffix = function(section) {
+            if (section === 'transport') return '';
+            if (typeof section === 'string' && section.startsWith('transport_')) {
+                return `_${section.split('_')[1]}`;
+            }
+            return null;
+        };
+
+        window.getHourlyHoursSelect = function(day, section) {
+            const suffix = window.getTransportFieldSuffix(section);
+            if (suffix === null) return null;
+            return document.querySelector(`select[name="day${day}_transport${suffix}_hourly_selected_hours"]`);
+        };
+
+        window.getTransportVehicleSelect = function(day, section) {
+            const suffix = window.getTransportFieldSuffix(section);
+            if (suffix === null) return null;
+            return document.querySelector(`select[name="day${day}_transport${suffix}_vehicle_id"]`);
+        };
+
+        window.isHourlyTransportSection = function(day, section) {
+            const suffix = window.getTransportFieldSuffix(section);
+            if (suffix === null) return false;
+            const radio = document.querySelector(`input[type="radio"][name="day${day}_transport${suffix}_service_type"][value="hourly"]`);
+            return !!(radio && radio.checked);
+        };
+
+        window.getSelectedVehicleOption = function(vehicleSelect) {
+            if (!vehicleSelect || !vehicleSelect.value) return null;
+            return vehicleSelect.querySelector(`option[value="${vehicleSelect.value}"]`) ||
+                   vehicleSelect.options[vehicleSelect.selectedIndex] || null;
+        };
+
+        // Offer only the hours the selected vehicle is actually priced for, labelled with that price.
+        // Returns how many hours are on offer.
+        window.refreshHourlyHoursOptions = function(day, section) {
+            const hoursSelect = window.getHourlyHoursSelect(day, section);
+            if (!hoursSelect) return 0;
+
+            const vehicleOption = window.getSelectedVehicleOption(window.getTransportVehicleSelect(day, section));
+            const previous = hoursSelect.value;
+            const options = ['<option value="">Select hours</option>'];
+
+            for (let hours = 1; hours <= window.MAX_HOURLY_PRICE_HOURS; hours++) {
+                const price = window.getVehicleHourlyPrice(vehicleOption, hours);
+                if (price === null) continue;
+
+                const label = `${hours} Hour${hours > 1 ? 's' : ''}`;
+                options.push(`<option value="${hours}">${label} — ${getTourCurrency()} ${price.toFixed(2)}</option>`);
+            }
+
+            hoursSelect.innerHTML = options.join('');
+            // Keep the previous pick only if the current vehicle is priced for it too
+            hoursSelect.value = Array.from(hoursSelect.options).some(option => option.value === previous) ? previous : '';
+
+            return options.length - 1;
+        };
+
+        // Mirror pricing into the hidden fields the submit handler reads
+        window.storeTransportPricing = function(day, section, basePrice, totalPrice, guestCount) {
+            const suffix = window.getTransportFieldSuffix(section);
+            if (suffix === null) return;
+
+            const basePriceField = document.getElementById(`day${day}_transport${suffix}_base_price`);
+            const totalPriceField = document.getElementById(`day${day}_transport${suffix}_total_price`);
+            const guestCountField = document.getElementById(`day${day}_transport${suffix}_guest_count`);
+
+            if (basePriceField) basePriceField.value = basePrice.toFixed(2);
+            if (totalPriceField) totalPriceField.value = totalPrice.toFixed(2);
+            if (guestCountField) guestCountField.value = guestCount;
+        };
+
+        window.getTransportGuestCount = function(day, section) {
+            const suffix = window.getTransportFieldSuffix(section);
+            const passengersInput = suffix === null
+                ? null
+                : document.getElementById(`day${day}_transport${suffix}_passengers`);
+
+            if (passengersInput && passengersInput.value) {
+                return parseInt(passengersInput.value, 10) || 0;
+            }
+
+            const adults = parseInt(document.getElementById('adults')?.value) || 0;
+            const children = parseInt(document.getElementById('children')?.value) || 0;
+            return adults + children;
+        };
+
+        // Price card shown while the hourly selection is still incomplete
+        window.renderHourlyPricingNotice = function(message) {
+            return `
+                <div class="card shadow-sm border-0" style="background: #ffffff; border-radius: 12px; overflow: hidden;">
+                    <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
+                        <div class="alert alert-warning mb-0" style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px;">
+                            <div class="d-flex align-items-start">
+                                <div style="width: 40px; height: 40px; background: rgba(255, 193, 7, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 12px; flex-shrink: 0;">
+                                    <i class="ri-alert-line" style="color: #856404; font-size: 1.25rem;"></i>
+                                </div>
+                                <div style="flex: 1;">
+                                    <h6 class="mb-1 fw-semibold" style="color: #856404; font-size: 0.95rem;">Hourly Service Pricing</h6>
+                                    <div style="font-size: 0.85rem; color: #856404;">
+                                        <i class="ri-information-line me-1"></i>${message}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        };
+
+        // Price card for a fully selected hourly service
+        window.renderHourlyPricingCard = function(day, section, selectedHours, slabPrice, totalGuests) {
+            return `
+                <div class="card shadow-sm border-0" style="background: #ffffff; border-radius: 12px; overflow: hidden;">
+                    <div class="card-header text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 1rem 1.25rem;">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div class="d-flex align-items-center">
+                                <div style="width: 40px; height: 40px; background: rgba(255, 255, 255, 0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
+                                    <i class="ri-time-line text-white" style="color: #ffffff !important; font-size: 1.25rem;"></i>
+                                </div>
+                                <div>
+                                    <h6 class="mb-0 fw-bold text-white" style="color: #ffffff !important; font-size: 1.1rem;">Transport Pricing</h6>
+                                    <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Hourly: fixed price for the selected number of hours</small>
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-sm text-white" onclick="updatePricing(${day}, '${section}')" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
+                                <i class="ri-refresh-line"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%); border: 1px solid #b3d9ff !important; border-radius: 8px;">
+                                    <div class="card-header" style="background: rgba(102, 126, 234, 0.1); border: none; border-bottom: 1px solid #b3d9ff; padding: 0.75rem 1rem; border-radius: 8px 8px 0 0;">
+                                        <h6 class="mb-0 fw-semibold d-flex align-items-center" style="color: #495057; font-size: 0.9rem;">
+                                            <div style="width: 28px; height: 28px; background: rgba(102, 126, 234, 0.15); border-radius: 6px; display: flex; align-items: center; justify-content: center; margin-right: 8px;">
+                                                <i class="ri-taxi-line" style="color: #667eea; font-size: 0.9rem;"></i>
+                                            </div>
+                                            Hourly Service Pricing Details
+                                        </h6>
+                                    </div>
+                                    <div class="card-body" style="padding: 1rem;">
+                                        <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
+                                            <span style="color: #6c757d;"><i class="ri-calendar-check-line" style="color: #667eea; margin-right: 5px;"></i>Selected hours:</span>
+                                            <span class="fw-semibold" style="color: #495057;">${selectedHours} hour${selectedHours > 1 ? 's' : ''}</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
+                                            <span style="color: #6c757d;"><i class="ri-price-tag-3-line" style="color: #667eea; margin-right: 5px;"></i>${selectedHours} hour${selectedHours > 1 ? 's' : ''} price:</span>
+                                            <span class="fw-semibold" style="color: #495057;">${getTourCurrency()} ${slabPrice.toFixed(2)}</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
+                                            <span style="color: #6c757d;"><i class="ri-group-line" style="color: #667eea; margin-right: 5px;"></i>Total guests:</span>
+                                            <span class="fw-semibold" style="color: #495057;">${totalGuests}</span>
+                                        </div>
+                                        <small style="color: #6c757d; font-size: 0.8rem; display: block; margin-top: 0.5rem;">
+                                            <i class="ri-information-line me-1" style="color: #667eea;"></i>Private hourly: fixed price per vehicle for ${selectedHours} hour${selectedHours > 1 ? 's' : ''}, not per guest.
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);">
+                                    <div class="card-body" style="padding: 1rem 1.25rem;">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <h6 class="mb-0 fw-bold text-white d-flex align-items-center" style="color: #ffffff !important; font-size: 1rem;">
+                                                <div style="width: 32px; height: 32px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
+                                                    <i class="ri-calculator-line" style="color: #ffffff !important; font-size: 1rem;"></i>
+                                                </div>
+                                                Total Price
+                                            </h6>
+                                            <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_${section}_total_price_display">${getTourCurrency()} ${slabPrice.toFixed(2)}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        };
+
+        // Full pricing update for an hourly transport section. Returns false when the
+        // section is not hourly, so updatePricing can fall through to its other modes.
+        window.updateHourlyTransportPricing = function(day, section, priceDisplay, selectedVehicleOption) {
+            if (!window.isHourlyTransportSection(day, section)) return false;
+
+            const availableHours = window.refreshHourlyHoursOptions(day, section);
+
+            const hoursSelect = window.getHourlyHoursSelect(day, section);
+            const selectedHours = hoursSelect && hoursSelect.value ? parseInt(hoursSelect.value, 10) : 0;
+            const slabPrice = window.getVehicleHourlyPrice(selectedVehicleOption, selectedHours);
+            const totalGuests = window.getTransportGuestCount(day, section);
+
+            priceDisplay.style.display = 'block';
+
+            if (!availableHours) {
+                priceDisplay.innerHTML = window.renderHourlyPricingNotice('This vehicle has no hourly prices configured. Please choose another vehicle.');
+                window.storeTransportPricing(day, section, 0, 0, 0);
+            } else if (slabPrice === null) {
+                priceDisplay.innerHTML = window.renderHourlyPricingNotice('Select the number of hours to see the price for this vehicle.');
+                window.storeTransportPricing(day, section, 0, 0, 0);
+            } else {
+                priceDisplay.innerHTML = window.renderHourlyPricingCard(day, section, selectedHours, slabPrice, totalGuests);
+                window.storeTransportPricing(day, section, slabPrice, slabPrice, totalGuests);
+            }
+
+            updateOtherTransportHeader(day);
+            return true;
+        };
+
         window.updatePricing = function(day, section) {
 
             console.log('Updating pricing for day', day, 'section', section);
@@ -32907,6 +33119,10 @@
         
         if (!selectedServiceType || !selectedVehicleOption || !selectedVehicleOption.value) {
             priceDisplay.style.display = 'none';
+            // Without a vehicle there are no hours to offer either
+            if (window.isHourlyTransportSection(day, section)) {
+                window.refreshHourlyHoursOptions(day, section);
+            }
             console.log('Missing required data for pricing:', {
                 selectedServiceType: selectedServiceType,
                 selectedVehicleOption: selectedVehicleOption ? selectedVehicleOption.value : 'NOT FOUND',
@@ -33144,6 +33360,12 @@
             }
         }
         
+        // Hourly transport ignores base/shared prices and is priced purely off the
+        // vehicle's slab price for the chosen number of hours.
+        if (window.updateHourlyTransportPricing(day, section, priceDisplay, selectedVehicleOption)) {
+            return;
+        }
+        
         // Get pricing data from the selected vehicle option
         // Use getAttribute for reliable data attribute access (works better than dataset)
         const privatePriceAttr = selectedVehicleOption.getAttribute('data-private-price') || '';
@@ -33248,90 +33470,16 @@
             // Check if this is an hourly service (has hourly pricing)
             const isHourlyService = costPerHour > 0 || sharableCostPerHour > 0;
             
-            // Check if this is specifically an hourly transport service
-            let hourlyRadio, isHourlyTransport;
-            
-            if (section === 'transport') {
-                // For static transport field
-                hourlyRadio = document.querySelector(`input[name="day${day}_transport_service_type"][value="hourly"]`);
-                isHourlyTransport = hourlyRadio && hourlyRadio.checked;
-            } else if (section.startsWith('transport_')) {
-                // For dynamic transport fields (transport_2, transport_3, etc.)
-                const transportIndex = section.split('_')[1];
-                hourlyRadio = document.querySelector(`input[name="day${day}_transport_${transportIndex}_service_type"][value="hourly"]`);
-                isHourlyTransport = hourlyRadio && hourlyRadio.checked;
-            } else {
-                // For other sections (entry, exit), not hourly transport
-                isHourlyTransport = false;
-            }
-            
-            // Get selected hours for hourly transport
-            let selectedHours = 1; // Default to 1 hour
-            if (isHourlyTransport) {
-                // Try to find the hours select field for both static and dynamic rows
-                let hoursSelect;
-                if (section === 'transport') {
-                    // Static transport field
-                    hoursSelect = document.querySelector(`select[name="day${day}_transport_hourly_selected_hours"]`);
-                } else if (section.startsWith('transport_')) {
-                    // Dynamic transport field
-                    const transportIndex = section.split('_')[1];
-                    hoursSelect = document.querySelector(`select[name="day${day}_transport_${transportIndex}_hourly_selected_hours"]`);
-                }
-                
-                if (hoursSelect && hoursSelect.value) {
-                    selectedHours = parseInt(hoursSelect.value) || 1;
-                    console.log(`Found selected hours for ${section}: ${selectedHours}`);
-                } else {
-                    console.log(`Hours select field not found for ${section}`);
-                }
-            }
-            
             if (selectedServiceType === 'Private') {
                 // For private service: price is per vehicle (not per person)
                 const isPrivate = true; // Set flag for private service
-                if (isHourlyTransport && isHourlyService) {
-                    // For hourly transport: base_price + (hourly_rate * selected_hours)
-                    totalPrice = displayPrice + (costPerHour * selectedHours);
-                } else {
-                    // For regular transport: just the base price
-                    totalPrice = displayPrice;
-                }
+                totalPrice = displayPrice;
                 
                 if (isHourlyService) {
                         // Get adults and children values for display
                         const adults = parseInt(document.getElementById('adults')?.value) || 0;
                         const children = parseInt(document.getElementById('children')?.value) || 0;
                         
-                    if (isHourlyTransport) {
-                        const hourlyCost = costPerHour * selectedHours;
-                        const totalHourlyPrice = displayPrice + hourlyCost;
-                        pricingDescription = `
-                            <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
-                                <span style="color: #6c757d;"><i class="ri-car-line" style="color: #667eea; margin-right: 5px;"></i>Base (vehicle):</span>
-                                <span class="fw-semibold" style="color: #495057;">${getTourCurrency()} ${displayPrice.toFixed(2)}</span>
-                            </div>
-                            <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
-                                <span style="color: #6c757d;"><i class="ri-time-line" style="color: #667eea; margin-right: 5px;"></i>Hourly rate:</span>
-                                <span class="fw-semibold" style="color: #495057;">${getTourCurrency()} ${costPerHour.toFixed(2)} per hour</span>
-                            </div>
-                            <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
-                                <span style="color: #6c757d;"><i class="ri-calendar-check-line" style="color: #667eea; margin-right: 5px;"></i>Selected hours:</span>
-                                <span class="fw-semibold" style="color: #495057;">${selectedHours} hour${selectedHours > 1 ? 's' : ''}</span>
-                            </div>
-                            <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
-                                <span style="color: #6c757d;"><i class="ri-calculator-line" style="color: #667eea; margin-right: 5px;"></i>Hours charge:</span>
-                                <span class="fw-semibold" style="color: #495057;">${getTourCurrency()} ${costPerHour.toFixed(2)} × ${selectedHours} = ${getTourCurrency()} ${hourlyCost.toFixed(2)}</span>
-                            </div>
-                            <div class="d-flex justify-content-between align-items-center mb-2 pt-2 border-top border-1" style="font-size: 0.9rem;">
-                                <span style="color: #495057;" class="fw-semibold"><i class="ri-money-dollar-circle-line me-1" style="color: #667eea;"></i>Total:</span>
-                                <span class="fw-bold" style="color: #495057;">${getTourCurrency()} ${displayPrice.toFixed(2)} + ${getTourCurrency()} ${hourlyCost.toFixed(2)} = ${getTourCurrency()} ${totalHourlyPrice.toFixed(2)}</span>
-                            </div>
-                            <small style="color: #6c757d; font-size: 0.8rem; display: block; margin-top: 0.5rem;">
-                                <i class="ri-information-line me-1" style="color: #667eea;"></i>Private hourly: base + (hours × rate per hour).
-                            </small>
-                        `;
-                    } else {
                         pricingDescription = `
                             <div class="d-flex justify-content-between align-items-center mb-3">
                                 <span style="color: #6c757d;"><i class="ri-car-line" style="color: #667eea; margin-right: 5px;"></i>Vehicle Price:</span>
@@ -33349,7 +33497,6 @@
                                 <i class="ri-information-line me-1" style="color: #667eea;"></i>Private vehicle price is fixed. Hourly rate applies for extended services.
                             </small>
                         `;
-                    }
                 } else {
                         // Get adults and children values for display
                         const adults = parseInt(document.getElementById('adults')?.value) || 0;
@@ -33372,65 +33519,12 @@
             } else if (selectedServiceType === 'Shared') {
                 // For shared service: price is per person
                 const isPrivate = false; // Set flag for shared service
-                if (isHourlyTransport && isHourlyService) {
-                    let sharedHoursSelect;
-                    if (section === 'transport') {
-                        sharedHoursSelect = document.querySelector(`select[name="day${day}_transport_hourly_selected_hours"]`);
-                    } else if (section.startsWith('transport_')) {
-                        const transportIndex = section.split('_')[1];
-                        sharedHoursSelect = document.querySelector(`select[name="day${day}_transport_${transportIndex}_hourly_selected_hours"]`);
-                    }
-                    const sharedSelectedHours = sharedHoursSelect && sharedHoursSelect.value ? parseInt(sharedHoursSelect.value) || 1 : 1;
-                    const sharedPerPerson = displayPrice + (sharableCostPerHour * sharedSelectedHours);
-                    totalPrice = sharedPerPerson * totalGuests;
-                } else {
-                    totalPrice = displayPrice * totalGuests;
-                }
+                totalPrice = displayPrice * totalGuests;
                 
-                if (isHourlyService) {
-                        // Get adults and children values for display
-                        const adults = parseInt(document.getElementById('adults')?.value) || 0;
-                        const children = parseInt(document.getElementById('children')?.value) || 0;
-                        let sharedSelectedHours = 1;
-                        if (isHourlyTransport) {
-                            if (section === 'transport') {
-                                const sh = document.querySelector(`select[name="day${day}_transport_hourly_selected_hours"]`);
-                                sharedSelectedHours = sh && sh.value ? parseInt(sh.value) || 1 : 1;
-                            } else if (section.startsWith('transport_')) {
-                                const ti = section.split('_')[1];
-                                const sh = document.querySelector(`select[name="day${day}_transport_${ti}_hourly_selected_hours"]`);
-                                sharedSelectedHours = sh && sh.value ? parseInt(sh.value) || 1 : 1;
-                            }
-                        }
-                        const sharedHourlyCost = sharableCostPerHour * sharedSelectedHours;
-                        const sharedPerPerson = displayPrice + (isHourlyTransport ? sharedHourlyCost : 0);
-                        
-                    pricingDescription = `
-                        <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
-                            <span style="color: #6c757d;"><i class="ri-price-tag-3-line" style="color: #28a745; margin-right: 5px;"></i>Base (per person):</span>
-                            <span class="fw-semibold" style="color: #495057;">${getTourCurrency()} ${displayPrice.toFixed(2)}</span>
-                        </div>
-                        <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
-                            <span style="color: #6c757d;"><i class="ri-time-line" style="color: #28a745; margin-right: 5px;"></i>Hourly rate (per person):</span>
-                            <span class="fw-semibold" style="color: #495057;">${getTourCurrency()} ${sharableCostPerHour.toFixed(2)} × ${sharedSelectedHours} h = ${getTourCurrency()} ${sharedHourlyCost.toFixed(2)}</span>
-                        </div>
-                        <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
-                            <span style="color: #6c757d;"><i class="ri-group-line" style="color: #28a745; margin-right: 5px;"></i>Total guests:</span>
-                            <span class="fw-semibold" style="color: #495057;">${totalGuests} (${adults} adults, ${children} children)</span>
-                        </div>
-                        <div class="d-flex justify-content-between align-items-center mb-2 pt-2 border-top border-1" style="font-size: 0.85rem;">
-                            <span style="color: #495057;" class="fw-semibold"><i class="ri-calculator-line me-1" style="color: #28a745;"></i>Total:</span>
-                            <span class="fw-semibold" style="color: #495057;">(${getTourCurrency()} ${sharedPerPerson.toFixed(2)} per person) × ${totalGuests} = ${getTourCurrency()} ${(sharedPerPerson * totalGuests).toFixed(2)}</span>
-                        </div>
-                        <small style="color: #6c757d; font-size: 0.8rem; display: block; margin-top: 0.5rem;">
-                            <i class="ri-information-line me-1" style="color: #28a745;"></i>Shared hourly: (base + hours × rate) × guests.
-                        </small>
-                    `;
-                } else {
-                        // Get adults and children values for display
-                        const adults = parseInt(document.getElementById('adults')?.value) || 0;
-                        const children = parseInt(document.getElementById('children')?.value) || 0;
-                        
+                // Get adults and children values for display
+                const adults = parseInt(document.getElementById('adults')?.value) || 0;
+                const children = parseInt(document.getElementById('children')?.value) || 0;
+                
                 pricingDescription = `
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <span style="color: #6c757d;"><i class="ri-price-tag-3-line" style="color: #28a745; margin-right: 5px;"></i>Base Price:</span>
@@ -33442,10 +33536,9 @@
                     </div>
                 `;
             }
-            }
             
-            // Entry/Exit/Other Transport (non-hourly): Shared = total adult/child/infant; Private = unit prices and fixed total. Skip for hourly transport so hour-based calculation is shown.
-            if ((section.startsWith('entry') || section.startsWith('exit') || (section.startsWith('transport') && !isHourlyTransport)) && displayPrice > 0) {
+            // Entry/Exit/Other Transport: Shared = total adult/child/infant; Private = unit prices and fixed total.
+            if ((section.startsWith('entry') || section.startsWith('exit') || section.startsWith('transport')) && displayPrice > 0) {
                 // Use this section's adults/children for price display (not tour guests)
                 let adultsCount, childrenCount, infantsCount;
                 const entryAdultsEl = document.getElementById('day' + day + '_' + section + '_adults');
@@ -33531,7 +33624,7 @@
             priceDisplay.style.display = 'block';
             const isPrivate = priceType === 'Private';
             const pricingTitle = section.startsWith('entry') ? 'Entry Port Pricing' : (section.startsWith('exit') ? 'Exit Port Pricing' : 'Transport Pricing');
-            const pricingSubtitle = isHourlyTransport ? 'Hourly: base + (hours × rate per hour)' : ((section.startsWith('entry') || section.startsWith('exit') || section === 'transport') ? 'Vehicle pricing by adult / child / infant' : `${priceType} Service`);
+            const pricingSubtitle = (section.startsWith('entry') || section.startsWith('exit') || section === 'transport') ? 'Vehicle pricing by adult / child / infant' : `${priceType} Service`;
             
             // Additional debug to ensure price is set
             console.log('=== FINAL PRICE DISPLAY ===');
@@ -33603,28 +33696,6 @@
             `;
             
             console.log(`${priceType} service selected for day ${day}, section ${section}: ${(section.startsWith('entry') || section.startsWith('exit') || section === 'transport') ? 'SGD ' : '$'}${displayPrice} ${selectedServiceType === 'Private' ? 'per vehicle' : 'per person'}, Total: ${getTourCurrency()} ${totalPrice}`);
-            
-            // Add event listener to hours dropdown for hourly transport to update pricing when hours change
-            if (isHourlyTransport) {
-                let hoursSelect;
-                if (section === 'transport') {
-                    // Static transport field
-                    hoursSelect = document.querySelector(`select[name="day${day}_transport_hourly_selected_hours"]`);
-                } else if (section.startsWith('transport_')) {
-                    // Dynamic transport field
-                    const transportIndex = section.split('_')[1];
-                    hoursSelect = document.querySelector(`select[name="day${day}_transport_${transportIndex}_hourly_selected_hours"]`);
-                }
-                
-                if (hoursSelect && !hoursSelect.hasAttribute('data-listener-added')) {
-                    hoursSelect.setAttribute('data-listener-added', 'true');
-                    hoursSelect.addEventListener('change', function() {
-                        console.log('Hours changed, updating pricing...');
-                        updatePricing(day, section);
-                    });
-                    console.log(`Added event listener to hours dropdown for ${section}`);
-                }
-            }
             
             // Store pricing data in hidden fields
             let basePriceField, totalPriceField, guestCountField;
@@ -35207,7 +35278,7 @@
                                         data-sharable-cost-per-hour="${vehicle.sharable_cost_per_hour || ''}"
                                         data-seatingCapacity="${vehicle.seating_capacity || ''}"
                                         data-sharable="${vehicle.sharable || ''}"
-                                        data-image="${vehicle.image || ''}">
+                                        data-image="${vehicle.image || ''}"${window.buildHourlyPriceAttrs(vehicle)}>
                                         ${vehicleInfo}
                                     </option>`;
                                 });
@@ -37666,21 +37737,6 @@
                 });
             }
             
-            // Selected hours select
-            let selectedHoursSelect;
-            if (fieldIndex === 0) {
-                selectedHoursSelect = document.querySelector(`select[name="day${day}_transport_hourly_selected_hours"]`);
-            } else {
-                selectedHoursSelect = document.querySelector(`select[name="day${day}_transport_${fieldIndex}_hourly_selected_hours"]`);
-            }
-            
-            if (selectedHoursSelect) {
-                selectedHoursSelect.addEventListener('change', function() {
-                    console.log(`Selected hours changed for hourly transport day ${day}, index ${fieldIndex}`);
-                    enableSearchButton(day, sectionName, fieldIndex);
-                });
-            }
-            
             // Monitor hidden coordinate fields for changes (when Google Maps autocomplete updates them)
             let pickupLatField, pickupLngField;
             if (fieldIndex === 0) {
@@ -37922,6 +37978,7 @@
                     if (serviceTypeSelect) {
                         // Clear existing options and only add Private option for hourly transport
                         serviceTypeSelect.innerHTML = '<option value="">Select service type</option><option value="Private">Private</option>';
+                        serviceTypeSelect.value = 'Private'; // Only valid choice, so preselect it
                         serviceTypeSelect.disabled = false; // Keep it enabled for hourly
                         serviceTypeSelect.style.backgroundColor = ''; // Reset background
                         serviceTypeSelect.style.cursor = ''; // Reset cursor
@@ -38191,7 +38248,7 @@
                         data-vehicle-type="${vehicle.vehicle_type || ''}"
                         data-seatingCapacity="${entryOrExitMaxPax}"
                         data-sharable="${vehicle.sharable || ''}"
-                        data-image="${vehicle.image || ''}">
+                        data-image="${vehicle.image || ''}"${window.buildHourlyPriceAttrs(vehicle)}>
                         ${vehicleInfo}
                     </option>`;
                 });
