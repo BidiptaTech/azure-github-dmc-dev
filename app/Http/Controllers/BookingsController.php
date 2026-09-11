@@ -193,7 +193,12 @@ class BookingsController extends Controller
             if ($source) {
                 $sourceAttrs = $source->getAttributes();
                 foreach ($negotiationColumns as $col) {
-                    $tour->{$col} = $sourceAttrs[$col] ?? null;
+                    $value = $sourceAttrs[$col] ?? null;
+                    if ($col === 'currency_markups' && is_string($value)) {
+                        $decoded = json_decode($value, true);
+                        $value = (json_last_error() === JSON_ERROR_NONE) ? $decoded : $value;
+                    }
+                    $tour->{$col} = $value;
                 }
             }
             // Normalise discount_amount for downstream display.
