@@ -28,6 +28,7 @@ use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Crypt;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\VehicleZoneMappingExport;
+use App\Exports\VehicleHourlyPricesExport;
 
 class VehicleController extends Controller
 {
@@ -129,77 +130,242 @@ class VehicleController extends Controller
         if (!hasPermission('view vehicle')) {
             abort(403, 'You do not have permission to access this page.');
         }
+
         $user = auth()->user();
-        if ($user->role_id == 4) {
-            $dmc_ids = User::where('assistant_manager_id', $user->userId)->pluck('userId')->toArray();
-            $vehicles = Vehicle::with(['dmc', 'driver'])->orderBy('created_at', 'desc')->whereIn('dmc_id', $dmc_ids)->get();
-        } elseif ($user->role_id == 3) {
-            $vehicles = Vehicle::with(['dmc', 'driver'])->orderBy('created_at', 'desc')->get();
-        } elseif (in_array($user->role_id, [1, 2, 23, 20])) {
-            $vehicles = Vehicle::with(['dmc', 'driver'])->orderBy('created_at', 'desc')->get();
-        }
-        elseif ($user->role_id == 10) {
-            $dmc_ids = User::where('master_dmc_id', $user->userId)->get()->pluck('userId')->toArray();
-            $vehicles = Vehicle::with(['dmc', 'driver'])->orderBy('created_at', 'desc')->whereIn('dmc_id', $dmc_ids)->get();
-        }
-         elseif ($user->role_id == 11 || $user->role_id == 20) {
-            $vehicles = Vehicle::with(['dmc', 'driver'])->orderBy('created_at', 'desc')->where('dmc_id', $user->userId)->get();
-        }
-         elseif ($user->role_id == 20) {
-            $vehicles = Vehicle::with(['dmc', 'driver'])->orderBy('created_at', 'desc')->where('dmc_id', $user->userId)->get();
-        }
-        elseif(in_array($user->role_id, [25, 62, 110])){
-            if($user->role_id == 25){
-                $master_dmc_id = $user->created_by;
-            }
-            elseif($user->role_id == 62){
-                $product_head = User::where('userId', $user->created_by)->first();
-                $master_dmc_id = $product_head->created_by;
-            }
-            elseif($user->role_id == 110){
-                $product_manager = User::where('userId', $user->created_by)->first();
-                $product_head = User::where('userId', $product_manager->created_by)->first();
-                $master_dmc_id = $product_head->created_by;
-            }
-            
-            $dmc_ids = User::where('master_dmc_id', $master_dmc_id)->get()->pluck('userId')->toArray();
-            $vehicles = Vehicle::with(['dmc', 'driver'])->orderBy('created_at', 'desc')->whereIn('dmc_id', $dmc_ids)->get();
-        } 
-        elseif($user->role_id == 35 || $user->role_id == 130 || $user->role_id == 132 || $user->role_id == 133 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 137 || $user->role_id == 138){
-            $vehicles = Vehicle::with(['dmc', 'driver'])->orderBy('created_at', 'desc')->where('dmc_id', $user->created_by)->get();
-        }
-        elseif($user->role_id == 76 || $user->role_id == 139){
-            $product_head = User::where('userId', $user->created_by)->first();
-            $vehicles = Vehicle::with(['dmc', 'driver'])->orderBy('created_at', 'desc')->where('dmc_id', $product_head->created_by)->get();
+        $dmc_id = $this->resolveDmcIdForUser($user) ?: CommonHelper::getDmcId($user);
 
-        }
-        elseif($user->role_id == 111 || $user->role_id == 140){
-            $product_manager = User::where('userId', $user->created_by)->first();
-            $product_head = User::where('userId', $product_manager->created_by)->first();
-            $vehicles = Vehicle::with(['dmc', 'driver'])->orderBy('created_at', 'desc')->where('dmc_id', $product_head->created_by)->get();
-        }
+        $vehicles = $this->vehiclesForCurrentUser(['dmc', 'driver']);
 
-        if (! isset($vehicles)) {
-            $vehicles = collect();
-        }
-
+        $drivers = collect();
         $driversByDmc = collect();
-        if ($vehicles->isNotEmpty()) {
-            $dmcIds = $vehicles->pluck('dmc_id')->filter()->unique()->values();
-            $driversByDmc = Driver::whereIn('dmc_id', $dmcIds)
+        if (!empty($dmc_id)) {
+            $drivers = Driver::where('dmc_id', $dmc_id)
                 ->where(function ($q) {
                     $q->where('status', 1)->orWhere('is_active', 1);
                 })
                 ->orderBy('name')
-                ->get()
-                ->groupBy('dmc_id');
+                ->get();
+            $driversByDmc = $drivers->groupBy('dmc_id');
         }
 
-        $user = auth()->user();
-        $dmc_id = CommonHelper::getDmcId($user);
-        $drivers = Driver::where('dmc_id', $dmc_id)->get();
-
         return view('vehicles.vehicle', compact('vehicles', 'drivers', 'driversByDmc'));
+    }
+
+    /**
+     * Download Excel template with vehicle id/name/plate prefilled and hourly price columns.
+     * Identity columns are sheet-protected; only hourly prices are editable.
+     */
+    public function exportHourlyPricesFormat()
+    {
+        if (!hasPermission('edit vehicle') && !hasPermission('view vehicle')) {
+            abort(403, 'You do not have permission to access this page.');
+        }
+
+        $vehicles = $this->vehiclesForCurrentUser();
+        $rows = [];
+
+        foreach ($vehicles as $vehicle) {
+            $row = [
+                $vehicle->vehicle_id,
+                $vehicle->vehicle_name,
+                $vehicle->vehicle_plate_no,
+            ];
+            for ($hour = 1; $hour <= 12; $hour++) {
+                $field = 'hourly_price_' . $hour;
+                $row[] = $vehicle->{$field} ?? null;
+            }
+            $rows[] = $row;
+        }
+
+        $filename = 'vehicle_hourly_prices_' . now()->format('Ymd_His') . '.xlsx';
+
+        return Excel::download(new VehicleHourlyPricesExport($rows), $filename, \Maatwebsite\Excel\Excel::XLSX);
+    }
+
+    /**
+     * Import hourly prices (1–12 hrs) from the downloaded Excel format.
+     * Only updates hourly price columns; vehicle id/name/plate are ignored for writes.
+     */
+    public function importHourlyPrices(Request $request)
+    {
+        if (!hasPermission('edit vehicle')) {
+            abort(403, 'You do not have permission to access this page.');
+        }
+
+        $request->validate([
+            'import_file' => 'required|file|mimes:xlsx,xls,csv|max:20480',
+        ]);
+
+        $allowedVehicleIds = $this->vehiclesForCurrentUser()
+            ->pluck('vehicle_id')
+            ->map(fn ($id) => (string) $id)
+            ->all();
+
+        if ($allowedVehicleIds === []) {
+            return redirect()->route('vehicle.index')->with('error', 'No vehicles available to update.');
+        }
+
+        $sheets = Excel::toArray([], $request->file('import_file'));
+        $rows = $sheets[0] ?? [];
+
+        if (count($rows) < 2) {
+            return redirect()->route('vehicle.index')->with('error', 'The uploaded file is empty or has no data rows.');
+        }
+
+        $header = array_map(static fn ($value) => strtolower(trim((string) $value)), $rows[0]);
+        $columnIndex = static function (array $names) use ($header): ?int {
+            foreach ((array) $names as $name) {
+                $idx = array_search(strtolower($name), $header, true);
+                if ($idx !== false) {
+                    return $idx;
+                }
+            }
+            return null;
+        };
+
+        $vehicleIdIdx = $columnIndex(['vehicle_id', 'vehicle id']);
+        if ($vehicleIdIdx === null) {
+            return redirect()->route('vehicle.index')->with(
+                'error',
+                'Invalid Excel format. Please download the hourly prices template and use the same column headers.'
+            );
+        }
+
+        $priceIndexes = [];
+        for ($hour = 1; $hour <= 12; $hour++) {
+            $idx = $columnIndex([
+                'hourly_price_' . $hour,
+                'hourly price ' . $hour,
+                $hour . '_hour_price',
+                $hour . 'hr_price',
+                $hour . ' hour price',
+            ]);
+            if ($idx !== null) {
+                $priceIndexes[$hour] = $idx;
+            }
+        }
+
+        if ($priceIndexes === []) {
+            return redirect()->route('vehicle.index')->with(
+                'error',
+                'Invalid Excel format. Hourly price columns (hourly_price_1 … hourly_price_12) were not found.'
+            );
+        }
+
+        $updated = 0;
+        $skipped = 0;
+        $errors = [];
+
+        for ($i = 1; $i < count($rows); $i++) {
+            $row = $rows[$i];
+            if (!is_array($row)) {
+                $skipped++;
+                continue;
+            }
+
+            $rawVehicleId = $row[$vehicleIdIdx] ?? '';
+            if (is_numeric($rawVehicleId)) {
+                $vehicleId = (string) (int) round((float) $rawVehicleId);
+            } else {
+                $vehicleId = trim((string) $rawVehicleId);
+            }
+            if ($vehicleId === '') {
+                $skipped++;
+                continue;
+            }
+
+            if (!in_array($vehicleId, $allowedVehicleIds, true)) {
+                $skipped++;
+                $errors[] = "Row " . ($i + 1) . ": vehicle_id {$vehicleId} is not in your vehicle list.";
+                continue;
+            }
+
+            $vehicle = Vehicle::where('vehicle_id', $vehicleId)->first();
+            if (!$vehicle) {
+                $skipped++;
+                $errors[] = "Row " . ($i + 1) . ": vehicle_id {$vehicleId} not found.";
+                continue;
+            }
+
+            $updateData = [];
+            $rowHasInvalid = false;
+
+            foreach ($priceIndexes as $hour => $colIdx) {
+                $field = 'hourly_price_' . $hour;
+                if (!\Schema::hasColumn('vehicles', $field)) {
+                    continue;
+                }
+
+                $raw = $row[$colIdx] ?? null;
+                if ($raw === null || $raw === '') {
+                    $updateData[$field] = null;
+                    continue;
+                }
+
+                if (!is_numeric($raw)) {
+                    $rowHasInvalid = true;
+                    $errors[] = "Row " . ($i + 1) . ": {$field} must be numeric.";
+                    break;
+                }
+
+                $value = (float) $raw;
+                if ($value < 0) {
+                    $rowHasInvalid = true;
+                    $errors[] = "Row " . ($i + 1) . ": {$field} cannot be negative.";
+                    break;
+                }
+
+                $updateData[$field] = $value;
+            }
+
+            if ($rowHasInvalid || $updateData === []) {
+                $skipped++;
+                continue;
+            }
+
+            $vehicle->update($updateData);
+            $updated++;
+        }
+
+        $message = "Hourly prices import complete. Updated: {$updated}, skipped: {$skipped}.";
+        if ($errors !== []) {
+            $message .= ' Issues: ' . implode(' ', array_slice($errors, 0, 5));
+            if (count($errors) > 5) {
+                $message .= ' (+' . (count($errors) - 5) . ' more)';
+            }
+        }
+
+        return redirect()->route('vehicle.index')->with(
+            $updated > 0 ? 'success' : 'error',
+            $message
+        );
+    }
+
+    /**
+     * Vehicles belonging to the authenticated user's DMC only.
+     *
+     * @param  array<int, string>  $with
+     * @return \Illuminate\Support\Collection<int, Vehicle>
+     */
+    private function vehiclesForCurrentUser(array $with = [])
+    {
+        $user = auth()->user();
+        if (!$user) {
+            return collect();
+        }
+
+        // Prefer controller resolver, then CommonHelper (covers sales/product chains)
+        $dmcId = $this->resolveDmcIdForUser($user) ?: CommonHelper::getDmcId($user);
+
+        if (empty($dmcId)) {
+            return collect();
+        }
+
+        return Vehicle::query()
+            ->with($with)
+            ->where('dmc_id', $dmcId)
+            ->orderBy('created_at', 'desc')
+            ->get();
     }
 
     /**
@@ -443,7 +609,7 @@ class VehicleController extends Controller
     public function store(Request $request)
     {
         // Validate the incoming request data
-        $request->validate([
+        $request->validate(array_merge([
             'vehicle_name' => 'required|string|max:255',
             'vehicle_type' => 'required|string|max:255',
             'vehicle_model' => 'required|string|max:255',
@@ -456,7 +622,7 @@ class VehicleController extends Controller
             'city_tour_seating_capacity' => 'required|integer|min:1',
             // 'city_tour_guides' => 'required|integer|min:1',
             // Add validation for sharable prices when sharable is checked
-        ]);
+        ], $this->hourlyPriceValidationRules()));
 
         // $lastVehicle = Vehicle::withTrashed()->orderBy('created_at', 'desc')->first();
         // $vehicle_max_id = $lastVehicle->vehicle_id ?? 0;
@@ -525,7 +691,7 @@ class VehicleController extends Controller
             // If vehicle exists but is trashed, restore it
             if ($existingVehicle->trashed()) {
                 $existingVehicle->restore();
-                $existingVehicle->update([
+                $existingVehicle->update(array_merge([
                     'vehicle_name' => $request->input('vehicle_name'),
                     'vehicle_type' => $request->input('vehicle_type'),
                     'vehicle_model' => $request->input('vehicle_model'),
@@ -583,7 +749,7 @@ class VehicleController extends Controller
                     'restaurant_private_transport_price' => $request->input('restaurant_private_transport_price') ?? 0,
                     'restaurant_shared_transport_price' => $request->input('restaurant_shared_transport_price') ?? 0,
                     // 'status' => $status,
-                ]);
+                ], $this->hourlyPricesFromRequest($request)));
 
                 // LogActivityService::log('restore_vehicle', 'App\Models\Vehicle', $existingVehicle->id, $existingVehicle);
 
@@ -627,6 +793,7 @@ class VehicleController extends Controller
         $vehicle->cost_per_km_10_to_25 = $request->input('cost_per_km_10_to_25')?? 0;
         $vehicle->cost_per_km_above_25 = $request->input('cost_per_km_above_25')?? 0;
         $vehicle->cost_per_hour = $request->input('cost_per_hour')?? 0;
+        $this->applyHourlyPricesFromRequest($vehicle, $request);
         $vehicle->cancellation_cost = $request->input('cancellation_cost') ?? 0;
         $vehicle->cancellation_sell = $request->input('cancellation_sell') ?? 0;
         $vehicle->cancel_cost = $request->input('cancellation_sell') ?? $request->input('cancel_cost') ?? 0;
@@ -910,7 +1077,7 @@ class VehicleController extends Controller
         $vehiclePlateRules = ['required', 'string'];
         
         try {
-            $validatedData = $request->validate([
+            $validatedData = $request->validate(array_merge([
                 'vehicle_name' => 'required|string|max:255',
                 'vehicle_type' => 'required|string|max:255',
                 'vehicle_model' => 'required|string|max:255',
@@ -949,7 +1116,7 @@ class VehicleController extends Controller
                 // 'night_per_km_above_25_cost_price' => 'required|numeric',
                 'night_per_hour_cost_price' => 'required|numeric',
                 'night_cancel_cost_price' => 'nullable|numeric',
-            ],[
+            ], $this->hourlyPriceValidationRules()), [
                 'vehicle_plate_no.required' => 'Vehicle plate number is required.',
             ]);
         } catch (ValidationException $e) {
@@ -1017,6 +1184,7 @@ class VehicleController extends Controller
             $vehicle->cost_per_km_above_25 = $request->input('cost_per_km_above_25') ?? 0;
         }
         $vehicle->cost_per_hour = $request->input('cost_per_hour')?? 0;
+        $this->applyHourlyPricesFromRequest($vehicle, $request);
         $vehicle->cancellation_cost = $request->input('cancellation_cost') ?? 0;
         $vehicle->cancellation_sell = $request->input('cancellation_sell') ?? 0;
         $vehicle->cancel_cost = $request->input('cancellation_sell') ?? $request->input('cancel_cost') ?? 0;
@@ -2248,5 +2416,46 @@ class VehicleController extends Controller
         // Remove all non-alphanumeric characters (spaces, hyphens, slashes, etc.)
         // Convert to uppercase for case-insensitive comparison
         return preg_replace('/[^A-Za-z0-9]/', '', strtoupper($plateNumber));
+    }
+
+    /**
+     * Validation rules for hourly package prices (1–12 hrs).
+     */
+    private function hourlyPriceValidationRules(): array
+    {
+        $rules = [];
+        for ($hour = 1; $hour <= 12; $hour++) {
+            $rules['hourly_price_' . $hour] = 'nullable|numeric|min:0';
+        }
+
+        return $rules;
+    }
+
+    /**
+     * Build hourly price attributes from request for mass assignment / update arrays.
+     */
+    private function hourlyPricesFromRequest(Request $request): array
+    {
+        $data = [];
+        for ($hour = 1; $hour <= 12; $hour++) {
+            $field = 'hourly_price_' . $hour;
+            if (!\Schema::hasColumn('vehicles', $field)) {
+                continue;
+            }
+            $value = $request->input($field);
+            $data[$field] = ($value !== null && $value !== '') ? $value : null;
+        }
+
+        return $data;
+    }
+
+    /**
+     * Apply hourly package prices from request onto a vehicle model instance.
+     */
+    private function applyHourlyPricesFromRequest(Vehicle $vehicle, Request $request): void
+    {
+        foreach ($this->hourlyPricesFromRequest($request) as $field => $value) {
+            $vehicle->{$field} = $value;
+        }
     }
 }

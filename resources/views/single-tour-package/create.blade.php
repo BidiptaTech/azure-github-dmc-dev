@@ -971,6 +971,7 @@
 
                 // Master-DMC sibling map: country => inventory DMC id (Singapore→SG DMC, India→IN DMC)
                 $siblingDmcCountryMap = \App\Helpers\CommonHelper::getSiblingDmcCountryMap((int) $finalDmcId);
+                $siblingDmcCityMap = \App\Helpers\CommonHelper::getSiblingDmcCityMap((int) $finalDmcId);
             @endphp
             
             <!-- Main Form Card - All in One Row -->
@@ -2076,6 +2077,7 @@
                     // Master DMC multi-country inventory: city/country → sibling DMC id
                     window.operatingDmcId = parseInt('{{ (int) $finalDmcId }}', 10) || 0;
                     window.siblingDmcCountryMap = @json($siblingDmcCountryMap ?? []);
+                    window.siblingDmcCityMap = @json($siblingDmcCityMap ?? []);
                     window.resolveDmcIdForCountry = function (country) {
                         const c = String(country || '').trim();
                         const map = window.siblingDmcCountryMap || {};
@@ -2162,6 +2164,18 @@
                         } catch (e) { return false; }
                     }
                     window.resolveDmcIdForCity = function (cityName, countryHint) {
+                        const city = String(cityName || '').trim();
+                        const cityMap = window.siblingDmcCityMap || {};
+                        if (city) {
+                            const lower = city.toLowerCase();
+                            if (cityMap[city]) return parseInt(cityMap[city], 10) || 0;
+                            if (cityMap[lower]) return parseInt(cityMap[lower], 10) || 0;
+                            for (const key of Object.keys(cityMap)) {
+                                if (String(key).toLowerCase() === lower) {
+                                    return parseInt(cityMap[key], 10) || 0;
+                                }
+                            }
+                        }
                         // Prefer country belonging to THIS city — never trust a stale active-segment country
                         let country = window.resolveCountryForCityName(cityName);
                         if (!country) {
@@ -2196,9 +2210,54 @@
                         }
                         return window.resolveDmcIdForCity(city, countryFromCity) || window.operatingDmcId || 0;
                     };
+                    window.pickInventoryCityName = function (cityHint) {
+                        let city = String(cityHint || '').trim();
+                        if (!city || city.indexOf(',') === -1) {
+                            return city;
+                        }
+                        const parts = city.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+                        const active = (typeof window.getActiveServiceCity === 'function')
+                            ? String(window.getActiveServiceCity() || '').trim()
+                            : '';
+                        if (active) {
+                            const hit = parts.find(function (p) { return p.toLowerCase() === active.toLowerCase(); });
+                            if (hit) return hit;
+                        }
+                        if (typeof window.resolveDmcIdForCity === 'function') {
+                            for (let i = 0; i < parts.length; i++) {
+                                const id = window.resolveDmcIdForCity(parts[i]);
+                                if (id && String(id) !== String(window.operatingDmcId || '')) {
+                                    return parts[i];
+                                }
+                            }
+                        }
+                        return parts[0] || city;
+                    };
+                    window.withInventoryDmcPayload = function (payload, cityHint) {
+                        const base = payload && typeof payload === 'object' ? payload : {};
+                        let city = String(cityHint || base.city || (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : '') || document.getElementById('modal_local_transfer_city')?.value || document.getElementById('modal_exit_city')?.value || '').trim();
+                        if (typeof window.pickInventoryCityName === 'function') {
+                            city = window.pickInventoryCityName(city) || city;
+                        }
+                        let country = String(base.country || '').trim();
+                        if (!country && city && typeof window.resolveCountryForCityName === 'function') {
+                            country = String(window.resolveCountryForCityName(city) || '').trim();
+                        }
+                        const dmcId = (typeof window.getActiveServiceDmcId === 'function')
+                            ? window.getActiveServiceDmcId(city)
+                            : (window.operatingDmcId || '');
+                        return Object.assign({}, base, {
+                            city: city || base.city || '',
+                            country: country || base.country || '',
+                            dmc_id: dmcId || base.dmc_id || ''
+                        });
+                    };
                     /** Build hotel/room inventory query params for a city. */
                     window.buildInventoryDmcQuery = function (cityName) {
-                        const city = String(cityName || '').trim();
+                        let city = String(cityName || '').trim();
+                        if (typeof window.pickInventoryCityName === 'function') {
+                            city = window.pickInventoryCityName(city) || city;
+                        }
                         const country = city ? (window.resolveCountryForCityName(city) || '') : '';
                         const dmcId = (typeof window.getActiveServiceDmcId === 'function')
                             ? window.getActiveServiceDmcId(city)
@@ -14074,8 +14133,11 @@
             
             vehicleSelect.innerHTML = '<option value="">Loading vehicles...</option>';
             vehicleSelect.disabled = true;
+            const inv = (typeof window.buildInventoryDmcQuery === 'function')
+                ? window.buildInventoryDmcQuery(cityName)
+                : { qs: `city=${encodeURIComponent(cityName)}` };
             
-            fetch(`{{ route('fetch-vehicles-by-city-dmc') }}?city=${encodeURIComponent(cityName)}`)
+            fetch(`{{ route('fetch-vehicles-by-city-dmc') }}?${inv.qs}`)
                 .then(response => response.json())
                 .then(data => {
                     vehicleSelect.innerHTML = '<option value="">Select Vehicle</option>';
@@ -14503,23 +14565,19 @@
             const attractionId = attractionSelect.value;
             const pickupLocationOption = pickupLocationSelect.options[pickupLocationSelect.selectedIndex];
             const pickupLocationType = pickupLocationOption ? pickupLocationOption.getAttribute('data-type') : '';
-            // Prefer zone_id when available (zone-based pricing), otherwise fall back to raw value
-            const pickupLocationZoneId = pickupLocationOption ? pickupLocationOption.getAttribute('data-zone-id') : '';
-            const pickupLocationId = pickupLocationZoneId || pickupLocationSelect.value;
+            const pickupLocationId = pickupLocationSelect.value;
             const transferType = transferTypeSelect.value; // Private or Shared
             const transferWay = transferWaySelect.value; // One Way or Both Way
             const cityName = citySelect ? citySelect.value : '';
+            const country = (typeof window.resolveCountryForCityName === 'function')
+                ? (window.resolveCountryForCityName(cityName) || '')
+                : '';
+            const serviceDmcId = (typeof window.getActiveServiceDmcId === 'function')
+                ? (window.getActiveServiceDmcId(cityName) || '')
+                : '';
             
             // Get attraction data - try to fetch from API if not in option
             const attractionOption = attractionSelect.options[attractionSelect.selectedIndex];
-            let country = '';
-            
-            // Try to get country from city select or fetch attraction details
-            if (citySelect && citySelect.value) {
-                // We'll get country from the backend response
-            }
-            
-            // For now, we'll let the backend handle country lookup
             
             console.log('Fetching transfer pricing:', {
                 vehicleId,
@@ -14529,7 +14587,8 @@
                 transferType,
                 transferWay,
                 cityName,
-                country
+                country,
+                serviceDmcId
             });
             
             // Show loading state
@@ -14546,16 +14605,29 @@
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
                     'Accept': 'application/json'
                 },
-                body: JSON.stringify({
-                    vehicle_id: vehicleId,
-                    attraction_id: attractionId,
-                    pickup_location_id: pickupLocationId,
-                    pickup_location_type: pickupLocationType,
-                    transfer_type: transferType,
-                    transfer_way: transferWay,
-                    city: cityName,
-                    country: country
-                })
+                body: JSON.stringify((typeof window.withInventoryDmcPayload === 'function')
+                    ? window.withInventoryDmcPayload({
+                        vehicle_id: vehicleId,
+                        attraction_id: attractionId,
+                        pickup_location_id: pickupLocationId,
+                        pickup_location_type: pickupLocationType,
+                        transfer_type: transferType,
+                        transfer_way: transferWay,
+                        city: cityName,
+                        country: country,
+                        dmc_id: serviceDmcId
+                    }, cityName)
+                    : {
+                        vehicle_id: vehicleId,
+                        attraction_id: attractionId,
+                        pickup_location_id: pickupLocationId,
+                        pickup_location_type: pickupLocationType,
+                        transfer_type: transferType,
+                        transfer_way: transferWay,
+                        city: cityName,
+                        country: country,
+                        dmc_id: serviceDmcId
+                    })
             })
             .then(response => response.json())
             .then(data => {
@@ -14910,23 +14982,19 @@
             const restaurantId = restaurantSelect.value;
             const pickupLocationOption = pickupLocationSelect.options[pickupLocationSelect.selectedIndex];
             const pickupLocationType = pickupLocationOption ? pickupLocationOption.getAttribute('data-type') : '';
-            // Prefer zone_id when available (zone-based pricing), otherwise fall back to raw value
-            const pickupLocationZoneId = pickupLocationOption ? pickupLocationOption.getAttribute('data-zone-id') : '';
-            const pickupLocationId = pickupLocationZoneId || pickupLocationSelect.value;
+            const pickupLocationId = pickupLocationSelect.value;
             const transferType = transferTypeSelect.value; // Private or Shared
             const transferWay = transferWaySelect.value; // One Way or Both Way
             const cityName = citySelect ? citySelect.value : '';
+            const country = (typeof window.resolveCountryForCityName === 'function')
+                ? (window.resolveCountryForCityName(cityName) || '')
+                : '';
+            const serviceDmcId = (typeof window.getActiveServiceDmcId === 'function')
+                ? (window.getActiveServiceDmcId(cityName) || '')
+                : '';
             
             // Get restaurant data
             const restaurantOption = restaurantSelect.options[restaurantSelect.selectedIndex];
-            let country = '';
-            
-            // Try to get country from city select or fetch restaurant details
-            if (citySelect && citySelect.value) {
-                // We'll get country from the backend response
-            }
-            
-            // For now, we'll let the backend handle country lookup
             
             console.log('Fetching restaurant transfer pricing:', {
                 vehicleId,
@@ -14936,7 +15004,8 @@
                 transferType,
                 transferWay,
                 cityName,
-                country
+                country,
+                serviceDmcId
             });
             
             // Show loading state
@@ -14953,16 +15022,29 @@
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
                     'Accept': 'application/json'
                 },
-                body: JSON.stringify({
-                    vehicle_id: vehicleId,
-                    restaurant_id: restaurantId,
-                    pickup_location_id: pickupLocationId,
-                    pickup_location_type: pickupLocationType,
-                    transfer_type: transferType,
-                    transfer_way: transferWay,
-                    city: cityName,
-                    country: country
-                })
+                body: JSON.stringify((typeof window.withInventoryDmcPayload === 'function')
+                    ? window.withInventoryDmcPayload({
+                        vehicle_id: vehicleId,
+                        restaurant_id: restaurantId,
+                        pickup_location_id: pickupLocationId,
+                        pickup_location_type: pickupLocationType,
+                        transfer_type: transferType,
+                        transfer_way: transferWay,
+                        city: cityName,
+                        country: country,
+                        dmc_id: serviceDmcId
+                    }, cityName)
+                    : {
+                        vehicle_id: vehicleId,
+                        restaurant_id: restaurantId,
+                        pickup_location_id: pickupLocationId,
+                        pickup_location_type: pickupLocationType,
+                        transfer_type: transferType,
+                        transfer_way: transferWay,
+                        city: cityName,
+                        country: country,
+                        dmc_id: serviceDmcId
+                    })
             })
             .then(response => response.json())
             .then(data => {
@@ -15528,8 +15610,11 @@
             
             vehicleSelect.innerHTML = '<option value="">Loading vehicles...</option>';
             vehicleSelect.disabled = true;
+            const inv = (typeof window.buildInventoryDmcQuery === 'function')
+                ? window.buildInventoryDmcQuery(cityName)
+                : { qs: `city=${encodeURIComponent(cityName)}` };
             
-            fetch(`{{ route('fetch-vehicles-by-city-dmc') }}?city=${encodeURIComponent(cityName)}`)
+            fetch(`{{ route('fetch-vehicles-by-city-dmc') }}?${inv.qs}`)
                 .then(response => response.json())
                 .then(data => {
                     vehicleSelect.innerHTML = '<option value="">Select Vehicle</option>';
@@ -16946,8 +17031,11 @@
             
             vehicleSelect.innerHTML = '<option value="">Loading vehicles...</option>';
             vehicleSelect.disabled = true;
+            const inv = (typeof window.buildInventoryDmcQuery === 'function')
+                ? window.buildInventoryDmcQuery(cityName)
+                : { qs: `city=${encodeURIComponent(cityName)}` };
             
-            fetch(`{{ route('fetch-vehicles-by-city-dmc') }}?city=${encodeURIComponent(cityName)}`)
+            fetch(`{{ route('fetch-vehicles-by-city-dmc') }}?${inv.qs}`)
                 .then(response => response.json())
                 .then(data => {
                     vehicleSelect.innerHTML = '<option value="">Select Vehicle</option>';
@@ -32391,7 +32479,12 @@
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
                 },
-                body: JSON.stringify({
+                body: JSON.stringify((typeof window.withInventoryDmcPayload === 'function')
+                ? window.withInventoryDmcPayload({
+                    from_zone_id: fromZoneId,
+                    to_zone_id: toZoneId
+                })
+                : {
                     from_zone_id: fromZoneId,
                     to_zone_id: toZoneId
                 })
@@ -35392,13 +35485,23 @@
                 'Content-Type': 'application/json',
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
             },
-            body: JSON.stringify({
-                from_zone_id: actualFromZoneId,
-                to_zone_id: actualToZoneId,
-                from_zone_type: zone_status == 1 ? fromZoneType : '',
-                to_zone_type: zone_status == 1 ? toZoneType : '',
-                zone_status: zone_status
-            })
+            body: JSON.stringify((typeof window.withInventoryDmcPayload === 'function')
+                ? window.withInventoryDmcPayload({
+                    from_zone_id: actualFromZoneId,
+                    to_zone_id: actualToZoneId,
+                    from_zone_type: zone_status == 1 ? fromZoneType : '',
+                    to_zone_type: zone_status == 1 ? toZoneType : '',
+                    zone_status: zone_status
+                }, document.getElementById('modal_local_transfer_city')?.value
+                    || document.getElementById('modal_exit_city')?.value
+                    || (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : ''))
+                : {
+                    from_zone_id: actualFromZoneId,
+                    to_zone_id: actualToZoneId,
+                    from_zone_type: zone_status == 1 ? fromZoneType : '',
+                    to_zone_type: zone_status == 1 ? toZoneType : '',
+                    zone_status: zone_status
+                })
         })
             .then(response => response.json())
             .then(data => {
@@ -38021,13 +38124,23 @@
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
                 },
-                body: JSON.stringify({
+                body: JSON.stringify((typeof window.withInventoryDmcPayload === 'function')
+                    ? window.withInventoryDmcPayload({
                     from_zone_id: actualFromZoneId,
                     to_zone_id: actualToZoneId,
                     from_zone_type: zone_status == 1 ? fromZoneType : '',
                     to_zone_type: zone_status == 1 ? toZoneType : '',
                     zone_status: zone_status
-                })
+                    }, (typeof window.getTransportRowCity === 'function' ? window.getTransportRowCity(day, 0) : '')
+                        || document.getElementById('modal_local_transfer_city')?.value
+                        || (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : ''))
+                    : {
+                    from_zone_id: actualFromZoneId,
+                    to_zone_id: actualToZoneId,
+                    from_zone_type: zone_status == 1 ? fromZoneType : '',
+                    to_zone_type: zone_status == 1 ? toZoneType : '',
+                    zone_status: zone_status
+                    })
             })
                 .then(response => response.json())
                 .then(data => {

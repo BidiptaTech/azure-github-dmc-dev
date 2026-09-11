@@ -1858,13 +1858,21 @@ function searchLocalTransferVehicles(day, section) {
             'Content-Type': 'application/json',
             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
         },
-        body: JSON.stringify({
+        body: JSON.stringify((typeof window.withInventoryDmcPayload === 'function')
+            ? window.withInventoryDmcPayload({
             from_zone_id: actualFromZoneId,
             to_zone_id: actualToZoneId,
             from_zone_type: zone_status == 1 ? fromZoneType : '',
             to_zone_type: zone_status == 1 ? toZoneType : '',
             zone_status: zone_status
-        })
+            })
+            : {
+            from_zone_id: actualFromZoneId,
+            to_zone_id: actualToZoneId,
+            from_zone_type: zone_status == 1 ? fromZoneType : '',
+            to_zone_type: zone_status == 1 ? toZoneType : '',
+            zone_status: zone_status
+            })
     })
         .then(response => response.json())
         .then(data => {

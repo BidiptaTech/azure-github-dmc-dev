@@ -707,9 +707,20 @@ class AttractionController extends Controller
 
         $allAttractions = $allAttractionsQuery->get();
 
-        $selectedAttractions = $allAttractions->filter(function ($attraction) use ($dmc_id) {
-            return $attraction->hasSelectedByDmc($dmc_id);
-        });
+        $dmcFamilyIds = CommonHelper::getSiblingDmcIds($dmc_id);
+        if ($dmcFamilyIds === []) {
+            $dmcFamilyIds = [(int) $dmc_id];
+        }
+
+        $selectedAttractions = CommonHelper::whereJsonContainsDmcIds(
+            Attraction::where('status', 1)->orderBy('created_at', 'desc'),
+            $dmcFamilyIds
+        )
+            ->get()
+            ->filter(function ($attraction) use ($dmcFamilyIds) {
+                return CommonHelper::modelSelectedByAnyDmc($attraction, $dmcFamilyIds);
+            })
+            ->values();
 
         $availableAttractions = $allAttractions->filter(function ($attraction) use ($dmc_id) {
             return !$attraction->hasSelectedByDmc($dmc_id);
@@ -745,7 +756,8 @@ class AttractionController extends Controller
             'availableAttractions',
             'selectedAttractions',
             'dmcCountry',
-            'allowedCities'
+            'allowedCities',
+            'dmc_id'
         ));
     }
 
@@ -880,16 +892,12 @@ class AttractionController extends Controller
                 ], 404);
             }
 
-            // Check if this DMC has selected this attraction
-            if (!$attraction->hasSelectedByDmc($dmc_id)) {
+            if (!CommonHelper::removeDmcFamilySelectionFromModel($attraction, $dmc_id)) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Attraction not selected by you.',
                 ], 400);
             }
-
-            // Remove the DMC ID from the attraction's dmc_id array
-            $attraction->removeDmcId($dmc_id);
 
             return response()->json([
                 'success' => true,

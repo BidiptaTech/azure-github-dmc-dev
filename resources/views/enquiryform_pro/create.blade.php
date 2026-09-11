@@ -1803,9 +1803,9 @@
                                 <thead>
                                     <tr>
                                         <th scope="col">City</th>
-                                        <th scope="col">Cur</th>
-                                        <th scope="col" class="enquiry-md-th-markup">Mk type</th>
-                                        <th scope="col" class="enquiry-md-th-markup">Mk value</th>
+                                        <th scope="col" class="enquiry-md-th-markup">Markup type</th>
+                                        <th scope="col" class="enquiry-md-th-markup">Hotel markup</th>
+                                        <th scope="col" class="enquiry-md-th-markup">Other markup</th>
                                         <th scope="col" class="enquiry-md-th-discount">Disc type</th>
                                         <th scope="col" class="enquiry-md-th-discount">Disc value</th>
                                     </tr>
@@ -10707,7 +10707,11 @@
         
         // Fetch hotels via AJAX
         console.log('Loading hotels for destination:', destination);
-        return fetch('{{ route("enquiry-form-pro.get-hotels") }}?destination=' + encodeURIComponent(destination), {
+        return fetch(
+            (typeof window.appendSiblingDmcQuery === 'function')
+                ? window.appendSiblingDmcQuery('{{ route("enquiry-form-pro.get-hotels") }}', destination)
+                : ('{{ route("enquiry-form-pro.get-hotels") }}?destination=' + encodeURIComponent(destination)),
+            {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
@@ -17616,7 +17620,11 @@
         
         // Make AJAX call to get attractions by destination
         console.log('Loading attractions for destination:', destination);
-        fetch(`{{ route('enquiry-form-pro.get-attractions') }}?destination=${encodeURIComponent(destination)}`)
+        fetch(
+            (typeof window.appendSiblingDmcQuery === 'function')
+                ? window.appendSiblingDmcQuery('{{ route("enquiry-form-pro.get-attractions") }}', destination)
+                : `{{ route('enquiry-form-pro.get-attractions') }}?destination=${encodeURIComponent(destination)}`
+        )
             .then(response => {
                 console.log('Attractions API response status:', response.status);
                 return response.json();
@@ -19183,7 +19191,11 @@
         console.log('Loading guides for destination:', destination);
         
         // Make AJAX call to get guides by destination
-        fetch(`{{ route('enquiry-form-pro.get-guides') }}?destination=${encodeURIComponent(destination)}`)
+        fetch(
+            (typeof window.appendSiblingDmcQuery === 'function')
+                ? window.appendSiblingDmcQuery('{{ route("enquiry-form-pro.get-guides") }}', destination)
+                : `{{ route('enquiry-form-pro.get-guides') }}?destination=${encodeURIComponent(destination)}`
+        )
             .then(response => {
                 console.log('Response status:', response.status);
                 if (!response.ok) {
@@ -19940,6 +19952,9 @@
         let url = `{{ route('enquiry-form-pro.get-miscellaneous') }}?city=${encodeURIComponent(city)}`;
         if (country) {
             url += `&country=${encodeURIComponent(country)}`;
+        }
+        if (typeof window.appendSiblingDmcQuery === 'function') {
+            url = window.appendSiblingDmcQuery(url, city, { cityParam: 'city' });
         }
         fetch(url)
             .then(response => {
@@ -21066,7 +21081,13 @@
         
         try {
             // Build the URL with numeric restaurant ID - use EnquiryFormPro route
-            const url = `{{ route('enquiry-form-pro.fetch-meals-by-restaurant') }}?restaurant_id=${restaurantId}`;
+            const mealCity = (typeof window.resolveEnquiryProActiveCity === 'function')
+                ? window.resolveEnquiryProActiveCity(document.getElementById('mealDestination')?.value)
+                : (document.getElementById('mealDestination')?.value || '');
+            let url = `{{ route('enquiry-form-pro.fetch-meals-by-restaurant') }}?restaurant_id=${restaurantId}`;
+            if (typeof window.appendSiblingDmcQuery === 'function') {
+                url = window.appendSiblingDmcQuery(url, mealCity, { cityParam: 'city' });
+            }
             console.log('Fetching meals from URL:', url);
             
             // Fetch meals from web route (uses session auth, better for Blade templates)
@@ -23712,6 +23733,26 @@
         console.log('  dropId:', dropId);
         console.log('  dropType:', dropType);
         console.log('  dmcId:', dmcId);
+        const earlyPickupType = String(pickupType || '').toLowerCase();
+        const earlyDropType = String(dropType || '').toLowerCase();
+        let earlyPreferredCity = '';
+        if (earlyPickupType === 'attraction' || earlyDropType === 'attraction') {
+            earlyPreferredCity = document.getElementById('tourDestination')?.value || '';
+        } else if (earlyPickupType === 'restaurant' || earlyDropType === 'restaurant') {
+            earlyPreferredCity = document.getElementById('mealDestination')?.value || '';
+        } else if (earlyPickupType === 'hotel' || earlyDropType === 'hotel') {
+            earlyPreferredCity = document.getElementById('hotelDestination')?.value || '';
+        } else if (earlyPickupType === 'port' || earlyDropType === 'port') {
+            earlyPreferredCity = document.getElementById('arrivalDepartureCity')?.value
+                || document.getElementById('localDestination')?.value || '';
+        }
+        const serviceCityForDmc = (typeof window.resolveEnquiryProActiveCity === 'function')
+            ? window.resolveEnquiryProActiveCity(earlyPreferredCity)
+            : earlyPreferredCity;
+        if (serviceCityForDmc && typeof window.getActiveServiceDmcId === 'function') {
+            dmcId = window.getActiveServiceDmcId(serviceCityForDmc) || dmcId;
+            console.log('  resolved sibling dmcId:', dmcId, 'city:', serviceCityForDmc);
+        }
         
         if (!vehicleId || !pickupId || !dropId || !dmcId) {
             console.warn('Missing required parameters, returning zero prices');
@@ -24217,7 +24258,33 @@
             // Query vehicle_zone_mappings directly for prices
             // Query: vehicle_id, (from_zone_id = pickupid AND to_zone_id = dropid) OR (from_zone_id = dropid AND to_zone_id = pickupid)
             // Also includes from_zone_type and to_zone_type to match SingleTourPackageController logic
-            let apiUrl = `{{ route('enquiry-form-pro.get-zone-prices') }}?vehicle_id=${encodeURIComponent(vehicleId)}&pickup_id=${encodeURIComponent(actualPickupId)}&drop_id=${encodeURIComponent(actualDropId)}&pickup_type=${encodeURIComponent(actualPickupType || '')}&drop_type=${encodeURIComponent(actualDropType || '')}&dmc_id=${encodeURIComponent(dmcId)}`;
+            const pickupTypeForCity = String(actualPickupType || pickupType || '').toLowerCase();
+            const dropTypeForCity = String(actualDropType || dropType || '').toLowerCase();
+            let preferredCity = '';
+            if (pickupTypeForCity === 'attraction' || dropTypeForCity === 'attraction') {
+                preferredCity = document.getElementById('tourDestination')?.value || '';
+            } else if (pickupTypeForCity === 'restaurant' || dropTypeForCity === 'restaurant') {
+                preferredCity = document.getElementById('mealDestination')?.value || '';
+            } else if (pickupTypeForCity === 'hotel' || dropTypeForCity === 'hotel') {
+                preferredCity = document.getElementById('hotelDestination')?.value || '';
+            } else if (pickupTypeForCity === 'port' || dropTypeForCity === 'port') {
+                preferredCity = document.getElementById('arrivalDepartureCity')?.value
+                    || document.getElementById('localDestination')?.value || '';
+            } else {
+                preferredCity = document.getElementById('localDestination')?.value || '';
+            }
+            const serviceCity = (typeof window.resolveEnquiryProActiveCity === 'function')
+                ? window.resolveEnquiryProActiveCity(preferredCity)
+                : preferredCity;
+            const resolvedDmcId = (serviceCity && typeof window.getActiveServiceDmcId === 'function')
+                ? (window.getActiveServiceDmcId(serviceCity) || dmcId)
+                : dmcId;
+            let apiUrl = `{{ route('enquiry-form-pro.get-zone-prices') }}?vehicle_id=${encodeURIComponent(vehicleId)}&pickup_id=${encodeURIComponent(actualPickupId)}&drop_id=${encodeURIComponent(actualDropId)}&pickup_type=${encodeURIComponent(actualPickupType || '')}&drop_type=${encodeURIComponent(actualDropType || '')}&dmc_id=${encodeURIComponent(resolvedDmcId)}`;
+            if (serviceCity) apiUrl += `&city=${encodeURIComponent(serviceCity)}`;
+            if (typeof resolveCountryForCity === 'function') {
+                const serviceCountry = resolveCountryForCity(serviceCity);
+                if (serviceCountry) apiUrl += `&country=${encodeURIComponent(serviceCountry)}`;
+            }
             if (pickupZoneIdHint) apiUrl += `&pickup_zone_id=${encodeURIComponent(pickupZoneIdHint)}`;
             if (dropZoneIdHint) apiUrl += `&drop_zone_id=${encodeURIComponent(dropZoneIdHint)}`;
             console.log('API URL:', apiUrl);
@@ -25916,7 +25983,7 @@
                     : String(hotel.destination || hotel.city || '').trim();
                 
                 rows.push(`
-                    <tr data-currency="${hotelCurrency || ''}" data-city="${hotelCity || ''}">
+                    <tr data-currency="${hotelCurrency || ''}" data-city="${hotelCity || ''}" data-row-kind="hotel">
                         <td style="padding: 3px 5px; border-right: 2px solid #dee2e6;">
                             <input type="checkbox" style="width: 12px; height: 12px; margin-right: 3px;">
                             ${hotel.hotelName}
@@ -25997,7 +26064,7 @@
                 ? String(selectedDestinations[0] || '').trim()
                 : '';
             rows.push(`
-                <tr data-currency="${pkgCurrency || ''}" data-city="${pkgCity || ''}">
+                <tr data-currency="${pkgCurrency || ''}" data-city="${pkgCity || ''}" data-row-kind="other">
                     <td style="padding: 3px 5px; border-right: 2px solid #dee2e6;">
                         <input type="checkbox" style="width: 12px; height: 12px; margin-right: 3px;">
                         Package Total
@@ -26475,6 +26542,12 @@
             let markupType = settings.markup_type || '';
             let discountType = settings.discount_type || '';
             let discountValue = parseFloat(settings.discount_value || 0) || 0;
+            const rowKind = String(row.getAttribute('data-row-kind') || '').toLowerCase();
+            const hotelMk = settings.hotel_markup != null ? (parseFloat(settings.hotel_markup) || 0) : null;
+            const otherMk = settings.other_markup != null ? (parseFloat(settings.other_markup) || 0) : null;
+            if (hotelMk != null || otherMk != null) {
+                markupValue = (rowKind === 'other') ? (otherMk || 0) : (hotelMk || 0);
+            }
             if (discountType === 'foc') {
                 // FOC is informational only — do not subtract from sell columns
                 discountValue = 0;

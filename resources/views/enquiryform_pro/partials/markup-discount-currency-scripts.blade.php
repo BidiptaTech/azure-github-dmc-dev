@@ -246,7 +246,9 @@
                 currency = String(resolveCurrencyForCountry(country) || '').trim().toUpperCase();
             }
             return { city: city, country: country || '', currency: currency };
-        }).filter(function (x) { return !!x.city; });
+        }).filter(function (x) {
+            return !!x.city && String(x.city).indexOf('__lite_markup_pad__') !== 0;
+        });
     }
     window.getEnquiryProCityMarkupTargets = getEnquiryProCityMarkupTargets;
 
@@ -313,6 +315,8 @@
         return {
             markup_type: document.getElementById('markupType')?.value || '',
             markup_value: parseFloat(document.getElementById('markupValue')?.value || 0) || 0,
+            hotel_markup: parseFloat(document.getElementById('markupValue')?.value || 0) || 0,
+            other_markup: 0,
             discount_type: discountType,
             discount_value: discountValue
         };
@@ -412,6 +416,11 @@
 
     function syncActiveCurrencyMarkupToStore() {
         if (window._enquiryProCurrencyMdLoading) return;
+        const body = document.getElementById('enquiryProCityMarkupBody');
+        if (body && body.querySelector('tr[data-city]')) {
+            syncMultiCityRowsToStore();
+            return;
+        }
         if (isEnquiryProMultiCity()) {
             syncMultiCityRowsToStore();
             return;
@@ -511,13 +520,19 @@
         const currency = target.currency || '';
         const treatFoc = isTreatFocDiscountActive();
         const mt = entry.markup_type || '';
-        const mv = entry.markup_value || 0;
+        const hotelMk = entry.hotel_markup != null
+            ? (parseFloat(entry.hotel_markup) || 0)
+            : (parseFloat(entry.markup_value || 0) || 0);
+        const otherMk = entry.other_markup != null
+            ? (parseFloat(entry.other_markup) || 0)
+            : 0;
         let dt = treatFoc ? 'foc' : ((entry.discount_type === 'foc') ? '' : (entry.discount_type || ''));
         let dv = treatFoc ? focDiscountAmountForCity(city) : ((dt === 'foc') ? 0 : (entry.discount_value || 0));
         const markupDisabled = mt ? '' : 'disabled';
         const discountTypeDisabled = treatFoc ? 'disabled' : '';
         const discountDisabled = (!dt || dt === 'foc' || treatFoc) ? 'disabled' : '';
         const focClass = dt === 'foc' ? ' is-foc-locked' : '';
+        const suffix = (mt === 'flat') ? (currency || 'AMT') : '%';
         const label = currency
             ? (city + ' · ' + currency + (country ? ' (' + country + ')' : ''))
             : city;
@@ -530,7 +545,6 @@
             + (country ? '<span class="enquiry-md-city__meta">' + escapeHtml(country) + '</span>' : '')
             + '</div>'
             + '</td>'
-            + '<td><span class="enquiry-md-badge">' + escapeHtml(currency || '—') + '</span></td>'
             + '<td class="enquiry-md-cell-markup">'
             + '<select class="city-markup-type enquiry-md-control" onchange="handleCityMarkupRowChange(this)">'
             + '<option value=""' + (!mt ? ' selected' : '') + '>Type</option>'
@@ -539,8 +553,18 @@
             + '</select>'
             + '</td>'
             + '<td class="enquiry-md-cell-markup">'
-            + '<input type="number" class="city-markup-value enquiry-md-control" value="' + mv + '" step="1" min="0" ' + markupDisabled
+            + '<div class="enquiry-md-markup-input">'
+            + '<input type="number" class="city-hotel-markup enquiry-md-control" value="' + hotelMk + '" step="1" min="0" ' + markupDisabled
             + ' placeholder="0" oninput="handleCityMarkupRowChange(this)">'
+            + '<span class="city-markup-suffix">' + escapeHtml(suffix) + '</span>'
+            + '</div>'
+            + '</td>'
+            + '<td class="enquiry-md-cell-markup">'
+            + '<div class="enquiry-md-markup-input">'
+            + '<input type="number" class="city-other-markup enquiry-md-control" value="' + otherMk + '" step="1" min="0" ' + markupDisabled
+            + ' placeholder="0" oninput="handleCityMarkupRowChange(this)">'
+            + '<span class="city-markup-suffix">' + escapeHtml(suffix) + '</span>'
+            + '</div>'
             + '</td>'
             + '<td class="enquiry-md-cell-discount">'
             + '<select class="city-discount-type enquiry-md-control" onchange="handleCityMarkupRowChange(this)" ' + discountTypeDisabled + '>'
@@ -638,32 +662,16 @@
         const multiWrap = document.getElementById('enquiryProMarkupMultiWrap');
         const body = document.getElementById('enquiryProCityMarkupBody');
         const targets = getEnquiryProCityMarkupTargets();
-        const multi = targets.length > 1;
+        const hasCities = targets.length >= 1;
 
-        if (singleWrap) singleWrap.style.display = multi ? 'none' : 'block';
-        if (multiWrap) multiWrap.style.display = multi ? 'block' : 'none';
+        if (singleWrap) singleWrap.style.display = 'none';
+        if (multiWrap) multiWrap.style.display = hasCities ? 'block' : 'none';
 
         const countEl = document.getElementById('enquiryProMarkupCityCount');
         if (countEl) countEl.textContent = String(targets.length || 0);
 
-        if (!multi) {
-            // Keep single-city controls in sync with store for the one city
-            if (targets[0]) {
-                const t = targets[0];
-                if (!window.enquiryProCityMarkups[t.city]) {
-                    // Seed from current single inputs if store empty
-                    const inputs = readSingleMarkupDiscountInputs();
-                    window.enquiryProCityMarkups[t.city] = emptyMarkupDiscountEntry(Object.assign({}, t, inputs));
-                    if (t.currency) {
-                        window.enquiryProCurrencyMarkups[t.currency] = window.enquiryProCityMarkups[t.city];
-                    }
-                } else {
-                    writeSingleMarkupDiscountInputs(window.enquiryProCityMarkups[t.city]);
-                }
-            }
-            if (typeof applyTreatFocDiscountToPricingUi === 'function') {
-                applyTreatFocDiscountToPricingUi();
-            }
+        if (!hasCities) {
+            if (body) body.innerHTML = '';
             return;
         }
 

@@ -4246,9 +4246,19 @@ class HotelController extends Controller
 
         $allHotels = $allHotelsQuery->get();
 
-        $selectedHotels = $allHotels->filter(function ($hotel) use ($dmc_id) {
-            return $hotel->hasSelectedByDmc($dmc_id);
-        });
+        $dmcFamilyIds = CommonHelper::getSiblingDmcIds($dmc_id);
+        if ($dmcFamilyIds === []) {
+            $dmcFamilyIds = [(int) $dmc_id];
+        }
+
+        // Selected list is independent of the city/country picker: show every hotel
+        // this DMC (and sibling DMCs under the same Master) already selected.
+        $selectedHotels = CommonHelper::whereJsonContainsDmcIds(
+            Hotel::where('status', 1)->with(['category'])->orderBy('name', 'asc'),
+            $dmcFamilyIds
+        )->get()->filter(function ($hotel) use ($dmcFamilyIds) {
+            return CommonHelper::modelSelectedByAnyDmc($hotel, $dmcFamilyIds);
+        })->values();
 
         $availableHotels = $allHotels->filter(function ($hotel) use ($dmc_id) {
             return !$hotel->hasSelectedByDmc($dmc_id);
@@ -4285,7 +4295,8 @@ class HotelController extends Controller
             'availableHotels',
             'selectedHotels',
             'dmcCountry',
-            'allowedCities'
+            'allowedCities',
+            'dmc_id'
         ));
     }
 
@@ -4423,16 +4434,12 @@ class HotelController extends Controller
                 ], 404);
             }
             
-            // Check if this DMC has selected this hotel
-            if (!$hotel->hasSelectedByDmc($dmc_id)) {
+            if (!CommonHelper::removeDmcFamilySelectionFromModel($hotel, $dmc_id)) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Hotel not selected by you.'
                 ], 400);
             }
-            
-            // Remove the DMC ID from the hotel's dmc_id array
-            $hotel->removeDmcId($dmc_id);
             
             return response()->json([
                 'success' => true,

@@ -2324,6 +2324,253 @@ class SingleTourPackageController extends Controller
     }
 
     /**
+     * City/country for a transfer route: request values, else hotel/attraction/restaurant/port.
+     *
+     * @return array{0: string, 1: string}
+     */
+    private function inferTransferCityCountry($fromId, $fromType, $toId, $toType, $fallbackCity = '', $fallbackCountry = ''): array
+    {
+        $city = trim((string) $fallbackCity);
+        $country = trim((string) $fallbackCountry);
+        if ($city !== '' && $country !== '') {
+            return [$city, $country];
+        }
+
+        $lookups = [
+            [strtolower(trim((string) $toType)), $toId],
+            [strtolower(trim((string) $fromType)), $fromId],
+        ];
+
+        foreach ($lookups as [$type, $id]) {
+            $id = trim((string) $id);
+            if ($id === '') {
+                continue;
+            }
+            if ($type === 'hotel') {
+                $row = Hotel::where('hotel_unique_id', $id)->first(['city', 'country']);
+                if ($row) {
+                    if ($city === '') {
+                        $city = trim((string) ($row->city ?? ''));
+                    }
+                    if ($country === '') {
+                        $country = trim((string) ($row->country ?? ''));
+                    }
+                }
+            } elseif ($type === 'attraction') {
+                $row = Attraction::where('attraction_id', $id)->first(['location', 'country']);
+                if ($row) {
+                    if ($city === '') {
+                        $city = trim((string) ($row->location ?? ''));
+                    }
+                    if ($country === '') {
+                        $country = trim((string) ($row->country ?? ''));
+                    }
+                }
+            } elseif ($type === 'restaurant') {
+                $row = Restaurant::where('restaurant_id', $id)->first(['city', 'country']);
+                if ($row) {
+                    if ($city === '') {
+                        $city = trim((string) ($row->city ?? ''));
+                    }
+                    if ($country === '') {
+                        $country = trim((string) ($row->country ?? ''));
+                    }
+                }
+            } elseif ($type === 'port') {
+                $row = Port::where('port_id', $id)->first(['country', 'city_id']);
+                if ($row) {
+                    if ($country === '') {
+                        $country = trim((string) ($row->country ?? ''));
+                    }
+                    if ($city === '' && !empty($row->city_id)) {
+                        $cityRow = City::where('city_id', $row->city_id)
+                            ->orWhere('id', $row->city_id)
+                            ->first(['name', 'country']);
+                        if ($cityRow) {
+                            $city = trim((string) ($cityRow->name ?? ''));
+                            if ($country === '') {
+                                $country = trim((string) ($cityRow->country ?? ''));
+                            }
+                        }
+                    }
+                }
+            }
+            if ($city !== '' && $country !== '') {
+                break;
+            }
+        }
+
+        return [$city, $country];
+    }
+
+    /**
+     * DMC-specific zone id for a hotel/attraction/restaurant (or pass-through numeric zone id).
+     */
+    private function zoneIdForEntity(string $type, $entityId, int $dmcId)
+    {
+        $type = ucfirst(strtolower(trim($type)));
+        $entityId = trim((string) $entityId);
+        if ($entityId === '' || $dmcId <= 0) {
+            return null;
+        }
+
+        if ($type === 'Hotel') {
+            $hotel = Hotel::where('hotel_unique_id', $entityId)->first();
+            if ($hotel) {
+                return $hotel->getZoneForDmc($dmcId);
+            }
+            return is_numeric($entityId) ? $entityId : null;
+        }
+        if ($type === 'Attraction') {
+            $attraction = Attraction::where('attraction_id', $entityId)->first();
+            if ($attraction) {
+                return $attraction->getZoneForDmc($dmcId);
+            }
+            return is_numeric($entityId) ? $entityId : null;
+        }
+        if ($type === 'Restaurant') {
+            $restaurant = Restaurant::where('restaurant_id', $entityId)->first();
+            if ($restaurant) {
+                return $restaurant->getZoneForDmc($dmcId);
+            }
+            return is_numeric($entityId) ? $entityId : null;
+        }
+
+        return is_numeric($entityId) ? $entityId : null;
+    }
+
+    /**
+     * Zone IDs to try for hotel/attraction/restaurant pricing (DMC zone first, then assigned fallbacks).
+     */
+    private function zoneCandidatesForEntity(string $type, $entityId, int $dmcId): array
+    {
+        $type = ucfirst(strtolower(trim($type)));
+        $entityId = trim((string) $entityId);
+        if ($entityId === '') {
+            return [];
+        }
+
+        $ids = [];
+        if ($type === 'Hotel') {
+            $hotel = Hotel::where('hotel_unique_id', $entityId)->first();
+            if ($hotel && method_exists($hotel, 'getZoneCandidatesForDmc')) {
+                $ids = $hotel->getZoneCandidatesForDmc($dmcId);
+            }
+        } elseif ($type === 'Attraction') {
+            $attraction = Attraction::where('attraction_id', $entityId)->first();
+            if ($attraction && method_exists($attraction, 'getZoneCandidatesForDmc')) {
+                $ids = $attraction->getZoneCandidatesForDmc($dmcId);
+            }
+        } elseif ($type === 'Restaurant') {
+            $restaurant = Restaurant::where('restaurant_id', $entityId)->first();
+            if ($restaurant && method_exists($restaurant, 'getZoneCandidatesForDmc')) {
+                $ids = $restaurant->getZoneCandidatesForDmc($dmcId);
+            }
+        } elseif ($type === 'Port') {
+            return [$entityId];
+        }
+
+        if ($entityId !== '' && !in_array($entityId, $ids, true)) {
+            $ids[] = $entityId;
+        }
+
+        return array_values(array_unique(array_filter($ids, function ($id) {
+            return $id !== null && $id !== '';
+        })));
+    }
+
+    /**
+     * Bidirectional vehicle_zone_mappings row for a pickup/drop pair.
+     */
+    private function findVehicleZoneMapping($vehicleId, string $fromType, $fromId, string $toType, $toId, int $dmcId)
+    {
+        $fromType = ucfirst(strtolower(trim($fromType)));
+        $toType = ucfirst(strtolower(trim($toType)));
+        $fromCands = $this->zoneCandidatesForEntity($fromType, $fromId, $dmcId);
+        $toCands = $this->zoneCandidatesForEntity($toType, $toId, $dmcId);
+        $fromNorm = strtolower($fromType);
+        $toNorm = strtolower($toType);
+        $vehicleId = (string) $vehicleId;
+
+        $findForPair = function ($fromZoneId, $toZoneId) use ($vehicleId, $fromNorm, $toNorm) {
+            $mapping = VehicleZoneMapping::where('vehicle_id', $vehicleId)
+                ->whereNull('deleted_at')
+                ->where(function ($query) use ($fromZoneId, $toZoneId, $fromNorm, $toNorm) {
+                    $query->where(function ($q) use ($fromZoneId, $toZoneId, $fromNorm, $toNorm) {
+                        $q->where('from_zone_id', $fromZoneId)->where('to_zone_id', $toZoneId);
+                        if ($fromNorm !== '') {
+                            $q->whereRaw('LOWER(TRIM(from_zone_type)) = ?', [$fromNorm]);
+                        }
+                        if ($toNorm !== '') {
+                            $q->whereRaw('LOWER(TRIM(to_zone_type)) = ?', [$toNorm]);
+                        }
+                    })->orWhere(function ($q) use ($fromZoneId, $toZoneId, $fromNorm, $toNorm) {
+                        $q->where('from_zone_id', $toZoneId)->where('to_zone_id', $fromZoneId);
+                        if ($toNorm !== '') {
+                            $q->whereRaw('LOWER(TRIM(from_zone_type)) = ?', [$toNorm]);
+                        }
+                        if ($fromNorm !== '') {
+                            $q->whereRaw('LOWER(TRIM(to_zone_type)) = ?', [$fromNorm]);
+                        }
+                    });
+                })
+                ->first();
+
+            if (!$mapping) {
+                $mapping = VehicleZoneMapping::where('vehicle_id', $vehicleId)
+                    ->whereNull('deleted_at')
+                    ->where(function ($q) use ($fromZoneId, $toZoneId) {
+                        $q->where(function ($qq) use ($fromZoneId, $toZoneId) {
+                            $qq->where('from_zone_id', $fromZoneId)->where('to_zone_id', $toZoneId);
+                        })->orWhere(function ($qq) use ($fromZoneId, $toZoneId) {
+                            $qq->where('from_zone_id', $toZoneId)->where('to_zone_id', $fromZoneId);
+                        });
+                    })
+                    ->first();
+            }
+
+            return $mapping;
+        };
+
+        $mapping = null;
+        foreach ($fromCands as $fromCand) {
+            foreach ($toCands as $toCand) {
+                $candidate = $findForPair($fromCand, $toCand);
+                if (!$candidate) {
+                    continue;
+                }
+                $pp = max((float) ($candidate->private_price ?? 0), (float) ($candidate->private_cost_price ?? 0));
+                $sp = max((float) ($candidate->shared_price ?? 0), (float) ($candidate->shared_cost_price ?? 0));
+                if ($pp > 0 || $sp > 0) {
+                    return $candidate;
+                }
+                if (!$mapping) {
+                    $mapping = $candidate;
+                }
+            }
+        }
+
+        return $mapping;
+    }
+
+    private function mappingPriceForTransferType($mapping, string $transferType): float
+    {
+        if (strcasecmp($transferType, 'Shared') === 0) {
+            $price = (float) ($mapping->shared_cost_price ?? 0);
+            if ($price <= 0) {
+                $price = (float) ($mapping->shared_price ?? 0);
+            }
+            return $price;
+        }
+
+        $price = (float) ($mapping->private_cost_price ?? 0);
+        if ($price <= 0) {
+            $price = (float) ($mapping->private_price ?? 0);
+        }
+        return $price;
+    }
+
+    /**
      * Ports limited to DMC-accessible countries; optionally narrowed to one country.
      */
     private function getPortsForDmc(?string $countryName = null, ?int $cityId = null)
@@ -3876,14 +4123,32 @@ class SingleTourPackageController extends Controller
     public function fetchVehiclesByZones(Request $request)
     {
         try {
-            $user = User::where('userId', Auth::user()->userId)->first();
-            $dmcId = CommonHelper::getDmcId($user);
             $fromZoneId = $request->from_zone_id;
             $toZoneId = $request->to_zone_id;
             $fromZoneType = $request->from_zone_type;
             $toZoneType = $request->to_zone_type;
-            $city = $request->city;
+            $city = trim((string) ($request->city ?? $request->destination ?? ''));
+            $country = trim((string) ($request->country ?? ''));
+            [$city, $country] = $this->inferTransferCityCountry(
+                $fromZoneId,
+                $fromZoneType,
+                $toZoneId,
+                $toZoneType,
+                $city,
+                $country
+            );
+            $dmcId = $this->resolveInventoryDmcId(
+                $city !== '' ? $city : null,
+                $country !== '' ? $country : null,
+                $request->input('dmc_id') ?? CommonHelper::getDmcId(Auth::user())
+            );
             $zone_status = $request->zone_status;
+            if ($dmcId) {
+                $inventoryDmc = User::where('userId', $dmcId)->first(['userId', 'zone_on']);
+                if ($inventoryDmc && $inventoryDmc->zone_on !== null && $inventoryDmc->zone_on !== '') {
+                    $zone_status = $inventoryDmc->zone_on;
+                }
+            }
 
             
             if (!$dmcId) {
@@ -4015,9 +4280,15 @@ class SingleTourPackageController extends Controller
                                 'from_zone' => $mapping->fromZone->zone_name ?? '',
                                 'to_zone' => $mapping->toZone->zone_name ?? '',
                                 'mapping_id' => $mapping->mapping_id,
-                                // ✅ Zone mapping prices - use mapping prices
-                                'private_price' => $mapping->private_price ?? 0,
-                                'shared_price' => $mapping->shared_price ?? 0,
+                                // Zone mapping prices: sell first, then cost so Lite/Pro cost fields are never 0 when a mapping exists
+                                'private_price' => ((float) ($mapping->private_price ?? 0) > 0)
+                                    ? $mapping->private_price
+                                    : ($mapping->private_cost_price ?? 0),
+                                'shared_price' => ((float) ($mapping->shared_price ?? 0) > 0)
+                                    ? $mapping->shared_price
+                                    : ($mapping->shared_cost_price ?? 0),
+                                'private_cost_price' => $mapping->private_cost_price ?? 0,
+                                'shared_cost_price' => $mapping->shared_cost_price ?? 0,
                                 // Additional fields for consistency
                                 'dmc_id' => $vehicle->dmc_id,
                                 'city' => $vehicle->city,
@@ -4029,8 +4300,12 @@ class SingleTourPackageController extends Controller
                             // Prefer mapping with non-zero prices
                             $currentPrivatePrice = $vehiclesMap[$vehicleId]['private_price'] ?? 0;
                             $currentSharedPrice = $vehiclesMap[$vehicleId]['shared_price'] ?? 0;
-                            $newPrivatePrice = $mapping->private_price ?? 0;
-                            $newSharedPrice = $mapping->shared_price ?? 0;
+                            $newPrivatePrice = ((float) ($mapping->private_price ?? 0) > 0)
+                                ? $mapping->private_price
+                                : ($mapping->private_cost_price ?? 0);
+                            $newSharedPrice = ((float) ($mapping->shared_price ?? 0) > 0)
+                                ? $mapping->shared_price
+                                : ($mapping->shared_cost_price ?? 0);
                             
                             // Update if new mapping has prices and current doesn't, or if both have prices, keep the first one
                             if (($newPrivatePrice > 0 && $currentPrivatePrice == 0) || 
@@ -6338,6 +6613,9 @@ class SingleTourPackageController extends Controller
     public function fetchAttractionTransferPricing(Request $request)
     {
         try {
+            $pickupLocationType = ucfirst(strtolower(trim((string) $request->input('pickup_location_type', ''))));
+            $request->merge(['pickup_location_type' => $pickupLocationType]);
+
             $request->validate([
                 'vehicle_id' => 'required|string',
                 'attraction_id' => 'required|string',
@@ -6352,166 +6630,81 @@ class SingleTourPackageController extends Controller
             $vehicleId = $request->vehicle_id;
             $attractionId = $request->attraction_id;
             $pickupLocationId = $request->pickup_location_id;
-            $pickupLocationType = $request->pickup_location_type;
             $transferType = $request->transfer_type;
-            
-            $dmcId = CommonHelper::getDmcId(Auth::user());
+
+            $city = trim((string) $request->input('city', ''));
+            $country = trim((string) $request->input('country', ''));
+            $attraction = Attraction::where('attraction_id', $attractionId)->first();
+            if ($attraction) {
+                if ($city === '') {
+                    $city = trim((string) ($attraction->location ?? ''));
+                }
+                if ($country === '') {
+                    $country = trim((string) ($attraction->country ?? ''));
+                }
+            }
+            if ($city === '' || $country === '') {
+                [$city, $country] = $this->inferTransferCityCountry(
+                    $pickupLocationId,
+                    $pickupLocationType,
+                    $attractionId,
+                    'Attraction',
+                    $city,
+                    $country
+                );
+            }
+            $dmcId = $this->resolveInventoryDmcId(
+                $city !== '' ? $city : null,
+                $country !== '' ? $country : null,
+                $request->input('dmc_id')
+            );
             if (!$dmcId) {
                 return response()->json([
                     'success' => false,
                     'message' => 'DMC ID not found'
                 ], 400);
             }
-            
-            // Get attraction's zone_assignments
-            // Try both attraction_id and attraction_unique_id
-            $attraction = DB::table('attractions')
-                ->where('attraction_id', $attractionId)
-                ->first();
-            
+
             if (!$attraction) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Attraction not found'
                 ], 404);
             }
-            
-            $attractionZoneAssignments = json_decode($attraction->zone_assignments ?? '[]', true);
-            $attractionZoneId = null;
-            
-            // Find zone_id for current DMC from attraction's zone_assignments
-            foreach ($attractionZoneAssignments as $assignment) {
-                if (isset($assignment['dmc_id']) && $assignment['dmc_id'] == $dmcId) {
-                    $attractionZoneId = $assignment['zone_id'] ?? null;
-                    break;
-                }
-            }
-            
-            if (!$attractionZoneId) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Zone not found for attraction with current DMC'
-                ], 404);
-            }
-            
-            // Get pickup location's zone_assignments based on type
-            $pickupLocation = null;
-            $pickupZoneAssignments = [];
-            $pickupZoneId = null;
-            
-            if ($pickupLocationType === 'Hotel') {
-                $pickupLocation = DB::table('hotels')
-                    ->where('hotel_unique_id', $pickupLocationId)
-                    ->first();
-                if ($pickupLocation) {
-                    $pickupZoneAssignments = json_decode($pickupLocation->zone_assignments ?? '[]', true);
-                }
-            } elseif ($pickupLocationType === 'Attraction') {
-                $pickupLocation = DB::table('attractions')
-                    ->where('attraction_id', $pickupLocationId)
-                    ->first();
-                if ($pickupLocation) {
-                    $pickupZoneAssignments = json_decode($pickupLocation->zone_assignments ?? '[]', true);
-                }
-            } elseif ($pickupLocationType === 'Restaurant') {
-                $pickupLocation = DB::table('restaurants')
-                    ->where('restaurant_id', $pickupLocationId)
-                    ->first();
-                if ($pickupLocation) {
-                    $pickupZoneAssignments = json_decode($pickupLocation->zone_assignments ?? '[]', true);
-                }
-            }
-            
-            if (!$pickupLocation) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Pickup location not found'
-                ], 404);
-            }
-            
-            // Find zone_id for current DMC from pickup location's zone_assignments
-            foreach ($pickupZoneAssignments as $assignment) {
-                if (isset($assignment['dmc_id']) && $assignment['dmc_id'] == $dmcId) {
-                    $pickupZoneId = $assignment['zone_id'] ?? null;
-                    break;
-                }
-            }
-            
-            if (!$pickupZoneId) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Zone not found for pickup location with current DMC'
-                ], 404);
-            }
-            
-            // Determine zone types
-            $fromZoneType = $pickupLocationType; // Hotel, Attraction, or Restaurant
-            $toZoneType = 'Attraction'; // Always Attraction for dropoff
-            // Query vehicle_zone_mappings
-            $mapping = VehicleZoneMapping::where('vehicle_id', $vehicleId)
-                ->whereNull('deleted_at')
-                ->where(function ($q) use (
-                    $pickupZoneId,
-                    $attractionZoneId,
-                    $fromZoneType,
-                    $toZoneType
-                ) {
-                    // Case 1: from = pickup, to = attraction
-                    $q->where(function ($q1) use (
-                        $pickupZoneId,
-                        $attractionZoneId,
-                        $fromZoneType,
-                        $toZoneType
-                    ) {
-                        $q1->where('from_zone_id', $pickupZoneId)
-                        ->where('to_zone_id', $attractionZoneId)
-                        ->where('from_zone_type', $fromZoneType)
-                        ->where('to_zone_type', $toZoneType);
-                    })
 
-                    // Case 2: from = attraction, to = pickup
-                    ->orWhere(function ($q2) use (
-                        $pickupZoneId,
-                        $attractionZoneId,
-                        $fromZoneType,
-                        $toZoneType
-                    ) {
-                        $q2->where('from_zone_id', $attractionZoneId)
-                        ->where('to_zone_id', $pickupZoneId)
-                        ->where('from_zone_type', $toZoneType)
-                        ->where('to_zone_type', $fromZoneType);
-                    });
-                })
-                ->first();
+            $fromZoneType = $pickupLocationType;
+            $toZoneType = 'Attraction';
+            $mapping = $this->findVehicleZoneMapping(
+                $vehicleId,
+                $fromZoneType,
+                $pickupLocationId,
+                $toZoneType,
+                $attractionId,
+                $dmcId
+            );
             if (!$mapping) {
                 return response()->json([
                     'success' => false,
                     'message' => 'No pricing mapping found for this route'
                 ], 404);
             }
-            //dd($mapping); // Get the appropriate price based on transfer type
-            $price = 0;
-            if ($transferType === 'Private') {
-                $price = floatval($mapping->private_price ?? 0);
-            } elseif ($transferType === 'Shared') {
-                $price = floatval($mapping->shared_price ?? 0);
-            }
-            
+
+            $price = $this->mappingPriceForTransferType($mapping, $transferType);
             if ($price <= 0) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Price not available for this transfer type'
                 ], 404);
             }
-            
+
             return response()->json([
                 'success' => true,
                 'price' => $price,
                 'vehicle_id' => $vehicleId,
-                'from_zone_id' => $pickupZoneId,
-                'to_zone_id' => $attractionZoneId,
-                'from_zone_type' => $fromZoneType,
-                'to_zone_type' => $toZoneType,
+                'from_zone_id' => $mapping->from_zone_id,
+                'to_zone_id' => $mapping->to_zone_id,
+                'from_zone_type' => $mapping->from_zone_type,
+                'to_zone_type' => $mapping->to_zone_type,
                 'transfer_type' => $transferType
             ]);
             
@@ -6530,6 +6723,9 @@ class SingleTourPackageController extends Controller
     public function fetchRestaurantTransferPricing(Request $request)
     {
         try {
+            $pickupLocationType = ucfirst(strtolower(trim((string) $request->input('pickup_location_type', ''))));
+            $request->merge(['pickup_location_type' => $pickupLocationType]);
+
             $request->validate([
                 'vehicle_id' => 'required|string',
                 'restaurant_id' => 'required|string',
@@ -6544,165 +6740,81 @@ class SingleTourPackageController extends Controller
             $vehicleId = $request->vehicle_id;
             $restaurantId = $request->restaurant_id;
             $pickupLocationId = $request->pickup_location_id;
-            $pickupLocationType = $request->pickup_location_type;
             $transferType = $request->transfer_type;
-            
-            $dmcId = CommonHelper::getDmcId(Auth::user());
+
+            $city = trim((string) $request->input('city', ''));
+            $country = trim((string) $request->input('country', ''));
+            $restaurant = Restaurant::where('restaurant_id', $restaurantId)->first();
+            if ($restaurant) {
+                if ($city === '') {
+                    $city = trim((string) ($restaurant->city ?? ''));
+                }
+                if ($country === '') {
+                    $country = trim((string) ($restaurant->country ?? ''));
+                }
+            }
+            if ($city === '' || $country === '') {
+                [$city, $country] = $this->inferTransferCityCountry(
+                    $pickupLocationId,
+                    $pickupLocationType,
+                    $restaurantId,
+                    'Restaurant',
+                    $city,
+                    $country
+                );
+            }
+            $dmcId = $this->resolveInventoryDmcId(
+                $city !== '' ? $city : null,
+                $country !== '' ? $country : null,
+                $request->input('dmc_id')
+            );
             if (!$dmcId) {
                 return response()->json([
                     'success' => false,
                     'message' => 'DMC ID not found'
                 ], 400);
             }
-            
-            // Get restaurant's zone_assignments
-            // Try both restaurant_id and restaurant_unique_id
-            $restaurant = DB::table('restaurants')
-                ->where('restaurant_id', $restaurantId)
-                ->first();
-            
+
             if (!$restaurant) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Restaurant not found'
                 ], 404);
             }
-            
-            $restaurantZoneAssignments = json_decode($restaurant->zone_assignments ?? '[]', true);
-            $restaurantZoneId = null;
-            
-            // Find zone_id for current DMC from restaurant's zone_assignments
-            foreach ($restaurantZoneAssignments as $assignment) {
-                if (isset($assignment['dmc_id']) && $assignment['dmc_id'] == $dmcId) {
-                    $restaurantZoneId = $assignment['zone_id'] ?? null;
-                    break;
-                }
-            }
-            
-            if (!$restaurantZoneId) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Zone not found for restaurant with current DMC'
-                ], 404);
-            }
-            
-            // Get pickup location's zone_assignments based on type
-            $pickupLocation = null;
-            $pickupZoneAssignments = [];
-            $pickupZoneId = null;
-            
-            if ($pickupLocationType === 'Hotel') {
-                $pickupLocation = DB::table('hotels')
-                    ->where('hotel_unique_id', $pickupLocationId)
-                    ->first();
-                if ($pickupLocation) {
-                    $pickupZoneAssignments = json_decode($pickupLocation->zone_assignments ?? '[]', true);
-                }
-            } elseif ($pickupLocationType === 'Attraction') {
-                $pickupLocation = DB::table('attractions')
-                    ->where('attraction_id', $pickupLocationId)
-                    ->first();
-                if ($pickupLocation) {
-                    $pickupZoneAssignments = json_decode($pickupLocation->zone_assignments ?? '[]', true);
-                }
-            } elseif ($pickupLocationType === 'Restaurant') {
-                $pickupLocation = DB::table('restaurants')
-                    ->where('restaurant_id', $pickupLocationId)
-                    ->first();
-                if ($pickupLocation) {
-                    $pickupZoneAssignments = json_decode($pickupLocation->zone_assignments ?? '[]', true);
-                }
-            }
-            
-            if (!$pickupLocation) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Pickup location not found'
-                ], 404);
-            }
-            
-            // Find zone_id for current DMC from pickup location's zone_assignments
-            foreach ($pickupZoneAssignments as $assignment) {
-                if (isset($assignment['dmc_id']) && $assignment['dmc_id'] == $dmcId) {
-                    $pickupZoneId = $assignment['zone_id'] ?? null;
-                    break;
-                }
-            }
-            
-            if (!$pickupZoneId) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Zone not found for pickup location with current DMC'
-                ], 404);
-            }
-            
-            // Determine zone types
-            $fromZoneType = $pickupLocationType; // Hotel, Attraction, or Restaurant
-            $toZoneType = 'Restaurant'; // Always Restaurant for dropoff
-            // Query vehicle_zone_mappings
-            $mapping = VehicleZoneMapping::where('vehicle_id', $vehicleId)
-                ->whereNull('deleted_at')
-                ->where(function ($q) use (
-                    $pickupZoneId,
-                    $restaurantZoneId,
-                    $fromZoneType,
-                    $toZoneType
-                ) {
-                    // Case 1: from = pickup, to = restaurant
-                    $q->where(function ($q1) use (
-                        $pickupZoneId,
-                        $restaurantZoneId,
-                        $fromZoneType,
-                        $toZoneType
-                    ) {
-                        $q1->where('from_zone_id', $pickupZoneId)
-                        ->where('to_zone_id', $restaurantZoneId)
-                        ->where('from_zone_type', $fromZoneType)
-                        ->where('to_zone_type', $toZoneType);
-                    })
-                    // Case 2: from = restaurant, to = pickup
-                    ->orWhere(function ($q2) use (
-                        $pickupZoneId,
-                        $restaurantZoneId,
-                        $fromZoneType,
-                        $toZoneType
-                    ) {
-                        $q2->where('from_zone_id', $restaurantZoneId)
-                        ->where('to_zone_id', $pickupZoneId)
-                        ->where('from_zone_type', $toZoneType)
-                        ->where('to_zone_type', $fromZoneType);
-                    });
-                })
-                ->first();
+
+            $fromZoneType = $pickupLocationType;
+            $toZoneType = 'Restaurant';
+            $mapping = $this->findVehicleZoneMapping(
+                $vehicleId,
+                $fromZoneType,
+                $pickupLocationId,
+                $toZoneType,
+                $restaurantId,
+                $dmcId
+            );
             if (!$mapping) {
                 return response()->json([
                     'success' => false,
                     'message' => 'No pricing mapping found for this route'
                 ], 404);
             }
-            // Get the appropriate price based on transfer type
-            $price = 0;
-            if ($transferType === 'Private') {
-                $price = floatval($mapping->private_price ?? 0);
-            } elseif ($transferType === 'Shared') {
-                $price = floatval($mapping->shared_price ?? 0);
-            }
-            
+
+            $price = $this->mappingPriceForTransferType($mapping, $transferType);
             if ($price <= 0) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Price not available for this transfer type'
                 ], 404);
             }
-            
+
             return response()->json([
                 'success' => true,
                 'price' => $price,
                 'vehicle_id' => $vehicleId,
-                'from_zone_id' => $pickupZoneId,
-                'to_zone_id' => $restaurantZoneId,
-                'from_zone_type' => $fromZoneType,
-                'to_zone_type' => $toZoneType,
+                'from_zone_id' => $mapping->from_zone_id,
+                'to_zone_id' => $mapping->to_zone_id,
+                'from_zone_type' => $mapping->from_zone_type,
+                'to_zone_type' => $mapping->to_zone_type,
                 'transfer_type' => $transferType
             ]);
             

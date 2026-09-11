@@ -39,6 +39,113 @@
         ];
     @endphp
     window.transferDestinationCatalog = @json($transferDestinationCatalog);
+    window.operatingDmcId = parseInt(@json((int) ($dmc_id ?? 0)), 10) || 0;
+    window.siblingDmcCountryMap = @json($siblingDmcCountryMap ?? []);
+    window.siblingDmcCityMap = @json($siblingDmcCityMap ?? []);
+
+    window.resolveDmcIdForCountry = function (country) {
+        const c = String(country || '').trim();
+        const map = window.siblingDmcCountryMap || {};
+        if (!c) return window.operatingDmcId || 0;
+        if (map[c]) return parseInt(map[c], 10) || window.operatingDmcId || 0;
+        const lower = c.toLowerCase();
+        for (const key of Object.keys(map)) {
+            if (String(key).toLowerCase() === lower) {
+                return parseInt(map[key], 10) || window.operatingDmcId || 0;
+            }
+        }
+        return window.operatingDmcId || 0;
+    };
+
+    window.resolveDmcIdForCity = function (cityName, countryHint) {
+        const city = String(cityName || '').trim();
+        const cityMap = window.siblingDmcCityMap || {};
+        if (city) {
+            const lower = city.toLowerCase();
+            if (cityMap[city]) return parseInt(cityMap[city], 10) || 0;
+            if (cityMap[lower]) return parseInt(cityMap[lower], 10) || 0;
+            for (const key of Object.keys(cityMap)) {
+                if (String(key).toLowerCase() === lower) {
+                    return parseInt(cityMap[key], 10) || 0;
+                }
+            }
+        }
+        let country = '';
+        if (typeof resolveCountryForCity === 'function') {
+            country = resolveCountryForCity(city);
+        }
+        if (!country) country = String(countryHint || '').trim();
+        return window.resolveDmcIdForCountry(country);
+    };
+
+    window.getActiveServiceDmcId = function (cityName) {
+        const city = String(cityName || '').trim();
+        return window.resolveDmcIdForCity(city) || window.operatingDmcId || 0;
+    };
+
+    window.pickInventoryCityName = function (cityHint) {
+        let city = String(cityHint || '').trim();
+        if (!city || city.indexOf(',') === -1) {
+            return city;
+        }
+        const parts = city.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+        const active = (typeof window.getActiveServiceCity === 'function')
+            ? String(window.getActiveServiceCity() || '').trim()
+            : '';
+        if (active) {
+            const hit = parts.find(function (p) { return p.toLowerCase() === active.toLowerCase(); });
+            if (hit) return hit;
+        }
+        if (typeof window.resolveDmcIdForCity === 'function') {
+            for (let i = 0; i < parts.length; i++) {
+                const id = window.resolveDmcIdForCity(parts[i]);
+                if (id && String(id) !== String(window.operatingDmcId || '')) {
+                    return parts[i];
+                }
+            }
+        }
+        return parts[0] || city;
+    };
+
+    window.resolveEnquiryProActiveCity = function (preferred) {
+        const explicit = String(preferred || '').trim();
+        if (explicit) return explicit;
+        const ids = [
+            'localDestination', 'arrivalDepartureCity', 'hotelDestination',
+            'tourDestination', 'guideDestination', 'mealDestination', 'miscDestination'
+        ];
+        for (let i = 0; i < ids.length; i++) {
+            const v = String(document.getElementById(ids[i])?.value || '').trim();
+            if (v) return v;
+        }
+        return '';
+    };
+
+    window.appendSiblingDmcQuery = function (url, cityName, options) {
+        const city = (typeof window.pickInventoryCityName === 'function')
+            ? window.pickInventoryCityName(cityName)
+            : cityName;
+        const opts = options || {};
+        const cityParam = opts.cityParam || 'destination';
+        const country = (typeof resolveCountryForCity === 'function') ? (resolveCountryForCity(city) || '') : '';
+        const dmcId = (typeof window.getActiveServiceDmcId === 'function')
+            ? window.getActiveServiceDmcId(city)
+            : (window.operatingDmcId || '');
+        const addParam = function (u, key, val) {
+            if (val === null || val === undefined || val === '') return u;
+            const re = new RegExp('[?&]' + key + '=');
+            if (re.test(u)) return u;
+            return u + (u.indexOf('?') >= 0 ? '&' : '?') + key + '=' + encodeURIComponent(val);
+        };
+        let out = url;
+        out = addParam(out, cityParam, city);
+        if (cityParam !== 'city') {
+            out = addParam(out, 'city', city);
+        }
+        out = addParam(out, 'country', country);
+        out = addParam(out, 'dmc_id', dmcId);
+        return out;
+    };
 
     function getSelectedCountriesFromCities() {
         if (typeof selectedDestinations === 'undefined' || !Array.isArray(selectedDestinations)) {
@@ -1097,7 +1204,10 @@
             const hotelsUrl = (typeof window.enquiryProGetHotelsUrl === 'string' && window.enquiryProGetHotelsUrl)
                 ? window.enquiryProGetHotelsUrl
                 : '/enquiry-form-pro/get-hotels';
-            const res = await fetch(hotelsUrl + (hotelsUrl.indexOf('?') >= 0 ? '&' : '?') + 'destination=' + encodeURIComponent(dest));
+            const fetchUrl = (typeof window.appendSiblingDmcQuery === 'function')
+                ? window.appendSiblingDmcQuery(hotelsUrl, dest)
+                : hotelsUrl + (hotelsUrl.indexOf('?') >= 0 ? '&' : '?') + 'destination=' + encodeURIComponent(dest);
+            const res = await fetch(fetchUrl);
             const data = await res.json();
             const list = (data && (data.hotels || data.data)) ? (data.hotels || data.data) : [];
             if (Array.isArray(list) && list.length) {

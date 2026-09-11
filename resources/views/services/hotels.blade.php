@@ -32,7 +32,10 @@
         <div class="card mb-4 {{ (!isset($selectedHotels) || count($selectedHotels) === 0) ? 'd-none' : '' }}" id="selectedHotelsSection">
             <div class="card-header">
                 <div class="d-flex flex-wrap justify-content-between align-items-end gap-2">
-                    <h5 class="mb-0" id="selectedHotelsTitle">Selected Hotels ({{ isset($selectedHotels) ? count($selectedHotels) : 0 }})</h5>
+                    <div>
+                        <h5 class="mb-0" id="selectedHotelsTitle">Selected Hotels ({{ isset($selectedHotels) ? count($selectedHotels) : 0 }})</h5>
+                        <small class="text-muted">All cities — hotels already selected for this DMC</small>
+                    </div>
                     <div class="d-flex flex-wrap gap-2">
                         <div class="input-group input-group-sm" style="width: 260px;">
                             <span class="input-group-text"><i class="ri-search-line"></i></span>

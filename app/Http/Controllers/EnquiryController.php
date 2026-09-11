@@ -114,6 +114,7 @@ class EnquiryController extends Controller
             'offers.*.discount_value' => 'nullable|numeric|min:0',
             'offers.*.markup_type' => 'nullable|string|in:percentage,flat,fixed',
             'offers.*.discount_type' => 'nullable|string|in:percentage,flat,foc,fixed',
+            'offers.*.cities' => 'nullable|string|max:1000',
         ]);
 
         if (! $request->filled('enquiry_id') && ! $request->filled('tour_id')) {
@@ -121,8 +122,10 @@ class EnquiryController extends Controller
         }
 
         $offers = [];
-        if ($request->filled('offers') && is_array($request->input('offers'))) {
-            $offers = \App\Helpers\CommonHelper::normalizeNegotiationOffers($request->input('offers'));
+        $rawOffers = [];
+        if (is_array($request->input('offers'))) {
+            $rawOffers = $request->input('offers');
+            $offers = \App\Helpers\CommonHelper::normalizeNegotiationOffers($rawOffers);
         }
 
         $primaryOffer = $offers[0] ?? null;
@@ -188,8 +191,8 @@ class EnquiryController extends Controller
         }
 
         // Persist hotel/other markup + discount edits onto tours.currency_markups
-        if (! empty($offers)) {
-            \App\Helpers\CommonHelper::applyNegotiationOffersToTourCurrencyMarkups($tour, $offers);
+        if (! empty($rawOffers)) {
+            \App\Helpers\CommonHelper::applyNegotiationOffersToTourCurrencyMarkups($tour, $rawOffers);
             $tour->refresh();
         }
 

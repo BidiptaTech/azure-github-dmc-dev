@@ -1541,7 +1541,8 @@
                     @php
                         $sidebarRoleId = Auth::user()->role_id;
                         $sidebarIsAdmin = in_array($sidebarRoleId, [1]);
-                        $sidebarIsDmc = in_array($sidebarRoleId, [11]);
+                        // 11 = DMC, 138 = Multi-role (same General Settings as DMC; stores use parent dmc_id)
+                        $sidebarIsDmc = in_array($sidebarRoleId, [11, 138]);-
                         $sidebarIsOperational = in_array($sidebarRoleId, [34, 124,125]);
                         $sidebarIsFinance = in_array($sidebarRoleId, [36, 126,127]);
                         $sidebarIsLimitedGeneralSettings = $sidebarIsDmc || $sidebarIsOperational || $sidebarIsFinance;
@@ -1554,7 +1555,7 @@
                         <span class="menu-header-text" data-i18n="Setting">Setting</span>
                     </li>
                     
-                    <li class="menu-item @if(Request::is('master-setting*', 'country*', 'countries*', 'mail/settings*', 'guide-languages*', 'suppliers*', 'cities*', 'app-management*', 'dmc-func-app*', 'itinerary_settings.pdf', 'quotation_settings.pdf')) open @endif">
+                    <li class="menu-item @if(Request::is('master-setting*', 'country*', 'countries*', 'mail*', 'guide-languages*', 'suppliers*', 'cities*', 'app-management*', 'dmc-func-app*', 'itinerary_settings.pdf', 'quotation_settings.pdf')) open @endif">
                         <a href="#" class="menu-link menu-toggle">
                             <i class="menu-icon tf-icons ri-settings-3-line"></i>
                             <div data-i18n="General Settings">General Settings</div>
@@ -1601,6 +1602,12 @@
                             <li class="menu-item @if(Request::is('mail/settings')) active @endif">
                                 <a href="{{ route('mail.settings') }}" class="menu-link">
                                     <div data-i18n="Email Settings">Email Settings</div>
+                                </a>
+                            </li>
+                            <!-- Email Templates (same as DMC) -->
+                            <li class="menu-item @if(Request::is('mail') || Request::is('mail/index') || Request::is('mail/booking-*') || Request::is('mail/tour-*') || Request::is('mail/welcome-*') || Request::is('mail/enquiry-*') || Request::is('mail/job-*') || Request::is('mail/agent-*') || Request::is('mail/templates*')) active @endif">
+                                <a href="{{ route('mail.index') }}" class="menu-link">
+                                    <div data-i18n="Email Templates">Email Templates</div>
                                 </a>
                             </li>
                         @endif
