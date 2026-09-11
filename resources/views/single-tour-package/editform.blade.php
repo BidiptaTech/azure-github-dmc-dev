@@ -29772,6 +29772,10 @@
             
             // Show success toastr notification
             showToastr('success', data.message || 'Tour information updated successfully.');
+            // Reload so the whole form reflects the saved tour info
+            setTimeout(() => {
+                window.location.reload();
+            }, 500);
         } catch (error) {
             const errorMessage = error.message || 'Failed to update tour information. Please try again.';
             feedback.textContent = errorMessage;
