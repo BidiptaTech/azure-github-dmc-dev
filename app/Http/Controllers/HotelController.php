@@ -2791,14 +2791,29 @@ class HotelController extends Controller
             ->get();
 
         
-            // Get DMC users for admin dropdown (only for admin users)
+            // Admin / role 20: only DMCs that have selected this hotel
             $dmcUsers = collect();
-            if ($auth_user->role_id == 1) {
-                $dmcUsers = User::where('role_id', 11)
-                ->where('user_type', 2)
-                ->select('userId', 'name', 'company_name', 'currency')
-                ->orderBy('company_name', 'asc')
-                ->get();
+            if (in_array((int) $auth_user->role_id, [1, 20], true) && $hotel) {
+                $selectedDmcIds = [];
+                foreach ($hotel->getSelectedDmcIds() as $selectedId) {
+                    $intId = (int) $selectedId;
+                    if ($intId > 0) {
+                        $selectedDmcIds[] = $intId;
+                    }
+                }
+                $selectedDmcIds = array_values(array_unique($selectedDmcIds));
+
+                if ($selectedDmcIds !== []) {
+                    $dmcUsers = User::whereIn('role_id', [11, 20])
+                        ->whereIn('userId', $selectedDmcIds)
+                        ->select('userId', 'name', 'company_name', 'currency')
+                        ->orderBy('company_name', 'asc')
+                        ->get()
+                        ->filter(function ($dmc) use ($hotel) {
+                            return $hotel->hasSelectedByDmc($dmc->userId);
+                        })
+                        ->values();
+                }
             }
         
             // Fetch beds data based on user role
@@ -2904,6 +2919,13 @@ class HotelController extends Controller
             }
         
             $request->validate($rules);
+
+            if (in_array((int) $auth_user->role_id, [1, 20], true)) {
+                $hotelForDmc = Hotel::where('hotel_unique_id', $request->hotel_id)->first();
+                if (!$hotelForDmc || !$hotelForDmc->hasSelectedByDmc($request->input('dmc_id'))) {
+                    return redirect()->back()->with('error', 'Please select a DMC that has this hotel.');
+                }
+            }
             //If extra bed and baby cot is not available
             if ($request->extra_bed != 1) {
                 $request->merge([
@@ -4246,18 +4268,12 @@ class HotelController extends Controller
 
         $allHotels = $allHotelsQuery->get();
 
-        $dmcFamilyIds = CommonHelper::getSiblingDmcIds($dmc_id);
-        if ($dmcFamilyIds === []) {
-            $dmcFamilyIds = [(int) $dmc_id];
-        }
-
-        // Selected list is independent of the city/country picker: show every hotel
-        // this DMC (and sibling DMCs under the same Master) already selected.
+        // Selected list: only hotels this DMC (or its staff acting as this DMC) selected.
         $selectedHotels = CommonHelper::whereJsonContainsDmcIds(
             Hotel::where('status', 1)->with(['category'])->orderBy('name', 'asc'),
-            $dmcFamilyIds
-        )->get()->filter(function ($hotel) use ($dmcFamilyIds) {
-            return CommonHelper::modelSelectedByAnyDmc($hotel, $dmcFamilyIds);
+            [(int) $dmc_id]
+        )->get()->filter(function ($hotel) use ($dmc_id) {
+            return $hotel->hasSelectedByDmc($dmc_id);
         })->values();
 
         $availableHotels = $allHotels->filter(function ($hotel) use ($dmc_id) {
@@ -4408,7 +4424,6 @@ class HotelController extends Controller
     public function removeHotel(Request $request)
     {
         try {
-            $hotelId = $request->input('hotel_id');
             $user = Auth::user();
 
             $allowedRoles = [11, 35, 77, 84, 130, 132, 133, 135, 136, 137, 138, 139, 140];
@@ -4424,35 +4439,128 @@ class HotelController extends Controller
                     'message' => 'You do not have permission to remove hotels.',
                 ], 403);
             }
-            
-            // Find the hotel
-            $hotel = Hotel::find($hotelId);
-            if (!$hotel) {
+
+            $result = $this->unselectHotelForDmc($request->input('hotel_id'), $dmc_id);
+            if (!$result['success']) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Hotel not found.'
-                ], 404);
+                    'message' => $result['message'],
+                ], $result['status']);
             }
-            
-            if (!CommonHelper::removeDmcFamilySelectionFromModel($hotel, $dmc_id)) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Hotel not selected by you.'
-                ], 400);
-            }
-            
+
             return response()->json([
                 'success' => true,
-                'message' => 'Hotel removed successfully!'
+                'message' => 'Hotel removed successfully!',
             ]);
-            
         } catch (\Exception $e) {
             \Log::error('Hotel removal error: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'An error occurred while removing the hotel.'
+                'message' => 'An error occurred while removing the hotel.',
             ], 500);
         }
+    }
+
+    /**
+     * Remove multiple hotels from DMC selection using the same unselect rules.
+     */
+    public function removeHotelsBulk(Request $request)
+    {
+        try {
+            $user = Auth::user();
+
+            $allowedRoles = [11, 35, 77, 84, 130, 132, 133, 135, 136, 137, 138, 139, 140];
+            if (!in_array($user->role_id, $allowedRoles)) {
+                abort(403, 'You do not have permission to access this page.');
+            }
+
+            $dmc_id = $this->resolveServicesHotelsDmcId($user);
+            if (!$dmc_id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You do not have permission to remove hotels.',
+                ], 403);
+            }
+
+            $hotelIds = $request->input('hotel_ids', []);
+            if (!is_array($hotelIds) || empty($hotelIds)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Please select at least one hotel to remove.',
+                ], 422);
+            }
+
+            $hotelIds = array_values(array_unique(array_filter($hotelIds, static function ($id) {
+                return $id !== null && $id !== '';
+            })));
+
+            if (count($hotelIds) > 200) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Too many hotels selected. Please remove fewer at a time.',
+                ], 422);
+            }
+
+            $removed = 0;
+            foreach ($hotelIds as $hotelId) {
+                $result = $this->unselectHotelForDmc($hotelId, $dmc_id);
+                if ($result['success']) {
+                    $removed++;
+                }
+            }
+
+            if ($removed === 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unable to remove the selected hotels. Please try again.',
+                ], 400);
+            }
+
+            $label = $removed === 1 ? 'hotel' : 'hotels';
+
+            return response()->json([
+                'success' => true,
+                'removed' => $removed,
+                'message' => $removed . ' ' . $label . ' removed successfully.',
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Hotel bulk removal error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Unable to remove the selected hotels. Please try again.',
+            ], 500);
+        }
+    }
+
+    /**
+     * Unselect a hotel for the owning DMC using the existing dmc_id removal rules.
+     */
+    private function unselectHotelForDmc($hotelId, $dmcId): array
+    {
+        $hotel = Hotel::find($hotelId);
+        if (!$hotel) {
+            return [
+                'success' => false,
+                'status' => 404,
+                'message' => 'Hotel not found.',
+            ];
+        }
+
+        if (!$hotel->hasSelectedByDmc($dmcId)) {
+            return [
+                'success' => false,
+                'status' => 400,
+                'message' => 'Hotel not selected by you.',
+            ];
+        }
+
+        $hotel->removeDmcId($dmcId);
+
+        return [
+            'success' => true,
+            'status' => 200,
+            'message' => 'Hotel removed successfully!',
+        ];
     }
 
     public function deleterate($id)
@@ -4613,37 +4721,7 @@ class HotelController extends Controller
      */
     private function resolveServicesHotelsDmcId(?User $user): ?int
     {
-        if (!$user) {
-            return null;
-        }
-
-        $roleId = (int) $user->role_id;
-
-        if ($roleId === 11) {
-            return (int) $user->userId;
-        }
-
-        if ($roleId === 35 || in_array($roleId, [130, 132, 133, 135, 136, 137, 138], true)) {
-            return $user->created_by ? (int) $user->created_by : null;
-        }
-
-        if ($roleId === 77 || $roleId === 139) {
-            $productHead = User::where('userId', $user->created_by)->first();
-
-            return ($productHead && $productHead->created_by) ? (int) $productHead->created_by : null;
-        }
-
-        if ($roleId === 84 || $roleId === 140) {
-            $productManager = User::where('userId', $user->created_by)->first();
-            if (!$productManager) {
-                return null;
-            }
-            $productHead = User::where('userId', $productManager->created_by)->first();
-
-            return ($productHead && $productHead->created_by) ? (int) $productHead->created_by : null;
-        }
-
-        return null;
+        return CommonHelper::resolveNearestNormalDmcId($user);
     }
 
     private function resolveRoomPricingDmcUserId(User $user): ?int

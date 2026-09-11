@@ -182,6 +182,7 @@ Route::get('/clear', function () {
             Route::post('/services/hotels/update', [HotelController::class, 'updateDmcHotels'])->name('services.hotels.update');
             Route::post('/services/hotels/select', [HotelController::class, 'selectHotel'])->name('services.hotels.select');
             Route::post('/services/hotels/remove', [HotelController::class, 'removeHotel'])->name('services.hotels.remove');
+            Route::post('/services/hotels/remove-bulk', [HotelController::class, 'removeHotelsBulk'])->name('services.hotels.remove-bulk');
 
             Route::post('/orders/hotels/select', [SingleTourPackageController::class, 'orderSelectHotel'])->name('orders.hotels.select');
             Route::post('/orders/guides/select', [SingleTourPackageController::class, 'orderSelectGuide'])->name('orders.guides.select');
@@ -195,11 +196,13 @@ Route::get('/clear', function () {
             Route::post('/services/attractions/update', [AttractionController::class, 'updateDmcAttractions'])->name('services.attractions.update');
             Route::post('/services/attractions/select', [AttractionController::class, 'selectAttraction'])->name('services.attractions.select');
             Route::post('/services/attractions/remove', [AttractionController::class, 'removeAttraction'])->name('services.attractions.remove');
+            Route::post('/services/attractions/remove-bulk', [AttractionController::class, 'removeAttractionsBulk'])->name('services.attractions.remove-bulk');
             
             Route::get('/services/restaurants', [RestaurantController::class, 'dmcRestaurantsSelection'])->name('services.restaurants');
             Route::post('/services/restaurants/update', [RestaurantController::class, 'updateDmcRestaurants'])->name('services.restaurants.update');
             Route::post('/services/restaurants/select', [RestaurantController::class, 'selectRestaurant'])->name('services.restaurants.select');
             Route::post('/services/restaurants/remove', [RestaurantController::class, 'removeRestaurant'])->name('services.restaurants.remove');
+            Route::post('/services/restaurants/remove-bulk', [RestaurantController::class, 'removeRestaurantsBulk'])->name('services.restaurants.remove-bulk');
             
             Route::get('/services/agencies', [AgencyController::class, 'dmcAgenciesSelection'])->name('services.agencies');
             Route::post('/services/agencies/select', [AgencyController::class, 'selectAgency'])->name('services.agencies.select');

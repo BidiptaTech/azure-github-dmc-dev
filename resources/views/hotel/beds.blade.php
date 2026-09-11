@@ -251,7 +251,7 @@
                 <div class="row mb-3">
                     <div class="col-md-12">
                         <div class="alert alert-info">
-                            <strong>Note:</strong> As an admin/manager, you must select a DMC to add rooms on their behalf.
+                            <strong>Note:</strong> As an admin/manager, you must select a DMC that has already selected this hotel.
                         </div>
                     </div>
                 </div>
@@ -261,13 +261,18 @@
                             <strong><i class="ri-building-line"></i> Select DMC</strong><span class="text-danger">*</span>
                         </label>
                         <select id="dmc_selection" class="form-control" name="dmc_id" required>
-                            <option value="">Select DMC</option>
-                            @foreach($dmcUsers as $dmc)
+                            <option value="">Search and Select DMC</option>
+                            @forelse($dmcUsers as $dmc)
                                 <option value="{{ $dmc->userId }}" data-currency="{{ $dmc->currency ?? '' }}">{{ $dmc->company_name }} ({{ $dmc->name }})</option>
-                            @endforeach
+                            @empty
+                            @endforelse
                         </select>
                         <small class="text-muted">
-                            <i class="ri-information-line"></i> You are adding rooms on behalf of the selected DMC.
+                            @if($dmcUsers->isEmpty())
+                                <i class="ri-information-line"></i> No DMC has selected this hotel yet. Ask a DMC to select it first.
+                            @else
+                                <i class="ri-information-line"></i> Only DMCs that have selected this hotel are listed.
+                            @endif
                         </small>
                     </div>
                 </div>
