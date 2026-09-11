@@ -954,16 +954,13 @@ class RestaurantController extends Controller
 
         $allRestaurants = $allRestaurantsQuery->get();
 
-        $dmcFamilyIds = CommonHelper::getSiblingDmcIds($dmc_id);
-        if ($dmcFamilyIds === []) {
-            $dmcFamilyIds = [(int) $dmc_id];
-        }
-
-        $selectedQuery = Restaurant::where('status', 1)->orderBy('name', 'asc');
-        $selectedRestaurants = CommonHelper::whereJsonContainsDmcIds($selectedQuery, $dmcFamilyIds)
+        $selectedRestaurants = CommonHelper::whereJsonContainsDmcIds(
+            Restaurant::where('status', 1)->orderBy('name', 'asc'),
+            [(int) $dmc_id]
+        )
             ->get()
-            ->filter(function ($restaurant) use ($dmcFamilyIds) {
-                return CommonHelper::modelSelectedByAnyDmc($restaurant, $dmcFamilyIds);
+            ->filter(function ($restaurant) use ($dmc_id) {
+                return $restaurant->hasSelectedByDmc($dmc_id);
             })
             ->values();
 
@@ -1111,7 +1108,6 @@ class RestaurantController extends Controller
     public function removeRestaurant(Request $request)
     {
         try {
-            $restaurantId = $request->input('restaurant_id');
             $user = Auth::user();
 
             $allowedRoles = [11, 35, 78, 120, 130, 132, 133, 135, 136, 137, 138, 139, 140];
@@ -1127,20 +1123,12 @@ class RestaurantController extends Controller
                 ], 403);
             }
 
-            // Find the restaurant
-            $restaurant = Restaurant::where('restaurant_id', $restaurantId)->first();
-            if (!$restaurant) {
+            $result = $this->unselectRestaurantForDmc($request->input('restaurant_id'), $dmc_id);
+            if (!$result['success']) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Restaurant not found',
-                ], 404);
-            }
-
-            if (!CommonHelper::removeDmcFamilySelectionFromModel($restaurant, $dmc_id)) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Restaurant not selected by you.',
-                ], 400);
+                    'message' => $result['message'],
+                ], $result['status']);
             }
 
             return response()->json([
@@ -1157,41 +1145,113 @@ class RestaurantController extends Controller
     }
 
     /**
+     * Remove multiple restaurants from DMC selection using the same unselect rules.
+     */
+    public function removeRestaurantsBulk(Request $request)
+    {
+        try {
+            $user = Auth::user();
+
+            $allowedRoles = [11, 35, 78, 120, 130, 132, 133, 135, 136, 137, 138, 139, 140];
+            if (!in_array($user->role_id, $allowedRoles)) {
+                abort(403, 'You do not have permission to perform this action.');
+            }
+
+            $dmc_id = $this->resolveServicesRestaurantsDmcId($user);
+            if (!$dmc_id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You do not have permission to remove restaurants.',
+                ], 403);
+            }
+
+            $restaurantIds = $request->input('restaurant_ids', []);
+            if (!is_array($restaurantIds) || empty($restaurantIds)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Please select at least one restaurant to remove.',
+                ], 422);
+            }
+
+            $restaurantIds = array_values(array_unique(array_filter($restaurantIds, static function ($id) {
+                return $id !== null && $id !== '';
+            })));
+
+            if (count($restaurantIds) > 200) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Too many restaurants selected. Please remove fewer at a time.',
+                ], 422);
+            }
+
+            $removed = 0;
+            foreach ($restaurantIds as $restaurantId) {
+                $result = $this->unselectRestaurantForDmc($restaurantId, $dmc_id);
+                if ($result['success']) {
+                    $removed++;
+                }
+            }
+
+            if ($removed === 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unable to remove the selected restaurants. Please try again.',
+                ], 400);
+            }
+
+            $label = $removed === 1 ? 'restaurant' : 'restaurants';
+
+            return response()->json([
+                'success' => true,
+                'removed' => $removed,
+                'message' => $removed . ' ' . $label . ' removed successfully.',
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Restaurant bulk removal error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Unable to remove the selected restaurants. Please try again.',
+            ], 500);
+        }
+    }
+
+    /**
+     * Unselect a restaurant for the owning DMC using the existing dmc_id removal rules.
+     */
+    private function unselectRestaurantForDmc($restaurantId, $dmcId): array
+    {
+        $restaurant = Restaurant::where('restaurant_id', $restaurantId)->first();
+        if (!$restaurant) {
+            return [
+                'success' => false,
+                'status' => 404,
+                'message' => 'Restaurant not found',
+            ];
+        }
+
+        if (!$restaurant->hasSelectedByDmc($dmcId)) {
+            return [
+                'success' => false,
+                'status' => 400,
+                'message' => 'Restaurant not selected by you.',
+            ];
+        }
+
+        $restaurant->removeDmcId($dmcId);
+
+        return [
+            'success' => true,
+            'status' => 200,
+            'message' => 'Restaurant removed successfully!',
+        ];
+    }
+
+    /**
      * Resolve the owning DMC userId for the services restaurants selection page.
      */
     private function resolveServicesRestaurantsDmcId(?User $user): ?int
     {
-        if (!$user) {
-            return null;
-        }
-
-        $roleId = (int) $user->role_id;
-
-        if ($roleId === 11) {
-            return (int) $user->userId;
-        }
-
-        if ($roleId === 35 || in_array($roleId, [130, 132, 133, 135, 136, 137, 138], true)) {
-            return $user->created_by ? (int) $user->created_by : null;
-        }
-
-        if ($roleId === 78 || $roleId === 139) {
-            $productHead = User::where('userId', $user->created_by)->first();
-
-            return ($productHead && $productHead->created_by) ? (int) $productHead->created_by : null;
-        }
-
-        if ($roleId === 120 || $roleId === 140) {
-            $productManager = User::where('userId', $user->created_by)->first();
-            if (!$productManager) {
-                return null;
-            }
-            $productHead = User::where('userId', $productManager->created_by)->first();
-
-            return ($productHead && $productHead->created_by) ? (int) $productHead->created_by : null;
-        }
-
-        return null;
+        return CommonHelper::resolveNearestNormalDmcId($user);
     }
 
     /**
