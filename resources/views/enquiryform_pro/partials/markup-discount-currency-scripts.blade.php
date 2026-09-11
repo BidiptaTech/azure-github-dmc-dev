@@ -2,6 +2,25 @@
      Single city: classic #markupType / #discountType controls.
      Multi-city: one row per selected city in #enquiryProCityMarkupBody. --}}
 (function () {
+    function isEnquiryMarkupDiscountLocked() {
+        return !!window.lockEnquiryMarkupDiscount;
+    }
+    window.isEnquiryMarkupDiscountLocked = isEnquiryMarkupDiscountLocked;
+
+    function lockEnquiryMarkupDiscountControls() {
+        if (!isEnquiryMarkupDiscountLocked()) return;
+        document.querySelectorAll(
+            '#enquiryProMarkupSingleWrap select, #enquiryProMarkupSingleWrap input, #enquiryProMarkupMultiWrap select, #enquiryProMarkupMultiWrap input'
+        ).forEach(function (el) {
+            el.disabled = true;
+        });
+        ['enquiryProMarkupSingleWrap', 'enquiryProMarkupMultiWrap'].forEach(function (id) {
+            const wrap = document.getElementById(id);
+            if (wrap) wrap.classList.add('is-locked');
+        });
+    }
+    window.lockEnquiryMarkupDiscountControls = lockEnquiryMarkupDiscountControls;
+
     if (typeof window.enquiryProCurrencyMarkups !== 'object' || window.enquiryProCurrencyMarkups === null) {
         window.enquiryProCurrencyMarkups = {};
     }
@@ -165,6 +184,7 @@
     }
 
     function applyTreatFocDiscountToPricingUi() {
+        if (isEnquiryMarkupDiscountLocked()) return;
         if (window._enquiryProApplyingTreatFoc) return;
         window._enquiryProApplyingTreatFoc = true;
         try {
@@ -489,6 +509,11 @@
     window.getCurrencyMarkupDiscountSettings = getCurrencyMarkupDiscountSettings;
 
     function getCurrencyMarkupsPayload() {
+        if (isEnquiryMarkupDiscountLocked()) {
+            return Object.keys(window.enquiryProCityMarkups || {}).map(function (city) {
+                return window.enquiryProCityMarkups[city];
+            }).filter(Boolean);
+        }
         syncActiveCurrencyMarkupToStore();
         const targets = getEnquiryProCityMarkupTargets();
         if (!targets.length) {
@@ -518,7 +543,8 @@
         const city = target.city;
         const country = target.country || '';
         const currency = target.currency || '';
-        const treatFoc = isTreatFocDiscountActive();
+        const locked = isEnquiryMarkupDiscountLocked();
+        const treatFoc = !locked && isTreatFocDiscountActive();
         const mt = entry.markup_type || '';
         const hotelMk = entry.hotel_markup != null
             ? (parseFloat(entry.hotel_markup) || 0)
@@ -526,11 +552,15 @@
         const otherMk = entry.other_markup != null
             ? (parseFloat(entry.other_markup) || 0)
             : 0;
-        let dt = treatFoc ? 'foc' : ((entry.discount_type === 'foc') ? '' : (entry.discount_type || ''));
-        let dv = treatFoc ? focDiscountAmountForCity(city) : ((dt === 'foc') ? 0 : (entry.discount_value || 0));
-        const markupDisabled = mt ? '' : 'disabled';
-        const discountTypeDisabled = treatFoc ? 'disabled' : '';
-        const discountDisabled = (!dt || dt === 'foc' || treatFoc) ? 'disabled' : '';
+        let dt = locked
+            ? (entry.discount_type || '')
+            : (treatFoc ? 'foc' : ((entry.discount_type === 'foc') ? '' : (entry.discount_type || '')));
+        let dv = locked
+            ? (parseFloat(entry.discount_value || 0) || 0)
+            : (treatFoc ? focDiscountAmountForCity(city) : ((dt === 'foc') ? 0 : (entry.discount_value || 0)));
+        const markupDisabled = (locked || !mt) ? 'disabled' : '';
+        const discountTypeDisabled = (locked || treatFoc) ? 'disabled' : '';
+        const discountDisabled = (locked || !dt || dt === 'foc' || treatFoc) ? 'disabled' : '';
         const focClass = dt === 'foc' ? ' is-foc-locked' : '';
         const suffix = (mt === 'flat') ? (currency || 'AMT') : '%';
         const label = currency
@@ -594,6 +624,7 @@
     }
 
     function handleCityMarkupRowChange(el) {
+        if (isEnquiryMarkupDiscountLocked()) return;
         const tr = el && el.closest ? el.closest('tr[data-city]') : null;
         if (tr) {
             const mt = tr.querySelector('.city-markup-type');
@@ -702,6 +733,7 @@
         if (typeof applyTreatFocDiscountToPricingUi === 'function') {
             applyTreatFocDiscountToPricingUi();
         }
+        lockEnquiryMarkupDiscountControls();
     }
     window.buildCityMarkupRowHtml = buildCityMarkupRowHtml;
     window.refreshEnquiryProCurrencyMarkupOptions = refreshEnquiryProCurrencyMarkupOptions;

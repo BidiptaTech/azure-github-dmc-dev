@@ -17,6 +17,7 @@
 <!-- Date Range Picker CSS (Travel Dates) -->
 <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" />
 <style>
+    @include('enquiryform_pro.partials.markup-discount-section-styles')
     #toast-container { z-index: 999999 !important; }
     #toast-container.toast-top-right { top: 70px; right: 12px; }
     #toast-container .toast { 
@@ -1709,10 +1710,7 @@
                                     </select>
                                 </div>
 
-                                <!-- Discount Amount -->
-                                @php
-                                    $isNewEnquiry = trim(strtolower($tour->tour_status ?? '')) === 'new enquiry';
-                                @endphp
+                                <!-- Discount Amount (view only on edit) -->
                                 <div class="col-md-2 {{ (old('city_type', $tour->city_type ?? 'single') === 'multi') ? 'd-none' : '' }}" id="discountAmountCol">
                                     <label for="discount_price" class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
                                         <i class="ri-price-tag-3-line me-1" style="color: #667eea;"></i>Discount Amount
@@ -1727,20 +1725,130 @@
                                             name="discount_price"
                                             value="{{ old('discount_price', $tour->discount_amount ?? 0) }}"
                                             placeholder="0.00"
-                                            style="height: 40px; border-radius: 8px 0 0 8px; font-size: 0.9rem; border: 1px solid #dee2e6;"
-                                            @unless($isNewEnquiry) disabled title="Discount can only be edited when the tour status is New Enquiry" @endunless
+                                            style="height: 40px; border-radius: 8px 0 0 8px; font-size: 0.9rem; border: 1px solid #dee2e6; background: #f3f4f6;"
+                                            disabled
+                                            title="Discount cannot be changed on edit"
                                         >
                                         <span class="input-group-text fw-semibold" style="height: 40px; border-radius: 0 8px 8px 0; font-size: 0.8rem; background:#f8f9fa; color:#495057;">
                                             {{ $displayCurrency }}
                                         </span>
                                     </div>
-                                    @unless($isNewEnquiry)
-                                        <input type="hidden" name="discount_price" value="{{ old('discount_price', $tour->discount_amount ?? 0) }}">
-                                    @endunless
+                                    <input type="hidden" name="discount_price" value="{{ old('discount_price', $tour->discount_amount ?? 0) }}">
+                                    <small class="text-muted">View only — cannot be changed on edit.</small>
                                 </div>
                             </div>
 
                             <input type="hidden" name="city" id="city" value="{{ old('city', $tour->city ?? '') }}">
+
+                            @php
+                                $editCurrencyMarkups = $tour->currency_markups ?? [];
+                                if (is_string($editCurrencyMarkups)) {
+                                    $decodedMarkups = json_decode($editCurrencyMarkups, true);
+                                    $editCurrencyMarkups = is_array($decodedMarkups) ? $decodedMarkups : [];
+                                }
+                                if (!is_array($editCurrencyMarkups)) {
+                                    $editCurrencyMarkups = [];
+                                }
+                                $editCurrencyMarkups = array_values(array_filter($editCurrencyMarkups, function ($row) {
+                                    return is_array($row)
+                                        && !empty($row['city'])
+                                        && !str_starts_with((string) $row['city'], '__lite_markup_pad__');
+                                }));
+                                if ($editCurrencyMarkups === []) {
+                                    $fallbackCity = $tourSingleCityNormalized ?: 'Tour';
+                                    $editCurrencyMarkups[] = [
+                                        'city' => $fallbackCity,
+                                        'country' => (string) ($tour->destination ?? ''),
+                                        'currency' => (string) ($displayCurrency ?? ''),
+                                        'markup_type' => (string) ($tour->markup_type ?? ''),
+                                        'hotel_markup' => (float) ($tour->markup_amount ?? 0),
+                                        'other_markup' => 0,
+                                        'discount_type' => (string) ($tour->discount_type ?? ''),
+                                        'discount_value' => (float) ($tour->discount_amount ?? 0),
+                                    ];
+                                }
+                                $editMarkupTypeLabel = function ($type) {
+                                    $type = strtolower((string) $type);
+                                    if ($type === 'percentage') return '%';
+                                    if ($type === 'flat' || $type === 'fixed') return 'Fixed';
+                                    if ($type === 'foc') return 'FOC';
+                                    return 'Type';
+                                };
+                            @endphp
+                            <div class="mt-3" id="liteEditMarkupDiscountWrap">
+                                <div class="enquiry-md-panel is-locked" style="max-width: 100%;">
+                                    <div class="enquiry-md-panel__head" aria-expanded="true">
+                                        <div class="enquiry-md-panel__head-left">
+                                            <p class="enquiry-md-panel__title">Pricing by city</p>
+                                            <span class="enquiry-md-panel__count">{{ count($editCurrencyMarkups) }}</span>
+                                        </div>
+                                        <p class="enquiry-md-panel__hint">View only — markup &amp; discount cannot be changed</p>
+                                    </div>
+                                    <div class="enquiry-md-panel__body">
+                                        <div class="enquiry-md-table-wrap">
+                                            <table class="enquiry-md-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th scope="col">City</th>
+                                                        <th scope="col" class="enquiry-md-th-markup">Markup type</th>
+                                                        <th scope="col" class="enquiry-md-th-markup">Hotel markup</th>
+                                                        <th scope="col" class="enquiry-md-th-markup">Other markup</th>
+                                                        <th scope="col" class="enquiry-md-th-discount">Disc type</th>
+                                                        <th scope="col" class="enquiry-md-th-discount">Disc value</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    @foreach($editCurrencyMarkups as $mdRow)
+                                                        @php
+                                                            $mdType = strtolower((string) ($mdRow['markup_type'] ?? ''));
+                                                            $mdDiscType = strtolower((string) ($mdRow['discount_type'] ?? ''));
+                                                            $mdHotel = (float) ($mdRow['hotel_markup'] ?? $mdRow['markup_value'] ?? 0);
+                                                            $mdOther = (float) ($mdRow['other_markup'] ?? 0);
+                                                            $mdDiscVal = (float) ($mdRow['discount_value'] ?? 0);
+                                                            $mdSuffix = ($mdType === 'flat') ? strtoupper((string) ($mdRow['currency'] ?? 'AMT')) : '%';
+                                                        @endphp
+                                                        <tr>
+                                                            <td>
+                                                                <div class="enquiry-md-city">
+                                                                    <span class="enquiry-md-city__name">{{ $mdRow['city'] ?? '' }}</span>
+                                                                    @if(!empty($mdRow['country']))
+                                                                        <span class="enquiry-md-city__meta">{{ $mdRow['country'] }}</span>
+                                                                    @endif
+                                                                </div>
+                                                            </td>
+                                                            <td class="enquiry-md-cell-markup">
+                                                                <select class="enquiry-md-control" disabled>
+                                                                    <option selected>{{ $editMarkupTypeLabel($mdType) }}</option>
+                                                                </select>
+                                                            </td>
+                                                            <td class="enquiry-md-cell-markup">
+                                                                <div class="enquiry-md-markup-input">
+                                                                    <input type="number" class="enquiry-md-control" value="{{ $mdHotel }}" disabled>
+                                                                    <span class="city-markup-suffix">{{ $mdSuffix }}</span>
+                                                                </div>
+                                                            </td>
+                                                            <td class="enquiry-md-cell-markup">
+                                                                <div class="enquiry-md-markup-input">
+                                                                    <input type="number" class="enquiry-md-control" value="{{ $mdOther }}" disabled>
+                                                                    <span class="city-markup-suffix">{{ $mdSuffix }}</span>
+                                                                </div>
+                                                            </td>
+                                                            <td class="enquiry-md-cell-discount">
+                                                                <select class="enquiry-md-control" disabled>
+                                                                    <option selected>{{ $editMarkupTypeLabel($mdDiscType) }}</option>
+                                                                </select>
+                                                            </td>
+                                                            <td class="enquiry-md-cell-discount">
+                                                                <input type="number" class="enquiry-md-control" value="{{ $mdDiscVal }}" disabled>
+                                                            </td>
+                                                        </tr>
+                                                    @endforeach
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
 
                             {{-- Multi City master + planning (match create page design) --}}
                             <div id="multiCityControls" class="mt-2 d-none">
