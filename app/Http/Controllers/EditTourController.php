@@ -2758,6 +2758,7 @@ class EditTourController extends Controller
             'guide_id' => 'nullable',
             'package_hours' => 'nullable|string|max:255',
             'pickup_time' => 'nullable|string|max:255',
+            'pickup_date' => 'nullable|string|max:255',
             'guest_name' => 'nullable|string|max:255',
             'notes' => 'nullable|string|max:1000',
             'remarks' => 'nullable|string|max:1000',
@@ -2775,6 +2776,7 @@ class EditTourController extends Controller
                 $order->data = [];
                 $order->save();
 
+                
                 // Step 2: Now update with new JSON data
                 $newBookingData = json_decode($validated['booking_data'], true);
                 
@@ -2818,8 +2820,17 @@ class EditTourController extends Controller
                 if (array_key_exists('package_hours', $validated)) {
                     $currentPayload['hours'] = $validated['package_hours'];
                 }
+                if (array_key_exists('total_price', $validated)) {
+                    $currentPayload['totalPrice'] = (float) $validated['total_price'];
+                }
+                if (array_key_exists('remarks', $validated)) {
+                    $currentPayload['remarks'] = $validated['remarks'] ?? '';
+                }
                 if (array_key_exists('pickup_time', $validated)) {
                     $currentPayload['entrytime'] = $validated['pickup_time'];
+                }
+                if (array_key_exists('pickup_date', $validated)) {
+                    $currentPayload['pickupdate'] = $validated['pickup_date'];
                 }
                 if (array_key_exists('guest_name', $validated)) {
                     $currentPayload['fullName'] = $validated['guest_name'];
