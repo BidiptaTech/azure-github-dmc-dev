@@ -2722,6 +2722,53 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         return null;
     }
 
+    /**
+     * Owning country DMC (role 11/20) for the logged-in user.
+     * Walks created_by up to the nearest normal DMC and never returns a Master DMC.
+     */
+    public static function resolveNearestNormalDmcId($user): ?int
+    {
+        if (!$user) {
+            return null;
+        }
+
+        $roleId = (int) ($user->role_id ?? 0);
+        if (in_array($roleId, self::NORMAL_DMC_ROLE_IDS, true)) {
+            return (int) $user->userId;
+        }
+
+        $current = $user;
+        $visited = [];
+        for ($i = 0; $i < 8; $i++) {
+            $parentId = (int) ($current->created_by ?? 0);
+            if ($parentId <= 0 || in_array($parentId, $visited, true)) {
+                break;
+            }
+            $visited[] = $parentId;
+            $parent = User::where('userId', $parentId)->first();
+            if (!$parent) {
+                break;
+            }
+            $parentRole = (int) ($parent->role_id ?? 0);
+            if (in_array($parentRole, self::NORMAL_DMC_ROLE_IDS, true)) {
+                return (int) $parent->userId;
+            }
+            if (in_array($parentRole, self::MASTER_DMC_ROLE_IDS, true)) {
+                break;
+            }
+            $current = $parent;
+        }
+
+        $fallback = (int) (self::getDmcId($user) ?? 0);
+        if ($fallback > 0) {
+            $owner = User::where('userId', $fallback)->first();
+            if ($owner && in_array((int) $owner->role_id, self::NORMAL_DMC_ROLE_IDS, true)) {
+                return $fallback;
+            }
+        }
+
+        return null;
+    }
 
     /**
      * Country used for multi-country tour visibility.
@@ -2744,8 +2791,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             return $first !== '' ? $first : null;
         };
 
-        $country = $pickFirst($user->user_country ?? null)
-            ?: $pickFirst($user->country ?? null);
+        $country = $pickFirst($user->country ?? null);
 
         if ($country) {
             return $country;
@@ -2759,8 +2805,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         if ($dmcId && (int) $dmcId !== (int) ($user->userId ?? 0)) {
             $dmcUser = User::where('userId', $dmcId)->first();
             if ($dmcUser) {
-                return $pickFirst($dmcUser->user_country ?? null)
-                    ?: $pickFirst($dmcUser->country ?? null);
+                return $pickFirst($dmcUser->country ?? null);
             }
         }
 
@@ -2966,8 +3011,9 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
     }
 
     /**
-     * Actual sibling-DMC destination rows under the same Master DMC as $baseDmcId.
-     * Uses each child DMC's country + city mapping — not the Master DMC country list.
+     * Sibling-DMC destination rows under the same Master DMC as $baseDmcId.
+     * Uses each child DMC's operating `country` column and all matching cities
+     * from the cities table. Does not use users.user_country or users.city.
      *
      * @return list<array{dmc_id:int, country:string, city:string, city_id:?int}>
      */
@@ -2983,65 +3029,29 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             return [];
         }
 
-        $dmcs = User::whereIn('userId', $siblingIds)->get(['userId', 'country', 'user_country', 'city', 'role_id']);
+        $dmcs = User::whereIn('userId', $siblingIds)->get(['userId', 'country', 'role_id']);
         $rows = [];
         $seen = [];
 
         foreach ($dmcs as $dmc) {
             $dmcId = (int) $dmc->userId;
-            $countries = self::resolveSupportedCountriesForDmc($dmc);
-            if ($countries === []) {
-                $fallbackCountry = self::normalizeCountryName(trim((string) ($dmc->user_country ?? '')));
-                if ($fallbackCountry !== '') {
-                    $countries = [$fallbackCountry];
-                }
-            }
+            $countries = array_values(array_filter(
+                self::resolveSupportedCountriesForDmc($dmc),
+                static fn ($country) => trim((string) $country) !== ''
+            ));
             if ($countries === []) {
                 continue;
             }
 
-            $mappedCities = self::parseUserCountryList($dmc->city ?? null);
-            if ($mappedCities !== []) {
-                foreach ($mappedCities as $cityName) {
-                    $cityName = trim((string) $cityName);
-                    if ($cityName === '') {
-                        continue;
-                    }
-                    $cityRow = City::query()
-                        ->whereRaw('LOWER(name) = ?', [mb_strtolower($cityName)])
-                        ->first(['city_id', 'id', 'name', 'country']);
-                    $country = $cityRow
-                        ? self::normalizeCountryName((string) ($cityRow->country ?? ''))
-                        : '';
-                    if ($country === '') {
-                        $userCountry = self::normalizeCountryName(trim((string) ($dmc->user_country ?? '')));
-                        $country = $userCountry !== '' ? $userCountry : (string) ($countries[0] ?? '');
-                    }
-                    if ($country === '') {
-                        continue;
-                    }
-                    $canonicalCity = trim((string) ($cityRow->name ?? $cityName));
-                    $cityId = $cityRow ? (int) ($cityRow->city_id ?? $cityRow->id ?? 0) : 0;
-                    $key = mb_strtolower($country) . '|' . mb_strtolower($canonicalCity);
-                    if (isset($seen[$key])) {
-                        continue;
-                    }
-                    $seen[$key] = true;
-                    $rows[] = [
-                        'dmc_id' => $dmcId,
-                        'country' => $country,
-                        'city' => $canonicalCity,
-                        'city_id' => $cityId > 0 ? $cityId : null,
-                    ];
-                }
-                continue;
-            }
-
-            // DMC has a country but no city: expose all cities in that DMC country.
             $cityRecords = City::query()
-                ->whereIn('country', $countries)
+                ->where(function ($query) use ($countries) {
+                    foreach ($countries as $country) {
+                        $query->orWhereRaw('LOWER(TRIM(country)) = ?', [mb_strtolower(trim((string) $country))]);
+                    }
+                })
                 ->orderBy('name')
                 ->get(['city_id', 'id', 'name', 'country']);
+
             foreach ($cityRecords as $cityRow) {
                 $canonicalCity = trim((string) ($cityRow->name ?? ''));
                 $country = self::normalizeCountryName((string) ($cityRow->country ?? ''));
@@ -5958,8 +5968,10 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 $occupancyKey = 'single';
             }
         } else {
-            // No hotel booked — do not invent rooming (e.g. 01 DBL TWIN).
             $occupancyKey = $adults <= 1 ? 'single' : 'double';
+            $roomCounts[$occupancyKey] = $occupancyKey === 'double'
+                ? max(1, (int) ceil(max(1, $adults) / 2))
+                : 1;
         }
 
         $roomingParts = [];
@@ -5972,12 +5984,18 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         if ($roomCounts['triple'] > 0) {
             $roomingParts[] = sprintf('%02d TRPL', $roomCounts['triple']);
         }
+        if ($roomingParts === []) {
+            $roomingParts[] = match ($occupancyKey) {
+                'triple' => sprintf('%02d TRPL', max(1, $roomCounts['triple'])),
+                'double' => sprintf('%02d DBL TWIN', max(1, $roomCounts['double'])),
+                default => sprintf('%02d SGL', max(1, $roomCounts['single'])),
+            };
+        }
 
         return [
             'occupancy_key' => $occupancyKey,
             'rooming_text' => implode(' + ', $roomingParts),
             'room_counts' => $roomCounts,
-            'has_hotel_rooms' => $totalRooms > 0,
         ];
     }
 
@@ -7340,406 +7358,177 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
     }
 
     /**
-     * Calculate per-pax tour prices from order totalPrice / pax.
+     * Calculate single sharing and double sharing prices for a tour
      *
-     * Formula (segregated segments):
-     * Final Per Pax =
-     *   (Hotel Price / Occupancy) + (Hotel Supplement / Occupancy)
-     *   + (Other Services / Total Pax) + (Other Supplements / Total Pax)
-     *   + (Hotel Markup / Total Pax) + (Other Markup / Total Pax)
-     *
-     * Discount (currency_markups.discount_value) is NOT applied per-pax —
-     * it is subtracted only from TOTAL COST (order total + markup − discount).
-     * Markup (hotel_markup + other_markup) is added to TOTAL COST.
-     *
-     * Occupancy (1/2/3) applies only to hotel + hotel supplement.
-     * Hotel / other supplements are calculated separately and returned only in
-     * supplements / supplyments — they are NOT merged into country_sharing,
-     * single/double/triple_sharing, or overall package totals.
-     * GROUP FOC distribution factor is applied on top of the diagram formula.
-     *
-     * @param int|string $tourId Tour id or display_id (e.g. DMC-ORD3107)
-     * @return array
+     * @param int|string $tourId - Can be tour_id (integer) or display_id (string like "DMC-ORD3107")
+     * @return array ['single_sharing' => float, 'double_sharing' => float, 'triple_sharing' => float]
      */
     public static function calculateTourPrices($tourId)
     {
-        $empty = [
-            'single_sharing' => 0,
-            'double_sharing' => 0,
-            'triple_sharing' => 0,
-            'baby_cot_sharing' => 0,
-            'other_services_single' => 0,
-            'other_services_double' => 0,
-            'country_sharing' => [],
-            'hotel_price_options' => [],
-            'service_price_lines' => [],
-            'segregated' => [
-                'hotel' => ['single' => 0, 'double' => 0, 'triple' => 0, 'baby_cot' => 0],
-                'attraction' => ['single' => 0, 'double' => 0],
-                'restaurant' => ['single' => 0, 'double' => 0],
-                'entry_port' => ['single' => 0, 'double' => 0],
-                'exit_port' => ['single' => 0, 'double' => 0],
-                'guide' => ['single' => 0, 'double' => 0],
-                'travel_hourly' => ['single' => 0, 'double' => 0],
-                'travel_point' => ['single' => 0, 'double' => 0],
-                'local_transport' => ['single' => 0, 'double' => 0],
-                'other' => ['single' => 0, 'double' => 0],
-            ],
-            'supplements' => [],
-            'supplyments' => [],
-        ];
-
+        // Check if input is display_id (string format like "DMC-ORD3107") or tour_id (integer)
         if (is_string($tourId) && (strpos($tourId, 'DMC-ORD') === 0 || strpos($tourId, 'ORD') === 0)) {
+            // It's a display_id, find tour by display_id
             $tour = Tour::where('display_id', $tourId)->first();
         } else {
+            // It's a tour_id, find tour by tour_id
             $tour = Tour::where('tour_id', $tourId)->first();
         }
-
+       
         if (!$tour) {
-            return $empty;
+            return [
+                'single_sharing' => 0,
+                'double_sharing' => 0,
+                'triple_sharing' => 0,
+                'baby_cot_sharing' => 0,
+                'other_services_single' => 0,
+                'other_services_double' => 0,
+                'country_sharing' => [],
+                'hotel_price_options' => [],
+                'segregated' => [
+                    'hotel' => ['single' => 0, 'double' => 0, 'triple' => 0, 'baby_cot' => 0],
+                    'attraction' => ['single' => 0, 'double' => 0],
+                    'restaurant' => ['single' => 0, 'double' => 0],
+                    'entry_port' => ['single' => 0, 'double' => 0],
+                    'exit_port' => ['single' => 0, 'double' => 0],
+                    'guide' => ['single' => 0, 'double' => 0],
+                    'travel_hourly' => ['single' => 0, 'double' => 0],
+                    'travel_point' => ['single' => 0, 'double' => 0],
+                    'local_transport' => ['single' => 0, 'double' => 0],
+                    'other' => ['single' => 0, 'double' => 0],
+                ],
+                'supplements' => [],
+            ];
         }
-
-        $orders = Order::where('tour_id', $tour->tour_id)
+        // Use the actual tour_id from the found tour for querying orders
+        $actualTourId = $tour->tour_id;
+        $orders = Order::where('tour_id', $actualTourId)
             ->where('status', 1)
             ->get();
 
-        $tourType = strtoupper((string) ($tour->tour_type ?? 'FIT'));
-        $adultTotal = max(0, (int) ($tour->adult ?? 0));
-        $childTotal = max(0, (int) ($tour->child ?? 0));
-        $focSize = max(0, (int) ($tour->foc_size ?? 0));
+        // GROUP pricing inputs
+        // IMPORTANT (project convention):
+        // - `adult` is the TOTAL adult count (includes FOC adults)
+        // - `foc_size` is how many of those adults are FOC (free of charge)
+        // - `child` are paying children (FOC does not apply to child here)
+        $tourType = strtoupper((string)($tour->tour_type ?? 'FIT'));
+        $adultTotal = max(0, (int)($tour->adult ?? 0));
+        $childTotal = max(0, (int)($tour->child ?? 0));
+        $focSize = max(0, (int)($tour->foc_size ?? 0));
+
+        // Paying pax excludes FOC adults
         $payingAdults = max(0, $adultTotal - $focSize);
         $payingPax = $payingAdults + $childTotal;
-        $totalPax = max(1, $adultTotal + $childTotal);
 
-        // GROUP + FOC: spread total-head cost over paying pax
-        $focFactor = ($tourType === 'GROUP' && $payingPax > 0 && ($adultTotal + $childTotal) > $payingPax)
-            ? ((float) ($adultTotal + $childTotal) / (float) $payingPax)
+        // Total pax is the real headcount travelling
+        $totalPax = $adultTotal + $childTotal;
+
+        // When GROUP has FOC, distribute total pax cost over paying pax.
+        // Example: adultTotal=12 (includes foc 2), childTotal=0 => total=12, paying=10 => factor=12/10.
+        $focDistributionFactor = ($tourType === 'GROUP' && $payingPax > 0 && $totalPax > $payingPax)
+            ? ((float)$totalPax / (float)$payingPax)
             : 1.0;
 
+        $totalSingleSharing = 0;
+        $totalDoubleSharing = 0;
+        $totalTripleSharing = 0;
+        $totalBabyCot = 0;
+        // Separate tracker for non-hotel, non-supplement services (for other_services response key)
+        $otherServiceSingle = 0.0;
+        $otherServiceDouble = 0.0;
+        // Track child-specific pricing component across attraction/restaurant services
+        $totalChildComponent = 0; // Sum of child unit prices (attraction + restaurant + â€¦)
+
+        // Country + currency trackers (native amounts; no FX mix of SGD/IDR/etc.)
+        $countryOtherBuckets = []; // key => ['country','currency','single','double']
         $fallbackCurrency = strtoupper(trim((string) ($tour->currency ?? 'SGD'))) ?: 'SGD';
-        $isProTour = (int) ($tour->is_pro ?? 0) === 1;
+       
+        // Segregated prices by service type
+        $segregatedPrices = [
+            'hotel' => ['single' => 0, 'double' => 0, 'triple' => 0, 'baby_cot' => 0],
+            'attraction' => ['single' => 0, 'double' => 0],
+            'restaurant' => ['single' => 0, 'double' => 0],
+            'entry_port' => ['single' => 0, 'double' => 0],
+            'exit_port' => ['single' => 0, 'double' => 0],
+            'guide' => ['single' => 0, 'double' => 0],
+            'travel_hourly' => ['single' => 0, 'double' => 0],
+            'travel_point' => ['single' => 0, 'double' => 0],
+            'local_transport' => ['single' => 0, 'double' => 0],
+            'other' => ['single' => 0, 'double' => 0],
+        ];
 
-        $hotelBuckets = [];
-        $hotelBucketMeta = [];
-        $countryHotel = []; // key => single/double/triple (hotel stay, non-supplement)
-        $countryOther = []; // key => single/double (same per-pax for both)
-        $countryOtherChild = []; // key => child ticket/meal totals (absolute)
-        $countryGrossHotel = []; // raw hotel totals for % markup
-        $countryGrossOther = []; // raw other totals for % markup
-        $supplements = [];
-        $hotelSupplementBuckets = []; // merge same hotel_id into one supplement row
+        // Per-service lines for quotation price breakdown (non-hotel, non-supplement)
         $servicePriceLines = [];
-        $sumBabyCot = 0.0;
-
-        $segregated = $empty['segregated'];
-
-        $ensureCountry = function (string $key, string $country, string $currency) use (&$countryHotel, &$countryOther, &$countryGrossHotel, &$countryGrossOther, &$countryOtherChild): void {
-            if (!isset($countryHotel[$key])) {
-                $countryHotel[$key] = [
-                    'country' => $country,
-                    'currency' => $currency,
-                    'single' => 0.0,
-                    'double' => 0.0,
-                    'triple' => 0.0,
-                ];
-            }
-            if (!isset($countryOther[$key])) {
-                $countryOther[$key] = [
-                    'country' => $country,
-                    'currency' => $currency,
-                    'single' => 0.0,
-                    'double' => 0.0,
-                ];
-            }
-            if (!isset($countryGrossHotel[$key])) {
-                $countryGrossHotel[$key] = 0.0;
-            }
-            if (!isset($countryGrossOther[$key])) {
-                $countryGrossOther[$key] = 0.0;
-            }
-            if (!isset($countryOtherChild[$key])) {
-                $countryOtherChild[$key] = 0.0;
-            }
-        };
-
-        $hotelRoomCount = function (array $item): int {
-            $rooms = $item['rooms'] ?? [];
-            if (!is_array($rooms) || $rooms === []) {
-                return max(1, (int) ($item['number_of_rooms'] ?? $item['no_of_room'] ?? 1));
-            }
-            $count = 0;
-            foreach ($rooms as $room) {
-                if (!is_array($room)) {
-                    continue;
-                }
-                $count += max(1, (int) ($room['number_of_rooms'] ?? $room['no_of_room'] ?? 1));
+        $appendServicePriceLine = function (
+            string $type,
+            array $item,
+            float $singleSharing,
+            float $doubleSharing,
+            float $childUnitPrice = 0.0,
+            bool $isSupplementRow = false
+        ) use (&$servicePriceLines): void {
+            if ($isSupplementRow) {
+                return;
             }
 
-            return max(1, $count);
-        };
-
-        // Resolve room selected_persons (1/2/3) for supplement occupancy display.
-        $hotelSelectedPersons = function (array $item): int {
-            $maxSp = 0;
-            $rooms = $item['rooms'] ?? [];
-            if (is_array($rooms)) {
-                foreach ($rooms as $room) {
-                    if (!is_array($room)) {
-                        continue;
-                    }
-                    $sp = (int) ($room['selected_persons'] ?? $room['selectedPersons'] ?? 0);
-                    if ($sp <= 0) {
-                        $beds = isset($room['beds']) && is_array($room['beds']) ? $room['beds'] : [];
-                        if (!empty($beds) && is_array($beds[0] ?? null)) {
-                            $sp = (int) ($beds[0]['head_count'] ?? $beds[0]['headCount'] ?? $beds[0]['occupancy'] ?? 0);
-                        }
-                    }
-                    if ($sp <= 0) {
-                        $occ = strtolower(trim((string) ($room['occupancy'] ?? '')));
-                        if (str_contains($occ, 'triple') || $occ === '3') {
-                            $sp = 3;
-                        } elseif (str_contains($occ, 'double') || $occ === '2') {
-                            $sp = 2;
-                        } elseif (str_contains($occ, 'single') || $occ === '1') {
-                            $sp = 1;
-                        }
-                    }
-                    $maxSp = max($maxSp, $sp);
-                }
-            }
-            if ($maxSp <= 0) {
-                $maxSp = (int) ($item['selected_persons'] ?? $item['selectedPersons'] ?? 0);
-            }
-            if ($maxSp <= 0) {
-                $maxSp = 2; // sensible default for hotel
+            $normalizedType = strtolower(str_replace(' ', '_', trim($type)));
+            if ($normalizedType === 'hotel') {
+                return;
             }
 
-            return max(1, min(3, $maxSp));
-        };
-
-        // Child count + half-meal (rooms.children_price: 0=free, 1=half, 2=full) from stored hotel JSON.
-        $hotelChildMeta = function (array $item) use ($childTotal): array {
-            $cwb = (isset($item['child_with_bed']) && is_array($item['child_with_bed'])) ? $item['child_with_bed'] : null;
-            $cnb = (isset($item['child_without_bed']) && is_array($item['child_without_bed'])) ? $item['child_without_bed'] : null;
-
-            $children = (int) ($item['children'] ?? 0);
-            if ($children <= 0 && $cwb && !empty($cwb['enabled'])) {
-                $children = max(0, (int) ($cwb['children'] ?? 0));
-            }
-            if ($children <= 0 && $cnb && !empty($cnb['enabled'])) {
-                $children = max(0, (int) ($cnb['children'] ?? 0));
-            }
-            if ($children <= 0 && $childTotal > 0) {
-                // Fall back to tour child count when hotel row omitted children but CWB/CNB enabled
-                if (($cwb && !empty($cwb['enabled'])) || ($cnb && !empty($cnb['enabled']))) {
-                    $children = $childTotal;
-                }
+            if ($singleSharing <= 0 && $doubleSharing <= 0 && $childUnitPrice <= 0) {
+                return;
             }
 
-            $childrenPriceCode = $item['children_price'] ?? null;
-            if ($childrenPriceCode === null && isset($item['helperMeals']['children_price'])) {
-                $childrenPriceCode = $item['helperMeals']['children_price'];
-            }
-            if ($childrenPriceCode === null && isset($item['mealPrices']['children_price'])) {
-                $childrenPriceCode = $item['mealPrices']['children_price'];
-            }
-            $childrenPriceCode = (int) round(floatval($childrenPriceCode ?? 2));
-            if ($childrenPriceCode < 0 || $childrenPriceCode > 2) {
-                $childrenPriceCode = 2;
-            }
-
-            $childMealFactor = $item['child_meal_factor'] ?? null;
-            if ($childMealFactor === null && isset($item['helperMeals']['child_meal_factor'])) {
-                $childMealFactor = $item['helperMeals']['child_meal_factor'];
-            }
-            if ($childMealFactor === null) {
-                $childMealFactor = ($childrenPriceCode === 0) ? 0.0 : (($childrenPriceCode === 1) ? 0.5 : 1.0);
-            } else {
-                $childMealFactor = (float) $childMealFactor;
-            }
-
-            $nights = 1;
-            $dates = $item['bookingDate'] ?? $item['booking_date'] ?? [];
-            if (is_array($dates) && count($dates) >= 2) {
-                try {
-                    $nights = max(1, (int) \Carbon\Carbon::parse($dates[0])->diffInDays(\Carbon\Carbon::parse($dates[1])));
-                } catch (\Throwable $e) {
-                    $nights = max(1, count($dates) - 1);
-                }
-            } elseif (is_array($dates) && count($dates) === 1) {
-                $nights = 1;
-            }
-
-            $rooms = 1;
-            $roomList = $item['rooms'] ?? [];
-            if (is_array($roomList) && $roomList !== []) {
-                $rooms = 0;
-                foreach ($roomList as $room) {
-                    if (!is_array($room)) {
-                        continue;
-                    }
-                    $rooms += max(1, (int) ($room['number_of_rooms'] ?? $room['no_of_room'] ?? 1));
-                }
-                $rooms = max(1, $rooms);
-            } else {
-                $rooms = max(1, (int) ($item['number_of_rooms'] ?? $item['no_of_room'] ?? 1));
-            }
-
-            $resolveChildBedTotal = function (?array $block) use ($children, $nights, $rooms): float {
-                if (!$block || empty($block['enabled'])) {
-                    return 0.0;
-                }
-                if (isset($block['total_cost']) && (float) $block['total_cost'] > 0) {
-                    return (float) $block['total_cost'];
-                }
-                $unit = (float) ($block['price'] ?? $block['unit_price'] ?? 0);
-                $kids = max(1, (int) ($block['children'] ?? $children));
-                if ($unit <= 0 || $kids <= 0) {
-                    return 0.0;
-                }
-
-                return $unit * $kids * $nights * $rooms;
-            };
-
-            $cwbTotal = $resolveChildBedTotal($cwb);
-            $cnbTotal = $resolveChildBedTotal($cnb);
-
-            return [
-                'children' => $children,
-                'children_price' => $childrenPriceCode,
-                'child_meal_factor' => $childMealFactor,
-                'child_with_bed_total' => $cwbTotal,
-                'child_without_bed_total' => $cnbTotal,
-                'child_with_bed' => $cwb,
-                'child_without_bed' => $cnb,
-                'nights' => $nights,
-                'rooms' => $rooms,
+            $servicePriceLines[] = [
+                'label' => self::resolveOrderItemPriceLabel($type, $item),
+                'type' => $normalizedType,
+                'single' => $singleSharing,
+                'double' => $doubleSharing,
+                'child_unit' => $childUnitPrice,
             ];
         };
 
-        $lineAmount = function (array $item, string $type) use ($isProTour): float {
-            $amount = (float) ($item['totalPrice'] ?? $item['total_price'] ?? $item['price'] ?? 0);
-            if ($type === 'hotel') {
-                return max(0.0, $amount);
-            }
-            // Vehicles: use totalPrice only (already the booking sell total).
-            $vehicleTypes = [
-                'local_transport', 'local_transfer', 'local_transfer_vehicle',
-                'travel_hourly', 'travel_point', 'port_transport',
-            ];
-            if (in_array($type, $vehicleTypes, true)) {
-                return max(0.0, $amount);
-            }
-            $transfer = 0.0;
-            if (isset($item['transfer_options']) && is_array($item['transfer_options'])) {
-                if ($isProTour && isset($item['transfer_options']['totalPrice'])) {
-                    $transfer = (float) $item['transfer_options']['totalPrice'];
-                } elseif (!empty($item['transfer_options']['cost']) && (float) $item['transfer_options']['cost'] > 0) {
-                    $transfer = (float) $item['transfer_options']['cost'];
-                }
-            }
-            $guide = 0.0;
-            if (isset($item['guide_options']) && is_array($item['guide_options'])) {
-                $gv = $item['guide_options']['total_price']
-                    ?? $item['guide_options']['cost']
-                    ?? $item['guide_options']['Cost']
-                    ?? $item['guide_options']['sell']
-                    ?? $item['guide_options']['Sell']
-                    ?? 0;
-                if ((float) $gv > 0) {
-                    $guide = (float) $gv;
-                }
-            }
+        // Supplements: services with "supplement": true (excluded from main total).
+        // Non-hotel supplement rows expose full line booking total; hotel supplements use stay totals per rooming.
+        $supplements = [];
+        // Merge hotel supplements: same hotel/date-range => one supplement row (avoid duplicates)
+        $hotelSupplementBuckets = [];
 
-            return max(0.0, $amount + $transfer + $guide);
-        };
-
-        $itemPax = function (array $item) use ($totalPax): int {
-            foreach (['pax', 'Pax', 'total_pax', 'totalPax', 'head_count', 'headCount'] as $k) {
-                if (isset($item[$k]) && (int) $item[$k] > 0) {
-                    return (int) $item[$k];
-                }
-            }
-            $adults = (int) ($item['adultCount'] ?? $item['adult'] ?? $item['Adults'] ?? $item['adults'] ?? 0);
-            $children = (int) ($item['childCount'] ?? $item['child'] ?? $item['Children'] ?? $item['children'] ?? 0);
-            $seniors = (int) ($item['seniorCount'] ?? $item['senior'] ?? $item['seniors'] ?? 0);
-            if (($adults + $children + $seniors) > 0) {
-                return $adults + $children + $seniors;
-            }
-
-            return $totalPax;
-        };
-
-        // Attraction ticket / restaurant meal adult+child unit prices and counts.
-        $resolveGuestServicePricing = function (array $item, string $type, float $amount): array {
-            $adultCount = max(0, (int) ($item['adultCount'] ?? $item['adult_count'] ?? $item['adults'] ?? $item['adult'] ?? 0));
-            $childCount = max(0, (int) ($item['childCount'] ?? $item['child_count'] ?? $item['children'] ?? $item['child'] ?? 0));
-            $seniorCount = max(0, (int) ($item['seniorCount'] ?? $item['senior_count'] ?? $item['seniors'] ?? $item['senior'] ?? 0));
-
-            $adultUnit = 0.0;
-            $childUnit = 0.0;
-            $seniorUnit = 0.0;
-
-            if ($type === 'attraction') {
-                $td = (isset($item['ticket_details']) && is_array($item['ticket_details'])) ? $item['ticket_details'] : [];
-                $adultUnit = (float) ($td['adult_price'] ?? $item['adult_price'] ?? 0);
-                $childUnit = (float) ($td['child_price'] ?? $item['child_price'] ?? 0);
-                $seniorUnit = (float) ($td['senior_price'] ?? $td['senior_adult_price'] ?? $item['senior_price'] ?? 0);
-            } elseif ($type === 'restaurant') {
-                $md = (isset($item['meal_details']) && is_array($item['meal_details'])) ? $item['meal_details'] : [];
-                $meal0 = (isset($item['MealDescription'][0]) && is_array($item['MealDescription'][0])) ? $item['MealDescription'][0] : [];
-                $adultUnit = (float) ($item['adult_price'] ?? $md['adult_price'] ?? $meal0['adult_price'] ?? 0);
-                $childUnit = (float) ($item['child_price'] ?? $md['child_price'] ?? $meal0['child_price'] ?? 0);
-            }
-
-            $adultTotal = $adultUnit * $adultCount;
-            $childTotal = $childUnit * $childCount;
-            $seniorTotal = $seniorUnit * $seniorCount;
-            $ticketMealTotal = $adultTotal + $childTotal + $seniorTotal;
-            // Transfer/guide (or rounding) beyond ticket/meal adult+child
-            $extras = max(0.0, $amount - $ticketMealTotal);
-            // If unit prices missing but counts exist, treat full amount as adult share
-            if ($ticketMealTotal <= 0 && ($adultCount + $childCount + $seniorCount) > 0) {
-                $adultTotal = $amount;
-                $childTotal = 0.0;
-                $seniorTotal = 0.0;
-                $extras = 0.0;
-                if ($adultCount > 0) {
-                    $adultUnit = $amount / $adultCount;
-                }
-            }
-
-            return [
-                'adult_count' => $adultCount,
-                'child_count' => $childCount,
-                'senior_count' => $seniorCount,
-                'adult_unit' => $adultUnit,
-                'child_unit' => $childUnit,
-                'senior_unit' => $seniorUnit,
-                'adult_total' => $adultTotal,
-                'child_total' => $childTotal,
-                'senior_total' => $seniorTotal,
-                'extras' => $extras,
-                'has_guest_split' => ($adultCount + $childCount + $seniorCount) > 0
-                    && ($adultUnit > 0 || $childUnit > 0 || $seniorUnit > 0 || $amount > 0),
-            ];
-        };
-
-        $bookingRangeLabel = function (array $item) use ($tour): string {
+        // Counter for hotels to segregate individually
+        $hotelCount = 0;
+        // Track which hotel occupancies are actually booked on this tour
+        $bookedHotelOccupancies = ['single' => false, 'double' => false, 'triple' => false];
+       
+        // Merge hotel rows: same hotel_id + same date range => one hotel bucket.
+        // Each bucket stores per-head price for single/double/triple once (no multiplication when multiple orders exist).
+        $hotelBuckets = [];
+        // Store display/meta for each grouped hotel key
+        $hotelBucketMeta = [];
+       
+        // Normalize booking date range to group same hotel orders together
+        $getHotelBookingRangeLabel = function (array $item) use ($tour): string {
             $bookingDate = $item['bookingDate'] ?? null;
             try {
                 if (is_array($bookingDate) && count($bookingDate) === 2 && !empty($bookingDate[0]) && !empty($bookingDate[1])) {
-                    return Carbon::parse($bookingDate[0])->format('Y-m-d') . ' to ' . Carbon::parse($bookingDate[1])->format('Y-m-d');
+                    $start = Carbon::parse($bookingDate[0])->format('Y-m-d');
+                    $end = Carbon::parse($bookingDate[1])->format('Y-m-d');
+                    return $start . ' to ' . $end;
                 }
             } catch (\Throwable $e) {
+                // ignore
             }
+           
+            // Fallback to tour dates
             try {
                 if (!empty($tour->check_in_time) && !empty($tour->check_out_time)) {
-                    return Carbon::parse($tour->check_in_time)->format('Y-m-d') . ' to ' . Carbon::parse($tour->check_out_time)->format('Y-m-d');
+                    $start = Carbon::parse($tour->check_in_time)->format('Y-m-d');
+                    $end = Carbon::parse($tour->check_out_time)->format('Y-m-d');
+                    return $start . ' to ' . $end;
                 }
             } catch (\Throwable $e) {
+                // ignore
             }
-
+           
             return '';
         };
 
@@ -7748,7 +7537,8 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             if (is_string($rawData)) {
                 $rawData = json_decode($rawData, true);
             }
-            if (empty($rawData) || !is_array($rawData)) {
+
+            if (empty($rawData)) {
                 continue;
             }
 
@@ -7761,640 +7551,951 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 $orderCurrency = $fallbackCurrency;
             }
             $orderCurrency = strtoupper($orderCurrency);
-            $countryKey = mb_strtolower($orderCountry) . '|' . $orderCurrency;
-            $ensureCountry($countryKey, $orderCountry, $orderCurrency);
+            $countryPriceKey = mb_strtolower($orderCountry) . '|' . $orderCurrency;
+            if (!isset($countryOtherBuckets[$countryPriceKey])) {
+                $countryOtherBuckets[$countryPriceKey] = [
+                    'country' => $orderCountry,
+                    'currency' => $orderCurrency,
+                    'single' => 0.0,
+                    'double' => 0.0,
+                ];
+            }
+            $trackCountryOther = function (float $single, float $double) use (&$countryOtherBuckets, $countryPriceKey): void {
+                if (!isset($countryOtherBuckets[$countryPriceKey])) {
+                    return;
+                }
+                $countryOtherBuckets[$countryPriceKey]['single'] += $single;
+                $countryOtherBuckets[$countryPriceKey]['double'] += $double;
+            };
 
-            $type = strtolower((string) ($order->type ?? ''));
-            $items = (isset($rawData[0]) && is_array($rawData[0])) ? $rawData : [$rawData];
+            $items = isset($rawData[0]) ? $rawData : [$rawData];
+            $type = strtolower($order->type ?? '');
+            $babyCotPrice = null;
+            $manualSinglePrice = null;
+            // $manualDoublePrice = null; // not used (double always from room/hotel tables)
 
             foreach ($items as $item) {
-                if (!is_array($item)) {
-                    continue;
-                }
-
                 $isSupplement = !empty($item['supplement']);
-                $amount = $lineAmount($item, $type);
-                if ($amount <= 0) {
-                    continue;
-                }
 
                 if ($type === 'hotel') {
-                    // 1) Store child count + half meal, then resolve child-with/without-bed totals
-                    $childMeta = $hotelChildMeta($item);
-                    $childrenCount = (int) ($childMeta['children'] ?? 0);
-                    $childrenPriceCode = (int) ($childMeta['children_price'] ?? 2);
-                    $childMealFactor = (float) ($childMeta['child_meal_factor'] ?? 1.0);
-                    $cwbTotal = (float) ($childMeta['child_with_bed_total'] ?? 0);
-                    $cnbTotal = (float) ($childMeta['child_without_bed_total'] ?? 0);
-                    $childBedTotal = $cwbTotal + $cnbTotal;
+                    $hotelCount++;
+                    $babyCotPrice = 0;
+                   
+                    // Fetch hotel details early to use name as key
+                    $hotelId = $item['hotelDetails']['hotel_id'] ?? $item['hotelDetails']['hotelId'] ?? $item['hotel_id'] ?? $item['hotelId'] ?? null;
+                    $hotelName = $item['hotelDetails']['hotel_name'] ?? $item['hotelName'] ?? $item['name'] ?? null;
+                    $hotel = null;
+                    $weekendDays = ['Saturday', 'Sunday']; // Default fallback only
 
-                    // totalPrice usually already includes CWB/CNB — strip them before occupancy share
-                    $baseAmount = max(0.0, $amount - $childBedTotal);
-                    // If payload omitted CWB from totalPrice, still add calculated child bed into baby_cot
-                    if ($childBedTotal > 0 && $amount > 0 && abs($amount - $baseAmount - $childBedTotal) > 0.01) {
-                        // amount already included child bed (baseAmount = amount - childBed)
-                    }
-
-                    $rooms = $hotelRoomCount($item);
-                    $perRoom = $baseAmount / $rooms;
-
-                    $selectedPersonsRaw = $hotelSelectedPersons($item);
-                    // Adult occupancy for sharing columns (exclude children on CWB/CNB)
-                    $adultOccupancy = $selectedPersonsRaw;
-                    if ($childrenCount > 0 && (($childMeta['child_with_bed']['enabled'] ?? false) || ($childMeta['child_without_bed']['enabled'] ?? false))) {
-                        $adultOccupancy = max(1, $selectedPersonsRaw - $childrenCount);
-                    }
-                    $selectedPersons = max(1, min(3, $adultOccupancy));
-                    $bookedPerPax = $perRoom / max(1, $selectedPersons);
-
-                    // Child with/without bed → baby_cot bucket (not mixed into Single/Double/Triple share)
-                    if ($childBedTotal > 0) {
-                        $sumBabyCot += $childBedTotal;
-                        $segregated['hotel']['baby_cot'] = ($segregated['hotel']['baby_cot'] ?? 0) + $childBedTotal;
-                    }
-
-                    $hotelId = $item['hotelDetails']['hotel_id']
-                        ?? $item['hotelDetails']['hotelId']
-                        ?? $item['hotel_id']
-                        ?? $item['hotelId']
-                        ?? null;
-                    $hotelName = $item['hotelDetails']['hotel_name']
-                        ?? $item['hotelName']
-                        ?? $item['name']
-                        ?? 'Hotel';
-                    $dateRange = $bookingRangeLabel($item);
-                    // Merge same hotel into one quotation row (ignore date splits).
-                    $hotelKey = mb_strtolower(trim((string) $hotelName)) . '|' . $countryKey;
-
-                    // Add booked occupancy per-pax only into country totals (e.g. 100 / 100 / 117).
-                    $addBookedToCountry = function () use (
-                        &$countryHotel,
-                        &$countryGrossHotel,
-                        &$segregated,
-                        $countryKey,
-                        $selectedPersons,
-                        $bookedPerPax,
-                        $baseAmount
-                    ): void {
-                        if ($selectedPersons >= 3) {
-                            $countryHotel[$countryKey]['triple'] += $bookedPerPax;
-                            $segregated['hotel']['triple'] += $bookedPerPax;
-                        } elseif ($selectedPersons === 2) {
-                            $countryHotel[$countryKey]['double'] += $bookedPerPax;
-                            $segregated['hotel']['double'] += $bookedPerPax;
-                        } else {
-                            $countryHotel[$countryKey]['single'] += $bookedPerPax;
-                            $segregated['hotel']['single'] += $bookedPerPax;
-                        }
-                        $countryGrossHotel[$countryKey] += $baseAmount;
-                    };
-
-                    // Hotel supplement: separate from country / overall package prices.
-                    // Only listed in supplements payload (booked occupancy per-pax, merge same hotel_id).
-                    if ($isSupplement) {
-                        $suppKey = trim((string) $hotelId) !== ''
-                            ? ('id:' . trim((string) $hotelId) . '|' . $countryKey)
-                            : ('name:' . mb_strtolower(trim((string) $hotelName)) . '|' . $countryKey);
-
-                        if (!isset($hotelSupplementBuckets[$suppKey])) {
-                            $hotelSupplementBuckets[$suppKey] = [
-                                'type' => 'hotel',
+                    if ($hotelId) {
+                        try {
+                            $hotel = Hotel::where('hotel_unique_id', $hotelId)->first();
+                            if ($hotel) {
+                                if ($hotel->weekend_days) {
+                                    $decodedWeekendDays = json_decode($hotel->weekend_days, true);
+                                    if (is_array($decodedWeekendDays) && !empty($decodedWeekendDays)) {
+                                        $weekendDays = $decodedWeekendDays;
+                                    }
+                                }
+                                if ($hotel->name) {
+                                    $hotelName = $hotel->name;
+                                }
+                            }
+                        } catch (\Exception $e) {
+                            Log::warning('Failed to fetch hotel details', [
                                 'hotel_id' => $hotelId,
-                                'hotel_name' => $hotelName,
-                                'date_range' => $dateRange,
-                                'display_name' => $hotelName,
-                                'name' => $hotelName,
-                                'country' => $orderCountry,
-                                'currency' => $orderCurrency,
-                                'selected_persons' => $selectedPersons,
-                                'children' => $childrenCount,
-                                'children_price' => $childrenPriceCode,
-                                'child_meal_factor' => $childMealFactor,
-                                'child_with_bed_total' => 0.0,
-                                'child_without_bed_total' => 0.0,
-                                'show_single' => false,
-                                'show_double' => false,
-                                'show_triple' => false,
-                                'single' => 0.0,
-                                'double' => 0.0,
-                                'triple' => 0.0,
-                            ];
+                                'error' => $e->getMessage()
+                            ]);
                         }
-
-                        $hotelSupplementBuckets[$suppKey]['selected_persons'] = max(
-                            (int) $hotelSupplementBuckets[$suppKey]['selected_persons'],
-                            $selectedPersons
-                        );
-                        $hotelSupplementBuckets[$suppKey]['children'] = max(
-                            (int) ($hotelSupplementBuckets[$suppKey]['children'] ?? 0),
-                            $childrenCount
-                        );
-                        $hotelSupplementBuckets[$suppKey]['children_price'] = $childrenPriceCode;
-                        $hotelSupplementBuckets[$suppKey]['child_meal_factor'] = $childMealFactor;
-                        $hotelSupplementBuckets[$suppKey]['child_with_bed_total'] =
-                            (float) ($hotelSupplementBuckets[$suppKey]['child_with_bed_total'] ?? 0) + $cwbTotal;
-                        $hotelSupplementBuckets[$suppKey]['child_without_bed_total'] =
-                            (float) ($hotelSupplementBuckets[$suppKey]['child_without_bed_total'] ?? 0) + $cnbTotal;
-                        $scaled = $bookedPerPax * $focFactor;
-                        // Show only the booked occupancy column (no invented Single/Double for triple).
-                        if ($selectedPersons >= 3) {
-                            $hotelSupplementBuckets[$suppKey]['triple'] += $scaled;
-                            $hotelSupplementBuckets[$suppKey]['show_triple'] = true;
-                        } elseif ($selectedPersons === 2) {
-                            $hotelSupplementBuckets[$suppKey]['double'] += $scaled;
-                            $hotelSupplementBuckets[$suppKey]['show_double'] = true;
-                        } else {
-                            $hotelSupplementBuckets[$suppKey]['single'] += $scaled;
-                            $hotelSupplementBuckets[$suppKey]['show_single'] = true;
-                        }
-                        continue;
                     }
 
-                    if (!isset($hotelBuckets[$hotelKey])) {
-                        $hotelBuckets[$hotelKey] = [
-                            'single' => 0.0,
-                            'double' => 0.0,
-                            'triple' => 0.0,
-                            'selected_persons' => 0,
-                            'children' => 0,
-                            'children_price' => $childrenPriceCode,
-                            'child_meal_factor' => $childMealFactor,
-                            'child_with_bed_total' => 0.0,
-                            'child_without_bed_total' => 0.0,
-                        ];
-                        $hotelBucketMeta[$hotelKey] = [
-                            'hotel_id' => $hotelId,
+                    if (empty($hotelName)) {
+                        $hotelName = 'Hotel ' . $hotelCount;
+                    }
+
+                    // Group key: same hotel_id + same date range => treat as one hotel
+                    // (hotel name can change/collide; hotel_id is stable)
+                    $rangeLabel = $getHotelBookingRangeLabel(is_array($item) ? $item : []);
+                    $stableHotelId = $hotelId ?: ($hotel ? ($hotel->hotel_unique_id ?? null) : null);
+                    $stableHotelId = $stableHotelId !== null ? (string)$stableHotelId : '';
+                    $groupKey = $stableHotelId !== '' ? ('hotel_' . $stableHotelId) : ('hotel_name_' . preg_replace('/\s+/', '_', strtolower((string)$hotelName)));
+                    $currentHotelKey = $rangeLabel ? ($groupKey . '__' . $rangeLabel) : $groupKey;
+
+                    if (!isset($hotelBucketMeta[$currentHotelKey])) {
+                        $hotelBucketMeta[$currentHotelKey] = [
+                            'hotel_id' => $stableHotelId,
                             'hotel_name' => $hotelName,
-                            'date_range' => $dateRange,
-                            'display_name' => $hotelName,
+                            'date_range' => $rangeLabel,
+                            'display_name' => $rangeLabel ? ($hotelName . ' (' . $rangeLabel . ')') : $hotelName,
                             'country' => $orderCountry,
                             'currency' => $orderCurrency,
                         ];
                     }
-                    $hotelBuckets[$hotelKey]['selected_persons'] = max(
-                        (int) ($hotelBuckets[$hotelKey]['selected_persons'] ?? 0),
-                        $selectedPersons
-                    );
-                    $hotelBuckets[$hotelKey]['children'] = max(
-                        (int) ($hotelBuckets[$hotelKey]['children'] ?? 0),
-                        $childrenCount
-                    );
-                    $hotelBuckets[$hotelKey]['children_price'] = $childrenPriceCode;
-                    $hotelBuckets[$hotelKey]['child_meal_factor'] = $childMealFactor;
-                    $hotelBuckets[$hotelKey]['child_with_bed_total'] =
-                        (float) ($hotelBuckets[$hotelKey]['child_with_bed_total'] ?? 0) + $cwbTotal;
-                    $hotelBuckets[$hotelKey]['child_without_bed_total'] =
-                        (float) ($hotelBuckets[$hotelKey]['child_without_bed_total'] ?? 0) + $cnbTotal;
-                    // Only accumulate the booked occupancy — never invent Single/Double for triple stays.
-                    if ($selectedPersons >= 3) {
-                        $hotelBuckets[$hotelKey]['triple'] += $bookedPerPax;
-                    } elseif ($selectedPersons === 2) {
-                        $hotelBuckets[$hotelKey]['double'] += $bookedPerPax;
+                   
+                    if (!isset($segregatedPrices[$currentHotelKey])) {
+                        $segregatedPrices[$currentHotelKey] = [
+                            'single' => 0,
+                            'double' => 0,
+                            'triple' => 0,
+                            'baby_cot' => 0,
+                            'occupancy' => null,        // 'single'|'double'|'triple'
+                            'selected_persons' => null, // 1|2|3
+                        ];
+                    }
+
+                    // Read selected persons from hotel JSON (rooms[0].selected_persons) and derive occupancy label.
+                    $firstRoom = (!empty($item['rooms']) && is_array($item['rooms'])) ? ($item['rooms'][0] ?? null) : null;
+                    $selectedPersonsForHotel = is_array($firstRoom)
+                        ? ($firstRoom['selected_persons'] ?? $firstRoom['selectedPersons'] ?? null)
+                        : ($item['pax'] ?? null);
+                    $selectedPersonsForHotel = $selectedPersonsForHotel !== null ? (int)$selectedPersonsForHotel : null;
+                    $hotelOccupancy = match ($selectedPersonsForHotel) {
+                        1 => 'single',
+                        2 => 'double',
+                        3 => 'triple',
+                        default => null,
+                    };
+                    if (!empty($hotelOccupancy)) {
+                        $bookedHotelOccupancies[$hotelOccupancy] = true;
+                    }
+                   
+                    // Check for direct totalPrice and head_count in JSON (e.g. from enquiry)
+                    // We only use this to override SINGLE price when exactly 1 person;
+                    // double/triple prices always come from room/hotel tables so they stay consistent.
+                    $directTotalPrice = $item['totalPrice'] ?? $item['price'] ?? null;
+
+                    if ($directTotalPrice !== null) {
+                        $totalHeadCount = 0;
+                        if (!empty($item['rooms']) && is_array($item['rooms'])) {
+                            foreach ($item['rooms'] as $room) {
+                                if (!empty($room['beds']) && is_array($room['beds'])) {
+                                    foreach ($room['beds'] as $bed) {
+                                        $totalHeadCount += floatval($bed['head_count'] ?? $bed['headCount'] ?? 0);
+                                    }
+                                }
+                            }
+                        }
+                       
+                        // If no headcount from beds, try fallback to top-level fields
+                        if ($totalHeadCount == 0) {
+                            $totalHeadCount = floatval($item['pax'] ?? $item['adults'] ?? $item['adultCount'] ?? 0);
+                        }
+
+                        if ($totalHeadCount == 1) {
+                            // For exactly one person, use enquiry total as single price override
+                            $manualSinglePrice = floatval($directTotalPrice);
+                        }
+                    }
+                   
+                    // Hotel pricing calculation with date-based weekday/weekend check
+                    $singleWeekdayPrice = null;
+                    $singleWeekendPrice = null;
+                    $doubleWeekdayPrice = null;
+                    $doubleWeekendPrice = null;
+
+
+                    // Get prices from room data - first try to fetch from database using room_id (preferred) and hotel_id
+                    if (!empty($item['rooms']) && is_array($item['rooms'])) {
+                        foreach ($item['rooms'] as $roomData) {
+                            $roomtype = $roomData['room_type'] ?? $roomData['roomType'] ?? null;
+                            $roomIdFromJson = $roomData['room_id'] ?? $roomData['roomId'] ?? null;
+                           
+                            // Try to fetch room from database first - must match both room_id and hotel_id (more reliable than room_type)
+                            if ($roomIdFromJson && $hotelId) {
+                                try {
+                                    // First try to get hotel_id from hotel_unique_id
+                                    $hotel = Hotel::where('hotel_unique_id', $hotelId)->first();
+                                    $dbHotelId = $hotel ? $hotel->hotel_unique_id : $hotelId;
+                                   
+                                    $roomRecord = Room::where('room_id', $roomIdFromJson)
+                                        ->where('hotel_id', $dbHotelId)
+                                        ->where('status', 1)
+                                        ->first();
+                                    if ($roomRecord) {
+                                        if ($roomRecord->weekday_price !== null && $roomRecord->weekday_price !== '') {
+                                            $singleWeekdayPrice = floatval($roomRecord->weekday_price);
+                                        }
+                                        if ($roomRecord->weekend_price !== null && $roomRecord->weekend_price !== '') {
+                                            $singleWeekendPrice = floatval($roomRecord->weekend_price);
+                                        }
+                                        if ($roomRecord->double_weekday_price !== null && $roomRecord->double_weekday_price !== '') {
+                                            // Double prices in DB are room prices; convert to per-head by dividing by 2
+                                            $doubleWeekdayPrice = floatval($roomRecord->double_weekday_price) / 2;
+                                        }
+                                        if ($roomRecord->double_weekend_price !== null && $roomRecord->double_weekend_price !== '') {
+                                            $doubleWeekendPrice = floatval($roomRecord->double_weekend_price) / 2;
+                                        }
+                                        $bed = Bed::where('room_id', $roomRecord->room_id)->first();
+                                        if ($bed && $bed->baby_cot_price !== null) {
+                                            $babyCotPrice = floatval($bed->baby_cot_price);
+                                        }
+                                        // If we got prices from database, break
+                                        if ($singleWeekdayPrice !== null || $singleWeekendPrice !== null || $doubleWeekdayPrice !== null || $doubleWeekendPrice !== null) {
+                                            break;
+                                        }
+                                    }
+                                } catch (\Exception $e) {
+                                    Log::warning('Failed to fetch room prices from database', [
+                                        'room_type' => $roomtype,
+                                        'hotel_id' => $hotelId,
+                                        'error' => $e->getMessage()
+                                    ]);
+                                }
+                            }
+                           
+                            // Fallback: Get prices from room data in item
+                            $weekdayPrice = $roomData['weekday_price'] ?? $roomData['weekdayPrice'] ?? null;
+                            $weekendPrice = $roomData['weekend_price'] ?? $roomData['weekendPrice'] ?? null;
+                            $doubleWeekdayPriceVal = $roomData['double_weekday_price'] ?? $roomData['doubleWeekdayPrice'] ?? null;
+                            $doubleWeekendPriceVal = $roomData['double_weekend_price'] ?? $roomData['doubleWeekendPrice'] ?? null;
+
+                            if ($singleWeekdayPrice === null && $weekdayPrice !== null && $weekdayPrice !== '') {
+                                $singleWeekdayPrice = floatval($weekdayPrice);
+                            }
+                            if ($singleWeekendPrice === null && $weekendPrice !== null && $weekendPrice !== '') {
+                                $singleWeekendPrice = floatval($weekendPrice);
+                            }
+                            if ($doubleWeekdayPrice === null && $doubleWeekdayPriceVal !== null && $doubleWeekdayPriceVal !== '') {
+                                $doubleWeekdayPrice = floatval($doubleWeekdayPriceVal) / 2;
+                            }
+                            if ($doubleWeekendPrice === null && $doubleWeekendPriceVal !== null && $doubleWeekendPriceVal !== '') {
+                                $doubleWeekendPrice = floatval($doubleWeekendPriceVal) / 2;
+                            }
+
+                            if ($singleWeekdayPrice !== null || $singleWeekendPrice !== null || $doubleWeekdayPrice !== null || $doubleWeekendPrice !== null) {
+                                break;
+                            }
+                        }
+                    }
+
+                    // Check direct item fields if not found in rooms
+                    if ($singleWeekdayPrice === null) {
+                        $weekdayPrice = $item['weekday_price'] ?? $item['weekdayPrice'] ?? null;
+                        if ($weekdayPrice !== null && $weekdayPrice !== '') {
+                            $singleWeekdayPrice = floatval($weekdayPrice);
+                        }
+                    }
+                    if ($singleWeekendPrice === null) {
+                        $weekendPrice = $item['weekend_price'] ?? $item['weekendPrice'] ?? null;
+                        if ($weekendPrice !== null && $weekendPrice !== '') {
+                            $singleWeekendPrice = floatval($weekendPrice);
+                        }
+                    }
+                    if ($doubleWeekdayPrice === null) {
+                        $doubleWeekdayPriceVal = $item['double_weekday_price'] ?? $item['doubleWeekdayPrice'] ?? null;
+                        if ($doubleWeekdayPriceVal !== null && $doubleWeekdayPriceVal !== '') {
+                            $doubleWeekdayPrice = floatval($doubleWeekdayPriceVal) / 2;
+                        }
+                    }
+                    if ($doubleWeekendPrice === null) {
+                        $doubleWeekendPriceVal = $item['double_weekend_price'] ?? $item['doubleWeekendPrice'] ?? null;
+                        if ($doubleWeekendPriceVal !== null && $doubleWeekendPriceVal !== '') {
+                            $doubleWeekendPrice = floatval($doubleWeekendPriceVal) / 2;
+                        }
+                    }
+
+                    // Get booking dates
+                    $bookingDates = [];
+                    $bookingDate = $item['bookingDate'] ?? null;
+                   
+                    if ($bookingDate) {
+                        if (is_array($bookingDate) && count($bookingDate) === 2) {
+                            try {
+                                $start = Carbon::parse($bookingDate[0]);
+                                $end = Carbon::parse($bookingDate[1]);
+                               
+                                // Generate all dates in the booking period (excluding checkout day)
+                                while ($start->lt($end)) {
+                                    $bookingDates[] = $start->copy();
+                                    $start->addDay();
+                                }
+                            } catch (\Exception $e) {
+                                // If date parsing fails, use tour dates as fallback
+                                if ($tour->check_in_time && $tour->check_out_time) {
+                                    try {
+                                        $start = Carbon::parse($tour->check_in_time);
+                                        $end = Carbon::parse($tour->check_out_time);
+                                        while ($start->lt($end)) {
+                                            $bookingDates[] = $start->copy();
+                                            $start->addDay();
+                                        }
+                                    } catch (\Exception $e2) {
+                                        // If still fails, default to 1 night
+                                        $bookingDates[] = Carbon::today();
+                                    }
+                                }
+                            }
+                        } else {
+                            $singleDate = is_array($bookingDate) ? ($bookingDate[0] ?? null) : $bookingDate;
+                            if ($singleDate) {
+                                try {
+                                    $bookingDates[] = Carbon::parse($singleDate);
+                                } catch (\Exception $e) {
+                                    // Fallback to tour dates
+                                    if ($tour->check_in_time) {
+                                        try {
+                                            $bookingDates[] = Carbon::parse($tour->check_in_time);
+                                        } catch (\Exception $e2) {
+                                            $bookingDates[] = Carbon::today();
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    } elseif ($tour->check_in_time && $tour->check_out_time) {
+                        // Fallback to tour dates if bookingDate not available
+                        try {
+                            $start = Carbon::parse($tour->check_in_time);
+                            $end = Carbon::parse($tour->check_out_time);
+                            while ($start->lt($end)) {
+                                $bookingDates[] = $start->copy();
+                                $start->addDay();
+                            }
+                        } catch (\Exception $e) {
+                            $bookingDates[] = Carbon::today();
+                        }
+                    }
+
+                    // If no dates found, default to 1 night
+                    if (empty($bookingDates)) {
+                        $bookingDates[] = Carbon::today();
+                    }
+
+                    // Calculate price for each night based on weekday/weekend
+                    $hotelSingleTotal = 0;
+                    $hotelDoubleTotal = 0;
+                    $hotelTripleTotal = 0;
+                    $extraBedTotal = 0; // total extra bed cost across all nights
+                   
+                    // Get extra bed price from beds table if available
+                    $extraBedWeekdayPrice = null;
+                    $extraBedWeekendPrice = null;
+                    $roomIdForBed = null;
+                   
+                    // Try to get room_id from roomRecord to check for extra bed
+                    if (!empty($item['rooms']) && is_array($item['rooms'])) {
+                        foreach ($item['rooms'] as $roomData) {
+                            $roomId = $roomData['room_id'] ?? $roomData['roomId'] ?? null;
+                           
+                            if ($roomId && $hotelId) {
+                                try {
+                                    $hotel = Hotel::where('hotel_unique_id', $hotelId)->first();
+                                    $dbHotelId = $hotel ? $hotel->hotel_unique_id : $hotelId;
+                                   
+                                    $roomRecord = Room::where('room_id', $roomId)
+                                        ->where('hotel_id', $dbHotelId)
+                                        ->where('status', 1)
+                                        ->first();
+                                    if ($roomRecord && $roomRecord->room_id) {
+                                        $roomIdForBed = $roomRecord->room_id;
+                                       
+                                        // Check beds table for extra_bed
+                                       
+                                        $bedRecord = Bed::where('room_id', $roomIdForBed)
+                                            ->where('extra_bed', true)
+                                            ->where('is_active', 1)
+                                            ->first();
+                                        if ($bedRecord && $bedRecord->extra_bed_price !== null) {
+                                            // Extra bed price is per extra bed (per night)
+                                            $extraBedPrice = floatval($bedRecord->extra_bed_price);
+                                            $extraBedWeekdayPrice = $extraBedPrice;
+                                            $extraBedWeekendPrice = $extraBedPrice;
+                                           
+                                            Log::info('Extra bed found for room', [
+                                                'room_id' => $roomIdForBed,
+                                                'extra_bed_price' => $extraBedPrice
+                                            ]);
+                                        }
+                                        if ($bedRecord && $bedRecord->baby_cot_price !== null) {
+                                            $babyCotPrice = floatval($bedRecord->baby_cot_price);
+                                        }
+                                       
+                                        // If we found the room, break
+                                        if ($roomIdForBed) {
+                                            break;
+                                        }
+                                    }
+                                } catch (\Exception $e) {
+                                    Log::warning('Failed to fetch bed info for triple sharing', [
+                                        'room_type' => $roomtype,
+                                        'hotel_id' => $hotelId,
+                                        'error' => $e->getMessage()
+                                    ]);
+                                }
+                            }
+                        }
+                    }
+                   
+                    // Debug logging
+                    Log::info('Hotel price calculation', [
+                        'hotel_id' => $hotelId,
+                        'room_type' => $roomtype ?? 'N/A',
+                        'booking_dates_count' => count($bookingDates),
+                        'booking_dates' => array_map(function($d) { return $d->format('Y-m-d (l)'); }, $bookingDates),
+                        'weekend_days' => $weekendDays,
+                        'single_weekday_price' => $singleWeekdayPrice,
+                        'single_weekend_price' => $singleWeekendPrice,
+                        'double_weekday_price' => $doubleWeekdayPrice,
+                        'double_weekend_price' => $doubleWeekendPrice,
+                    ]);
+                    foreach ($bookingDates as $date) {
+                        $dayName = $date->format('l'); // Full day name (Monday, Tuesday, etc.)
+                        $isWeekend = in_array($dayName, $weekendDays);
+                        $dateString = $date->format('Y-m-d');
+                       
+                        // Priority-based pricing: Check rates table first
+                        $ratePrice = null;
+                        $rateSingleWeekdayPrice = null;
+                        $rateSingleWeekendPrice = null;
+                        $rateDoubleWeekdayPrice = null;
+                        $rateDoubleWeekendPrice = null;
+                        $rateEventType = null;
+                       
+                        if ($hotelId) {
+                            try {
+                                // Query rates for this hotel and date with priority order
+                                $rate = Rate::where('hotel_id', $hotelId)
+                                    ->whereDate('start_date', '<=', $dateString)
+                                    ->whereDate('end_date', '>=', $dateString)
+                                    ->orderByRaw("
+                                        CASE
+                                            WHEN event_type = 'Blackout Date' THEN 1
+                                            WHEN event_type = 'Season' THEN 2
+                                            WHEN event_type = 'Fair Date' THEN 3
+                                            ELSE 4
+                                        END
+                                    ")
+                                    ->first();
+                               
+                                if ($rate) {
+                                    $rateEventType = $rate->event_type;
+                                   
+                                    if ($rate->event_type == 'Blackout Date') {
+                                        // Blackout Date: Use rate->price (first priority)
+                                        $ratePrice = floatval($rate->price ?? 0);
+                                        // For blackout, single uses full price, double is per-head (price / 2)
+                                        $rateSingleWeekdayPrice = $ratePrice;
+                                        $rateSingleWeekendPrice = $ratePrice;
+                                        $rateDoubleWeekdayPrice = $ratePrice / 2;
+                                        $rateDoubleWeekendPrice = $ratePrice / 2;
+                                    } elseif ($rate->event_type == 'Season') {
+                                        // Season: Use rate weekday/weekend prices (second priority)
+                                        $rateSingleWeekdayPrice = $rate->weekday_price ? floatval($rate->weekday_price) : null;
+                                        $rateSingleWeekendPrice = $rate->weekend_price ? floatval($rate->weekend_price) : null;
+                                        // Check if double prices exist (they might not be in all migrations)
+                                        $rateDoubleWeekdayPrice = (isset($rate->double_weekday_price) && $rate->double_weekday_price !== null && $rate->double_weekday_price !== '')
+                                            ? floatval($rate->double_weekday_price) / 2
+                                            : null;
+                                        $rateDoubleWeekendPrice = (isset($rate->double_weekend_price) && $rate->double_weekend_price !== null && $rate->double_weekend_price !== '')
+                                            ? floatval($rate->double_weekend_price) / 2
+                                            : null;
+                                    }
+                                    // Fair Date is handled as additional price, skip for now as per priority
+                                }
+                            } catch (\Exception $e) {
+                                Log::warning('Failed to fetch rate for date', [
+                                    'hotel_id' => $hotelId,
+                                    'date' => $dateString,
+                                    'error' => $e->getMessage()
+                                ]);
+                            }
+                        }
+                       
+                        // Determine per-night price ONLY from room/hotel data (ignore rates)
+                        // Single: weekday/weekend single prices
+                        // Double: weekday/weekend double prices (already stored per-head: double_* / 2 above)
+                        $singlePriceToAdd = null;
+                        $doublePriceToAdd = null;
+
+                        if ($isWeekend) {
+                            $singlePriceToAdd = $singleWeekendPrice ?? $singleWeekdayPrice;
+                            $doublePriceToAdd = $doubleWeekendPrice ?? $doubleWeekdayPrice;
+                        } else {
+                            $singlePriceToAdd = $singleWeekdayPrice ?? $singleWeekendPrice;
+                            $doublePriceToAdd = $doubleWeekdayPrice ?? $doubleWeekendPrice;
+                        }
+
+                        // Add prices to totals (per night)
+                        if ($singlePriceToAdd !== null) {
+                            $hotelSingleTotal += $singlePriceToAdd;
+                        }
+                        if ($doublePriceToAdd !== null) {
+                            $hotelDoubleTotal += $doublePriceToAdd;
+                        }
+
+                        // Accumulate extra bed total per night (if available)
+                        if ($extraBedWeekdayPrice !== null) {
+                            $extraBedPriceToAdd = $isWeekend
+                                ? ($extraBedWeekendPrice ?? $extraBedWeekdayPrice)
+                                : ($extraBedWeekdayPrice ?? $extraBedWeekendPrice);
+
+                            if ($extraBedPriceToAdd !== null) {
+                                $extraBedTotal += $extraBedPriceToAdd;
+                            }
+                        }
+                    }
+
+                    // Simplified totals for hotel:
+                    // - single_sharing: sum of single prices across nights (with optional manual override for 1 pax)
+                    // - double_sharing: sum of per-head double prices across nights (always from room/hotel)
+                    // - triple_sharing (when extra bed present):
+                    //     (double_sharing_total * 2 + extra_bed_total) / 3
+                    //   where extra_bed_total = extra_bed_price_per_night * nights
+                    if ($extraBedTotal > 0) {
+                        $hotelTripleTotal = ($hotelDoubleTotal * 2 + $extraBedTotal) / 3;
                     } else {
-                        $hotelBuckets[$hotelKey]['single'] += $bookedPerPax;
-                    }
-                    if (empty($hotelBucketMeta[$hotelKey]['date_range']) && $dateRange !== '') {
-                        $hotelBucketMeta[$hotelKey]['date_range'] = $dateRange;
+                        $hotelTripleTotal = 0;
                     }
 
-                    $addBookedToCountry();
-                    continue;
-                }
-
-                // Other services: totalPrice (+ transfer/guide) ÷ Total Pax
-                // For vehicles/local transport always use tour total pax (not seat/head flags on the item).
-                $vehicleTypes = [
-                    'local_transport', 'local_transfer', 'local_transfer_vehicle',
-                    'travel_hourly', 'travel_point', 'port_transport',
-                ];
-                $isGuestPriced = in_array($type, ['attraction', 'restaurant'], true);
-                $guestPricing = $isGuestPriced
-                    ? $resolveGuestServicePricing($item, $type, $amount)
-                    : null;
-
-                $childPart = 0.0;
-                $adultPart = $amount;
-                if (is_array($guestPricing) && !empty($guestPricing['has_guest_split'])) {
-                    $childPart = (float) ($guestPricing['child_total'] ?? 0);
-                    // Adult share = adult tickets/meals + seniors + transfer/guide extras
-                    $adultPart = max(0.0, $amount - $childPart);
-                }
-
-                $paxDiv = in_array($type, $vehicleTypes, true)
-                    ? $totalPax
-                    : max(1, $itemPax($item));
-                // Adult portion ÷ tour pax for country (A); child kept absolute for (C)
-                $perPax = $adultPart / $totalPax;
-
-                // Other supplement: separate from country / overall — only in supplements list.
-                if ($isSupplement) {
-                    $suppRow = [
-                        'type' => $type !== '' ? $type : 'other',
-                        'name' => self::resolveOrderItemPriceLabel($type !== '' ? $type : 'other', $item),
-                        'AttractionName' => $item['AttractionName'] ?? null,
-                        'AttractionId' => $item['AttractionId'] ?? null,
-                        'ticketName' => $item['ticketName'] ?? null,
-                        'transfer_options' => $item['transfer_options'] ?? null,
-                        'guide_options' => $item['guide_options'] ?? null,
-                        'restaurantName' => $item['restaurantName'] ?? null,
-                        'restaurant_id' => $item['restaurant_id'] ?? $item['restaurantId'] ?? null,
-                        'mealType' => $item['mealType'] ?? null,
-                        'MealDescription' => $item['MealDescription'] ?? null,
-                        'entry_port_id' => $item['entry_port_id'] ?? null,
-                        'exit_port_id' => $item['exit_port_id'] ?? null,
-                        'country' => $orderCountry,
-                        'currency' => $orderCurrency,
-                        'selected_persons' => null,
-                        'show_single' => true,
-                        'show_double' => false,
-                        'show_triple' => false,
-                        'single' => $perPax * $focFactor,
-                        'double' => $perPax * $focFactor,
-                        'triple' => $perPax * $focFactor,
-                    ];
-                    if (is_array($guestPricing)) {
-                        $suppRow['adult_count'] = (int) ($guestPricing['adult_count'] ?? 0);
-                        $suppRow['child_count'] = (int) ($guestPricing['child_count'] ?? 0);
-                        $suppRow['adult_unit'] = (float) ($guestPricing['adult_unit'] ?? 0);
-                        $suppRow['child_unit'] = (float) ($guestPricing['child_unit'] ?? 0);
-                        $suppRow['adult_total'] = (float) ($guestPricing['adult_total'] ?? 0);
-                        $suppRow['child_total'] = (float) ($guestPricing['child_total'] ?? 0);
-                        $suppRow['extras'] = (float) ($guestPricing['extras'] ?? 0);
+                    // Override with manual SINGLE price if available (from directTotalPrice for 1 pax)
+                    if ($manualSinglePrice !== null) {
+                        $hotelSingleTotal = $manualSinglePrice;
                     }
-                    $supplements[] = $suppRow;
-                    continue;
-                }
 
-                $countryOther[$countryKey]['single'] += $perPax;
-                $countryOther[$countryKey]['double'] += $perPax;
-                $countryGrossOther[$countryKey] += $adultPart;
-                if ($childPart > 0) {
-                    $countryOtherChild[$countryKey] = ($countryOtherChild[$countryKey] ?? 0.0) + $childPart;
-                }
+                    if ($isSupplement) {
+                        if (!isset($hotelSupplementBuckets[$currentHotelKey])) {
+                            $meta = $hotelBucketMeta[$currentHotelKey] ?? [];
+                            $hotelSupplementBuckets[$currentHotelKey] = [
+                                'type' => 'hotel',
+                                // keep stable key internally but expose friendly names to API
+                                'key' => $currentHotelKey,
+                                'hotel_id' => $meta['hotel_id'] ?? null,
+                                'hotel_name' => $meta['hotel_name'] ?? null,
+                                'date_range' => $meta['date_range'] ?? null,
+                                'display_name' => $meta['display_name'] ?? ($meta['hotel_name'] ?? $currentHotelKey),
+                                'name' => $meta['display_name'] ?? ($meta['hotel_name'] ?? $currentHotelKey),
+                                'single' => null,
+                                'double' => null,
+                                'triple' => null,
+                                'baby_cot' => 0,
+                            ];
+                        }
 
-                $segKey = $type;
-                if (!isset($segregated[$segKey])) {
-                    $segKey = 'other';
-                }
-                if (isset($segregated[$segKey]['single'])) {
-                    $segregated[$segKey]['single'] += $perPax;
-                    $segregated[$segKey]['double'] += $perPax;
-                }
+                        // Prices come from room pricing data (independent of order occupancy).
+                        // Keep max value in case multiple orders exist for the same supplement hotel.
+                        if ($hotelSingleTotal > 0) {
+                            $prev = $hotelSupplementBuckets[$currentHotelKey]['single'];
+                            $hotelSupplementBuckets[$currentHotelKey]['single'] = $prev === null ? (float)$hotelSingleTotal : max((float)$prev, (float)$hotelSingleTotal);
+                        }
+                        if ($hotelDoubleTotal > 0) {
+                            $prev = $hotelSupplementBuckets[$currentHotelKey]['double'];
+                            $hotelSupplementBuckets[$currentHotelKey]['double'] = $prev === null ? (float)$hotelDoubleTotal : max((float)$prev, (float)$hotelDoubleTotal);
+                        }
+                        if ($hotelTripleTotal > 0) {
+                            $prev = $hotelSupplementBuckets[$currentHotelKey]['triple'];
+                            $hotelSupplementBuckets[$currentHotelKey]['triple'] = $prev === null ? (float)$hotelTripleTotal : max((float)$prev, (float)$hotelTripleTotal);
+                        }
+                        $hotelSupplementBuckets[$currentHotelKey]['baby_cot'] = max((float)($hotelSupplementBuckets[$currentHotelKey]['baby_cot'] ?? 0), (float)$babyCotPrice);
+                    } else {
+                        if (!isset($hotelBuckets[$currentHotelKey])) {
+                            $hotelBuckets[$currentHotelKey] = [
+                                'single' => null,
+                                'double' => null,
+                                'triple' => null,
+                            ];
+                        }
+                        // Single/double/triple prices come from the room's own pricing data
+                        // (weekday_price, double_weekday_price, extra_bed_price), not from the occupancy
+                        // of this specific order. So fill each slot from ANY order â€” first non-null wins.
+                        if ($hotelBuckets[$currentHotelKey]['single'] === null && $hotelSingleTotal > 0) {
+                            $hotelBuckets[$currentHotelKey]['single'] = (float)$hotelSingleTotal;
+                        }
+                        if ($hotelBuckets[$currentHotelKey]['double'] === null && $hotelDoubleTotal > 0) {
+                            $hotelBuckets[$currentHotelKey]['double'] = (float)$hotelDoubleTotal;
+                        }
+                        if ($hotelBuckets[$currentHotelKey]['triple'] === null && $hotelTripleTotal > 0) {
+                            $hotelBuckets[$currentHotelKey]['triple'] = (float)$hotelTripleTotal;
+                        }
 
-                $serviceLine = [
-                    'label' => self::resolveOrderItemPriceLabel($type !== '' ? $type : 'other', $item),
-                    'type' => $type !== '' ? $type : 'other',
-                    'single' => $perPax,
-                    'double' => $perPax,
-                    'child_unit' => is_array($guestPricing) ? (float) ($guestPricing['child_unit'] ?? 0) : 0.0,
-                    'country' => $orderCountry,
-                    'currency' => $orderCurrency,
-                    'amount' => $amount,
-                    'adult_part' => $adultPart,
-                    'child_part' => $childPart,
-                ];
-                if (is_array($guestPricing)) {
-                    $serviceLine['adult_count'] = (int) ($guestPricing['adult_count'] ?? 0);
-                    $serviceLine['child_count'] = (int) ($guestPricing['child_count'] ?? 0);
-                    $serviceLine['senior_count'] = (int) ($guestPricing['senior_count'] ?? 0);
-                    $serviceLine['adult_unit'] = (float) ($guestPricing['adult_unit'] ?? 0);
-                    $serviceLine['senior_unit'] = (float) ($guestPricing['senior_unit'] ?? 0);
-                    $serviceLine['adult_total'] = (float) ($guestPricing['adult_total'] ?? 0);
-                    $serviceLine['child_total'] = (float) ($guestPricing['child_total'] ?? 0);
-                    $serviceLine['senior_total'] = (float) ($guestPricing['senior_total'] ?? 0);
-                    $serviceLine['extras'] = (float) ($guestPricing['extras'] ?? 0);
-                    $serviceLine['has_guest_split'] = !empty($guestPricing['has_guest_split']);
-                }
-                $servicePriceLines[] = $serviceLine;
-            }
-        }
+                        // Add to segregated hotel prices
+                        $segregatedPrices['hotel']['single'] += $hotelSingleTotal;
+                        $segregatedPrices['hotel']['double'] += $hotelDoubleTotal;
+                        $segregatedPrices['hotel']['triple'] += $hotelTripleTotal;
+                        $segregatedPrices['hotel']['baby_cot'] += $babyCotPrice;
 
-        // Flush merged hotel supplements (same hotel_id → one row)
-        foreach ($hotelSupplementBuckets as $bucket) {
-            $supplements[] = $bucket;
-        }
+                        $totalBabyCot += $babyCotPrice;
 
-        // Currency markups / discounts (hotel vs other segregated), then ÷ Total Pax
-        $markupRows = [];
-        $rawMarkups = $tour->currency_markups ?? ($tour->getAttributes()['currency_markups'] ?? null);
-        if (is_string($rawMarkups)) {
-            $decoded = json_decode($rawMarkups, true);
-            $rawMarkups = (json_last_error() === JSON_ERROR_NONE) ? $decoded : null;
-        }
-        if (is_array($rawMarkups)) {
-            foreach ($rawMarkups as $key => $row) {
-                if (!is_array($row)) {
-                    continue;
-                }
-                $currency = is_string($key) && !is_numeric($key) && empty($row['currency'])
-                    ? strtoupper(trim($key))
-                    : strtoupper(trim((string) ($row['currency'] ?? '')));
-                $markupRows[] = [
-                    'city' => trim((string) ($row['city'] ?? '')),
-                    'currency' => $currency,
-                    'country' => trim((string) ($row['country'] ?? '')),
-                    'markup_type' => strtolower(trim((string) ($row['markup_type'] ?? 'flat'))) ?: 'flat',
-                    'hotel_markup' => (float) ($row['hotel_markup'] ?? $row['markup_value'] ?? 0),
-                    'other_markup' => (float) ($row['other_markup'] ?? 0),
-                    'discount_type' => strtolower(trim((string) ($row['discount_type'] ?? 'flat'))) ?: 'flat',
-                    'discount_value' => (float) ($row['discount_value'] ?? 0),
-                ];
-            }
-        }
+                        // Add to individual hotel prices
+                        $segregatedPrices[$currentHotelKey]['single'] += $hotelSingleTotal;
+                        $segregatedPrices[$currentHotelKey]['double'] += $hotelDoubleTotal;
+                        $segregatedPrices[$currentHotelKey]['triple'] += $hotelTripleTotal;
+                        $segregatedPrices[$currentHotelKey]['baby_cot'] += $babyCotPrice;
+                    }
+                } else {
+                    // Other services pricing calculation
+                    $totalPrice = $item['totalPrice'] ?? $item['total_price'] ?? $item['price'] ?? null;
+                    if ($totalPrice !== null) {
+                        $totalPriceFloat = floatval($totalPrice);
+                        $normalizedType = strtolower($type ?? '');
+                       
+                        // Handle attraction and restaurant
+                        //
+                        // Per-pax resolution priority (per-adult unit price):
+                        //   1. Explicit JSON per-pax fields (adultPrice / adult_price)  â† user override
+                        //   2. Derived from the booking's own totalPrice                â† what the user actually saved
+                        //   3. Catalog default (ticket_details for attraction, meals table for restaurant)
+                        //
+                        // The booking's totalPrice is authoritative because it represents what the user
+                        // actually entered/charged for this specific booking. The catalog (meal.adult_price,
+                        // ticket_details.adult_price) is just a default at the time of selection and may
+                        // differ from what was finally saved on the booking. Falling back to the catalog
+                        // when totalPrice already exists led to incorrect per-pax values
+                        // (e.g. catalog 28 used instead of booked 500/10 = 50).
+                        if ($normalizedType === 'attraction' || $normalizedType === 'restaurant') {
+                            $adultCount = floatval($item['adultCount'] ?? 0);
+                            $childCount = floatval($item['childCount'] ?? 0);
 
-        $lookupMarkup = function (string $country, string $currency) use ($markupRows): ?array {
-            $country = trim($country);
-            $currency = strtoupper(trim($currency));
-            if ($country !== '') {
-                foreach ($markupRows as $row) {
-                    if (strcasecmp((string) ($row['country'] ?? ''), $country) === 0) {
-                        return $row;
+                            // (1) Explicit JSON per-pax (user override) â€” highest priority
+                            $jsonAdultPrice = null;
+                            $jsonChildPrice = null;
+                            if (isset($item['adultPrice']) && $item['adultPrice'] !== '') {
+                                $jsonAdultPrice = floatval($item['adultPrice']);
+                            } elseif (isset($item['adult_price']) && $item['adult_price'] !== '') {
+                                $jsonAdultPrice = floatval($item['adult_price']);
+                            }
+                            if (isset($item['childPrice']) && $item['childPrice'] !== '') {
+                                $jsonChildPrice = floatval($item['childPrice']);
+                            } elseif (isset($item['child_price']) && $item['child_price'] !== '') {
+                                $jsonChildPrice = floatval($item['child_price']);
+                            }
+
+                            // (3) Catalog defaults â€” used only as a last resort
+                            $catalogAdultPrice = null;
+                            $catalogChildPrice = null;
+                            if (isset($item['ticket_details']['adult_price']) && $item['ticket_details']['adult_price'] !== '') {
+                                $catalogAdultPrice = floatval($item['ticket_details']['adult_price']);
+                            }
+                            if (isset($item['ticket_details']['child_price']) && $item['ticket_details']['child_price'] !== '') {
+                                $catalogChildPrice = floatval($item['ticket_details']['child_price']);
+                            }
+                            if ($normalizedType === 'restaurant'
+                                && ($catalogAdultPrice === null || $catalogChildPrice === null)
+                                && !empty($item['MealDescription'][0]['meal_id'])
+                            ) {
+                                try {
+                                    $mealId    = $item['MealDescription'][0]['meal_id'];
+                                    $mealQuery = \App\Models\Meal::where('meal_id', $mealId)->first();
+                                    if ($mealQuery) {
+                                        if ($catalogAdultPrice === null && $mealQuery->adult_price !== null) {
+                                            $catalogAdultPrice = (float) $mealQuery->adult_price;
+                                        }
+                                        if ($catalogChildPrice === null && $mealQuery->child_price !== null) {
+                                            $catalogChildPrice = (float) $mealQuery->child_price;
+                                        }
+                                    }
+                                } catch (\Throwable $e) {
+                                    \Log::warning('Failed to fetch meal unit prices for restaurant', [
+                                        'meal_id'       => $item['MealDescription'][0]['meal_id'] ?? null,
+                                        'restaurant_id' => $item['restaurantId'] ?? null,
+                                        'tour_id'       => $tour->tour_id ?? null,
+                                        'error'         => $e->getMessage(),
+                                    ]);
+                                }
+                            }
+
+                            // (2) Derived per-adult from the booking's totalPrice.
+                            // If children are present, subtract child cost (using best known child unit
+                            // price: JSON > catalog) so the remainder represents only adult cost.
+                            $derivedAdultPrice = null;
+                            if ($totalPriceFloat > 0 && $adultCount > 0) {
+                                $childUnitForSubtraction = $jsonChildPrice ?? $catalogChildPrice ?? 0;
+                                $childCost = ($childCount > 0) ? ($childUnitForSubtraction * $childCount) : 0;
+                                $derivedAdultPrice = max(0, $totalPriceFloat - $childCost) / $adultCount;
+                            }
+
+                            // Final per-adult unit price: JSON > derived (from booking total) > catalog
+                            if ($jsonAdultPrice !== null && $jsonAdultPrice > 0) {
+                                $adultUnitPrice = $jsonAdultPrice;
+                            } elseif ($derivedAdultPrice !== null && $derivedAdultPrice > 0) {
+                                $adultUnitPrice = $derivedAdultPrice;
+                            } elseif ($catalogAdultPrice !== null && $catalogAdultPrice > 0) {
+                                $adultUnitPrice = $catalogAdultPrice;
+                            } else {
+                                $adultUnitPrice = 0;
+                            }
+
+                            // Final per-child unit price: JSON > catalog (child cost stays in child_sharing only)
+                            if ($jsonChildPrice !== null && $jsonChildPrice > 0) {
+                                $childUnitPrice = $jsonChildPrice;
+                            } elseif ($catalogChildPrice !== null && $catalogChildPrice > 0) {
+                                $childUnitPrice = $catalogChildPrice;
+                            } else {
+                                $childUnitPrice = 0;
+                            }
+
+                            // Adult per pax â†’ main totals + segregated (with hotel and other services).
+                            // Child per pax â†’ child_sharing only (never mixed into single/double).
+                            $singleSharing = 0;
+                            if ($adultCount >= 1) {
+                                if ($adultUnitPrice > 0) {
+                                    $singleSharing = $adultUnitPrice;
+                                } else {
+                                    $pax = $adultCount + $childCount;
+                                    $singleSharing = $pax > 0 ? ($totalPriceFloat / $pax) : $totalPriceFloat;
+                                }
+                            }
+                            // When adultCount < 1 (only children): nothing added to main/segregated; child goes to child_sharing below
+
+                            // Guide and vehicle: add to adult section only (per adult)
+                            if (isset($item['guide_options']['total_price']) && $adultCount > 0) {
+                                $singleSharing += floatval($item['guide_options']['total_price']) / $adultCount;
+                            }
+                            if (isset($item['transfer_options']['cost']) && $adultCount > 0) {
+                                $singleSharing += floatval($item['transfer_options']['cost']) / $adultCount;
+                            }
+
+                            $doubleSharing = $singleSharing;
+
+                            // Child price: sum child unit prices only (e.g. attraction 20 + restaurant 12 = 32)
+                            if (!$isSupplement && $childUnitPrice > 0) {
+                                $totalChildComponent += $childUnitPrice;
+                            }
+
+                            // Add adult part to other-services total (unless supplement)
+                            if (!$isSupplement) {
+                                $otherServiceSingle += $singleSharing;
+                                $otherServiceDouble += $doubleSharing;
+                                $trackCountryOther((float)$singleSharing, (float)$doubleSharing);
+                                $appendServicePriceLine(
+                                    $type,
+                                    $item,
+                                    (float) $singleSharing,
+                                    (float) $doubleSharing,
+                                    (float) ($childUnitPrice ?? 0),
+                                    $isSupplement
+                                );
+                            }
+                        }
+                        // Handle entry_port and exit_port
+                        elseif ($normalizedType === 'entry_port' || $normalizedType === 'exit_port') {
+                            // Calculate per adult price: totalPrice / Adults
+                            $adultCount = floatval($item['adult'] ?? $item['adults'] ?? $item['adultCount'] ?? 0);
+                           
+                            if ($adultCount > 0) {
+                                $singleSharing = $totalPriceFloat / $adultCount;
+                            } else {
+                                // Fallback if no adult count found, use total price as single sharing
+                                $singleSharing = $totalPriceFloat;
+                            }
+                           
+                            // Double sharing: same as single (per-person price)
+                            $doubleSharing = $singleSharing;
+
+                            if (!$isSupplement) {
+                                $otherServiceSingle += $singleSharing;
+                                $otherServiceDouble += $doubleSharing;
+                                $trackCountryOther((float)$singleSharing, (float)$doubleSharing);
+                                $appendServicePriceLine(
+                                    $type,
+                                    $item,
+                                    (float) $singleSharing,
+                                    (float) $doubleSharing,
+                                    0.0,
+                                    $isSupplement
+                                );
+                            }
+                        }
+                        // Handle travel_point, travel_hourly, local_transport
+                        elseif (in_array($normalizedType, ['travel_point', 'travel_hourly', 'local_transport'])) {
+                            // Calculate per adult price: totalPrice / Adults
+                            $adultCount = floatval($item['adult'] ?? $item['adults'] ?? $item['adultCount'] ?? 0);
+                           
+                            if ($adultCount > 0) {
+                                $singleSharing = $totalPriceFloat / $adultCount;
+                            } else {
+                                // Fallback if no adult count found or 0, use total price as single sharing (divide by 1)
+                                $singleSharing = $totalPriceFloat;
+                            }
+                           
+                            // Double sharing: same as single (per-person price)
+                            $doubleSharing = $singleSharing;
+
+                            if (!$isSupplement) {
+                                $otherServiceSingle += $singleSharing;
+                                $otherServiceDouble += $doubleSharing;
+                                $trackCountryOther((float)$singleSharing, (float)$doubleSharing);
+                                $appendServicePriceLine(
+                                    $type,
+                                    $item,
+                                    (float) $singleSharing,
+                                    (float) $doubleSharing,
+                                    0.0,
+                                    $isSupplement
+                                );
+                            }
+                        }
+                        // Handle guide: per adult price (totalPrice / Adults)
+                        elseif ($normalizedType === 'guide') {
+                            $adultCount = floatval($item['adult'] ?? $item['adults'] ?? $item['adultCount'] ?? 0);
+                           
+                            if ($adultCount > 0) {
+                                $singleSharing = $totalPriceFloat / $adultCount;
+                            } else {
+                                $singleSharing = $totalPriceFloat;
+                            }
+                           
+                            $doubleSharing = $singleSharing;
+
+                            if (!$isSupplement) {
+                                $otherServiceSingle += $singleSharing;
+                                $otherServiceDouble += $doubleSharing;
+                                $trackCountryOther((float)$singleSharing, (float)$doubleSharing);
+                                $appendServicePriceLine(
+                                    $type,
+                                    $item,
+                                    (float) $singleSharing,
+                                    (float) $doubleSharing,
+                                    0.0,
+                                    $isSupplement
+                                );
+                            }
+                        }
+                        // Default calculation for other service types
+                        else {
+                            // Get pax count
+                            $pax = $item['pax']
+                                ?? (($item['adult'] ?? 0) + ($item['child'] ?? 0) + ($item['infant'] ?? 0))
+                                ?? (($item['adultCount'] ?? 0) + ($item['childCount'] ?? 0) + ($item['seniorCount'] ?? 0))
+                                ?? null;
+
+                            // Single sharing: per person price
+                            if ($pax && $pax > 0) {
+                                $singleSharing = $totalPriceFloat / floatval($pax);
+                            } else {
+                                $singleSharing = $totalPriceFloat;
+                            }
+
+                            // Double sharing: total / 2 (per person for 2 people)
+                            $doubleSharing = $totalPriceFloat;
+                           
+                            if (!$isSupplement) {
+                                $otherServiceSingle += $singleSharing;
+                                $otherServiceDouble += $doubleSharing;
+                                $trackCountryOther((float)$singleSharing, (float)$doubleSharing);
+                                $appendServicePriceLine(
+                                    $type,
+                                    $item,
+                                    (float) $singleSharing,
+                                    (float) $doubleSharing,
+                                    0.0,
+                                    $isSupplement
+                                );
+                            }
+                        }
+
+                        if ($isSupplement) {
+                            // Keep supplement row as a standalone payload.
+                            // Supplements are shown as the full line booking total (not per pax).
+                            // single/double/triple use the same total so any existing UI column shows full price.
+                            $supplementFull = (float) $totalPriceFloat;
+                            $supplementRow = [
+                                'type'   => $normalizedType ?? $type,
+                                'single' => $supplementFull,
+                                'double' => $supplementFull,
+                                'triple' => $supplementFull,
+                            ];
+
+                            if (($normalizedType ?? '') === 'attraction') {
+                                $supplementRow['AttractionId'] = $item['AttractionId']
+                                    ?? $item['attractionId']
+                                    ?? $item['attraction_id']
+                                    ?? null;
+                                $supplementRow['ticketName'] = $item['ticketName']
+                                    ?? $item['ticket_name']
+                                    ?? $item['ticket']
+                                    ?? null;
+                                $supplementRow['transfer_options'] = $item['transfer_options']
+                                    ?? $item['transferOptions']
+                                    ?? [];
+                                $supplementRow['guide_options'] = $item['guide_options']
+                                    ?? $item['guideOptions']
+                                    ?? [];
+                                // Optional name fields (used by some UIs)
+                                $supplementRow['AttractionName'] = $item['AttractionName']
+                                    ?? $item['attractionName']
+                                    ?? $item['name']
+                                    ?? null;
+                            } elseif (($normalizedType ?? '') === 'restaurant') {
+                                $supplementRow['restaurant_id'] = $item['restaurant_id']
+                                    ?? $item['restaurantId']
+                                    ?? null;
+                                $supplementRow['mealType'] = $item['mealType']
+                                    ?? $item['meal_type']
+                                    ?? null;
+                                $supplementRow['MealDescription'] = $item['MealDescription']
+                                    ?? $item['mealDescription']
+                                    ?? ($item['MealDescription'] ?? [])
+                                    ?? [];
+                                $supplementRow['restaurantName'] = $item['restaurantName']
+                                    ?? $item['restaurant_name']
+                                    ?? $item['name']
+                                    ?? null;
+                            }
+
+                            $supplements[] = $supplementRow;
+                        } else {
+                            // (already added to $otherServiceSingle/Double above per service type)
+                        }
                     }
                 }
             }
-            if ($currency !== '') {
-                foreach ($markupRows as $row) {
-                    if (strtoupper(trim((string) ($row['currency'] ?? ''))) === $currency) {
-                        return $row;
-                    }
-                }
-            }
-
-            return null;
-        };
-
-        $moneyFromRaw = function (float $base, string $type, float $raw): float {
-            if ($raw <= 0) {
-                return 0.0;
-            }
-            if ($type === 'percentage') {
-                return $base * $raw / 100.0;
-            }
-
-            return $raw; // flat / foc amount
-        };
-
-        $allKeys = array_values(array_unique(array_merge(array_keys($countryHotel), array_keys($countryOther))));
-
-        // Preferred country order from tour destination
-        $preferred = [];
-        $destinationRaw = (string) ($tour->destination ?? '');
-        if ($destinationRaw !== '') {
-            foreach (preg_split('/\s*,\s*/', $destinationRaw) ?: [] as $part) {
-                $part = trim((string) preg_replace('/\s*\([^)]*\)\s*/', '', $part));
-                $part = trim((string) preg_replace('/\[[^\]]*\]/', '', $part));
-                if ($part !== '') {
-                    $preferred[mb_strtolower($part)] = $part;
-                }
-            }
-        }
-        usort($allKeys, function ($a, $b) use ($preferred, $countryHotel, $countryOther) {
-            $aCountry = $countryHotel[$a]['country'] ?? ($countryOther[$a]['country'] ?? $a);
-            $bCountry = $countryHotel[$b]['country'] ?? ($countryOther[$b]['country'] ?? $b);
-            $aPos = array_key_exists(mb_strtolower($aCountry), $preferred)
-                ? array_search(mb_strtolower($aCountry), array_keys($preferred), true)
-                : PHP_INT_MAX;
-            $bPos = array_key_exists(mb_strtolower($bCountry), $preferred)
-                ? array_search(mb_strtolower($bCountry), array_keys($preferred), true)
-                : PHP_INT_MAX;
-            if ($aPos === $bPos) {
-                return strcasecmp($a, $b);
-            }
-
-            return $aPos <=> $bPos;
-        });
-
-        $countrySharing = [];
-        $sumHotelSingle = 0.0;
-        $sumHotelDouble = 0.0;
-        $sumHotelTriple = 0.0;
-        $sumOtherSingle = 0.0;
-        $sumOtherDouble = 0.0;
-        $discountRows = [];
-        $sumDiscountFlat = 0.0;
-        $markupRowsOut = [];
-        $sumMarkupFlat = 0.0;
-
-        $tourMarkupOn = !empty($tour->markup) && (int) $tour->markup === 1;
-        $tourMarkupType = strtolower(trim((string) ($tour->markup_type ?? 'flat'))) ?: 'flat';
-        $tourMarkupRaw = (float) ($tour->markup_amount ?? 0);
-        $tourDiscountOn = !empty($tour->discount) && (int) $tour->discount === 1;
-        $tourDiscountType = strtolower(trim((string) ($tour->discount_type ?? 'flat'))) ?: 'flat';
-        $tourDiscountRaw = (float) ($tour->discount_amount ?? 0);
-
-        foreach ($allKeys as $ck) {
-            $hRow = $countryHotel[$ck] ?? [
-                'country' => $countryOther[$ck]['country'] ?? 'Other',
-                'currency' => $countryOther[$ck]['currency'] ?? $fallbackCurrency,
-                'single' => 0.0,
-                'double' => 0.0,
-                'triple' => 0.0,
-            ];
-            $oRow = $countryOther[$ck] ?? [
-                'single' => 0.0,
-                'double' => 0.0,
-            ];
-
-            $country = (string) ($hRow['country'] ?? 'Other');
-            $currency = strtoupper((string) ($hRow['currency'] ?? $fallbackCurrency));
-            $grossHotel = (float) ($countryGrossHotel[$ck] ?? 0);
-            $grossOther = (float) ($countryGrossOther[$ck] ?? 0);
-            $hasHotel = $grossHotel > 0
-                || (float) ($hRow['single'] ?? 0) > 0
-                || (float) ($hRow['double'] ?? 0) > 0
-                || (float) ($hRow['triple'] ?? 0) > 0;
-
-            $row = $lookupMarkup($country, $currency);
-            $mType = $row ? (string) ($row['markup_type'] ?? 'flat') : ($tourMarkupOn ? $tourMarkupType : '');
-            $dType = $row ? (string) ($row['discount_type'] ?? 'flat') : ($tourDiscountOn ? $tourDiscountType : '');
-
-            $hotelMarkupRaw = $row ? (float) ($row['hotel_markup'] ?? 0) : ($tourMarkupOn ? $tourMarkupRaw : 0.0);
-            $otherMarkupRaw = $row ? (float) ($row['other_markup'] ?? 0) : 0.0;
-            $discountRaw = $row ? (float) ($row['discount_value'] ?? 0) : ($tourDiscountOn ? $tourDiscountRaw : 0.0);
-
-            // TOTAL COST markups: always include hotel_markup + other_markup from currency_markups.
-            $hotelMarkupForTotal = $moneyFromRaw($grossHotel, $mType, $hotelMarkupRaw);
-            $otherMarkupForTotal = $moneyFromRaw($grossOther, $mType, $otherMarkupRaw);
-            $markupMoneyForTotal = $hotelMarkupForTotal + $otherMarkupForTotal;
-            if ($markupMoneyForTotal > 0) {
-                $markupRowsOut[] = [
-                    'country' => $country,
-                    'currency' => $currency,
-                    'markup_type' => $mType !== '' ? $mType : 'flat',
-                    'hotel_markup' => $hotelMarkupForTotal,
-                    'other_markup' => $otherMarkupForTotal,
-                    'amount' => $markupMoneyForTotal,
-                ];
-                $sumMarkupFlat += $markupMoneyForTotal;
-            }
-
-            // Per-pax hotel cells: no hotel booked → do not invent hotel prices.
-            $hotelMarkupForPaxRaw = $hotelMarkupRaw;
-            $otherMarkupForPaxRaw = $otherMarkupRaw;
-            if (! $hasHotel) {
-                if (! $row && $tourMarkupOn && $hotelMarkupForPaxRaw > 0 && $otherMarkupForPaxRaw <= 0) {
-                    $otherMarkupForPaxRaw += $hotelMarkupForPaxRaw;
-                }
-                $hotelMarkupForPaxRaw = 0.0;
-            }
-
-            $hotelMarkupMoney = $hasHotel ? $moneyFromRaw($grossHotel, $mType, $hotelMarkupForPaxRaw) : 0.0;
-            $otherMarkupMoney = $moneyFromRaw($grossOther, $mType, $otherMarkupForPaxRaw);
-
-            // Discount is NOT applied to hotel/other per-pax — only subtracted from TOTAL COST.
-            $countryGrossForDiscount = $grossHotel + $grossOther;
-            $discountMoney = $moneyFromRaw(
-                $countryGrossForDiscount,
-                $dType === 'foc' ? 'flat' : $dType,
-                $discountRaw
-            );
-            if ($discountMoney > 0) {
-                $discountRows[] = [
-                    'country' => $country,
-                    'currency' => $currency,
-                    'discount_type' => $dType !== '' ? $dType : 'flat',
-                    'discount_value' => $discountRaw,
-                    'amount' => $discountMoney,
-                ];
-                $sumDiscountFlat += $discountMoney;
-            }
-
-            $hotelMarkupPerPax = $hasHotel ? ($hotelMarkupMoney / $totalPax) : 0.0;
-            $otherMarkupPerPax = $otherMarkupMoney / $totalPax;
-
-            // Only booked occupancy columns get markup — never invent Single/Double from markup alone.
-            $baseHotelSingle = (float) ($hRow['single'] ?? 0);
-            $baseHotelDouble = (float) ($hRow['double'] ?? 0);
-            $baseHotelTriple = (float) ($hRow['triple'] ?? 0);
-            $cHotelSingle = ($hasHotel && $baseHotelSingle > 0)
-                ? max(0.0, ($baseHotelSingle + $hotelMarkupPerPax) * $focFactor)
-                : 0.0;
-            $cHotelDouble = ($hasHotel && $baseHotelDouble > 0)
-                ? max(0.0, ($baseHotelDouble + $hotelMarkupPerPax) * $focFactor)
-                : 0.0;
-            $cHotelTriple = ($hasHotel && $baseHotelTriple > 0)
-                ? max(0.0, ($baseHotelTriple + $hotelMarkupPerPax) * $focFactor)
-                : 0.0;
-            $cOtherSingle = max(0.0, ((float) $oRow['single'] + $otherMarkupPerPax) * $focFactor);
-            $cOtherDouble = max(0.0, ((float) $oRow['double'] + $otherMarkupPerPax) * $focFactor);
-
-            $sumHotelSingle += $cHotelSingle;
-            $sumHotelDouble += $cHotelDouble;
-            $sumHotelTriple += $cHotelTriple;
-            $sumOtherSingle += $cOtherSingle;
-            $sumOtherDouble += $cOtherDouble;
-
-            $countrySharing[] = [
-                'key' => $ck,
-                'country' => $country,
-                'currency' => $currency,
-                'hotel_single' => ceil($cHotelSingle),
-                'hotel_double' => ceil($cHotelDouble),
-                'hotel_triple' => ceil($cHotelTriple),
-                'other_services_single' => ceil($cOtherSingle),
-                'other_services_double' => ceil($cOtherDouble),
-                'other_services_child' => ceil((float) ($countryOtherChild[$ck] ?? 0) * $focFactor),
-                'single_sharing' => ceil($cHotelSingle + $cOtherSingle),
-                'double_sharing' => ceil($cHotelDouble + $cOtherDouble),
-                'triple_sharing' => ($cHotelTriple > 0) ? ceil($cHotelTriple + $cOtherSingle) : 0,
-                'markup' => ceil($markupMoneyForTotal),
-                'discount' => ceil($discountMoney),
-            ];
         }
 
-        // No country rows but tour-level markup only — apply on other side (no hotel).
-        // Tour-level discount still collected for TOTAL COST only.
-        if ($allKeys === [] && ($tourMarkupOn || $tourDiscountOn)) {
-            if ($tourMarkupOn) {
-                $markupMoney = $moneyFromRaw(0, $tourMarkupType, $tourMarkupRaw);
-                $per = max(0.0, $markupMoney / $totalPax) * $focFactor;
-                $sumOtherSingle += $per;
-                $sumOtherDouble += $per;
-                if ($markupMoney > 0) {
-                    $markupRowsOut[] = [
-                        'country' => 'Overall',
-                        'currency' => strtoupper((string) $fallbackCurrency),
-                        'markup_type' => $tourMarkupType,
-                        'hotel_markup' => 0.0,
-                        'other_markup' => $markupMoney,
-                        'amount' => $markupMoney,
-                    ];
-                    $sumMarkupFlat += $markupMoney;
-                }
-            }
-            if ($tourDiscountOn && $tourDiscountRaw > 0) {
-                $discountMoney = $moneyFromRaw(0, $tourDiscountType === 'foc' ? 'flat' : $tourDiscountType, $tourDiscountRaw);
-                if ($discountMoney > 0) {
-                    $discountRows[] = [
-                        'country' => 'Overall',
-                        'currency' => strtoupper((string) $fallbackCurrency),
-                        'discount_type' => $tourDiscountType,
-                        'discount_value' => $tourDiscountRaw,
-                        'amount' => $discountMoney,
-                    ];
-                    $sumDiscountFlat += $discountMoney;
-                }
+        // Append merged hotel supplements (one per hotel/date-range)
+        if (!empty($hotelSupplementBuckets)) {
+            foreach ($hotelSupplementBuckets as $row) {
+                if (!is_array($row)) continue;
+                $supplements[] = $row;
             }
         }
-
-        // If countries existed but no currency_markups discount matched, still pick up
-        // any unused currency_markups discount rows.
-        if ($discountRows === [] && $markupRows !== []) {
-            foreach ($markupRows as $mRow) {
-                $dRaw = (float) ($mRow['discount_value'] ?? 0);
-                if ($dRaw <= 0) {
-                    continue;
-                }
-                $dType = (string) ($mRow['discount_type'] ?? 'flat');
-                $discountMoney = $moneyFromRaw(0, $dType === 'foc' ? 'flat' : $dType, $dRaw);
-                if ($discountMoney <= 0) {
-                    continue;
-                }
-                $discountRows[] = [
-                    'country' => (string) ($mRow['country'] ?? $mRow['city'] ?? 'Overall'),
-                    'currency' => strtoupper((string) ($mRow['currency'] ?? $fallbackCurrency)),
-                    'discount_type' => $dType,
-                    'discount_value' => $dRaw,
-                    'amount' => $discountMoney,
-                ];
-                $sumDiscountFlat += $discountMoney;
-            }
+       
+        // Add merged hotel buckets once (prevents 3Ã— multiplication when same hotel/date has multiple orders)
+        $hotelSingle = 0.0;
+        $hotelDouble = 0.0;
+        $hotelTriple = 0.0;
+        foreach ($hotelBuckets as $bucket) {
+            if (!is_array($bucket)) continue;
+            if ($bucket['single'] !== null) $hotelSingle += (float)$bucket['single'];
+            if ($bucket['double'] !== null) $hotelDouble += (float)$bucket['double'];
+            if ($bucket['triple'] !== null) $hotelTriple += (float)$bucket['triple'];
         }
 
-        // Same for markup if country loop never ran / never matched.
-        if ($markupRowsOut === [] && $markupRows !== []) {
-            foreach ($markupRows as $mRow) {
-                $mType = (string) ($mRow['markup_type'] ?? 'flat');
-                $hRaw = (float) ($mRow['hotel_markup'] ?? 0);
-                $oRaw = (float) ($mRow['other_markup'] ?? 0);
-                $hMoney = $moneyFromRaw(0, $mType, $hRaw);
-                $oMoney = $moneyFromRaw(0, $mType, $oRaw);
-                $markupMoney = $hMoney + $oMoney;
-                if ($markupMoney <= 0) {
-                    continue;
-                }
-                $markupRowsOut[] = [
-                    'country' => (string) ($mRow['country'] ?? $mRow['city'] ?? 'Overall'),
-                    'currency' => strtoupper((string) ($mRow['currency'] ?? $fallbackCurrency)),
-                    'markup_type' => $mType,
-                    'hotel_markup' => $hMoney,
-                    'other_markup' => $oMoney,
-                    'amount' => $markupMoney,
-                ];
-                $sumMarkupFlat += $markupMoney;
-            }
-        }
+        // Compute effective per-child sharing price (from attraction/restaurant components)
+        $childSharing = $totalChildComponent;
 
+        // FOC rules:
+        // - discount=0: ALL services are booked for total pax; distribute total cost over paying pax
+        // - discount=1: FOC hotel cost is free; hotels are charged only for paying pax (no distribution on hotel component)
+        //              other services still distribute over paying pax (can be refined per service rules later)
+        $hasFocDistribution = ($focDistributionFactor !== 1.0);
+        $discountFlag = !empty($tour->discount) && (int)$tour->discount === 1;
+        $distributionfactor=($hasFocDistribution && !$discountFlag) ? $focDistributionFactor : 1.0;
+        $hotelFactor = $distributionfactor;
+        $otherFactor = $distributionfactor;
+
+        // Apply factors
+        $otherServiceSingle *= $otherFactor;
+        $otherServiceDouble *= $otherFactor;
+        $childSharing *= $otherFactor;
+
+        $hotelSingle *= $hotelFactor;
+        $hotelDouble *= $hotelFactor;
+        $hotelTriple *= $hotelFactor;
+
+        // Final per-head totals (supplements excluded).
+        // Other-service prices (attraction, restaurant, transfers, etc.) are per-pax amounts
+        // that don't depend on room occupancy â€” a guest in a triple room still consumes the
+        // same attractions/meals as anyone else, so the same per-pax other-services cost
+        // applies to triple sharing too. (otherServiceSingle == otherServiceDouble for these.)
+        $totalSingleSharing = $hotelSingle + $otherServiceSingle;
+        $totalDoubleSharing = $hotelDouble + $otherServiceDouble;
+        $totalTripleSharing = ($hotelTriple > 0) ? ($hotelTriple + $otherServiceSingle) : 0;
+
+        // Hotel-wise per-head prices (apply hotel factor so discount=0 shows distributed cost, discount=1 shows paying-only)
         $hotelPriceOptions = [];
         foreach ($hotelBuckets as $hotelKey => $bucket) {
-            if (!is_array($bucket)) {
-                continue;
-            }
+            if (!is_array($bucket)) continue;
             $meta = $hotelBucketMeta[$hotelKey] ?? [];
-            $selectedPersons = max(1, min(3, (int) ($bucket['selected_persons'] ?? 2)));
-            $single = (float) ($bucket['single'] ?? 0);
-            $double = (float) ($bucket['double'] ?? 0);
-            $triple = (float) ($bucket['triple'] ?? 0);
             $hotelPriceOptions[] = [
                 'key' => $hotelKey,
                 'hotel_id' => $meta['hotel_id'] ?? null,
@@ -8403,63 +8504,141 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 'display_name' => $meta['display_name'] ?? ($meta['hotel_name'] ?? $hotelKey),
                 'country' => $meta['country'] ?? null,
                 'currency' => $meta['currency'] ?? null,
-                'selected_persons' => $selectedPersons,
-                'children' => (int) ($bucket['children'] ?? 0),
-                'children_price' => (int) ($bucket['children_price'] ?? 2),
-                'child_meal_factor' => (float) ($bucket['child_meal_factor'] ?? 1),
-                'child_with_bed_total' => ceil((float) ($bucket['child_with_bed_total'] ?? 0) * $focFactor),
-                'child_without_bed_total' => ceil((float) ($bucket['child_without_bed_total'] ?? 0) * $focFactor),
-                'show_single' => $single > 0,
-                'show_double' => $double > 0,
-                'show_triple' => $triple > 0,
-                'single' => ceil($single * $focFactor),
-                'double' => ceil($double * $focFactor),
-                'triple' => ceil($triple * $focFactor),
+                'single' => ceil((float)($bucket['single'] ?? 0) * $hotelFactor),
+                'double' => ceil((float)($bucket['double'] ?? 0) * $hotelFactor),
+                'triple' => ceil((float)($bucket['triple'] ?? 0) * $hotelFactor),
             ];
         }
 
-        $supplementsFormatted = array_map(function ($s) {
-            $selectedPersons = isset($s['selected_persons']) ? (int) $s['selected_persons'] : null;
-            $row = [
-                'type' => $s['type'],
-                'country' => $s['country'] ?? null,
-                'currency' => isset($s['currency']) ? strtoupper((string) $s['currency']) : null,
-                'single' => ceil((float) ($s['single'] ?? 0)),
-                'double' => ceil((float) ($s['double'] ?? 0)),
-                'triple' => ceil((float) ($s['triple'] ?? 0)),
-                'selected_persons' => $selectedPersons,
-                'show_single' => array_key_exists('show_single', $s)
-                    ? (bool) $s['show_single']
-                    : ($selectedPersons === null || $selectedPersons >= 1),
-                'show_double' => array_key_exists('show_double', $s)
-                    ? (bool) $s['show_double']
-                    : ($selectedPersons !== null && $selectedPersons >= 2),
-                'show_triple' => array_key_exists('show_triple', $s)
-                    ? (bool) $s['show_triple']
-                    : ($selectedPersons !== null && $selectedPersons >= 3),
+        // Country-wise single/double/triple (same formula as overall, native currency per country)
+        $countryHotelBuckets = [];
+        foreach ($hotelBuckets as $hotelKey => $bucket) {
+            if (!is_array($bucket)) continue;
+            $meta = $hotelBucketMeta[$hotelKey] ?? [];
+            $cName = trim((string) ($meta['country'] ?? ''));
+            $cCurr = strtoupper(trim((string) ($meta['currency'] ?? $fallbackCurrency)));
+            if ($cName === '') {
+                $cName = $cCurr !== '' ? $cCurr : 'Other';
+            }
+            if ($cCurr === '') {
+                $cCurr = $fallbackCurrency;
+            }
+            $ck = mb_strtolower($cName) . '|' . $cCurr;
+            if (!isset($countryHotelBuckets[$ck])) {
+                $countryHotelBuckets[$ck] = [
+                    'country' => $cName,
+                    'currency' => $cCurr,
+                    'single' => 0.0,
+                    'double' => 0.0,
+                    'triple' => 0.0,
+                ];
+            }
+            $countryHotelBuckets[$ck]['single'] += (float) ($bucket['single'] ?? 0);
+            $countryHotelBuckets[$ck]['double'] += (float) ($bucket['double'] ?? 0);
+            $countryHotelBuckets[$ck]['triple'] += (float) ($bucket['triple'] ?? 0);
+        }
+
+        $allCountryKeys = array_values(array_unique(array_merge(
+            array_keys($countryHotelBuckets),
+            array_keys($countryOtherBuckets)
+        )));
+
+        $preferredCountryOrder = [];
+        $destinationRaw = (string) ($tour->destination ?? '');
+        if ($destinationRaw !== '') {
+            foreach (preg_split('/\s*,\s*/', $destinationRaw) ?: [] as $part) {
+                $part = trim((string) preg_replace('/\s*\([^)]*\)\s*/', '', $part));
+                $part = trim((string) preg_replace('/\[[^\]]*\]/', '', $part));
+                if ($part !== '') {
+                    $preferredCountryOrder[mb_strtolower($part)] = $part;
+                }
+            }
+        }
+
+        usort($allCountryKeys, function ($a, $b) use ($preferredCountryOrder, $countryHotelBuckets, $countryOtherBuckets) {
+            $aCountry = $countryHotelBuckets[$a]['country'] ?? ($countryOtherBuckets[$a]['country'] ?? $a);
+            $bCountry = $countryHotelBuckets[$b]['country'] ?? ($countryOtherBuckets[$b]['country'] ?? $b);
+            $aPos = array_key_exists(mb_strtolower($aCountry), $preferredCountryOrder)
+                ? array_search(mb_strtolower($aCountry), array_keys($preferredCountryOrder), true)
+                : PHP_INT_MAX;
+            $bPos = array_key_exists(mb_strtolower($bCountry), $preferredCountryOrder)
+                ? array_search(mb_strtolower($bCountry), array_keys($preferredCountryOrder), true)
+                : PHP_INT_MAX;
+            if ($aPos === $bPos) {
+                return strcasecmp($a, $b);
+            }
+            return $aPos <=> $bPos;
+        });
+
+        $countrySharing = [];
+        foreach ($allCountryKeys as $ck) {
+            $hotelRow = $countryHotelBuckets[$ck] ?? [
+                'country' => $countryOtherBuckets[$ck]['country'] ?? 'Other',
+                'currency' => $countryOtherBuckets[$ck]['currency'] ?? $fallbackCurrency,
+                'single' => 0.0,
+                'double' => 0.0,
+                'triple' => 0.0,
             ];
+            $otherRow = $countryOtherBuckets[$ck] ?? [
+                'single' => 0.0,
+                'double' => 0.0,
+            ];
+
+            $cHotelSingle = (float) $hotelRow['single'] * $hotelFactor;
+            $cHotelDouble = (float) $hotelRow['double'] * $hotelFactor;
+            $cHotelTriple = (float) $hotelRow['triple'] * $hotelFactor;
+            $cOtherSingle = (float) $otherRow['single'] * $otherFactor;
+            $cOtherDouble = (float) $otherRow['double'] * $otherFactor;
+
+            $countrySharing[] = [
+                'key' => $ck,
+                'country' => $hotelRow['country'],
+                'currency' => strtoupper((string) $hotelRow['currency']),
+                'hotel_single' => ceil($cHotelSingle),
+                'hotel_double' => ceil($cHotelDouble),
+                'hotel_triple' => ceil($cHotelTriple),
+                'other_services_single' => ceil($cOtherSingle),
+                'other_services_double' => ceil($cOtherDouble),
+                'single_sharing' => ceil($cHotelSingle + $cOtherSingle),
+                'double_sharing' => ceil($cHotelDouble + $cOtherDouble),
+                'triple_sharing' => ($cHotelTriple > 0) ? ceil($cHotelTriple + $cOtherSingle) : 0,
+            ];
+        }
+
+
+        // Format supplements (ceiled). Non-hotel rows use full line totalPrice on single/double/triple;
+        // hotel supplement rows keep per-rooming totals from the supplement stay. Hotel type carries full meta.
+        $supplementsFormatted = array_map(function ($s) {
+            $row = [
+                'type'   => $s['type'],
+                'single' => ceil((float)($s['single'] ?? 0)),
+                'double' => ceil((float)($s['double'] ?? 0)),
+                'triple' => ceil((float)($s['triple'] ?? 0)),
+            ];
+
             if (($s['type'] ?? null) === 'hotel') {
-                $row['hotel_id'] = $s['hotel_id'] ?? null;
-                $row['hotel_name'] = $s['hotel_name'] ?? ($s['name'] ?? null);
-                $row['date_range'] = $s['date_range'] ?? null;
+                // Hotel supplement: show hotel_name, date_range, display_name (same concept as hotel_price_options)
+                $row['hotel_id']     = $s['hotel_id'] ?? null;
+                $row['hotel_name']   = $s['hotel_name'] ?? ($s['name'] ?? null);
+                $row['date_range']   = $s['date_range'] ?? null;
                 $row['display_name'] = $s['display_name'] ?? ($s['hotel_name'] ?? ($s['name'] ?? null));
-                $row['name'] = $row['display_name'];
+                $row['name']         = $row['display_name'];
             } elseif (($s['type'] ?? null) === 'attraction') {
-                $row['name'] = $s['AttractionName'] ?? ($s['name'] ?? null);
-                $row['attraction_id'] = $s['AttractionId'] ?? null;
-                $row['ticket'] = $s['ticketName'] ?? null;
+                $row['name']              = $s['AttractionName'] ?? ($s['name'] ?? null);
+                $row['attraction_id']     = $s['AttractionId'] ?? null;
+                $row['ticket']            = $s['ticketName'] ?? null;
                 $row['transfer_required'] = $s['transfer_options']['transfer_required'] ?? null;
-                $row['guide_required'] = $s['guide_options']['guide_required'] ?? null;
+                $row['guide_required']    = $s['guide_options']['guide_required'] ?? null;
             } elseif (($s['type'] ?? null) === 'restaurant') {
-                $row['name'] = $s['restaurantName'] ?? ($s['name'] ?? null);
+                $row['name']          = $s['restaurantName'] ?? ($s['name'] ?? null);
                 $row['restaurant_id'] = $s['restaurant_id'] ?? null;
-                $row['mealType'] = $s['mealType'] ?? null;
-                $row['quantity'] = $s['MealDescription'][0]['quantity'] ?? null;
+                $row['mealType']      = $s['mealType'] ?? null;
+                $row['quantity']      = $s['MealDescription'][0]['quantity'] ?? null;
             } elseif (($s['type'] ?? null) === 'entry_port') {
-                $row['name'] = $s['name'] ?? 'Entry Port';
+                $row['name']          = $s['name'] ?? 'Entry Port';
                 $row['entry_port_id'] = $s['entry_port_id'] ?? null;
             } elseif (($s['type'] ?? null) === 'exit_port') {
-                $row['name'] = $s['name'] ?? 'Exit Port';
+                $row['name']         = $s['name'] ?? 'Exit Port';
                 $row['exit_port_id'] = $s['exit_port_id'] ?? null;
             } else {
                 $row['name'] = $s['name'] ?? ($s['type'] ?? null);
@@ -8468,65 +8647,33 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             return $row;
         }, $supplements);
 
-        $servicePriceLinesFormatted = array_values(array_map(function (array $line) use ($focFactor) {
-            $row = [
+        $servicePriceLinesFormatted = array_values(array_map(function (array $line) use ($otherFactor) {
+            return [
                 'label' => $line['label'] ?? 'Service',
                 'type' => $line['type'] ?? 'other',
-                'single' => ceil((float) ($line['single'] ?? 0) * $focFactor),
-                'double' => ceil((float) ($line['double'] ?? 0) * $focFactor),
-                'child_unit' => ceil((float) ($line['child_unit'] ?? 0) * $focFactor),
-                'country' => $line['country'] ?? null,
-                'currency' => isset($line['currency']) ? strtoupper((string) $line['currency']) : null,
-                'adult_count' => (int) ($line['adult_count'] ?? 0),
-                'child_count' => (int) ($line['child_count'] ?? 0),
-                'senior_count' => (int) ($line['senior_count'] ?? 0),
-                'adult_unit' => ceil((float) ($line['adult_unit'] ?? 0) * $focFactor),
-                'senior_unit' => ceil((float) ($line['senior_unit'] ?? 0) * $focFactor),
-                'adult_total' => ceil((float) ($line['adult_total'] ?? 0) * $focFactor),
-                'child_total' => ceil((float) ($line['child_total'] ?? 0) * $focFactor),
-                'senior_total' => ceil((float) ($line['senior_total'] ?? 0) * $focFactor),
-                'extras' => ceil((float) ($line['extras'] ?? 0) * $focFactor),
-                'amount' => ceil((float) ($line['amount'] ?? 0) * $focFactor),
-                'has_guest_split' => !empty($line['has_guest_split']),
+                'single' => ceil((float) ($line['single'] ?? 0) * $otherFactor),
+                'double' => ceil((float) ($line['double'] ?? 0) * $otherFactor),
+                'child_unit' => ceil((float) ($line['child_unit'] ?? 0) * $otherFactor),
             ];
-
-            return $row;
         }, $servicePriceLines));
 
-        $sumOtherChild = 0.0;
-        foreach ($countryOtherChild as $v) {
-            $sumOtherChild += (float) $v;
-        }
-
-        foreach ($segregated as $k => $vals) {
-            foreach ($vals as $occ => $v) {
-                $segregated[$k][$occ] = ceil((float) $v * $focFactor);
-            }
-        }
-
-        $totalSingle = $sumHotelSingle + $sumOtherSingle;
-        $totalDouble = $sumHotelDouble + $sumOtherDouble;
-        $totalTriple = ($sumHotelTriple > 0) ? ($sumHotelTriple + $sumOtherSingle) : 0.0;
-
         return [
-            'single_sharing' => ceil($totalSingle),
-            'double_sharing' => ceil($totalDouble),
-            'triple_sharing' => ceil($totalTriple),
-            'baby_cot_sharing' => ceil($sumBabyCot * $focFactor),
-            'hotel_price_options' => $hotelPriceOptions,
-            'service_price_lines' => $servicePriceLinesFormatted,
-            'other_services_single' => ceil($sumOtherSingle),
-            'other_services_double' => ceil($sumOtherDouble),
-            'other_services_child' => ceil($sumOtherChild * $focFactor),
-            'country_sharing' => $countrySharing,
-            'segregated' => $segregated,
-            'supplements' => $supplementsFormatted,
-            'supplyments' => $supplementsFormatted,
-            // Flat markup/discount from currency_markups — TOTAL COST only (not mixed into Other formula beyond per-pax display).
-            'markups' => $markupRowsOut,
-            'markup_total' => ceil($sumMarkupFlat),
-            'discounts' => $discountRows,
-            'discount_total' => ceil($sumDiscountFlat),
+            // Per-head totals (hotel + other services, supplements excluded)
+            'single_sharing'       => ceil($totalSingleSharing),
+            'double_sharing'       => ceil($totalDoubleSharing),
+            'triple_sharing'       => ceil($totalTripleSharing),
+            // Hotel-wise per-head prices (each hotel separately, for rooming scenarios)
+            'hotel_price_options'  => $hotelPriceOptions,
+            // Per-service lines for segregated quotation breakdown
+            'service_price_lines'  => $servicePriceLinesFormatted,
+            // Other services per-head total (non-hotel, non-supplement)
+            'other_services_single' => ceil($otherServiceSingle),
+            'other_services_double' => ceil($otherServiceDouble),
+            // Country + currency wise single/double/triple (native amounts)
+            'country_sharing'      => $countrySharing,
+            // Supplements (hotel + other services marked supplement=true)
+            'supplements'          => $supplementsFormatted,
+            'supplyments'          => $supplementsFormatted,
         ];
     }
 
@@ -9129,9 +9276,6 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 'adult_count' => $adultCount > 0 ? $adultCount : null,
                 'child_count' => $childCount > 0 ? $childCount : null,
                 'senior_count' => $seniorCount > 0 ? $seniorCount : null,
-                'adult_price' => (float) ($item['ticket_details']['adult_price'] ?? $item['adult_price'] ?? 0) ?: null,
-                'child_price' => (float) ($item['ticket_details']['child_price'] ?? $item['child_price'] ?? 0) ?: null,
-                'ticket_details' => is_array($item['ticket_details'] ?? null) ? $item['ticket_details'] : null,
                 'visit_time' => $item['visitTime'] ?? null,
                 'transport_note' => $transportNote,
                 'transfer_required' => $transferRequired,
@@ -9211,9 +9355,6 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 'child_count' => $childCount > 0 ? $childCount : null,
                 'infant_count' => $infantCount > 0 ? $infantCount : null,
                 'senior_count' => $seniorCount > 0 ? $seniorCount : null, // kept for backward compatibility
-                'adult_price' => (float) ($item['adult_price'] ?? ($item['meal_details']['adult_price'] ?? ($item['MealDescription'][0]['adult_price'] ?? 0))) ?: null,
-                'child_price' => (float) ($item['child_price'] ?? ($item['meal_details']['child_price'] ?? ($item['MealDescription'][0]['child_price'] ?? 0))) ?: null,
-                'meal_details' => is_array($item['meal_details'] ?? null) ? $item['meal_details'] : null,
                 'visit_time' => $item['visitTime'] ?? null,
                 'meal_type' => $mealSpecificType ?: null,
                 'meal_plan' => $item['mealType'] ?? null,
