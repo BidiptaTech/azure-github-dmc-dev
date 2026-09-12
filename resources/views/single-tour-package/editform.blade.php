@@ -7181,8 +7181,8 @@
                                     placeholder="00:00"
                                     maxlength="5"
                                     style="border: none; box-shadow: none; width: 70px; height: 36px; padding: 0 4px; font-size: 0.8rem; letter-spacing: 0.02em;"
-                                    oninput="formatTimeInput(this); syncGuideModalPickupTimeAndValidate()"
-                                    onchange="syncGuideModalPickupTimeAndValidate()"
+                                    oninput="formatTimeInput(this); syncGuideModalPickupTime()"
+                                    onchange="syncGuideModalPickupTime()"
                                 >
                                 <span style="width: 1px; align-self: stretch; background: #e5e7eb;"></span>
                                 <select
@@ -7190,7 +7190,7 @@
                                     id="modal_guide_pickup_time_ampm"
                                     data-no-select2="true"
                                     style="width: 70px; height: 36px; font-size: 0.8rem; box-shadow: none; padding: 0 14px 0 6px;"
-                                    onchange="syncGuideModalPickupTimeAndValidate()"
+                                    onchange="syncGuideModalPickupTime()"
                                 >
                                     <option value="AM">AM</option>
                                     <option value="PM">PM</option>
@@ -22210,45 +22210,28 @@
         const minStr = String(min).padStart(2, '0');
         hiddenInput.value = hourStr + ':' + minStr + ' ' + (ampmSelect.value || 'AM');
     }
-
-    window.syncGuideModalPickupTimeAndValidate = function () {
-        syncGuideModalPickupTime();
-        if (typeof calculateGuidePrice === 'function') calculateGuidePrice();
-        if (typeof validateForm === 'function') validateForm();
-    };
     
     function initializeGuideModal() {
         // Hide price container initially
-        const priceBox = document.getElementById('guide_price_container');
-        if (priceBox) priceBox.style.display = 'none';
+        document.getElementById('guide_price_container').style.display = 'none';
         
-        // Native + Select2 change listeners (Select2 may not always bubble as expected)
-        const bindGuideValidate = function (el, handler) {
-            if (!el || el.dataset.guideValidateBound === '1') return;
-            el.dataset.guideValidateBound = '1';
-            el.addEventListener('change', handler);
-            if (window.jQuery) {
-                window.jQuery(el).off('change.guideValidate select2:select.guideValidate select2:clear.guideValidate')
-                    .on('change.guideValidate select2:select.guideValidate select2:clear.guideValidate', handler);
-            }
-        };
-
-        bindGuideValidate(document.getElementById('modal_guide_city_select'), function () {
-            validateForm();
-        });
-        bindGuideValidate(document.getElementById('modal_guide_select'), onGuideSelection);
-        bindGuideValidate(document.getElementById('modal_guide_duration'), onDurationSelection);
-
+        // Add event listeners
+        const citySelect = document.getElementById('modal_guide_city_select');
+        if (citySelect) {
+            citySelect.addEventListener('change', function() {
+                validateForm();
+            });
+        }
+        document.getElementById('modal_guide_select').addEventListener('change', onGuideSelection);
+        document.getElementById('modal_guide_duration').addEventListener('change', onDurationSelection);
         const modalCustomHoursEl = document.getElementById('modal_guide_custom_hours');
-        if (modalCustomHoursEl && modalCustomHoursEl.dataset.guideValidateBound !== '1') {
-            modalCustomHoursEl.dataset.guideValidateBound = '1';
+        if (modalCustomHoursEl) {
             modalCustomHoursEl.addEventListener('input', function() { validateCustomHours(); calculateGuidePrice(); validateForm(); });
             modalCustomHoursEl.addEventListener('change', function() { calculateGuidePrice(); validateForm(); });
         }
         const modalPickupInput = document.getElementById('modal_guide_pickup_time_input');
         const modalPickupAmpm = document.getElementById('modal_guide_pickup_time_ampm');
-        if (modalPickupInput && modalPickupInput.dataset.guideValidateBound !== '1') {
-            modalPickupInput.dataset.guideValidateBound = '1';
+        if (modalPickupInput) {
             modalPickupInput.addEventListener('input', function() {
                 formatTimeInput(modalPickupInput);
                 syncGuideModalPickupTime();
@@ -22261,56 +22244,42 @@
                 validateForm();
             });
         }
-        if (modalPickupAmpm && modalPickupAmpm.dataset.guideValidateBound !== '1') {
-            modalPickupAmpm.dataset.guideValidateBound = '1';
+        if (modalPickupAmpm) {
             modalPickupAmpm.addEventListener('change', function() {
                 syncGuideModalPickupTime();
                 calculateGuidePrice();
                 validateForm();
             });
         }
-        const serviceDateInput = document.getElementById('modal_guide_service_date');
-        if (serviceDateInput && serviceDateInput.dataset.guideValidateBound !== '1') {
-            serviceDateInput.dataset.guideValidateBound = '1';
-            serviceDateInput.addEventListener('change', function() {
-                calculateGuidePrice();
-                validateForm();
-            });
-            serviceDateInput.addEventListener('input', function() {
-                validateForm();
-            });
-        }
-        const confirmBtn = document.getElementById('confirm_guide_btn');
-        if (confirmBtn && confirmBtn.dataset.guideValidateBound !== '1') {
-            confirmBtn.dataset.guideValidateBound = '1';
-            confirmBtn.addEventListener('click', confirmGuideSelection);
-        }
+        document.getElementById('modal_guide_service_date').addEventListener('change', function() {
+            calculateGuidePrice();
+            validateForm();
+        });
+        document.getElementById('confirm_guide_btn').addEventListener('click', confirmGuideSelection);
         
-        // Set default AM if empty
+        // Set default pickup time to 09:00 AM
         const modalPickupHidden = document.getElementById('modal_guide_pickup_time');
         const modalPickupInputEl = document.getElementById('modal_guide_pickup_time_input');
         const modalPickupAmpmEl = document.getElementById('modal_guide_pickup_time_ampm');
         if (modalPickupInputEl && modalPickupAmpmEl && modalPickupHidden) {
-            if (!modalPickupAmpmEl.value) modalPickupAmpmEl.value = 'AM';
+            // modalPickupInputEl.value = '09:00';
+            modalPickupAmpmEl.value = 'AM';
             syncGuideModalPickupTime();
         }
         
         // Set date restrictions and default value
-        const startDate = document.getElementById('start_date') ? document.getElementById('start_date').value : '';
-        const endDate = document.getElementById('end_date') ? document.getElementById('end_date').value : '';
+        const startDate = document.getElementById('start_date').value;
+        const endDate = document.getElementById('end_date').value;
+        const serviceDateInput = document.getElementById('modal_guide_service_date');
         
-        if (serviceDateInput && startDate && endDate) {
+        if (startDate && endDate) {
             serviceDateInput.min = startDate;
             serviceDateInput.max = endDate;
-            if (!serviceDateInput.value) {
-                serviceDateInput.value = startDate;
-            }
+            serviceDateInput.value = startDate; // Default to start date
         }
         
-        // Initial + delayed validation (after Select2 finishes on modal show)
+        // Initial validation
         validateForm();
-        setTimeout(validateForm, 150);
-        setTimeout(validateForm, 400);
     }
     
     function loadGuidesForCity(city, country) {
@@ -22347,45 +22316,37 @@
                     guideSelect.appendChild(option);
                 });
                 if (guideCount) guideCount.textContent = guides.length;
-                if (typeof validateForm === 'function') validateForm();
             })
             .catch(function (err) {
                 console.error('Error loading guides by DMC/city:', err);
                 guideSelect.innerHTML = '<option value="">Error loading guides</option>';
                 if (guideCount) guideCount.textContent = '0';
-                if (typeof validateForm === 'function') validateForm();
             });
     }
     
     function onGuideSelection() {
         const guideSelect = document.getElementById('modal_guide_select');
         const guideDetailsContainer = document.getElementById('guide_details_container');
-        const selectedOption = guideSelect && guideSelect.options[guideSelect.selectedIndex];
+        const selectedOption = guideSelect.options[guideSelect.selectedIndex];
         
-        // Do not clear pickup time — user may fill time before selecting guide
-        syncGuideModalPickupTime();
+        // Clear only pickup time when guide changes (price is time-dependent, date remains)
+        document.getElementById('modal_guide_pickup_time').value = '';
         
-        if (guideSelect && guideSelect.value && selectedOption) {
-            let guideData = {};
-            try {
-                guideData = JSON.parse(selectedOption.getAttribute('data-guide') || '{}');
-            } catch (e) {
-                guideData = {};
-            }
+        if (guideSelect.value) {
+            const guideData = JSON.parse(selectedOption.getAttribute('data-guide'));
             
             // Show guide details
             document.getElementById('selected_guide_image').src = guideData.image || '/assets/images/default-avatar.png';
-            document.getElementById('selected_guide_name').textContent = guideData.name || '';
-            document.getElementById('selected_guide_specialty').textContent = guideData.specialty || '';
-            document.getElementById('selected_guide_experience').textContent = `${guideData.experience || ''} experience`;
-            document.getElementById('selected_guide_rating').textContent = guideData.rating || '';
-            document.getElementById('selected_guide_rate').textContent = guideData.rate || '';
+            document.getElementById('selected_guide_name').textContent = guideData.name;
+            document.getElementById('selected_guide_specialty').textContent = guideData.specialty;
+            document.getElementById('selected_guide_experience').textContent = `${guideData.experience} experience`;
+            document.getElementById('selected_guide_rating').textContent = guideData.rating;
+            document.getElementById('selected_guide_rate').textContent = guideData.rate;
             
-            if (guideDetailsContainer) guideDetailsContainer.style.display = 'block';
+            guideDetailsContainer.style.display = 'block';
         } else {
-            if (guideDetailsContainer) guideDetailsContainer.style.display = 'none';
-            const priceContainer = document.getElementById('guide_price_container');
-            if (priceContainer) priceContainer.style.display = 'none';
+            guideDetailsContainer.style.display = 'none';
+            document.getElementById('guide_price_container').style.display = 'none';
         }
         
         calculateGuidePrice();
@@ -22425,39 +22386,25 @@
     }
     
     function validateForm() {
-        syncGuideModalPickupTime();
-
         const citySelect = document.getElementById('modal_guide_city_select');
         const guideSelect = document.getElementById('modal_guide_select');
         const durationSelect = document.getElementById('modal_guide_duration');
         const customHours = document.getElementById('modal_guide_custom_hours');
         const pickupTime = document.getElementById('modal_guide_pickup_time');
-        const pickupTimeInput = document.getElementById('modal_guide_pickup_time_input');
         const serviceDate = document.getElementById('modal_guide_service_date');
         const confirmBtn = document.getElementById('confirm_guide_btn');
-        if (!confirmBtn) return;
         
         let isValid = true;
         
-        // Enable Confirm when all required fields are filled (any order)
-        if (!citySelect || !String(citySelect.value || '').trim()) isValid = false;
-        if (!guideSelect || !String(guideSelect.value || '').trim()) isValid = false;
-        if (!durationSelect || !String(durationSelect.value || '').trim()) isValid = false;
-        if (durationSelect && durationSelect.value === 'custom') {
-            const ch = customHours ? parseFloat(customHours.value) : 0;
-            if (!ch || ch < 1 || ch > 24) isValid = false;
-        }
-        const hasPickupTime = (pickupTime && String(pickupTime.value || '').trim() !== '') ||
-            (pickupTimeInput && (pickupTimeInput.value || '').replace(/\D/g, '').length >= 3);
-        if (!hasPickupTime) isValid = false;
-        if (!serviceDate || !String(serviceDate.value || '').trim()) isValid = false;
+        // Check required fields
+        if (!citySelect || !citySelect.value) isValid = false;
+        if (!guideSelect.value) isValid = false;
+        if (!durationSelect.value) isValid = false;
+        if (durationSelect.value === 'custom' && (!customHours.value || customHours.value < 1 || customHours.value > 24)) isValid = false;
+        if (!pickupTime.value) isValid = false;
+        if (!serviceDate.value) isValid = false;
         
         confirmBtn.disabled = !isValid;
-        if (isValid) {
-            confirmBtn.removeAttribute('disabled');
-        } else {
-            confirmBtn.setAttribute('disabled', 'disabled');
-        }
     }
 
     // Parse pickup time string (e.g. "07:59 AM" or "19:30") to 24-hour hour (0-23).

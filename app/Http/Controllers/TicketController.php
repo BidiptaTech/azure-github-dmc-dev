@@ -225,6 +225,7 @@ class TicketController extends Controller
         }
         
         $query = Ticket::with(['dmc:userId,name,company_name', 'createdByUser:userId,name'])
+            ->where('status', 1)
             ->where('attraction_id', $attraction_id);
 
         if($auth_user->role_id == 1 || $auth_user->role_id == 20){
