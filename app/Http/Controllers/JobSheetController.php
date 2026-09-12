@@ -1368,11 +1368,9 @@ class JobSheetController extends Controller
                     ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
                     ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
                     ->whereIn('orders.type', $orderTypes)
-                    ->whereRaw("data->0->>'pickupdate' = ?", [$tomorrow])
-                    ->where(function ($q) use ($dmcId) {
-                        $q->whereRaw("data->0->>'dmc_Id' = ?", [$dmcId])
-                          ->orWhereRaw("data->0->>'dmc_id' = ?", [$dmcId]);
-                    })
+                    // Own the order through its tour instead of the dmc_Id copy inside data[0],
+                    // which is missing on some orders and stale on others.
+                    ->where('tours.dmc_id', (int) $dmcId)
                     ->whereNotNull('orders.tour_id')
                     ->whereIn('tours.tour_status', ['Confirmed', 'Definite', 'Actual'])
                     ->get();
@@ -2614,7 +2612,9 @@ class JobSheetController extends Controller
                     ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
                     ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
                     ->whereIn('orders.type', $orderTypes)
-                    ->whereRaw("data->0->>'dmc_Id' = ?", [$dmcId])
+                    // Own the order through its tour instead of the dmc_Id copy inside data[0],
+                    // which is missing on some orders and stale on others.
+                    ->where('tours.dmc_id', (int) $dmcId)
                     ->whereRaw("data->0->>'pickupdate' = ?", [$date])
                     ->whereNotNull('orders.tour_id')
                     ->whereIn('tours.tour_status', ['Confirmed', 'Definite', 'Actual'])
