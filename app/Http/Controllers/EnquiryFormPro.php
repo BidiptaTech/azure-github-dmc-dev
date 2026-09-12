@@ -529,6 +529,18 @@ class EnquiryFormPro extends Controller
     }
 
     /**
+     * Seed controller markup maps from the saved tour (edit: do not accept request overrides).
+     */
+    private function hydrateProCurrencyMarkupsFromTour(Tour $tour): void
+    {
+        $this->proFallbackMarkupValue = (float) ($tour->markup_amount ?? 0);
+        $this->proFallbackMarkupType = (string) ($tour->markup_type ?? '');
+        $this->proFallbackDiscountValue = (float) ($tour->discount_amount ?? 0);
+        $this->proFallbackDiscountType = (string) ($tour->discount_type ?? '');
+        $this->proCurrencyMarkups = $this->normalizeCurrencyMarkups($tour->currency_markups);
+    }
+
+    /**
      * Seed controller markup maps from request (call at start of store/update).
      */
     private function hydrateProCurrencyMarkupsFromRequest(Request $request): void
@@ -3870,19 +3882,19 @@ class EnquiryFormPro extends Controller
                 'currency_markups' => 'nullable',
             ]);
             
-            // Get markup and discount values (coerce — input() can return null when key exists)
-            $markupValue = $request->input('markup_value', 0);
-            $markupType = (string) ($request->input('markup_type') ?? 'percentage');
-            $discountValue = $request->input('discount_value', 0);
-            $discountType = (string) ($request->input('discount_type') ?? '');
-            $discountAmountStored = (float) $request->input('discount_amount', 0);
-            $this->hydrateProCurrencyMarkupsFromRequest($request);
-            
             DB::beginTransaction();
             $guestCredentialContext = [];
             
             // Get the tour (latest row if legacy duplicate tour_id exists)
             $tour = Tour::where('tour_id', $tour_id)->orderByDesc('id')->firstOrFail();
+
+            // Markup/discount are locked on edit — keep stored rates (ignore request)
+            $markupValue = $tour->markup_amount ?? 0;
+            $markupType = (string) ($tour->markup_type ?? '');
+            $discountValue = $tour->discount_amount ?? 0;
+            $discountType = (string) ($tour->discount_type ?? '');
+            $discountAmountStored = (float) ($tour->discount_amount ?? 0);
+            $this->hydrateProCurrencyMarkupsFromTour($tour);
             
             // Update tour record
             $checkInTime = Carbon::createFromFormat('Y-m-d', $request->start_date);
@@ -3937,22 +3949,7 @@ class EnquiryFormPro extends Controller
                 $tour->foc_size = 0;
                 $tour->discount = 0;
             }
-            $tour->discount_amount = ($discountType === 'foc')
-                ? ($discountAmountStored > 0 ? $discountAmountStored : (float) $discountValue)
-                : (in_array($discountType, ['flat', 'percentage'], true)
-                    ? (float) $discountValue
-                    : $discountAmountStored);
-            // Discount type selected by user (percentage / flat / foc); null when nothing selected.
-            $tour->discount_type = in_array($discountType, ['percentage', 'flat', 'foc'], true) ? $discountType : null;
-            // Markup: boolean flag + selected type + amount.
-            $markupAmountStored = (float) $markupValue;
-            $markupSelected = ($markupAmountStored > 0 && in_array($markupType, ['percentage', 'flat'], true)) ? 1 : 0;
-            $tour->markup = $markupSelected;
-            $tour->markup_type = $markupSelected ? $markupType : null;
-            $tour->markup_amount = $markupSelected ? $markupAmountStored : 0;
-            $tour->currency_markups = !empty($this->proCityMarkups) || !empty($this->proCurrencyMarkups)
-                ? $this->currencyMarkupsListForStorage()
-                : null;
+            // Markup, discount_amount, discount_type, and currency_markups stay as saved — not editable on edit.
             // Note: salutation, customer_name, contact_number are stored in orders JSON, not in tours table
             $guestCredentialContext = $this->applyGuestPayloadToTour($request, $tour);
             

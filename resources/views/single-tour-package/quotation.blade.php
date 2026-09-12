@@ -951,7 +951,7 @@
                         @endif
                         <div class="top-line"><span class="bold">Travelling Date:</span> {{ $travellingDate }}</div>
                         @if(trim((string) $roomingText) !== '')
-                            <div class="top-line"><span class="bold">Rooming:</span> {{ $roomingText }}</div>
+                        <div class="top-line"><span class="bold">Rooming:</span> {{ $roomingText }}</div>
                         @endif
                     </div>
                 </td>
@@ -1220,37 +1220,37 @@
             }
 
             if (!$overallConvertedOk && !empty($countrySharingRows)) {
-                $fallbackCurrency = null;
-                $sameCurrency = true;
+                    $fallbackCurrency = null;
+                    $sameCurrency = true;
                 $fbHotelSingle = $fbHotelDouble = $fbHotelTriple = $fbOther = 0.0;
-                foreach ($countrySharingRows as $share) {
-                    $fromCurrency = strtoupper((string)($share['currency'] ?? $baseCurrency));
-                    if ($fallbackCurrency === null) {
-                        $fallbackCurrency = $fromCurrency;
-                    } elseif ($fallbackCurrency !== $fromCurrency) {
-                        $sameCurrency = false;
-                        break;
+                    foreach ($countrySharingRows as $share) {
+                        $fromCurrency = strtoupper((string)($share['currency'] ?? $baseCurrency));
+                        if ($fallbackCurrency === null) {
+                            $fallbackCurrency = $fromCurrency;
+                        } elseif ($fallbackCurrency !== $fromCurrency) {
+                            $sameCurrency = false;
+                            break;
+                        }
+                        $hSingle = (float)($share['hotel_single'] ?? 0);
+                        $hDouble = (float)($share['hotel_double'] ?? 0);
+                        $hTriple = (float)($share['hotel_triple'] ?? 0);
+                        $oOther = (float)($share['other_services_single'] ?? ($share['other_services_double'] ?? 0));
+                        if ($isProTour) {
+                            $hSingle = $hDouble > 0 ? $hDouble : $hSingle;
+                        }
+                        $fbHotelSingle += $hSingle;
+                        $fbHotelDouble += $hDouble;
+                        $fbHotelTriple += $hTriple;
+                        $fbOther += $oOther;
                     }
-                    $hSingle = (float)($share['hotel_single'] ?? 0);
-                    $hDouble = (float)($share['hotel_double'] ?? 0);
-                    $hTriple = (float)($share['hotel_triple'] ?? 0);
-                    $oOther = (float)($share['other_services_single'] ?? ($share['other_services_double'] ?? 0));
-                    if ($isProTour) {
-                        $hSingle = $hDouble > 0 ? $hDouble : $hSingle;
-                    }
-                    $fbHotelSingle += $hSingle;
-                    $fbHotelDouble += $hDouble;
-                    $fbHotelTriple += $hTriple;
-                    $fbOther += $oOther;
-                }
-                if ($sameCurrency && $fallbackCurrency) {
-                    $overallConvertedOk = true;
-                    $overallDisplayCurrency = $fallbackCurrency;
-                    $overallDisplayLabel = $fallbackCurrency === 'INR' ? 'INR' : $fallbackCurrency;
-                    $overallHotelSingle = ceil($fbHotelSingle);
-                    $overallHotelDouble = ceil($fbHotelDouble);
-                    $overallHotelTriple = $fbHotelTriple > 0 ? ceil($fbHotelTriple) : 0;
-                    $overallOther = ceil($fbOther);
+                    if ($sameCurrency && $fallbackCurrency) {
+                        $overallConvertedOk = true;
+                        $overallDisplayCurrency = $fallbackCurrency;
+                        $overallDisplayLabel = $fallbackCurrency === 'INR' ? 'INR' : $fallbackCurrency;
+                        $overallHotelSingle = ceil($fbHotelSingle);
+                        $overallHotelDouble = ceil($fbHotelDouble);
+                        $overallHotelTriple = $fbHotelTriple > 0 ? ceil($fbHotelTriple) : 0;
+                        $overallOther = ceil($fbOther);
                 }
             } elseif ($overallConvertedOk) {
                 $overallHotelSingle = ceil($overallHotelSingle);
@@ -1614,62 +1614,62 @@
                 @endphp
                 <div style="border-top: 1px solid #000;">
                     <div class="country-box-title" style="border-bottom: 1px solid #000;">{{ $shareCountry }}</div>
-                    <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
-                        <tr>
-                            <td style="width: 50%; vertical-align: top; padding: 8px; border-right: 1px solid #000;">
+            <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
+                <tr>
+                    <td style="width: 50%; vertical-align: top; padding: 8px; border-right: 1px solid #000;">
                                 <div class="country-col-label">Hotel-Accommodation (per pax)</div>
-                                <table style="width: 100%; border-collapse: collapse; border: 1px solid #000; table-layout: fixed;">
-                                    <thead>
-                                        <tr>
-                                            <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 33.33%;">Single</th>
-                                            <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 33.33%;">Double</th>
-                                            <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 33.33%;">Triple</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr>
+                        <table style="width: 100%; border-collapse: collapse; border: 1px solid #000; table-layout: fixed;">
+                            <thead>
+                                <tr>
+                                    <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 33.33%;">Single</th>
+                                    <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 33.33%;">Double</th>
+                                    <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 33.33%;">Triple</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
                                             <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $shareCellSingle }}</td>
                                             <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $shareCellDouble }}</td>
                                             <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $shareCellTriple }}</td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </td>
-                            <td style="width: 50%; vertical-align: top; padding: 8px;">
+                                </tr>
+                            </tbody>
+                        </table>
+                    </td>
+                    <td style="width: 50%; vertical-align: top; padding: 8px;">
                                 <div class="country-col-label">Other Services (per pax)</div>
                                 <table width="100%" border="1" cellspacing="0" cellpadding="6" style="width: 100%; border-collapse: collapse; table-layout: fixed; border: 1px solid #000;">
-                                    <tr>
+                                <tr>
                                         <td width="33%" align="center" bgcolor="#f3f3f3" style="width: 33%; border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; font-weight: bold;">Single</td>
                                         <td width="33%" align="center" bgcolor="#f3f3f3" style="width: 33%; border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; font-weight: bold;">Double</td>
                                         <td width="34%" align="center" bgcolor="#f3f3f3" style="width: 34%; border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; font-weight: bold;">Triple</td>
-                                    </tr>
-                                    <tr>
+                                </tr>
+                                <tr>
                                         <td colspan="3" align="center" style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">
                                             {{ $shareOther > 0 ? ($formatNativeMoney($shareOther, $shareCurrency) . ' /pax') : '--' }}
-                                        </td>
-                                    </tr>
-                                </table>
-                            </td>
-                        </tr>
+                                    </td>
+                                </tr>
+                        </table>
+                    </td>
+                </tr>
                         
-                    </table>
-                </div>
+            </table>
+        </div>
             @endforeach
         </div>
         @endif
 
         {{-- 2) Overall Package — one simple calc table --}}
-        <div class="overall-price-box" style="margin-top: 10px;">
+            <div class="overall-price-box" style="margin-top: 10px;">
             <div class="panel-title" style="margin: 0; border: none; border-bottom: 1px solid #000;">Overall Package ({{ $overallDisplayLabel }})</div>
-            <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
-                <thead>
-                    <tr>
+                <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
+                    <thead>
+                        <tr>
                         <th style="border: 1px solid #000; padding: 8px; background: #f3f3f3; text-align: left; width: 46%;">Particulars</th>
                         <th style="border: 1px solid #000; padding: 8px; background: #f3f3f3; text-align: center; width: 27%;">Price</th>
                         <th style="border: 1px solid #000; padding: 8px; background: #f3f3f3; text-align: right; width: 27%;">Total Price</th>
-                    </tr>
-                </thead>
-                <tbody>
+                        </tr>
+                    </thead>
+                    <tbody>
                     @forelse($overallPackageRows as $row)
                         <tr>
                             <td style="border: 1px solid #000; padding: 8px; vertical-align: middle;">{{ $row['name'] }}</td>
@@ -1678,8 +1678,8 @@
                             </td>
                             <td style="border: 1px solid #000; padding: 8px; text-align: right; font-weight: bold; vertical-align: middle;">
                                 {{ $fmtOverallAmt($row['total']) }}
-                            </td>
-                        </tr>
+                                </td>
+                            </tr>
                     @empty
                         <tr>
                             <td style="border: 1px solid #000; padding: 8px;" colspan="3">No package items</td>
@@ -1688,27 +1688,27 @@
 
                     @php
                         $showSubtotalRow = !empty($overallPackageRows) && (float) $overallDiscountShown > 0;
-                    @endphp
+        @endphp
                     @if($showSubtotalRow)
                         <tr>
                             <td style="border: 1px solid #000; padding: 8px; text-align: right; background: #fafafa;" colspan="2"><strong>Subtotal</strong></td>
                             <td style="border: 1px solid #000; padding: 8px; text-align: right; font-weight: bold; background: #fafafa;">{{ $fmtOverallAmt($overallLinesSubtotal) }}</td>
                         </tr>
-                    @endif
+                                    @endif
                     @if($overallDiscountShown > 0)
                         <tr>
                             <td style="border: 1px solid #000; padding: 8px;">Discount</td>
                             <td style="border: 1px solid #000; padding: 8px; text-align: center;">-</td>
                             <td style="border: 1px solid #000; padding: 8px; text-align: right; font-weight: bold;">{{ $fmtOverallAmt($overallDiscountShown) }}</td>
-                        </tr>
-                    @endif
+                            </tr>
+        @endif
                     <tr>
                         <td style="border: 1px solid #000; padding: 10px; text-align: right; font-weight: bold; background: #f3f3f3;" colspan="2">TOTAL COST</td>
                         <td style="border: 1px solid #000; padding: 10px; text-align: right; font-weight: bold; background: #f3f3f3;">{{ $totalCostLabel }}</td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
 
         @if(!empty($quotationInformationHtml))
             <div class="quotation-information">
