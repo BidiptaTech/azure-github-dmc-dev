@@ -2791,29 +2791,14 @@ class HotelController extends Controller
             ->get();
 
         
-            // Admin / role 20: only DMCs that have selected this hotel
+            // Get DMC users for admin dropdown (only for admin users)
             $dmcUsers = collect();
-            if (in_array((int) $auth_user->role_id, [1, 20], true) && $hotel) {
-                $selectedDmcIds = [];
-                foreach ($hotel->getSelectedDmcIds() as $selectedId) {
-                    $intId = (int) $selectedId;
-                    if ($intId > 0) {
-                        $selectedDmcIds[] = $intId;
-                    }
-                }
-                $selectedDmcIds = array_values(array_unique($selectedDmcIds));
-
-                if ($selectedDmcIds !== []) {
-                    $dmcUsers = User::whereIn('role_id', [11, 20])
-                        ->whereIn('userId', $selectedDmcIds)
-                        ->select('userId', 'name', 'company_name', 'currency')
-                        ->orderBy('company_name', 'asc')
-                        ->get()
-                        ->filter(function ($dmc) use ($hotel) {
-                            return $hotel->hasSelectedByDmc($dmc->userId);
-                        })
-                        ->values();
-                }
+            if ($auth_user->role_id == 1) {
+                $dmcUsers = User::where('role_id', 11)
+                ->where('user_type', 2)
+                ->select('userId', 'name', 'company_name', 'currency')
+                ->orderBy('company_name', 'asc')
+                ->get();
             }
         
             // Fetch beds data based on user role
@@ -2919,13 +2904,6 @@ class HotelController extends Controller
             }
         
             $request->validate($rules);
-
-            if (in_array((int) $auth_user->role_id, [1, 20], true)) {
-                $hotelForDmc = Hotel::where('hotel_unique_id', $request->hotel_id)->first();
-                if (!$hotelForDmc || !$hotelForDmc->hasSelectedByDmc($request->input('dmc_id'))) {
-                    return redirect()->back()->with('error', 'Please select a DMC that has this hotel.');
-                }
-            }
             //If extra bed and baby cot is not available
             if ($request->extra_bed != 1) {
                 $request->merge([

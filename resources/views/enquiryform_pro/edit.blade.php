@@ -1076,7 +1076,6 @@
 <script>
     // EDIT MODE CONFIGURATION
     window.isEditMode = {{ $isEditMode ? 'true' : 'false' }};
-    window.lockEnquiryMarkupDiscount = {{ $isEditMode ? 'true' : 'false' }};
     window.tourId = {{ $tourId ?? 'null' }};
     window.existingOrders = @json($existingOrders);
     
@@ -1905,46 +1904,46 @@
             <!-- Left Side: Markup and Discount Controls -->
             <div style="flex: 1; min-width: 0; margin-right: 8px;">
                 <!-- Single city -->
-                <div id="enquiryProMarkupSingleWrap" class="enquiry-md-panel{{ $isEditMode ? ' is-locked' : '' }}" style="display: none;">
+                <div id="enquiryProMarkupSingleWrap" class="enquiry-md-panel" style="display: none;">
                     <div class="enquiry-md-panel__head" role="button" tabindex="0" aria-expanded="true"
                          onclick="toggleEnquiryMdAccordion(this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleEnquiryMdAccordion(this);}">
                         <div class="enquiry-md-panel__head-left">
                             <span class="enquiry-md-panel__chevron" aria-hidden="true">▼</span>
                             <p class="enquiry-md-panel__title">Pricing adjustments</p>
                         </div>
-                        <p class="enquiry-md-panel__hint">{{ $isEditMode ? 'View only — markup & discount cannot be changed' : 'Markup & discount' }}</p>
+                        <p class="enquiry-md-panel__hint">Markup &amp; discount</p>
                     </div>
                     <div class="enquiry-md-panel__body">
                         <div class="enquiry-md-single">
                             <div class="enquiry-md-field enquiry-md-field--markup">
                                 <label class="enquiry-md-field__label" for="markupType">Markup</label>
-                                <select id="markupType" class="enquiry-md-control" onchange="handleMarkupTypeChange()" {{ $isEditMode ? 'disabled' : '' }}>
+                                <select id="markupType" class="enquiry-md-control" onchange="handleMarkupTypeChange()">
                                     <option value="" {{ (!isset($markupType) || $markupType == '') ? 'selected' : '' }}>Type</option>
                                     <option value="percentage" {{ (isset($markupType) && $markupType == 'percentage') ? 'selected' : '' }}>%</option>
                                     <option value="flat" {{ (isset($markupType) && $markupType == 'flat') ? 'selected' : '' }}>Fixed</option>
                                 </select>
-                                <input type="number" id="markupValue" class="enquiry-md-control" value="{{ $markupValue ?? 0 }}" step="1" min="0" disabled
+                                <input type="number" id="markupValue" class="enquiry-md-control" value="{{ $markupValue ?? 0 }}" step="1" min="0" {{ (!isset($markupType) || $markupType == '') ? 'disabled' : '' }}
                                        oninput="applyMarkupDiscount()" placeholder="0">
                             </div>
                             <div class="enquiry-md-field enquiry-md-field--discount">
                                 <label class="enquiry-md-field__label" for="discountType">Discount</label>
-                                <select id="discountType" class="enquiry-md-control" onchange="handleDiscountTypeChange()" {{ $isEditMode ? 'disabled' : '' }}>
+                                <select id="discountType" class="enquiry-md-control" onchange="handleDiscountTypeChange()">
                                     <option value="" {{ (!isset($discountType) || $discountType == '') ? 'selected' : '' }}>Type</option>
                                     <option value="percentage" {{ (isset($discountType) && $discountType == 'percentage') ? 'selected' : '' }}>%</option>
                                     <option value="flat" {{ (isset($discountType) && $discountType == 'flat') ? 'selected' : '' }}>Fixed</option>
                                     <option value="foc" hidden {{ (isset($discountType) && $discountType == 'foc') ? 'selected' : '' }}>FOC</option>
                                 </select>
                                 <input type="number" id="discountValue" class="enquiry-md-control{{ (isset($discountType) && $discountType == 'foc') ? ' is-foc-locked' : '' }}" value="{{ $discountValue ?? 0 }}" step="1" min="0"
-                                       disabled
+                                       {{ (!isset($discountType) || $discountType == '' || $discountType == 'foc') ? 'disabled' : '' }}
                                        oninput="applyMarkupDiscount()"
-                                       title="{{ $isEditMode ? 'Markup and discount cannot be changed on edit.' : 'Discount value. When type = FOC, this is auto-computed and locked.' }}"
+                                       title="Discount value. When type = FOC, this is auto-computed and locked."
                                        placeholder="0">
                             </div>
                         </div>
                     </div>
                 </div>
                 <!-- Multi city: one markup/discount row per city -->
-                <div id="enquiryProMarkupMultiWrap" class="enquiry-md-panel{{ $isEditMode ? ' is-locked' : '' }}" style="display: none;">
+                <div id="enquiryProMarkupMultiWrap" class="enquiry-md-panel" style="display: none;">
                     <div class="enquiry-md-panel__head" role="button" tabindex="0" aria-expanded="true"
                          onclick="toggleEnquiryMdAccordion(this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleEnquiryMdAccordion(this);}">
                         <div class="enquiry-md-panel__head-left">
@@ -1952,7 +1951,7 @@
                             <p class="enquiry-md-panel__title">Pricing by city</p>
                             <span class="enquiry-md-panel__count" id="enquiryProMarkupCityCount">0</span>
                         </div>
-                        <p class="enquiry-md-panel__hint">{{ $isEditMode ? 'View only — markup & discount cannot be changed' : 'Per destination currency' }}</p>
+                        <p class="enquiry-md-panel__hint">Per destination currency</p>
                     </div>
                     <div class="enquiry-md-panel__body">
                         <div class="enquiry-md-table-wrap">
@@ -29049,11 +29048,6 @@
 
     // Handle markup type change - enable/disable value input
     function handleMarkupTypeChange() {
-        if (window.lockEnquiryMarkupDiscount) {
-            if (typeof applyMarkupDiscount === 'function') applyMarkupDiscount();
-            if (typeof lockEnquiryMarkupDiscountControls === 'function') lockEnquiryMarkupDiscountControls();
-            return;
-        }
         const markupType = document.getElementById('markupType');
         const markupValue = document.getElementById('markupValue');
         
@@ -29378,11 +29372,6 @@
 
     // Handle discount type change - enable/disable value input
     function handleDiscountTypeChange() {
-        if (window.lockEnquiryMarkupDiscount) {
-            if (typeof applyMarkupDiscount === 'function') applyMarkupDiscount();
-            if (typeof lockEnquiryMarkupDiscountControls === 'function') lockEnquiryMarkupDiscountControls();
-            return;
-        }
         const discountType = document.getElementById('discountType');
         const discountValue = document.getElementById('discountValue');
         
@@ -29693,7 +29682,6 @@
         setTimeout(function() {
             if (typeof refreshGroupFocDiscountUiVisibility === 'function') refreshGroupFocDiscountUiVisibility();
             if (typeof refreshEnquiryProCurrencyMarkupOptions === 'function') refreshEnquiryProCurrencyMarkupOptions();
-            if (typeof lockEnquiryMarkupDiscountControls === 'function') lockEnquiryMarkupDiscountControls();
             applyMarkupDiscount();
         }, 500);
     });
