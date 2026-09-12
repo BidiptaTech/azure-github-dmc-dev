@@ -7423,15 +7423,17 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         $hotelBucketMeta = [];
         $countryHotel = []; // key => single/double/triple (hotel stay, non-supplement)
         $countryOther = []; // key => single/double (same per-pax for both)
+        $countryOtherChild = []; // key => child ticket/meal totals (absolute)
         $countryGrossHotel = []; // raw hotel totals for % markup
         $countryGrossOther = []; // raw other totals for % markup
         $supplements = [];
         $hotelSupplementBuckets = []; // merge same hotel_id into one supplement row
         $servicePriceLines = [];
+        $sumBabyCot = 0.0;
 
         $segregated = $empty['segregated'];
 
-        $ensureCountry = function (string $key, string $country, string $currency) use (&$countryHotel, &$countryOther, &$countryGrossHotel, &$countryGrossOther): void {
+        $ensureCountry = function (string $key, string $country, string $currency) use (&$countryHotel, &$countryOther, &$countryGrossHotel, &$countryGrossOther, &$countryOtherChild): void {
             if (!isset($countryHotel[$key])) {
                 $countryHotel[$key] = [
                     'country' => $country,
@@ -7454,6 +7456,9 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             }
             if (!isset($countryGrossOther[$key])) {
                 $countryGrossOther[$key] = 0.0;
+            }
+            if (!isset($countryOtherChild[$key])) {
+                $countryOtherChild[$key] = 0.0;
             }
         };
 
@@ -7512,6 +7517,106 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             return max(1, min(3, $maxSp));
         };
 
+        // Child count + half-meal (rooms.children_price: 0=free, 1=half, 2=full) from stored hotel JSON.
+        $hotelChildMeta = function (array $item) use ($childTotal): array {
+            $cwb = (isset($item['child_with_bed']) && is_array($item['child_with_bed'])) ? $item['child_with_bed'] : null;
+            $cnb = (isset($item['child_without_bed']) && is_array($item['child_without_bed'])) ? $item['child_without_bed'] : null;
+
+            $children = (int) ($item['children'] ?? 0);
+            if ($children <= 0 && $cwb && !empty($cwb['enabled'])) {
+                $children = max(0, (int) ($cwb['children'] ?? 0));
+            }
+            if ($children <= 0 && $cnb && !empty($cnb['enabled'])) {
+                $children = max(0, (int) ($cnb['children'] ?? 0));
+            }
+            if ($children <= 0 && $childTotal > 0) {
+                // Fall back to tour child count when hotel row omitted children but CWB/CNB enabled
+                if (($cwb && !empty($cwb['enabled'])) || ($cnb && !empty($cnb['enabled']))) {
+                    $children = $childTotal;
+                }
+            }
+
+            $childrenPriceCode = $item['children_price'] ?? null;
+            if ($childrenPriceCode === null && isset($item['helperMeals']['children_price'])) {
+                $childrenPriceCode = $item['helperMeals']['children_price'];
+            }
+            if ($childrenPriceCode === null && isset($item['mealPrices']['children_price'])) {
+                $childrenPriceCode = $item['mealPrices']['children_price'];
+            }
+            $childrenPriceCode = (int) round(floatval($childrenPriceCode ?? 2));
+            if ($childrenPriceCode < 0 || $childrenPriceCode > 2) {
+                $childrenPriceCode = 2;
+            }
+
+            $childMealFactor = $item['child_meal_factor'] ?? null;
+            if ($childMealFactor === null && isset($item['helperMeals']['child_meal_factor'])) {
+                $childMealFactor = $item['helperMeals']['child_meal_factor'];
+            }
+            if ($childMealFactor === null) {
+                $childMealFactor = ($childrenPriceCode === 0) ? 0.0 : (($childrenPriceCode === 1) ? 0.5 : 1.0);
+            } else {
+                $childMealFactor = (float) $childMealFactor;
+            }
+
+            $nights = 1;
+            $dates = $item['bookingDate'] ?? $item['booking_date'] ?? [];
+            if (is_array($dates) && count($dates) >= 2) {
+                try {
+                    $nights = max(1, (int) \Carbon\Carbon::parse($dates[0])->diffInDays(\Carbon\Carbon::parse($dates[1])));
+                } catch (\Throwable $e) {
+                    $nights = max(1, count($dates) - 1);
+                }
+            } elseif (is_array($dates) && count($dates) === 1) {
+                $nights = 1;
+            }
+
+            $rooms = 1;
+            $roomList = $item['rooms'] ?? [];
+            if (is_array($roomList) && $roomList !== []) {
+                $rooms = 0;
+                foreach ($roomList as $room) {
+                    if (!is_array($room)) {
+                        continue;
+                    }
+                    $rooms += max(1, (int) ($room['number_of_rooms'] ?? $room['no_of_room'] ?? 1));
+                }
+                $rooms = max(1, $rooms);
+            } else {
+                $rooms = max(1, (int) ($item['number_of_rooms'] ?? $item['no_of_room'] ?? 1));
+            }
+
+            $resolveChildBedTotal = function (?array $block) use ($children, $nights, $rooms): float {
+                if (!$block || empty($block['enabled'])) {
+                    return 0.0;
+                }
+                if (isset($block['total_cost']) && (float) $block['total_cost'] > 0) {
+                    return (float) $block['total_cost'];
+                }
+                $unit = (float) ($block['price'] ?? $block['unit_price'] ?? 0);
+                $kids = max(1, (int) ($block['children'] ?? $children));
+                if ($unit <= 0 || $kids <= 0) {
+                    return 0.0;
+                }
+
+                return $unit * $kids * $nights * $rooms;
+            };
+
+            $cwbTotal = $resolveChildBedTotal($cwb);
+            $cnbTotal = $resolveChildBedTotal($cnb);
+
+            return [
+                'children' => $children,
+                'children_price' => $childrenPriceCode,
+                'child_meal_factor' => $childMealFactor,
+                'child_with_bed_total' => $cwbTotal,
+                'child_without_bed_total' => $cnbTotal,
+                'child_with_bed' => $cwb,
+                'child_without_bed' => $cnb,
+                'nights' => $nights,
+                'rooms' => $rooms,
+            ];
+        };
+
         $lineAmount = function (array $item, string $type) use ($isProTour): float {
             $amount = (float) ($item['totalPrice'] ?? $item['total_price'] ?? $item['price'] ?? 0);
             if ($type === 'hotel') {
@@ -7555,13 +7660,69 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                     return (int) $item[$k];
                 }
             }
-            $adults = (int) ($item['adult'] ?? $item['Adults'] ?? $item['adults'] ?? 0);
-            $children = (int) ($item['child'] ?? $item['Children'] ?? $item['children'] ?? 0);
-            if (($adults + $children) > 0) {
-                return $adults + $children;
+            $adults = (int) ($item['adultCount'] ?? $item['adult'] ?? $item['Adults'] ?? $item['adults'] ?? 0);
+            $children = (int) ($item['childCount'] ?? $item['child'] ?? $item['Children'] ?? $item['children'] ?? 0);
+            $seniors = (int) ($item['seniorCount'] ?? $item['senior'] ?? $item['seniors'] ?? 0);
+            if (($adults + $children + $seniors) > 0) {
+                return $adults + $children + $seniors;
             }
 
             return $totalPax;
+        };
+
+        // Attraction ticket / restaurant meal adult+child unit prices and counts.
+        $resolveGuestServicePricing = function (array $item, string $type, float $amount): array {
+            $adultCount = max(0, (int) ($item['adultCount'] ?? $item['adult_count'] ?? $item['adults'] ?? $item['adult'] ?? 0));
+            $childCount = max(0, (int) ($item['childCount'] ?? $item['child_count'] ?? $item['children'] ?? $item['child'] ?? 0));
+            $seniorCount = max(0, (int) ($item['seniorCount'] ?? $item['senior_count'] ?? $item['seniors'] ?? $item['senior'] ?? 0));
+
+            $adultUnit = 0.0;
+            $childUnit = 0.0;
+            $seniorUnit = 0.0;
+
+            if ($type === 'attraction') {
+                $td = (isset($item['ticket_details']) && is_array($item['ticket_details'])) ? $item['ticket_details'] : [];
+                $adultUnit = (float) ($td['adult_price'] ?? $item['adult_price'] ?? 0);
+                $childUnit = (float) ($td['child_price'] ?? $item['child_price'] ?? 0);
+                $seniorUnit = (float) ($td['senior_price'] ?? $td['senior_adult_price'] ?? $item['senior_price'] ?? 0);
+            } elseif ($type === 'restaurant') {
+                $md = (isset($item['meal_details']) && is_array($item['meal_details'])) ? $item['meal_details'] : [];
+                $meal0 = (isset($item['MealDescription'][0]) && is_array($item['MealDescription'][0])) ? $item['MealDescription'][0] : [];
+                $adultUnit = (float) ($item['adult_price'] ?? $md['adult_price'] ?? $meal0['adult_price'] ?? 0);
+                $childUnit = (float) ($item['child_price'] ?? $md['child_price'] ?? $meal0['child_price'] ?? 0);
+            }
+
+            $adultTotal = $adultUnit * $adultCount;
+            $childTotal = $childUnit * $childCount;
+            $seniorTotal = $seniorUnit * $seniorCount;
+            $ticketMealTotal = $adultTotal + $childTotal + $seniorTotal;
+            // Transfer/guide (or rounding) beyond ticket/meal adult+child
+            $extras = max(0.0, $amount - $ticketMealTotal);
+            // If unit prices missing but counts exist, treat full amount as adult share
+            if ($ticketMealTotal <= 0 && ($adultCount + $childCount + $seniorCount) > 0) {
+                $adultTotal = $amount;
+                $childTotal = 0.0;
+                $seniorTotal = 0.0;
+                $extras = 0.0;
+                if ($adultCount > 0) {
+                    $adultUnit = $amount / $adultCount;
+                }
+            }
+
+            return [
+                'adult_count' => $adultCount,
+                'child_count' => $childCount,
+                'senior_count' => $seniorCount,
+                'adult_unit' => $adultUnit,
+                'child_unit' => $childUnit,
+                'senior_unit' => $seniorUnit,
+                'adult_total' => $adultTotal,
+                'child_total' => $childTotal,
+                'senior_total' => $seniorTotal,
+                'extras' => $extras,
+                'has_guest_split' => ($adultCount + $childCount + $seniorCount) > 0
+                    && ($adultUnit > 0 || $childUnit > 0 || $seniorUnit > 0 || $amount > 0),
+            ];
         };
 
         $bookingRangeLabel = function (array $item) use ($tour): string {
@@ -7618,12 +7779,39 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 }
 
                 if ($type === 'hotel') {
+                    // 1) Store child count + half meal, then resolve child-with/without-bed totals
+                    $childMeta = $hotelChildMeta($item);
+                    $childrenCount = (int) ($childMeta['children'] ?? 0);
+                    $childrenPriceCode = (int) ($childMeta['children_price'] ?? 2);
+                    $childMealFactor = (float) ($childMeta['child_meal_factor'] ?? 1.0);
+                    $cwbTotal = (float) ($childMeta['child_with_bed_total'] ?? 0);
+                    $cnbTotal = (float) ($childMeta['child_without_bed_total'] ?? 0);
+                    $childBedTotal = $cwbTotal + $cnbTotal;
+
+                    // totalPrice usually already includes CWB/CNB — strip them before occupancy share
+                    $baseAmount = max(0.0, $amount - $childBedTotal);
+                    // If payload omitted CWB from totalPrice, still add calculated child bed into baby_cot
+                    if ($childBedTotal > 0 && $amount > 0 && abs($amount - $baseAmount - $childBedTotal) > 0.01) {
+                        // amount already included child bed (baseAmount = amount - childBed)
+                    }
+
                     $rooms = $hotelRoomCount($item);
-                    $perRoom = $amount / $rooms;
-                    // Occupancy division only for hotel
-                    $hSingle = $perRoom / 1;
-                    $hDouble = $perRoom / 2;
-                    $hTriple = $perRoom / 3;
+                    $perRoom = $baseAmount / $rooms;
+
+                    $selectedPersonsRaw = $hotelSelectedPersons($item);
+                    // Adult occupancy for sharing columns (exclude children on CWB/CNB)
+                    $adultOccupancy = $selectedPersonsRaw;
+                    if ($childrenCount > 0 && (($childMeta['child_with_bed']['enabled'] ?? false) || ($childMeta['child_without_bed']['enabled'] ?? false))) {
+                        $adultOccupancy = max(1, $selectedPersonsRaw - $childrenCount);
+                    }
+                    $selectedPersons = max(1, min(3, $adultOccupancy));
+                    $bookedPerPax = $perRoom / max(1, $selectedPersons);
+
+                    // Child with/without bed → baby_cot bucket (not mixed into Single/Double/Triple share)
+                    if ($childBedTotal > 0) {
+                        $sumBabyCot += $childBedTotal;
+                        $segregated['hotel']['baby_cot'] = ($segregated['hotel']['baby_cot'] ?? 0) + $childBedTotal;
+                    }
 
                     $hotelId = $item['hotelDetails']['hotel_id']
                         ?? $item['hotelDetails']['hotelId']
@@ -7637,8 +7825,6 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                     $dateRange = $bookingRangeLabel($item);
                     // Merge same hotel into one quotation row (ignore date splits).
                     $hotelKey = mb_strtolower(trim((string) $hotelName)) . '|' . $countryKey;
-                    $selectedPersons = $hotelSelectedPersons($item);
-                    $bookedPerPax = $perRoom / max(1, $selectedPersons);
 
                     // Add booked occupancy per-pax only into country totals (e.g. 100 / 100 / 117).
                     $addBookedToCountry = function () use (
@@ -7648,7 +7834,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                         $countryKey,
                         $selectedPersons,
                         $bookedPerPax,
-                        $amount
+                        $baseAmount
                     ): void {
                         if ($selectedPersons >= 3) {
                             $countryHotel[$countryKey]['triple'] += $bookedPerPax;
@@ -7660,7 +7846,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                             $countryHotel[$countryKey]['single'] += $bookedPerPax;
                             $segregated['hotel']['single'] += $bookedPerPax;
                         }
-                        $countryGrossHotel[$countryKey] += $amount;
+                        $countryGrossHotel[$countryKey] += $baseAmount;
                     };
 
                     // Hotel supplement: separate from country / overall package prices.
@@ -7681,6 +7867,11 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                                 'country' => $orderCountry,
                                 'currency' => $orderCurrency,
                                 'selected_persons' => $selectedPersons,
+                                'children' => $childrenCount,
+                                'children_price' => $childrenPriceCode,
+                                'child_meal_factor' => $childMealFactor,
+                                'child_with_bed_total' => 0.0,
+                                'child_without_bed_total' => 0.0,
                                 'show_single' => false,
                                 'show_double' => false,
                                 'show_triple' => false,
@@ -7694,6 +7885,16 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                             (int) $hotelSupplementBuckets[$suppKey]['selected_persons'],
                             $selectedPersons
                         );
+                        $hotelSupplementBuckets[$suppKey]['children'] = max(
+                            (int) ($hotelSupplementBuckets[$suppKey]['children'] ?? 0),
+                            $childrenCount
+                        );
+                        $hotelSupplementBuckets[$suppKey]['children_price'] = $childrenPriceCode;
+                        $hotelSupplementBuckets[$suppKey]['child_meal_factor'] = $childMealFactor;
+                        $hotelSupplementBuckets[$suppKey]['child_with_bed_total'] =
+                            (float) ($hotelSupplementBuckets[$suppKey]['child_with_bed_total'] ?? 0) + $cwbTotal;
+                        $hotelSupplementBuckets[$suppKey]['child_without_bed_total'] =
+                            (float) ($hotelSupplementBuckets[$suppKey]['child_without_bed_total'] ?? 0) + $cnbTotal;
                         $scaled = $bookedPerPax * $focFactor;
                         // Show only the booked occupancy column (no invented Single/Double for triple).
                         if ($selectedPersons >= 3) {
@@ -7715,6 +7916,11 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                             'double' => 0.0,
                             'triple' => 0.0,
                             'selected_persons' => 0,
+                            'children' => 0,
+                            'children_price' => $childrenPriceCode,
+                            'child_meal_factor' => $childMealFactor,
+                            'child_with_bed_total' => 0.0,
+                            'child_without_bed_total' => 0.0,
                         ];
                         $hotelBucketMeta[$hotelKey] = [
                             'hotel_id' => $hotelId,
@@ -7729,6 +7935,16 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                         (int) ($hotelBuckets[$hotelKey]['selected_persons'] ?? 0),
                         $selectedPersons
                     );
+                    $hotelBuckets[$hotelKey]['children'] = max(
+                        (int) ($hotelBuckets[$hotelKey]['children'] ?? 0),
+                        $childrenCount
+                    );
+                    $hotelBuckets[$hotelKey]['children_price'] = $childrenPriceCode;
+                    $hotelBuckets[$hotelKey]['child_meal_factor'] = $childMealFactor;
+                    $hotelBuckets[$hotelKey]['child_with_bed_total'] =
+                        (float) ($hotelBuckets[$hotelKey]['child_with_bed_total'] ?? 0) + $cwbTotal;
+                    $hotelBuckets[$hotelKey]['child_without_bed_total'] =
+                        (float) ($hotelBuckets[$hotelKey]['child_without_bed_total'] ?? 0) + $cnbTotal;
                     // Only accumulate the booked occupancy — never invent Single/Double for triple stays.
                     if ($selectedPersons >= 3) {
                         $hotelBuckets[$hotelKey]['triple'] += $bookedPerPax;
@@ -7751,14 +7967,28 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                     'local_transport', 'local_transfer', 'local_transfer_vehicle',
                     'travel_hourly', 'travel_point', 'port_transport',
                 ];
+                $isGuestPriced = in_array($type, ['attraction', 'restaurant'], true);
+                $guestPricing = $isGuestPriced
+                    ? $resolveGuestServicePricing($item, $type, $amount)
+                    : null;
+
+                $childPart = 0.0;
+                $adultPart = $amount;
+                if (is_array($guestPricing) && !empty($guestPricing['has_guest_split'])) {
+                    $childPart = (float) ($guestPricing['child_total'] ?? 0);
+                    // Adult share = adult tickets/meals + seniors + transfer/guide extras
+                    $adultPart = max(0.0, $amount - $childPart);
+                }
+
                 $paxDiv = in_array($type, $vehicleTypes, true)
                     ? $totalPax
                     : max(1, $itemPax($item));
-                $perPax = $amount / $paxDiv;
+                // Adult portion ÷ tour pax for country (A); child kept absolute for (C)
+                $perPax = $adultPart / $totalPax;
 
                 // Other supplement: separate from country / overall — only in supplements list.
                 if ($isSupplement) {
-                    $supplements[] = [
+                    $suppRow = [
                         'type' => $type !== '' ? $type : 'other',
                         'name' => self::resolveOrderItemPriceLabel($type !== '' ? $type : 'other', $item),
                         'AttractionName' => $item['AttractionName'] ?? null,
@@ -7767,7 +7997,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                         'transfer_options' => $item['transfer_options'] ?? null,
                         'guide_options' => $item['guide_options'] ?? null,
                         'restaurantName' => $item['restaurantName'] ?? null,
-                        'restaurant_id' => $item['restaurant_id'] ?? null,
+                        'restaurant_id' => $item['restaurant_id'] ?? $item['restaurantId'] ?? null,
                         'mealType' => $item['mealType'] ?? null,
                         'MealDescription' => $item['MealDescription'] ?? null,
                         'entry_port_id' => $item['entry_port_id'] ?? null,
@@ -7782,12 +8012,25 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                         'double' => $perPax * $focFactor,
                         'triple' => $perPax * $focFactor,
                     ];
+                    if (is_array($guestPricing)) {
+                        $suppRow['adult_count'] = (int) ($guestPricing['adult_count'] ?? 0);
+                        $suppRow['child_count'] = (int) ($guestPricing['child_count'] ?? 0);
+                        $suppRow['adult_unit'] = (float) ($guestPricing['adult_unit'] ?? 0);
+                        $suppRow['child_unit'] = (float) ($guestPricing['child_unit'] ?? 0);
+                        $suppRow['adult_total'] = (float) ($guestPricing['adult_total'] ?? 0);
+                        $suppRow['child_total'] = (float) ($guestPricing['child_total'] ?? 0);
+                        $suppRow['extras'] = (float) ($guestPricing['extras'] ?? 0);
+                    }
+                    $supplements[] = $suppRow;
                     continue;
                 }
 
                 $countryOther[$countryKey]['single'] += $perPax;
                 $countryOther[$countryKey]['double'] += $perPax;
-                $countryGrossOther[$countryKey] += $amount;
+                $countryGrossOther[$countryKey] += $adultPart;
+                if ($childPart > 0) {
+                    $countryOtherChild[$countryKey] = ($countryOtherChild[$countryKey] ?? 0.0) + $childPart;
+                }
 
                 $segKey = $type;
                 if (!isset($segregated[$segKey])) {
@@ -7798,13 +8041,31 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                     $segregated[$segKey]['double'] += $perPax;
                 }
 
-                $servicePriceLines[] = [
+                $serviceLine = [
                     'label' => self::resolveOrderItemPriceLabel($type !== '' ? $type : 'other', $item),
                     'type' => $type !== '' ? $type : 'other',
                     'single' => $perPax,
                     'double' => $perPax,
-                    'child_unit' => 0.0,
+                    'child_unit' => is_array($guestPricing) ? (float) ($guestPricing['child_unit'] ?? 0) : 0.0,
+                    'country' => $orderCountry,
+                    'currency' => $orderCurrency,
+                    'amount' => $amount,
+                    'adult_part' => $adultPart,
+                    'child_part' => $childPart,
                 ];
+                if (is_array($guestPricing)) {
+                    $serviceLine['adult_count'] = (int) ($guestPricing['adult_count'] ?? 0);
+                    $serviceLine['child_count'] = (int) ($guestPricing['child_count'] ?? 0);
+                    $serviceLine['senior_count'] = (int) ($guestPricing['senior_count'] ?? 0);
+                    $serviceLine['adult_unit'] = (float) ($guestPricing['adult_unit'] ?? 0);
+                    $serviceLine['senior_unit'] = (float) ($guestPricing['senior_unit'] ?? 0);
+                    $serviceLine['adult_total'] = (float) ($guestPricing['adult_total'] ?? 0);
+                    $serviceLine['child_total'] = (float) ($guestPricing['child_total'] ?? 0);
+                    $serviceLine['senior_total'] = (float) ($guestPricing['senior_total'] ?? 0);
+                    $serviceLine['extras'] = (float) ($guestPricing['extras'] ?? 0);
+                    $serviceLine['has_guest_split'] = !empty($guestPricing['has_guest_split']);
+                }
+                $servicePriceLines[] = $serviceLine;
             }
         }
 
@@ -8032,6 +8293,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 'hotel_triple' => ceil($cHotelTriple),
                 'other_services_single' => ceil($cOtherSingle),
                 'other_services_double' => ceil($cOtherDouble),
+                'other_services_child' => ceil((float) ($countryOtherChild[$ck] ?? 0) * $focFactor),
                 'single_sharing' => ceil($cHotelSingle + $cOtherSingle),
                 'double_sharing' => ceil($cHotelDouble + $cOtherDouble),
                 'triple_sharing' => ($cHotelTriple > 0) ? ceil($cHotelTriple + $cOtherSingle) : 0,
@@ -8142,6 +8404,11 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 'country' => $meta['country'] ?? null,
                 'currency' => $meta['currency'] ?? null,
                 'selected_persons' => $selectedPersons,
+                'children' => (int) ($bucket['children'] ?? 0),
+                'children_price' => (int) ($bucket['children_price'] ?? 2),
+                'child_meal_factor' => (float) ($bucket['child_meal_factor'] ?? 1),
+                'child_with_bed_total' => ceil((float) ($bucket['child_with_bed_total'] ?? 0) * $focFactor),
+                'child_without_bed_total' => ceil((float) ($bucket['child_without_bed_total'] ?? 0) * $focFactor),
                 'show_single' => $single > 0,
                 'show_double' => $double > 0,
                 'show_triple' => $triple > 0,
@@ -8202,14 +8469,34 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         }, $supplements);
 
         $servicePriceLinesFormatted = array_values(array_map(function (array $line) use ($focFactor) {
-            return [
+            $row = [
                 'label' => $line['label'] ?? 'Service',
                 'type' => $line['type'] ?? 'other',
                 'single' => ceil((float) ($line['single'] ?? 0) * $focFactor),
                 'double' => ceil((float) ($line['double'] ?? 0) * $focFactor),
                 'child_unit' => ceil((float) ($line['child_unit'] ?? 0) * $focFactor),
+                'country' => $line['country'] ?? null,
+                'currency' => isset($line['currency']) ? strtoupper((string) $line['currency']) : null,
+                'adult_count' => (int) ($line['adult_count'] ?? 0),
+                'child_count' => (int) ($line['child_count'] ?? 0),
+                'senior_count' => (int) ($line['senior_count'] ?? 0),
+                'adult_unit' => ceil((float) ($line['adult_unit'] ?? 0) * $focFactor),
+                'senior_unit' => ceil((float) ($line['senior_unit'] ?? 0) * $focFactor),
+                'adult_total' => ceil((float) ($line['adult_total'] ?? 0) * $focFactor),
+                'child_total' => ceil((float) ($line['child_total'] ?? 0) * $focFactor),
+                'senior_total' => ceil((float) ($line['senior_total'] ?? 0) * $focFactor),
+                'extras' => ceil((float) ($line['extras'] ?? 0) * $focFactor),
+                'amount' => ceil((float) ($line['amount'] ?? 0) * $focFactor),
+                'has_guest_split' => !empty($line['has_guest_split']),
             ];
+
+            return $row;
         }, $servicePriceLines));
+
+        $sumOtherChild = 0.0;
+        foreach ($countryOtherChild as $v) {
+            $sumOtherChild += (float) $v;
+        }
 
         foreach ($segregated as $k => $vals) {
             foreach ($vals as $occ => $v) {
@@ -8225,11 +8512,12 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             'single_sharing' => ceil($totalSingle),
             'double_sharing' => ceil($totalDouble),
             'triple_sharing' => ceil($totalTriple),
-            'baby_cot_sharing' => 0,
+            'baby_cot_sharing' => ceil($sumBabyCot * $focFactor),
             'hotel_price_options' => $hotelPriceOptions,
             'service_price_lines' => $servicePriceLinesFormatted,
             'other_services_single' => ceil($sumOtherSingle),
             'other_services_double' => ceil($sumOtherDouble),
+            'other_services_child' => ceil($sumOtherChild * $focFactor),
             'country_sharing' => $countrySharing,
             'segregated' => $segregated,
             'supplements' => $supplementsFormatted,
@@ -8841,6 +9129,9 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 'adult_count' => $adultCount > 0 ? $adultCount : null,
                 'child_count' => $childCount > 0 ? $childCount : null,
                 'senior_count' => $seniorCount > 0 ? $seniorCount : null,
+                'adult_price' => (float) ($item['ticket_details']['adult_price'] ?? $item['adult_price'] ?? 0) ?: null,
+                'child_price' => (float) ($item['ticket_details']['child_price'] ?? $item['child_price'] ?? 0) ?: null,
+                'ticket_details' => is_array($item['ticket_details'] ?? null) ? $item['ticket_details'] : null,
                 'visit_time' => $item['visitTime'] ?? null,
                 'transport_note' => $transportNote,
                 'transfer_required' => $transferRequired,
@@ -8920,6 +9211,9 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 'child_count' => $childCount > 0 ? $childCount : null,
                 'infant_count' => $infantCount > 0 ? $infantCount : null,
                 'senior_count' => $seniorCount > 0 ? $seniorCount : null, // kept for backward compatibility
+                'adult_price' => (float) ($item['adult_price'] ?? ($item['meal_details']['adult_price'] ?? ($item['MealDescription'][0]['adult_price'] ?? 0))) ?: null,
+                'child_price' => (float) ($item['child_price'] ?? ($item['meal_details']['child_price'] ?? ($item['MealDescription'][0]['child_price'] ?? 0))) ?: null,
+                'meal_details' => is_array($item['meal_details'] ?? null) ? $item['meal_details'] : null,
                 'visit_time' => $item['visitTime'] ?? null,
                 'meal_type' => $mealSpecificType ?: null,
                 'meal_plan' => $item['mealType'] ?? null,

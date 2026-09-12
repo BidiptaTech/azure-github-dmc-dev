@@ -5059,7 +5059,20 @@ class SingleTourPackageController extends Controller
                                         'child_with_bed' => $hotelBooking['child_with_bed'] ?? null,
                                         'child_without_bed' => $hotelBooking['child_without_bed'] ?? null,
 
-                                        // Extra bed (3 pax / extra person on room)
+                                        // Child count + half-meal (rooms.children_price: 0=free, 1=half, 2=full)
+                                        'children' => (int) ($hotelBooking['children']
+                                            ?? ($hotelBooking['child_with_bed']['children'] ?? null)
+                                            ?? ($hotelBooking['child_without_bed']['children'] ?? null)
+                                            ?? 0),
+                                        'children_price' => isset($hotelBooking['children_price'])
+                                            ? (int) $hotelBooking['children_price']
+                                            : null,
+                                        'child_meal_factor' => isset($hotelBooking['child_meal_factor'])
+                                            ? (float) $hotelBooking['child_meal_factor']
+                                            : null,
+
+
+                                            // Extra bed (3 pax / extra person on room)
                                         'extra_bed' => $hotelBooking['extra_bed'] ?? null,
                                         
                                         // Tour ID
