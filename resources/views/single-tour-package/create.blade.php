@@ -2588,18 +2588,7 @@
                         }
                         
                         let totalMealCost = 0;
-                        const adultCount = Math.max(0, parseInt(adults, 10) || 0);
-                        const childCount = Math.max(0, parseInt(children, 10) || 0);
-                        const childrenPriceCode = opts.childrenPrice != null
-                            ? opts.childrenPrice
-                            : (mealPrices && mealPrices.children_price != null ? mealPrices.children_price : 2);
-                        const childFactor = (opts.childMealFactor != null)
-                            ? Number(opts.childMealFactor)
-                            : (typeof window.getChildMealFactor === 'function'
-                                ? window.getChildMealFactor(childrenPriceCode)
-                                : 1);
-                        // Adults full + children × rooms.children_price (0 free / 0.5 half / 1 full)
-                        const mealPaxEq = adultCount + (childCount * childFactor);
+                        const totalGuests = adults + children;
                         // Complementary breakfast is free; charge only when not complementary (chargable).
                         const skipBreakfastCost = !!(opts.breakfastIncluded || opts.complementaryBreakfast || opts.supplementBreakfastIncluded);
 
@@ -2621,21 +2610,21 @@
                             if (!skipBreakfastCost && (mealPlan.includes('breakfast') || mealPlan.includes('bf'))) {
                                 const breakfastPrice = parseFloat(mealPrices.breakfast_price) || 0;
                                 if (breakfastPrice > 0) {
-                                    totalMealCost += breakfastPrice * mealPaxEq * numNights * numRooms;
+                                    totalMealCost += breakfastPrice * totalGuests * numNights * numRooms;
                                 }
                             }
                             
                             if (mealPlan.includes('lunch')) {
                                 const lunchPrice = parseFloat(mealPrices.lunch_price) || 0;
                                 if (lunchPrice > 0) {
-                                    totalMealCost += lunchPrice * mealPaxEq * numNights * numRooms;
+                                    totalMealCost += lunchPrice * totalGuests * numNights * numRooms;
                                 }
                             }
                             
                             if (mealPlan.includes('dinner')) {
                                 const dinnerPrice = parseFloat(mealPrices.dinner_price) || 0;
                                 if (dinnerPrice > 0) {
-                                    totalMealCost += dinnerPrice * mealPaxEq * numNights * numRooms;
+                                    totalMealCost += dinnerPrice * totalGuests * numNights * numRooms;
                                 }
                             }
                         }
@@ -2749,27 +2738,11 @@
                         const total = window.calculateCorrectMealCosts(
                             hotel.mealPlan,
                             hotel.totalNights,
-                            (typeof window.resolveHotelMealGuestSplit === 'function'
-                                ? window.resolveHotelMealGuestSplit(
-                                    hotel.selectedPersons || 1,
-                                    hotel.children != null ? hotel.children : (parseInt(document.getElementById('children')?.value || '0', 10) || 0)
-                                  ).adults
-                                : (hotel.selectedPersons || 1)),
-                            (typeof window.resolveHotelMealGuestSplit === 'function'
-                                ? window.resolveHotelMealGuestSplit(
-                                    hotel.selectedPersons || 1,
-                                    hotel.children != null ? hotel.children : (parseInt(document.getElementById('children')?.value || '0', 10) || 0)
-                                  ).children
-                                : 0),
+                            hotel.selectedPersons || 1,
+                            0,
                             hotel.mealPrices,
                             hotel.numberOfRooms,
-                            {
-                                breakfastIncluded: !!(hotel.breakfast_included_room),
-                                supplementBreakfastIncluded: !!hotel.supplement_breakfast_included,
-                                helperMeals: hotel.helperMeals || null,
-                                childrenPrice: hotel.children_price != null ? hotel.children_price : (hotel.helperMeals && hotel.helperMeals.children_price),
-                                childMealFactor: hotel.child_meal_factor != null ? hotel.child_meal_factor : (hotel.helperMeals && hotel.helperMeals.child_meal_factor)
-                            }
+                            { breakfastIncluded: !!(hotel.breakfast_included_room), supplementBreakfastIncluded: !!hotel.supplement_breakfast_included, helperMeals: hotel.helperMeals || null }
                         );
                         if (!parts.length) {
                             return `${cur} ${Number(total).toFixed(2)}`;
@@ -3536,18 +3509,7 @@
                         }
                         
                         let totalMealCost = 0;
-                        const adultCount = Math.max(0, parseInt(adults, 10) || 0);
-                        const childCount = Math.max(0, parseInt(children, 10) || 0);
-                        const childrenPriceCode = opts.childrenPrice != null
-                            ? opts.childrenPrice
-                            : (mealPrices && mealPrices.children_price != null ? mealPrices.children_price : 2);
-                        const childFactor = (opts.childMealFactor != null)
-                            ? Number(opts.childMealFactor)
-                            : (typeof window.getChildMealFactor === 'function'
-                                ? window.getChildMealFactor(childrenPriceCode)
-                                : 1);
-                        // Adults full + children × rooms.children_price (0 free / 0.5 half / 1 full)
-                        const mealPaxEq = adultCount + (childCount * childFactor);
+                        const totalGuests = adults + children;
                         // Complementary breakfast is free; charge only when not complementary (chargable).
                         const skipBreakfastCost = !!(opts.breakfastIncluded || opts.complementaryBreakfast || opts.supplementBreakfastIncluded);
 
@@ -3569,32 +3531,32 @@
                             if (!skipBreakfastCost && (mealPlan.includes('breakfast') || mealPlan.includes('bf'))) {
                                 const breakfastPrice = parseFloat(mealPrices.breakfast_price) || 0;
                                 if (breakfastPrice > 0) {
-                                    const breakfastCost = breakfastPrice * mealPaxEq * numNights * numRooms;
+                                    const breakfastCost = breakfastPrice * totalGuests * numNights * numRooms;
                                     totalMealCost += breakfastCost;
-                                    console.log(`CORRECTED Breakfast: ${getTourCurrency()} ${breakfastPrice} × mealEq ${mealPaxEq} × ${numNights} nights × ${numRooms} rooms = ${getTourCurrency()} ${breakfastCost}`);
+                                    console.log(`CORRECTED Breakfast: ${getTourCurrency()} ${breakfastPrice} × ${totalGuests} guests × ${numNights} nights × ${numRooms} rooms = ${getTourCurrency()} ${breakfastCost}`);
                                 }
                             }
                             
                             if (mealPlan.includes('lunch')) {
                                 const lunchPrice = parseFloat(mealPrices.lunch_price) || 0;
                                 if (lunchPrice > 0) {
-                                    const lunchCost = lunchPrice * mealPaxEq * numNights * numRooms;
+                                    const lunchCost = lunchPrice * totalGuests * numNights * numRooms;
                                     totalMealCost += lunchCost;
-                                    console.log(`CORRECTED Lunch: ${getTourCurrency()} ${lunchPrice} × mealEq ${mealPaxEq} × ${numNights} nights × ${numRooms} rooms = ${getTourCurrency()} ${lunchCost}`);
+                                    console.log(`CORRECTED Lunch: ${getTourCurrency()} ${lunchPrice} × ${totalGuests} guests × ${numNights} nights × ${numRooms} rooms = ${getTourCurrency()} ${lunchCost}`);
                                 }
                             }
                             
                             if (mealPlan.includes('dinner')) {
                                 const dinnerPrice = parseFloat(mealPrices.dinner_price) || 0;
                                 if (dinnerPrice > 0) {
-                                    const dinnerCost = dinnerPrice * mealPaxEq * numNights * numRooms;
+                                    const dinnerCost = dinnerPrice * totalGuests * numNights * numRooms;
                                     totalMealCost += dinnerCost;
-                                    console.log(`CORRECTED Dinner: ${getTourCurrency()} ${dinnerPrice} × mealEq ${mealPaxEq} × ${numNights} nights × ${numRooms} rooms = ${getTourCurrency()} ${dinnerCost}`);
+                                    console.log(`CORRECTED Dinner: ${getTourCurrency()} ${dinnerPrice} × ${totalGuests} guests × ${numNights} nights × ${numRooms} rooms = ${getTourCurrency()} ${dinnerCost}`);
                                 }
                             }
                         }
                         
-                        console.log(`CORRECTED Meal cost: Plan: ${mealPlan}, Adults: ${adultCount}, Children: ${childCount}, Factor: ${childFactor}, MealEq: ${mealPaxEq}, Nights: ${numNights}, Rooms: ${numRooms}, Total: ${getTourCurrency()} ${totalMealCost}`);
+                        console.log(`CORRECTED Meal cost: Plan: ${mealPlan}, Guests: ${totalGuests}, Nights: ${numNights}, Rooms: ${numRooms}, Total: ${getTourCurrency()} ${totalMealCost}`);
                         return totalMealCost;
                     };
 
@@ -3776,41 +3738,21 @@
                                         selectedMeals: {
                                             meal_1: {
                                                 type: hotel.mealPlan || hotel.meal_plan || "",
-                                                // Calculate total meal cost using adults + half/full/free child meals
+                                                // Calculate total meal cost using the same logic as the display
                                                 price: (() => {
                                                     const numNights = parseInt(hotel.totalNights) || 1;
                                                     const numRooms = parseInt(hotel.numberOfRooms) || 1;
                                                     const numPersons = parseInt(hotel.selectedPersons) || 1;
-                                                    const kids = Math.max(0, parseInt(hotel.children, 10) || parseInt(children, 10) || 0);
-                                                    const split = (typeof window.resolveHotelMealGuestSplit === 'function')
-                                                        ? window.resolveHotelMealGuestSplit(numPersons, kids)
-                                                        : { adults: Math.max(0, numPersons - kids), children: kids };
-                                                    const childrenPriceCode = hotel.children_price != null
-                                                        ? hotel.children_price
-                                                        : (hotel.helperMeals && hotel.helperMeals.children_price != null
-                                                            ? hotel.helperMeals.children_price
-                                                            : (hotel.mealPrices && hotel.mealPrices.children_price != null ? hotel.mealPrices.children_price : 2));
-                                                    const childMealFactor = hotel.child_meal_factor != null
-                                                        ? Number(hotel.child_meal_factor)
-                                                        : (typeof window.getChildMealFactor === 'function'
-                                                            ? window.getChildMealFactor(childrenPriceCode)
-                                                            : 1);
                                                     
                                                     if (typeof window.calculateCorrectMealCosts === 'function') {
                                                         return window.calculateCorrectMealCosts(
                                                             hotel.mealPlan || hotel.meal_plan || "", 
                                                             numNights, 
-                                                            split.adults, 
-                                                            split.children, 
+                                                            numPersons, 
+                                                            0, 
                                                             hotel.mealPrices, 
                                                             numRooms,
-                                                            {
-                                                                breakfastIncluded: !!(hotel.breakfast_included_room),
-                                                                supplementBreakfastIncluded: !!hotel.supplement_breakfast_included,
-                                                                helperMeals: hotel.helperMeals || null,
-                                                                childrenPrice: childrenPriceCode,
-                                                                childMealFactor: childMealFactor
-                                                            }
+                                                            { breakfastIncluded: !!(hotel.breakfast_included_room), supplementBreakfastIncluded: !!hotel.supplement_breakfast_included, helperMeals: hotel.helperMeals || null }
                                                         );
                                                     }
                                                     
@@ -3818,15 +3760,14 @@
                                                     let mealCost = 0;
                                                     if (hotel.mealPrices && typeof hotel.mealPrices === 'object') {
                                                         const mealPlan = hotel.mealPlan || hotel.meal_plan || "";
-                                                        const mealEq = split.adults + (split.children * childMealFactor);
                                                         if (mealPlan.includes('breakfast') || mealPlan.includes('bf')) {
-                                                            mealCost += (parseFloat(hotel.mealPrices.breakfast_price) || 0) * mealEq * numNights * numRooms;
+                                                            mealCost += (parseFloat(hotel.mealPrices.breakfast_price) || 0) * numPersons * numNights * numRooms;
                                                         }
                                                         if (mealPlan.includes('lunch')) {
-                                                            mealCost += (parseFloat(hotel.mealPrices.lunch_price) || 0) * mealEq * numNights * numRooms;
+                                                            mealCost += (parseFloat(hotel.mealPrices.lunch_price) || 0) * numPersons * numNights * numRooms;
                                                         }
                                                         if (mealPlan.includes('dinner')) {
-                                                            mealCost += (parseFloat(hotel.mealPrices.dinner_price) || 0) * mealEq * numNights * numRooms;
+                                                            mealCost += (parseFloat(hotel.mealPrices.dinner_price) || 0) * numPersons * numNights * numRooms;
                                                         }
                                                     }
                                                     return mealCost;
@@ -3849,27 +3790,6 @@
                                     children: Math.max(children || (parseInt(hotel.children) || 0), 1),
                                     total_cost: (parseFloat(hotel.childWithoutBedPrice) || 0) * Math.max(children || (parseInt(hotel.children) || 0), 1) * (parseInt(hotel.numberOfRooms) || 1) * (parseInt(hotel.totalNights) || 1)
                                 } : null,
-
-                                // Persist child count + half-meal (rooms.children_price: 0 free / 1 half / 2 full)
-                                children: Math.max(0, parseInt(hotel.children, 10) || parseInt(children, 10) || 0),
-                                children_price: (() => {
-                                    if (hotel.children_price != null) return parseInt(hotel.children_price, 10);
-                                    if (hotel.helperMeals && hotel.helperMeals.children_price != null) return parseInt(hotel.helperMeals.children_price, 10);
-                                    if (hotel.mealPrices && hotel.mealPrices.children_price != null) return parseInt(hotel.mealPrices.children_price, 10);
-                                    return 2;
-                                })(),
-                                child_meal_factor: (() => {
-                                    if (hotel.child_meal_factor != null) return Number(hotel.child_meal_factor);
-                                    if (hotel.helperMeals && hotel.helperMeals.child_meal_factor != null) return Number(hotel.helperMeals.child_meal_factor);
-                                    const code = hotel.children_price != null
-                                        ? hotel.children_price
-                                        : (hotel.helperMeals && hotel.helperMeals.children_price != null
-                                            ? hotel.helperMeals.children_price
-                                            : (hotel.mealPrices && hotel.mealPrices.children_price != null ? hotel.mealPrices.children_price : 2));
-                                    return (typeof window.getChildMealFactor === 'function')
-                                        ? window.getChildMealFactor(code)
-                                        : 1;
-                                })(),
 
                                 extra_bed: (() => {
                                     const maxOcc = parseInt(hotel.maxOccupancy) || 0;
@@ -3935,37 +3855,9 @@
                                         }
                                     }
                                     
-                                    // Calculate meal costs: adults full + children half/free/full (rooms.children_price)
-                                    const mealKids = Math.max(0, parseInt(hotel.children, 10) || parseInt(children, 10) || 0);
-                                    const mealSplit = (typeof window.resolveHotelMealGuestSplit === 'function')
-                                        ? window.resolveHotelMealGuestSplit(selPersons, mealKids)
-                                        : { adults: Math.max(0, selPersons - mealKids), children: mealKids };
-                                    const mealChildrenPrice = hotel.children_price != null
-                                        ? hotel.children_price
-                                        : (hotel.helperMeals && hotel.helperMeals.children_price != null
-                                            ? hotel.helperMeals.children_price
-                                            : (hotel.mealPrices && hotel.mealPrices.children_price != null ? hotel.mealPrices.children_price : 2));
-                                    const mealChildFactor = hotel.child_meal_factor != null
-                                        ? Number(hotel.child_meal_factor)
-                                        : (typeof window.getChildMealFactor === 'function'
-                                            ? window.getChildMealFactor(mealChildrenPrice)
-                                            : 1);
+                                    // Calculate meal costs based on meal plan, guest count, and number of rooms
                                     const mealCost = (typeof window.calculateCorrectMealCosts === 'function') 
-                                        ? window.calculateCorrectMealCosts(
-                                            hotel.mealPlan,
-                                            numNights,
-                                            mealSplit.adults,
-                                            mealSplit.children,
-                                            hotel.mealPrices,
-                                            numRooms,
-                                            {
-                                                breakfastIncluded: !!(hotel.breakfast_included_room),
-                                                supplementBreakfastIncluded: !!hotel.supplement_breakfast_included,
-                                                helperMeals: hotel.helperMeals || null,
-                                                childrenPrice: mealChildrenPrice,
-                                                childMealFactor: mealChildFactor
-                                            }
-                                          )
+                                        ? window.calculateCorrectMealCosts(hotel.mealPlan, numNights, hotel.selectedPersons || 1, 0, hotel.mealPrices, numRooms, { breakfastIncluded: !!(hotel.breakfast_included_room), supplementBreakfastIncluded: !!hotel.supplement_breakfast_included, helperMeals: hotel.helperMeals || null })
                                         : 0;
                                     
                                     // Calculate child with bed and child without bed costs
@@ -4551,12 +4443,6 @@
                                     const selectedDishValue = dishSelect?.value || '';
                                     const selectedDishOption = dishSelect?.options[dishSelect?.selectedIndex];
                                     const selectedDishText = selectedDishOption?.text || selectedDishValue || '';
-                                    const mealAdultPrice = selectedDishOption
-                                        ? (parseFloat(selectedDishOption.dataset.adultPrice || selectedDishOption.getAttribute('data-adult-price') || 0) || 0)
-                                        : 0;
-                                    const mealChildPrice = selectedDishOption
-                                        ? (parseFloat(selectedDishOption.dataset.childPrice || selectedDishOption.getAttribute('data-child-price') || 0) || 0)
-                                        : 0;
                                     
                                     // Get transfer options
                                     const transferRequired = document.getElementById(`day${day}_restaurant_${index}_transfer_required`)?.value || 'No';
@@ -4675,12 +4561,6 @@
                                         childCount: guestInfo.children || 0,
                                         restaurantId: parseInt(restaurantId),
                                         restaurantName: selectedOption.text,
-                                        adult_price: mealAdultPrice,
-                                        child_price: mealChildPrice,
-                                        meal_details: {
-                                            adult_price: mealAdultPrice,
-                                            child_price: mealChildPrice
-                                        },
                                         
                                         // Meal Information
                                         mealType: normalizeMealType(mealType),
@@ -4691,8 +4571,6 @@
                                             item_name: dishName || "Menu Item",
                                             name: dishName || "Menu Item",
                                             price: parseFloat(totalPrice) || 0,
-                                            adult_price: mealAdultPrice,
-                                            child_price: mealChildPrice,
                                             meal_id: parseInt(mealId) || parseInt(restaurantId),
                                             category: document.getElementById(`day${day}_meal_category_${index}`)?.value || "",
                                             item_type: document.getElementById(`day${day}_meal_item_type_${index}`)?.value || "",
@@ -14281,14 +14159,14 @@
                         });
                         console.log(`Loaded ${data.vehicles.length} vehicles for attraction transfer in ${cityName}`);
                     } else {
-                        vehicleSelect.innerHTML += '<option value="" disabled>No vehicles available</option>';
+                        vehicleSelect.innerHTML += '<option disabled>No vehicles available</option>';
                     }
                     
                     vehicleSelect.disabled = false;
                 })
                 .catch(error => {
                     console.error('Error loading vehicles for attraction transfer:', error);
-                    vehicleSelect.innerHTML = '<option value="" disabled>Error loading vehicles</option>';
+                    vehicleSelect.innerHTML = '<option disabled>Error loading vehicles</option>';
                     vehicleSelect.disabled = false;
                 });
         }
@@ -15760,14 +15638,14 @@
                         // Apply filter based on selected transfer type
                         window.filterRestaurantTransferVehiclesByType(day, index);
                     } else {
-                        vehicleSelect.innerHTML += '<option value="" disabled>No vehicles available</option>';
+                        vehicleSelect.innerHTML += '<option disabled>No vehicles available</option>';
                     }
                     
                     vehicleSelect.disabled = false;
                 })
                 .catch(error => {
                     console.error('Error loading vehicles for restaurant transfer:', error);
-                    vehicleSelect.innerHTML = '<option value="" disabled>Error loading vehicles</option>';
+                    vehicleSelect.innerHTML = '<option disabled>Error loading vehicles</option>';
                     vehicleSelect.disabled = false;
                 });
         }
@@ -17177,14 +17055,14 @@
                         });
                         console.log(`Loaded ${data.vehicles.length} vehicles for hotel transfer in ${cityName}`);
                     } else {
-                        vehicleSelect.innerHTML += '<option value="" disabled>No vehicles available</option>';
+                        vehicleSelect.innerHTML += '<option disabled>No vehicles available</option>';
                     }
                     
                     vehicleSelect.disabled = false;
                 })
                 .catch(error => {
                     console.error('Error loading vehicles for hotel transfer:', error);
-                    vehicleSelect.innerHTML = '<option value="" disabled>Error loading vehicles</option>';
+                    vehicleSelect.innerHTML = '<option disabled>Error loading vehicles</option>';
                     vehicleSelect.disabled = false;
                 });
         }
