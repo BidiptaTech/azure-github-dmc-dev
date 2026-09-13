@@ -4879,7 +4879,17 @@
                                             $packageHours = $payload['hours'] ?? '';
                                             // Use entrytime for time, not entrypickup (which contains location)
                                             $pickupTime = $payload['entrytime'] ?? $payload['pickup_time'] ?? '';
-                                            $pickupDate = $payload['pickupdate'] ?? '';
+                                            // type="date" only accepts Y-m-d — raw pickupdate often breaks the picker
+                                            $pickupDateRaw = $payload['pickupdate'] ?? $payload['bookingDate'] ?? '';
+                                            $pickupDate = '';
+                                            if ($pickupDateRaw) {
+                                                try {
+                                                    $pickupDate = \Carbon\Carbon::parse($pickupDateRaw)->format('Y-m-d');
+                                                } catch (\Exception $e) {
+                                                    $pickupDate = is_string($pickupDateRaw) ? trim(explode(' ', $pickupDateRaw)[0]) : '';
+                                                }
+                                            }
+
                                             $guestSummary = $payload['fullName'] ?? '';
                                             $guideNotes = $payload['notes'] ?? '';
                                             $totalPrice = $payload['totalPrice'] ?? $payload['price'] ?? 0;
@@ -26613,6 +26623,14 @@
         guideNameSelects.forEach(guideSelect => {
             // Extract booking ID from the select ID
             const bookingId = guideSelect.id.replace('guide_name_', '');
+            const pickupEl = document.getElementById('guide_pickup_time_' + bookingId);
+            // Edit cards use text+AM/PM + hidden input — do not treat as <select>
+            if (!pickupEl || pickupEl.tagName !== 'SELECT') {
+                if (typeof syncGuideEditPickupTime === 'function') {
+                    syncGuideEditPickupTime(bookingId);
+                }
+                return;
+            }
             
             // Add change event listener (use once to avoid duplicates)
             guideSelect.addEventListener('change', function() {
@@ -27121,6 +27139,13 @@
     function populateGuidePickupTimes(guideSelect, bookingId) {
         const pickupTimeSelect = document.getElementById(`guide_pickup_time_${bookingId}`);
         if (!pickupTimeSelect) return;
+        // Hidden input / type=time — never run innerHTML/options rebuild
+        if (pickupTimeSelect.tagName !== 'SELECT') {
+            if (typeof syncGuideEditPickupTime === 'function') {
+                syncGuideEditPickupTime(bookingId);
+            }
+            return;
+        }
         
         const selectedOption = guideSelect.options[guideSelect.selectedIndex];
         // Get current value from the select or from the first option that has a value
@@ -27504,7 +27529,23 @@
         const submitButton = form.querySelector('button[type="submit"]');
         const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 
+        if (typeof syncGuideEditPickupTime === 'function') {
+            syncGuideEditPickupTime(bookingId);
+        }
+
         const formData = new FormData(form);
+
+        const pickupDateInput = document.getElementById(`pickup_date_${bookingId}`);
+        const pickupTimeInput = document.getElementById(`guide_pickup_time_${bookingId}`);
+        if (pickupDateInput) formData.set('pickup_date', pickupDateInput.value || '');
+        if (pickupTimeInput) formData.set('pickup_time', pickupTimeInput.value || '');
+
+        // Custom hours → package_hours
+        const hoursSelect = document.getElementById(`guide_package_hours_${bookingId}`);
+        const customHours = document.getElementById(`guide_package_custom_hours_${bookingId}`);
+        if (hoursSelect && hoursSelect.value === 'custom' && customHours && customHours.value) {
+            formData.set('package_hours', customHours.value);
+        }
 
         // Ensure totalPrice is included in formData
         const totalPriceInput = document.getElementById(`guide_total_price_${bookingId}`);
@@ -27538,6 +27579,10 @@
 
             feedback.textContent = data.message || 'Guide service updated successfully.';
             feedback.classList.add('text-success');
+
+            if (pickupDateInput && pickupDateInput.value) {
+                form.setAttribute('data-service-date', pickupDateInput.value);
+            }
             
             // Show success toastr notification
             if (typeof showToastr !== 'undefined') {
@@ -31170,11 +31215,12 @@
             } catch (e) { /* ignore */ }
         }
 
-        function activateSegmentForServices(seg) {
+        function activateSegmentForServices(seg, opts) {
             const mode = getCityTypeMode();
             if (mode !== 'multi') return;
             const bundle = getServicesBundleEl();
             if (!bundle) return;
+            const forceRefresh = !!(opts && opts.forceRefresh);
             const wasActive = (_activeSegmentEl === seg);
 
             const citySel = seg.querySelector('.city-select');
@@ -31210,6 +31256,16 @@
                 clearServiceDateFilter();
                 _activeSegmentEl = null;
                 return;
+            }
+
+            // Already active for this stay: do not re-append the services bundle / refilter.
+            // That DOM churn steals focus and breaks native date/time pickers after the first use.
+            // Segment city/date edits call this with forceRefresh:true instead.
+            if (wasActive && !forceRefresh) {
+                const hostCheck = seg.querySelector('.segment-services');
+                if (hostCheck && bundle.parentElement === hostCheck) {
+                    return;
+                }
             }
 
             // Switching away from a different segment: close its panel so it doesn't stay
@@ -31314,7 +31370,7 @@
                         enforceNoOverlapForSegment(seg, t);
                     }
                     updateSegmentHeaderFromInputs(seg);
-                    activateSegmentForServices(seg);
+                    activateSegmentForServices(seg, { forceRefresh: true });
                 }
                 updateCityHiddenField();
             }
@@ -31326,6 +31382,10 @@
             if (!seg) return;
             // Do not steal clicks from remove button
             if (e.target && (e.target.classList?.contains('removeSegment') || e.target.closest?.('.removeSegment'))) return;
+            // Do not re-activate when interacting with service forms (date pickers, inputs, Save).
+            // Services live inside the segment; re-running activate appendChild/refilters and
+            // breaks native date/time pickers after the first successful edit.
+            if (e.target && e.target.closest && e.target.closest('#' + SERVICES_BUNDLE_ID)) return;
             // Do not steal clicks from the segment collapse (date range accordion) toggle.
             // Otherwise: user clicks "close" -> this handler re-activates and forces it open again.
             if (e.target && (e.target.closest?.('.segment-header') || e.target.closest?.('.segment-body-toggle') || e.target.closest?.('[data-bs-toggle="collapse"]'))) return;
