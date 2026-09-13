@@ -6093,6 +6093,18 @@ class SingleTourPackageController extends Controller
             ? $transportData[0]
             : (is_array($transportData) ? $transportData : []);
         [$firstTransport, $orderGeo] = $this->applyOrderGeoToServiceRow($firstTransport, $request, $tourId);
+        if (empty($orderGeo['city'])) {
+            $fallbackCity = trim((string) ($firstTransport['city'] ?? $request->input('city', '')));
+            if ($fallbackCity === '' && $tour) {
+                $tourCityParts = preg_split('/\s*,\s*/', (string) ($tour->city ?? ''));
+                $fallbackCity = trim((string) ($tourCityParts[0] ?? ''));
+                $fallbackCity = trim((string) preg_replace('/\s*\([^)]*\)\s*$/', '', $fallbackCity));
+            }
+            if ($fallbackCity !== '') {
+                $orderGeo['city'] = $fallbackCity;
+                $firstTransport['city'] = $fallbackCity;
+            }
+        }
         if (is_array($transportData) && isset($transportData[0]) && is_array($transportData[0])) {
             $transportData[0] = $firstTransport;
         } elseif (is_array($transportData)) {
@@ -6183,6 +6195,19 @@ class SingleTourPackageController extends Controller
             ? $transportData[0]
             : (is_array($transportData) ? $transportData : []);
         [$firstTransfer, $orderGeo] = $this->applyOrderGeoToServiceRow($firstTransfer, $request, $tourId);
+        if (empty($orderGeo['city'])) {
+            // Prefer payload/request city; fall back to active tour city string (first place name).
+            $fallbackCity = trim((string) ($firstTransfer['city'] ?? $request->input('city', '')));
+            if ($fallbackCity === '' && $tour) {
+                $tourCityParts = preg_split('/\s*,\s*/', (string) ($tour->city ?? ''));
+                $fallbackCity = trim((string) ($tourCityParts[0] ?? ''));
+                $fallbackCity = trim((string) preg_replace('/\s*\([^)]*\)\s*$/', '', $fallbackCity));
+            }
+            if ($fallbackCity !== '') {
+                $orderGeo['city'] = $fallbackCity;
+                $firstTransfer['city'] = $fallbackCity;
+            }
+        }
         if (is_array($transportData) && isset($transportData[0]) && is_array($transportData[0])) {
             $transportData[0] = $firstTransfer;
         } elseif (is_array($transportData)) {
