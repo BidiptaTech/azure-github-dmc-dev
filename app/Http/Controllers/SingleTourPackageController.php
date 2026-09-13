@@ -6088,6 +6088,7 @@ class SingleTourPackageController extends Controller
                 'all_keys' => array_keys($transportData[0])
             ]);
         }
+        
 
         $firstTransport = (is_array($transportData) && isset($transportData[0]) && is_array($transportData[0]))
             ? $transportData[0]
