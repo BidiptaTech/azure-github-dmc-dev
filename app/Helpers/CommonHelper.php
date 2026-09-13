@@ -5974,6 +5974,8 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         }
 
         // Prefer hotel_price_options when available — same selected_persons as Overall Package lines
+        // Build labeled parts: "01 DBL TWIN (Singapore) + 01 TRPL (Batam)"
+        $roomingPartsLabeled = [];
         if (is_array($hotelOptions) && count($hotelOptions) > 0) {
             $fromOptions = ['single' => 0, 'double' => 0, 'triple' => 0];
             $anyOptionSp = false;
@@ -6004,6 +6006,21 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                     $bucket = $classifyOccupancy(max(1, min(3, $sp)));
                     if ($bucket !== null) {
                         $fromOptions[$bucket] += $roomsQty;
+                        $occLabel = match ($bucket) {
+                            'single' => 'SGL',
+                            'double' => 'DBL TWIN',
+                            'triple' => 'TRPL',
+                            default => 'DBL TWIN',
+                        };
+                        $cityLabel = trim((string) ($hotel['city'] ?? ''));
+                        if ($cityLabel === '') {
+                            $cityLabel = trim((string) ($hotel['country'] ?? ''));
+                        }
+                        $part = sprintf('%02d %s', $roomsQty, $occLabel);
+                        if ($cityLabel !== '') {
+                            $part .= ' (' . $cityLabel . ')';
+                        }
+                        $roomingPartsLabeled[] = $part;
                     }
                     continue;
                 }
@@ -6038,20 +6055,24 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             $occupancyKey = $adults <= 1 ? 'single' : 'double';
         }
 
-        $roomingParts = [];
-        if ($roomCounts['single'] > 0) {
-            $roomingParts[] = sprintf('%02d SGL', $roomCounts['single']);
-        }
-        if ($roomCounts['double'] > 0) {
-            $roomingParts[] = sprintf('%02d DBL TWIN', $roomCounts['double']);
-        }
-        if ($roomCounts['triple'] > 0) {
-            $roomingParts[] = sprintf('%02d TRPL', $roomCounts['triple']);
+        if ($roomingPartsLabeled !== []) {
+            $roomingParts = $roomingPartsLabeled;
+        } else {
+            $roomingParts = [];
+            if ($roomCounts['single'] > 0) {
+                $roomingParts[] = sprintf('%02d SGL', $roomCounts['single']);
+            }
+            if ($roomCounts['double'] > 0) {
+                $roomingParts[] = sprintf('%02d DBL TWIN', $roomCounts['double']);
+            }
+            if ($roomCounts['triple'] > 0) {
+                $roomingParts[] = sprintf('%02d TRPL', $roomCounts['triple']);
+            }
         }
 
         return [
             'occupancy_key' => $occupancyKey,
-            'rooming_text' => implode(' + ', $roomingParts),
+            'rooming_text' => implode(' & ', $roomingParts),
             'room_counts' => $roomCounts,
             'has_hotel_rooms' => $totalRooms > 0,
         ];
