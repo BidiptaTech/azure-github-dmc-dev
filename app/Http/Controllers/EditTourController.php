@@ -2754,6 +2754,7 @@ class EditTourController extends Controller
             'guide_id' => 'nullable',
             'package_hours' => 'nullable|string|max:255',
             'pickup_time' => 'nullable|string|max:255',
+            'pickup_date' => 'nullable|date',
             'guest_name' => 'nullable|string|max:255',
             'notes' => 'nullable|string|max:1000',
             'remarks' => 'nullable|string|max:1000',
@@ -2814,8 +2815,14 @@ class EditTourController extends Controller
                 if (array_key_exists('package_hours', $validated)) {
                     $currentPayload['hours'] = $validated['package_hours'];
                 }
-                if (array_key_exists('pickup_time', $validated)) {
+                if (array_key_exists('pickup_time', $validated) && $validated['pickup_time'] !== null && $validated['pickup_time'] !== '') {
                     $currentPayload['entrytime'] = $validated['pickup_time'];
+                    $currentPayload['pickup_time'] = $validated['pickup_time'];
+                }
+                if (!empty($validated['pickup_date'])) {
+                    $pickupYmd = \Carbon\Carbon::parse($validated['pickup_date'])->format('Y-m-d');
+                    $currentPayload['pickupdate'] = $pickupYmd;
+                    $currentPayload['bookingDate'] = $pickupYmd;
                 }
                 if (array_key_exists('guest_name', $validated)) {
                     $currentPayload['fullName'] = $validated['guest_name'];
