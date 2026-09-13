@@ -4869,6 +4869,7 @@
                                     <div class="card-body mt-3">
                                         @if(count($allGuides) > 0)
                                         @foreach($allGuides as $index => $order)
+                       
                                         @php
                                             $guideData = $order->processed_data;
                                             $payload = [];
@@ -13905,6 +13906,40 @@
     };
 
     /**
+     * Resolve city/country for Other Transport (point/hourly/local) from modal city select,
+     * with fallbacks to hidden field and active tour/segment city.
+     */
+    window.resolveLocalTransferOrderGeo = function() {
+        const geo = (typeof window.resolveModalCityGeo === 'function')
+            ? window.resolveModalCityGeo('modal_local_transfer_city')
+            : { city: '', country: '' };
+        let city = (geo.city || '').toString().trim();
+        let country = (geo.country || '').toString().trim();
+        if (!city) {
+            const hiddenCity = document.getElementById('local_transfer_city');
+            city = hiddenCity ? (hiddenCity.value || '').toString().trim() : '';
+        }
+        if (!city && typeof getCityForModalAutoFill === 'function') {
+            city = (getCityForModalAutoFill() || '').toString().trim();
+        }
+        if (!country) {
+            const hiddenCountry = document.getElementById('local_transfer_country');
+            country = hiddenCountry ? (hiddenCountry.value || '').toString().trim() : '';
+        }
+        if (!country && typeof window.resolveServiceOrderCountry === 'function') {
+            country = window.resolveServiceOrderCountry(
+                country,
+                document.getElementById('user_country') ? document.getElementById('user_country').value : ''
+            );
+        }
+        const hiddenCityEl = document.getElementById('local_transfer_city');
+        if (hiddenCityEl && city) hiddenCityEl.value = city;
+        const hiddenCountryEl = document.getElementById('local_transfer_country');
+        if (hiddenCountryEl && country) hiddenCountryEl.value = country;
+        return { city: city, country: country };
+    };
+
+    /**
      * Prefer modal city country; reject CSV / blank; fall back to hotel/attraction record country.
      */
     window.resolveServiceOrderCountry = function(preferredCountry, fallbackCountry) {
@@ -18660,8 +18695,8 @@
             distance: 0,
             Night_Start_Time: null,
             Night_End_Time: null,
-            city: vehicleData.city || "Singapore",
-            country: vehicleData.country || "Singapore",
+            city: city || vehicleData.city || '',
+            country: country || vehicleData.country || '',
             vehicle_type: vehicleData.vehicle_type || "",
             vehicle_model: vehicleData.vehicle_model || "",
             model_year: vehicleData.model_year || null,
@@ -18788,8 +18823,16 @@
         
         // Get tour details
         const tourId = document.getElementById('local_transfer_tour_id').value;
-        const country = document.getElementById('local_transfer_country').value;
-        const city = document.getElementById('local_transfer_city').value;
+        const transferGeo = (typeof window.resolveLocalTransferOrderGeo === 'function')
+            ? window.resolveLocalTransferOrderGeo()
+            : { city: '', country: '' };
+        const city = transferGeo.city || vehicleData.city || '';
+        const country = (typeof window.resolveServiceOrderCountry === 'function')
+            ? window.resolveServiceOrderCountry(
+                transferGeo.country || vehicleData.country || '',
+                document.getElementById('user_country') ? document.getElementById('user_country').value : ''
+            )
+            : (transferGeo.country || vehicleData.country || (document.getElementById('local_transfer_country') ? document.getElementById('local_transfer_country').value : ''));
         
         // Get coordinates from hidden fields
         const pickupLat = document.getElementById('local_transfer_point_pickup_lat').value;
@@ -18831,7 +18874,7 @@
             Tax: '7.00',
             Night_Start_Time: '22:00:00',
             Night_End_Time: '06:00:00',
-            // city parameter removed,
+            city: city,
             country: country,
             fullName: customer_info.fullName,
             email: customer_info.email,
@@ -18900,8 +18943,16 @@
         
         // Get tour details
         const tourId = document.getElementById('local_transfer_tour_id').value;
-        const country = document.getElementById('local_transfer_country').value;
-        const city = document.getElementById('local_transfer_city').value;
+        const transferGeo = (typeof window.resolveLocalTransferOrderGeo === 'function')
+            ? window.resolveLocalTransferOrderGeo()
+            : { city: '', country: '' };
+        const city = transferGeo.city || vehicleData.city || '';
+        const country = (typeof window.resolveServiceOrderCountry === 'function')
+            ? window.resolveServiceOrderCountry(
+                transferGeo.country || vehicleData.country || '',
+                document.getElementById('user_country') ? document.getElementById('user_country').value : ''
+            )
+            : (transferGeo.country || vehicleData.country || (document.getElementById('local_transfer_country') ? document.getElementById('local_transfer_country').value : ''));
         
         // Get coordinates from hidden fields
         const pickupLat = document.getElementById('local_transfer_hourly_pickup_lat').value;
@@ -18934,7 +18985,7 @@
             Tax: '7.00',
             Night_Start_Time: '22:00:00',
             Night_End_Time: '06:00:00',
-            // city parameter removed,
+            city: city,
             country: country,
             fullName: customer_info.fullName,
             email: customer_info.email,
@@ -18983,7 +19034,9 @@
                 },
                 body: JSON.stringify({
                     booking_data: JSON.stringify(bookingData),
-                    type: serviceType
+                    type: serviceType,
+                    city: first ? (first.city || '') : '',
+                    country: first ? (first.country || '') : ''
                 })
             })
             .then(response => response.json())
@@ -19063,19 +19116,18 @@
         
         // Get tour details
         const tourId = document.getElementById('local_transfer_tour_id').value;
-        const localCityGeo = (typeof window.resolveModalCityGeo === 'function')
-            ? window.resolveModalCityGeo('modal_local_transfer_city')
+        const transferGeo = (typeof window.resolveLocalTransferOrderGeo === 'function')
+            ? window.resolveLocalTransferOrderGeo()
             : { city: '', country: '' };
-        const city = localCityGeo.city
-            || (document.getElementById('local_transfer_city') ? document.getElementById('local_transfer_city').value : '')
+        const city = transferGeo.city
             || vehicleData.city
             || '';
         const country = (typeof window.resolveServiceOrderCountry === 'function')
             ? window.resolveServiceOrderCountry(
-                localCityGeo.country || vehicleData.country || (document.getElementById('local_transfer_country') ? document.getElementById('local_transfer_country').value : ''),
+                transferGeo.country || vehicleData.country || (document.getElementById('local_transfer_country') ? document.getElementById('local_transfer_country').value : ''),
                 document.getElementById('user_country') ? document.getElementById('user_country').value : ''
             )
-            : (localCityGeo.country || vehicleData.country || '');
+            : (transferGeo.country || vehicleData.country || '');
         const startDate = document.getElementById('local_transfer_start_date').value;
         const endDate = document.getElementById('local_transfer_end_date').value;
         const pickupDate = document.getElementById('local_transfer_pickup_date').value;
@@ -19126,7 +19178,7 @@
             Tax: '0',
             Night_Start_Time: '22:00:00',
             Night_End_Time: '06:00:00',
-            // city parameter removed,
+            city: city,
             country: country,
             fullName: customer_info.fullName,
             email: customer_info.email,
@@ -25712,9 +25764,9 @@
             lockModalCitySelect(sel);
         });
 
-        const hiddenIds = ['modal_city', 'modal_transport_city', 'modal_dropoff_transport_city'];
+        const hiddenIds = ['modal_city', 'modal_transport_city', 'modal_dropoff_transport_city', 'local_transfer_city'];
         hiddenIds.forEach(function(id) {
-            const h = modal.querySelector('#' + id);
+            const h = modal.querySelector('#' + id) || document.getElementById(id);
             if (h) h.value = city;
         });
 
