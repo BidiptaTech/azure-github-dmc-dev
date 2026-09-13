@@ -409,16 +409,28 @@
                             <fieldset id="rate" class="border p-4 rounded mb-4">
                                 <h5 class="card-title mb-3">Rates</h5>
                                 <div class="row">
-                                    <!-- Minimum Base Price -->
+                                    <!-- Minimum Sell Price -->
                                     <div class="col-md-3">
-                                        <label for="day_rate" class="form-label"><strong>Minimum Base Price</strong><span
+                                        <label for="day_rate" class="form-label"><strong>Minimum Sell Price</strong><span
                                                 class="text-danger">*</span></label>
                                         <input value="{{$guide->day_rate}}" type="number" step="0.1"
-                                            class="form-control" name="day_rate" placeholder="Enter Day Rate" required>
+                                            class="form-control" name="day_rate" placeholder="Enter Minimum Sell Price" required>
                                         @error('day_rate')
                                         <div class="text-danger mt-1">{{ $message }}</div>
                                         @enderror
                                     </div>
+
+                                    <!-- Minimum Cost Price -->
+                                    <div class="col-md-3">
+                                        <label for="minimum_cost_price" class="form-label"><strong>Minimum Cost Price</strong><span
+                                                class="text-danger">*</span></label>
+                                        <input value="{{ old('minimum_cost_price', $guide->minimum_cost_price) }}" type="number" step="0.1"
+                                            class="form-control" name="minimum_cost_price" placeholder="Enter Minimum Cost Price" required>
+                                        @error('minimum_cost_price')
+                                        <div class="text-danger mt-1">{{ $message }}</div>
+                                        @enderror
+                                    </div>
+
                                     <!-- night_surcharge -->
                                     <div class="col-md-3">
                                         <label for="night_surcharge" class="form-label"><strong>Night
@@ -483,88 +495,102 @@
                                         </p>
                                     </div> --}}
 
-                                    <!-- Hourly Price -->
-                                    <div class="col-md-2 mb-3">
-                                        <label for="hourly_price" class="form-label"><strong>Hourly Price</strong><span
-                                                class="text-danger">*</span></label>
-                                        <input value="{{$guide->hourly_price}}" type="number" step="0.01"
-                                            class="form-control" name="hourly_price" placeholder="Enter hourly_price"
-                                            required>
-                                        @error('hourly_price')
-                                        <div class="text-danger mt-1">{{ $message }}</div>
-                                        @enderror
+                                    <!-- Hourly Sell / Cost Price -->
+                                    <div class="col-md-3 mb-3">
+                                        <label for="hourly_price" class="form-label"><strong>Hourly Sell Price</strong><span class="text-danger">*</span></label>
+                                        <input value="{{ old('hourly_price', $guide->hourly_price) }}" type="number" step="0.01"
+                                            class="form-control" name="hourly_price" placeholder="Enter Hourly Sell Price" required>
+                                        @error('hourly_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                    </div>
+                                    <div class="col-md-3 mb-3">
+                                        <label for="hourly_cost_price" class="form-label"><strong>Hourly Cost Price</strong><span class="text-danger">*</span></label>
+                                        <input value="{{ old('hourly_cost_price', $guide->hourly_cost_price) }}" type="number" step="0.01"
+                                            class="form-control" name="hourly_cost_price" placeholder="Enter Hourly Cost Price" required>
+                                        @error('hourly_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                     </div>
 
-                                    <!-- Two Hour Price -->
-                                    <div class="col-md-2 mb-3">
-                                        <label for="two_hour_price" class="form-label"><strong>Two Hour
-                                                Price</strong><span class="text-danger">*</span></label>
-                                        <input value="{{$guide->two_hour_price}}" type="number" step="0.01"
-                                            class="form-control" name="two_hour_price"
-                                            placeholder="Enter two_hourly_price" required>
-                                        @error('two_hour_price')
-                                        <div class="text-danger mt-1">{{ $message }}</div>
-                                        @enderror
+                                    <!-- Two Hour Sell / Cost Price -->
+                                    <div class="col-md-3 mb-3">
+                                        <label for="two_hour_price" class="form-label"><strong>Two Hour Sell Price</strong><span class="text-danger">*</span></label>
+                                        <input value="{{ old('two_hour_price', $guide->two_hour_price) }}" type="number" step="0.01"
+                                            class="form-control" name="two_hour_price" placeholder="Enter Two Hour Sell Price" required>
+                                        @error('two_hour_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                    </div>
+                                    <div class="col-md-3 mb-3">
+                                        <label for="two_hour_cost_price" class="form-label"><strong>Two Hour Cost Price</strong><span class="text-danger">*</span></label>
+                                        <input value="{{ old('two_hour_cost_price', $guide->two_hour_cost_price) }}" type="number" step="0.01"
+                                            class="form-control" name="two_hour_cost_price" placeholder="Enter Two Hour Cost Price" required>
+                                        @error('two_hour_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                     </div>
 
-                                    <!-- Four Hourly Price -->
-                                    <div class="col-md-2 mb-3">
-                                        <label for="four_hour_price" class="form-label"><strong>Four Hour
-                                                Price</strong><span class="text-danger">*</span></label>
-                                        <input value="{{$guide->four_hour_price}}" type="number" step="0.01"
-                                            class="form-control" name="four_hour_price"
-                                            placeholder="Enter four_hour_price" required>
-                                        @error('four_hour_price')
-                                        <div class="text-danger mt-1">{{ $message }}</div>
-                                        @enderror
+                                    <!-- Four Hour Sell / Cost Price -->
+                                    <div class="col-md-3 mb-3">
+                                        <label for="four_hour_price" class="form-label"><strong>Four Hour Sell Price</strong><span class="text-danger">*</span></label>
+                                        <input value="{{ old('four_hour_price', $guide->four_hour_price) }}" type="number" step="0.01"
+                                            class="form-control" name="four_hour_price" placeholder="Enter Four Hour Sell Price" required>
+                                        @error('four_hour_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                    </div>
+                                    <div class="col-md-3 mb-3">
+                                        <label for="four_hour_cost_price" class="form-label"><strong>Four Hour Cost Price</strong><span class="text-danger">*</span></label>
+                                        <input value="{{ old('four_hour_cost_price', $guide->four_hour_cost_price) }}" type="number" step="0.01"
+                                            class="form-control" name="four_hour_cost_price" placeholder="Enter Four Hour Cost Price" required>
+                                        @error('four_hour_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                     </div>
 
-                                    <!-- Six Hour Price -->
-                                    <div class="col-md-2 mb-3">
-                                        <label for="six_hour_price" class="form-label"><strong>Six Hour
-                                                Price</strong><span class="text-danger">*</span></label>
-                                        <input value="{{$guide->six_hour_price}}" type="number" step="0.01"
-                                            class="form-control" name="six_hour_price"
-                                            placeholder="Enter six_hour_price" required>
-                                        @error('six_hour_price')
-                                        <div class="text-danger mt-1">{{ $message }}</div>
-                                        @enderror
+                                    <!-- Six Hour Sell / Cost Price -->
+                                    <div class="col-md-3 mb-3">
+                                        <label for="six_hour_price" class="form-label"><strong>Six Hour Sell Price</strong><span class="text-danger">*</span></label>
+                                        <input value="{{ old('six_hour_price', $guide->six_hour_price) }}" type="number" step="0.01"
+                                            class="form-control" name="six_hour_price" placeholder="Enter Six Hour Sell Price" required>
+                                        @error('six_hour_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                    </div>
+                                    <div class="col-md-3 mb-3">
+                                        <label for="six_hour_cost_price" class="form-label"><strong>Six Hour Cost Price</strong><span class="text-danger">*</span></label>
+                                        <input value="{{ old('six_hour_cost_price', $guide->six_hour_cost_price) }}" type="number" step="0.01"
+                                            class="form-control" name="six_hour_cost_price" placeholder="Enter Six Hour Cost Price" required>
+                                        @error('six_hour_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                     </div>
 
-                                    <!-- Eight Hour Price -->
-                                    <div class="col-md-2 mb-3">
-                                        <label for="eight_hour_price" class="form-label"><strong>Eight Hour
-                                                Price</strong><span class="text-danger">*</span></label>
-                                        <input value="{{$guide->eight_hour_price}}" type="number" step="0.01"
-                                            class="form-control" name="eight_hour_price"
-                                            placeholder="Enter eight_hour_price" required>
-                                        @error('eight_hour_price')
-                                        <div class="text-danger mt-1">{{ $message }}</div>
-                                        @enderror
+                                    <!-- Eight Hour Sell / Cost Price -->
+                                    <div class="col-md-3 mb-3">
+                                        <label for="eight_hour_price" class="form-label"><strong>Eight Hour Sell Price</strong><span class="text-danger">*</span></label>
+                                        <input value="{{ old('eight_hour_price', $guide->eight_hour_price) }}" type="number" step="0.01"
+                                            class="form-control" name="eight_hour_price" placeholder="Enter Eight Hour Sell Price" required>
+                                        @error('eight_hour_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                    </div>
+                                    <div class="col-md-3 mb-3">
+                                        <label for="eight_hour_cost_price" class="form-label"><strong>Eight Hour Cost Price</strong><span class="text-danger">*</span></label>
+                                        <input value="{{ old('eight_hour_cost_price', $guide->eight_hour_cost_price) }}" type="number" step="0.01"
+                                            class="form-control" name="eight_hour_cost_price" placeholder="Enter Eight Hour Cost Price" required>
+                                        @error('eight_hour_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                     </div>
 
-                                    <!-- Ten Hour Price -->
-                                    <div class="col-md-2 mb-3">
-                                        <label for="ten_hour_price" class="form-label"><strong>Ten Hour
-                                                Price</strong><span class="text-danger">*</span></label>
-                                        <input value="{{$guide->ten_hour_price}}" type="number" step="0.01"
-                                            class="form-control" name="ten_hour_price"
-                                            placeholder="Enter ten_hour_price" required>
-                                        @error('ten_hour_price')
-                                        <div class="text-danger mt-1">{{ $message }}</div>
-                                        @enderror
+                                    <!-- Ten Hour Sell / Cost Price -->
+                                    <div class="col-md-3 mb-3">
+                                        <label for="ten_hour_price" class="form-label"><strong>Ten Hour Sell Price</strong><span class="text-danger">*</span></label>
+                                        <input value="{{ old('ten_hour_price', $guide->ten_hour_price) }}" type="number" step="0.01"
+                                            class="form-control" name="ten_hour_price" placeholder="Enter Ten Hour Sell Price" required>
+                                        @error('ten_hour_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                    </div>
+                                    <div class="col-md-3 mb-3">
+                                        <label for="ten_hour_cost_price" class="form-label"><strong>Ten Hour Cost Price</strong><span class="text-danger">*</span></label>
+                                        <input value="{{ old('ten_hour_cost_price', $guide->ten_hour_cost_price) }}" type="number" step="0.01"
+                                            class="form-control" name="ten_hour_cost_price" placeholder="Enter Ten Hour Cost Price" required>
+                                        @error('ten_hour_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                     </div>
 
-                                    <!-- Twelve Hourly Price -->
-                                    <div class="col-md-2 mb-3">
-                                        <label for="twelve_hour_price" class="form-label"><strong>Twelve Hour
-                                                Price</strong><span class="text-danger">*</span></label>
-                                        <input value="{{$guide->twelve_hour_price}}" type="number" step="0.01"
-                                            class="form-control" name="twelve_hour_price"
-                                            placeholder="Enter twelve_hour_price" required>
-                                        @error('twelve_hour_price')
-                                        <div class="text-danger mt-1">{{ $message }}</div>
-                                        @enderror
+                                    <!-- Twelve Hour Sell / Cost Price -->
+                                    <div class="col-md-3 mb-3">
+                                        <label for="twelve_hour_price" class="form-label"><strong>Twelve Hour Sell Price</strong><span class="text-danger">*</span></label>
+                                        <input value="{{ old('twelve_hour_price', $guide->twelve_hour_price) }}" type="number" step="0.01"
+                                            class="form-control" name="twelve_hour_price" placeholder="Enter Twelve Hour Sell Price" required>
+                                        @error('twelve_hour_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                    </div>
+                                    <div class="col-md-3 mb-3">
+                                        <label for="twelve_hour_cost_price" class="form-label"><strong>Twelve Hour Cost Price</strong><span class="text-danger">*</span></label>
+                                        <input value="{{ old('twelve_hour_cost_price', $guide->twelve_hour_cost_price) }}" type="number" step="0.01"
+                                            class="form-control" name="twelve_hour_cost_price" placeholder="Enter Twelve Hour Cost Price" required>
+                                        @error('twelve_hour_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                     </div>
                                 </div>
                             </fieldset>

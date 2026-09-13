@@ -1,6 +1,6 @@
 .github
 /.phpunit.cache
-/node_modules
+/node_modules  
 /storage/*.key
 /vendor
 .env
@@ -17,17 +17,21 @@ yarn-error.log
 /.idea
 /.vscode
 /config/database.php
-
+/storage
 # Storage link (should be created during deployment, not committed)
 /public/storage
-
+/storage/
+# Firebase service account — never commit (use local file or env)
+/storage/app/firebase/*
+!/storage/app/firebase/.gitkeep
+!/storage/app/firebase/firebase_crendentials.json.example
 # Deployment logs
 deploy.log
 
 # Azure deployment artifacts
 .deployment
 deploy.cmd
-
+/storage
 # Laravel storage and cache
 /storage/logs/*.log
 /storage/framework/cache/data/*

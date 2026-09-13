@@ -30,7 +30,6 @@ class CurrencyController extends Controller
     {
         $from = $request->get('from', 'SGD');
         $to = $request->get('to', 'USD');
-        
         try {
             $rate = $this->currencyService->getExchangeRate($from, $to);
             

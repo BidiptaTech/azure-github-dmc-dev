@@ -61,8 +61,35 @@
         box-shadow: 0 0 0.25rem rgba(105, 108, 255, 0.1) !important;
     }
 
+    .select2-container {
+        width: 100% !important;
+    }
+
     .select2-container--default .select2-selection--multiple {
-        width: 200px;
+        min-height: 42px;
+        width: 100% !important;
+    }
+
+    .user-form-grid .form-label {
+        display: block;
+        margin-bottom: 0.35rem;
+        min-height: 1.35rem;
+    }
+
+    .user-form-grid .form-control,
+    .user-form-grid .form-select {
+        min-height: 42px;
+        width: 100%;
+    }
+
+    .user-form-grid .form-text,
+    .user-form-grid small {
+        display: block;
+        margin-top: 0.25rem;
+    }
+
+    option.dmc-country-occupied {
+        color: #a1acb8;
     }
 </style>
 <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet" />
@@ -78,10 +105,10 @@
             <form action="{{ route('users.store') }}" method="POST" enctype="multipart/form-data" class="card-body">
                 @csrf
                 <input type="hidden" class="form-control" name="code" value="{{ $user_countryCode }}">
-
-                <div class="row">
+                <input type="hidden" name="timezone" id="timezone">
+                <div class="row g-3 user-form-grid">
                     <!-- User Salutation -->
-                    <div class="col-md-3 mb-3">
+                    <div class="col-md-4">
                         <label for="salutation" class="form-label"><strong>Salutation</strong><span class="text-danger">*</span></label>
                         <select class="form-control" name="salutation" required>
                             <option value="">Select Salutation</option>
@@ -95,290 +122,274 @@
                         @enderror
                     </div>
                     <!-- Name Field -->
-                    <div class="col-md-3 mb-3">
+                    <div class="col-md-4">
                         <label for="yourname" class="form-label"><strong>Enter Your Name</strong>
-                            <span style="color: red; font-weight: bold;">*</span>
+                            <span class="text-danger">*</span>
                         </label>
                         <input type="text" class="form-control @error('yourname') is-invalid @enderror" id="yourname"
-                            name="yourname" placeholder="Enter Your Name" required>
+                            name="yourname" placeholder="Enter Your Name" value="{{ old('yourname') }}" required>
                         @error('yourname')
                         <div class="text-danger mt-1">{{ $message }}</div>
                         @enderror
                     </div>
 
                     <div class="col-md-4">
-                        <div class="mb-3">
-                            <label for="inputRoleselect" class="form-label"><strong>Role</strong><span
-                                    style="color: red; font-weight: bold;">*</span></label>
-                            <select class="form-select" id="inputRoleselect" name="role" required>
-                                <option selected disabled value>Choose...</option>
-                                @foreach($roles as $role)
-                                    <option value="{{ $role->role_id }}">{{ $role->name }}</option>
-                                @endforeach
-                            </select>
-                            @error('role')
-                            <div class="text-danger mt-1">{{ $message }}</div>
-                            @enderror
-                        </div>
+                        <label for="inputRoleselect" class="form-label"><strong>Role</strong><span class="text-danger">*</span></label>
+                        <select class="form-select" id="inputRoleselect" name="role" required>
+                            <option selected disabled value>Choose...</option>
+                            @foreach($roles as $role)
+                                <option value="{{ $role->role_id }}" {{ (string) old('role') === (string) $role->role_id ? 'selected' : '' }}>{{ $role->name }}</option>
+                            @endforeach
+                        </select>
+                        @error('role')
+                        <div class="text-danger mt-1">{{ $message }}</div>
+                        @enderror
                     </div>
                     @if(auth()->user()->user_type == 1)
-                    <!-- MAster Dmc Select -->
-                    <div class="col-md-2" id="inputRoleContainer">
-                        <div class="mb-3">
-                            <label for="master" class="form-label"><strong>Master DMC</strong>
-                                <span style="color: red; font-weight: bold;">*</span>
-                            </label>
-                            <select class="form-select" id="master" name="master_dmc">
-                                <option selected disabled value>Choose...</option>
-                                @if(count($master_dmc) > 0)
-                                    @foreach($master_dmc as $mdmc)
-                                        <option value="{{ $mdmc->userId }}">{{ $mdmc->name }}</option>
-                                    @endforeach
-                                @endif
-                            </select>
-                            @error('master_dmc')
-                            <div class="text-danger mt-1">{{ $message }}</div>
-                            @enderror
-                        </div>
+                    <!-- Master Dmc Select -->
+                    <div class="col-md-4 d-none" id="inputRoleContainer">
+                        <label for="master" class="form-label"><strong>Master DMC</strong>
+                            <span class="text-danger">*</span>
+                        </label>
+                        <select class="form-select" id="master" name="master_dmc">
+                            <option selected disabled value>Choose...</option>
+                            @if(count($master_dmc) > 0)
+                                @foreach($master_dmc as $mdmc)
+                                    <option value="{{ $mdmc->userId }}">{{ $mdmc->name }}</option>
+                                @endforeach
+                            @endif
+                        </select>
+                        @error('master_dmc')
+                        <div class="text-danger mt-1">{{ $message }}</div>
+                        @enderror
                     </div>
                     @endif
                     
                     @if(auth()->user()->role_id == 28)
-                    <div class="col-md-2" id="country_name">
-                        <div class="mb-3">
-                            <label for="country_name" class="form-label">
-                                <strong>Country Name</strong>
-                                <span style="color: red; font-weight: bold;">*</span>
-                            </label>
-                            <input type="text" class="form-control" id="country_name" name="country_name" 
-                                value="{{ auth()->user()->country }}" readonly required>
-                        </div>
+                    <div class="col-md-4" id="country_name_readonly">
+                        <label for="country_name_readonly_input" class="form-label">
+                            <strong>Country Name</strong>
+                            <span class="text-danger">*</span>
+                        </label>
+                        <input type="text" class="form-control" id="country_name_readonly_input" name="country_name" 
+                            value="{{ auth()->user()->country }}" readonly required>
                     </div>
                     @endif
                 </div>
 
-                <!-- Toggle Master Dmc Checkbox (initially hidden) -->
-                @if(auth()->user()->user_type == 1)
-                    <div class="row">
-                        <div class="col-md-12">
-                            <div class="row">
-                            <!-- Dependent Country Select Box (Initially Hidden) -->
-                            <div class="col-md-4" id="mastercountryContainer" style="display: none;">
-                                <!-- <div class="mb-3">
-                                    <label for="masater_country_name" class="form-label"><strong>Country Names</strong>
-                                        <span style="color: red; font-weight: bold;">*</span>
-                                    </label>
-                                    <select class="form-select" id="masater_country_name" name="country_name">
-                                        <option selected disabled>Choose...</option>
-                                    </select>
-                                </div> -->
-                            </div>
-                            
-                            <!-- Multiple country select -->
-                            <div class="col-md-4" id="country_names" style="display: none;">
-                                <div class="mb-3">
-                                    <label for="country_names" class="form-label">
-                                        <strong>Country Names</strong>
-                                        <span style="color: red; font-weight: bold;">*</span>
-                                    </label>
-                                    <select class="form-select select2" id="country_names" name="country_names[]" multiple>
-                                        <option id="default-option">Choose a country...</option>
-                                        @foreach($country as $c)
-                                            <option value="{{ $c->name }}">{{ $c->name }}</option>
-                                        @endforeach
-                                    </select>
-                                    @error('country_names')
-                                        <div class="text-danger mt-1">{{ $message }}</div>
-                                    @enderror
-                                </div>
-                            </div>
-
-                            <!-- Assistant Manager Select -->
-                            <div class="col-md-4" id="assistant_manager_container" style="display: none;">
-                                <!-- <div class="mb-3">
-                                    <label for="assistant_manager" class="form-label">
-                                        <strong>Assistant Manager</strong>
-                                        <span style="color: red; font-weight: bold;">*</span>
-                                    </label>
-                                    <select class="form-select" id="assistant_manager" name="assistant_manager">
-                                        <option selected disabled value>Choose Assistant Manager...</option>
-                                    </select>
-                                    @error('assistant_manager')
-                                    <div class="text-danger mt-1">{{ $message }}</div>
-                                    @enderror
-                                </div> -->
-                            </div>
-
-                            <!-- Master Dmc Logo -->
-                            <div class="col-md-3" id="master_logo" style="display: none;">
-                                <div class="mb-3">
-                                    <label for="master_logo" class="form-label">
-                                        <strong>Master Dmc Logo</strong>
-                                        <span style="color: red; font-weight: bold;">*</span>
-                                    </label>
-                                    <input type="file" class="form-control" id="master_logo"
-                                        name="master_logo" placeholder="Enter Your Name">
-                                </div>
-                            </div>
-                        @endif
-                            <div class="col-md-3" id="company_name" style="display: none;">
-                                <div class="mb-3">
-                                    <label for="company_name" class="form-label">
-                                        <strong>Company Name</strong>
-                                        <span style="color: red; font-weight: bold;">*</span>
-                                    </label>
-                                    <input type="text" class="form-control" id="company_name"
-                                        name="company_name" placeholder="Enter Your Name">
-                                </div>
-                            </div>
-                        @if(auth()->user()->user_type == 1 || auth()->user()->user_type == 3 || auth()->user()->user_type == 2)
-                            <!-- Single Country Select-->
-                            <div class="col-md-4" id="country_name" style="display: none;">
-                                <div class="mb-3">
-                                    <label for="country_name" class="form-label">
-                                        <strong>Country Name</strong>
-                                        <span style="color: red; font-weight: bold;">*</span>
-                                    </label>
-                                    <select class="form-select" id="country_name" name="country_name">
-                                        <option selected value>Choose a country...</option>
-                                        @if(count($country) > 0)
-                                            @foreach($country as $c)
-                                            <option value="{{ $c->name }}">{{ $c->name }}</option>
-                                            @endforeach
-                                        @endif
-                                    </select>
-                                </div>
-                            </div>
-                            @endif
-
-                            <div class="col-md-4" id="user_coun">
-                                <div class="mb-3">
-                                    <label for="user_country" class="form-label">
-                                        <strong> User Country</strong>
-                                        <span style="color: red; font-weight: bold;">*</span>
-                                    </label>
-                                    <select class="form-select" id="user_country" name="user_country">
-                                        <option value>Choose a country...</option>
-                                        @foreach($country as $c)
-                                            <option value="{{ $c->name }}">{{ $c->name }}</option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div class="col-md-4" id="city_name">
-                                <div class="mb-3">
-                                    <label for="city" class="form-label">
-                                        <strong> User City</strong>
-                                        <span style="color: red; font-weight: bold;">*</span>
-                                    </label>
-                                    <select class="form-select" id="city" name="city">
-                                        <option selected disabled value>Select country first...</option>
-                                    </select>
-                                </div>
-                            </div>
-                            
-
-                            <div class="col-md-4" id="city_name">
-                                <div class="mb-3">
-                                    <label for="address" class="form-label">
-                                        <strong>Address</strong>
-                                        <span style="color: red; font-weight: bold;">*</span>
-                                    </label>
-                                    <input type="text" class="form-control @error('address') is-invalid @enderror" id="address"
-                                        name="address" placeholder="Enter Address" required>
-                                    @error('address')
-                                        <div class="text-danger mt-1">{{ $message }}</div>
-                                    @enderror
-                                </div>
-                            </div>
-
-                            @if(auth()->user()->user_type == 1)
-                            <!-- Dmc Select-->
-                            <div class="col-md-4" id="inputDmcContainer" style="display: none;">
-                                <div class="mb-3">
-                                    <label for="inputDmc" class="form-label"><strong>Dmc</strong><span
-                                            style="color: red; font-weight: bold;">*</span></label>
-                                    <select class="form-select" id="inputDmc" name="dmc">
-                                        <option selected disabled value>Choose...</option>
-                                        @foreach($dmcs as $dmcd)
-                                            <option value="{{ $dmcd->userId }}">{{ $dmcd->name }}</option>
-                                        @endforeach
-                                    </select>
-                                    @error('dmc')
-                                    <div class="text-danger mt-1">{{ $message }}</div>
-                                    @enderror
-                                </div>
-                            </div>
-                            <!-- Sales Manager Admin Select--> 
-                            <div class="col-md-4" id="inputSalespersonContainerAdmin" style="display: none;">
-                                @if(auth()->user()->role_id != 3)
-                                <div class="mb-3">
-                                    <label for="inputSalesperson" class="form-label"><strong>Sales Manager (Admin)</strong><span
-                                            style="color: red; font-weight: bold;">*</span></label>
-                                    <select class="form-select" id="inputSalespersonAdmin" name="salemg_admin">
-                                        <option selected disabled value>Choose...</option>
-                                        @foreach($adminSalesManager as $salesperson)
-                                            <option value="{{ $salesperson->userId }}">{{ $salesperson->name }}</option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                                @endif
-                            </div>
-                            </div>
-                        </div>
-                    </div>
-                @endif
-               
-
-                <!-- All -->
-                <div class="row">
-                    <div class="col-md-3">
-                        <div class="mb-3">
-                            <label for="inputCountryCode" class="form-label"><strong> Country Code</strong><span
-                                    style="color: red; font-weight: bold;">*</span></label>
-                            <select class="form-select" id="inputCountryCode" name="code" required>
-                                <option selected disabled value>Choose...</option>
-                                @foreach($countryCodes as $key => $value)
-                                <option value="{{ $key }}" @if($key == '65') selected @endif >{{ $value }}</option>
-                                @endforeach
-                            </select>
-                            @error('code')
+                <div class="row g-3 user-form-grid mt-1">
+                    @if(auth()->user()->user_type == 1)
+                    <div class="col-md-4 d-none" id="mastercountryContainer"></div>
+                    <div class="col-md-4 d-none" id="country_names">
+                        <label for="country_names_select" class="form-label">
+                            <strong>Country Names</strong>
+                            <span class="text-danger">*</span>
+                        </label>
+                        <select class="form-select select2" id="country_names_select" name="country_names[]" multiple>
+                            @foreach($country as $c)
+                                <option value="{{ $c->name }}">{{ $c->name }}</option>
+                            @endforeach
+                        </select>
+                        @error('country_names')
                             <div class="text-danger mt-1">{{ $message }}</div>
-                            @enderror
+                        @enderror
+                    </div>
+                    <div class="col-md-4 d-none" id="assistant_manager_container"></div>
+                    <div class="col-md-4 d-none" id="master_logo">
+                        <label for="master_logo_input" class="form-label">
+                            <strong>Master Dmc Logo</strong>
+                            <span class="text-danger">*</span>
+                        </label>
+                        <input type="file" class="form-control" id="master_logo_input" name="master_logo">
+                    </div>
+                    @endif
+                    <div class="col-md-4 d-none" id="company_name">
+                        <label for="company_name_input" class="form-label">
+                            <strong>Company Name</strong>
+                            <span class="text-danger">*</span>
+                        </label>
+                        <input type="text" class="form-control" id="company_name_input"
+                            name="company_name" placeholder="Enter Company Name" value="{{ old('company_name') }}">
+                    </div>
+                    <div class="col-md-4 d-none" id="company_code_container">
+                        <label for="company_code" class="form-label">
+                            <strong>Company Code</strong>
+                        </label>
+                        <input type="text" class="form-control" id="company_code"
+                            name="company_code" placeholder="Enter Company Code" value="{{ old('company_code') }}">
+                    </div>
+                    <div class="col-md-4" id="user_code_container">
+                        <label for="user_code" class="form-label">
+                            <strong>User Code</strong>
+                        </label>
+                        <input type="text" class="form-control" id="user_code"
+                            name="user_code" placeholder="Enter User Code" value="{{ old('user_code') }}">
+                    </div>
+                    <div class="col-md-4 d-none" id="company_reg_no_container">
+                        <label for="company_reg_no" class="form-label">
+                            <strong>Company Reg. No</strong>
+                        </label>
+                        <input type="text" class="form-control" id="company_reg_no"
+                            name="company_reg_no" placeholder="Enter Company Reg. No" value="{{ old('company_reg_no') }}">
+                    </div>
+                    <div class="col-md-4 d-none" id="licence_no_container">
+                        <label for="licence_no" class="form-label">
+                            <strong>TA License No</strong>
+                        </label>
+                        <input type="text" class="form-control" id="licence_no"
+                            name="licence_no" placeholder="Enter TA License No" value="{{ old('licence_no') }}">
+                    </div>
+                    <div class="col-md-4 d-none" id="thirdparty_container">
+                        <label for="thirdparty" class="form-label">
+                            <strong>Third Party DMC</strong>
+                        </label>
+                        @php $oldThirdParty = strtolower((string) old('thirdparty', 'no')) === 'yes' ? 'yes' : 'no'; @endphp
+                        <select class="form-select" id="thirdparty" name="thirdparty">
+                            <option value="no" @selected($oldThirdParty === 'no')>No</option>
+                            <option value="yes" @selected($oldThirdParty === 'yes')>Yes</option>
+                        </select>
+                        @error('thirdparty')
+                        <div class="text-danger mt-1">{{ $message }}</div>
+                        @enderror
+                    </div>
+                    @if(auth()->user()->user_type == 1 || auth()->user()->user_type == 3 || auth()->user()->user_type == 2)
+                    <div class="col-md-4 d-none" id="country_name">
+                        <label for="dmcCountrySelect" class="form-label">
+                            <strong>Country Name</strong>
+                            <span class="text-danger">*</span>
+                        </label>
+                        @php $occupiedDmcCountries = $occupiedDmcCountries ?? []; @endphp
+                        <select class="form-select" id="dmcCountrySelect" name="country_name">
+                            <option value="">Choose a country...</option>
+                            @if(count($country) > 0)
+                                @foreach($country as $c)
+                                    @php
+                                        $occ = $occupiedDmcCountries[mb_strtolower(trim((string) $c->name))] ?? null;
+                                    @endphp
+                                    <option value="{{ $c->name }}"
+                                        @if($occ) disabled class="dmc-country-occupied" data-occupied="1" @endif
+                                        {{ old('country_name') == $c->name && !$occ ? 'selected' : '' }}>
+                                        {{ $c->name }}@if($occ) — already present DMC for this country @endif
+                                    </option>
+                                @endforeach
+                            @endif
+                        </select>
+                        <small id="dmcCountryHint" class="text-muted">One DMC is allowed per Master DMC country.</small>
+                        <div id="dmcCountryOccupiedMsg" class="text-danger mt-1" @if(!$errors->has('country_name')) style="display:none;" @endif>
+                            {{ $errors->first('country_name') }}
                         </div>
                     </div>
-                    <!-- Phone Field -->
-                    <div class="col-md-4 mb-3">
+                    @endif
+
+                    <div class="col-md-4" id="user_coun">
+                        <label for="user_country" class="form-label">
+                            <strong>User Country</strong>
+                            <span class="text-danger">*</span>
+                        </label>
+                        <select class="form-select" id="user_country" name="user_country">
+                            <option value="">Choose a country...</option>
+                            @foreach($country as $c)
+                                <option value="{{ $c->name }}" {{ old('user_country', $dmcLocationPrefill['user_country'] ?? '') == $c->name ? 'selected' : '' }}>{{ $c->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="col-md-4" id="city_name">
+                        <label for="city" class="form-label">
+                            <strong>User City</strong>
+                            <span class="text-danger">*</span>
+                        </label>
+                        <select class="form-select" id="city" name="city">
+                            <option selected disabled value>Select country first...</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label for="address" class="form-label">
+                            <strong>Address</strong>
+                            <span class="text-danger">*</span>
+                        </label>
+                        <input type="text" class="form-control @error('address') is-invalid @enderror" id="address"
+                            name="address" placeholder="Enter Address" value="{{ old('address', $dmcLocationPrefill['address'] ?? '') }}" required>
+                        @error('address')
+                            <div class="text-danger mt-1">{{ $message }}</div>
+                        @enderror
+                    </div>
+
+                    @if(auth()->user()->user_type == 1)
+                    <div class="col-md-4 d-none" id="inputDmcContainer">
+                        <label for="inputDmc" class="form-label"><strong>Dmc</strong><span class="text-danger">*</span></label>
+                        <select class="form-select" id="inputDmc" name="dmc">
+                            <option selected disabled value>Choose...</option>
+                            @foreach($dmcs as $dmcd)
+                                <option value="{{ $dmcd->userId }}">{{ $dmcd->name }}</option>
+                            @endforeach
+                        </select>
+                        @error('dmc')
+                        <div class="text-danger mt-1">{{ $message }}</div>
+                        @enderror
+                    </div>
+                    <div class="col-md-4 d-none" id="inputSalespersonContainerAdmin">
+                        @if(auth()->user()->role_id != 3)
+                        <label for="inputSalespersonAdmin" class="form-label"><strong>Sales Manager (Admin)</strong><span class="text-danger">*</span></label>
+                        <select class="form-select" id="inputSalespersonAdmin" name="salemg_admin">
+                            <option selected disabled value>Choose...</option>
+                            @foreach($adminSalesManager as $salesperson)
+                                <option value="{{ $salesperson->userId }}">{{ $salesperson->name }}</option>
+                            @endforeach
+                        </select>
+                        @endif
+                    </div>
+                    @endif
+
+                    <div class="col-md-4 d-none" id="currency_container">
+                        <label for="currency" class="form-label"><strong>Currency</strong></label>
+                        <input type="text" class="form-control" id="currency" name="currency"
+                            value="{{ old('currency') }}" placeholder="Select a country first" readonly
+                            style="background-color: #f8f9fa;">
+                        <small class="text-muted">Auto-filled from the selected country</small>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label for="inputCountryCode" class="form-label"><strong>Country Code</strong><span class="text-danger">*</span></label>
+                        <select class="form-select" id="inputCountryCode" name="code" required>
+                            <option disabled value>Choose...</option>
+                            @php
+                                $selectedCountryCode = old('code', $dmcLocationPrefill['country_code'] ?? '65');
+                            @endphp
+                            @foreach($countryCodes as $key => $value)
+                            <option value="{{ $key }}" {{ (string) $key === (string) $selectedCountryCode ? 'selected' : '' }}>{{ $value }}</option>
+                            @endforeach
+                        </select>
+                        @error('code')
+                        <div class="text-danger mt-1">{{ $message }}</div>
+                        @enderror
+                    </div>
+                    <div class="col-md-4">
                         <label for="phone" class="form-label"><strong>Phone No</strong>
-                            <span style="color: red; font-weight: bold;">*</span>
+                            <span class="text-danger">*</span>
                         </label>
                         <input type="number" class="form-control @error('phone') is-invalid @enderror" id="phone"
-                            name="phone" placeholder="Phone No" required oninput="">
+                            name="phone" placeholder="Phone No" value="{{ old('phone') }}" required>
                         <small class="validation-message text-danger" id="phone-validation-message"></small>
                         @error('phone')
                         <div class="text-danger mt-1">{{ $message }}</div>
                         @enderror
                     </div>
-                    <!-- Email Field -->
-                    <div class="col-md-4 mb-3">
+                    <div class="col-md-4">
                         <label for="email" class="form-label"><strong>Email Address</strong>
-                            <span style="color: red; font-weight: bold;">*</span>
+                            <span class="text-danger">*</span>
                         </label>
                         <input type="text" class="form-control @error('email') is-invalid @enderror" id="email"
-                            name="email" placeholder="Email Address" required oninput="validateEmail(this)">
+                            name="email" placeholder="Email Address" value="{{ old('email') }}" required oninput="validateEmail(this)">
                         <small class="validation-message text-danger" id="email-validation-message"></small>
                         @error('email')
                         <div class="text-danger mt-1">{{ $message }}</div>
                         @enderror
                     </div>
-                </div>
-
-                <div class="row d-flex" >
-                    <!-- Password Field with Show/Hide Toggle -->
-                    <div class="col-md-3 mb-3">
+                    <div class="col-md-4">
                         <label for="password" class="form-label"><strong>Choose Password</strong>
-                            <span style="color: red; font-weight: bold;">*</span>
+                            <span class="text-danger">*</span>
                         </label>
                         <div class="input-group">
                             <input type="password" class="form-control @error('password') is-invalid @enderror"
@@ -387,29 +398,11 @@
                                 <i class="fa fa-eye-slash" id="toggleIcon"></i>
                             </button>
                         </div>
-                        {{-- oninput="validatePassword(this)" --}}
                         <small class="validation-message text-danger" id="password-validation-message"></small>
                         @error('password')
                         <div class="text-danger mt-1">{{ $message }}</div>
                         @enderror
                     </div>
-
-                    <!-- Markup Type -->
-                    <!-- <div class="col-md-8"id="markuptypes" style="display:none; gap: 15px;" >
-                        <div class="col-md-5">
-                            <label for="markup_type" class="form-label"><strong>Markup Type</strong></label>
-                            <input type="text" class="form-control" name="markup_type" value="Percentage" readonly>
-                        </div>
-
-                        <div class="col-md-3">
-                            <label for="markup_type" class="form-label"><strong>Markup Percentage</strong></label>
-                            <input type="text" class="form-control" id="markup_percentage" name="markup_type" value="" readonly>
-                        </div>
-                        <div class="col-md-3">
-                            <label for="markup_type" class="form-label"><strong>Gateway Percentage</strong></label>
-                            <input type="text" class="form-control" id="gateway" name="markup_type" value="" readonly>
-                        </div>
-                    </div> -->
                 </div>
 
                 <div class="row">
@@ -496,9 +489,28 @@
     var country_names = document.getElementById('country_names');
     var master_logo = document.getElementById('master_logo');
     var company_name = document.getElementById('company_name');
+    var company_code_container = document.getElementById('company_code_container');
+    var user_code_container = document.getElementById('user_code_container');
+    var company_reg_no_container = document.getElementById('company_reg_no_container');
+    var licence_no_container = document.getElementById('licence_no_container');
     var inputSalespersonContainerAdmin = document.getElementById('inputSalespersonContainerAdmin');
     var markuptypes = document.getElementById('markuptypes');
     var mastercountryContainer = document.getElementById('mastercountryContainer');
+    var currency_container = document.getElementById('currency_container');
+    var thirdparty_container = document.getElementById('thirdparty_container');
+    var thirdparty = document.getElementById('thirdparty');
+
+    function hideField(el) {
+        if (!el) return;
+        el.classList.add('d-none');
+        el.style.display = '';
+    }
+
+    function showField(el) {
+        if (!el) return;
+        el.classList.remove('d-none');
+        el.style.display = '';
+    }
 
     function resetHiddenFieldValues() {
         document.querySelectorAll(
@@ -506,7 +518,8 @@
             '#inputDmcContainer input, #inputDmcContainer select, ' +
             '#country_name input, #country_name select, ' +
             '#inputSalespersonContainerAdmin input, #inputSalespersonContainerAdmin select, ' +
-            '#markuptypes select'
+            '#markuptypes select, #company_code_container input, ' +
+            '#company_reg_no_container input, #licence_no_container input'
         ).forEach(function (element) {
             element.value = '';
         });
@@ -516,36 +529,57 @@
         if (!userTypeSelect) return; // Ensure userTypeSelect exists
         var userRole = parseInt(userTypeSelect.value, 10); // Convert to number
 
-        // Hide all elements safely
-        if (inputRoleContainer) inputRoleContainer.style.display = 'none';
-        if (inputDmcContainer) inputDmcContainer.style.display = 'none';
-        if (country_name) country_name.style.display = 'none';
-        if (country_names) country_names.style.display = 'none';
-        if (master_logo) master_logo.style.display = 'none';
-        if (company_name) company_name.style.display = 'none';
-        if (inputSalespersonContainerAdmin) inputSalespersonContainerAdmin.style.display = 'none';
-        if (markuptypes) markuptypes.style.display = 'none';
-        if (mastercountryContainer) mastercountryContainer.style.display = 'none';
+        hideField(inputRoleContainer);
+        hideField(inputDmcContainer);
+        hideField(country_name);
+        hideField(country_names);
+        hideField(master_logo);
+        hideField(company_name);
+        hideField(company_code_container);
+        hideField(company_reg_no_container);
+        hideField(licence_no_container);
+        hideField(inputSalespersonContainerAdmin);
+        hideField(markuptypes);
+        hideField(mastercountryContainer);
+        hideField(currency_container);
+        hideField(thirdparty_container);
+        // Preserve string enum (yes|no) across role toggles; do not coerce to boolean/number
+        const preservedThirdParty = thirdparty
+            ? (String(thirdparty.value || 'no').toLowerCase() === 'yes' ? 'yes' : 'no')
+            : 'no';
+        if (thirdparty) {
+            thirdparty.disabled = true; // avoid submitting when not a DMC role
+        }
 
         resetHiddenFieldValues(); // Reset input fields
+        showField(user_code_container);
 
         // Show elements based on userRole
         if (userRole >= 5 && userRole <= 9) {
-            if (country_names) country_names.style.display = 'block';
+            showField(country_names);
         } else if (userRole === 10 || userRole === 19) {
-            if (country_names) country_names.style.display = 'block';
-            if (master_logo) master_logo.style.display = 'block';
-            if (company_name) company_name.style.display = 'block';
+            showField(country_names);
+            showField(master_logo);
+            showField(company_name);
         } else if (userRole === 11 || userRole === 20) {
             if ({{ auth()->user()->role_id }} == 10 || {{ auth()->user()->role_id }} == 19) {
-                if (country_name) country_name.style.display = 'block';
+                showField(country_name);
+                showField(company_code_container);
             }
-            if (inputRoleContainer) inputRoleContainer.style.display = 'block';
-            if (company_name) company_name.style.display = 'block';
+            showField(inputRoleContainer);
+            showField(company_name);
+            showField(company_reg_no_container);
+            showField(licence_no_container);
+            showField(currency_container);
+            showField(thirdparty_container);
+            if (thirdparty) {
+                thirdparty.disabled = false;
+                thirdparty.value = preservedThirdParty;
+            }
         } else if (userRole === 4) {
-            if (inputSalespersonContainerAdmin) inputSalespersonContainerAdmin.style.display = 'block';
+            showField(inputSalespersonContainerAdmin);
         } else if ([3, 24, 25, 26, 27].includes(userRole)) {
-            if (country_name) country_name.style.display = 'block';
+            showField(country_name);
         }
     }
 
@@ -557,6 +591,36 @@
 
 
     $(document).ready(function () {
+    function fillDmcCountryOptions(options) {
+        const select = document.getElementById('dmcCountrySelect');
+        if (!select) return;
+        const previous = select.value;
+        select.innerHTML = '<option value="">Choose a country...</option>';
+        (options || []).forEach(function (item) {
+            const name = typeof item === 'string' ? item : (item && item.name);
+            if (!name) return;
+            const occupied = typeof item === 'object' && !!item.occupied;
+            const message = (item && item.message) ? item.message : 'already present DMC for this country';
+            const opt = document.createElement('option');
+            opt.value = name;
+            opt.textContent = occupied ? (name + ' — ' + message) : name;
+            if (occupied) {
+                opt.disabled = true;
+                opt.setAttribute('data-occupied', '1');
+                opt.classList.add('dmc-country-occupied');
+            }
+            select.appendChild(opt);
+        });
+        if (previous) {
+            const match = Array.from(select.options).find(function (opt) {
+                return opt.value === previous && !opt.disabled;
+            });
+            if (match) {
+                select.value = previous;
+            }
+        }
+    }
+
     $('#master').on('change', function () {
         let masterDmcId = $(this).val();
         if (masterDmcId) {
@@ -565,17 +629,14 @@
                 type: 'GET',
                 dataType: 'json',
                 success: function (response) {
-                    let countrySelect = $('#masater_country_name');
-                    countrySelect.empty();
-                    countrySelect.append('<option selected disabled>Choose...</option>');
-                    if (response.countries.length > 0) {
-                        $.each(response.countries, function (key, value) {
-                            countrySelect.append(`<option value="${value}">${value}</option>`);
-                        });
-
-                        $('#mastercountryContainer').show();
+                    const options = (response.country_options && response.country_options.length)
+                        ? response.country_options
+                        : (response.countries || []);
+                    fillDmcCountryOptions(options);
+                    if (options.length > 0) {
+                        $('#mastercountryContainer').removeClass('d-none');
                     } else {
-                        $('#mastercountryContainer').hide();
+                        $('#mastercountryContainer').addClass('d-none');
                     }
                 },
                 error: function () {
@@ -583,7 +644,40 @@
                 }
             });
         } else {
-            $('#mastercountryContainer').hide();
+            $('#mastercountryContainer').addClass('d-none');
+        }
+    });
+
+    $(document).on('change', '#dmcCountrySelect', function () {
+        const opt = this.options[this.selectedIndex];
+        const msg = document.getElementById('dmcCountryOccupiedMsg');
+        if (!msg) return;
+        if (opt && opt.getAttribute('data-occupied') === '1') {
+            msg.style.display = 'block';
+            msg.textContent = 'A DMC is already present for this country.';
+            this.value = '';
+        } else if (!msg.dataset.serverError) {
+            msg.style.display = 'none';
+            msg.textContent = '';
+        }
+    });
+
+    $('form').on('submit', function (e) {
+        const countryWrap = document.getElementById('country_name');
+        const select = document.getElementById('dmcCountrySelect');
+        if (!countryWrap || !select || countryWrap.classList.contains('d-none')) {
+            return;
+        }
+        const opt = select.options[select.selectedIndex];
+        if (!select.value || (opt && opt.disabled)) {
+            e.preventDefault();
+            const msg = document.getElementById('dmcCountryOccupiedMsg');
+            if (msg) {
+                msg.style.display = 'block';
+                msg.textContent = (opt && opt.disabled)
+                    ? 'A DMC is already present for this country.'
+                    : 'Please choose a country that does not already have a DMC.';
+            }
         }
     });
 
@@ -983,6 +1077,9 @@
 <!-- Add this script after your existing validation scripts -->
 <script>
     $(document).ready(function() {
+        const dmcLocationPrefill = @json($dmcLocationPrefill ?? []);
+        let isInitialLocationPrefill = !!(dmcLocationPrefill.user_country || dmcLocationPrefill.city || dmcLocationPrefill.country_code);
+
         // Initialize Select2 for User Country dropdown
         $('#user_country').select2({
             placeholder: "Search and Select Country",
@@ -1007,6 +1104,9 @@
         // Country selection change handler
         $('#user_country').on('change', function() {
             const selectedCountry = $(this).val();
+            const preferredCity = isInitialLocationPrefill ? (dmcLocationPrefill.city || null) : null;
+            const keepPrefillCountryCode = isInitialLocationPrefill && dmcLocationPrefill.country_code;
+
             if (selectedCountry) {
                 // Show loading state for cities
                 $('#city').html('<option>Loading cities...</option>').trigger('change');
@@ -1022,38 +1122,110 @@
                         $('#city').html('<option selected disabled value>Select city...</option>');
                         
                         if (response.cities && response.cities.length > 0) {
-                            $.each(response.cities, function(key, city) {
-                                $('#city').append('<option value="' + city.name + '">' + city.name + '</option>');
+                            var cities = response.cities.slice().sort(function(a, b) {
+                                return String(a.name || '').localeCompare(String(b.name || ''), undefined, { sensitivity: 'base' });
+                            });
+                            $.each(cities, function(key, city) {
+                                var selected = (preferredCity && city.name === preferredCity) ? 'selected' : '';
+                                $('#city').append('<option value="' + city.name + '" ' + selected + '>' + city.name + '</option>');
                             });
                         } else {
                             $('#city').append('<option disabled>No cities found</option>');
                         }
                         // Trigger change to refresh Select2
                         $('#city').trigger('change');
+                        isInitialLocationPrefill = false;
                     },
                     error: function() {
                         $('#city').html('<option disabled value>Error loading cities</option>').trigger('change');
+                        isInitialLocationPrefill = false;
                     }
                 });
                 
-                // Fetch country code for the selected country
-                $.ajax({
-                    url: "{{ route('get.country.code') }}",
-                    type: "GET",
-                    data: { country: selectedCountry },
-                    dataType: 'json',
-                    success: function(response) {
-                        if (response.success && response.country_code) {
-                            // Find and select the country code option
-                            $('#inputCountryCode').val(response.country_code).trigger('change');
+                // Fetch country code for the selected country (skip overwrite during DMC prefill)
+                if (!keepPrefillCountryCode) {
+                    $.ajax({
+                        url: "{{ route('get.country.code') }}",
+                        type: "GET",
+                        data: { country: selectedCountry },
+                        dataType: 'json',
+                        success: function(response) {
+                            if (response.success && response.country_code) {
+                                // Find and select the country code option
+                                $('#inputCountryCode').val(response.country_code).trigger('change');
+                            }
                         }
-                    }
-                });
+                    });
+                } else if (dmcLocationPrefill.country_code) {
+                    $('#inputCountryCode').val(dmcLocationPrefill.country_code).trigger('change');
+                }
             } else {
                 // Reset cities dropdown if no country selected
                 $('#city').html('<option selected disabled value>Select country first...</option>').trigger('change');
+                isInitialLocationPrefill = false;
             }
         });
+
+        // Prefill from DMC location on page load (fields remain editable)
+        if ($('#user_country').val()) {
+            $('#user_country').trigger('change');
+        }
+
+        // ----- Currency auto-fill based on the selected (assigned) country -----
+        // Note: currency depends on the "Country Name" field(s), NOT on "User Country".
+        function fetchCurrencyForCountry(country) {
+            if (!country) {
+                $('#currency').val('');
+                return;
+            }
+            $.ajax({
+                url: "{{ route('get.currency.by.country') }}",
+                type: "GET",
+                data: { country: country },
+                dataType: 'json',
+                success: function(response) {
+                    $('#currency').val(response.currency || '');
+                },
+                error: function() {
+                    $('#currency').val('');
+                }
+            });
+        }
+
+        // Single "Country Name" select (DMC / role-based single country)
+        $(document).on('change', 'select[name="country_name"]', function() {
+            fetchCurrencyForCountry($(this).val());
+        });
+
+        // Multiple "Country Names" select (Master DMC): use the first selected country
+        $(document).on('change', 'select[name="country_names[]"]', function() {
+            var values = $(this).val();
+            fetchCurrencyForCountry(values && values.length ? values[0] : '');
+        });
+
+        // Read-only "Country Name" text input (role 28, prefilled with auth user's country)
+        $(document).on('change', 'input[name="country_name"]', function() {
+            fetchCurrencyForCountry($(this).val());
+        });
+
+        // Populate currency on load if a country is already set/preselected.
+        (function initCurrency() {
+            var single = $('select[name="country_name"]:visible').val();
+            var multi = $('select[name="country_names[]"]:visible').val();
+            var readonlyCountry = $('input[name="country_name"]').val();
+            var initialCountry = single
+                || (multi && multi.length ? multi[0] : '')
+                || readonlyCountry
+                || '';
+            if (initialCountry) {
+                fetchCurrencyForCountry(initialCountry);
+            }
+        })();
     });
 </script>
+<script>
+    document.getElementById('timezone').value =
+    Intl.DateTimeFormat().resolvedOptions().timeZone;
+</script>
 @endsection
+

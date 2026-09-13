@@ -3,14 +3,19 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class MiscellaneousPrice extends Model
 {
+    use SoftDeletes;
+
     protected $table = 'miscellaneous_prices';
 
     protected $fillable = [
         'mis_id',
         'dmc_id',
+        'country',
+        'city',
         'adult_price',
         'child_price',
         'infant_price',
@@ -27,7 +32,8 @@ class MiscellaneousPrice extends Model
         'adult_cost' => 'decimal:2',
         'child_cost' => 'decimal:2',
         'infant_cost' => 'decimal:2',
-        'status' => 'integer'
+        'status' => 'integer',
+        'deleted_at' => 'datetime'
     ];
 
     /**

@@ -986,11 +986,11 @@
                                                 </tr>
                                                 <tr>
                                                     <td><code class="field-code">no_of_room</code></td>
-                                                    <td><span class="badge bg-success">Can Edit</span></td>
+                                                    <td><span class="badge bg-danger">Required</span> <span class="badge bg-success">Can Edit</span></td>
                                                     <td>Number of rooms (you can modify this to your requirement)</td>
                                                     <td><span class="text-muted">10</span></td>
                                                 </tr>
-                                                <tr>
+                                            <tr>
                                                     <td><code class="field-code">dimension</code></td>
                                                     <td><span class="badge bg-danger">Cannot Change</span></td>
                                                     <td>Room dimension (must match admin base room - DO NOT MODIFY)</td>
@@ -999,26 +999,74 @@
                                                 <tr>
                                                     <td><code class="field-code">weekday_price</code></td>
                                                     <td><span class="badge bg-danger">Required</span></td>
-                                                    <td>Single occupancy weekday price</td>
+                                                    <td>Single occupancy weekday <strong>sell</strong> price</td>
                                                     <td><span class="text-muted">100.00</span></td>
+                                                </tr>
+                                                <tr>
+                                                    <td><code class="field-code">weekday_cost_price</code></td>
+                                                    <td><span class="badge bg-warning">Optional</span></td>
+                                                    <td>Single occupancy weekday <strong>cost</strong> price</td>
+                                                    <td><span class="text-muted">80.00</span></td>
                                                 </tr>
                                                 <tr>
                                                     <td><code class="field-code">weekend_price</code></td>
                                                     <td><span class="badge bg-danger">Required</span></td>
-                                                    <td>Single occupancy weekend price</td>
+                                                    <td>Single occupancy weekend <strong>sell</strong> price</td>
                                                     <td><span class="text-muted">120.00</span></td>
+                                                </tr>
+                                                <tr>
+                                                    <td><code class="field-code">weekend_cost_price</code></td>
+                                                    <td><span class="badge bg-warning">Optional</span></td>
+                                                    <td>Single occupancy weekend <strong>cost</strong> price</td>
+                                                    <td><span class="text-muted">95.00</span></td>
                                                 </tr>
                                                 <tr>
                                                     <td><code class="field-code">double_weekday_price</code></td>
                                                     <td><span class="badge bg-danger">Required</span></td>
-                                                    <td>Double occupancy weekday price</td>
+                                                    <td>Double occupancy weekday <strong>sell</strong> price</td>
                                                     <td><span class="text-muted">150.00</span></td>
+                                                </tr>
+                                                <tr>
+                                                    <td><code class="field-code">double_weekday_cost_price</code></td>
+                                                    <td><span class="badge bg-warning">Optional</span></td>
+                                                    <td>Double occupancy weekday <strong>cost</strong> price</td>
+                                                    <td><span class="text-muted">120.00</span></td>
                                                 </tr>
                                                 <tr>
                                                     <td><code class="field-code">double_weekend_price</code></td>
                                                     <td><span class="badge bg-danger">Required</span></td>
-                                                    <td>Double occupancy weekend price</td>
+                                                    <td>Double occupancy weekend <strong>sell</strong> price</td>
                                                     <td><span class="text-muted">180.00</span></td>
+                                                </tr>
+                                                <tr>
+                                                    <td><code class="field-code">double_weekend_cost_price</code></td>
+                                                    <td><span class="badge bg-warning">Optional</span></td>
+                                                    <td>Double occupancy weekend <strong>cost</strong> price</td>
+                                                    <td><span class="text-muted">145.00</span></td>
+                                                </tr>
+                                                <tr>
+                                                    <td><code class="field-code">child_with_bed</code></td>
+                                                    <td><span class="badge bg-warning">Optional</span></td>
+                                                    <td>Child with bed <strong>sell</strong> price</td>
+                                                    <td><span class="text-muted">40.00</span></td>
+                                                </tr>
+                                                <tr>
+                                                    <td><code class="field-code">child_with_bed_cost</code></td>
+                                                    <td><span class="badge bg-warning">Optional</span></td>
+                                                    <td>Child with bed <strong>cost</strong> price</td>
+                                                    <td><span class="text-muted">30.00</span></td>
+                                                </tr>
+                                                <tr>
+                                                    <td><code class="field-code">child_without_bed</code></td>
+                                                    <td><span class="badge bg-warning">Optional</span></td>
+                                                    <td>Child without bed <strong>sell</strong> price</td>
+                                                    <td><span class="text-muted">20.00</span></td>
+                                                </tr>
+                                                <tr>
+                                                    <td><code class="field-code">child_without_bed_cost</code></td>
+                                                    <td><span class="badge bg-warning">Optional</span></td>
+                                                    <td>Child without bed <strong>cost</strong> price</td>
+                                                    <td><span class="text-muted">15.00</span></td>
                                                 </tr>
                                                 <tr>
                                                     <td><code class="field-code">breakfast</code></td>
@@ -1035,8 +1083,14 @@
                                                 <tr>
                                                     <td><code class="field-code">breakfast_price</code></td>
                                                     <td><span class="badge bg-info">Conditional</span></td>
-                                                    <td>Required if breakfast=1</td>
+                                                    <td>Breakfast <strong>sell</strong> price — required if breakfast=1</td>
                                                     <td><span class="text-muted">25.00</span></td>
+                                                </tr>
+                                                <tr>
+                                                    <td><code class="field-code">breakfast_cost_price</code></td>
+                                                    <td><span class="badge bg-warning">Optional</span></td>
+                                                    <td>Breakfast <strong>cost</strong> price (used when breakfast=1)</td>
+                                                    <td><span class="text-muted">18.00</span></td>
                                                 </tr>
                                                 <tr>
                                                     <td><code class="field-code">lunch</code></td>
@@ -1053,8 +1107,14 @@
                                                 <tr>
                                                     <td><code class="field-code">lunch_price</code></td>
                                                     <td><span class="badge bg-info">Conditional</span></td>
-                                                    <td>Required if lunch=1</td>
+                                                    <td>Lunch <strong>sell</strong> price — required if lunch=1</td>
                                                     <td><span class="text-muted">30.00</span></td>
+                                                </tr>
+                                                <tr>
+                                                    <td><code class="field-code">lunch_cost_price</code></td>
+                                                    <td><span class="badge bg-warning">Optional</span></td>
+                                                    <td>Lunch <strong>cost</strong> price (used when lunch=1)</td>
+                                                    <td><span class="text-muted">22.00</span></td>
                                                 </tr>
                                                 <tr>
                                                     <td><code class="field-code">dinner</code></td>
@@ -1071,8 +1131,20 @@
                                                 <tr>
                                                     <td><code class="field-code">dinner_price</code></td>
                                                     <td><span class="badge bg-info">Conditional</span></td>
-                                                    <td>Required if dinner=1</td>
+                                                    <td>Dinner <strong>sell</strong> price — required if dinner=1</td>
                                                     <td><span class="text-muted">35.00</span></td>
+                                                </tr>
+                                                <tr>
+                                                    <td><code class="field-code">dinner_cost_price</code></td>
+                                                    <td><span class="badge bg-warning">Optional</span></td>
+                                                    <td>Dinner <strong>cost</strong> price (used when dinner=1)</td>
+                                                    <td><span class="text-muted">25.00</span></td>
+                                                </tr>
+                                                <tr>
+                                                    <td><code class="field-code">breakfast_included</code></td>
+                                                    <td><span class="badge bg-warning">Optional</span></td>
+                                                    <td>Complementary breakfast included (1=Yes, 0=No)</td>
+                                                    <td><span class="text-muted">0</span></td>
                                                 </tr>
                                             </tbody>
                                         </table>

@@ -1,3 +1,4 @@
+
 @extends('layouts.layout')
 @section('content')
 <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet" />
@@ -72,7 +73,7 @@
 
     /* Select2 Custom Styling for Bootstrap 5 Integration */
     .select2-container--default .select2-selection--single {
-        height: 100% !important;
+        height: 40px !important;
         border: 1px solid #d9dee3 !important;
         border-radius: 0.375rem !important;
         padding: 0.375rem 0.75rem !important;
@@ -87,8 +88,13 @@
     }
 
     .select2-container--default .select2-selection--single .select2-selection__arrow {
-        height: 36px !important;
+        height: 40px !important;
         right: 5px !important;
+    }
+
+    /* Ensure Select2 takes full width inside Bootstrap grid */
+    .select2-container {
+        width: 100% !important;
     }
 
     .select2-container--default .select2-selection--single:hover {
@@ -129,21 +135,46 @@
         box-shadow: 0 0 0.25rem rgba(105, 108, 255, 0.1) !important;
     }
 
+    #language-container .proficiency-select,
+    #language-container .language-select {
+        height: 40px;
+    }
+
+    #language-container .proficiency-select {
+        padding-top: 0.375rem;
+        padding-bottom: 0.375rem;
+        line-height: 1.5;
+    }
+
+    #language-container .remove-language {
+        height: 40px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        white-space: nowrap;
+    }
+
     /* Auto-calculated field styles */
-    .auto-calculated {
+    .auto-calculated,
+    .auto-calculated-sell,
+    .auto-calculated-cost {
         background-color: #f8f9fa !important;
         border-left: 3px solid #17a2b8 !important;
         position: relative;
     }
 
-    .auto-calculated:focus {
+    .auto-calculated:focus,
+    .auto-calculated-sell:focus,
+    .auto-calculated-cost:focus {
         background-color: #fff !important;
         border-left-color: #007bff !important;
         box-shadow: 0 0 0 0.2rem rgba(23, 162, 184, 0.25) !important;
     }
 
     /* Animation for value changes */
-    .auto-calculated.value-updated {
+    .auto-calculated.value-updated,
+    .auto-calculated-sell.value-updated,
+    .auto-calculated-cost.value-updated {
         animation: highlightUpdate 0.8s ease-in-out;
     }
 
@@ -161,7 +192,14 @@
     <div class="container-xxl flex-grow-1 container-p-y">
         <div class="card mb-6">
             <h5 class="card-header d-flex justify-content-between align-items-center">
-                Add New Guide
+                <span class="d-flex align-items-center flex-wrap gap-2">
+                    Add New Guide
+                    <x-currency-price-note
+                        :country="old('country')"
+                        :watch-country="true"
+                        country-select-id="country"
+                    />
+                </span>
                 <a href="{{ route('guide.index') }}" class="btn btn-sm btn-outline-danger">
                     <i class="mdi mdi-arrow-left"></i> Back
                 </a>
@@ -183,8 +221,22 @@
                     </div>
                 </div>
             @endif
+
+            @if ($errors->any())
+                <div class="alert alert-danger border-0 border-start border-5 border-danger-subtle shadow-sm px-4 py-3 rounded-3">
+                    <div class="d-flex align-items-start gap-2">
+                        <i class="bi bi-exclamation-triangle-fill fs-4 text-danger"></i>
+                        <div>
+                            <h6 class="mb-2 fw-semibold text-danger">Please fix the following errors:</h6>
+                            <ul class="mb-0 ps-3">
+                                <li class="small">{{ $errors->first() }}</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            @endif
             <form id="guideForm" method="POST" action="{{ route('guide.store') }}" enctype="multipart/form-data"
-                class="card-body">
+                class="card-body js-submit-loader-form" data-loader-message="Saving...">
                 @csrf
                 <!-- Hidden Fields -->
 
@@ -284,27 +336,24 @@
                                 @enderror
                             </div>
 
-                            <!-- Country -->
+                            <!-- Country (Master DMC countries) -->
                             <div class="mb-3 col-md-3">
                                 <label for="country" class="form-label"><strong><i class="ri-map-pin-line"></i> Country</strong>
                                     <span style="color: red; font-weight: bold;">*</span>
                                 </label>
-                                
-                                @if(in_array(auth()->user()->role_id, [1, 20]))
-                                    <select class="form-control" id="country" name="country" required onchange="validateDriverAge(document.getElementById('driver_age'))">
-                                        <option value="">Select Country</option>
-                                        @foreach($country as $countryOption)
-                                            <option value="{{ $countryOption->name }}">{{ $countryOption->name }}</option>
-                                        @endforeach
-                                    </select>
-                                @else
-                                    <input type="text" class="form-control" id="country" onchange="validateDriverAge(document.getElementById('driver_age'))" 
-                                    value="{{in_array(auth()->user()->role_id, [11, 35, 75, 102, 139, 140]) ? $userCountry : ''}}"
-                                        placeholder="{{ auth()->user()->role_id == 11 ? 'Your country' : 'Select DMC First' }}" 
-                                        name="country" required 
-                                        {{ auth()->user()->role_id == 11 ? 'readonly' : 'readonly' }}>
-                                @endif
-                                
+                                @php
+                                    $scopedCountries = $masterDmcCountries ?? $country ?? collect();
+                                    // Only restore what the user submitted themselves; never pick a country for them.
+                                    $preselectedCountry = old('country', '');
+                                @endphp
+                                <select class="form-control" id="country" name="country" required onchange="validateDriverAge(document.getElementById('driver_age'))">
+                                    <option value="">Select Country</option>
+                                    @foreach($scopedCountries as $countryOption)
+                                        <option value="{{ $countryOption->name }}" {{ $preselectedCountry == $countryOption->name ? 'selected' : '' }}>
+                                            {{ $countryOption->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
                                 @error('country')
                                     <div class="text-danger mt-1">{{ $message }}</div>
                                 @enderror
@@ -314,14 +363,13 @@
                             <div class="col-md-3 mb-3">
                                 <label for="city" class="form-label"><strong>City</strong><span class="text-danger">*</span></label>
                                 @php
-                                    $roleId = auth()->user()->role_id;
-                                    $placeholder = 'Select Country First';
-                                    $isDmcWithCities = in_array($roleId, [11, 35, 75, 102, 139, 140]) && isset($cities) && count($cities) > 0;
+                                    $hasPreloadedCities = isset($cities) && count($cities) > 0 && $preselectedCountry !== '';
+                                    $placeholder = $hasPreloadedCities ? 'Select City' : 'Select Country First';
                                 @endphp
                                 
-                                <select name="city" id="citySelect" class="form-control" required {{ !$isDmcWithCities ? 'disabled' : '' }}>
+                                <select name="city" id="citySelect" class="form-control" required {{ !$hasPreloadedCities ? 'disabled' : '' }}>
                                     <option value="">{{ $placeholder }}</option>
-                                    @if($isDmcWithCities)
+                                    @if($hasPreloadedCities)
                                         @foreach($cities as $city)
                                             <option value="{{ $city->name }}" {{ old('city') == $city->name ? 'selected' : '' }}>{{ $city->name }}</option>
                                         @endforeach
@@ -388,10 +436,10 @@
                             <div id="guide_language" class="col-md-12 mb-3">
                                 <fieldset>
                                     <h5 class="card-title mb-3">Languages & Proficiency</h5>
-                                    <div class="row" id="language-container">
+                                    <div id="language-container">
                                         @if(old('languages'))
                                             @foreach(old('languages') as $index => $language)
-                                                <div class="language-row d-flex mb-3">
+                                                <div class="language-row row g-2 mb-3 align-items-end">
                                                     <!-- Languages Dropdown -->
                                                     <div class="col-md-5">
                                                         <label for="languages" class="form-label"><strong>Languages</strong>
@@ -409,7 +457,7 @@
                                                     </div>
                                             
                                                     <!-- Language Proficiency Dropdown -->
-                                                    <div class="col-md-5 ms-2">
+                                                    <div class="col-md-5">
                                                         <label for="language_proficiency" class="form-label"><strong>Proficiency</strong>
                                                             <span class="text-danger">*</span>
                                                         </label>
@@ -427,13 +475,13 @@
                                                     </div>
                                             
                                                     <!-- Remove Button (Hidden for First Row) -->
-                                                    <div class="col-md-1 mb-2 d-flex align-items-end">
+                                                    <div class="col-md-2 d-flex align-items-end">
                                                         <button type="button" class="btn btn-danger remove-language {{ $index == 0 ? 'd-none' : '' }}">Remove</button>
                                                     </div>
                                                 </div>
                                             @endforeach
                                         @else
-                                            <div class="language-row d-flex mb-3">
+                                            <div class="language-row row g-2 mb-3 align-items-end">
                                                 <!-- Languages Dropdown -->
                                                 <div class="col-md-5">
                                                     <label for="languages" class="form-label"><strong>Languages</strong>
@@ -451,7 +499,7 @@
                                                 </div>
                                         
                                                 <!-- Language Proficiency Dropdown -->
-                                                <div class="col-md-5 ms-2">
+                                                <div class="col-md-5">
                                                     <label for="language_proficiency" class="form-label"><strong>Proficiency</strong>
                                                         <span class="text-danger">*</span>
                                                     </label>
@@ -469,7 +517,7 @@
                                                 </div>
                                         
                                                 <!-- Remove Button (Hidden for First Row) -->
-                                                <div class="col-md-1 mb-2 d-flex align-items-end">
+                                                <div class="col-md-2 d-flex align-items-end">
                                                     <button type="button" class="btn btn-danger remove-language d-none">Remove</button>
                                                 </div>
                                             </div>
@@ -477,8 +525,11 @@
                                     </div>
                             
                                     <!-- Add More Button -->
-                                    <div class="col-md-2 mb-2 d-flex align-items-end">
-                                        <button type="button" id="addmore" class="btn btn-primary">Add More</button>
+                                    <div class="row">
+                                        <div class="col-md-5">
+                                            <button type="button" id="addmore" class="btn btn-primary">Add More</button>
+                                        </div>
+                                        <div class="col-md-7"></div>
                                     </div>
                                 </fieldset>
                             </div>
@@ -548,12 +599,39 @@
                                 <h5 class="card-title mb-3">Rates</h5>
                                 <div class="row">
 
-                                    <!-- Minimum Base Price -->
+                                    <div class="col-md-3 mb-3">
+                                        <label for="guide_profit_margin" class="form-label"><strong>Profit (margin)</strong></label>
+                                        <select id="guide_profit_margin" class="form-select js-guide-profit-type">
+                                            <option value="percentage" selected>%</option>
+                                            <option value="flat">Flat</option>
+                                        </select>
+                                        <small class="text-muted">Helper only — not saved</small>
+                                    </div>
+                                    <div class="col-md-3 mb-3">
+                                        <label for="guide_profit_amount" class="form-label"><strong>Profit amount</strong></label>
+                                        <input type="number" id="guide_profit_amount" class="form-control js-guide-profit-amount"
+                                               value="0" min="0" step="0.01" placeholder="Enter profit amount">
+                                        <small class="text-muted">Auto-fills Sell from Cost</small>
+                                    </div>
+
+                                    <!-- Minimum Cost then Sell -->
                                     <div class="col-md-3">
-                                        <label for="day_rate" class="form-label"><strong>Minimum Base Price</strong><span
+                                        <label for="minimum_cost_price" class="form-label"><strong>Minimum Cost Price</strong><span
                                                 class="text-danger">*</span></label>
-                                        <input type="text" class="form-control" id="day_rate" name="day_rate"
-                                            placeholder="Enter Day Rate" value="{{ old('day_rate') }}" required
+                                        <input type="text" class="form-control js-guide-cost" id="minimum_cost_price" name="minimum_cost_price"
+                                            data-sell-target="day_rate"
+                                            placeholder="Enter Minimum Cost Price" value="{{ old('minimum_cost_price') }}" required
+                                            oninput="validateNumericPrice(this); calculateHourlyCostRates(); applyGuideProfitToSells(true);">
+                                        <small class="validation-message text-danger" id="minimum_cost_price-validation-message"></small>
+                                        @error('minimum_cost_price')
+                                        <div class="text-danger mt-1">{{ $message }}</div>
+                                        @enderror
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label for="day_rate" class="form-label"><strong>Minimum Sell Price</strong><span
+                                                class="text-danger">*</span></label>
+                                        <input type="text" class="form-control js-guide-sell" id="day_rate" name="day_rate"
+                                            placeholder="Enter Minimum Sell Price" value="{{ old('day_rate') }}" required
                                             oninput="validateNumericPrice(this); calculateHourlyRates();">
                                         <small class="validation-message text-danger" id="day_rate-validation-message"></small>
                                         <small class="text-muted">This is the hourly rate - will auto-calculate multi-hour prices below</small>
@@ -561,6 +639,7 @@
                                         <div class="text-danger mt-1">{{ $message }}</div>
                                         @enderror
                                     </div>
+
                                     <!-- night_surcharge -->
                                     <div class="col-md-3">
                                         <label for="night_surcharge" class="form-label"><strong>Night
@@ -592,116 +671,179 @@
                                         @enderror
                                     </div>
 
-                                    <!-- Hourly Price -->
-                                    <div class="col-md-2 mb-3">
-                                        <label for="hourly_price" class="form-label"><strong>Hourly Price</strong><span
-                                                class="text-danger">*</span>
-                                            <i class="fas fa-calculator text-primary ms-1" title="Auto-calculated from base price"></i>
+                                    <!-- Hourly Cost then Sell -->
+                                    <div class="col-md-3 mb-3">
+                                        <label for="hourly_cost_price" class="form-label"><strong>Hourly Cost Price</strong><span class="text-danger">*</span>
+                                            <i class="fas fa-calculator text-primary ms-1" title="Auto-calculated from minimum cost price"></i>
                                         </label>
-                                        <input type="text" class="form-control auto-calculated" id="hourly_price" name="hourly_price"
+                                        <input type="text" class="form-control auto-calculated-cost js-guide-cost" id="hourly_cost_price" name="hourly_cost_price"
+                                            data-sell-target="hourly_price"
+                                            placeholder="Auto-calculated" value="{{ old('hourly_cost_price') }}" required
+                                            oninput="validateNumericPrice(this); applyGuideProfitToSells(true);">
+                                        <small class="validation-message text-danger" id="hourly_cost_price-validation-message"></small>
+                                        <small class="text-muted">Auto-calculated • Editable</small>
+                                        @error('hourly_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                    </div>
+                                    <div class="col-md-3 mb-3">
+                                        <label for="hourly_price" class="form-label"><strong>Hourly Sell Price</strong><span class="text-danger">*</span>
+                                            <i class="fas fa-calculator text-primary ms-1" title="Auto-calculated from minimum sell price"></i>
+                                        </label>
+                                        <input type="text" class="form-control auto-calculated-sell js-guide-sell" id="hourly_price" name="hourly_price"
                                             placeholder="Auto-calculated" value="{{ old('hourly_price') }}" required
                                             oninput="validateNumericPrice(this)">
                                         <small class="validation-message text-danger" id="hourly_price-validation-message"></small>
                                         <small class="text-muted">Auto-calculated • Editable</small>
-                                        @error('hourly_price')
-                                        <div class="text-danger mt-1">{{ $message }}</div>
-                                        @enderror
+                                        @error('hourly_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                     </div>
 
-                                    <!-- Two Hour Price -->
-                                    <div class="col-md-2 mb-3">
-                                        <label for="two_hour_price" class="form-label"><strong>Two Hour
-                                                Price</strong><span class="text-danger">*</span>
-                                            <i class="fas fa-calculator text-primary ms-1" title="Auto-calculated from base price"></i>
+                                    <!-- Two Hour Cost then Sell -->
+                                    <div class="col-md-3 mb-3">
+                                        <label for="two_hour_cost_price" class="form-label"><strong>Two Hour Cost Price</strong><span class="text-danger">*</span>
+                                            <i class="fas fa-calculator text-primary ms-1" title="Auto-calculated from minimum cost price"></i>
                                         </label>
-                                        <input type="text" class="form-control auto-calculated" id="two_hour_price" name="two_hour_price"
+                                        <input type="text" class="form-control auto-calculated-cost js-guide-cost" id="two_hour_cost_price" name="two_hour_cost_price"
+                                            data-sell-target="two_hour_price"
+                                            placeholder="Auto-calculated" value="{{ old('two_hour_cost_price') }}" required
+                                            oninput="validateNumericPrice(this); applyGuideProfitToSells(true);">
+                                        <small class="validation-message text-danger" id="two_hour_cost_price-validation-message"></small>
+                                        <small class="text-muted">Auto-calculated • Editable</small>
+                                        @error('two_hour_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                    </div>
+                                    <div class="col-md-3 mb-3">
+                                        <label for="two_hour_price" class="form-label"><strong>Two Hour Sell Price</strong><span class="text-danger">*</span>
+                                            <i class="fas fa-calculator text-primary ms-1" title="Auto-calculated from minimum sell price"></i>
+                                        </label>
+                                        <input type="text" class="form-control auto-calculated-sell js-guide-sell" id="two_hour_price" name="two_hour_price"
                                             placeholder="Auto-calculated" value="{{ old('two_hour_price') }}" required
                                             oninput="validateNumericPrice(this)">
                                         <small class="validation-message text-danger" id="two_hour_price-validation-message"></small>
                                         <small class="text-muted">Auto-calculated • Editable</small>
-                                        @error('two_hour_price')
-                                        <div class="text-danger mt-1">{{ $message }}</div>
-                                        @enderror
+                                        @error('two_hour_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                     </div>
 
-                                    <!-- Four Hourly Price -->
-                                    <div class="col-md-2 mb-3">
-                                        <label for="four_hour_price" class="form-label"><strong>Four Hour
-                                                Price</strong><span class="text-danger">*</span>
-                                            <i class="fas fa-calculator text-primary ms-1" title="Auto-calculated from base price"></i>
+                                    <!-- Four Hour Cost then Sell -->
+                                    <div class="col-md-3 mb-3">
+                                        <label for="four_hour_cost_price" class="form-label"><strong>Four Hour Cost Price</strong><span class="text-danger">*</span>
+                                            <i class="fas fa-calculator text-primary ms-1" title="Auto-calculated from minimum cost price"></i>
                                         </label>
-                                        <input type="text" class="form-control auto-calculated" id="four_hour_price" name="four_hour_price"
+                                        <input type="text" class="form-control auto-calculated-cost js-guide-cost" id="four_hour_cost_price" name="four_hour_cost_price"
+                                            data-sell-target="four_hour_price"
+                                            placeholder="Auto-calculated" value="{{ old('four_hour_cost_price') }}" required
+                                            oninput="validateNumericPrice(this); applyGuideProfitToSells(true);">
+                                        <small class="validation-message text-danger" id="four_hour_cost_price-validation-message"></small>
+                                        <small class="text-muted">Auto-calculated • Editable</small>
+                                        @error('four_hour_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                    </div>
+                                    <div class="col-md-3 mb-3">
+                                        <label for="four_hour_price" class="form-label"><strong>Four Hour Sell Price</strong><span class="text-danger">*</span>
+                                            <i class="fas fa-calculator text-primary ms-1" title="Auto-calculated from minimum sell price"></i>
+                                        </label>
+                                        <input type="text" class="form-control auto-calculated-sell js-guide-sell" id="four_hour_price" name="four_hour_price"
                                             placeholder="Auto-calculated" value="{{ old('four_hour_price') }}" required
                                             oninput="validateNumericPrice(this)">
                                         <small class="validation-message text-danger" id="four_hour_price-validation-message"></small>
                                         <small class="text-muted">Auto-calculated • Editable</small>
-                                        @error('four_hour_price')
-                                        <div class="text-danger mt-1">{{ $message }}</div>
-                                        @enderror
+                                        @error('four_hour_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                     </div>
 
-                                    <!-- Six Hour Price -->
-                                    <div class="col-md-2 mb-3">
-                                        <label for="six_hour_price" class="form-label"><strong>Six Hour
-                                                Price</strong><span class="text-danger">*</span>
-                                            <i class="fas fa-calculator text-primary ms-1" title="Auto-calculated from base price"></i>
+                                    <!-- Six Hour Cost then Sell -->
+                                    <div class="col-md-3 mb-3">
+                                        <label for="six_hour_cost_price" class="form-label"><strong>Six Hour Cost Price</strong><span class="text-danger">*</span>
+                                            <i class="fas fa-calculator text-primary ms-1" title="Auto-calculated from minimum cost price"></i>
                                         </label>
-                                        <input type="text" class="form-control auto-calculated" id="six_hour_price" name="six_hour_price"
+                                        <input type="text" class="form-control auto-calculated-cost js-guide-cost" id="six_hour_cost_price" name="six_hour_cost_price"
+                                            data-sell-target="six_hour_price"
+                                            placeholder="Auto-calculated" value="{{ old('six_hour_cost_price') }}" required
+                                            oninput="validateNumericPrice(this); applyGuideProfitToSells(true);">
+                                        <small class="validation-message text-danger" id="six_hour_cost_price-validation-message"></small>
+                                        <small class="text-muted">Auto-calculated • Editable</small>
+                                        @error('six_hour_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                    </div>
+                                    <div class="col-md-3 mb-3">
+                                        <label for="six_hour_price" class="form-label"><strong>Six Hour Sell Price</strong><span class="text-danger">*</span>
+                                            <i class="fas fa-calculator text-primary ms-1" title="Auto-calculated from minimum sell price"></i>
+                                        </label>
+                                        <input type="text" class="form-control auto-calculated-sell js-guide-sell" id="six_hour_price" name="six_hour_price"
                                             placeholder="Auto-calculated" value="{{ old('six_hour_price') }}" required
                                             oninput="validateNumericPrice(this)">
                                         <small class="validation-message text-danger" id="six_hour_price-validation-message"></small>
                                         <small class="text-muted">Auto-calculated • Editable</small>
-                                        @error('six_hour_price')
-                                        <div class="text-danger mt-1">{{ $message }}</div>
-                                        @enderror
+                                        @error('six_hour_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                     </div>
 
-                                    <!-- Eight Hour Price -->
-                                    <div class="col-md-2 mb-3">
-                                        <label for="eight_hour_price" class="form-label"><strong>Eight Hour
-                                                Price</strong><span class="text-danger">*</span>
-                                            <i class="fas fa-calculator text-primary ms-1" title="Auto-calculated from base price"></i>
+                                    <!-- Eight Hour Cost then Sell -->
+                                    <div class="col-md-3 mb-3">
+                                        <label for="eight_hour_cost_price" class="form-label"><strong>Eight Hour Cost Price</strong><span class="text-danger">*</span>
+                                            <i class="fas fa-calculator text-primary ms-1" title="Auto-calculated from minimum cost price"></i>
                                         </label>
-                                        <input type="text" class="form-control auto-calculated" id="eight_hour_price" name="eight_hour_price"
+                                        <input type="text" class="form-control auto-calculated-cost js-guide-cost" id="eight_hour_cost_price" name="eight_hour_cost_price"
+                                            data-sell-target="eight_hour_price"
+                                            placeholder="Auto-calculated" value="{{ old('eight_hour_cost_price') }}" required
+                                            oninput="validateNumericPrice(this); applyGuideProfitToSells(true);">
+                                        <small class="validation-message text-danger" id="eight_hour_cost_price-validation-message"></small>
+                                        <small class="text-muted">Auto-calculated • Editable</small>
+                                        @error('eight_hour_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                    </div>
+                                    <div class="col-md-3 mb-3">
+                                        <label for="eight_hour_price" class="form-label"><strong>Eight Hour Sell Price</strong><span class="text-danger">*</span>
+                                            <i class="fas fa-calculator text-primary ms-1" title="Auto-calculated from minimum sell price"></i>
+                                        </label>
+                                        <input type="text" class="form-control auto-calculated-sell js-guide-sell" id="eight_hour_price" name="eight_hour_price"
                                             placeholder="Auto-calculated" value="{{ old('eight_hour_price') }}" required
                                             oninput="validateNumericPrice(this)">
                                         <small class="validation-message text-danger" id="eight_hour_price-validation-message"></small>
                                         <small class="text-muted">Auto-calculated • Editable</small>
-                                        @error('eight_hour_price')
-                                        <div class="text-danger mt-1">{{ $message }}</div>
-                                        @enderror
+                                        @error('eight_hour_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                     </div>
 
-                                    <!-- Ten Hour Price -->
-                                    <div class="col-md-2 mb-3">
-                                        <label for="ten_hour_price" class="form-label"><strong>Ten Hour
-                                                Price</strong><span class="text-danger">*</span>
-                                            <i class="fas fa-calculator text-primary ms-1" title="Auto-calculated from base price"></i>
+                                    <!-- Ten Hour Cost then Sell -->
+                                    <div class="col-md-3 mb-3">
+                                        <label for="ten_hour_cost_price" class="form-label"><strong>Ten Hour Cost Price</strong><span class="text-danger">*</span>
+                                            <i class="fas fa-calculator text-primary ms-1" title="Auto-calculated from minimum cost price"></i>
                                         </label>
-                                        <input type="text" class="form-control auto-calculated" id="ten_hour_price" name="ten_hour_price"
+                                        <input type="text" class="form-control auto-calculated-cost js-guide-cost" id="ten_hour_cost_price" name="ten_hour_cost_price"
+                                            data-sell-target="ten_hour_price"
+                                            placeholder="Auto-calculated" value="{{ old('ten_hour_cost_price') }}" required
+                                            oninput="validateNumericPrice(this); applyGuideProfitToSells(true);">
+                                        <small class="validation-message text-danger" id="ten_hour_cost_price-validation-message"></small>
+                                        <small class="text-muted">Auto-calculated • Editable</small>
+                                        @error('ten_hour_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                    </div>
+                                    <div class="col-md-3 mb-3">
+                                        <label for="ten_hour_price" class="form-label"><strong>Ten Hour Sell Price</strong><span class="text-danger">*</span>
+                                            <i class="fas fa-calculator text-primary ms-1" title="Auto-calculated from minimum sell price"></i>
+                                        </label>
+                                        <input type="text" class="form-control auto-calculated-sell js-guide-sell" id="ten_hour_price" name="ten_hour_price"
                                             placeholder="Auto-calculated" value="{{ old('ten_hour_price') }}" required
                                             oninput="validateNumericPrice(this)">
                                         <small class="validation-message text-danger" id="ten_hour_price-validation-message"></small>
                                         <small class="text-muted">Auto-calculated • Editable</small>
-                                        @error('ten_hour_price')
-                                        <div class="text-danger mt-1">{{ $message }}</div>
-                                        @enderror
+                                        @error('ten_hour_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                     </div>
 
-                                    <!-- Twelve Hourly Price -->
-                                    <div class="col-md-2 mb-3">
-                                        <label for="twelve_hour_price" class="form-label"><strong>Twelve Hour
-                                                Price</strong><span class="text-danger">*</span>
-                                            <i class="fas fa-calculator text-primary ms-1" title="Auto-calculated from base price"></i>
+                                    <!-- Twelve Hour Cost then Sell -->
+                                    <div class="col-md-3 mb-3">
+                                        <label for="twelve_hour_cost_price" class="form-label"><strong>Twelve Hour Cost Price</strong><span class="text-danger">*</span>
+                                            <i class="fas fa-calculator text-primary ms-1" title="Auto-calculated from minimum cost price"></i>
                                         </label>
-                                        <input type="text" class="form-control auto-calculated" id="twelve_hour_price" name="twelve_hour_price"
+                                        <input type="text" class="form-control auto-calculated-cost js-guide-cost" id="twelve_hour_cost_price" name="twelve_hour_cost_price"
+                                            data-sell-target="twelve_hour_price"
+                                            placeholder="Auto-calculated" value="{{ old('twelve_hour_cost_price') }}" required
+                                            oninput="validateNumericPrice(this); applyGuideProfitToSells(true);">
+                                        <small class="validation-message text-danger" id="twelve_hour_cost_price-validation-message"></small>
+                                        <small class="text-muted">Auto-calculated • Editable</small>
+                                        @error('twelve_hour_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                    </div>
+                                    <div class="col-md-3 mb-3">
+                                        <label for="twelve_hour_price" class="form-label"><strong>Twelve Hour Sell Price</strong><span class="text-danger">*</span>
+                                            <i class="fas fa-calculator text-primary ms-1" title="Auto-calculated from minimum sell price"></i>
+                                        </label>
+                                        <input type="text" class="form-control auto-calculated-sell js-guide-sell" id="twelve_hour_price" name="twelve_hour_price"
                                             placeholder="Auto-calculated" value="{{ old('twelve_hour_price') }}" required
                                             oninput="validateNumericPrice(this)">
                                         <small class="validation-message text-danger" id="twelve_hour_price-validation-message"></small>
                                         <small class="text-muted">Auto-calculated • Editable</small>
-                                        @error('twelve_hour_price')
-                                        <div class="text-danger mt-1">{{ $message }}</div>
-                                        @enderror
+                                        @error('twelve_hour_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                     </div>
                                 </div>
                             </fieldset>
@@ -712,6 +854,7 @@
                                         class="text-danger">*</span></label>
                                 <textarea id="summernote" name="about" class="form-control" rows="10"
                                     placeholder="Write About Guide..." required>{{ old('about') }}</textarea>
+                                <div id="about_error" class="text-danger small mt-1 d-none"></div>
                                 @error('about')
                                 <div class="text-danger mt-1">{{ $message }}</div>
                                 @enderror
@@ -732,13 +875,14 @@
 
                     <!-- Submit Buttons -->
                     <div class="d-flex gap-3 mt-4">
-                        <button type="submit" class="btn btn-primary px-4">Save</button>
+                        <x-button-spinner id="saveGuideBtn" class="js-submit-loader-btn" label="Save" loadingText="Saving..." />
                     </div>
             </form>
         </div>
     </div>
 </div>
 <!-- End of the form -->
+<x-form-submit-loader message="Saving..." />
 @endsection
 
 @section('scripts')
@@ -761,6 +905,46 @@ $(document).ready(function() {
             }
         }
     });
+
+    // Summernote hides the textarea, so HTML5 required does not work.
+    function getAboutText() {
+        return $('<div>').html($('#summernote').summernote('code')).text().trim();
+    }
+    function setAboutError(message) {
+        var errorEl = document.getElementById('about_error');
+        var editor = $('#summernote').next('.note-editor');
+        if (!errorEl) return;
+        if (message) {
+            errorEl.textContent = message;
+            errorEl.classList.remove('d-none');
+            editor.css('border-color', '#dc3545');
+        } else {
+            errorEl.classList.add('d-none');
+            errorEl.textContent = '';
+            editor.css('border-color', '');
+        }
+    }
+    $('#guideForm').on('submit', function (e) {
+        if (getAboutText() === '') {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            setAboutError('About is required. Please fill in this field.');
+            var errorEl = document.getElementById('about_error');
+            if (errorEl) {
+                errorEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            return false;
+        }
+        setAboutError('');
+    });
+    $('#summernote').on('summernote.change', function () {
+        if (getAboutText() !== '') {
+            setAboutError('');
+        }
+    });
+    @error('about')
+        setAboutError(@json($message));
+    @enderror
 });
 </script>
 
@@ -769,6 +953,19 @@ $(document).ready(function() {
 
 <script>
     $(document).ready(function() {
+        function initLanguageSelect2(scope) {
+            const $scope = scope ? $(scope) : $(document);
+            $scope.find('select.language-select').each(function () {
+                const $el = $(this);
+                if ($el.hasClass('select2-hidden-accessible')) return; // already initialized
+                $el.select2({
+                    placeholder: "Search and Select Language",
+                    allowClear: true,
+                    width: '100%'
+                });
+            });
+        }
+
         // Initialize Select2 for DMC dropdown
         $('#dmc').select2({
             placeholder: "Search and Select DMC",
@@ -776,14 +973,10 @@ $(document).ready(function() {
             width: '100%'
         });
 
-        // Initialize Select2 for Country dropdown (only for role_id 1 and 20)
-        @if(in_array(auth()->user()->role_id, [1, 20]))
-        $('#country').select2({
-            placeholder: "Search and Select Country",
-            allowClear: true,
-            width: '100%'
-        });
-        @endif
+        // Country's Select2 is initialised once, further down with the city/DMC wiring.
+
+        // Initialize Select2 for Languages dropdown(s)
+        initLanguageSelect2();
     });
 </script>
 
@@ -926,173 +1119,128 @@ $(document).ready(function() {
 
 
 <script>
-        $(document).ready(function() {
-        // Get the user's role ID
-        var userRoleId = {{ auth()->user()->role_id }};
-        
-        // Get the current user's country if they are a DMC
-        var userCountry = "{{ auth()->user()->role_id == 11 ? auth()->user()->country : '' }}";
-        var dmcId = "{{ auth()->user()->role_id == 11 ? auth()->user()->userId : '' }}";
-        
-        // Initialize Select2 for city (disabled until country is selected)
-        @php
-            $isDmcWithCities = in_array(auth()->user()->role_id, [11, 35, 75, 102, 139, 140]) && isset($cities) && count($cities) > 0;
-        @endphp
-        $('#citySelect').select2({
-            placeholder: "Select Country First",
-            allowClear: true,
-            width: '100%',
-            disabled: {{ $isDmcWithCities ? 'false' : 'true' }}
-        });
-        
-        // Check if the user role is DMC (role_id = 11)
-        if (userRoleId == 11) {
-            // Hide the DMC select box
-            $('#dmc-container').hide();
-            $('#dmc').prop('required', false);
-            
-            // Auto-fill the country field with the DMC's country
-            $('#country').val(userCountry);
-            
-            // Load cities for this DMC
-            loadCitiesForDmc(dmcId);
-        } 
-        // Check if the user role is admin or similar roles
-        else if ([1, 2, 3, 4].includes(userRoleId)) {
-            $('#dmc-container').show();
-            $('#dmc').prop('required', true);
-            
-            // When DMC is changed (for admin users)
-            $('#dmc').change(function() {
-                var dmcId = $(this).val();
-                if (dmcId) {
-                    loadCitiesForDmc(dmcId);
-                } else {
-                    // Clear city select and country, disable city field
-                    $('#citySelect').prop('disabled', true).empty().append('<option value="">Select Country First</option>').trigger('change');
-                    $('#country').val('').trigger('change');
-                }
-            });
-        } 
-        // For other roles
-        else {
-            $('#dmc-container').hide();
-            $('#dmc').prop('required', false);
-        }
-        
-        // Function to load cities for DMC
-        function loadCitiesForDmc(dmcId) {
-            if (dmcId) {
-                // Show loading state and disable city field
-                $('#citySelect').prop('disabled', true).empty().append('<option value="">Loading cities...</option>').trigger('change');
-                
-                // Add a debug statement
-                console.log("Loading cities for DMC ID:", dmcId);
-                
-                $.ajax({
-                    url: "{{ route('fetch.cities_countries') }}",
-                    type: "GET",
-                    data: { dmc_id: dmcId },
-                    dataType: 'json',
-                    success: function(response) {
-                        console.log("Response received:", response);
-                        
-                        // Clear loading state
-                        $('#citySelect').empty();
-                        
-                        // Add default option
-                        $('#citySelect').append('<option value="">Select a City</option>');
-                        
-                        // Add cities from response
-                        if (response.cities && response.cities.length > 0) {
-                            $.each(response.cities, function(key, city) {
-                                $('#citySelect').append('<option value="' + city.name + '">' + city.name + '</option>');
-                            });
-                            // Enable city field when cities are loaded
-                            $('#citySelect').prop('disabled', false);
-                        } else {
-                            // No cities found, keep disabled
-                            $('#citySelect').append('<option value="">No cities available</option>');
-                        }
-                        
-                        // Set the country value
-                        if (response.country) {
-                            $('#country').val(response.country).trigger('change');
-                        }
+$(document).ready(function() {
+    var userRoleId = {{ auth()->user()->role_id }};
+    var userCountry = @json($userCountry ?? '');
+    var currentCity = @json(old('city', ''));
 
-                        // Trigger change to refresh Select2
-                        $('#citySelect').trigger('change');
-                    },
-                    error: function(xhr, status, error) {
-                        console.error("Error loading cities:", error);
-                        console.log("XHR Status:", xhr.status);
-                        console.log("Response:", xhr.responseText);
-                        
-                        $('#citySelect').prop('disabled', true).empty().append('<option value="">Error loading cities</option>').trigger('change');
-                    }
-                });
-            } else {
-                // DMC cleared, disable city field
-                $('#citySelect').prop('disabled', true).empty().append('<option value="">Select Country First</option>').trigger('change');
-            }
-        }
-        
-        // Handle country change for role_id 1 and 20 to load cities
-        if ([1, 20].includes(userRoleId)) {
-            $('#country').on('change', function() {
-                var countryName = $(this).val();
-                var selectedCountryValue = $(this).val();
-                
-                if (!selectedCountryValue || selectedCountryValue === '') {
-                    // Country cleared, disable city field
-                    $('#citySelect').prop('disabled', true).empty().append('<option value="">Select Country First</option>').trigger('change');
-                    return;
-                }
-                
-                // Show loading state and disable city field
-                $('#citySelect').prop('disabled', true).empty().append('<option value="">Loading cities...</option>').trigger('change');
-                
-                $.ajax({
-                    url: "{{ route('get.cities.by.country') }}",
-                    type: "GET",
-                    data: { 
-                        country: countryName
-                    },
-                    dataType: 'json',
-                    success: function(response) {
-                        // Clear loading state
-                        $('#citySelect').empty();
-                        
-                        // Add default option
-                        $('#citySelect').append('<option value="">Select a City</option>');
-                        
-                        // Add cities from response
-                        if (response.cities && response.cities.length > 0) {
-                            $.each(response.cities, function(key, city) {
-                                $('#citySelect').append('<option value="' + city.name + '">' + city.name + '</option>');
-                            });
-                            // Enable city field when cities are loaded
-                            $('#citySelect').prop('disabled', false);
-                        } else {
-                            // No cities found, keep disabled
-                            $('#citySelect').append('<option value="">No cities available</option>');
-                        }
-                        
-                        // Trigger change to refresh Select2
-                        $('#citySelect').trigger('change');
-                    },
-                    error: function(xhr, status, error) {
-                        $('#citySelect').prop('disabled', true).empty().append('<option value="">Error loading cities</option>').trigger('change');
-                    }
-                });
-            });
-        }
-        
-        // Initial load: enable city field if DMC has pre-loaded cities
-        @if($isDmcWithCities)
-            $('#citySelect').prop('disabled', false).trigger('change');
-        @endif
+    @php
+        $hasPreloadedCitiesJs = isset($cities) && count($cities) > 0 && filled(old('country'));
+    @endphp
+
+    $('#citySelect').select2({
+        placeholder: "Select Country First",
+        allowClear: true,
+        width: '100%',
+        disabled: {{ $hasPreloadedCitiesJs ? 'false' : 'true' }}
     });
+
+    $('#country').select2({
+        placeholder: "Search and Select Country",
+        allowClear: true,
+        width: '100%'
+    });
+
+    function populateCountryOptions(countries) {
+        var $country = $('#country');
+        $country.empty().append('<option value="">Select Country</option>');
+        $.each(countries || [], function(i, name) {
+            $country.append('<option value="' + name + '">' + name + '</option>');
+        });
+        // The agent picks the country; refresh Select2 only, so no city load is triggered.
+        $country.val('').trigger('change.select2');
+    }
+
+    function loadCitiesByCountry(countryName, preserveCity) {
+        if (!countryName) {
+            $('#citySelect').prop('disabled', true).empty().append('<option value="">Select Country First</option>').trigger('change');
+            return;
+        }
+
+        $('#citySelect').prop('disabled', true).empty().append('<option value="">Loading cities...</option>').trigger('change');
+
+        $.ajax({
+            url: "{{ route('get.cities.by.country') }}",
+            type: "GET",
+            data: { country: countryName },
+            dataType: 'json',
+            success: function(response) {
+                $('#citySelect').empty().append('<option value="">Select a City</option>');
+                if (response.cities && response.cities.length > 0) {
+                    $.each(response.cities, function(key, city) {
+                        var selected = (preserveCity && city.name === currentCity) ? 'selected' : '';
+                        $('#citySelect').append('<option value="' + city.name + '" ' + selected + '>' + city.name + '</option>');
+                    });
+                    $('#citySelect').prop('disabled', false);
+                } else {
+                    $('#citySelect').append('<option value="">No cities available</option>');
+                }
+                $('#citySelect').trigger('change');
+            },
+            error: function() {
+                $('#citySelect').prop('disabled', true).empty().append('<option value="">Error loading cities</option>').trigger('change');
+            }
+        });
+    }
+
+    function loadCountriesAndCitiesForDmc(selectedDmcId) {
+        if (!selectedDmcId) {
+            $('#citySelect').prop('disabled', true).empty().append('<option value="">Select Country First</option>').trigger('change');
+            return;
+        }
+
+        $.ajax({
+            url: "{{ route('fetch.cities_countries') }}",
+            type: "GET",
+            data: { dmc_id: selectedDmcId },
+            dataType: 'json',
+            success: function(response) {
+                var countries = response.countries || (response.country ? [response.country] : []);
+                populateCountryOptions(countries);
+                $('#citySelect').prop('disabled', true).empty()
+                    .append('<option value="">Select Country First</option>').trigger('change');
+            },
+            error: function() {
+                $('#citySelect').prop('disabled', true).empty().append('<option value="">Error loading cities</option>').trigger('change');
+            }
+        });
+    }
+
+    $('#country').on('change', function() {
+        var selectedCountry = $(this).val();
+        if (!selectedCountry) {
+            $('#citySelect').prop('disabled', true).empty().append('<option value="">Select Country First</option>').trigger('change');
+            return;
+        }
+        loadCitiesByCountry(selectedCountry, false);
+    });
+
+    if ([1, 2, 3, 4, 20, 23].includes(userRoleId)) {
+        $('#dmc-container').show();
+        $('#dmc').prop('required', true);
+        $('#dmc').change(function() {
+            var selectedDmcId = $(this).val();
+            if (selectedDmcId) {
+                loadCountriesAndCitiesForDmc(selectedDmcId);
+            } else {
+                $('#citySelect').prop('disabled', true).empty().append('<option value="">Select Country First</option>').trigger('change');
+                $('#country').val('').trigger('change');
+            }
+        });
+    } else {
+        $('#dmc-container').hide();
+        $('#dmc').prop('required', false);
+    }
+
+    var initialCountry = $('#country').val();
+    if (initialCountry) {
+        @if(empty(old('city')) && empty($hasPreloadedCitiesJs))
+            loadCitiesByCountry(initialCountry, true);
+        @else
+            $('#citySelect').prop('disabled', false);
+        @endif
+    }
+});
 </script>
 
 {{-- <script>
@@ -1220,10 +1368,11 @@ $(document).ready(function() {
     
         addMoreBtn.addEventListener("click", function () {
             const newRow = document.createElement("div");
-            newRow.classList.add("language-row", "d-flex", "mb-3");
+            newRow.classList.add("language-row", "row", "g-2", "mb-3", "align-items-end");
     
             newRow.innerHTML = `
                 <div class="col-md-5">
+                    <label class="form-label invisible"><strong>Languages</strong><span class="text-danger">*</span></label>
                     <select class="form-control language-select" name="languages[]" required>
                         <option value="">Select Language</option>
                         @foreach($languages as $c)
@@ -1232,7 +1381,8 @@ $(document).ready(function() {
                     </select>
                 </div>
     
-                <div class="col-md-5 ms-2">
+                <div class="col-md-5">
+                    <label class="form-label invisible"><strong>Proficiency</strong><span class="text-danger">*</span></label>
                     <select class="form-select proficiency-select" name="language_proficiency[]" required>
                         <option value="">Select</option>
                         <option value="Beginner">Beginner</option>
@@ -1243,12 +1393,20 @@ $(document).ready(function() {
                     </select>
                 </div>
     
-                <div class="col-md-2 ms-2 d-flex align-items-end">
+                <div class="col-md-2 d-flex align-items-end">
+                    <label class="form-label invisible">Remove</label>
                     <button type="button" class="btn btn-danger remove-language">Remove</button>
                 </div>
             `;
     
             languageContainer.appendChild(newRow);
+            if (window.jQuery && typeof $(newRow).find('.language-select').select2 === 'function') {
+                $(newRow).find('.language-select').select2({
+                    placeholder: "Search and Select Language",
+                    allowClear: true,
+                    width: '100%'
+                });
+            }
             updateRemoveButtons();
         });
     
@@ -1303,7 +1461,13 @@ $(document).ready(function() {
     licenseDropArea.addEventListener('drop', (e) => {
         e.preventDefault();
         licenseDropArea.style.backgroundColor = 'white';
-        licenseHandleFiles(e.dataTransfer.files);
+        // Ensure dropped files are actually submitted with the form
+        if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) {
+            const dt = new DataTransfer();
+            Array.from(e.dataTransfer.files).forEach((file) => dt.items.add(file));
+            licenseFileInput.files = dt.files;
+        }
+        licenseHandleFiles(licenseFileInput.files);
     });
 
     // Handle file input change
@@ -1430,7 +1594,13 @@ $(document).ready(function() {
     masterDropArea.addEventListener('drop', (e) => {
         e.preventDefault();
         masterDropArea.style.backgroundColor = 'white';
-        masterHandleFiles(e.dataTransfer.files);
+        // Ensure dropped files are actually submitted with the form
+        if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) {
+            const dt = new DataTransfer();
+            Array.from(e.dataTransfer.files).forEach((file) => dt.items.add(file));
+            masterFileInput.files = dt.files;
+        }
+        masterHandleFiles(masterFileInput.files);
     });
 
     // Handle file input change
@@ -1533,43 +1703,10 @@ $(document).ready(function() {
     }
 </script>
 <script>
-    document.getElementById('addmore').addEventListener('click', function() {
-        // Get the container that holds the language and proficiency fields
-        const container = document.getElementById('language-container');
-
-        // Clone the language and proficiency fields
-        const languageField = container.querySelector('.language-fields').cloneNode(true);
-        const proficiencyField = container.querySelector('.proficiency-fields').cloneNode(true);
-
-        // Clear the values for the new fields
-        languageField.querySelector('input').value = '';
-        proficiencyField.querySelector('select').value = '';
-
-        // Create a remove button and append it to the language fields
-        const removeButton = document.createElement('button');
-        removeButton.type = 'button';
-        removeButton.classList.add('btn', 'btn-danger', 'remove-btn');
-        removeButton.textContent = 'Remove';
-
-        // Create a div to hold both language fields and the remove button
-        const fieldsWrapper = document.createElement('div');
-        fieldsWrapper.classList.add('d-flex', 'justify-content-between', 'align-items-center');
-
-        // Append the language field and proficiency field to the wrapper
-        fieldsWrapper.appendChild(languageField);
-        fieldsWrapper.appendChild(proficiencyField);
-        fieldsWrapper.appendChild(removeButton);
-
-        // Append the wrapper to the container
-        container.appendChild(fieldsWrapper);
-
-        // Add event listener for remove button
-        removeButton.addEventListener('click', function() {
-            // Remove the entire wrapper when remove is clicked
-            fieldsWrapper.remove();
-        });
-    });
-</script> 
+    // Note: there is already a working "Add More" implementation above.
+    // This older block referenced `.language-fields` / `.proficiency-fields` which don't exist
+    // and could throw runtime JS errors, so it is intentionally disabled.
+</script>
 
 <script>
     $(document).ready(function() {
@@ -1723,72 +1860,92 @@ const driverAgeRules = {
         }
     }
 
-// Function to calculate hourly rates based on minimum base price
+// Function to calculate hourly sell rates based on minimum sell price
 function calculateHourlyRates() {
     const basePriceInput = document.getElementById('day_rate');
     const basePrice = parseFloat(basePriceInput.value) || 0;
     
     if (basePrice <= 0) {
-        // Clear all hourly rate fields if base price is 0 or invalid
-        clearHourlyRates();
+        clearHourlyRates('sell');
         return;
     }
     
-    // The base price IS the hourly rate (no division needed)
     const hourlyRate = basePrice;
-    
-    // Define the hour multipliers
     const hourMultipliers = {
-        'hourly_price': 1,     // 1 hour = base price × 1
-        'two_hour_price': 2,   // 2 hours = base price × 2
-        'four_hour_price': 4,  // 4 hours = base price × 4
-        'six_hour_price': 6,   // 6 hours = base price × 6
-        'eight_hour_price': 8, // 8 hours = base price × 8
-        'ten_hour_price': 10,  // 10 hours = base price × 10
-        'twelve_hour_price': 12 // 12 hours = base price × 12
+        'hourly_price': 1,
+        'two_hour_price': 2,
+        'four_hour_price': 4,
+        'six_hour_price': 6,
+        'eight_hour_price': 8,
+        'ten_hour_price': 10,
+        'twelve_hour_price': 12
     };
     
-    // Calculate and update each hourly rate field
+    updateCalculatedRates(hourMultipliers, hourlyRate, 'auto-calculated-sell');
+}
+
+// Function to calculate hourly cost rates based on minimum cost price
+function calculateHourlyCostRates() {
+    const baseCostInput = document.getElementById('minimum_cost_price');
+    const baseCost = parseFloat(baseCostInput.value) || 0;
+    
+    if (baseCost <= 0) {
+        clearHourlyRates('cost');
+        return;
+    }
+    
+    const hourlyCostRate = baseCost;
+    const hourMultipliers = {
+        'hourly_cost_price': 1,
+        'two_hour_cost_price': 2,
+        'four_hour_cost_price': 4,
+        'six_hour_cost_price': 6,
+        'eight_hour_cost_price': 8,
+        'ten_hour_cost_price': 10,
+        'twelve_hour_cost_price': 12
+    };
+    
+    updateCalculatedRates(hourMultipliers, hourlyCostRate, 'auto-calculated-cost');
+    if (typeof applyGuideProfitToSells === 'function') {
+        applyGuideProfitToSells(true);
+    }
+}
+
+function updateCalculatedRates(hourMultipliers, baseRate, cssClass) {
     Object.keys(hourMultipliers).forEach(fieldId => {
         const field = document.getElementById(fieldId);
         if (field) {
-            const calculatedValue = Math.round((hourlyRate * hourMultipliers[fieldId]) * 100) / 100;
-            
-            // Only update if the field is empty or if we want to override
-            // You can remove this condition if you always want to override
-            if (field.value === '' || field.classList.contains('auto-calculated')) {
+            const calculatedValue = Math.round((baseRate * hourMultipliers[fieldId]) * 100) / 100;
+            if (field.value === '' || field.classList.contains(cssClass)) {
                 field.value = calculatedValue.toFixed(2);
-                
-                // Add animation class
                 field.classList.add('value-updated');
-                setTimeout(() => {
-                    field.classList.remove('value-updated');
-                }, 800);
-                
-                // Trigger validation for the updated field
+                setTimeout(() => field.classList.remove('value-updated'), 800);
                 validateNumericPrice(field);
             }
         }
     });
 }
 
-// Function to clear all hourly rate fields
-function clearHourlyRates() {
-    const hourlyFields = [
-        'hourly_price', 'two_hour_price', 'four_hour_price', 
+// Function to clear hourly rate fields
+function clearHourlyRates(type) {
+    const sellFields = [
+        'hourly_price', 'two_hour_price', 'four_hour_price',
         'six_hour_price', 'eight_hour_price', 'ten_hour_price', 'twelve_hour_price'
     ];
+    const costFields = [
+        'hourly_cost_price', 'two_hour_cost_price', 'four_hour_cost_price',
+        'six_hour_cost_price', 'eight_hour_cost_price', 'ten_hour_cost_price', 'twelve_hour_cost_price'
+    ];
+    const fields = type === 'cost' ? costFields : (type === 'sell' ? sellFields : sellFields.concat(costFields));
+    const cssClass = type === 'cost' ? 'auto-calculated-cost' : 'auto-calculated-sell';
     
-    hourlyFields.forEach(fieldId => {
+    fields.forEach(fieldId => {
         const field = document.getElementById(fieldId);
-        if (field && field.classList.contains('auto-calculated')) {
+        if (field && field.classList.contains(cssClass)) {
             field.value = '';
-            // Clear any validation states
             field.classList.remove('is-valid', 'is-invalid');
             const messageElement = document.getElementById(`${fieldId}-validation-message`);
-            if (messageElement) {
-                messageElement.innerHTML = '';
-            }
+            if (messageElement) messageElement.innerHTML = '';
         }
     });
 }
@@ -1799,7 +1956,52 @@ document.addEventListener('DOMContentLoaded', function() {
     if (basePriceInput && basePriceInput.value) {
         calculateHourlyRates();
     }
+    const baseCostInput = document.getElementById('minimum_cost_price');
+    if (baseCostInput && baseCostInput.value) {
+        calculateHourlyCostRates();
+    }
+
+    document.querySelectorAll('.js-guide-sell').forEach(function (sellEl) {
+        sellEl.addEventListener('input', function () {
+            sellEl.dataset.userEdited = '1';
+        });
+    });
+    document.querySelectorAll('.js-guide-profit-type, .js-guide-profit-amount').forEach(function (el) {
+        el.addEventListener('input', function () { applyGuideProfitToSells(true); });
+        el.addEventListener('change', function () { applyGuideProfitToSells(true); });
+    });
 });
+
+function applyGuideProfitToSells(force) {
+    function round2(n) {
+        return Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+    }
+    function calcSellFromCost(cost, type, amount) {
+        const c = parseFloat(cost);
+        const a = parseFloat(amount);
+        const costVal = isNaN(c) ? 0 : c;
+        const amtVal = isNaN(a) ? 0 : a;
+        if (costVal <= 0) return 0;
+        if (type === 'flat') return round2(costVal + amtVal);
+        return round2(costVal + (costVal * amtVal / 100));
+    }
+    const typeEl = document.querySelector('.js-guide-profit-type');
+    const amountEl = document.querySelector('.js-guide-profit-amount');
+    const type = typeEl ? typeEl.value : 'percentage';
+    const amount = amountEl ? amountEl.value : 0;
+
+    document.querySelectorAll('.js-guide-cost[data-sell-target]').forEach(function (costEl) {
+        const sellId = costEl.getAttribute('data-sell-target');
+        const sellEl = document.getElementById(sellId);
+        if (!sellEl) return;
+        if (!force && sellEl.dataset.userEdited === '1') return;
+        sellEl.value = calcSellFromCost(costEl.value, type, amount).toFixed(2);
+        sellEl.dataset.userEdited = '';
+        if (typeof validateNumericPrice === 'function') {
+            validateNumericPrice(sellEl);
+        }
+    });
+}
 
 // Add CSS for validation messages and input styles
 document.head.insertAdjacentHTML('beforeend', `
@@ -1952,4 +2154,5 @@ document.head.insertAdjacentHTML('beforeend', `
     });
 </script>
 
+@include('components.currency-price-note-dmc-script')
 @endsection

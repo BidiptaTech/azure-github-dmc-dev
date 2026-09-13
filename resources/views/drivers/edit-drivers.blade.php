@@ -191,20 +191,25 @@
                                 @enderror
                             </div>
 
-                            <!-- Country -->
+                            <!-- Country (Master DMC countries) -->
                             <div class="col-md-3 mb-3">
                                 <label for="country" class="form-label"><strong>Country</strong>
                                     <span style="color: red; font-weight: bold;">*</span>
                                 </label>
-                                <input name="country" class="form-control" type="text" value="{{$driver->country}}" readonly>
-                                {{-- <select class="form-control" id="country" name="country" required>
-                                    <option value="">Select Country</option>
-                                    @foreach($country as $c)
-                                        <option value="{{ $c->name }}" @if(old('country', $driver->country ?? '') == $c->name) selected @endif>
+                                @php
+                                    $scopedCountries = $masterDmcCountries ?? $country ?? collect();
+                                    $editSelectedCountry = old('country', $selectedCountry ?? $driver->country ?? '');
+                                @endphp
+                                <select class="form-control" id="country" name="country" required>
+                                    @if($scopedCountries->count() !== 1)
+                                        <option value="">Select Country</option>
+                                    @endif
+                                    @foreach($scopedCountries as $c)
+                                        <option value="{{ $c->name }}" @if($editSelectedCountry == $c->name) selected @endif>
                                             {{ $c->name }}
                                         </option>
                                     @endforeach
-                                </select> --}}
+                                </select>
                                 @error('country')
                                     <div class="text-danger mt-1">{{ $message }}</div>
                                 @enderror
@@ -214,14 +219,11 @@
                             <div class="col-md-3 mb-3">
                                 <label for="city" class="form-label"><strong>City</strong><span class="text-danger">*</span></label>
                                 <select name="city" id="citySelect" class="form-control" required>
-                                    <option value="{{ $driver->city }}">{{ $driver->city }}</option>
+                                    <option value="">Select City</option>
                                     @foreach($city as $c)
-                                        @if($c->name != $driver->city)
-                                            <option value="{{ $c->name }}">{{ $c->name }}</option>
-                                        @endif
+                                        <option value="{{ $c->name }}" {{ old('city', $driver->city) == $c->name ? 'selected' : '' }}>{{ $c->name }}</option>
                                     @endforeach
                                 </select>
-                                {{-- <input value="{{$driver->city}}" type="text" class="form-control" name="city" placeholder="Enter City" required> --}}
                                 @error('city')
                                     <div class="text-danger mt-1">{{ $message }}</div>
                                 @enderror
@@ -404,11 +406,53 @@
             maxHeight: 500,   
             placeholder: 'Enter your content here...', 
         });
-        // Initialize Select2 for city (only select from existing cities)
+        $('#country').select2({
+            placeholder: "Search and Select Country",
+            allowClear: true,
+            width: '100%'
+        });
         $('#citySelect').select2({
             placeholder: "Search and Select a City",
             allowClear: true,
             width: '100%'
+        });
+
+        var currentCity = @json(old('city', $driver->city ?? ''));
+
+        function loadCitiesByCountry(countryName, preserveCity) {
+            if (!countryName) {
+                $('#citySelect').prop('disabled', true).empty().append('<option value="">Select Country First</option>').trigger('change');
+                return;
+            }
+
+            $('#citySelect').prop('disabled', true).empty().append('<option value="">Loading cities...</option>').trigger('change');
+
+            $.ajax({
+                url: "{{ route('get.cities.by.country') }}",
+                type: "GET",
+                data: { country: countryName },
+                dataType: 'json',
+                success: function(response) {
+                    $('#citySelect').empty().append('<option value="">Select a City</option>');
+                    if (response.cities && response.cities.length > 0) {
+                        $.each(response.cities, function(key, city) {
+                            var selected = (preserveCity && city.name === currentCity) ? 'selected' : '';
+                            $('#citySelect').append('<option value="' + city.name + '" ' + selected + '>' + city.name + '</option>');
+                        });
+                        $('#citySelect').prop('disabled', false);
+                    } else {
+                        $('#citySelect').append('<option value="">No cities available</option>');
+                    }
+                    $('#citySelect').trigger('change');
+                },
+                error: function() {
+                    $('#citySelect').prop('disabled', true).empty().append('<option value="">Error loading cities</option>').trigger('change');
+                }
+            });
+        }
+
+        $('#country').on('change', function() {
+            loadCitiesByCountry($(this).val(), false);
         });
     });
 </script>

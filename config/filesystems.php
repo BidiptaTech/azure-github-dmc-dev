@@ -56,6 +56,7 @@ return [
             'throw' => false,
         ],
         
+        // App uploads (images, documents, category icons, etc.)
         'azure' => [
             'driver'    => 'azure',
             'name'      => env('AZURE_STORAGE_NAME'),
@@ -63,6 +64,16 @@ return [
             'container' => env('AZURE_STORAGE_CONTAINER'),
             'url'       => env('AZURE_STORAGE_ENDPOINT'),
             'endpoint'  => env('AZURE_STORAGE_ENDPOINT'),
+        ],
+
+        // AI / JSON blobs (separate storage account — see AZURE_AI_* in .env)
+        'azure_ai' => [
+            'driver'    => 'azure',
+            'name'      => env('AZURE_AI_STORAGE_NAME'),
+            'key'       => env('AZURE_AI_STORAGE_KEY'),
+            'container' => env('AZURE_AI_STORAGE_CONTAINER'),
+            'url'       => env('AZURE_AI_STORAGE_ENDPOINT'),
+            'endpoint'  => env('AZURE_AI_STORAGE_ENDPOINT'),
         ],
 
     ],

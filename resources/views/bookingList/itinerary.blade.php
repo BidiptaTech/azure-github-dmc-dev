@@ -39,6 +39,12 @@
         --day-5-color: #feca57;
         --day-6-color: #ff9ff3;
         --day-7-color: #54a0ff;
+        /* Keep sticky blocks below the app's fixed top navbar */
+        --itinerary-sticky-top: 63px;
+        --itinerary-header-height: 90px;
+        --itinerary-sidebar-gap: 18px;
+        --itinerary-services-panel-offset: 90px;
+        --itinerary-sidebar-top: calc(var(--itinerary-sticky-top) + var(--itinerary-header-height) + var(--itinerary-sidebar-gap));
     }
     
     .itinerary-container {
@@ -67,8 +73,10 @@
         border-radius: 6px;
         box-shadow: var(--shadow-sm);
         border: 1px solid var(--border-color);
-        position: relative;
-        overflow: hidden;
+        position: sticky;
+        top: var(--itinerary-sticky-top);
+        z-index: 300;
+        overflow: visible;
     }
     
     .itinerary-header::before {
@@ -79,6 +87,7 @@
         right: 0;
         height: 4px;
         background: linear-gradient(90deg, var(--primary-color), var(--primary-light), var(--success-color));
+        z-index: 1;
     }
     
     .header-content {
@@ -86,6 +95,8 @@
         justify-content: space-between;
         align-items: flex-start;
         gap: 24px;
+        position: relative;
+        z-index: 2;
     }
     
     .header-info h4 {
@@ -110,6 +121,8 @@
         display: flex;
         gap: 12px;
         flex-shrink: 0;
+        position: relative;
+        z-index: 2;
     }
     
     .btn-modern {
@@ -153,11 +166,364 @@
         text-decoration: none;
         transform: translateY(-1px);
     }
-    
+
     .timeline-container {
         padding: 0 16px 16px 16px;
         position: relative;
         overflow: visible !important;
+    }
+
+    .itinerary-view-switcher {
+        display: flex;
+        gap: 8px;
+        padding: 0 16px 10px 16px;
+        justify-content: flex-end;
+    }
+
+    .itinerary-view-btn {
+        border: 1px solid #cbd5e1;
+        background: #ffffff;
+        color: #334155;
+        border-radius: 8px;
+        font-size: 12px;
+        font-weight: 600;
+        padding: 6px 10px;
+        cursor: pointer;
+    }
+
+    .itinerary-view-btn.active {
+        background: #334155;
+        color: #ffffff;
+        border-color: #334155;
+    }
+
+    .itinerary-daywise-layout {
+        display: grid;
+        grid-template-columns: 220px 1fr;
+        gap: 12px;
+        align-items: start;
+        min-height: calc(100vh - var(--itinerary-sidebar-top) - 8px);
+    }
+
+    .itinerary-daywise-sidebar {
+        background: #ffffff;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 8px;
+        position: sticky;
+        top: var(--itinerary-sidebar-top);
+        z-index: 290;
+        max-height: none;
+        overflow: visible;
+    }
+
+    .itinerary-daywise-sidebar-title {
+        font-size: 15px;
+        font-weight: 700;
+        color: #3f3f46;
+        margin-bottom: 6px;
+    }
+
+    .itinerary-country-nav-group {
+        margin-bottom: 10px;
+    }
+
+    .itinerary-country-nav-title {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: #71717a;
+        padding: 6px 8px 4px;
+    }
+
+    .itinerary-country-section {
+        margin-bottom: 8px;
+    }
+
+    .itinerary-country-section-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 14px;
+        margin-bottom: 10px;
+        border-radius: 8px;
+        background: linear-gradient(90deg, #f4f4f5 0%, #fafafa 100%);
+        border: 1px solid var(--border-color);
+        border-left: 4px solid var(--primary-color, #2563eb);
+    }
+
+    .itinerary-country-section-header i {
+        color: var(--primary-color, #2563eb);
+        font-size: 16px;
+    }
+
+    .itinerary-country-section-header h3 {
+        margin: 0;
+        font-size: 16px;
+        font-weight: 700;
+        color: #27272a;
+    }
+
+    .itinerary-country-section-header .country-day-count {
+        margin-left: auto;
+        font-size: 12px;
+        color: #71717a;
+        font-weight: 500;
+    }
+
+    .itinerary-container.view-list .itinerary-country-section-header {
+        position: sticky;
+        top: 0;
+        z-index: 5;
+        background: #f4f4f5;
+    }
+
+    .itinerary-container.view-grid .itinerary-country-section {
+        display: contents;
+    }
+
+    .itinerary-container.view-grid .itinerary-country-section-header {
+        grid-column: 1 / -1;
+        margin-bottom: 0;
+    }
+
+    .itinerary-day-btn {
+        width: 100%;
+        border: none;
+        background: transparent;
+        text-align: left;
+        padding: 6px 8px;
+        border-radius: 999px;
+        font-size: 13px;
+        line-height: 1.2;
+        color: #52525b;
+        margin-bottom: 1px;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        cursor: pointer;
+    }
+
+    .itinerary-day-btn::before {
+        content: '';
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #a1a1aa;
+        flex-shrink: 0;
+    }
+
+    .itinerary-day-btn:hover {
+        background: #f4f4f5;
+        color: #27272a;
+    }
+
+    .itinerary-day-btn.active {
+        background: #3f3f46;
+        color: #ffffff;
+        font-weight: 700;
+    }
+
+    .itinerary-day-btn.active::before {
+        background: #ffffff;
+    }
+
+    .itinerary-day-btn.drag-over-day {
+        outline: 2px dashed #2563eb;
+        outline-offset: 2px;
+        background: #eff6ff;
+        color: #1d4ed8;
+    }
+
+    .itinerary-daywise-content .date-container {
+        display: none;
+        margin-bottom: 0;
+    }
+
+    .itinerary-daywise-content {
+        height: calc(100vh - var(--itinerary-sidebar-top) - var(--itinerary-services-panel-offset));
+        max-height: calc(100vh - var(--itinerary-sidebar-top) - var(--itinerary-services-panel-offset));
+        overflow-y: auto;
+        overflow-x: hidden;
+        overscroll-behavior: contain;
+        padding-right: 6px;
+    }
+
+    .itinerary-daywise-content::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .itinerary-daywise-content::-webkit-scrollbar-track {
+        background: #f1f5f9;
+        border-radius: 999px;
+    }
+
+    .itinerary-daywise-content::-webkit-scrollbar-thumb {
+        background: #94a3b8;
+        border-radius: 999px;
+    }
+
+    .itinerary-daywise-content::-webkit-scrollbar-thumb:hover {
+        background: #64748b;
+    }
+
+    .itinerary-daywise-content .date-container.active {
+        display: block;
+    }
+
+    .list-day-heading {
+        display: none;
+        font-size: 13px;
+        font-weight: 700;
+        color: #334155;
+        margin: 2px 0 8px 0;
+        padding: 6px 10px;
+        border: 1px solid #e2e8f0;
+        background: #f8fafc;
+        border-radius: 8px;
+    }
+
+    .itinerary-container.view-list .itinerary-daywise-content .date-container {
+        display: block !important;
+        margin-bottom: 14px;
+    }
+
+    .itinerary-container.view-list .itinerary-daywise-content .list-day-heading {
+        display: block;
+    }
+
+    .itinerary-daywise-content .date-container .timeline-line {
+        display: none;
+    }
+
+    .itinerary-daywise-content .date-container .day-indicator {
+        display: none;
+    }
+
+    .itinerary-daywise-content .date-container .services-list {
+        margin-left: 0;
+        padding-left: 0;
+        margin-top: 0;
+    }
+
+    .itinerary-daywise-content .services-list::before {
+        display: none;
+    }
+
+    /* Grid view: show all cards without day-wise navigation/date emphasis */
+    .itinerary-container.view-grid .itinerary-daywise-layout {
+        grid-template-columns: 1fr;
+        min-height: auto;
+    }
+
+    .itinerary-container.view-grid .itinerary-daywise-sidebar {
+        display: none;
+    }
+
+    .itinerary-container.view-grid .itinerary-daywise-content {
+        height: auto;
+        max-height: none;
+        overflow: visible;
+        padding-right: 0;
+    }
+
+    .itinerary-container.view-grid .itinerary-daywise-content .date-container {
+        display: block !important;
+        margin-bottom: 0;
+    }
+
+    .itinerary-container.view-grid .itinerary-daywise-content .timeline-line,
+    .itinerary-container.view-grid .itinerary-daywise-content .day-indicator,
+    .itinerary-container.view-grid .itinerary-daywise-content .services-list::before {
+        display: none !important;
+    }
+
+    .grid-day-heading {
+        display: none;
+        font-size: 13px;
+        font-weight: 700;
+        color: #334155;
+        margin: 6px 0 8px 0;
+        padding: 6px 10px;
+        border: 1px solid #e2e8f0;
+        background: #f8fafc;
+        border-radius: 8px;
+    }
+
+    .itinerary-container.view-grid .grid-day-heading {
+        display: block;
+    }
+
+    .itinerary-container.view-grid .itinerary-daywise-content .services-list {
+        margin-left: 0;
+        padding-left: 0;
+        margin-bottom: 12px;
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 12px !important;
+    }
+
+    /* Override default list-mode rule that forces all cards into column 1 */
+    .itinerary-container.view-grid .itinerary-daywise-content .services-list > .service-item {
+        grid-column: span 1 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    /* Drop indicators are useful for list drag/drop but should not occupy grid tracks */
+    .itinerary-container.view-grid .itinerary-daywise-content .services-list > .drop-zone-indicator {
+        display: none !important;
+    }
+
+    .itinerary-container.view-grid .drop-zone-indicator {
+        display: none !important;
+    }
+
+    .itinerary-container.view-grid .itinerary-daywise-content .services-list > .service-item {
+        grid-column: auto !important;
+    }
+
+    .itinerary-container.view-grid .itinerary-daywise-content .services-list > .drop-zone-indicator {
+        display: none !important;
+    }
+
+    .itinerary-container.view-grid .date-container .no-service {
+        display: none;
+    }
+
+    @media (max-width: 992px) {
+        .itinerary-daywise-layout {
+            grid-template-columns: 1fr;
+        }
+
+        .itinerary-daywise-sidebar {
+            position: static;
+            max-height: none;
+            overflow: visible;
+        }
+
+        .itinerary-header {
+            position: static;
+        }
+
+        .itinerary-daywise-content .date-container.active {
+            max-height: none;
+            overflow: visible;
+            padding-right: 0;
+        }
+
+        .itinerary-daywise-content {
+            max-height: none;
+            overflow: visible;
+            padding-right: 0;
+        }
+
+        .itinerary-container.view-grid .itinerary-daywise-content .services-list {
+            grid-template-columns: 1fr !important;
+        }
     }
     
     .day-indicator {
@@ -329,7 +695,7 @@
         position: relative;
         overflow: visible !important;
         display: grid !important;
-        grid-template-columns: 1fr 1fr !important;
+        grid-template-columns: 1fr !important;
         grid-auto-flow: row !important; /* Normal flow: left to right, top to bottom */
         gap: 8px 12px !important;
         align-items: start !important;
@@ -348,24 +714,19 @@
         z-index: 1 !important;
     }
     
-    /* Force grid items to alternate columns - pattern: drop-zone (child 1,3,5...), service-item (child 2,4,6...) */
-    /* So service-items at positions 2,6,10... (4n-2) go to column 1, and 4,8,12... (4n) go to column 2 */
-    .services-list > .service-item:nth-child(4n-2) {
+    /* Single card per row */
+    .services-list > .service-item {
         grid-column: 1 !important;
-    }
-    
-    .services-list > .service-item:nth-child(4n) {
-        grid-column: 2 !important;
     }
     
     .service-item {
         background: #ffffff;
-        border: none;
-        border-left: 2px solid #e2e8f0;
-        border-radius: 0;
+        border: 1px solid #cbd5e1;
+        border-left: 3px solid #111827;
+        border-radius: 12px;
         margin-bottom: 0;
         padding: 0;
-        box-shadow: none;
+        box-shadow: 0 1px 0 rgba(15, 23, 42, 0.05);
         transition: all 0.2s ease;
         position: relative;
         overflow: visible !important;
@@ -377,13 +738,13 @@
     }
     
     .service-type-heading {
-        font-size: 9px;
-        font-weight: 600;
+        font-size: 13px;
+        font-weight: 700;
         text-transform: uppercase;
-        color: #64748b;
-        margin-bottom: 3px;
-        letter-spacing: 0.5px;
-        padding: 1px 0;
+        color: #374151;
+        margin-bottom: 0;
+        letter-spacing: 0.4px;
+        padding: 0;
         line-height: 1.2;
     }
     
@@ -477,8 +838,10 @@
 
     
     .service-item:hover {
-        border-left-color: var(--primary-color);
-        background: #f8f9fa;
+        border-left-color: #2563eb;
+        border-color: #94a3b8;
+        box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
+        background: #ffffff;
     }
     
     .service-item:last-child {
@@ -488,10 +851,48 @@
     .service-item-content {
         display: flex;
         align-items: flex-start;
-        padding: 8px 12px;
-        gap: 0;
+        padding: 9px 11px;
+        gap: 14px;
         position: relative;
         min-width: 0 !important; /* Allow flex items to shrink */
+    }
+
+    .service-media-panel {
+        width: 164px;
+        flex-shrink: 0;
+    }
+
+    .service-media-thumb {
+        width: 100%;
+        height: 84px;
+        border-radius: 14px;
+        border: 1px solid #d1d5db;
+        overflow: hidden;
+        background: #f3f4f6;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .service-media-thumb img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        pointer-events: none;
+        -webkit-user-drag: none;
+        user-select: none;
+    }
+
+    .service-media-icon {
+        font-size: 32px;
+        color: #6b7280;
+    }
+
+    .service-media-note {
+        margin-top: 6px;
+        font-size: 11px;
+        color: #6b7280;
+        line-height: 1.3;
     }
     
     .service-right-details {
@@ -559,7 +960,7 @@
     }
     
     .service-item.locked {
-        opacity: 0.9;
+        opacity: 1;
         position: relative;
     }
     
@@ -632,7 +1033,7 @@
     }
     
     .service-header {
-        margin-bottom: 3px;
+        margin-bottom: 4px;
         line-height: 1.2;
     }
     
@@ -645,13 +1046,76 @@
     }
     
     .service-title {
-        font-size: 12px;
-        font-weight: 600;
+        font-size: 15px;
+        font-weight: 700;
         color: var(--text-primary);
-        margin: 0;
+        margin: 0 0 4px 0;
         line-height: 1.2;
         letter-spacing: -0.01em;
-        display: inline;
+        display: block;
+    }
+
+    /* Keep grid cards at current size; only list view should be compacted */
+    .itinerary-container.view-grid .service-item-content {
+        padding: 11px 13px;
+    }
+    .itinerary-container.view-grid .service-media-panel {
+        width: 180px;
+    }
+    .itinerary-container.view-grid .service-media-thumb {
+        height: 94px;
+    }
+    .itinerary-container.view-grid .service-title {
+        font-size: 16px;
+    }
+
+    .service-topline {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 8px;
+        color: #4b5563;
+    }
+
+    .service-topline-icon {
+        color: #4b5563;
+        font-size: 13px;
+        width: 16px;
+        text-align: center;
+        flex-shrink: 0;
+    }
+
+    .service-topline-dot {
+        color: #9ca3af;
+        font-size: 11px;
+        line-height: 1;
+    }
+
+    .service-topline-subtitle {
+        font-size: 12px;
+        color: #334155;
+        font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 45%;
+    }
+
+    .service-topline-chevron {
+        margin-left: auto;
+        color: #6b7280;
+        font-size: 10px;
+    }
+
+    .service-item .service-actions,
+    .service-item .service-action-links {
+        display: none !important;
+    }
+
+    @media (max-width: 900px) {
+        .service-media-panel {
+            display: none;
+        }
     }
     
     .service-details-row {
@@ -670,7 +1134,7 @@
     }
     
     .service-description {
-        color: var(--text-secondary);
+        color: #334155;
         font-size: 12px;
         line-height: 1.4;
         margin: 2px 0 0 0;
@@ -681,7 +1145,7 @@
         margin: 2px 0;
         font-size: 12px;
         line-height: 1.4;
-        color: var(--text-secondary);
+        color: #334155;
     }
     
     .service-detail-line.compact-line {
@@ -698,6 +1162,9 @@
     .guide-details-compact .service-detail-line {
         margin: 0;
         padding: 0;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        word-break: break-word;
     }
     
     .hotel-details-compact .badge,
@@ -904,7 +1371,16 @@
             box-shadow: none !important;
             border: 1px solid #ddd !important;
             margin: 0 0 20px 0 !important;
+            position: static !important;
+            top: auto !important;
             page-break-inside: avoid;
+        }
+
+        .itinerary-daywise-sidebar {
+            position: static !important;
+            top: auto !important;
+            max-height: none !important;
+            overflow: visible !important;
         }
         
         .header-actions {
@@ -1274,6 +1750,11 @@
         border: none !important;
         display: inline-flex;
         align-items: center;
+        max-width: 100%;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+        line-height: 1.25;
     }
     
     .meal-badge i {
@@ -1347,6 +1828,32 @@
         font-weight: 500;
     }
     
+    .guide-summary {
+        background: rgba(248, 250, 252, 0.95);
+        border-radius: 3px;
+        padding: 6px 8px;
+        border-left: 3px solid #6366f1;
+    }
+    /* Compact guide line inside attraction card - small and professional */
+    .guide-inline {
+        font-size: 11px;
+        color: #475569;
+        margin-top: 4px;
+        padding: 4px 0;
+        border-top: 1px solid #e2e8f0;
+    }
+    .guide-inline small {
+        font-size: 11px !important;
+    }
+    .guide-inline .guide-label {
+        color: #64748b;
+        font-weight: 600;
+    }
+    .guide-inline .guide-badge {
+        font-size: 10px;
+        padding: 1px 6px;
+        font-weight: 500;
+    }
     .ticket-summary {
         background: rgba(255, 255, 255, 0.8);
         border-radius: 3px;
@@ -2294,55 +2801,7 @@
 <div class="content-wrapper">
     <div class="container-xxl flex-grow-1 container-p-y">
         <div class="itinerary-container">
-            <!-- Print-only header with company logo -->
-            <div class="print-header print-only">
-                <div class="print-company-info">
-                    <!-- <img src="{{ asset('assets/img/logo.png') }}" alt="Company Logo" class="company-logo-print"> -->
-                    <!-- <h4>{{ config('app.name', 'Coactive Tours & Travel') }}</h4> -->
-                </div>
-                <div>
-                    <h5>
-                        Tour #{{ $tourId }} 
-                        @if(isset($tourDetails->display_id))
-                            ({{ $tourDetails->display_id }})
-                        @endif
-                    </h5>
-                    <p>
-                        @if(isset($tourDetails->destination))
-                            <span class="me-3"><i class="fas fa-map-marker-alt me-1"></i>{{ $tourDetails->destination }}</span>
-                        @endif
-                        
-                        @if(isset($tourDetails->check_in_time) && isset($tourDetails->check_out_time))
-                            <span><i class="fas fa-calendar-alt me-1"></i>
-                            {{ \Carbon\Carbon::parse($tourDetails->check_in_time)->format('d M Y') }} - 
-                            {{ \Carbon\Carbon::parse($tourDetails->check_out_time)->format('d M Y') }}
-                            </span>
-                        @endif
-                    </p>
-                    
-                    @if(isset($customerInfo))
-                        <div class="customer-print-info border-top pt-2 mt-2">
-                            <p class="mb-1">
-                                @if(isset($customerInfo['fullName']))
-                                    <strong>{{ $customerInfo['fullName'] }}</strong>
-                                @endif
-                                
-                                @if(isset($customerInfo['email']))
-                                    <span class="mx-2">|</span>{{ $customerInfo['email'] }}
-                                @endif
-                                
-                                @if(isset($customerInfo['phone']))
-                                    <span class="mx-2">|</span>{{ $customerInfo['phone'] }}
-                                @endif
-                            </p>
-                        </div>
-                    @endif
-                    
-                    <p class="text-muted small mt-2">Generated on {{ now()->format('d M Y') }}</p>
-                </div>
-            </div>
-            
-            <!-- Itinerary Header -->
+         <!-- Itinerary Header -->
             <div class="itinerary-header">
                 <div class="header-content">
                     <div class="header-info">
@@ -2383,22 +2842,27 @@
                         {{-- <a href="{{ route('bookinglist.index') }}" class="btn-modern btn-secondary-modern">
                             <i class="fas fa-arrow-left"></i> Back to Bookings
                         </a> --}}
-                        <button id="downloadText" class="btn-modern btn-secondary-modern">
-                            <i class="fas fa-file-alt"></i> Download Itinerary
-                        </button>
-                        <button id="downloadExcelFormat" class="btn-modern btn-secondary-modern">
-                            <i class="fas fa-file-excel"></i> Download Excel Format
-                        </button>
-                        <button id="downloadPdf" class="btn-modern btn-secondary-modern">
-                            <i class="fas fa-download"></i> Download PDF
-                        </button>
-                        <button id="printItinerary" class="btn-modern btn-primary-modern">
+                        
+                        <!-- <button id="downloadExcelFormat" class="btn-modern btn-secondary-modern">
+                            <i class="fas fa-file-excel"></i> Download Itinerary
+                        </button> -->
+
+                        <a href="{{ route('bookinglist.itinerary.formatted-preview', ['tourId' => \Illuminate\Support\Facades\Crypt::encrypt($tourId)]) }}" class="btn-modern btn-primary-modern">
+                            <i class="fas fa-file-pdf"></i> Download PDF (Formatted)
+                        </a>
+
+                        {{-- <button id="printItinerary" class="btn-modern btn-primary-modern">
                             <i class="fas fa-print"></i> Print Itinerary
-                        </button>
-                    </div>        
+                        </button> --}}
+                    </div>
                 </div>
             </div>
-            
+
+            <div class="itinerary-view-switcher">
+                <button type="button" class="itinerary-view-btn active" data-view="list">List View</button>
+                <button type="button" class="itinerary-view-btn" data-view="grid">Grid View</button>
+            </div>
+
             <!-- Days Timeline -->
             <div class="timeline-container">
                 @php 
@@ -2505,6 +2969,7 @@
                                         $formattedBooking->booking_id = $booking->id . '-' . uniqid();
                                         $formattedBooking->agent_id = $booking->agent_id ?? null;
                                         $formattedBooking->type = $booking->type ?? 'unknown';
+                                        $formattedBooking->country = $booking->country ?? ($item['country'] ?? null);
                                         
                                         // Create a modified copy of the item data with stay info
                                         $itemCopy = $item;
@@ -2569,6 +3034,7 @@
                                     $formattedBooking->booking_id = $booking->id . '-' . uniqid();
                                     $formattedBooking->agent_id = $booking->agent_id ?? null;
                                     $formattedBooking->type = $booking->type ?? 'unknown';
+                                    $formattedBooking->country = $booking->country ?? ($item['country'] ?? null);
                                     
                                     // Create a modified copy of the item data with checkout info
                                     $itemCopy = $item;
@@ -2644,6 +3110,7 @@
                                         $formattedBooking->booking_id = $booking->id . '-' . uniqid(); // Add unique ID to ensure uniqueness
                                         $formattedBooking->agent_id = $booking->agent_id ?? null;
                                         $formattedBooking->type = $booking->type ?? 'unknown';
+                                        $formattedBooking->country = $booking->country ?? ($item['country'] ?? null);
                                         // Store the complete item data
                                         $formattedBooking->data_decoded = [$item];
                                         $formattedBooking->dmc_company = $booking->dmc_company ?? 'N/A';
@@ -2694,12 +3161,194 @@
                     }
                     
                     $dayCount = 1;
+
+                    // Multi-country: Country → Days → Services (single-country keeps flat day list)
+                    $tourCountries = $tourCountries ?? \App\Helpers\CommonHelper::parseTourDestinationCountries($tourDetails->destination ?? null);
+                    $cityCountryMap = $cityCountryMap ?? [];
+                    $isMultiCountry = $isMultiCountry ?? (count($tourCountries) > 1);
+
+                    $dateToGlobalDay = [];
+                    $globalIdx = 1;
+                    foreach ($allDates as $d => $_bookings) {
+                        $dateToGlobalDay[$d] = $globalIdx++;
+                    }
+                    $totalTourDays = count($allDates);
+
+                    $renderDays = [];
+                    if ($isMultiCountry && count($allDates) > 0) {
+                        $itineraryByCountry = [];
+                        foreach ($tourCountries as $countryName) {
+                            $itineraryByCountry[$countryName] = [];
+                        }
+
+                        // Put each service under its own country (no empty days on the wrong country)
+                        foreach ($allDates as $dateStr => $dayBookings) {
+                            foreach ($dayBookings as $bookingItem) {
+                                $resolvedCountry = \App\Helpers\CommonHelper::resolveBookingServiceCountry(
+                                    $bookingItem,
+                                    $tourCountries,
+                                    $cityCountryMap
+                                );
+                                if (!isset($itineraryByCountry[$resolvedCountry])) {
+                                    $itineraryByCountry[$resolvedCountry] = [];
+                                }
+                                if (!isset($itineraryByCountry[$resolvedCountry][$dateStr])) {
+                                    $itineraryByCountry[$resolvedCountry][$dateStr] = [];
+                                }
+                                $itineraryByCountry[$resolvedCountry][$dateStr][] = $bookingItem;
+                            }
+                        }
+
+                        // Drop countries with no services
+                        $countriesWithServices = [];
+                        foreach ($itineraryByCountry as $countryName => $dates) {
+                            if (!empty($dates)) {
+                                $countriesWithServices[$countryName] = $dates;
+                            }
+                        }
+
+                        // Order countries by earliest service date so Aug 01's country comes first
+                        // (not destination CSV order). Tie-break with destination order.
+                        $destinationOrder = [];
+                        foreach ($tourCountries as $idx => $countryName) {
+                            $destinationOrder[$countryName] = $idx;
+                        }
+                        $orderedCountries = array_keys($countriesWithServices);
+                        usort($orderedCountries, function ($a, $b) use ($countriesWithServices, $destinationOrder) {
+                            $aDates = array_keys($countriesWithServices[$a]);
+                            $bDates = array_keys($countriesWithServices[$b]);
+                            sort($aDates);
+                            sort($bDates);
+                            $aFirst = $aDates[0] ?? '9999-12-31';
+                            $bFirst = $bDates[0] ?? '9999-12-31';
+                            if ($aFirst !== $bFirst) {
+                                return strcmp($aFirst, $bFirst);
+                            }
+                            $aOrder = $destinationOrder[$a] ?? 999;
+                            $bOrder = $destinationOrder[$b] ?? 999;
+                            return $aOrder <=> $bOrder;
+                        });
+
+                        $navIndex = 1;
+                        foreach ($orderedCountries as $countryName) {
+                            $countryDates = $countriesWithServices[$countryName];
+                            ksort($countryDates);
+
+                            // Fill gaps only between this country's first and last booked dates
+                            $countryDateKeys = array_keys($countryDates);
+                            if (count($countryDateKeys) > 0) {
+                                $rangeStart = \Carbon\Carbon::parse($countryDateKeys[0]);
+                                $rangeEnd = \Carbon\Carbon::parse($countryDateKeys[count($countryDateKeys) - 1]);
+                                $cursor = $rangeStart->copy();
+                                $filledCountryDates = [];
+                                while ($cursor->lte($rangeEnd)) {
+                                    $ds = $cursor->format('Y-m-d');
+                                    if (array_key_exists($ds, $allDates)) {
+                                        $filledCountryDates[$ds] = $countryDates[$ds] ?? [];
+                                    }
+                                    $cursor->addDay();
+                                }
+                                $countryDates = $filledCountryDates;
+                            }
+
+                            $isFirstInCountry = true;
+                            $countryDayCount = count($countryDates);
+                            $countryDayPos = 0;
+                            foreach ($countryDates as $dateStr => $countryDayBookings) {
+                                $countryDayPos++;
+                                $renderDays[] = [
+                                    'country' => $countryName,
+                                    'date' => $dateStr,
+                                    'bookings' => $countryDayBookings,
+                                    'global_day' => $dateToGlobalDay[$dateStr] ?? $navIndex,
+                                    'nav_index' => $navIndex,
+                                    'is_first_of_country' => $isFirstInCountry,
+                                    'is_last_of_country' => $countryDayPos === $countryDayCount,
+                                    'country_day_count' => $countryDayCount,
+                                ];
+                                $isFirstInCountry = false;
+                                $navIndex++;
+                            }
+                        }
+                    } else {
+                        $navIndex = 1;
+                        foreach ($allDates as $dateStr => $dayBookings) {
+                            $renderDays[] = [
+                                'country' => null,
+                                'date' => $dateStr,
+                                'bookings' => $dayBookings,
+                                'global_day' => $dateToGlobalDay[$dateStr] ?? $navIndex,
+                                'nav_index' => $navIndex,
+                                'is_first_of_country' => false,
+                                'is_last_of_country' => false,
+                                'country_day_count' => 0,
+                            ];
+                            $navIndex++;
+                        }
+                    }
                 @endphp
                     
-                @if(count($allDates) > 0)
-                    @foreach($allDates as $date => $dayBookings)
+                @if(count($renderDays) > 0)
+                    <div class="itinerary-daywise-layout">
+                        <div class="itinerary-daywise-sidebar">
+                            <div class="itinerary-daywise-sidebar-title">{{ $isMultiCountry ? 'Country Plan' : 'Day Plan' }}</div>
+                            @if($isMultiCountry)
+                                @php $sidebarCountry = null; @endphp
+                                @foreach($renderDays as $sidebarDay)
+                                    @if($sidebarCountry !== $sidebarDay['country'])
+                                        @if($sidebarCountry !== null)
+                                            </div>
+                                        @endif
+                                        @php $sidebarCountry = $sidebarDay['country']; @endphp
+                                        <div class="itinerary-country-nav-group">
+                                            <div class="itinerary-country-nav-title">
+                                                <i class="fas fa-globe-asia" style="margin-right:4px;"></i>{{ $sidebarCountry }}
+                                            </div>
+                                    @endif
+                                    <button
+                                        type="button"
+                                        class="itinerary-day-btn {{ $loop->first ? 'active' : '' }}"
+                                        data-day-index="{{ $sidebarDay['nav_index'] }}"
+                                        data-country="{{ $sidebarDay['country'] }}">
+                                        Day {{ $sidebarDay['global_day'] }} · {{ \Carbon\Carbon::parse($sidebarDay['date'])->format('d M, D') }}
+                                    </button>
+                                    @if($loop->last)
+                                        </div>
+                                    @endif
+                                @endforeach
+                            @else
+                                @foreach($renderDays as $sidebarDay)
+                                    <button
+                                        type="button"
+                                        class="itinerary-day-btn {{ $loop->first ? 'active' : '' }}"
+                                        data-day-index="{{ $sidebarDay['nav_index'] }}">
+                                        {{ \Carbon\Carbon::parse($sidebarDay['date'])->format('d M, D') }}
+                                    </button>
+                                @endforeach
+                            @endif
+                        </div>
+
+                        <div class="itinerary-daywise-content">
+                    @foreach($renderDays as $renderDay)
+                        @php
+                            $date = $renderDay['date'];
+                            $dayBookings = $renderDay['bookings'];
+                            $dayCount = $renderDay['global_day'];
+                            $navIndex = $renderDay['nav_index'];
+                            $dayCountry = $renderDay['country'];
+                        @endphp
+
+                        @if($isMultiCountry && !empty($renderDay['is_first_of_country']))
+                            <div class="itinerary-country-section" data-country="{{ $dayCountry }}">
+                                <div class="itinerary-country-section-header">
+                                    <i class="fas fa-map-marker-alt"></i>
+                                    <h3>{{ $dayCountry }}</h3>
+                                    <span class="country-day-count">{{ $renderDay['country_day_count'] }} {{ \Illuminate\Support\Str::plural('day', $renderDay['country_day_count']) }}</span>
+                                </div>
+                        @endif
+
                         <!-- Date Container -->
-                        <div class="date-container drop-zone day-{{ $dayCount > 7 ? (($dayCount - 1) % 7) + 1 : $dayCount }}" data-date="{{ $date }}">
+                        <div class="date-container drop-zone day-{{ $dayCount > 7 ? (($dayCount - 1) % 7) + 1 : $dayCount }} {{ $navIndex === 1 ? 'active' : '' }}" data-date="{{ $date }}" data-day-index="{{ $navIndex }}" @if($dayCountry) data-country="{{ $dayCountry }}" @endif>
                             <div class="timeline-line"></div>
                             
                             <!-- Day Indicator -->
@@ -2713,6 +3362,15 @@
                                     </div>
                                     <span class="day-chevron">▼</span>
                                 </div>
+                            </div>
+
+                            <div class="grid-day-heading">
+                                Day {{ $dayCount }} contains these services
+                                <span class="text-muted">({{ \Carbon\Carbon::parse($date)->format('d M Y') }})</span>
+                            </div>
+
+                            <div class="list-day-heading">
+                                Day {{ $dayCount }} - {{ \Carbon\Carbon::parse($date)->format('d M Y') }}
                             </div>
                             
                             <!-- Services List -->
@@ -2831,7 +3489,7 @@
                                 
                                 // Special handling for entry/exit ports based on day
                                 $isFirstDay = $dayCount == 1;
-                                $isLastDay = $dayCount == count($allDates);
+                                $isLastDay = $dayCount == ($totalTourDays ?? count($allDates));
                                 
                                 // Combine all bookings in the right priority order:
                                 // 1. Entry Port (first day only) 
@@ -3045,11 +3703,43 @@
                                         @endif
                                         
                                         <div class="service-item-content">
+                                            @php
+                                                $serviceImage = $data['image'] ?? $data['service_image'] ?? $data['vehicle_image'] ?? $data['thumbnail'] ?? null;
+                                                if (empty($serviceImage) && isset($data['hotelDetails']) && is_array($data['hotelDetails'])) {
+                                                    $serviceImage = $data['hotelDetails']['image'] ?? $data['hotelDetails']['hotel_image'] ?? null;
+                                                }
+                                                $isTransferService = strpos(strtolower($serviceType), 'transport') !== false || strpos(strtolower($serviceType), 'travel') !== false || strpos(strtolower($serviceType), 'transfer') !== false;
+                                            @endphp
+
+                                            <div class="service-media-panel">
+                                                <div class="service-media-thumb">
+                                                    @if(!empty($serviceImage))
+                                                        <img src="{{ $serviceImage }}" alt="{{ $serviceName }}" draggable="false">
+                                                    @else
+                                                        <span class="service-media-icon">
+                                                            @if($isTransferService)
+                                                                <i class="fas fa-car-side"></i>
+                                                            @elseif(strtolower($serviceType) == 'hotel')
+                                                                <i class="fas fa-hotel"></i>
+                                                            @elseif(strtolower($serviceType) == 'attraction')
+                                                                <i class="fas fa-camera"></i>
+                                                            @else
+                                                                <i class="fas fa-concierge-bell"></i>
+                                                            @endif
+                                                        </span>
+                                                    @endif
+                                                </div>
+                                                @if($isTransferService)
+                                                    <div class="service-media-note">*Within same city pickup &amp; drop will be provided</div>
+                                                @endif
+                                            </div>
+
                                             <!-- Main Content -->
                                             <div class="service-main-content">
                                                 @php
                                                     // Determine service type label
                                                     $serviceTypeLabel = '';
+                                                    $serviceTypeKey = strtolower($serviceType);
                                                     if (strtolower($serviceType) == 'hotel') {
                                                         $serviceTypeLabel = 'Hotel';
                                                     } elseif (strpos(strtolower($serviceType), 'entry') !== false || strtolower($serviceType) == 'arrival') {
@@ -3067,9 +3757,66 @@
                                                     } else {
                                                         $serviceTypeLabel = ucfirst($serviceType);
                                                     }
+
+                                                    // Topline icon by service type
+                                                    $serviceTypeIcon = 'fa-concierge-bell';
+                                                    if ($serviceTypeKey == 'hotel') {
+                                                        $serviceTypeIcon = 'fa-hotel';
+                                                    } elseif (strpos($serviceTypeKey, 'entry') !== false || $serviceTypeKey == 'arrival') {
+                                                        $serviceTypeIcon = 'fa-plane-arrival';
+                                                    } elseif (strpos($serviceTypeKey, 'exit') !== false || $serviceTypeKey == 'departure') {
+                                                        $serviceTypeIcon = 'fa-plane-departure';
+                                                    } elseif (strpos($serviceTypeKey, 'transfer') !== false || strpos($serviceTypeKey, 'travel') !== false || strpos($serviceTypeKey, 'transport') !== false) {
+                                                        $serviceTypeIcon = 'fa-car-side';
+                                                    } elseif ($serviceTypeKey == 'attraction') {
+                                                        $serviceTypeIcon = 'fa-map-marked-alt';
+                                                    } elseif ($serviceTypeKey == 'restaurant') {
+                                                        $serviceTypeIcon = 'fa-utensils';
+                                                    } elseif ($serviceTypeKey == 'guide') {
+                                                        $serviceTypeIcon = 'fa-user-tie';
+                                                    }
                                                 @endphp
                                                 
-                                                <div class="service-type-heading">{{ $serviceTypeLabel }}</div>
+                                                @php
+                                                    // Keep the topline minimal and clean (single short detail only).
+                                                    $serviceSubtitle = '';
+                                                    if ($serviceTypeKey == 'hotel') {
+                                                        $totalNightsMeta = (int)($data['total_nights'] ?? 0);
+                                                        if ($totalNightsMeta > 0) {
+                                                            $serviceSubtitle = $totalNightsMeta . ' ' . ($totalNightsMeta > 1 ? 'nights stay' : 'night stay');
+                                                        }
+                                                    } elseif (strpos($serviceTypeKey, 'transport') !== false || strpos($serviceTypeKey, 'travel') !== false || strpos($serviceTypeKey, 'transfer') !== false) {
+                                                        $metaDropoff = $data['entrydropoff'] ?? $data['dropoffLocation'] ?? $data['dropoff_location'] ?? $data['dropoff'] ?? $data['exitdropoff'] ?? null;
+                                                        $metaPickup = $data['entrypickup'] ?? $data['entry_pickup'] ?? $data['pickup'] ?? $data['exitpickup'] ?? null;
+                                                        if (!empty($metaDropoff)) {
+                                                            $serviceSubtitle = 'Drop to ' . $metaDropoff;
+                                                        } elseif (!empty($metaPickup)) {
+                                                            $serviceSubtitle = 'Pickup from ' . $metaPickup;
+                                                        }
+                                                    } elseif ($serviceTypeKey == 'attraction') {
+                                                        $durationMeta = $data['duration'] ?? $data['hours'] ?? $data['package_hours'] ?? null;
+                                                        if (!empty($durationMeta)) {
+                                                            $serviceSubtitle = $durationMeta . ' hrs';
+                                                        }
+                                                    } elseif ($serviceTypeKey == 'restaurant') {
+                                                        $mealTypeMeta = $data['mealType'] ?? $data['meal_type'] ?? null;
+                                                        if (!empty($mealTypeMeta)) {
+                                                            $serviceSubtitle = ucfirst(strtolower($mealTypeMeta));
+                                                        }
+                                                    } elseif (!empty($pax)) {
+                                                        $serviceSubtitle = $pax . ' Pax';
+                                                    }
+                                                @endphp
+
+                                                <div class="service-topline">
+                                                    <span class="service-topline-icon"><i class="fas {{ $serviceTypeIcon }}"></i></span>
+                                                    <div class="service-type-heading">{{ $serviceTypeLabel }}</div>
+                                                    @if(!empty($serviceSubtitle))
+                                                        <span class="service-topline-dot">•</span>
+                                                        <div class="service-topline-subtitle">{{ $serviceSubtitle }}</div>
+                                                    @endif
+                                                    <span class="service-topline-chevron"><i class="fas fa-chevron-up"></i></span>
+                                                </div>
                                                 
                                                 <div class="service-header">
                                                     @php
@@ -3111,32 +3858,7 @@
                                                             $confirmationNo = $data['confirmationNo'] ?? $data['confirmation_no'] ?? null;
                                                         @endphp
                                                         
-                                                        @if(isset($data['day_in_stay']) && isset($data['total_nights']))
-                                                            @if(isset($data['stay_type']) && $data['stay_type'] == 'checkin')
-                                                                <p class="service-description">
-                                                                    <span class="service-detail-label">Service:</span> {{ $serviceName }}
-                                                                </p>
-                                                                @if(!empty($hotelLocation))
-                                                                    <p class="service-detail-line">
-                                                                        <span class="service-detail-label">Location:</span> {{ $hotelLocation }}
-                                                                    </p>
-                                                                @endif
-                                                                <p class="service-detail-line">
-                                                                    <span class="service-detail-label">Duration:</span> {{ $data['total_nights'] }} {{ $data['total_nights'] > 1 ? 'Nights' : 'Night' }} (Checkout: {{ \Carbon\Carbon::parse($date)->addDays($data['total_nights'])->format('d M Y') }})
-                                                                </p>
-                                                                @if(!empty($confirmationNo))
-                                                                    <p class="service-detail-line">
-                                                                        <span class="service-detail-label">Confirmation No:</span> {{ $confirmationNo }}
-                                                                    </p>
-                                                                @endif
-                                                            @else
-                                                                <p class="service-description">
-                                                                    Day {{ $data['day_in_stay'] }} of {{ $data['total_nights'] }} • {{ $serviceName }}
-                                                                </p>
-                                                            @endif
-                                                        @else
-                                                            <p class="service-description">Hotel accommodation</p>
-                                                        @endif
+                                                        
                                                         
                                                         <!-- Compact Hotel Details - 2 lines -->
                                                         <div class="hotel-details-compact">
@@ -3187,6 +3909,14 @@
                                                                 </p>
                                                             @endif
                                                         </div>
+                                                        @php
+                                                            $hotelRemark = $data['remark'] ?? $data['remarks'] ?? $data['specialRequests'] ?? null;
+                                                        @endphp
+                                                        @if(!empty($hotelRemark))
+                                                            <div class="service-remark">
+                                                                <span class="service-detail-label">Remark:</span> {{ $hotelRemark }}
+                                                            </div>
+                                                        @endif
                                                     @elseif(strtolower($serviceType) == 'guide')
                                                         <p class="service-description">Professional tour guide service</p>
                                                         
@@ -3309,6 +4039,8 @@
                                                             $entryPickup = $entryPortData['entrypickup'] ?? $entryPortData['entry_pickup'] ?? $entryPortData['pickup'] ?? null;
                                                             $entryDropoff = $entryPortData['entrydropoff'] ?? $entryPortData['entry_dropoff'] ?? $entryPortData['dropoff'] ?? null;
                                                             $remark = $entryPortData['remark'] ?? $entryPortData['remarks'] ?? $entryPortData['specialRequests'] ?? null;
+                                                            $arrivalTransportType = $entryPortData['arrival_transport_type'] ?? null;
+                                                            $arrivalFlightNo = $entryPortData['arrival_flight_no'] ?? null;
                                                             $transferType = 'Shared';
                                                             if (isset($entryPortData['transfer_options']['type'])) {
                                                                 $transferType = $entryPortData['transfer_options']['type'];
@@ -3331,6 +4063,14 @@
                                                                 @if(!empty($entryDropoff))
                                                                     <span class="service-detail-label">To:</span> {{ $entryDropoff }}
                                                                 @endif
+                                                                @if(!empty($arrivalTransportType))
+                                                                    <span class="mx-1">•</span>
+                                                                    <span class="service-detail-label">Arrival:</span> {{ ucfirst(strtolower($arrivalTransportType)) }}
+                                                                @endif
+                                                                @if(!empty($arrivalFlightNo))
+                                                                    <span class="mx-1">•</span>
+                                                                    <span class="service-detail-label">Flight No:</span> {{ $arrivalFlightNo }}
+                                                                @endif
                                                             </p>
                                                         @endif
                                                         
@@ -3345,6 +4085,8 @@
                                                             $entryPickup = $exitPortData['exitpickup'] ?? $exitPortData['entry_pickup'] ?? $exitPortData['pickup'] ?? null;
                                                             $entryDropoff = $exitPortData['exitdropoff'] ?? $exitPortData['entry_dropoff'] ?? $exitPortData['dropoff'] ?? null;
                                                             $remark = $exitPortData['remark'] ?? $exitPortData['remarks'] ?? $exitPortData['specialRequests'] ?? null;
+                                                            $departureTransportType = $exitPortData['departure_transport_type'] ?? null;
+                                                            $departureFlightNo = $exitPortData['departure_flight_no'] ?? null;
                                                             $transferType = $exitPortData['type'] ?? null;
                                                             $vehicle = $exitPortData['vehicles_name'] ?? null;
 
@@ -3374,6 +4116,14 @@
                                                                     <span class="mx-1">•</span>
                                                                     <span class="service-detail-label">Travel Type:</span> {{ $transferType }}
                                                                 @endif
+                                                                @if(!empty($departureTransportType))
+                                                                    <span class="mx-1">•</span>
+                                                                    <span class="service-detail-label">Departure:</span> {{ ucfirst(strtolower($departureTransportType)) }}
+                                                                @endif
+                                                                @if(!empty($departureFlightNo))
+                                                                    <span class="mx-1">•</span>
+                                                                    <span class="service-detail-label">Flight No:</span> {{ $departureFlightNo }}
+                                                                @endif
                                                             </p>
                                                         @endif
                                                         
@@ -3394,7 +4144,7 @@
                                                                 $pickupLocation = $transferOptions['pickup_location_name'] ?? '';
                                                                 $transferType = $transferOptions['type'] ?? 'Shared';
                                                                 $transferTypeDisplay = ucfirst($transferType) . ' Transfer';
-                                                                $remark = $data['specialRequests'] ?? null;
+                                                                $remark = $data['remark'] ?? $data['remarks'] ?? $data['specialRequests'] ?? null;
                                                             }
                                                         @endphp
                                                         
@@ -3410,6 +4160,31 @@
                                                                 @endif
                                                                 <span class="service-detail-label">To:</span> {{ $serviceName }}
                                                             </p>
+                                                            
+                                                            @php
+                                                                $guideOptions = $data['guide_options'] ?? null;
+                                                            @endphp
+                                                            @if(!empty($guideOptions) && !empty($guideOptions['guide_required']) && !empty($guideOptions['guide_name']))
+                                                                <div class="guide-inline">
+                                                                    <small>
+                                                                        <i class="fas fa-user-tie me-1"></i>
+                                                                        <span class="guide-label">Guide:</span> {{ $guideOptions['guide_name'] }}
+                                                                        @if(!empty($guideOptions['language']))
+                                                                            <span class="badge guide-badge bg-light text-dark border ms-1">{{ $guideOptions['language'] }}</span>
+                                                                        @endif
+                                                                        @if(!empty($guideOptions['hours']) || !empty($guideOptions['package_hours']))
+                                                                            <span class="text-muted">• {{ $guideOptions['hours'] ?? $guideOptions['package_hours'] }} hr(s)</span>
+                                                                        @endif
+                                                                        @if(!empty($guideOptions['pickup_time']))
+                                                                            @php $pt = $guideOptions['pickup_time']; $pt = preg_match('/^\d{2}:\d{2}/', $pt) ? substr($pt, 0, 5) : $pt; @endphp
+                                                                            <span class="text-muted">• {{ $pt }}</span>
+                                                                        @endif
+                                                                        @if(isset($guideOptions['total_price']) && $priceHide == 0)
+                                                                            <span class="text-success fw-semibold">• SGD {{ number_format((float)$guideOptions['total_price'], 2) }}</span>
+                                                                        @endif
+                                                                    </small>
+                                                                </div>
+                                                            @endif
                                                             
                                                             @if(!empty($remark))
                                                                 <div class="service-remark">
@@ -3546,6 +4321,32 @@
                                                                                     </span>
                                                                                 </div>
                                                                             @endif
+                                                                            
+                                                                            <!-- Guide Details (when guide_options present for this attraction) - compact inline -->
+                                                                            @php
+                                                                                $guideOptions = $attractionData['guide_options'] ?? null;
+                                                                            @endphp
+                                                                            @if(!empty($guideOptions) && !empty($guideOptions['guide_required']) && !empty($guideOptions['guide_name']))
+                                                                                <div class="guide-inline">
+                                                                                    <small>
+                                                                                        <i class="fas fa-user-tie me-1"></i>
+                                                                                        <span class="guide-label">Guide:</span> {{ $guideOptions['guide_name'] }}
+                                                                                        @if(!empty($guideOptions['language']))
+                                                                                            <span class="badge guide-badge bg-light text-dark border ms-1">{{ $guideOptions['language'] }}</span>
+                                                                                        @endif
+                                                                                        @if(!empty($guideOptions['hours']) || !empty($guideOptions['package_hours']))
+                                                                                            <span class="text-muted">• {{ $guideOptions['hours'] ?? $guideOptions['package_hours'] }} hr(s)</span>
+                                                                                        @endif
+                                                                                        @if(!empty($guideOptions['pickup_time']))
+                                                                                            @php $pt = $guideOptions['pickup_time']; $pt = preg_match('/^\d{2}:\d{2}/', $pt) ? substr($pt, 0, 5) : $pt; @endphp
+                                                                                            <span class="text-muted">• {{ $pt }}</span>
+                                                                                        @endif
+                                                                                        @if(isset($guideOptions['total_price']) && $priceHide == 0)
+                                                                                            <span class="text-success fw-semibold">• SGD {{ number_format((float)$guideOptions['total_price'], 2) }}</span>
+                                                                                        @endif
+                                                                                    </small>
+                                                                                </div>
+                                                                            @endif
                                                                         </div>
                                                                     </div>
                                                                 @endif
@@ -3564,7 +4365,7 @@
                                                                 $pickupLocation = $transferOptions['pickup_location_name'] ?? '';
                                                                 $transferType = $transferOptions['type'] ?? 'Shared';
                                                                 $transferTypeDisplay = ucfirst($transferType) . ' Transfer';
-                                                                $remark = $data['specialRequests'] ?? null;
+                                                                $remark = $data['remark'] ?? $data['remarks'] ?? $data['specialRequests'] ?? null;
                                                             }
                                                         @endphp
                                                         
@@ -3801,9 +4602,13 @@
                             
                             </div> <!-- Close services-list -->
                         </div> <!-- Close date-container -->
-                        
-                        @php $dayCount++; @endphp
+
+                        @if($isMultiCountry && !empty($renderDay['is_last_of_country']))
+                            </div> <!-- Close itinerary-country-section -->
+                        @endif
                     @endforeach
+                        </div>
+                    </div>
                 @else
                     <div class="no-service">
                         No itinerary available for this tour.
@@ -3830,6 +4635,115 @@
                 id: item.id
             });
         });
+
+        // Keep service cards read-only in UI: hide/remove inline Change/Remove links if rendered.
+        document.querySelectorAll('.service-item a').forEach((link) => {
+            const label = (link.textContent || '').trim().toUpperCase();
+            if (label === 'CHANGE' || label === 'REMOVE') {
+                link.remove();
+            }
+        });
+
+        // Day-wise itinerary navigation (left list -> right day services).
+        const dayNavButtons = document.querySelectorAll('.itinerary-day-btn[data-day-index]');
+        const dayContainers = document.querySelectorAll('.itinerary-daywise-content .date-container[data-day-index]');
+
+        // Keep sticky offsets in sync with actual header height so sidebar never overlaps header.
+        function syncStickyOffsets() {
+            const root = document.documentElement;
+            const headerEl = document.querySelector('.itinerary-header');
+            if (!root || !headerEl) return;
+            const headerHeight = Math.ceil(headerEl.getBoundingClientRect().height || 0);
+            if (headerHeight > 0) {
+                root.style.setProperty('--itinerary-header-height', `${headerHeight}px`);
+            }
+        }
+        syncStickyOffsets();
+        window.addEventListener('resize', syncStickyOffsets);
+
+        let activateDay = null;
+        const getDateByDayIndex = (dayIndex) => {
+            const container = document.querySelector(`.itinerary-daywise-content .date-container[data-day-index="${dayIndex}"]`);
+            return container ? container.dataset.date : null;
+        };
+        if (dayNavButtons.length > 0 && dayContainers.length > 0) {
+            activateDay = (dayIndex) => {
+                dayNavButtons.forEach((btn) => {
+                    btn.classList.toggle('active', btn.dataset.dayIndex === dayIndex);
+                });
+                dayContainers.forEach((container) => {
+                    container.classList.toggle('active', container.dataset.dayIndex === dayIndex);
+                });
+            };
+
+            dayNavButtons.forEach((btn) => {
+                btn.addEventListener('click', function () {
+                    const dayIndex = this.dataset.dayIndex;
+                    if (itineraryRoot && itineraryRoot.classList.contains('view-list')) {
+                        const target = document.querySelector(`.itinerary-daywise-content .date-container[data-day-index="${dayIndex}"]`);
+                        const scrollHost = document.querySelector('.itinerary-daywise-content');
+                        if (target && scrollHost) {
+                            scrollHost.scrollTo({
+                                top: target.offsetTop - 6,
+                                behavior: 'smooth'
+                            });
+                        }
+                        dayNavButtons.forEach((b) => b.classList.toggle('active', b.dataset.dayIndex === dayIndex));
+                    } else {
+                        activateDay(dayIndex);
+                    }
+                });
+            });
+
+            // Ensure first day remains visible even if markup/state changes dynamically.
+            activateDay(dayNavButtons[0].dataset.dayIndex);
+        }
+
+        // List/Grid view switcher
+        const itineraryRoot = document.querySelector('.itinerary-container');
+        const viewButtons = document.querySelectorAll('.itinerary-view-btn[data-view]');
+        if (itineraryRoot && viewButtons.length > 0) {
+            const applyView = (viewType) => {
+                const isGrid = viewType === 'grid';
+                itineraryRoot.classList.toggle('view-grid', isGrid);
+                itineraryRoot.classList.toggle('view-list', !isGrid);
+                viewButtons.forEach((btn) => {
+                    btn.classList.toggle('active', btn.dataset.view === viewType);
+                });
+                if (!isGrid && dayNavButtons.length > 0) {
+                    dayNavButtons.forEach((b, i) => b.classList.toggle('active', i === 0));
+                }
+            };
+
+            viewButtons.forEach((btn) => {
+                btn.addEventListener('click', function () {
+                    applyView(this.dataset.view);
+                });
+            });
+
+            applyView('list');
+        }
+
+        // In list view, auto-update day selection while scrolling through sequential day sections.
+        const dayScrollHost = document.querySelector('.itinerary-daywise-content');
+        if (dayScrollHost && dayContainers.length > 0 && dayNavButtons.length > 0) {
+            dayScrollHost.addEventListener('scroll', function () {
+                if (!itineraryRoot || !itineraryRoot.classList.contains('view-list')) return;
+                const hostTop = dayScrollHost.getBoundingClientRect().top;
+                let activeIdx = dayContainers[0]?.dataset.dayIndex;
+                dayContainers.forEach((container) => {
+                    const topDiff = container.getBoundingClientRect().top - hostTop;
+                    if (topDiff <= 20) {
+                        activeIdx = container.dataset.dayIndex;
+                    }
+                });
+                if (activeIdx) {
+                    dayNavButtons.forEach((btn) => {
+                        btn.classList.toggle('active', btn.dataset.dayIndex === activeIdx);
+                    });
+                }
+            });
+        }
         
         // Download Text Itinerary functionality
         // Extract customer info and hotel info from bookings BEFORE the function
@@ -3933,6 +4847,18 @@
                                 'state' => $data['state'] ?? $data['city'] ?? 'N/A',
                                 'zip' => $data['zip'] ?? $data['postal_code'] ?? 'N/A',
                             ];
+                        }
+                        
+                        // Extract passengers from booking data if available
+                        if (isset($data['passengers']) && is_array($data['passengers']) && !empty($data['passengers'])) {
+                            if (!isset($pdfCustomerInfo['passengers'])) {
+                                $pdfCustomerInfo['passengers'] = [];
+                            }
+                            foreach ($data['passengers'] as $passenger) {
+                                if (is_array($passenger) && !empty($passenger)) {
+                                    $pdfCustomerInfo['passengers'][] = $passenger;
+                                }
+                            }
                         }
                         
                         $bookingTypeLower = strtolower($bookingType ?? '');
@@ -4147,6 +5073,7 @@
                                 // Set vehicle and driver data to serviceInfo - always set these properties
                                 // This ensures they're available in JavaScript even if data is missing
                                 $serviceInfo['vehicleNumber'] = ($vehicleDriverData && is_array($vehicleDriverData) && isset($vehicleDriverData['vehicleNumber'])) ? $vehicleDriverData['vehicleNumber'] : 'N/A';
+                                $serviceInfo['vehicleName'] = ($vehicleDriverData && is_array($vehicleDriverData) && isset($vehicleDriverData['vehicleName'])) ? $vehicleDriverData['vehicleName'] : 'N/A';
                                 $serviceInfo['maxPassengerCapacity'] = ($vehicleDriverData && is_array($vehicleDriverData) && isset($vehicleDriverData['maxPassengerCapacity'])) ? $vehicleDriverData['maxPassengerCapacity'] : 'N/A';
                                 $serviceInfo['driverName'] = ($vehicleDriverData && is_array($vehicleDriverData) && isset($vehicleDriverData['driverName'])) ? $vehicleDriverData['driverName'] : 'N/A';
                                 $serviceInfo['driverPhone'] = ($vehicleDriverData && is_array($vehicleDriverData) && isset($vehicleDriverData['driverPhone'])) ? $vehicleDriverData['driverPhone'] : 'N/A';
@@ -4165,6 +5092,7 @@
                                 // Set vehicle and driver data to serviceInfo
                                 if ($vehicleDriverData && is_array($vehicleDriverData) && !empty($vehicleDriverData)) {
                                     $serviceInfo['vehicleNumber'] = $vehicleDriverData['vehicleNumber'] ?? 'N/A';
+                                    $serviceInfo['vehicleName'] = $vehicleDriverData['vehicleName'] ?? 'N/A';
                                     $serviceInfo['maxPassengerCapacity'] = $vehicleDriverData['maxPassengerCapacity'] ?? 'N/A';
                                     $serviceInfo['driverName'] = $vehicleDriverData['driverName'] ?? 'N/A';
                                     $serviceInfo['driverPhone'] = $vehicleDriverData['driverPhone'] ?? 'N/A';
@@ -4218,6 +5146,7 @@
                                 // Set vehicle and driver data to serviceInfo - always set these properties
                                 // This ensures they're available in JavaScript even if data is missing
                                 $serviceInfo['vehicleNumber'] = ($vehicleDriverData && is_array($vehicleDriverData) && isset($vehicleDriverData['vehicleNumber'])) ? $vehicleDriverData['vehicleNumber'] : 'N/A';
+                                $serviceInfo['vehicleName'] = ($vehicleDriverData && is_array($vehicleDriverData) && isset($vehicleDriverData['vehicleName'])) ? $vehicleDriverData['vehicleName'] : 'N/A';
                                 $serviceInfo['maxPassengerCapacity'] = ($vehicleDriverData && is_array($vehicleDriverData) && isset($vehicleDriverData['maxPassengerCapacity'])) ? $vehicleDriverData['maxPassengerCapacity'] : 'N/A';
                                 $serviceInfo['driverName'] = ($vehicleDriverData && is_array($vehicleDriverData) && isset($vehicleDriverData['driverName'])) ? $vehicleDriverData['driverName'] : 'N/A';
                                 $serviceInfo['driverPhone'] = ($vehicleDriverData && is_array($vehicleDriverData) && isset($vehicleDriverData['driverPhone'])) ? $vehicleDriverData['driverPhone'] : 'N/A';
@@ -4254,6 +5183,7 @@
                                 // Set vehicle and driver data to serviceInfo - always set these properties
                                 // This ensures they're available in JavaScript even if data is missing
                                 $serviceInfo['vehicleNumber'] = ($vehicleDriverData && is_array($vehicleDriverData) && isset($vehicleDriverData['vehicleNumber'])) ? $vehicleDriverData['vehicleNumber'] : 'N/A';
+                                $serviceInfo['vehicleName'] = ($vehicleDriverData && is_array($vehicleDriverData) && isset($vehicleDriverData['vehicleName'])) ? $vehicleDriverData['vehicleName'] : 'N/A';
                                 $serviceInfo['maxPassengerCapacity'] = ($vehicleDriverData && is_array($vehicleDriverData) && isset($vehicleDriverData['maxPassengerCapacity'])) ? $vehicleDriverData['maxPassengerCapacity'] : 'N/A';
                                 $serviceInfo['driverName'] = ($vehicleDriverData && is_array($vehicleDriverData) && isset($vehicleDriverData['driverName'])) ? $vehicleDriverData['driverName'] : 'N/A';
                                 $serviceInfo['driverPhone'] = ($vehicleDriverData && is_array($vehicleDriverData) && isset($vehicleDriverData['driverPhone'])) ? $vehicleDriverData['driverPhone'] : 'N/A';
@@ -4275,6 +5205,7 @@
         // Store extracted data in JavaScript variables (available globally)
         const pdfCustomerInfo = @json($pdfCustomerInfo ?? []);
         const pdfAllServices = @json($pdfAllServices ?? []);
+        const allPassengersFromTour = @json($allPassengers ?? []);
         console.log('pdfAllServices', pdfAllServices);
         const pdfDebugInfo = {
             itineraryCount: @json($pdfDebugItineraryCount ?? 0),
@@ -5177,8 +6108,8 @@
                 // Page dimensions (landscape A4)
                 const pageWidth = 297; // A4 landscape width in mm
                 const pageHeight = 210; // A4 landscape height in mm
-                const leftMargin = 5;
-                const rightMarginValue = 5; // Actual right margin value
+                const leftMargin = 10; // Increased from 5 to reduce usable width
+                const rightMarginValue = 10; // Increased from 5 to reduce usable width
                 const rightMargin = pageWidth - rightMarginValue; // Right edge position
                 const topMargin = 5;
                 const bottomMargin = pageHeight - 5;
@@ -5194,6 +6125,40 @@
                         return true;
                     }
                     return false;
+                };
+                
+                // Helper function to safely draw rectangles with validation
+                const safeRect = (x, y, width, height) => {
+                    try {
+                        const validX = (typeof x === 'number' && !isNaN(x) && isFinite(x)) ? Math.max(0, x) : 0;
+                        const validY = (typeof y === 'number' && !isNaN(y) && isFinite(y)) ? Math.max(0, y) : 0;
+                        const validWidth = (typeof width === 'number' && !isNaN(width) && isFinite(width) && width > 0) ? width : 1;
+                        const validHeight = (typeof height === 'number' && !isNaN(height) && isFinite(height) && height > 0) ? height : 1;
+                        pdf.rect(validX, validY, validWidth, validHeight);
+                    } catch (error) {
+                        console.error('Error drawing rect:', error, { x, y, width, height });
+                    }
+                };
+                
+                // Helper function to safely draw rounded rectangles with validation
+                const safeRoundedRect = (x, y, width, height, radius = 2) => {
+                    try {
+                        const validX = (typeof x === 'number' && !isNaN(x) && isFinite(x)) ? Math.max(0, x) : 0;
+                        const validY = (typeof y === 'number' && !isNaN(y) && isFinite(y)) ? Math.max(0, y) : 0;
+                        const validWidth = (typeof width === 'number' && !isNaN(width) && isFinite(width) && width > 0) ? width : 1;
+                        const validHeight = (typeof height === 'number' && !isNaN(height) && isFinite(height) && height > 0) ? height : 1;
+                        const validRadius = (typeof radius === 'number' && !isNaN(radius) && isFinite(radius) && radius > 0) ? Math.min(radius, Math.min(validWidth, validHeight) / 2) : 2;
+                        if (typeof pdf.roundedRect === 'function') {
+                            pdf.roundedRect(validX, validY, validWidth, validHeight, validRadius, validRadius);
+                        } else {
+                            // Fallback to regular rect if roundedRect is not available
+                            pdf.rect(validX, validY, validWidth, validHeight);
+                        }
+                    } catch (error) {
+                        console.error('Error drawing rounded rect:', error, { x, y, width, height, radius });
+                        // Fallback to regular rect
+                        safeRect(x, y, width, height);
+                    }
                 };
                 
                 // Helper function to draw a cell with border and text (Excel-like)
@@ -5270,212 +6235,287 @@
                     }
                 };
                 
-                // HEADER SECTION - Compact Premium Style (Optimized for single page)
-                // Logo at top center (circular wrapper)
-                const logoSize = 20; // mm - increased size for better visibility
-                const logoRadius = logoSize / 2;
-                const logoCenterX = pageWidth / 2;
+                // HEADER SECTION - Matching Quotation Format
+                // Logo on left, Title in center
+                const logoSize = 15; // mm
+                const logoX = leftMargin;
                 const logoY = yPos;
                 
                 if (logoDataUrl) {
                     try {
-                        // Draw circular background for logo
-                        pdf.setFillColor(255, 255, 255);
-                        pdf.setDrawColor(220, 220, 220);
-                        pdf.setLineWidth(0.5);
-                        pdf.circle(logoCenterX, logoY + logoRadius, logoRadius, 'FD');
-                        
-                        // Add logo image
-                        const logoImageSize = logoSize - 4;
-                        const logoImageX = logoCenterX - (logoImageSize / 2);
-                        const logoImageY = logoY + 2;
-                        pdf.addImage(logoDataUrl, 'PNG', logoImageX, logoImageY, logoImageSize, logoImageSize, undefined, 'FAST');
+                        pdf.addImage(logoDataUrl, 'PNG', logoX, logoY, logoSize, logoSize, undefined, 'FAST');
                     } catch (logoError) {
                         console.warn('Could not add logo to PDF:', logoError);
                     }
                 }
                 
-                yPos += logoSize + 8; // Spacing after logo (increased for better visual separation)
-                
-                // Title: TOUR ITINERARY
-                pdf.setFontSize(20);
+                // Title: TOUR ITINERARY (centered)
+                pdf.setFontSize(22);
                 pdf.setFont('helvetica', 'bold');
                 pdf.setTextColor(44, 62, 80);
-                pdf.text('TOUR ITINERARY', pageWidth / 2, yPos, { align: 'center' });
-                yPos += 6;
+                pdf.text('TOUR ITINERARY', pageWidth / 2, logoY + logoSize / 2 + 2, { align: 'center' });
                 
-                // DMC Name
+                yPos += logoSize + 5; // Spacing after header
+                
+                // Draw border line below header
+                pdf.setDrawColor(221, 221, 221);
+                pdf.setLineWidth(0.5);
+                pdf.line(leftMargin, yPos, pageWidth - rightMarginValue, yPos);
+                yPos += 10; // Increased padding after header border
+                
+                // Company Contact Information Section
                 const dmcName = (userDmc && userDmc.company_name) ? userDmc.company_name : 
                                (userDmc && userDmc.name) ? userDmc.name : 
-                               'DMC';
-                pdf.setFontSize(10);
+                               'DMC Name';
+                const dmcAddress = (userDmc && userDmc.address) ? userDmc.address : 'N/A';
+                const dmcTel = (userDmc && userDmc.tel) ? userDmc.tel : 
+                              (userDmc && userDmc.telephone) ? userDmc.telephone :
+                              (userDmc && userDmc.phone) ? userDmc.phone : 'N/A';
+                const dmcFax = (userDmc && userDmc.fax) ? userDmc.fax : 'N/A';
+                const dmcEmail = (userDmc && userDmc.email) ? userDmc.email : 
+                                (userDmc && userDmc.company_email) ? userDmc.company_email : 'N/A';
+                
+                pdf.setFontSize(12);
                 pdf.setFont('helvetica', 'bold');
                 pdf.setTextColor(44, 62, 80);
-                pdf.text(dmcName, pageWidth / 2, yPos, { align: 'center' });
-                yPos += 4;
+                pdf.text(dmcName, leftMargin, yPos);
+                yPos += 5;
                 
-                // Tour ID
-                pdf.setFontSize(9);
+                pdf.setFontSize(10);
                 pdf.setFont('helvetica', 'normal');
                 pdf.setTextColor(33, 37, 41);
-                pdf.text('Tour ID: ' + (displayId || tourId || 'DRAFT'), pageWidth / 2, yPos, { align: 'center' });
-                yPos += 7; // Compact spacing before tables
+                let companyDetailsY = yPos;
+                pdf.text(dmcAddress, leftMargin, companyDetailsY);
+                companyDetailsY += 5;
+                pdf.text('Tel: ' + dmcTel, leftMargin, companyDetailsY);
+                if (dmcFax !== 'N/A') {
+                    companyDetailsY += 5;
+                    pdf.text('Fax: ' + dmcFax, leftMargin, companyDetailsY);
+                }
+                companyDetailsY += 5;
+                pdf.text('Email: ' + dmcEmail, leftMargin, companyDetailsY);
+                yPos = companyDetailsY + 5; // Increased padding after company info
                 
-                // Client/Guest Information Table (Compact Premium format with parameter-value pairs)
-                const clientTableBody = [
-                    [{content: 'Client/Guest Information:', colSpan: 4, styles: {fontStyle: 'bold', fontSize: 9, textColor: [44, 62, 80], fillColor: [240, 248, 255]}}],
+                // Two Side-by-Side Panels - Matching Quotation Format
+                const panelStartY = yPos;
+                const gapBetweenPanels = 6;
+                const availableWidth = pageWidth - leftMargin - rightMarginValue - gapBetweenPanels;
+                const leftPanelWidth = availableWidth * 0.52; // 52% for left panel (matching quotation)
+                const rightPanelWidth = availableWidth * 0.48; // 48% for right panel (matching quotation)
+                
+                // Panel styling constants (shared by both panels)
+                const cornerRadius = 2.5; // mm - matching quotation border-radius: 10px
+                const headerHeight = 8;
+                
+                // Left Panel: BOOKING & PROPOSAL DETAILS
+                // Matching quotation format: Two internal columns (Left: Booking fields, Right: Proposal fields)
+                const leftPanelX = leftMargin;
+                
+                // Build left panel body with 4 columns (2 internal columns, each with label and value)
+                const leftPanelBody = [
+                    [{content: 'BOOKING & PROPOSAL DETAILS', colSpan: 4, styles: {fontStyle: 'bold', fontSize: 10, textColor: [255, 255, 255], fillColor: [160, 174, 192], halign: 'center', cellPadding: {top: 3, bottom: 3, left: 2, right: 2}}}],
+                    // Row 1: Booking ID (left) | Value | Proposal Date (right) | Value
                     [
-                        {content: 'Lead Guest:', styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], fontSize: 9}},
-                        {content: (customerInfo.fullName || 'N/A'), styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}},
-                        {content: 'Address:', styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], fontSize: 9}},
-                        {content: (customerInfo.address || customerInfo.address1 || 'N/A'), styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}},
-                        
+                        {content: 'Booking ID:', styles: {fontStyle: 'normal', fontSize: 10, textColor: [100, 116, 139], fillColor: [245, 247, 248], cellPadding: {top: 2, bottom: 2, left: 1, right: 1}}},
+                        {content: (displayId || tourId || 'N/A'), styles: {fontStyle: 'bold', fontSize: 10, textColor: [15, 23, 42], fillColor: [255, 255, 255], cellPadding: {top: 2, bottom: 2, left: 1, right: 1}}},
+                        {content: 'Proposal Date:', styles: {fontStyle: 'normal', fontSize: 10, textColor: [100, 116, 139], fillColor: [245, 247, 248], cellPadding: {top: 2, bottom: 2, left: 1, right: 1}}},
+                        {content: formatDate(new Date()), styles: {fontStyle: 'bold', fontSize: 10, textColor: [15, 23, 42], fillColor: [255, 255, 255], cellPadding: {top: 2, bottom: 2, left: 1, right: 1}}}
                     ],
+                    // Row 2: Lead Guest (left) | Value | Proposal Validity (right) | Value
                     [
-                        {content: 'State:', styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], fontSize: 9}},
-                        {content: (customerInfo.city || customerInfo.state || 'N/A'), styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}},
-                        {content: 'Postal Code:', styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], fontSize: 9}},
-                        {content: (customerInfo.postal_code || customerInfo.zip || 'N/A'), styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}}
+                        {content: 'Lead Guest:', styles: {fontStyle: 'normal', fontSize: 10, textColor: [100, 116, 139], fillColor: [245, 247, 248], cellPadding: {top: 2, bottom: 2, left: 1, right: 1}}},
+                        {content: (customerInfo.fullName || 'N/A'), styles: {fontStyle: 'bold', fontSize: 10, textColor: [15, 23, 42], fillColor: [255, 255, 255], cellPadding: {top: 2, bottom: 2, left: 1, right: 1}}},
+                        {content: 'Proposal Validity:', styles: {fontStyle: 'normal', fontSize: 10, textColor: [100, 116, 139], fillColor: [245, 247, 248], cellPadding: {top: 2, bottom: 2, left: 1, right: 1}}},
+                        {content: 'N/A', styles: {fontStyle: 'bold', fontSize: 10, textColor: [15, 23, 42], fillColor: [255, 255, 255], cellPadding: {top: 2, bottom: 2, left: 1, right: 1}}}
                     ],
+                    // Row 3: Adults (left) | Value | Proposal Sent By (right) | Value
                     [
-                        {content: 'Email:', styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], fontSize: 9}},
-                        {content: (customerInfo.email || 'N/A'), styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}},
-                        {content: 'Phone:', styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], fontSize: 9}},
-                        {content: (customerInfo.phone || 'N/A'), styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}}
+                        {content: 'Adults:', styles: {fontStyle: 'normal', fontSize: 10, textColor: [100, 116, 139], fillColor: [245, 247, 248], cellPadding: {top: 2, bottom: 2, left: 1, right: 1}}},
+                        {content: (tourDetails && tourDetails.adult ? tourDetails.adult : (customerInfo.adults || customerInfo.adultCount || 0)).toString(), styles: {fontStyle: 'bold', fontSize: 12, textColor: [15, 23, 42], fillColor: [255, 255, 255], cellPadding: {top: 2, bottom: 2, left: 1, right: 1}}},
+                        {content: 'Proposal Sent By:', styles: {fontStyle: 'normal', fontSize: 10, textColor: [100, 116, 139], fillColor: [245, 247, 248], cellPadding: {top: 2, bottom: 2, left: 1, right: 1}}},
+                        {content: (userDmc && userDmc.name) ? userDmc.name : ((userDmc && userDmc.company_name) ? userDmc.company_name : 'N/A'), styles: {fontStyle: 'bold', fontSize: 10, textColor: [15, 23, 42], fillColor: [255, 255, 255], cellPadding: {top: 2, bottom: 2, left: 1, right: 1}}}
                     ],
+                    // Row 4: Children (left) | Value | Empty | Empty
                     [
-                        {content: 'Booking ID:', styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], fontSize: 9}},
-                        {content: (displayId || tourId || 'N/A'), styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}},
-                        {content: 'No. of Adults:', styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], fontSize: 9}},
-                        {content: (tourDetails && tourDetails.adult ? tourDetails.adult : (customerInfo.adults || customerInfo.adultCount || 0)).toString(), styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}}
+                        {content: 'Children:', styles: {fontStyle: 'normal', fontSize: 10, textColor: [100, 116, 139], fillColor: [245, 247, 248], cellPadding: {top: 2, bottom: 2, left: 1, right: 1}}},
+                        {content: (tourDetails && tourDetails.child ? tourDetails.child : (customerInfo.children || customerInfo.childCount || 0)).toString(), styles: {fontStyle: 'bold', fontSize: 12, textColor: [15, 23, 42], fillColor: [255, 255, 255], cellPadding: {top: 2, bottom: 2, left: 1, right: 1}}},
+                        {content: '', styles: {fontStyle: 'normal', fontSize: 10, textColor: [15, 23, 42], fillColor: [255, 255, 255], cellPadding: {top: 2, bottom: 2, left: 1, right: 1}}},
+                        {content: '', styles: {fontStyle: 'normal', fontSize: 10, textColor: [15, 23, 42], fillColor: [255, 255, 255], cellPadding: {top: 2, bottom: 2, left: 1, right: 1}}}
                     ],
+                    // Row 5: Infants (left) | Value | Empty | Empty
                     [
-                        {content: 'No. of Children:', styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], fontSize: 9}},
-                        {content: (tourDetails && tourDetails.child ? tourDetails.child : (customerInfo.children || customerInfo.childCount || 0)).toString(), styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}},
-                        {content: 'No. of Infants:', styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], fontSize: 9}},
-                        {content: (tourDetails && tourDetails.infant ? tourDetails.infant : (customerInfo.infants || customerInfo.infantCount || 0)).toString(), styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}}
+                        {content: 'Infants:', styles: {fontStyle: 'normal', fontSize: 10, textColor: [100, 116, 139], fillColor: [245, 247, 248], cellPadding: {top: 2, bottom: 2, left: 1, right: 1}}},
+                        {content: (tourDetails && tourDetails.infant ? tourDetails.infant : (customerInfo.infants || customerInfo.infantCount || 0)).toString(), styles: {fontStyle: 'bold', fontSize: 12, textColor: [15, 23, 42], fillColor: [255, 255, 255], cellPadding: {top: 2, bottom: 2, left: 1, right: 1}}},
+                        {content: '', styles: {fontStyle: 'normal', fontSize: 10, textColor: [15, 23, 42], fillColor: [255, 255, 255], cellPadding: {top: 2, bottom: 2, left: 1, right: 1}}},
+                        {content: '', styles: {fontStyle: 'normal', fontSize: 10, textColor: [15, 23, 42], fillColor: [255, 255, 255], cellPadding: {top: 2, bottom: 2, left: 1, right: 1}}}
                     ]
                 ];
                 
+                // Draw left panel background first (estimate height) with rounded corners
+                const estimatedLeftHeight = 50;
+                
+                // Draw panel background with rounded corners
+                pdf.setFillColor(245, 247, 248);
+                pdf.setDrawColor(224, 224, 224);
+                pdf.setLineWidth(0.1);
+                safeRoundedRect(leftPanelX, panelStartY, leftPanelWidth, estimatedLeftHeight, cornerRadius);
+                pdf.fillStroke();
+                
+                // Draw header background with rounded top corners
+                pdf.setFillColor(160, 174, 192); // #a0aec0
+                pdf.setDrawColor(160, 174, 192);
+                pdf.setLineWidth(0.1);
+                // Draw rounded rectangle for header (only top corners rounded)
+                if (typeof pdf.roundedRect === 'function') {
+                    pdf.roundedRect(leftPanelX, panelStartY, leftPanelWidth, headerHeight, cornerRadius, cornerRadius);
+                    pdf.fillStroke();
+                } else {
+                    safeRect(leftPanelX, panelStartY, leftPanelWidth, headerHeight);
+                    pdf.fillStroke();
+                }
+                
                 pdf.autoTable({
-                    startY: yPos,
-                    margin: { left: leftMargin, right: rightMarginValue },
-                    theme: 'grid',
+                    startY: panelStartY,
+                    margin: { left: leftPanelX, right: pageWidth - leftPanelX - leftPanelWidth },
+                    theme: 'plain',
                     tableLineWidth: 0,
-                    headStyles: { fillColor: [240, 248, 255], textColor: [44, 62, 80], fontStyle: 'bold', fontSize: 9, lineWidth: 0.1 },
-                    bodyStyles: { fillColor: false, textColor: [33, 37, 41], fontSize: 9, lineWidth: 0.1, cellPadding: 2.5 },
+                    headStyles: { fillColor: [160, 174, 192], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 10, lineWidth: 0 },
+                    bodyStyles: { fillColor: false, textColor: [33, 37, 41], fontSize: 12, lineWidth: 0, cellPadding: {top: 3, bottom: 3, left: 2, right: 2} },
                     columnStyles: {
-                        0: { cellWidth: 32, fontStyle: 'bold' },
-                        1: { cellWidth: 50 },
-                        2: { cellWidth: 32, fontStyle: 'bold' },
-                        3: { cellWidth: 50 }
+                        0: { cellWidth: leftPanelWidth * 0.22, halign: 'left' }, // Label column 1 (22%)
+                        1: { cellWidth: leftPanelWidth * 0.28, halign: 'left' }, // Value column 1 (28%)
+                        2: { cellWidth: leftPanelWidth * 0.22, halign: 'left' }, // Label column 2 (22%)
+                        3: { cellWidth: leftPanelWidth * 0.28, halign: 'left' }  // Value column 2 (28%)
                     },
-                    styles: { lineColor: [224, 224, 224], lineWidth: 0.1 },
-                    body: clientTableBody
+                    styles: { lineColor: [255, 255, 255], lineWidth: 0 },
+                    body: leftPanelBody
                 });
                 
-                const clientTableEndY = pdf.lastAutoTable ? pdf.lastAutoTable.finalY : yPos;
+                const leftPanelEndY = pdf.lastAutoTable ? pdf.lastAutoTable.finalY : panelStartY;
                 
-                // Proposal Details Table (positioned on right side, same Y as Client table)
-                const proposalTableWidth = 90; // mm - compact
-                // Calculate client table end position: leftMargin + column widths (32 + 50 + 32 + 50 = 164)
-                const clientTableEndX = leftMargin + 32 + 50 + 32 + 50;
-                // Position proposal table with a small gap (5mm) after client table
-                const gapBetweenTables = 5; // mm
-                const proposalTableLeftMargin = clientTableEndX + gapBetweenTables;
-                const proposalTableBody = [
-                    [{content: 'Proposal Details:', colSpan: 2, styles: {fontStyle: 'bold', fontSize: 9, textColor: [44, 62, 80], fillColor: [240, 248, 255]}}],
-                    [
-                        {content: 'Postal / Pin:', styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], fontSize: 9}},
-                        {content: ((userDmc && userDmc.address) ? userDmc.address : 'N/A'), styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}}
-                    ],
-                    [
-                        {content: 'Proposal Date:', styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], fontSize: 9}},
-                        {content: formatDate(new Date()), styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}}
-                    ],
-                    [
-                        {content: 'Proposal Validity:', styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], fontSize: 9}},
-                        {content: 'N/A', styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}}
-                    ],
-                    [
-                        {content: 'Proposal Sent by:', styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], fontSize: 9}},
-                        {content: ((userDmc && userDmc.company_name) ? userDmc.company_name : ((userDmc && userDmc.name) ? userDmc.name : 'N/A')), styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}}
-                    ],
-                    [
-                        {content: '', styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}},
-                        {content: '', styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}}
-                    ], // Empty row to match height
-                    
+                // Right Panel: TRAVEL COMPANY / AGENT
+                // Matching quotation format: Two columns (Left: Company/Agency details, Right: Agent details)
+                // Direct display without key-value pairs, matching quotation format
+                const rightPanelX = leftPanelX + leftPanelWidth + gapBetweenPanels;
+                
+                // Build right panel body with 2 columns (matching quotation format)
+                const rightPanelBody = [
+                    [{content: 'TRAVEL COMPANY / AGENT', colSpan: 2, styles: {fontStyle: 'bold', fontSize: 10, textColor: [255, 255, 255], fillColor: [160, 174, 192], halign: 'center', cellPadding: {top: 3, bottom: 3, left: 2, right: 2}}}],
                 ];
                 
-                pdf.autoTable({
-                    startY: yPos,
-                    margin: { left: proposalTableLeftMargin, right: rightMarginValue },
-                    theme: 'grid',
-                    tableLineWidth: 0,
-                    headStyles: { fillColor: [240, 248, 255], textColor: [44, 62, 80], fontStyle: 'bold', fontSize: 9, lineWidth: 0.1 },
-                    bodyStyles: { fillColor: false, textColor: [33, 37, 41], fontSize: 9, lineWidth: 0.1, cellPadding: 2.5 },
-                    columnStyles: {
-                        0: { cellWidth: 36, fontStyle: 'bold' },
-                        1: { cellWidth: 54 }
-                    },
-                    styles: { lineColor: [224, 224, 224], lineWidth: 0.1 },
-                    body: proposalTableBody
-                });
-                
-                // Travel Company/Agent Information Table
-                yPos = Math.max(clientTableEndY, pdf.lastAutoTable ? pdf.lastAutoTable.finalY : yPos) + 5;
-                
                 if (agentInfo) {
-                    const agentTableBody = [
-                        [{content: 'Travel Company / Agent Name: ' + (agentInfo.name || agentInfo.company_name || 'N/A'), colSpan: 2, styles: {fontStyle: 'bold', fontSize: 9, textColor: [44, 62, 80], fillColor: [240, 248, 255]}}]
-                    ];
+                    const companyName = (agentInfo.company_name || agentInfo.name || '');
+                    const agentName = (agentInfo.agent_name || '');
                     
-                    if (agentInfo.company_name && agentInfo.name !== agentInfo.company_name) {
-                        agentTableBody.push([
-                            {content: 'Travel Agency:', styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], fontSize: 9}},
-                            {content: agentInfo.company_name || 'N/A', styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}}
+                    // Row 1: Company name (bold, larger) | Agent name (bold, larger)
+                    if (companyName || agentName) {
+                        rightPanelBody.push([
+                            {content: companyName || '', styles: {fontStyle: 'bold', fontSize: 12, textColor: [44, 62, 80], fillColor: [255, 255, 255], cellPadding: {top: 2, bottom: 2, left: 1, right: 1}}},
+                            {content: agentName || '', styles: {fontStyle: 'bold', fontSize: 12, textColor: [44, 62, 80], fillColor: [255, 255, 255], cellPadding: {top: 2, bottom: 2, left: 1, right: 1}}}
                         ]);
                     }
                     
-                    agentTableBody.push(
-                        [
-                            {content: 'Address:', styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], fontSize: 9}},
-                            {content: agentInfo.address || 'N/A', styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}}
-                        ],
-                        [
-                            {content: 'Contact Person:', styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], fontSize: 9}},
-                            {content: agentInfo.contact_person || 'N/A', styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}}
-                        ],
-                        [
-                            {content: 'Phone:', styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], fontSize: 9}},
-                            {content: agentInfo.phone || 'N/A', styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}}
-                        ],
-                        [
-                            {content: 'Email:', styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], fontSize: 9}},
-                            {content: agentInfo.email || 'N/A', styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}}
-                        ]
-                    );
+                    // Build company details with inline labels (matching quotation format)
+                    const companyDetails = [];
+                    if (agentInfo.address) {
+                        companyDetails.push(agentInfo.address);
+                    }
+                    if (agentInfo.contact_person) {
+                        companyDetails.push('Contact Person: ' + agentInfo.contact_person);
+                    }
+                    if (agentInfo.phone) {
+                        companyDetails.push('Tel: ' + agentInfo.phone);
+                    }
+                    if (agentInfo.email) {
+                        companyDetails.push('Email: ' + agentInfo.email);
+                    }
                     
-                    pdf.autoTable({
-                        startY: yPos,
-                        margin: { left: leftMargin, right: rightMarginValue },
-                        theme: 'grid',
-                        tableLineWidth: 0,
-                        headStyles: { fillColor: [240, 248, 255], textColor: [44, 62, 80], fontStyle: 'bold', fontSize: 9, lineWidth: 0.1 },
-                        bodyStyles: { fillColor: false, textColor: [33, 37, 41], fontSize: 9, lineWidth: 0.1, cellPadding: 2.5 },
-                        columnStyles: {
-                            0: { cellWidth: 54, fontStyle: 'bold' },
-                            1: { cellWidth: 156 }
-                        },
-                        styles: { lineColor: [224, 224, 224], lineWidth: 0.1 },
-                        body: agentTableBody
-                    });
+                    // Build agent details with inline labels
+                    const agentDetails = [];
+                    if (agentInfo.agent_address) {
+                        agentDetails.push(agentInfo.agent_address);
+                    }
+                    if (agentInfo.agent_phone) {
+                        agentDetails.push('Tel: ' + agentInfo.agent_phone);
+                    }
+                    if (agentInfo.agent_email) {
+                        agentDetails.push('Email: ' + agentInfo.agent_email);
+                    }
                     
-                    yPos = pdf.lastAutoTable.finalY + 5;
+                    // Add details rows
+                    const maxDetails = Math.max(companyDetails.length, agentDetails.length);
+                    for (let i = 0; i < maxDetails; i++) {
+                        rightPanelBody.push([
+                            {content: companyDetails[i] || '', styles: {fontStyle: 'normal', fontSize: 10, textColor: [33, 37, 41], fillColor: [255, 255, 255], cellPadding: {top: 2, bottom: 2, left: 1, right: 1}}},
+                            {content: agentDetails[i] || '', styles: {fontStyle: 'normal', fontSize: 10, textColor: [33, 37, 41], fillColor: [255, 255, 255], cellPadding: {top: 2, bottom: 2, left: 1, right: 1}}}
+                        ]);
+                    }
+                } else {
+                    rightPanelBody.push([
+                        {content: 'N/A', colSpan: 2, styles: {fontStyle: 'normal', fontSize: 10, textColor: [33, 37, 41], fillColor: [255, 255, 255], cellPadding: {top: 3, bottom: 3, left: 2, right: 2}}}
+                    ]);
                 }
                 
-                // Travel Dates & Destination Table (Compact Premium styling)
+                // Draw right panel background first (estimate height) with rounded corners
+                const estimatedRightHeight = 50;
+                
+                // Draw panel background with rounded corners
+                pdf.setFillColor(245, 247, 248);
+                pdf.setDrawColor(224, 224, 224);
+                pdf.setLineWidth(0.1);
+                safeRoundedRect(rightPanelX, panelStartY, rightPanelWidth, estimatedRightHeight, cornerRadius);
+                pdf.fillStroke();
+                
+                // Draw header background with rounded top corners
+                pdf.setFillColor(160, 174, 192); // #a0aec0
+                pdf.setDrawColor(160, 174, 192);
+                pdf.setLineWidth(0.1);
+                // Draw rounded rectangle for header (only top corners rounded)
+                if (typeof pdf.roundedRect === 'function') {
+                    pdf.roundedRect(rightPanelX, panelStartY, rightPanelWidth, headerHeight, cornerRadius, cornerRadius);
+                    pdf.fillStroke();
+                } else {
+                    safeRect(rightPanelX, panelStartY, rightPanelWidth, headerHeight);
+                    pdf.fillStroke();
+                }
+                
+                pdf.autoTable({
+                    startY: panelStartY,
+                    margin: { left: rightPanelX, right: rightMarginValue },
+                    theme: 'plain',
+                    tableLineWidth: 0,
+                    headStyles: { fillColor: [160, 174, 192], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 10, lineWidth: 0 },
+                    bodyStyles: { fillColor: false, textColor: [33, 37, 41], fontSize: 12, lineWidth: 0, cellPadding: {top: 2, bottom: 2, left: 1, right: 1} },
+                    columnStyles: {
+                        0: { cellWidth: rightPanelWidth * 0.5, halign: 'left' }, // Left column (50%)
+                        1: { cellWidth: rightPanelWidth * 0.5, halign: 'left' }  // Right column (50%)
+                    },
+                    styles: { lineColor: [255, 255, 255], lineWidth: 0 },
+                    body: rightPanelBody
+                });
+                
+                yPos = Math.max(leftPanelEndY, pdf.lastAutoTable ? pdf.lastAutoTable.finalY : panelStartY) + 8; // Increased padding after panels
+                
+                // Travel Summary Section - Matching Quotation Format
+                const travelSummaryY = yPos;
+                const travelSummaryHeight = 20; // Increased height for better padding
+                const travelSummaryWidth = pageWidth - leftMargin - rightMarginValue;
+                
+                // Draw travel summary background container (Fill and Draw)
+                pdf.setDrawColor(224, 224, 224);
+                pdf.setFillColor(255, 255, 255);
+                pdf.setLineWidth(0.1);
+                pdf.rect(leftMargin, travelSummaryY, travelSummaryWidth, travelSummaryHeight, 'FD');
+                
+                // Travel Summary Header (Fill only, drawn AFTER container)
+                pdf.setFillColor(160, 174, 192); // #a0aec0
+                pdf.rect(leftMargin, travelSummaryY, travelSummaryWidth, 6, 'F');
+                
+                pdf.setFontSize(12);
+                pdf.setFont('helvetica', 'bold');
+                pdf.setTextColor(44, 62, 80);
+                pdf.text('TRAVEL SUMMARY', leftMargin + travelSummaryWidth / 2, travelSummaryY + 4, { align: 'center' });
+                
                 // Calculate duration
                 let duration = 'N/A';
                 if (checkInTime && checkOutTime) {
@@ -5485,41 +6525,177 @@
                         if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
                             const diffTime = Math.abs(end - start);
                             const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-                            duration = diffDays.toString() + ' day(s)';
+                            duration = diffDays.toString() + ' Days';
                         }
                     } catch (e) {
                         duration = 'N/A';
                     }
                 }
                 
-                const travelTableBody = [
-                    [{content: 'Destination: ' + (destination || 'N/A'), colSpan: 4, styles: {fontStyle: 'bold', fontSize: 9, textColor: [44, 62, 80], fillColor: [240, 248, 255]}}],
-                    [
-                        {content: 'Travel Date:', styles: {fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [44, 62, 80], fontSize: 9}},
-                        {content: 'From: ' + (checkInTime ? formatDate(checkInTime) : 'N/A'), styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}},
-                        {content: 'To: ' + (checkOutTime ? formatDate(checkOutTime) : 'N/A'), styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}},
-                        {content: 'Duration / No of Days: ' + duration, styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 9}}
-                    ]
-                ];
+                // Format dates with day names (e.g., "Tuesday- 30/12/2025")
+                const formatDateWithDay = (dateStr) => {
+                    if (!dateStr) return 'N/A';
+                    try {
+                        const date = new Date(dateStr);
+                        if (isNaN(date.getTime())) return dateStr;
+                        const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                        const dayName = dayNames[date.getDay()];
+                        const day = String(date.getDate()).padStart(2, '0');
+                        const month = String(date.getMonth() + 1).padStart(2, '0');
+                        const year = date.getFullYear();
+                        return `${dayName}- ${day}/${month}/${year}`;
+                    } catch (e) {
+                        return dateStr;
+                    }
+                };
                 
-                pdf.autoTable({
-                    startY: yPos,
-                    margin: { left: leftMargin, right: rightMarginValue },
-                    theme: 'grid',
-                    tableLineWidth: 0,
-                    headStyles: { fillColor: [240, 248, 255], textColor: [44, 62, 80], fontStyle: 'bold', fontSize: 9, lineWidth: 0.1 },
-                    bodyStyles: { fillColor: false, textColor: [33, 37, 41], fontSize: 9, lineWidth: 0.1, cellPadding: 2.5 },
-                    columnStyles: {
-                        0: { cellWidth: 44, fontStyle: 'bold' },
-                        1: { cellWidth: 64 },
-                        2: { cellWidth: 64 },
-                        3: { cellWidth: 64 }
-                    },
-                    styles: { lineColor: [224, 224, 224], lineWidth: 0.1 },
-                    body: travelTableBody
-                });
+                const travelDateFromFormatted = checkInTime ? formatDateWithDay(checkInTime) : 'N/A';
+                const travelDateToFormatted = checkOutTime ? formatDateWithDay(checkOutTime) : 'N/A';
                 
-                yPos = pdf.lastAutoTable.finalY + 8;
+                // Travel Summary Content - Three columns
+                const travelContentY = travelSummaryY + 12; // Increased top padding
+                const itemWidth = travelSummaryWidth / 3;
+                
+                pdf.setFontSize(10);
+                pdf.setFont('helvetica', 'bold');
+                pdf.setTextColor(44, 62, 80);
+                
+                // Destination
+                pdf.text('Destination: ' + (destination || 'N/A'), leftMargin + itemWidth / 2, travelContentY, { align: 'center' });
+                
+                // Travel Dates
+                pdf.text(travelDateFromFormatted + ' - ' + travelDateToFormatted, leftMargin + itemWidth + itemWidth / 2, travelContentY, { align: 'center' });
+                
+                // Duration
+                pdf.text('Duration: ' + duration, leftMargin + itemWidth * 2 + itemWidth / 2, travelContentY, { align: 'center' });
+                
+                yPos = travelSummaryY + travelSummaryHeight + 8; // Increased padding after travel summary
+                
+                // Passenger Details Table - Matching Quotation Format
+                // First, try to get passengers from booking data
+                const passengerData = customerInfo.passengers || [];
+                const leadGuestName = customerInfo.fullName || customerInfo.name || '';
+                
+                // Start with passengers from tour (mainguest + additionalguest)
+                let passengers = [...(allPassengersFromTour || [])];
+                
+                // Merge with passengers from booking data (avoid duplicates)
+                if (passengerData && passengerData.length > 0) {
+                    passengerData.forEach(bookingPassenger => {
+                        // Check if this passenger already exists (by name and email)
+                        const exists = passengers.some(p => 
+                            (p.first_name || p.name) === (bookingPassenger.first_name || bookingPassenger.name) &&
+                            p.email === bookingPassenger.email
+                        );
+                        if (!exists) {
+                            passengers.push(bookingPassenger);
+                        }
+                    });
+                }
+                
+                // If still no passengers, create one from lead guest info
+                if (passengers.length === 0 && leadGuestName) {
+                    passengers = [{
+                        salutation: customerInfo.salutation || 'Mr',
+                        first_name: leadGuestName,
+                        name: leadGuestName,
+                        passenger_type: customerInfo.passenger_type || 'Adult',
+                        gender: customerInfo.gender || 'M',
+                        mobile_phone: customerInfo.phone || '—',
+                        phone: customerInfo.phone || '—',
+                        email: customerInfo.email || '—'
+                    }];
+                }
+                
+                if (passengers && passengers.length > 0) {
+                    // Check if we're on the first page and ensure passenger table fits
+                    // Use getNumberOfPages() to check if we're still on page 1
+                    const currentPageCount = pdf.internal.getNumberOfPages();
+                    if (currentPageCount === 1) {
+                        // Estimate passenger table height: header (8mm) + rows (8mm per row) + padding (8mm)
+                        const estimatedTableHeight = 8 + (passengers.length * 8) + 8;
+                        const spaceNeeded = estimatedTableHeight + 6; // Add some buffer
+                        
+                        // If not enough space on first page, move to next page
+                        // This ensures passenger details is the last content on first page
+                        if (yPos + spaceNeeded > bottomMargin) {
+                            pdf.addPage();
+                            yPos = topMargin;
+                        }
+                    }
+                    
+                    // Calculate passenger table width to match travel summary width
+                    const passengerTableWidth = pageWidth - leftMargin - rightMarginValue;
+                    
+                    const passengerTableBody = [];
+                    
+                    // Header row
+                    passengerTableBody.push([
+                        {content: 'Salutation', styles: {fontStyle: 'bold', fillColor: [160, 174, 192], textColor: [44, 62, 80], fontSize: 11}},
+                        {content: 'Name', styles: {fontStyle: 'bold', fillColor: [160, 174, 192], textColor: [44, 62, 80], fontSize: 11}},
+                        {content: 'Passenger Type', styles: {fontStyle: 'bold', fillColor: [160, 174, 192], textColor: [44, 62, 80], fontSize: 11}},
+                        {content: 'Gender', styles: {fontStyle: 'bold', fillColor: [160, 174, 192], textColor: [44, 62, 80], fontSize: 11}},
+                        {content: 'Mobile Phone', styles: {fontStyle: 'bold', fillColor: [160, 174, 192], textColor: [44, 62, 80], fontSize: 11}},
+                        {content: 'Email', styles: {fontStyle: 'bold', fillColor: [160, 174, 192], textColor: [44, 62, 80], fontSize: 11}}
+                    ]);
+                    
+                    // Passenger rows
+                    passengers.forEach(passenger => {
+                        passengerTableBody.push([
+                            {content: (passenger.salutation || 'Mr'), styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 11}},
+                            {content: (passenger.first_name || passenger.name || '—'), styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 11}},
+                            {content: (passenger.passenger_type || 'Adult'), styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 11}},
+                            {content: (passenger.gender || 'M'), styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 11}},
+                            {content: (passenger.mobile_phone || passenger.phone || '—'), styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 11}},
+                            {content: (passenger.email || '—'), styles: {fillColor: [255, 255, 255], textColor: [33, 37, 41], fontSize: 11}}
+                        ]);
+                    });
+                    
+                    // Calculate column widths as percentages of passengerTableWidth
+                    // Original proportions: 25, 60, 35, 25, 50, 60 (total: 255)
+                    // Convert to percentages and apply to passengerTableWidth
+                    const totalOriginalWidth = 255;
+                    pdf.autoTable({
+                        startY: yPos,
+                        margin: { left: leftMargin, right: rightMarginValue },
+                        theme: 'grid',
+                        headStyles: { 
+                            fillColor: [160, 174, 192], 
+                            textColor: [44, 62, 80], 
+                            fontStyle: 'bold', 
+                            fontSize: 11,
+                            lineWidth: 0.1
+                        },
+                        bodyStyles: { 
+                            fillColor: false, 
+                            textColor: [33, 37, 41], 
+                            fontSize: 11,
+                            lineWidth: 0.1,
+                            cellPadding: 2.5
+                        },
+                        columnStyles: {
+                            0: { cellWidth: (25 / totalOriginalWidth) * passengerTableWidth, halign: 'center' },
+                            1: { cellWidth: (60 / totalOriginalWidth) * passengerTableWidth, halign: 'left' },
+                            2: { cellWidth: (35 / totalOriginalWidth) * passengerTableWidth, halign: 'center' },
+                            3: { cellWidth: (25 / totalOriginalWidth) * passengerTableWidth, halign: 'center' },
+                            4: { cellWidth: (50 / totalOriginalWidth) * passengerTableWidth, halign: 'center' },
+                            5: { cellWidth: (60 / totalOriginalWidth) * passengerTableWidth, halign: 'left' }
+                        },
+                        styles: { lineColor: [224, 224, 224], lineWidth: 0.1 },
+                        head: [],
+                        body: passengerTableBody
+                    });
+                    
+                    yPos = pdf.lastAutoTable.finalY + 4;
+                }
+                
+                // Ensure itinerary starts on page 2 - add new page if still on page 1
+                const currentPageCount = pdf.internal.getNumberOfPages();
+                if (currentPageCount === 1) {
+                    // Add a new page so itinerary starts on page 2
+                    pdf.addPage();
+                    yPos = topMargin;
+                }
                 
                 // Generate all dates between check-in and check-out
                 let allTourDates = [];
@@ -5783,7 +6959,8 @@
                 // Extract all possible fields from data
                 const pickup = service.pickup || service.data?.entrypickup || service.data?.entry_pickup || service.data?.pickup || '';
                 const dropoff = service.dropoff || service.data?.entrydropoff || service.data?.entry_dropoff || service.data?.dropoff || '';
-                const vehicle = service.vehicle || service.data?.vehicles_name || service.data?.vehicle || '';
+                // Get vehicle name from vehicle_driver_data (from jobsheet) first, then fallback to other sources
+                const vehicle = service.vehicleName || service.vehicle || service.data?.vehicles_name || service.data?.vehicle || '';
                 const transferType = service.transferType || service.data?.type || service.data?.transfer_options?.type || '';
                 const pickupTime = service.data?.entrytime || service.pickupTime || service.data?.pickupdate || '';
                 
@@ -6388,15 +7565,17 @@
                 // Format time (remove seconds if present, handle AM/PM format)
                 const formatTime = (timeStr) => {
                     if (!timeStr) return '';
+                    // Convert to string to ensure .match() works
+                    const timeStrConverted = String(timeStr);
                     // If it's already in HH:MM format, return as is
-                    if (timeStr.match(/^\d{2}:\d{2}$/)) {
-                        return timeStr.substring(0, 5);
+                    if (timeStrConverted.match(/^\d{2}:\d{2}$/)) {
+                        return timeStrConverted.substring(0, 5);
                     }
                     // If it's in "1:00 AM" format, return as is
-                    if (timeStr.match(/\d{1,2}:\d{2}\s*(AM|PM)/i)) {
-                        return timeStr;
+                    if (timeStrConverted.match(/\d{1,2}:\d{2}\s*(AM|PM)/i)) {
+                        return timeStrConverted;
                     }
-                    return timeStr;
+                    return timeStrConverted;
                 };
                 
                 // Build table body - 8 columns (4 parameter-value pairs per row)
@@ -6545,6 +7724,14 @@
             const confirmationNumber = attraction.data?.confirmationNumber || attraction.data?.confirmation_no || attraction.data?.confirmation_number || '';
             const specialRequests = attraction.data?.specialRequests || '';
             
+            // Guide options (when attraction has guide)
+            const guideOptions = attraction.data?.guide_options || null;
+            const guideName = guideOptions?.guide_name || '';
+            const guideLanguage = guideOptions?.language || '';
+            const guideHours = guideOptions?.hours ?? guideOptions?.package_hours ?? '';
+            const guidePickupTime = guideOptions?.pickup_time || '';
+            const guideTotalPrice = guideOptions?.total_price ?? '';
+            
             // Format date
             const formatDateForDisplay = (dateStr) => {
                 if (!dateStr) return '';
@@ -6634,6 +7821,20 @@
                 ]);
             }
             
+            // Guide row (when attraction has guide_options)
+            if (guideOptions && guideOptions.guide_required && guideName) {
+                tableBody.push([
+                    'Guide Name :', guideName || 'N/A',
+                    'Language :', guideLanguage || 'N/A',
+                    'Hours :', guideHours ? guideHours.toString() : 'N/A',
+                    'Guide Pickup Time :', formatTime(guidePickupTime) || 'N/A'
+                ]);
+                tableBody.push([
+                    'Guide Total Price :', guideTotalPrice ? 'SGD ' + parseFloat(guideTotalPrice).toFixed(2) : 'N/A',
+                    '', '', ''
+                ]);
+            }
+            
             // Remarks Row - Last row, full width (spans all 8 columns)
             tableBody.push([
                 {content: 'Remarks :', colSpan: 1, styles: {fontStyle: 'bold', fillColor: [240, 240, 240]}},
@@ -6684,7 +7885,8 @@
                 const pickup = service.pickup || service.data?.entrypickup || service.data?.pickup || '';
                 const dropoff = service.dropoff || service.data?.entrydropoff || service.data?.dropoff || service.data?.dropoffLocation || '';
                 const pickupTime = service.data?.entrytime || service.pickupTime || service.data?.pickupdate || '';
-                const vehicle = service.vehicle || service.data?.vehicles_name || service.data?.vehicle || '';
+                // Get vehicle name from vehicle_driver_data (from jobsheet) first, then fallback to other sources
+                const vehicle = service.vehicleName || service.vehicle || service.data?.vehicles_name || service.data?.vehicle || '';
                 const transferType = service.transferType || service.data?.type || '';
                 const selectedHours = service.selectedHours || service.data?.selectedHours || '';
                 const serviceType = (service.data?.travel_type || service.data?.type || '').toLowerCase();
@@ -6835,7 +8037,8 @@
                 // Extract all possible fields from data
                 const pickup = service.pickup || service.data?.exitpickup || service.data?.exit_pickup || service.data?.pickup || '';
                 const dropoff = service.dropoff || service.data?.exitdropoff || service.data?.exit_dropoff || service.data?.dropoff || '';
-                const vehicle = service.vehicle || service.data?.vehicles_name || service.data?.vehicle || '';
+                // Get vehicle name from vehicle_driver_data (from jobsheet) first, then fallback to other sources
+                const vehicle = service.vehicleName || service.vehicle || service.data?.vehicles_name || service.data?.vehicle || '';
                 const transferType = service.transferType || service.data?.type || '';
                 // Extract pickup time - prefer entrytime (which has the actual time like "06:00 AM")
                 const pickupTime = service.data?.entrytime || service.pickupTime || service.data?.exitpickupdate || service.data?.exitpickuptime || '';
@@ -7042,6 +8245,42 @@
             zone.addEventListener('dragleave', handleDragLeave);
             zone.addEventListener('drop', handleDrop);
         });
+
+        // In day-wise mode, hidden date containers cannot receive drops.
+        // Allow dropping directly on left day buttons to move service to that date.
+        if (dayNavButtons.length > 0) {
+            dayNavButtons.forEach(btn => {
+                btn.addEventListener('dragover', handleDragOver);
+                btn.addEventListener('dragenter', function (e) {
+                    if (activateDay) {
+                        activateDay(this.dataset.dayIndex);
+                    }
+                    this.classList.add('drag-over-day');
+                });
+                btn.addEventListener('dragleave', function (e) {
+                    if (!this.contains(e.relatedTarget)) {
+                        this.classList.remove('drag-over-day');
+                    }
+                });
+                btn.addEventListener('drop', function (e) {
+                    if (e.stopPropagation) {
+                        e.stopPropagation();
+                    }
+
+                    this.classList.remove('drag-over-day');
+
+                    if (draggedElement && draggedData) {
+                        const newDate = getDateByDayIndex(this.dataset.dayIndex);
+                        const currentDate = draggedData.currentDate;
+                        if (newDate && newDate !== currentDate) {
+                            updateBookingDate(draggedData.bookingId, newDate, currentDate);
+                        }
+                    }
+
+                    return false;
+                });
+            });
+        }
         
         // Add event listeners to services lists for intra-day reordering
         const servicesLists = document.querySelectorAll('.services-list');
@@ -7084,6 +8323,9 @@
             // Remove drag-over class from all drop zones
             document.querySelectorAll('.date-container').forEach(zone => {
                 zone.classList.remove('drag-over');
+            });
+            document.querySelectorAll('.itinerary-day-btn').forEach(btn => {
+                btn.classList.remove('drag-over-day');
             });
         }
         
@@ -7357,7 +8599,26 @@
                 if (!response.ok) {
                     throw new Error('Network response was not ok: ' + response.status);
                 }
-                return response.json();
+                const contentType = (response.headers.get('content-type') || '').toLowerCase();
+                return response.text().then(raw => {
+                    const body = (raw || '').trim();
+                    if (!body) {
+                        // Some environments/extensions can return empty responses intermittently.
+                        return null;
+                    }
+
+                    if (!contentType.includes('application/json')) {
+                        // Avoid JSON parse errors when backend/proxy returns HTML or plain text.
+                        return null;
+                    }
+
+                    try {
+                        return JSON.parse(body);
+                    } catch (e) {
+                        console.warn('Invalid JSON in checkPriceHide response:', e);
+                        return null;
+                    }
+                });
             })
             .then(data => {
                 isChecking = false;
@@ -7386,7 +8647,10 @@
                         }, 100);
                     }
                 } else {
-                    console.warn('Invalid response data:', data);
+                    // Ignore empty/non-JSON responses to keep polling stable.
+                    if (data !== null) {
+                        console.warn('Invalid response data:', data);
+                    }
                 }
             })
             .catch(error => {

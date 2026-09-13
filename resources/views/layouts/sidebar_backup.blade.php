@@ -361,7 +361,7 @@
     .rounded-logo {
         width: 55px;
         height: 55px;
-        object-fit: cover;
+        object-fit: contain;
         border-radius: 50%; /* Makes it a perfect circle */
         box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2),
                     inset 0 0 10px rgba(255, 255, 255, 0.2); /* 3D inner & outer */
@@ -458,10 +458,7 @@
                         <div class="logo-icon">
                             <img src="{{ $logoSetting['master_value'] }}" class="logo-img rounded-logo" alt="Logo">
                         </div>
-                        {{-- <div class="logo-name flex-grow-1">
-                            <h5 class="mb-0 text-white">
-                                {{ \App\Helpers\CommonHelper::masterSettingsName('name')['master_value'] }}</h5>
-                        </div> --}}
+                    
                     </span>
                     </span>
                     <span class="app-brand-text demo menu-text fw-semibold ms-2">

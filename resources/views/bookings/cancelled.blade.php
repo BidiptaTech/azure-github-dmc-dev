@@ -36,118 +36,233 @@
     .select2-container--default .select2-selection--single .select2-selection__clear:hover {
         color: #dc3545;
     }
+
+    #toursTable tbody tr {
+        height: auto;
+        min-height: 50px;
+    }
+
+    /* Compact badges in table */
+    #toursTable .badge {
+        font-size: 0.7rem;
+        padding: 0.25rem 0.5rem;
+        margin: 0.1rem 0.15rem;
+        font-weight: 500;
+    }
+
+    /* Compact icons */
+    #toursTable i {
+        font-size: 1rem;
+    }
+
+    /* Compact text in cells */
+    #toursTable .fw-medium,
+    #toursTable .fw-bold {
+        font-size: 0.875rem;
+    }
+
+    #toursTable small {
+        font-size: 0.75rem;
+    }
+
+    /* Compact buttons in table */
+    #toursTable .btn-sm {
+        padding: 0.25rem 0.55rem;
+        font-size: 0.78rem;
+        height: auto;
+        white-space: nowrap;
+    }
+
+    /* Compact guests icons section */
+    #toursTable .d-flex.gap-3 {
+        gap: 0.75rem !important;
+    }
+
+    /* Compact services badges container */
+    #toursTable .d-flex.gap-2.flex-wrap {
+        gap: 0.35rem !important;
+    }
+
+    /* Reduce spacing in tour details */
+    #toursTable .d-flex.flex-column {
+        gap: 0.15rem;
+    }
+
+    /* Compact muted text */
+    #toursTable .text-muted {
+        font-size: 0.7rem;
+    }
+
+    /* Compact date / status text */
+    #toursTable .d-flex.flex-column small {
+        line-height: 1.3;
+    }
+
+    /* Page background - match actual */
+    .cancelled-bookings-page { background-color: #f8f9fa !important; min-height: 100vh; padding-bottom: 2rem !important; }
+    .cancelled-bookings-page .card { background-color: #fff; border-radius: 0.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+
+    /* Compact table styles (aligned with actual) */
+    #toursTable {
+        font-size: 0.875rem;
+        table-layout: fixed;
+        width: 100% !important;
+        margin-bottom: 0;
+        background-color: #fff;
+    }
+    .dataTables_wrapper .dataTables_scroll .dataTables_scrollBody #toursTable,
+    .dataTables_wrapper #toursTable { width: 100% !important; table-layout: fixed; }
+    #toursTable thead th {
+        padding: 0.5rem 0.5rem;
+        font-size: 0.8125rem;
+        font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        background-color: #f8f9fa;
+    }
+    #toursTable tbody td {
+        padding: 0.5rem 0.5rem;
+        vertical-align: top;
+        overflow: hidden;
+        background-color: #fff;
+    }
+    /* Tour Details, Agent, Actions, Created, Auto Cancel */
+    #toursTable td:nth-child(2) { min-height: 72px; vertical-align: top; }
+    #toursTable td.col-agent .agent-name-line { font-weight: 600; font-size: 0.875rem; color: #0d6efd; display: flex; align-items: center; gap: 0.35rem; }
+    #toursTable td.col-agent .agent-company-line { font-size: 0.75rem; color: #6c757d; display: flex; align-items: center; gap: 0.35rem; margin-top: 0.2rem; }
+    #toursTable td.col-agent .agent-empty { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.8rem; color: #6c757d; font-style: italic; }
+    #toursTable td.col-created { white-space: normal; word-wrap: break-word; overflow-wrap: break-word; }
+    #toursTable td.col-created .created-by-line, #toursTable td.col-created .created-at-line { display: flex; align-items: flex-start; gap: 0.35rem; line-height: 1.35; }
+    #toursTable td.col-actions { min-height: 72px; min-width: 160px; overflow: visible; }
+    #toursTable .actions-icons-wrap {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        row-gap: 0.5rem;
+        column-gap: 0.5rem;
+        align-items: center;
+        justify-items: center;
+    }
+    #toursTable .action-icon-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 32px;
+        min-width: 32px;
+        padding: 0.35rem;
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+        background: #f8fafc;
+        cursor: pointer;
+        text-decoration: none;
+        color: inherit;
+    }
+    #toursTable .action-icon-badge:hover { background: #f1f5f9; border-color: #cbd5e1; }
+    #toursTable .action-icon-badge i { font-size: 1rem; color: var(--action-color, #475569); }
+    #toursTable td.col-auto-cancel { font-size: 0.7rem; }
+    #service-icon-global-tooltip {
+        position: fixed;
+        padding: 0.4rem 0.65rem;
+        background: #2d3748;
+        color: #fff;
+        font-size: 0.75rem;
+        font-weight: 500;
+        white-space: nowrap;
+        border-radius: 0.375rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+        z-index: 1100;
+        pointer-events: none;
+        display: none;
+        left: 0;
+        top: 0;
+        transform-origin: bottom center;
+    }
+
+    /* Compact header + stats + filter bar */
+    .new-enq-header-bar { background: linear-gradient(135deg, #f8f9fc 0%, #fff 100%); border-radius: 0.5rem; border: 1px solid rgba(105, 108, 255, 0.08); }
+    .new-enq-stat-item { transition: transform 0.15s ease, box-shadow 0.15s ease; min-height: 72px; padding: 0.65rem 0.75rem !important; }
+    .new-enq-stat-item:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
+    .new-enq-stat-item .stat-value { font-size: 1.25rem; font-weight: 600; letter-spacing: -0.02em; line-height: 1; display: block; min-height: 1.5rem; }
+    .new-enq-stat-item .stat-label { display: block; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; opacity: 0.85; margin-top: 0.15rem; line-height: 1.3; }
+    .new-enq-stats-grid .col { display: flex; }
+    .new-enq-stats-grid .col > div { width: 100%; }
+    .new-enq-filter-bar { background: #fff; border-radius: 0.5rem; border: 1px solid #e7e9ed; }
+    .new-enq-filter-bar .form-control, .new-enq-filter-bar .form-control-sm,
+    .new-enq-filter-bar .form-select, .new-enq-filter-bar .form-select.form-select-sm { font-size: 0.8125rem; height: 38px; }
+    .new-enq-filter-bar .select2-container--default .select2-selection--single { height: 38px !important; min-height: 38px !important; border-radius: 0.375rem; }
+    .new-enq-filter-bar .select2-container--default .select2-selection--single .select2-selection__rendered { line-height: 36px !important; padding-left: 10px; padding-right: 32px; }
+    .new-enq-filter-bar .select2-container--default .select2-selection--single .select2-selection__arrow { height: 36px !important; right: 8px; }
+    .new-enq-filter-bar .select2-container--default .select2-selection--single .select2-selection__clear { right: 32px; }
 </style>
 
 
 @section('content')
-<div class="container-xxl flex-grow-1 container-p-y">
+<div class="container-xxl flex-grow-1 container-p-y cancelled-bookings-page">
+    @include('bookings.partials.booking-type-tabs', [
+        'type' => 'tours',
+        'toursUrl' => route('bookings.cancelled'),
+        'packagesUrl' => route('package-bookings.cancelled'),
+    ])
     <!-- Header -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h4 class="fw-bold py-3 mb-2">
-                <i class="ri-close-circle-line me-2 text-danger"></i>
-                <span class="text-muted fw-light">Bookings /</span> Cancelled Bookings
-            </h4>
-            <p class="text-muted">Manage cancelled bookings and track cancellation reasons</p>
-        </div>
-        <div class="d-flex gap-2">
-            <span class="badge bg-danger fs-6">
-                <i class="ri-close-circle-line me-1"></i>
-                <span id="rangeCount">{{ $tours->where('updated_at', '>=', now()->startOfMonth())->where('updated_at', '<=', now()->endOfMonth())->count() }}</span>
-                <span id="rangeLabel">{{ date('F') }}</span> Cancelled
-            </span>
-        </div>
-    </div>
-
-    <!-- Stats Cards -->
-    <div class="row mb-4">
-        <div class="col-lg-3 col-md-6 col-sm-12 mb-3">
-            <div class="card h-100">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h5 class="card-title mb-1" id="statCancelledCount">{{ $tours->where('updated_at', '>=', now()->startOfMonth())->where('updated_at', '<=', now()->endOfMonth())->count() }}</h5>
-                            <p class="text-muted mb-0" id="statCancelledLabel">{{ date('F') }} Cancelled</p>
-                        </div>
-                        <div class="avatar">
-                            <div class="avatar-initial bg-danger rounded">
-                                <i class="ri-close-circle-line ri-24px"></i>
-                            </div>
-                        </div>
+    <!-- Compact Header + Stats Bar -->
+    <div class="new-enq-header-bar p-3 mb-3">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+            <div class="d-flex align-items-center gap-3">
+                <h4 class="fw-bold mb-0" style="font-size: 1.25rem;">
+                    <i class="ri-close-circle-line me-2 text-danger"></i>
+                    <span class="text-muted fw-light">Bookings /</span> Cancelled Bookings
+                </h4>
+                <span class="text-muted d-none d-md-inline" style="font-size: 0.875rem;">Manage cancelled bookings and track cancellation reasons</span>
+                <span class="badge bg-light text-danger border border-danger border-opacity-25 px-2 py-1" style="font-size: 0.75rem;">
+                    <i class="ri-close-circle-line me-1"></i><span id="rangeCount">{{ $tours->where('updated_at', '>=', now()->startOfMonth())->where('updated_at', '<=', now()->endOfMonth())->count() }}</span> <span id="rangeLabel">{{ date('F') }}</span>
+                </span>
+            </div>
+            <div class="row g-2 new-enq-stats-grid flex-grow-1">
+                <div class="col-6 col-md-4 col-xl">
+                    <div class="new-enq-stat-item d-flex align-items-start gap-2 rounded bg-white border shadow-sm h-100">
+                        <div class="avatar-initial bg-danger rounded flex-shrink-0" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;"><i class="ri-close-circle-line text-white"></i></div>
+                        <div class="min-w-0"><span class="stat-value d-block lh-1" id="statCancelledCount">{{ $tours->where('updated_at', '>=', now()->startOfMonth())->where('updated_at', '<=', now()->endOfMonth())->count() }}</span><span class="stat-label text-muted" id="statCancelledLabel">{{ date('F') }} Cancelled</span></div>
                     </div>
                 </div>
-            </div>
-        </div>
-        <div class="col-lg-3 col-md-6 col-sm-12 mb-3">
-            <div class="card h-100">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h5 class="card-title mb-1" id="statProspectCount">{{ $tours->where('updated_at', '>=', now()->startOfMonth())->where('updated_at', '<=', now()->endOfMonth())->where('tour_status', 'LIKE', 'Cancel - Prospect')->count() }}</h5>
-                            <p class="text-muted mb-0" id="statProspectLabel">{{ date('F') }} Prospect</p>
-                        </div>
-                        <div class="avatar">
-                            <div class="avatar-initial bg-primary rounded">
-                                <i class="ri-eye-line ri-24px"></i>
-                            </div>
-                        </div>
+                <div class="col-6 col-md-4 col-xl">
+                    <div class="new-enq-stat-item d-flex align-items-start gap-2 rounded bg-white border shadow-sm h-100">
+                        <div class="avatar-initial bg-primary rounded flex-shrink-0" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;"><i class="ri-eye-line text-white"></i></div>
+                        <div class="min-w-0"><span class="stat-value d-block lh-1" id="statProspectCount">{{ $tours->where('updated_at', '>=', now()->startOfMonth())->where('updated_at', '<=', now()->endOfMonth())->where('tour_status', 'LIKE', 'Cancel - Prospect')->count() }}</span><span class="stat-label text-muted" id="statProspectLabel">{{ date('F') }} Prospect</span></div>
                     </div>
                 </div>
-            </div>
-        </div>
-        <div class="col-lg-3 col-md-6 col-sm-12 mb-3">
-            <div class="card h-100">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h5 class="card-title mb-1" id="statTentativeCount">{{ $tours->where('updated_at', '>=', now()->startOfMonth())->where('updated_at', '<=', now()->endOfMonth())->where('tour_status', 'LIKE', 'Cancel - Tentative')->count() }}</h5>
-                            <p class="text-muted mb-0" id="statTentativeLabel">{{ date('F') }} Tentative</p>
-                        </div>
-                        <div class="avatar">
-                            <div class="avatar-initial bg-secondary rounded">
-                                <i class="ri-time-line ri-24px"></i>
-                            </div>
-                        </div>
+                <div class="col-6 col-md-4 col-xl">
+                    <div class="new-enq-stat-item d-flex align-items-start gap-2 rounded bg-white border shadow-sm h-100">
+                        <div class="avatar-initial bg-secondary rounded flex-shrink-0" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;"><i class="ri-time-line text-white"></i></div>
+                        <div class="min-w-0"><span class="stat-value d-block lh-1" id="statTentativeCount">{{ $tours->where('updated_at', '>=', now()->startOfMonth())->where('updated_at', '<=', now()->endOfMonth())->where('tour_status', 'LIKE', 'Cancel - Tentative')->count() }}</span><span class="stat-label text-muted" id="statTentativeLabel">{{ date('F') }} Tentative</span></div>
                     </div>
                 </div>
-            </div>
-        </div>
-        <div class="col-lg-3 col-md-6 col-sm-12 mb-3">
-            <div class="card h-100">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h5 class="card-title mb-1" id="statConfirmedCount">{{ $tours->where('updated_at', '>=', now()->startOfMonth())->where('updated_at', '<=', now()->endOfMonth())->where('tour_status', 'LIKE', 'Cancel - Confirmed')->count() }}</h5>
-                            <p class="text-muted mb-0" id="statConfirmedLabel">{{ date('F') }} Confirmed</p>
-                        </div>
-                        <div class="avatar">
-                            <div class="avatar-initial bg-success rounded">
-                                <i class="ri-checkbox-circle-line ri-24px"></i>
-                            </div>
-                        </div>
+                <div class="col-6 col-md-4 col-xl">
+                    <div class="new-enq-stat-item d-flex align-items-start gap-2 rounded bg-white border shadow-sm h-100">
+                        <div class="avatar-initial bg-success rounded flex-shrink-0" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;"><i class="ri-checkbox-circle-line text-white"></i></div>
+                        <div class="min-w-0"><span class="stat-value d-block lh-1" id="statConfirmedCount">{{ $tours->where('updated_at', '>=', now()->startOfMonth())->where('updated_at', '<=', now()->endOfMonth())->where('tour_status', 'LIKE', 'Cancel - Confirmed')->count() }}</span><span class="stat-label text-muted" id="statConfirmedLabel">{{ date('F') }} Confirmed</span></div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Filters -->
-    <div class="card mb-4">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">Filters</h5>
-            <button class="btn btn-sm btn-outline-secondary" onclick="resetFilters()">
-                <i class="ri-refresh-line me-1"></i> Reset
-            </button>
-        </div>
-        <div class="card-body">
-            <div class="row">
-                <div class="col-md-2">
-                    <label class="form-label">Search</label>
-                    <input type="text" class="form-control" id="searchInput" placeholder="Tour ID, Display ID...">
+    <!-- Compact Filters -->
+    <div class="new-enq-filter-bar card mb-3 border-0 shadow-sm">
+        <div class="card-body py-2 px-3">
+            <div class="row g-2 align-items-end">
+                <div class="col-12 d-flex align-items-center justify-content-between flex-wrap gap-2 mb-1">
+                    <span class="text-muted fw-medium d-flex align-items-center gap-1" style="font-size: 0.8rem;"><i class="ri-filter-3-line"></i> Filters</span>
+                    <button class="btn btn-sm btn-outline-secondary py-1 px-2" onclick="resetFilters()" title="Reset filters">
+                        <i class="ri-refresh-line me-1"></i> Reset
+                    </button>
                 </div>
-                <div class="col-md-2">
-                    <label class="form-label">Cancellation Status</label>
-                    <select class="form-select" id="statusFilter">
+                <div class="col-12 col-sm-6 col-md-4 col-lg">
+                    <label class="form-label mb-0 small text-muted">Search</label>
+                    <input type="text" class="form-control form-control-sm" id="searchInput" placeholder="Tour ID, Display ID...">
+                </div>
+                <div class="col-12 col-sm-6 col-md-4 col-lg">
+                    <label class="form-label mb-0 small text-muted">Cancellation Status</label>
+                    <select class="form-select form-select-sm" id="statusFilter">
                         <option value="">All Status</option>
                         <option value="Prospect">Cancel - Prospect</option>
                         <option value="Tentative">Cancel - Tentative</option>
@@ -155,20 +270,18 @@
                         <option value="Confirmed">Cancel - Confirmed</option>
                     </select>
                 </div>
-                <div class="col-md-2">
-                    <label class="form-label">Destination</label>
-                    <select class="form-select" id="destinationFilter">
+                <div class="col-12 col-sm-6 col-md-4 col-lg">
+                    <label class="form-label mb-0 small text-muted">Destination</label>
+                    <select class="form-select form-select-sm" id="destinationFilter">
                         <option value="">All Destinations</option>
                         @php
                             $allDestinations = [];
                             foreach($tours as $tour) {
                                 if($tour->destination) {
-                                    // Split by comma to get individual destinations
                                     $destinations = array_map('trim', explode(',', $tour->destination));
                                     $allDestinations = array_merge($allDestinations, $destinations);
                                 }
                             }
-                            // Get unique destinations
                             $uniqueDestinations = array_unique(array_filter($allDestinations));
                             sort($uniqueDestinations);
                         @endphp
@@ -177,32 +290,22 @@
                         @endforeach
                     </select>
                 </div>
-                <div class="col-md-2">
-                    <label class="form-label">Agent</label>
-                    <select class="form-select" id="agentFilter">
+                <div class="col-12 col-sm-6 col-md-4 col-lg">
+                    <label class="form-label mb-0 small text-muted">Agent</label>
+                    <select class="form-select form-select-sm" id="agentFilter">
                         <option value="">All Agents</option>
                         @foreach($tours->where('agent_name', '!=', null)->pluck('agent_name', 'agent_id')->unique() as $agentId => $agentName)
                             <option value="{{ $agentName }}">{{ $agentName }}</option>
                         @endforeach
                     </select>
                 </div>
-                {{-- <div class="col-md-2">
-                    <label class="form-label">Time Range</label>
-                    <select class="form-select" id="timeFilter">
-                        <option value="">All Time</option>
-                        <option value="this_week">This Week</option>
-                        <option value="last_week">Last Week</option>
-                        <option value="this_month">This Month</option>
-                        <option value="last_month">Last Month</option>
-                    </select>
-                </div> --}}
-                <div class="col-md-2">
-                    <label class="form-label">Start Date</label>
-                    <input type="date" class="form-control" id="startDateFilter" max="{{ now()->toDateString() }}" value="{{ now()->startOfMonth()->toDateString() }}">
+                <div class="col-12 col-sm-6 col-md-4 col-lg">
+                    <label class="form-label mb-0 small text-muted">Start Date</label>
+                    <input type="date" class="form-control form-control-sm" id="startDateFilter" max="{{ now()->toDateString() }}" value="{{ now()->startOfMonth()->toDateString() }}">
                 </div>
-                <div class="col-md-2">
-                    <label class="form-label">End Date</label>
-                    <input type="date" class="form-control" id="endDateFilter" max="{{ now()->toDateString() }}" value="{{ now()->toDateString() }}">
+                <div class="col-12 col-sm-6 col-md-4 col-lg">
+                    <label class="form-label mb-0 small text-muted">End Date</label>
+                    <input type="date" class="form-control form-control-sm" id="endDateFilter" max="{{ now()->toDateString() }}" value="{{ now()->toDateString() }}">
                 </div>
             </div>
         </div>
@@ -231,26 +334,33 @@
         <div class="card-body">
             <div class="table-responsive">
                 <table class="datatables-basic table table-bordered" id="toursTable">
+                    <colgroup>
+                        <col style="width: 2%">
+                        <col style="width: 16%">
+                        <col style="width: 10%">
+                        <col style="width: 12%">
+                        <col style="width: 12%">
+                        <col style="width: 14%">
+                        <col style="width: 8%">
+                        <col style="width: 8%">
+                    </colgroup>
                     <thead class="table-light">
                         <tr>
-                            <th>#</th>
-                            <th>Tour Details</th>
-                            <th>Destination</th>
-                            <th>Guests</th>
-                            <th>Agent</th>
-                            <th>Cancellation Status</th>
-                            <th>Cancelled Date</th>
-                            <th>Actions</th>
-                            <th>Created At</th>
-                            <th>Updated At</th>
-                            <th>Auto Cancel Date</th>
+                            <th class="th-tooltip" data-tooltip="#">#</th>
+                            <th class="th-tooltip" data-tooltip="Tour Details">Tour Details</th>
+                            <th class="th-tooltip" data-tooltip="Agent">Agent</th>
+                            <th class="th-tooltip" data-tooltip="Cancellation Status">Cancellation Status</th>
+                            <th class="th-tooltip" data-tooltip="Cancelled Date">Cancelled Date</th>
+                            <th class="th-tooltip" data-tooltip="Actions">Actions</th>
+                            <th class="th-tooltip" data-tooltip="Created">Created</th>
+                            <th class="th-tooltip" data-tooltip="Auto Cancel Date">Auto Cancel Date</th>
                         </tr>
                     </thead>
                     <tbody>
                         @forelse($tours as $key => $tour)
                         <tr 
                             class="table-danger"
-                            data-created-at="{{ optional($tour->created_at)->toDateString() }}"
+                            data-created-at="{{ optional($tour->destination_created_at ?? $tour->created_at)->toDateString() }}"
                             data-updated-at="{{ optional($tour->updated_at)->toDateString() }}"
                             data-adult="{{ $tour->adult ?? 0 }}"
                             data-child="{{ $tour->child ?? 0 }}"
@@ -263,44 +373,82 @@
                             }}"
                         >
                             <td>{{ $key + 1 }}</td>
-                            <td>
-                                <div class="d-flex flex-column">
+                            <td class="align-top">
+                                <div class="d-flex flex-column gap-1">
                                     <strong class="text-danger">{{ $tour->display_id }}</strong>
+                                    @if($tour->reference_id)
+                                        <small class="text-dark">Ref: {{ $tour->reference_id }}</small>
+                                    @endif
                                     <small class="text-muted">Tour ID: #{{ $tour->tour_id }}</small>
+
+                                   
+
                                     @if($tour->multi_enq_id)
                                         <small class="text-info">Multi: {{ $tour->multi_enq_id }}</small>
                                     @endif
-                                </div>
-                            </td>
-                            <td>
-                                <div class="d-flex flex-column">
-                                    <span class="fw-medium">{{ $tour->destination ?? 'N/A' }}</span>
-                                </div>
-                            </td>
+                                    @include('bookings.partials.tour-detail-badges', ['tour' => $tour])
+                                    <span class="fw-medium mt-1"><i class="ri-map-pin-line me-1"></i>{{ $tour->destination ?? 'N/A' }}</span>
+                                    <div class="d-flex align-items-center gap-2 flex-nowrap">
+                                        <span title="Adults"><i class="ri-user-line text-success"></i> {{ $tour->adult ?? 0 }}</span>
+                                        <span title="Children"><i class="ri-user-smile-line text-warning"></i> {{ $tour->child ?? 0 }}</span>
+                                        <span title="Infants"><i class="ri-user-heart-line text-info"></i> {{ $tour->infant ?? 0 }}</span>
+                                    </div>
+                                    @if($tour->check_in_time || $tour->check_out_time)
+                                        <small>
+                                            @if($tour->check_in_time)<span><strong>In:</strong> {{ \Carbon\Carbon::parse($tour->check_in_time)->format('M d, Y') }}</span>@endif
+                                            @if($tour->check_out_time)<span class="ms-1"><strong>
+                                            <br>    
+                                           Out:</strong> {{ \Carbon\Carbon::parse($tour->check_out_time)->format('M d, Y') }}</span>@endif
+                                        </small>
+                                    @endif
+                                    @php
+                                        $mainGuest = $tour->mainguest;
+                                        if (is_string($mainGuest)) {
+                                            $mainGuest = json_decode($mainGuest, true) ?: [];
+                                        }
 
-                            <td>
-                                <div class="d-flex gap-3 align-items-center">
-                                    <div class="d-flex align-items-center gap-1" title="Adults">
-                                        <i class="ri-user-line text-success" style="font-size: 1.2rem;"></i>
-                                        <span class="fw-medium">{{ $tour->adult ?? 0 }}</span>
-                                    </div>
-                                    <div class="d-flex align-items-center gap-1" title="Children">
-                                        <i class="ri-user-smile-line text-warning" style="font-size: 1.2rem;"></i>
-                                        <span class="fw-medium">{{ $tour->child ?? 0 }}</span>
-                                    </div>
-                                    <div class="d-flex align-items-center gap-1" title="Infants">
-                                        <i class="ri-user-heart-line text-info" style="font-size: 1.2rem;"></i>
-                                        <span class="fw-medium">{{ $tour->infant ?? 0 }}</span>
-                                    </div>
+                                        $leadGuestName = null;
+                                        if (is_array($mainGuest)) {
+                                            $salutation = trim($mainGuest['salutation'] ?? '');
+                                            $fullName   = trim($mainGuest['full_name'] ?? '');
+                                            $firstName  = trim($mainGuest['first_name'] ?? '');
+                                            $lastName   = trim($mainGuest['last_name'] ?? '');
+
+                                            if (!empty($fullName)) {
+                                                $leadGuestName = trim($salutation . ' ' . $fullName);
+                                            } else {
+                                                $leadGuestName = trim($salutation . ' ' . $firstName . ' ' . $lastName);
+                                            }
+                                        }
+
+                                        if (empty($leadGuestName) && !empty($tour->customer_name)) {
+                                            $leadGuestName = $tour->customer_name;
+                                        }
+                                    @endphp
+
+                                    @if(!empty($leadGuestName))
+                                        @php
+                                            $tourTypeLower = strtolower($tour->tour_type ?? '');
+                                            $bgColor = $tourTypeLower === 'group' ? '#7c3aed' : '#059669';
+                                            $textColor = '#ffffff';
+                                        @endphp
+                                        <small>
+                                            <i class="ri-user-line me-1"></i>
+                                            <span class="d-inline-block px-2 py-1 rounded" style="background: {{ $bgColor }}; color: {{ $textColor }}; font-weight: 600; font-size: 0.75rem; letter-spacing: 0.3px;">
+                                                {{ $leadGuestName }}
+                                            </span>
+                                        </small>
+                                    @endif
                                 </div>
                             </td>
-                            <td>
+                            <td class="col-agent">
                                 <div class="d-flex flex-column">
-                                    <span class="fw-medium">{{ $tour->agent_name ?? 'N/A' }}</span>
-                                    <small class="text-muted">
-                                        <i class="fas fa-building me-1"></i>
-                                        {{ $tour->agent_company_name ?? 'N/A' }}
-                                    </small>
+                                    @if($tour->agent_name)
+                                        <span class="agent-name-line"><i class="ri-user-line"></i><span>{{ $tour->agent_name }}</span></span>
+                                        <span class="agent-company-line"><i class="ri-building-line"></i><span>{{ $tour->agent_company_name ?? 'N/A' }}</span></span>
+                                    @else
+                                        <span class="agent-empty"><i class="ri-user-unfollow-line"></i><span>No agent assigned</span></span>
+                                    @endif
                                 </div>
                             </td>
                             <td>
@@ -336,25 +484,30 @@
                                     <small class="text-muted">{{ \Carbon\Carbon::parse($tour->updated_at)->format('h:i A') }}</small>
                                 </div>
                             </td>
-                            <td>
-                                <a href="{{ route('bookings.view-tour', Crypt::encrypt($tour->tour_id)) }}" 
-                                   class="btn btn-outline-danger btn-sm rounded-pill">
-                                    <i class="ri-eye-line"></i> Audit Trail
-                                </a>
-                            </td>
-                            <td>
-                                <div class="d-flex flex-column">
-                                    <span>{{ $tour->created_at->format('D,  M d, Y') }}</span>
-                                    <small class="text-muted">{{ $tour->created_at->format('h:i A') }}</small>
+                            <td class="align-top col-actions">
+                                <div class="actions-icons-wrap">
+                                    <a href="{{ route('bookings.view-tour', Crypt::encrypt($tour->tour_id)) }}"
+                                       class="action-icon-badge" style="--action-color: #0369a1;" data-tooltip="Audit Trail">
+                                        <i class="ri-eye-line"></i>
+                                    </a>
                                 </div>
                             </td>
-                            <td>
+                            <td class="col-created align-top">
                                 <div class="d-flex flex-column">
-                                    <span class="fw-medium">{{ optional($tour->updated_at)->format('D, M d, Y') }}</span>
-                                    <small class="text-muted">{{ optional($tour->updated_at)->format('h:i A') }}</small>
+                                    <span class="created-by-line fw-medium" title="Created by">
+                                        <i class="ri-user-line"></i>
+                                        <span>{{ $tour->created_by_name ?? 'N/A' }}</span>
+                                    </span>
+                                    <span class="created-at-line" title="Created at">
+                                        <i class="ri-calendar-line"></i>
+                                        @php
+                                            $createdAt = $tour->destination_created_at ?? $tour->created_at;
+                                        @endphp
+                                        <span>{{ $createdAt->format('D, M d, Y') }} · {{ $createdAt->format('h:i A') }}</span>
+                                    </span>
                                 </div>
                             </td>
-                            <td>
+                            <td class="col-auto-cancel">
                                 <div class="d-flex flex-column">
                                     @if($tour->auto_cancel_date)
                                         <span class="fw-semibold">
@@ -411,14 +564,23 @@ function filterTable() {
         if (row.cells.length === 1) return; // Skip empty state row
         
         const tourDetails = row.cells[1]?.textContent.toLowerCase() || '';
-        const destination = row.cells[2]?.querySelector('.fw-medium')?.textContent || '';
-        const agent = row.cells[4]?.querySelector('.fw-medium')?.textContent || '';
-        const status = row.cells[5]?.querySelector('.badge')?.textContent.toLowerCase() || '';
-        const cancelledDate = row.cells[6]?.textContent.toLowerCase() || '';
+        const destination = (row.cells[1]?.textContent || '').toLowerCase();
+        const agent = (row.cells[2]?.querySelector('.agent-name-line span')?.textContent?.trim() || row.cells[2]?.textContent || '').toLowerCase();
+        const createdBy = (row.cells[6]?.querySelector('.created-by-line span')?.textContent?.trim() || row.cells[6]?.textContent || '').toLowerCase();
+        const status = row.cells[3]?.querySelector('.badge')?.textContent.toLowerCase() || '';
+        const cancelledDate = row.cells[4]?.textContent.toLowerCase() || '';
         const createdAt = row.getAttribute('data-created-at');
         const updatedAt = row.getAttribute('data-updated-at');
         
         let show = true;
+        
+        // Search filter - check tour details, destination, agent, and created by
+        if (searchTerm && !tourDetails.includes(searchTerm) && 
+            !destination.toLowerCase().includes(searchTerm) &&
+            !agent.toLowerCase().includes(searchTerm) &&
+            !createdBy.toLowerCase().includes(searchTerm)) {
+            show = false;
+        }
         
         // Date filtering (check both created_at and updated_at)
         if ((startDateValue || endDateValue) && (createdAt || updatedAt)) {
@@ -450,26 +612,19 @@ function filterTable() {
             show = false;
         }
         
-        if (searchTerm && !tourDetails.includes(searchTerm)) {
-            show = false;
-        }
-        
         if (statusFilter && !status.includes(statusFilter.toLowerCase())) {
             show = false;
         }
         
-        // Destination filter - use LIKE operator logic (contains)
-        // This works for multi-country destinations like "India, Singapore"
+        // Destination filter - Tour Details (cells[1]) contains destination
         if (destinationFilter) {
-            // Split destination by comma and trim spaces
-            const destinationCountries = destination.split(',').map(c => c.trim());
-            // Check if the selected destination is in the destination list
-            if (!destinationCountries.includes(destinationFilter)) {
+            const destText = (row.cells[1]?.textContent || '').toLowerCase();
+            if (!destText.includes(destinationFilter.toLowerCase())) {
                 show = false;
             }
         }
         
-        if (agentFilter && agent !== agentFilter) {
+        if (agentFilter && agent !== agentFilter.toLowerCase().trim()) {
             show = false;
         }
         
@@ -746,21 +901,27 @@ document.addEventListener('DOMContentLoaded', function() {
             lengthMenu: [10, 25, 50, 100], // Customize number of entries per page
             pageLength: 25,
             // order: [[5, 'desc']], // Sort by Cancelled Date column (index 5) in descending order
-            columnDefs: [
-                {
-                    targets: [6], // Actions column (index 6)
-                    orderable: false,
-                    searchable: false
-                },
-                {
-                    targets: [3], // Guests column (index 3)
-                    orderable: false
-                },
-                {
-                    targets: [4], // Cancellation Status column (index 4)
-                    orderable: false
-                }
-            ],
+            columnDefs: (function() {
+                const headerTexts = $('#toursTable thead th').map(function() {
+                    return $(this).text().trim();
+                }).get();
+                const colIndex = (name) => headerTexts.findIndex(t => t === name);
+                const actionsIdx = colIndex('Actions');
+                const guestsIdx = colIndex('Guests');
+                const statusIdx = colIndex('Cancellation Status');
+
+                return [
+                    {
+                        targets: [actionsIdx].filter(i => i >= 0),
+                        orderable: false,
+                        searchable: false
+                    },
+                    {
+                        targets: [guestsIdx, statusIdx].filter(i => i >= 0),
+                        orderable: false
+                    }
+                ];
+            })(),
             initComplete: function() {
                 console.log('DataTable initialized successfully');
             }
@@ -787,6 +948,28 @@ document.addEventListener('DOMContentLoaded', function() {
             table.button('.buttons-print').trigger();
         });
     }
+
+    // Global tooltip for table headers and action/service icons
+    $(document).ready(function() {
+        var $globalTooltip = $('#service-icon-global-tooltip');
+        if (!$globalTooltip.length) {
+            $globalTooltip = $('<div id="service-icon-global-tooltip" aria-hidden="true"></div>').appendTo('body');
+        }
+        $(document).on('mouseenter', '#toursTable thead .th-tooltip', function() {
+            var txt = $(this).attr('data-tooltip') || $(this).attr('title') || $(this).text();
+            if (!txt) return;
+            var rect = this.getBoundingClientRect();
+            $globalTooltip.css({ display: 'block', left: (rect.left + rect.width / 2) + 'px', top: (rect.top - 6) + 'px', transform: 'translate(-50%, -100%)' }).text(txt);
+        });
+        $(document).on('mouseleave', '#toursTable thead .th-tooltip', function() { $globalTooltip.hide(); });
+        $(document).on('mouseenter', '#toursTable .action-icon-badge', function() {
+            var txt = $(this).attr('data-tooltip') || $(this).attr('title') || '';
+            if (!txt) return;
+            var rect = this.getBoundingClientRect();
+            $globalTooltip.css({ display: 'block', left: (rect.left + rect.width / 2) + 'px', top: (rect.top - 6) + 'px', transform: 'translate(-50%, -100%)' }).text(txt);
+        });
+        $(document).on('mouseleave', '#toursTable .action-icon-badge', function() { $globalTooltip.hide(); });
+    });
 </script>
 @endsection
 
