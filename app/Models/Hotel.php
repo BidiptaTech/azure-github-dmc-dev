@@ -76,8 +76,13 @@ class Hotel extends Model
      */
     public function hasSelectedByDmc($dmcId)
     {
-        $dmcIds = $this->getDmcIdsArray();
-        return in_array($dmcId, $dmcIds);
+        $needle = (string) $dmcId;
+        foreach ($this->getDmcIdsArray() as $id) {
+            if ((string) $id === $needle) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -130,6 +135,30 @@ class Hotel extends Model
         }
         
         return null;
+    }
+
+    /**
+     * Zone IDs to try for pricing: DMC-specific first, then any other assigned zones.
+     * (Some hotels share pricing zones across DMCs / master mappings.)
+     */
+    public function getZoneCandidatesForDmc($dmcId): array
+    {
+        $ids = [];
+        $preferred = $this->getZoneForDmc($dmcId);
+        if ($preferred !== null && $preferred !== '') {
+            $ids[] = (string) $preferred;
+        }
+        foreach ($this->zone_assignments ?? [] as $assignment) {
+            $zid = $assignment['zone_id'] ?? null;
+            if ($zid === null || $zid === '') {
+                continue;
+            }
+            $zid = (string) $zid;
+            if (!in_array($zid, $ids, true)) {
+                $ids[] = $zid;
+            }
+        }
+        return $ids;
     }
 
     /**

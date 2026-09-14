@@ -2,6 +2,11 @@
 
 namespace App\Helpers;
 
+use App\Models\Country;
+use Carbon\Carbon;
+use DateTimeInterface;
+use Throwable;
+
 class CountryHelper
 {
     public static function getAllCountries()
@@ -161,5 +166,69 @@ class CountryHelper
     {
         $codeMap = self::getCountryCodeMap();
         return $codeMap[$countryName] ?? '';
+    }
+
+    /**
+     * Convert a UTC datetime to a destination country's local time.
+     *
+     * @param  DateTimeInterface|string|null  $utcDateTime
+     * @param  Country|int|null  $country
+     */
+    public static function convertUtcToDestinationTime(
+        DateTimeInterface|string|null $utcDateTime,
+        Country|int|null $country,
+        string $format = 'd M Y h:i A'
+    ): ?string {
+        return self::convertUtcToDestinationDateTime($utcDateTime, $country)?->format($format);
+    }
+
+    /**
+     * Convert a UTC datetime to a Carbon instance in the destination timezone.
+     *
+     * @param  DateTimeInterface|string|null  $utcDateTime
+     * @param  Country|int|null  $country
+     */
+    public static function convertUtcToDestinationDateTime(
+        DateTimeInterface|string|null $utcDateTime,
+        Country|int|null $country
+    ): ?Carbon {
+        if ($utcDateTime === null) {
+            return null;
+        }
+
+        $timezone = self::resolveDestinationTimezone($country);
+
+        try {
+            $dateTime = $utcDateTime instanceof DateTimeInterface
+                ? Carbon::instance($utcDateTime)
+                : Carbon::parse($utcDateTime, 'UTC');
+
+            return $dateTime->setTimezone($timezone);
+        } catch (Throwable) {
+            try {
+                $dateTime = $utcDateTime instanceof DateTimeInterface
+                    ? Carbon::instance($utcDateTime)
+                    : Carbon::parse($utcDateTime, 'UTC');
+
+                return $dateTime->setTimezone('UTC');
+            } catch (Throwable) {
+                return null;
+            }
+        }
+    }
+
+    private static function resolveDestinationTimezone(Country|int|null $country): string
+    {
+        try {
+            $timezone = $country instanceof Country
+                ? $country->timezone
+                : Country::query()->whereKey($country)->value('timezone');
+
+            return is_string($timezone) && trim($timezone) !== ''
+                ? trim($timezone)
+                : 'UTC';
+        } catch (Throwable) {
+            return 'UTC';
+        }
     }
 }

@@ -16,158 +16,162 @@
 <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet">
 
 <style>
-/* DMC Filter Styles */
-#dmcFilter {
-    border: 1px solid #d9dee3;
-    border-radius: 0.375rem;
-    padding: 0.5rem 0.75rem;
-    font-size: 0.875rem;
-    background-color: #fff;
-    color: #566a7f;
-    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
-}
+    /* DMC Filter Styles */
+    #dmcFilter {
+        border: 1px solid #d9dee3;
+        border-radius: 0.375rem;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.875rem;
+        background-color: #fff;
+        color: #566a7f;
+        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    }
 
-#dmcFilter:focus {
-    border-color: #696cff;
-    box-shadow: 0 0 0 0.2rem rgba(105, 108, 255, 0.25);
-    outline: 0;
-}
+    #dmcFilter:focus {
+        border-color: #696cff;
+        box-shadow: 0 0 0 0.2rem rgba(105, 108, 255, 0.25);
+        outline: 0;
+    }
 
-/* DMC Badge Styles */
-.badge.bg-primary {
-    background-color: #696cff !important;
-}
+    /* DMC Badge Styles */
+    .badge.bg-primary {
+        background-color: #696cff !important;
+    }
 
-.badge.bg-secondary {
-    background-color: #8592a3 !important;
-}
+    .badge.bg-secondary {
+        background-color: #8592a3 !important;
+    }
 
-/* Filter Info Text */
-.filter-info {
-    font-size: 0.875rem;
-    color: #6c757d;
-    font-style: italic;
-}
+    /* Filter Info Text */
+    .filter-info {
+        font-size: 0.875rem;
+        color: #6c757d;
+        font-style: italic;
+    }
 
-/* Select2 Custom Styles */
-.select2-container .select2-selection--single {
-    height: 50px !important;
-    line-height: 38px !important;
-    padding: 0 12px;
-    border: 1px solid #d9dee3;
-    border-radius: 0.375rem;
-}
+    /* Select2 Custom Styles */
+    .select2-container .select2-selection--single {
+        height: 50px !important;
+        line-height: 38px !important;
+        padding: 0 12px;
+        border: 1px solid #d9dee3;
+        border-radius: 0.375rem;
+    }
 
-.select2-container--default .select2-selection--single .select2-selection__rendered {
-    line-height: 38px !important;
-    padding-left: 0;
-}
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: 38px !important;
+        padding-left: 0;
+    }
 
-.select2-container--default .select2-selection--single .select2-selection__arrow {
-    height: 36px !important;
-}
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 36px !important;
+    }
 
-/* Increase the height of the dropdown items */
-.select2-container .select2-results__option {
-    padding: 8px 12px;
-}
+    /* Increase the height of the dropdown items */
+    .select2-container .select2-results__option {
+        padding: 8px 12px;
+    }
 
-/* Focus state */
-.select2-container--default.select2-container--focus .select2-selection--single,
-.select2-container--default.select2-container--open .select2-selection--single {
-    border-color: #696cff;
-    box-shadow: 0 0 0 0.2rem rgba(105, 108, 255, 0.25);
-}
+    /* Focus state */
+    .select2-container--default.select2-container--focus .select2-selection--single,
+    .select2-container--default.select2-container--open .select2-selection--single {
+        border-color: #696cff;
+        box-shadow: 0 0 0 0.2rem rgba(105, 108, 255, 0.25);
+    }
 
-/* Dropdown styling */
-.select2-dropdown {
-    border: 1px solid #d9dee3;
-    border-radius: 0.375rem;
-    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
-}
+    /* Dropdown styling */
+    .select2-dropdown {
+        border: 1px solid #d9dee3;
+        border-radius: 0.375rem;
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    }
 
-/* Search box styling */
-.select2-search--dropdown .select2-search__field {
-    border: 1px solid #d9dee3;
-    border-radius: 0.375rem;
-    padding: 6px 12px;
-    outline: none;
-}
+    /* Search box styling */
+    .select2-search--dropdown .select2-search__field {
+        border: 1px solid #d9dee3;
+        border-radius: 0.375rem;
+        padding: 6px 12px;
+        outline: none;
+    }
 
-.select2-search--dropdown .select2-search__field:focus {
-    border-color: #696cff;
-    box-shadow: 0 0 0 0.2rem rgba(105, 108, 255, 0.25);
-}
+    .select2-search--dropdown .select2-search__field:focus {
+        border-color: #696cff;
+        box-shadow: 0 0 0 0.2rem rgba(105, 108, 255, 0.25);
+    }
 
-/* Highlighted option */
-.select2-container--default .select2-results__option--highlighted[aria-selected] {
-    background-color: #696cff;
-    color: white;
-}
+    /* Highlighted option */
+    .select2-container--default .select2-results__option--highlighted[aria-selected] {
+        background-color: #696cff;
+        color: white;
+    }
 
-/* Selected option */
-.select2-container--default .select2-results__option[aria-selected=true] {
-    background-color: #e7e7ff;
-    color: #696cff;
-}
+    /* Selected option */
+    .select2-container--default .select2-results__option[aria-selected=true] {
+        background-color: #e7e7ff;
+        color: #696cff;
+    }
 
-/* Dropdown width */
-.select2-container {
-    width: 100% !important;
-}
+    /* Dropdown width */
+    .select2-container {
+        width: 100% !important;
+    }
 
-/* DataTable Responsive Styles */
-.dataTables_wrapper .dataTables_filter input {
-    padding: 0.4rem 0.75rem;
-    border-radius: 0.375rem;
-    border: 1px solid #d9dee3;
-}
+    /* DataTable Responsive Styles */
+    .dataTables_wrapper .dataTables_filter input {
+        padding: 0.4rem 0.75rem;
+        border-radius: 0.375rem;
+        border: 1px solid #d9dee3;
+    }
 
-.dataTables_wrapper .dataTables_paginate .paginate_button {
-    padding: 0.5rem 0.75rem;
-    margin: 0 0.125rem;
-    border: 1px solid #d9dee3;
-    border-radius: 0.375rem;
-    background-color: #fff;
-}
+    .dataTables_wrapper .dataTables_paginate .paginate_button {
+        padding: 0.5rem 0.75rem;
+        margin: 0 0.125rem;
+        border: 1px solid #d9dee3;
+        border-radius: 0.375rem;
+        background-color: #fff;
+    }
 
-.dataTables_wrapper .dataTables_paginate .paginate_button.current {
-    background-color: #696cff;
-    border-color: #696cff;
-    color: #fff !important;
-}
+    .dataTables_wrapper .dataTables_paginate .paginate_button.current {
+        background-color: #696cff;
+        border-color: #696cff;
+        color: #fff !important;
+    }
 
-.dataTables_wrapper .dataTables_paginate .paginate_button:hover {
-    background-color: #e7e7ff;
-    border-color: #696cff;
-    color: #696cff !important;
-}
+    .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+        background-color: #e7e7ff;
+        border-color: #696cff;
+        color: #696cff !important;
+    }
 
-/* Table Styles */
-.table> :not(caption)>*>* {
-    padding: 0.75rem;
-}
+    /* Table Styles */
+    .table> :not(caption)>*>* {
+        padding: 0.75rem;
+    }
 
-/* Button Styles */
-.btn-icon {
-    width: 32px;
-    height: 32px;
-    padding: 0;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-}
+    /* Button Styles */
+    .btn-icon {
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
 </style>
 <div class="content-wrapper">
    <div class="container-xxl flex-grow-1 container-p-y">
+      @if($canManageHotelRates ?? true)
       <div class="card mb-6">
          <h5 class="card-header d-flex justify-content-between align-items-center">
-               Add Events
+               <span class="d-flex align-items-center flex-wrap gap-2">
+                   Add Events
+                   <x-currency-price-note :country="$hotel->country ?? null" :watch-dmc="in_array($auth_user->role_id, [1, 20])" />
+               </span>
                <a href="javascript:history.back()" class="btn btn-sm btn-outline-danger">
                   <i class="mdi mdi-arrow-left"></i> Back
                </a>
          </h5>
-         <form id="hotelForm" method="POST" action="{{ route('storerates') }}" enctype="multipart/form-data" class="card-body">
+         <form id="hotelForm" method="POST" action="{{ route('storerates') }}" enctype="multipart/form-data" class="card-body js-submit-loader-form" data-loader-message="Saving...">
             @csrf
             <input type="hidden" class="form-control" name="hotel_id" value="{{ $hotel->hotel_unique_id }}">
             
@@ -196,7 +200,7 @@
                     <select id="dmc_selection" class="form-control" name="dmc_id" required>
                         <option value="">Select DMC</option>
                         @foreach($dmcUsers as $dmc)
-                            <option value="{{ $dmc->userId }}">{{ $dmc->company_name }} ({{ $dmc->name }})</option>
+                            <option value="{{ $dmc->userId }}" data-currency="{{ $dmc->currency ?? '' }}">{{ $dmc->company_name }} ({{ $dmc->name }})</option>
                         @endforeach
                     </select>
                     <small class="text-muted">
@@ -236,6 +240,33 @@
                         <input type="number" class="form-control" name="surcharge" placeholder="Enter Surcharge">
                      </div>
 
+                     <!-- Breakfast Price -->
+                     <div class="col-md-3 mb-3">
+                        <label for="breakfast_price" class="form-label"><strong>Breakfast Price</strong></label>
+                        <input type="number" step="0.01" min="0" class="form-control" name="breakfast_price" placeholder="Enter breakfast price">
+                        @error('breakfast_price')
+                           <div class="text-danger mt-1">{{ $message }}</div>
+                        @enderror
+                     </div>
+
+                     <!-- Lunch Price -->
+                     <div class="col-md-3 mb-3">
+                        <label for="lunch_price" class="form-label"><strong>Lunch Price</strong></label>
+                        <input type="number" step="0.01" min="0" class="form-control" name="lunch_price" placeholder="Enter lunch price">
+                        @error('lunch_price')
+                           <div class="text-danger mt-1">{{ $message }}</div>
+                        @enderror
+                     </div>
+
+                     <!-- Dinner Price -->
+                     <div class="col-md-3 mb-3">
+                        <label for="dinner_price" class="form-label"><strong>Dinner Price</strong></label>
+                        <input type="number" step="0.01" min="0" class="form-control" name="dinner_price" placeholder="Enter dinner price">
+                        @error('dinner_price')
+                           <div class="text-danger mt-1">{{ $message }}</div>
+                        @enderror
+                     </div>
+
                      <!-- Start Date, End date DateRange -->
                         <div class="mb-3 col-md-3">
                            <label for="date_range" class="form-label"><strong>Date Range</strong><span class="text-danger">*</span></label>
@@ -268,11 +299,18 @@
 
             <!-- Submit Buttons -->
             <div class="d-flex gap-3">
-               <button type="submit" class="btn btn-primary px-4">Save</button>
+               <button type="submit" class="btn btn-primary px-4 js-submit-loader-btn">
+                    <span class="js-submit-loader-btn-text">Save</span>
+                    <span class="js-submit-loader-btn-loading d-none">
+                        <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                        Saving...
+                    </span>
+               </button>
                {{-- <a href="{{ route('policy', $hotel->hotel_unique_id) }}" class="btn btn-success px-4">Save</a> --}}
             </div>
          </form>
       </div>
+      @endif
    </div>
 </div>
 
@@ -386,6 +424,7 @@
    </div>
 </div>
 
+<x-form-submit-loader message="Saving..." />
 @endsection
 @section('scripts')  
 
@@ -402,6 +441,12 @@
             placeholder: "Search and Select DMC",
             allowClear: true,
             width: '100%'
+        });
+
+        $('#dmc_selection').on('change', function () {
+            if (typeof updateCurrencyPriceNoteFromDmc === 'function') {
+                updateCurrencyPriceNoteFromDmc(this);
+            }
         });
         @endif
 
@@ -611,4 +656,5 @@
         }
     });
 </script>
+@include('components.currency-price-note-dmc-script')
 @endsection
