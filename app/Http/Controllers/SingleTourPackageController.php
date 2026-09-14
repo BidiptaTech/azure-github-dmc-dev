@@ -5059,6 +5059,18 @@ class SingleTourPackageController extends Controller
                                         'child_with_bed' => $hotelBooking['child_with_bed'] ?? null,
                                         'child_without_bed' => $hotelBooking['child_without_bed'] ?? null,
 
+                                        // Child count + half-meal (rooms.children_price: 0=free, 1=half, 2=full)
+                                        'children' => (int) ($hotelBooking['children']
+                                            ?? ($hotelBooking['child_with_bed']['children'] ?? null)
+                                            ?? ($hotelBooking['child_without_bed']['children'] ?? null)
+                                            ?? 0),
+                                        'children_price' => isset($hotelBooking['children_price'])
+                                            ? (int) $hotelBooking['children_price']
+                                            : null,
+                                        'child_meal_factor' => isset($hotelBooking['child_meal_factor'])
+                                            ? (float) $hotelBooking['child_meal_factor']
+                                            : null,
+
                                         // Extra bed (3 pax / extra person on room)
                                         'extra_bed' => $hotelBooking['extra_bed'] ?? null,
                                         
@@ -5160,17 +5172,19 @@ class SingleTourPackageController extends Controller
                                     // Process vehicle_id and fetch vehicle name from DB
                                     if (isset($transferOptions['vehicle_id']) && !empty($transferOptions['vehicle_id'])) {
                                         $vehicleId = $transferOptions['vehicle_id'];
-                                        
-                                        // Fetch vehicle from DB using vehicle_id
-                                        $vehicle = Vehicle::where('vehicle_id', $vehicleId)->first();
-                                        
-                                        if ($vehicle && $vehicle->vehicle_name) {
-                                            // Overwrite vehicle_name with value from DB
-                                            $transferOptions['vehicle_name'] = $vehicle->vehicle_name;
-                                            
-                                            // Also update vehicle_details if it exists
-                                            if (isset($transferOptions['vehicle_details']) && is_array($transferOptions['vehicle_details'])) {
-                                                $transferOptions['vehicle_details']['vehicle_name'] = $vehicle->vehicle_name;
+
+                                        // Placeholder option text (e.g. "No vehicles available") must not hit bigint column
+                                        if (!is_numeric($vehicleId)) {
+                                            $transferOptions['vehicle_id'] = null;
+                                        } else {
+                                            $vehicle = Vehicle::where('vehicle_id', $vehicleId)->first();
+
+                                            if ($vehicle && $vehicle->vehicle_name) {
+                                                $transferOptions['vehicle_name'] = $vehicle->vehicle_name;
+
+                                                if (isset($transferOptions['vehicle_details']) && is_array($transferOptions['vehicle_details'])) {
+                                                    $transferOptions['vehicle_details']['vehicle_name'] = $vehicle->vehicle_name;
+                                                }
                                             }
                                         }
                                     }
@@ -5243,17 +5257,19 @@ class SingleTourPackageController extends Controller
                                     // Process vehicle_id and fetch vehicle name from DB
                                     if (isset($transferOptions['vehicle_id']) && !empty($transferOptions['vehicle_id'])) {
                                         $vehicleId = $transferOptions['vehicle_id'];
-                                        
-                                        // Fetch vehicle from DB using vehicle_id
-                                        $vehicle = Vehicle::where('vehicle_id', $vehicleId)->first();
-                                        
-                                        if ($vehicle && $vehicle->vehicle_name) {
-                                            // Overwrite vehicle_name with value from DB
-                                            $transferOptions['vehicle_name'] = $vehicle->vehicle_name;
-                                            
-                                            // Also update vehicle_details if it exists
-                                            if (isset($transferOptions['vehicle_details']) && is_array($transferOptions['vehicle_details'])) {
-                                                $transferOptions['vehicle_details']['vehicle_name'] = $vehicle->vehicle_name;
+
+                                        // Placeholder option text (e.g. "No vehicles available") must not hit bigint column
+                                        if (!is_numeric($vehicleId)) {
+                                            $transferOptions['vehicle_id'] = null;
+                                        } else {
+                                            $vehicle = Vehicle::where('vehicle_id', $vehicleId)->first();
+
+                                            if ($vehicle && $vehicle->vehicle_name) {
+                                                $transferOptions['vehicle_name'] = $vehicle->vehicle_name;
+
+                                                if (isset($transferOptions['vehicle_details']) && is_array($transferOptions['vehicle_details'])) {
+                                                    $transferOptions['vehicle_details']['vehicle_name'] = $vehicle->vehicle_name;
+                                                }
                                             }
                                         }
                                     }
@@ -6072,11 +6088,24 @@ class SingleTourPackageController extends Controller
                 'all_keys' => array_keys($transportData[0])
             ]);
         }
+        
 
         $firstTransport = (is_array($transportData) && isset($transportData[0]) && is_array($transportData[0]))
             ? $transportData[0]
             : (is_array($transportData) ? $transportData : []);
         [$firstTransport, $orderGeo] = $this->applyOrderGeoToServiceRow($firstTransport, $request, $tourId);
+        if (empty($orderGeo['city'])) {
+            $fallbackCity = trim((string) ($firstTransport['city'] ?? $request->input('city', '')));
+            if ($fallbackCity === '' && $tour) {
+                $tourCityParts = preg_split('/\s*,\s*/', (string) ($tour->city ?? ''));
+                $fallbackCity = trim((string) ($tourCityParts[0] ?? ''));
+                $fallbackCity = trim((string) preg_replace('/\s*\([^)]*\)\s*$/', '', $fallbackCity));
+            }
+            if ($fallbackCity !== '') {
+                $orderGeo['city'] = $fallbackCity;
+                $firstTransport['city'] = $fallbackCity;
+            }
+        }
         if (is_array($transportData) && isset($transportData[0]) && is_array($transportData[0])) {
             $transportData[0] = $firstTransport;
         } elseif (is_array($transportData)) {
@@ -6167,6 +6196,19 @@ class SingleTourPackageController extends Controller
             ? $transportData[0]
             : (is_array($transportData) ? $transportData : []);
         [$firstTransfer, $orderGeo] = $this->applyOrderGeoToServiceRow($firstTransfer, $request, $tourId);
+        if (empty($orderGeo['city'])) {
+            // Prefer payload/request city; fall back to active tour city string (first place name).
+            $fallbackCity = trim((string) ($firstTransfer['city'] ?? $request->input('city', '')));
+            if ($fallbackCity === '' && $tour) {
+                $tourCityParts = preg_split('/\s*,\s*/', (string) ($tour->city ?? ''));
+                $fallbackCity = trim((string) ($tourCityParts[0] ?? ''));
+                $fallbackCity = trim((string) preg_replace('/\s*\([^)]*\)\s*$/', '', $fallbackCity));
+            }
+            if ($fallbackCity !== '') {
+                $orderGeo['city'] = $fallbackCity;
+                $firstTransfer['city'] = $fallbackCity;
+            }
+        }
         if (is_array($transportData) && isset($transportData[0]) && is_array($transportData[0])) {
             $transportData[0] = $firstTransfer;
         } elseif (is_array($transportData)) {
