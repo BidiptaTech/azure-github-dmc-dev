@@ -18,6 +18,11 @@ class Bed extends Model
         return $this->belongsTo(Room::class, 'room_id', 'room_id');
     }
 
+    public function bedMaster()
+    {
+        return $this->belongsTo(BedMaster::class, 'bed_master_id', 'bedId');
+    }
+
     public function user()
     {
         return $this->belongsTo(User::class, 'dmc_id', 'userId');

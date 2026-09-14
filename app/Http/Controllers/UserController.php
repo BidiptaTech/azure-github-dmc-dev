@@ -1037,8 +1037,7 @@ class UserController extends Controller
                     'email' => (string) ($u->email ?? ''),
                     'phone' => (string) ($u->phone ?? ''),
                     'user_country' => (string) ($u->user_country ?? 'N/A'),
-                    'city' => (string) ($u->city ?? ''),
-                    'country' => (string) ($u->country ?? ''),
+                    'city' => (string) ($u->city ?? 'N/A'),
                     'role' => (string) (optional($u->role)->name ?? 'No Role'),
                     'role_id' => $rowRoleId,
                     'user_type' => (string) ($u->getUserTypeName() ?? 'Unknown'),
@@ -3568,7 +3567,7 @@ class UserController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'phone' => 'nullable|string|max:50',
-            'user_country' => 'nullable|string|max:100',
+            'country' => 'nullable|string|max:100',
             'city' => 'nullable|string|max:100',
             'address' => 'nullable|string',
             'profile_image' => 'nullable|image|mimes:jpeg,png,jpg,gif',
@@ -3577,7 +3576,7 @@ class UserController extends Controller
         $data = [
             'name' => $request->name,
             'phone' => $request->phone ?? $user->phone,
-            'user_country' => $request->user_country ?? $user->user_country,
+            'country' => $request->country ?? $user->country,
             'city' => $request->city ?? $user->city,
             'address' => $request->address ?? $user->address,
         ];

@@ -2787,45 +2787,62 @@ class HotelController extends Controller
         
             $hotel = Hotel::where('hotel_unique_id', $id)->first();
             $dmcId = CommonHelper::getDmcId($auth_user);
-            $rooms = Room::where('hotel_id', $id)->where('created_by', $dmcId)
-            ->get();
+            $isAdmin = (int) ($auth_user->role_id ?? 0) === 1;
+
+            $roomsQuery = Room::where('hotel_id', $id);
+            if (!$isAdmin && $dmcId) {
+                $roomsQuery->where('created_by', $dmcId);
+            }
+            $rooms = $roomsQuery->orderByDesc('room_id')->get()
+                ->unique(static function ($room) {
+                    return mb_strtolower(trim((string) ($room->room_type ?? '')));
+                })
+                ->sortBy('room_type')
+                ->values();
+            $roomIds = $rooms->pluck('room_id')
+                ->filter(static fn ($roomId) => $roomId !== null && $roomId !== '')
+                ->map(static fn ($roomId) => (int) $roomId)
+                ->unique()
+                ->values();
 
         
-            // Admin / role 20: only DMCs that have selected this hotel
+            // Admin/manager DMC picker: only DMCs already mapped on hotels.dmc_id
             $dmcUsers = collect();
-            if (in_array((int) $auth_user->role_id, [1, 20], true) && $hotel) {
-                $selectedDmcIds = [];
-                foreach ($hotel->getSelectedDmcIds() as $selectedId) {
-                    $intId = (int) $selectedId;
+            if (in_array((int) ($auth_user->role_id ?? 0), [1, 20], true) && $hotel) {
+                $mappedDmcIds = [];
+                foreach ($hotel->getSelectedDmcIds() as $mappedId) {
+                    $intId = (int) $mappedId;
                     if ($intId > 0) {
-                        $selectedDmcIds[] = $intId;
+                        $mappedDmcIds[$intId] = true;
                     }
                 }
-                $selectedDmcIds = array_values(array_unique($selectedDmcIds));
-
-                if ($selectedDmcIds !== []) {
-                    $dmcUsers = User::whereIn('role_id', [11, 20])
-                        ->whereIn('userId', $selectedDmcIds)
+                $mappedDmcIds = array_keys($mappedDmcIds);
+                if ($mappedDmcIds !== []) {
+                    $dmcUsers = User::whereIn('userId', $mappedDmcIds)
+                        ->whereIn('role_id', [11, 20])
                         ->select('userId', 'name', 'company_name', 'currency')
                         ->orderBy('company_name', 'asc')
-                        ->get()
-                        ->filter(function ($dmc) use ($hotel) {
-                            return $hotel->hasSelectedByDmc($dmc->userId);
-                        })
-                        ->values();
+                        ->get();
                 }
             }
-        
-            // Fetch beds data based on user role
-            if ($auth_user->role_id == 1) {
-                // Admin: Show all beds for this hotel
-                $bedsData = Bed::with(['room', 'user'])
-                ->whereHas('room', function ($query) use ($id) {
-                    $query->where('hotel_id', $id);
-                })
-                ->get();
-            
-                // Add DMC information to each bed
+
+            // Only list beds that actually exist for this hotel's current room_ids
+            // (and this DMC). Do not pull leftover beds from older duplicate rooms.
+            if ($roomIds->isEmpty()) {
+                $bedsData = collect();
+            } else {
+                $bedsQuery = Bed::with(['room', 'user'])
+                    ->whereIn('room_id', $roomIds->all())
+                    ->whereNotNull('bed_id');
+
+                if (!$isAdmin) {
+                    $bedsQuery->where('dmc_id', $dmcId);
+                }
+
+                $bedsData = $bedsQuery->get();
+            }
+
+            if ($isAdmin) {
                 $bedsData = $bedsData->map(function ($bed) {
                     if ($bed->dmc_id) {
                         $dmcUser = User::where('userId', $bed->dmc_id)->first();
@@ -2841,13 +2858,6 @@ class HotelController extends Controller
                     }
                     return $bed;
                 });
-            } else {
-                // DMC/Other users: Show only their own beds
-                $bedsData = Bed::with('room')->where('dmc_id', $dmcId)
-                              ->whereHas('room', function ($query) use ($id) {
-                                  $query->where('hotel_id', $id);
-                              })
-                              ->get();
             }
         
             $beds = BedMaster::where('hotel_id', $id)->get();
@@ -2921,9 +2931,9 @@ class HotelController extends Controller
             $request->validate($rules);
 
             if (in_array((int) $auth_user->role_id, [1, 20], true)) {
-                $hotelForDmc = Hotel::where('hotel_unique_id', $request->hotel_id)->first();
+                $hotelForDmc = Hotel::where('hotel_unique_id', $request->input('hotel_id'))->first();
                 if (!$hotelForDmc || !$hotelForDmc->hasSelectedByDmc($request->input('dmc_id'))) {
-                    return redirect()->back()->with('error', 'Please select a DMC that has this hotel.');
+                    return redirect()->back()->withInput()->with('error', 'Please select a DMC that is mapped to this hotel.');
                 }
             }
             //If extra bed and baby cot is not available

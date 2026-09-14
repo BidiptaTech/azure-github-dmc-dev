@@ -277,16 +277,3 @@
         border-color: #f59e0b !important;
         color: #92400e !important;
     }
-    .enquiry-md-panel.is-locked .enquiry-md-control,
-    .enquiry-md-panel.is-locked select,
-    .enquiry-md-panel.is-locked input {
-        pointer-events: none;
-        background: #f3f4f6 !important;
-        color: #4b5563 !important;
-        cursor: not-allowed;
-    }
-    .enquiry-md-locked-hint {
-        margin: 0;
-        font-size: 11px;
-        color: #64748b;
-    }

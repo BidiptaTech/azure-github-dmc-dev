@@ -211,6 +211,14 @@
         window.siblingDmcCountryMap = @json($siblingDmcCountryMap ?? []);
         window.siblingDmcCityMap = @json($siblingDmcCityMap ?? []);
 
+        // rooms.children_price: 0=free, 1=half, 2=full (same as create)
+        window.getChildMealFactor = function (childrenPriceCode) {
+            const code = parseInt(childrenPriceCode, 10);
+            if (code === 0) return 0;
+            if (code === 1) return 0.5;
+            return 1;
+        };
+
         window.resolveDmcIdForCountry = function (country) {
             const c = String(country || '').trim();
             const map = window.siblingDmcCountryMap || {};
@@ -4861,6 +4869,7 @@
                                     <div class="card-body mt-3">
                                         @if(count($allGuides) > 0)
                                         @foreach($allGuides as $index => $order)
+                       
                                         @php
                                             $guideData = $order->processed_data;
                                             $payload = [];
@@ -4871,7 +4880,17 @@
                                             $packageHours = $payload['hours'] ?? '';
                                             // Use entrytime for time, not entrypickup (which contains location)
                                             $pickupTime = $payload['entrytime'] ?? $payload['pickup_time'] ?? '';
-                                            $pickupDate = $payload['pickupdate'] ?? '';
+                                            // type="date" only accepts Y-m-d — raw pickupdate often breaks the picker
+                                            $pickupDateRaw = $payload['pickupdate'] ?? $payload['bookingDate'] ?? '';
+                                            $pickupDate = '';
+                                            if ($pickupDateRaw) {
+                                                try {
+                                                    $pickupDate = \Carbon\Carbon::parse($pickupDateRaw)->format('Y-m-d');
+                                                } catch (\Exception $e) {
+                                                    $pickupDate = is_string($pickupDateRaw) ? trim(explode(' ', $pickupDateRaw)[0]) : '';
+                                                }
+                                            }
+
                                             $guestSummary = $payload['fullName'] ?? '';
                                             $guideNotes = $payload['notes'] ?? '';
                                             $totalPrice = $payload['totalPrice'] ?? $payload['price'] ?? 0;
@@ -13887,6 +13906,40 @@
     };
 
     /**
+     * Resolve city/country for Other Transport (point/hourly/local) from modal city select,
+     * with fallbacks to hidden field and active tour/segment city.
+     */
+    window.resolveLocalTransferOrderGeo = function() {
+        const geo = (typeof window.resolveModalCityGeo === 'function')
+            ? window.resolveModalCityGeo('modal_local_transfer_city')
+            : { city: '', country: '' };
+        let city = (geo.city || '').toString().trim();
+        let country = (geo.country || '').toString().trim();
+        if (!city) {
+            const hiddenCity = document.getElementById('local_transfer_city');
+            city = hiddenCity ? (hiddenCity.value || '').toString().trim() : '';
+        }
+        if (!city && typeof getCityForModalAutoFill === 'function') {
+            city = (getCityForModalAutoFill() || '').toString().trim();
+        }
+        if (!country) {
+            const hiddenCountry = document.getElementById('local_transfer_country');
+            country = hiddenCountry ? (hiddenCountry.value || '').toString().trim() : '';
+        }
+        if (!country && typeof window.resolveServiceOrderCountry === 'function') {
+            country = window.resolveServiceOrderCountry(
+                country,
+                document.getElementById('user_country') ? document.getElementById('user_country').value : ''
+            );
+        }
+        const hiddenCityEl = document.getElementById('local_transfer_city');
+        if (hiddenCityEl && city) hiddenCityEl.value = city;
+        const hiddenCountryEl = document.getElementById('local_transfer_country');
+        if (hiddenCountryEl && country) hiddenCountryEl.value = country;
+        return { city: city, country: country };
+    };
+
+    /**
      * Prefer modal city country; reject CSV / blank; fall back to hotel/attraction record country.
      */
     window.resolveServiceOrderCountry = function(preferredCountry, fallbackCountry) {
@@ -18642,8 +18695,8 @@
             distance: 0,
             Night_Start_Time: null,
             Night_End_Time: null,
-            city: vehicleData.city || "Singapore",
-            country: vehicleData.country || "Singapore",
+            city: city || vehicleData.city || '',
+            country: country || vehicleData.country || '',
             vehicle_type: vehicleData.vehicle_type || "",
             vehicle_model: vehicleData.vehicle_model || "",
             model_year: vehicleData.model_year || null,
@@ -18770,8 +18823,16 @@
         
         // Get tour details
         const tourId = document.getElementById('local_transfer_tour_id').value;
-        const country = document.getElementById('local_transfer_country').value;
-        const city = document.getElementById('local_transfer_city').value;
+        const transferGeo = (typeof window.resolveLocalTransferOrderGeo === 'function')
+            ? window.resolveLocalTransferOrderGeo()
+            : { city: '', country: '' };
+        const city = transferGeo.city || vehicleData.city || '';
+        const country = (typeof window.resolveServiceOrderCountry === 'function')
+            ? window.resolveServiceOrderCountry(
+                transferGeo.country || vehicleData.country || '',
+                document.getElementById('user_country') ? document.getElementById('user_country').value : ''
+            )
+            : (transferGeo.country || vehicleData.country || (document.getElementById('local_transfer_country') ? document.getElementById('local_transfer_country').value : ''));
         
         // Get coordinates from hidden fields
         const pickupLat = document.getElementById('local_transfer_point_pickup_lat').value;
@@ -18813,7 +18874,7 @@
             Tax: '7.00',
             Night_Start_Time: '22:00:00',
             Night_End_Time: '06:00:00',
-            // city parameter removed,
+            city: city,
             country: country,
             fullName: customer_info.fullName,
             email: customer_info.email,
@@ -18882,8 +18943,16 @@
         
         // Get tour details
         const tourId = document.getElementById('local_transfer_tour_id').value;
-        const country = document.getElementById('local_transfer_country').value;
-        const city = document.getElementById('local_transfer_city').value;
+        const transferGeo = (typeof window.resolveLocalTransferOrderGeo === 'function')
+            ? window.resolveLocalTransferOrderGeo()
+            : { city: '', country: '' };
+        const city = transferGeo.city || vehicleData.city || '';
+        const country = (typeof window.resolveServiceOrderCountry === 'function')
+            ? window.resolveServiceOrderCountry(
+                transferGeo.country || vehicleData.country || '',
+                document.getElementById('user_country') ? document.getElementById('user_country').value : ''
+            )
+            : (transferGeo.country || vehicleData.country || (document.getElementById('local_transfer_country') ? document.getElementById('local_transfer_country').value : ''));
         
         // Get coordinates from hidden fields
         const pickupLat = document.getElementById('local_transfer_hourly_pickup_lat').value;
@@ -18916,7 +18985,7 @@
             Tax: '7.00',
             Night_Start_Time: '22:00:00',
             Night_End_Time: '06:00:00',
-            // city parameter removed,
+            city: city,
             country: country,
             fullName: customer_info.fullName,
             email: customer_info.email,
@@ -18965,7 +19034,9 @@
                 },
                 body: JSON.stringify({
                     booking_data: JSON.stringify(bookingData),
-                    type: serviceType
+                    type: serviceType,
+                    city: first ? (first.city || '') : '',
+                    country: first ? (first.country || '') : ''
                 })
             })
             .then(response => response.json())
@@ -19045,19 +19116,18 @@
         
         // Get tour details
         const tourId = document.getElementById('local_transfer_tour_id').value;
-        const localCityGeo = (typeof window.resolveModalCityGeo === 'function')
-            ? window.resolveModalCityGeo('modal_local_transfer_city')
+        const transferGeo = (typeof window.resolveLocalTransferOrderGeo === 'function')
+            ? window.resolveLocalTransferOrderGeo()
             : { city: '', country: '' };
-        const city = localCityGeo.city
-            || (document.getElementById('local_transfer_city') ? document.getElementById('local_transfer_city').value : '')
+        const city = transferGeo.city
             || vehicleData.city
             || '';
         const country = (typeof window.resolveServiceOrderCountry === 'function')
             ? window.resolveServiceOrderCountry(
-                localCityGeo.country || vehicleData.country || (document.getElementById('local_transfer_country') ? document.getElementById('local_transfer_country').value : ''),
+                transferGeo.country || vehicleData.country || (document.getElementById('local_transfer_country') ? document.getElementById('local_transfer_country').value : ''),
                 document.getElementById('user_country') ? document.getElementById('user_country').value : ''
             )
-            : (localCityGeo.country || vehicleData.country || '');
+            : (transferGeo.country || vehicleData.country || '');
         const startDate = document.getElementById('local_transfer_start_date').value;
         const endDate = document.getElementById('local_transfer_end_date').value;
         const pickupDate = document.getElementById('local_transfer_pickup_date').value;
@@ -19108,7 +19178,7 @@
             Tax: '0',
             Night_Start_Time: '22:00:00',
             Night_End_Time: '06:00:00',
-            // city parameter removed,
+            city: city,
             country: country,
             fullName: customer_info.fullName,
             email: customer_info.email,
@@ -22099,6 +22169,16 @@
                 total_cost: childWithoutBedPrice * effectiveChildren * numberOfRooms * nightsForChildren
             };
         }
+
+        // Persist child count + half-meal (rooms.children_price: 0 free / 1 half / 2 full) — same as create
+        const childrenPriceCode = roomData && roomData.children_price != null
+            ? parseInt(roomData.children_price, 10)
+            : 2;
+        bookingData.children = Math.max(0, childrenCount);
+        bookingData.children_price = Number.isFinite(childrenPriceCode) ? childrenPriceCode : 2;
+        bookingData.child_meal_factor = (typeof window.getChildMealFactor === 'function')
+            ? window.getChildMealFactor(bookingData.children_price)
+            : 1;
         
         console.log('Booking data to be sent:', bookingData);
         
@@ -22600,7 +22680,8 @@
 
     const guideBaseUrl = "{{ route('orders.guides.select') }}";
     function confirmGuideSelection() {
-        
+        syncGuideModalPickupTime();
+
         const formData = new FormData(document.getElementById('guideSelectionForm'));
         const guideId = formData.get('guide_id');
         const duration = formData.get('duration');
@@ -25283,6 +25364,12 @@
             childCount: childrenNum,
             restaurantId: isMultiRestaurant ? numericRestaurantId : parseInt(restaurantId),
             restaurantName: restaurantName,
+            adult_price: adultPrice,
+            child_price: childPrice,
+            meal_details: {
+                adult_price: adultPrice,
+                child_price: childPrice
+            },
             mealType: mealTypeLabel,
             mealSpecificType: mealSpecificType,
             MealDescription: [
@@ -25290,6 +25377,8 @@
                     item_name: dishData.name || 'Buffet',
                     name: dishData.item_description || dishData.name || 'Buffet',
                     price: parseFloat(dishData.price || '0'),
+                    adult_price: adultPrice,
+                    child_price: childPrice,
                     meal_id: dishId === 'buffet' ? 0 : parseInt(dishId) || 0,
                     category: dishData.category == 1 ? 'Alcoholic' : dishData.category == 2 ? 'Non Alcoholic' : 'No Beverage',
                     item_type: dishData.item_type == 1 ? 'Vegetarian' : dishData.item_type == 2 ? 'Non Vegetarian' : '...',
@@ -25675,9 +25764,9 @@
             lockModalCitySelect(sel);
         });
 
-        const hiddenIds = ['modal_city', 'modal_transport_city', 'modal_dropoff_transport_city'];
+        const hiddenIds = ['modal_city', 'modal_transport_city', 'modal_dropoff_transport_city', 'local_transfer_city'];
         hiddenIds.forEach(function(id) {
-            const h = modal.querySelector('#' + id);
+            const h = modal.querySelector('#' + id) || document.getElementById(id);
             if (h) h.value = city;
         });
 
@@ -26586,6 +26675,14 @@
         guideNameSelects.forEach(guideSelect => {
             // Extract booking ID from the select ID
             const bookingId = guideSelect.id.replace('guide_name_', '');
+            const pickupEl = document.getElementById('guide_pickup_time_' + bookingId);
+            // Edit cards use text+AM/PM + hidden input — do not treat as <select>
+            if (!pickupEl || pickupEl.tagName !== 'SELECT') {
+                if (typeof syncGuideEditPickupTime === 'function') {
+                    syncGuideEditPickupTime(bookingId);
+                }
+                return;
+            }
             
             // Add change event listener (use once to avoid duplicates)
             guideSelect.addEventListener('change', function() {
@@ -27094,6 +27191,13 @@
     function populateGuidePickupTimes(guideSelect, bookingId) {
         const pickupTimeSelect = document.getElementById(`guide_pickup_time_${bookingId}`);
         if (!pickupTimeSelect) return;
+        // Hidden input / type=time — never run innerHTML/options rebuild
+        if (pickupTimeSelect.tagName !== 'SELECT') {
+            if (typeof syncGuideEditPickupTime === 'function') {
+                syncGuideEditPickupTime(bookingId);
+            }
+            return;
+        }
         
         const selectedOption = guideSelect.options[guideSelect.selectedIndex];
         // Get current value from the select or from the first option that has a value
@@ -27477,7 +27581,23 @@
         const submitButton = form.querySelector('button[type="submit"]');
         const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 
+        if (typeof syncGuideEditPickupTime === 'function') {
+            syncGuideEditPickupTime(bookingId);
+        }
+
         const formData = new FormData(form);
+
+        const pickupDateInput = document.getElementById(`pickup_date_${bookingId}`);
+        const pickupTimeInput = document.getElementById(`guide_pickup_time_${bookingId}`);
+        if (pickupDateInput) formData.set('pickup_date', pickupDateInput.value || '');
+        if (pickupTimeInput) formData.set('pickup_time', pickupTimeInput.value || '');
+
+        // Custom hours → package_hours
+        const hoursSelect = document.getElementById(`guide_package_hours_${bookingId}`);
+        const customHours = document.getElementById(`guide_package_custom_hours_${bookingId}`);
+        if (hoursSelect && hoursSelect.value === 'custom' && customHours && customHours.value) {
+            formData.set('package_hours', customHours.value);
+        }
 
         // Ensure totalPrice is included in formData
         const totalPriceInput = document.getElementById(`guide_total_price_${bookingId}`);
@@ -27511,6 +27631,10 @@
 
             feedback.textContent = data.message || 'Guide service updated successfully.';
             feedback.classList.add('text-success');
+
+            if (pickupDateInput && pickupDateInput.value) {
+                form.setAttribute('data-service-date', pickupDateInput.value);
+            }
             
             // Show success toastr notification
             if (typeof showToastr !== 'undefined') {
@@ -31143,11 +31267,12 @@
             } catch (e) { /* ignore */ }
         }
 
-        function activateSegmentForServices(seg) {
+        function activateSegmentForServices(seg, opts) {
             const mode = getCityTypeMode();
             if (mode !== 'multi') return;
             const bundle = getServicesBundleEl();
             if (!bundle) return;
+            const forceRefresh = !!(opts && opts.forceRefresh);
             const wasActive = (_activeSegmentEl === seg);
 
             const citySel = seg.querySelector('.city-select');
@@ -31183,6 +31308,16 @@
                 clearServiceDateFilter();
                 _activeSegmentEl = null;
                 return;
+            }
+
+            // Already active for this stay: do not re-append the services bundle / refilter.
+            // That DOM churn steals focus and breaks native date/time pickers after the first use.
+            // Segment city/date edits call this with forceRefresh:true instead.
+            if (wasActive && !forceRefresh) {
+                const hostCheck = seg.querySelector('.segment-services');
+                if (hostCheck && bundle.parentElement === hostCheck) {
+                    return;
+                }
             }
 
             // Switching away from a different segment: close its panel so it doesn't stay
@@ -31287,7 +31422,7 @@
                         enforceNoOverlapForSegment(seg, t);
                     }
                     updateSegmentHeaderFromInputs(seg);
-                    activateSegmentForServices(seg);
+                    activateSegmentForServices(seg, { forceRefresh: true });
                 }
                 updateCityHiddenField();
             }
@@ -31299,6 +31434,10 @@
             if (!seg) return;
             // Do not steal clicks from remove button
             if (e.target && (e.target.classList?.contains('removeSegment') || e.target.closest?.('.removeSegment'))) return;
+            // Do not re-activate when interacting with service forms (date pickers, inputs, Save).
+            // Services live inside the segment; re-running activate appendChild/refilters and
+            // breaks native date/time pickers after the first successful edit.
+            if (e.target && e.target.closest && e.target.closest('#' + SERVICES_BUNDLE_ID)) return;
             // Do not steal clicks from the segment collapse (date range accordion) toggle.
             // Otherwise: user clicks "close" -> this handler re-activates and forces it open again.
             if (e.target && (e.target.closest?.('.segment-header') || e.target.closest?.('.segment-body-toggle') || e.target.closest?.('[data-bs-toggle="collapse"]'))) return;

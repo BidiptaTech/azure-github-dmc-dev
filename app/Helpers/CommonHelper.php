@@ -2722,6 +2722,53 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         return null;
     }
 
+    /**
+     * Owning country DMC (role 11/20) for the logged-in user.
+     * Walks created_by up to the nearest normal DMC and never returns a Master DMC.
+     */
+    public static function resolveNearestNormalDmcId($user): ?int
+    {
+        if (!$user) {
+            return null;
+        }
+
+        $roleId = (int) ($user->role_id ?? 0);
+        if (in_array($roleId, self::NORMAL_DMC_ROLE_IDS, true)) {
+            return (int) $user->userId;
+        }
+
+        $current = $user;
+        $visited = [];
+        for ($i = 0; $i < 8; $i++) {
+            $parentId = (int) ($current->created_by ?? 0);
+            if ($parentId <= 0 || in_array($parentId, $visited, true)) {
+                break;
+            }
+            $visited[] = $parentId;
+            $parent = User::where('userId', $parentId)->first();
+            if (!$parent) {
+                break;
+            }
+            $parentRole = (int) ($parent->role_id ?? 0);
+            if (in_array($parentRole, self::NORMAL_DMC_ROLE_IDS, true)) {
+                return (int) $parent->userId;
+            }
+            if (in_array($parentRole, self::MASTER_DMC_ROLE_IDS, true)) {
+                break;
+            }
+            $current = $parent;
+        }
+
+        $fallback = (int) (self::getDmcId($user) ?? 0);
+        if ($fallback > 0) {
+            $owner = User::where('userId', $fallback)->first();
+            if ($owner && in_array((int) $owner->role_id, self::NORMAL_DMC_ROLE_IDS, true)) {
+                return $fallback;
+            }
+        }
+
+        return null;
+    }
 
     /**
      * Country used for multi-country tour visibility.
@@ -2966,8 +3013,9 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
     }
 
     /**
-     * Actual sibling-DMC destination rows under the same Master DMC as $baseDmcId.
-     * Uses each child DMC's country + city mapping — not the Master DMC country list.
+     * Sibling-DMC destination rows under the same Master DMC as $baseDmcId.
+     * Uses each child DMC's operating `country` column and all matching cities
+     * from the cities table. Does not use users.user_country or users.city.
      *
      * @return list<array{dmc_id:int, country:string, city:string, city_id:?int}>
      */
@@ -2983,65 +3031,29 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             return [];
         }
 
-        $dmcs = User::whereIn('userId', $siblingIds)->get(['userId', 'country', 'user_country', 'city', 'role_id']);
+        $dmcs = User::whereIn('userId', $siblingIds)->get(['userId', 'country', 'role_id']);
         $rows = [];
         $seen = [];
 
         foreach ($dmcs as $dmc) {
             $dmcId = (int) $dmc->userId;
-            $countries = self::resolveSupportedCountriesForDmc($dmc);
-            if ($countries === []) {
-                $fallbackCountry = self::normalizeCountryName(trim((string) ($dmc->user_country ?? '')));
-                if ($fallbackCountry !== '') {
-                    $countries = [$fallbackCountry];
-                }
-            }
+            $countries = array_values(array_filter(
+                self::resolveSupportedCountriesForDmc($dmc),
+                static fn ($country) => trim((string) $country) !== ''
+            ));
             if ($countries === []) {
                 continue;
             }
 
-            $mappedCities = self::parseUserCountryList($dmc->city ?? null);
-            if ($mappedCities !== []) {
-                foreach ($mappedCities as $cityName) {
-                    $cityName = trim((string) $cityName);
-                    if ($cityName === '') {
-                        continue;
-                    }
-                    $cityRow = City::query()
-                        ->whereRaw('LOWER(name) = ?', [mb_strtolower($cityName)])
-                        ->first(['city_id', 'id', 'name', 'country']);
-                    $country = $cityRow
-                        ? self::normalizeCountryName((string) ($cityRow->country ?? ''))
-                        : '';
-                    if ($country === '') {
-                        $userCountry = self::normalizeCountryName(trim((string) ($dmc->user_country ?? '')));
-                        $country = $userCountry !== '' ? $userCountry : (string) ($countries[0] ?? '');
-                    }
-                    if ($country === '') {
-                        continue;
-                    }
-                    $canonicalCity = trim((string) ($cityRow->name ?? $cityName));
-                    $cityId = $cityRow ? (int) ($cityRow->city_id ?? $cityRow->id ?? 0) : 0;
-                    $key = mb_strtolower($country) . '|' . mb_strtolower($canonicalCity);
-                    if (isset($seen[$key])) {
-                        continue;
-                    }
-                    $seen[$key] = true;
-                    $rows[] = [
-                        'dmc_id' => $dmcId,
-                        'country' => $country,
-                        'city' => $canonicalCity,
-                        'city_id' => $cityId > 0 ? $cityId : null,
-                    ];
-                }
-                continue;
-            }
-
-            // DMC has a country but no city: expose all cities in that DMC country.
             $cityRecords = City::query()
-                ->whereIn('country', $countries)
+                ->where(function ($query) use ($countries) {
+                    foreach ($countries as $country) {
+                        $query->orWhereRaw('LOWER(TRIM(country)) = ?', [mb_strtolower(trim((string) $country))]);
+                    }
+                })
                 ->orderBy('name')
                 ->get(['city_id', 'id', 'name', 'country']);
+
             foreach ($cityRecords as $cityRow) {
                 $canonicalCity = trim((string) ($cityRow->name ?? ''));
                 $country = self::normalizeCountryName((string) ($cityRow->country ?? ''));
@@ -5857,6 +5869,9 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
      * Resolve quotation hotel display occupancy from booked rooming (not total pax).
      * e.g. 14 pax in 7 double rooms => double occupancy, not triple.
      *
+     * Uses rooms.selected_persons (1→SGL, 2→DBL, 3→TRPL) — same source as Overall Package.
+     * Bed head_count is capacity only and must not override the booked occupancy.
+     *
      * @param  \Illuminate\Support\Collection|array|null  $orders
      * @param  array<int, array<string, mixed>>|null  $hotelOptions
      * @return array{occupancy_key: string, rooming_text: string, room_counts: array{single: int, double: int, triple: int}}
@@ -5864,6 +5879,55 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
     public static function resolveQuotationHotelDisplayOccupancy($orders = null, ?array $hotelOptions = null, int $adults = 0): array
     {
         $roomCounts = ['single' => 0, 'double' => 0, 'triple' => 0];
+
+        $classifyOccupancy = static function (int $selectedPersons): ?string {
+            if ($selectedPersons >= 3) {
+                return 'triple';
+            }
+            if ($selectedPersons === 2) {
+                return 'double';
+            }
+            if ($selectedPersons === 1) {
+                return 'single';
+            }
+
+            return null;
+        };
+
+        $resolveRoomSelectedPersons = static function (array $room): int {
+            $selectedPersons = (int) ($room['selected_persons'] ?? $room['selectedPersons'] ?? 0);
+            if ($selectedPersons >= 1) {
+                return max(1, min(3, $selectedPersons));
+            }
+
+            $occ = strtolower(trim((string) ($room['occupancy'] ?? $room['room_occupancy'] ?? '')));
+            if ($occ !== '') {
+                if (str_contains($occ, 'triple') || $occ === '3') {
+                    return 3;
+                }
+                if (str_contains($occ, 'double') || $occ === '2' || str_contains($occ, 'twin')) {
+                    return 2;
+                }
+                if (str_contains($occ, 'single') || $occ === '1') {
+                    return 1;
+                }
+            }
+
+            // Last resort only: bed capacity (often 3 even when guest booked double)
+            $beds = isset($room['beds']) && is_array($room['beds']) ? $room['beds'] : [];
+            $maxHead = 0;
+            foreach ($beds as $bed) {
+                if (! is_array($bed)) {
+                    continue;
+                }
+                $maxHead = max(
+                    $maxHead,
+                    (int) ($bed['head_count'] ?? $bed['headCount'] ?? $bed['occupancy'] ?? 0)
+                );
+            }
+
+            return $maxHead >= 1 ? max(1, min(3, $maxHead)) : 0;
+        };
 
         $orderList = $orders instanceof \Illuminate\Support\Collection
             ? $orders
@@ -5900,48 +5964,77 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
 
                     $noOfRooms = (int) ($room['no_of_room'] ?? $room['number_of_rooms'] ?? 0);
                     $noOfRooms = $noOfRooms > 0 ? $noOfRooms : 1;
-                    $beds = isset($room['beds']) && is_array($room['beds']) ? $room['beds'] : [];
-
-                    if (! empty($beds)) {
-                        foreach ($beds as $bed) {
-                            if (! is_array($bed)) {
-                                continue;
-                            }
-                            $headCount = (int) ($bed['head_count'] ?? $bed['headCount'] ?? $bed['occupancy'] ?? 0);
-                            if ($headCount >= 3) {
-                                $roomCounts['triple'] += $noOfRooms;
-                            } elseif ($headCount >= 2) {
-                                $roomCounts['double'] += $noOfRooms;
-                            } elseif ($headCount >= 1) {
-                                $roomCounts['single'] += $noOfRooms;
-                            }
-                        }
-                    } else {
-                        $selectedPersons = (int) ($room['selected_persons'] ?? $room['selectedPersons'] ?? 0);
-                        if ($selectedPersons === 3) {
-                            $roomCounts['triple'] += $noOfRooms;
-                        } elseif ($selectedPersons === 2) {
-                            $roomCounts['double'] += $noOfRooms;
-                        } elseif ($selectedPersons === 1) {
-                            $roomCounts['single'] += $noOfRooms;
-                        }
+                    $bucket = $classifyOccupancy($resolveRoomSelectedPersons($room));
+                    if ($bucket === null) {
+                        continue;
                     }
+                    $roomCounts[$bucket] += $noOfRooms;
                 }
             }
         }
 
-        if (($roomCounts['single'] + $roomCounts['double'] + $roomCounts['triple']) === 0 && is_array($hotelOptions)) {
+        // Prefer hotel_price_options when available — same selected_persons as Overall Package lines
+        // Build labeled parts: "01 DBL TWIN (Singapore) + 01 TRPL (Batam)"
+        $roomingPartsLabeled = [];
+        if (is_array($hotelOptions) && count($hotelOptions) > 0) {
+            $fromOptions = ['single' => 0, 'double' => 0, 'triple' => 0];
+            $anyOptionSp = false;
             foreach ($hotelOptions as $hotel) {
                 if (! is_array($hotel)) {
                     continue;
                 }
-                $nor = $hotel['no_of_rooms'] ?? [];
-                if (! is_array($nor)) {
+                $sp = (int) ($hotel['selected_persons'] ?? $hotel['selectedPersons'] ?? 0);
+                if ($sp <= 0) {
+                    if (! empty($hotel['show_triple']) || (float) ($hotel['triple'] ?? 0) > 0) {
+                        $sp = 3;
+                    } elseif (! empty($hotel['show_double']) || (float) ($hotel['double'] ?? 0) > 0) {
+                        $sp = 2;
+                    } elseif (! empty($hotel['show_single']) || (float) ($hotel['single'] ?? 0) > 0) {
+                        $sp = 1;
+                    }
+                }
+                if ($sp >= 1) {
+                    $anyOptionSp = true;
+                    $roomsQty = 1;
+                    if (isset($hotel['number_of_rooms']) && is_numeric($hotel['number_of_rooms'])) {
+                        $roomsQty = max(1, (int) $hotel['number_of_rooms']);
+                    } elseif (isset($hotel['rooms_count']) && is_numeric($hotel['rooms_count'])) {
+                        $roomsQty = max(1, (int) $hotel['rooms_count']);
+                    } elseif (isset($hotel['no_of_rooms']) && is_numeric($hotel['no_of_rooms'])) {
+                        $roomsQty = max(1, (int) $hotel['no_of_rooms']);
+                    }
+                    $bucket = $classifyOccupancy(max(1, min(3, $sp)));
+                    if ($bucket !== null) {
+                        $fromOptions[$bucket] += $roomsQty;
+                        $occLabel = match ($bucket) {
+                            'single' => 'SGL',
+                            'double' => 'DBL TWIN',
+                            'triple' => 'TRPL',
+                            default => 'DBL TWIN',
+                        };
+                        $cityLabel = trim((string) ($hotel['city'] ?? ''));
+                        if ($cityLabel === '') {
+                            $cityLabel = trim((string) ($hotel['country'] ?? ''));
+                        }
+                        $part = sprintf('%02d %s', $roomsQty, $occLabel);
+                        if ($cityLabel !== '') {
+                            $part .= ' (' . $cityLabel . ')';
+                        }
+                        $roomingPartsLabeled[] = $part;
+                    }
                     continue;
                 }
-                $roomCounts['single'] += (int) ($nor['single'] ?? 0);
-                $roomCounts['double'] += (int) ($nor['double'] ?? 0);
-                $roomCounts['triple'] += (int) ($nor['triple'] ?? 0);
+                $nor = $hotel['no_of_rooms'] ?? null;
+                if (is_array($nor)) {
+                    $fromOptions['single'] += (int) ($nor['single'] ?? 0);
+                    $fromOptions['double'] += (int) ($nor['double'] ?? 0);
+                    $fromOptions['triple'] += (int) ($nor['triple'] ?? 0);
+                }
+            }
+            if ($anyOptionSp && (($fromOptions['single'] + $fromOptions['double'] + $fromOptions['triple']) > 0)) {
+                $roomCounts = $fromOptions;
+            } elseif (($roomCounts['single'] + $roomCounts['double'] + $roomCounts['triple']) === 0) {
+                $roomCounts = $fromOptions;
             }
         }
 
@@ -5962,20 +6055,24 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             $occupancyKey = $adults <= 1 ? 'single' : 'double';
         }
 
-        $roomingParts = [];
-        if ($roomCounts['single'] > 0) {
-            $roomingParts[] = sprintf('%02d SGL', $roomCounts['single']);
-        }
-        if ($roomCounts['double'] > 0) {
-            $roomingParts[] = sprintf('%02d DBL TWIN', $roomCounts['double']);
-        }
-        if ($roomCounts['triple'] > 0) {
-            $roomingParts[] = sprintf('%02d TRPL', $roomCounts['triple']);
+        if ($roomingPartsLabeled !== []) {
+            $roomingParts = $roomingPartsLabeled;
+        } else {
+            $roomingParts = [];
+            if ($roomCounts['single'] > 0) {
+                $roomingParts[] = sprintf('%02d SGL', $roomCounts['single']);
+            }
+            if ($roomCounts['double'] > 0) {
+                $roomingParts[] = sprintf('%02d DBL TWIN', $roomCounts['double']);
+            }
+            if ($roomCounts['triple'] > 0) {
+                $roomingParts[] = sprintf('%02d TRPL', $roomCounts['triple']);
+            }
         }
 
         return [
             'occupancy_key' => $occupancyKey,
-            'rooming_text' => implode(' + ', $roomingParts),
+            'rooming_text' => implode(' & ', $roomingParts),
             'room_counts' => $roomCounts,
             'has_hotel_rooms' => $totalRooms > 0,
         ];
@@ -7433,23 +7530,29 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
 
         $segregated = $empty['segregated'];
 
-        $ensureCountry = function (string $key, string $country, string $currency) use (&$countryHotel, &$countryOther, &$countryGrossHotel, &$countryGrossOther, &$countryOtherChild): void {
+        $ensureCountry = function (string $key, string $country, string $currency, string $city = '') use (&$countryHotel, &$countryOther, &$countryGrossHotel, &$countryGrossOther, &$countryOtherChild): void {
             if (!isset($countryHotel[$key])) {
                 $countryHotel[$key] = [
                     'country' => $country,
+                    'city' => $city,
                     'currency' => $currency,
                     'single' => 0.0,
                     'double' => 0.0,
                     'triple' => 0.0,
                 ];
+            } elseif ($city !== '' && empty($countryHotel[$key]['city'])) {
+                $countryHotel[$key]['city'] = $city;
             }
             if (!isset($countryOther[$key])) {
                 $countryOther[$key] = [
                     'country' => $country,
+                    'city' => $city,
                     'currency' => $currency,
                     'single' => 0.0,
                     'double' => 0.0,
                 ];
+            } elseif ($city !== '' && empty($countryOther[$key]['city'])) {
+                $countryOther[$key]['city'] = $city;
             }
             if (!isset($countryGrossHotel[$key])) {
                 $countryGrossHotel[$key] = 0.0;
@@ -7762,7 +7865,8 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             }
             $orderCurrency = strtoupper($orderCurrency);
             $countryKey = mb_strtolower($orderCountry) . '|' . $orderCurrency;
-            $ensureCountry($countryKey, $orderCountry, $orderCurrency);
+            // City for labels like "Kolkata (India) (INR)" — filled from first booking item below
+            $ensureCountry($countryKey, $orderCountry, $orderCurrency, '');
 
             $type = strtolower((string) ($order->type ?? ''));
             $items = (isset($rawData[0]) && is_array($rawData[0])) ? $rawData : [$rawData];
@@ -7770,6 +7874,12 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             foreach ($items as $item) {
                 if (!is_array($item)) {
                     continue;
+                }
+
+                $geo = self::extractInvoiceItemGeo($order, $item);
+                $orderCity = trim((string) ($geo['city'] ?? ''));
+                if ($orderCity !== '') {
+                    $ensureCountry($countryKey, $orderCountry, $orderCurrency, $orderCity);
                 }
 
                 $isSupplement = !empty($item['supplement']);
@@ -7928,6 +8038,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                             'date_range' => $dateRange,
                             'display_name' => $hotelName,
                             'country' => $orderCountry,
+                            'city' => $orderCity !== '' ? $orderCity : null,
                             'currency' => $orderCurrency,
                         ];
                     }
@@ -8287,6 +8398,11 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             $countrySharing[] = [
                 'key' => $ck,
                 'country' => $country,
+                'city' => trim((string) (
+                    $hRow['city']
+                    ?? $oRow['city']
+                    ?? ''
+                )),
                 'currency' => $currency,
                 'hotel_single' => ceil($cHotelSingle),
                 'hotel_double' => ceil($cHotelDouble),
@@ -8402,6 +8518,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 'date_range' => $meta['date_range'] ?? null,
                 'display_name' => $meta['display_name'] ?? ($meta['hotel_name'] ?? $hotelKey),
                 'country' => $meta['country'] ?? null,
+                'city' => $meta['city'] ?? null,
                 'currency' => $meta['currency'] ?? null,
                 'selected_persons' => $selectedPersons,
                 'children' => (int) ($bucket['children'] ?? 0),
@@ -9680,6 +9797,14 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                             $country = trim($item['hotelDetails']['country']);
                         }
                         return $country !== '' ? $country : null;
+                    })(),
+                    'city' => (function () use ($order, $item) {
+                        $geo = self::extractInvoiceItemGeo($order, is_array($item) ? $item : []);
+                        $city = trim((string) ($geo['city'] ?? ''));
+                        if ($city === '' && !empty($item['hotelDetails']['city']) && is_string($item['hotelDetails']['city'])) {
+                            $city = trim(explode(',', $item['hotelDetails']['city'])[0]);
+                        }
+                        return $city !== '' ? $city : null;
                     })(),
                     'currency' => self::resolveOrderDisplayCurrency(
                         $order,

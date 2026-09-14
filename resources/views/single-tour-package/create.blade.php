@@ -2749,27 +2749,11 @@
                         const total = window.calculateCorrectMealCosts(
                             hotel.mealPlan,
                             hotel.totalNights,
-                            (typeof window.resolveHotelMealGuestSplit === 'function'
-                                ? window.resolveHotelMealGuestSplit(
-                                    hotel.selectedPersons || 1,
-                                    hotel.children != null ? hotel.children : (parseInt(document.getElementById('children')?.value || '0', 10) || 0)
-                                  ).adults
-                                : (hotel.selectedPersons || 1)),
-                            (typeof window.resolveHotelMealGuestSplit === 'function'
-                                ? window.resolveHotelMealGuestSplit(
-                                    hotel.selectedPersons || 1,
-                                    hotel.children != null ? hotel.children : (parseInt(document.getElementById('children')?.value || '0', 10) || 0)
-                                  ).children
-                                : 0),
+                            hotel.selectedPersons || 1,
+                            0,
                             hotel.mealPrices,
                             hotel.numberOfRooms,
-                            {
-                                breakfastIncluded: !!(hotel.breakfast_included_room),
-                                supplementBreakfastIncluded: !!hotel.supplement_breakfast_included,
-                                helperMeals: hotel.helperMeals || null,
-                                childrenPrice: hotel.children_price != null ? hotel.children_price : (hotel.helperMeals && hotel.helperMeals.children_price),
-                                childMealFactor: hotel.child_meal_factor != null ? hotel.child_meal_factor : (hotel.helperMeals && hotel.helperMeals.child_meal_factor)
-                            }
+                            { breakfastIncluded: !!(hotel.breakfast_included_room), supplementBreakfastIncluded: !!hotel.supplement_breakfast_included, helperMeals: hotel.helperMeals || null }
                         );
                         if (!parts.length) {
                             return `${cur} ${Number(total).toFixed(2)}`;
