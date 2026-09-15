@@ -958,70 +958,93 @@ console.log("zone_on5", zone_on);
     if (vehicles.length === 0) {
       setCurrentPage(1);
       setHasMore(true);
+      setIsLoadingMore(false);
     }
   }, [vehicles.length]);
+
+  // After first page loads: if fewer than a full page, stop infinite scroll
+  // (fixes Hourly calling page-2 when API only returned e.g. 2 of limit 5)
+  useEffect(() => {
+    if (status !== "succeeded" || currentPage !== 1) return;
+    if (!Array.isArray(vehicles) || vehicles.length === 0) return;
+    setHasMore(vehicles.length >= itemsPerPage);
+  }, [status, vehicles, currentPage, itemsPerPage]);
 
   // Scroll detection for infinite scroll
   useEffect(() => {
     const handleScroll = () => {
       if (
         window.innerHeight + document.documentElement.scrollTop >=
-        document.documentElement.offsetHeight - 1000 && // Load more when 1000px from bottom
+          document.documentElement.offsetHeight - 1000 && // Load more when 1000px from bottom
         !isLoadingMore &&
         hasMore &&
         status !== "loading" &&
-        vehicles.length > 0 // Only load more if we have vehicles
+        Array.isArray(vehicles) &&
+        vehicles.length >= itemsPerPage // Only load more when first page was full
       ) {
-        setCurrentPage(prev => prev + 1);
+        setCurrentPage((prev) => prev + 1);
       }
     };
 
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [isLoadingMore, hasMore, status, vehicles.length]);
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [isLoadingMore, hasMore, status, vehicles, itemsPerPage]);
 
   // Load more effect for infinite scroll
   useEffect(() => {
-    if (currentPage > 1 && vehicles.length > 0) {
-      setIsLoadingMore(true);
-      // Dispatch action to fetch more vehicles based on selection type
-      const start = (currentPage - 1) * itemsPerPage;
-      
-      if (selectedPort === "Local Transfer") {
-        // For zone vehicles, use fetchZoneVehicles
-        dispatch(fetchZoneVehicles({ start, limit: itemsPerPage })).then((result) => {
-          setIsLoadingMore(false);
-          // Check if we have more data based on the response
-          if (result.payload && Array.isArray(result.payload)) {
-            if (result.payload.length < itemsPerPage) {
-              setHasMore(false);
-            }
-          } else {
-            setHasMore(false);
-          }
-        }).catch(() => {
-          setIsLoadingMore(false);
-          setHasMore(false);
-        });
-      } else {
-        // For regular vehicles, use fetchVehicles
-        dispatch(fetchVehicles({ start, limit: itemsPerPage })).then((result) => {
-          setIsLoadingMore(false);
-          // Check if we have more data based on the response
-          if (result.payload && Array.isArray(result.payload)) {
-            if (result.payload.length < itemsPerPage) {
-              setHasMore(false);
-            }
-          } else {
-            setHasMore(false);
-          }
-        }).catch(() => {
-          setIsLoadingMore(false);
-          setHasMore(false);
-        });
-      }
+    if (currentPage <= 1) return;
+    if (!Array.isArray(vehicles) || vehicles.length === 0) return;
+
+    // Short first page — do not request next page (avoids 404 "No vehicles found")
+    if (vehicles.length < itemsPerPage) {
+      setHasMore(false);
+      return;
     }
-  }, [currentPage, vehicles.length, itemsPerPage, dispatch, selectedPort]);
+
+    const start = (currentPage - 1) * itemsPerPage;
+    if (vehicles.length < start) {
+      setHasMore(false);
+      return;
+    }
+
+    let cancelled = false;
+    setIsLoadingMore(true);
+
+    const request =
+      selectedPort === "Local Transfer"
+        ? dispatch(fetchZoneVehicles({ start, limit: itemsPerPage }))
+        : dispatch(fetchVehicles({ start, limit: itemsPerPage }));
+
+    request
+      .then((result) => {
+        if (cancelled) return;
+        setIsLoadingMore(false);
+
+        if (result?.meta?.requestStatus === "rejected") {
+          setHasMore(false);
+          return;
+        }
+
+        const payload = result?.payload;
+        if (Array.isArray(payload)) {
+          if (payload.length < itemsPerPage) {
+            setHasMore(false);
+          }
+        } else {
+          setHasMore(false);
+        }
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setIsLoadingMore(false);
+        setHasMore(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentPage, itemsPerPage, dispatch, selectedPort]);
+  // Note: intentionally not depending on vehicles.length to avoid re-fetch loops
 
   const displayedVehicles = filteredVehicles.filter((vehicle) => {
     const dmcPrice = vehicle.dmc_sharable_price
