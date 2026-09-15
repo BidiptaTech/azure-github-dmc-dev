@@ -24,7 +24,7 @@ const SearchBar = ({
   const citySlice = useSelector((state) => state.common.selectedCity);
 
   const cityData = useSelector((state) => state.city.city);
-
+  console.log(cityData, "cityData");
   const transformedCityData = useMemo(() => {
     return (Array.isArray(cityData) ? cityData : [])
       .map((city, index) => {
@@ -41,7 +41,7 @@ const SearchBar = ({
       })
       .filter(Boolean);
   }, [cityData]);
-
+console.log(transformedCityData, "transformedCityData");
   const filteredCities = useMemo(() => {
     return transformedCityData.filter((item) =>
       item.name.toLowerCase().includes((searchValue || "").toString().toLowerCase())

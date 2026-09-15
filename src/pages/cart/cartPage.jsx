@@ -98,7 +98,9 @@ const CartPage = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const cart = useSelector(selectCart);
-
+  const { localCurrentStep } = useSelector(
+    (state) => state.steps
+  );
   const trips = useMemo(
     () =>
       (Array.isArray(cart) ? cart : []).filter(
@@ -143,6 +145,28 @@ const CartPage = () => {
 
   const handleEditTrip = (trip) => {
     restoreTripToRedux(trip);
+
+    const stepIndex = Number(localCurrentStep);
+    const navState = {
+      editCartTripId: trip.tripId,
+      cartTrip: trip,
+    };
+
+    // 0 hotel, 1 port, 2 attraction, 3 guide, 4 restaurants, 5 local transfer
+    const stepPaths = {
+      0: null, // hotel uses query params below
+      1: "/dashboard/db-dashboard/pickupdrop",
+      2: "/dashboard/db-dashboard/attractions",
+      3: "/dashboard/db-dashboard/tourguide",
+      4: "/dashboard/db-dashboard/restaurants",
+      5: "/dashboard/db-dashboard/localtransfer",
+    };
+
+    if (stepIndex > 0 && stepPaths[stepIndex]) {
+      navigate(stepPaths[stepIndex], { state: navState });
+      return;
+    }
+
     const locationLabel = Array.isArray(trip.destination)
       ? trip.destination
           .map((d) => (typeof d === "object" ? d?.city : d))
@@ -159,10 +183,7 @@ const CartPage = () => {
       }),
     });
     navigate(`/dashboard/db-dashboard/view-hotel-search/0?${searchParams}`, {
-      state: {
-        editCartTripId: trip.tripId,
-        cartTrip: trip,
-      },
+      state: navState,
     });
   };
 
@@ -1059,7 +1080,7 @@ const CartPage = () => {
                   }}
                   sx={{ textTransform: "none", color: "#64748b" }}
                 >
-                  Continue Shopping
+                  Continue To Trip
                 </Button>
               </CardContent>
             </Card>

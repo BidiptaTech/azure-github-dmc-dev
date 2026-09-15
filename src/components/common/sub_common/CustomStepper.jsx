@@ -113,7 +113,10 @@ export default function CustomStepper() {
   const { currentStep, stepStatus1, localCurrentStep, localStepStatus } = useSelector(
     (state) => state.steps
   );
-  
+  console.log('stepStatus1', stepStatus1);
+  console.log('localStepStatus', localStepStatus);
+  console.log('currentStep', currentStep);
+  console.log('localCurrentStep', localCurrentStep);
   // Use tourId-based step if available, otherwise use local tracking from Redux
   const effectiveCurrentStep = (tourId && tourId > 0) ? currentStep : localCurrentStep;
   
