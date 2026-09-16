@@ -1,0 +1,663 @@
+/* Create Single Tour Pro — initialize modal
+   Isolated to #createTourProModal so other layouts are unaffected. */
+
+#createTourProModal {
+    --ctp-purple: #5b4dff;
+    --ctp-purple-deep: #4f46e5;
+    --ctp-purple-soft: #eef0ff;
+    --ctp-header: #f4f6ff;
+    --ctp-text: #1e293b;
+    --ctp-muted: #8b93a7;
+    --ctp-border: #e8eaf2;
+    --ctp-danger: #ef4444;
+    --ctp-nav: 228px;
+    --ctp-radius: 12px;
+    --ctp-input-h: 42px;
+    font-family: Inter, system-ui, -apple-system, sans-serif;
+}
+
+#createTourProModal .modal-dialog {
+    max-width: 1120px;
+    width: calc(100% - 24px);
+    margin: 1.25rem auto;
+}
+
+#createTourProModal .modal-content {
+    border: none;
+    border-radius: 18px;
+    overflow: hidden;
+    max-height: 92vh;
+    box-shadow: 0 24px 64px rgba(30, 41, 59, 0.18);
+    background: #fff;
+}
+
+#createTourProModal .ctp-shell {
+    display: flex;
+    min-height: 640px;
+    max-height: 92vh;
+    background: #fff;
+}
+
+/* ---------- Left wizard nav ---------- */
+#createTourProModal .ctp-sidenav {
+    width: var(--ctp-nav);
+    flex: 0 0 var(--ctp-nav);
+    background: #fbfcff;
+    border-right: 1px solid var(--ctp-border);
+    padding: 22px 14px 16px;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+}
+
+#createTourProModal .ctp-sidenav::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 168px;
+    pointer-events: none;
+    background:
+        radial-gradient(ellipse 90% 70% at 20% 100%, rgba(125, 211, 252, 0.35), transparent 70%),
+        radial-gradient(ellipse 80% 60% at 80% 110%, rgba(196, 181, 253, 0.4), transparent 70%),
+        linear-gradient(180deg, transparent 0%, rgba(237, 242, 255, 0.9) 55%, #e8eefc 100%);
+}
+
+#createTourProModal .ctp-sidenav-brand {
+    display: none;
+}
+
+#createTourProModal .ctp-step {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    width: 100%;
+    border: 0;
+    background: transparent;
+    text-align: left;
+    padding: 10px 10px;
+    border-radius: 12px;
+    color: #64748b;
+    margin-bottom: 4px;
+    position: relative;
+    z-index: 1;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+#createTourProModal .ctp-step i {
+    font-size: 18px;
+    width: 22px;
+    margin-top: 1px;
+    color: #94a3b8;
+}
+
+#createTourProModal .ctp-step-title {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.25;
+    color: #475569;
+}
+
+#createTourProModal .ctp-step-sub {
+    display: block;
+    font-size: 11px;
+    color: #94a3b8;
+    margin-top: 1px;
+}
+
+#createTourProModal .ctp-step.is-active {
+    background: var(--ctp-purple-soft);
+}
+
+#createTourProModal .ctp-step.is-active i,
+#createTourProModal .ctp-step.is-active .ctp-step-title {
+    color: var(--ctp-purple);
+}
+
+#createTourProModal .ctp-step:not(:disabled):hover {
+    background: #f1f4ff;
+}
+
+#createTourProModal .ctp-step:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+#createTourProModal .ctp-sidenav-foot {
+    margin-top: auto;
+    position: relative;
+    z-index: 1;
+    padding: 8px 8px 4px;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.35;
+}
+
+#createTourProModal .ctp-sidenav-foot i {
+    color: var(--ctp-purple);
+}
+
+/* ---------- Right column ---------- */
+#createTourProModal .ctp-main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+}
+
+#createTourProModal .ctp-main-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 18px 22px 12px;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+#createTourProModal .ctp-main-head-left {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+#createTourProModal .ctp-main-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: var(--ctp-purple-soft);
+    color: var(--ctp-purple);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+}
+
+#createTourProModal .ctp-main-head h6 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--ctp-text);
+    letter-spacing: -0.02em;
+}
+
+#createTourProModal .ctp-main-head p {
+    margin: 2px 0 0;
+    font-size: 12px;
+    color: var(--ctp-muted);
+}
+
+#createTourProModal .ctp-close {
+    width: 32px;
+    height: 32px;
+    border: 0;
+    background: transparent;
+    color: #94a3b8;
+    font-size: 20px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+
+#createTourProModal .ctp-close:hover {
+    background: #f1f5f9;
+    color: #475569;
+}
+
+#createTourProModal .modal-body,
+#createTourProModal .ctp-main-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 14px 22px 8px;
+    max-height: none;
+}
+
+#createTourProModal .ctp-main-body::-webkit-scrollbar {
+    width: 8px;
+}
+
+#createTourProModal .ctp-main-body::-webkit-scrollbar-thumb {
+    background: #d8deea;
+    border-radius: 8px;
+}
+
+/* ---------- Cards ---------- */
+#createTourProModal .ctp-card {
+    border: 1px solid var(--ctp-border);
+    border-radius: var(--ctp-radius);
+    margin-bottom: 12px;
+    background: #fff;
+    overflow: hidden;
+}
+
+#createTourProModal .ctp-card-head {
+    background: var(--ctp-header);
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+#createTourProModal .ctp-card-head-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    background: #fff;
+    color: var(--ctp-purple);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    box-shadow: 0 1px 2px rgba(91, 77, 255, 0.08);
+}
+
+#createTourProModal .ctp-card-head h6 {
+    margin: 0;
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--ctp-text);
+}
+
+#createTourProModal .ctp-card-head p,
+#createTourProModal .ctp-card-head .ctp-card-sub {
+    margin: 0;
+    font-size: 11px;
+    color: var(--ctp-muted);
+    font-weight: 400;
+}
+
+#createTourProModal .ctp-card-body {
+    padding: 14px;
+}
+
+#createTourProModal .ctp-label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: #334155;
+    margin-bottom: 6px;
+}
+
+#createTourProModal .ctp-req {
+    color: var(--ctp-danger);
+}
+
+#createTourProModal .form-control,
+#createTourProModal .form-select {
+    height: var(--ctp-input-h);
+    min-height: var(--ctp-input-h);
+    font-size: 13px;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    color: var(--ctp-text);
+    padding: 8px 12px;
+    background: #fff;
+    box-shadow: none;
+}
+
+#createTourProModal textarea.form-control {
+    height: auto;
+    min-height: 72px;
+}
+
+#createTourProModal .form-control:focus,
+#createTourProModal .form-select:focus {
+    border-color: #a5b4fc;
+    box-shadow: 0 0 0 3px rgba(91, 77, 255, 0.12);
+}
+
+#createTourProModal .form-control::placeholder {
+    color: #94a3b8;
+}
+
+#createTourProModal .ctp-icon-field {
+    position: relative;
+}
+
+#createTourProModal .ctp-icon-field > i,
+#createTourProModal .ctp-icon-field .ctp-field-ico {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+    font-size: 16px;
+    z-index: 2;
+    pointer-events: none;
+}
+
+#createTourProModal .ctp-icon-field .form-control,
+#createTourProModal .ctp-icon-field .form-select {
+    padding-left: 36px;
+}
+
+#createTourProModal .ctp-icon-field .form-control.ctp-has-end-ico {
+    padding-right: 36px;
+}
+
+#createTourProModal .ctp-icon-field .ctp-field-ico-end {
+    left: auto;
+    right: 12px;
+}
+
+/* Custom radios */
+#createTourProModal .ctp-radios {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    min-height: var(--ctp-input-h);
+}
+
+#createTourProModal .ctp-radio {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    font-size: 13px;
+    font-weight: 500;
+    color: #334155;
+    cursor: pointer;
+}
+
+#createTourProModal .ctp-radio input {
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    border: 2px solid #cbd5e1;
+    border-radius: 50%;
+    margin: 0;
+    position: relative;
+    background: #fff;
+    cursor: pointer;
+}
+
+#createTourProModal .ctp-radio input:checked {
+    border-color: var(--ctp-purple);
+}
+
+#createTourProModal .ctp-radio input:checked::after {
+    content: "";
+    position: absolute;
+    inset: 3px;
+    border-radius: 50%;
+    background: var(--ctp-purple);
+}
+
+/* Guests strip */
+#createTourProModal .ctp-guest-strip {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 6px 6px 6px 14px;
+    background: #fff;
+    min-height: var(--ctp-input-h);
+}
+
+#createTourProModal .ctp-guest-strip-text {
+    flex: 1;
+    font-size: 13px;
+    color: #94a3b8;
+    min-width: 0;
+}
+
+#createTourProModal .ctp-guest-strip-text.is-set {
+    color: var(--ctp-text);
+    font-weight: 500;
+}
+
+#createTourProModal #tourProOpenGuestModalBtn,
+#createTourProModal .ctp-btn-primary {
+    background: var(--ctp-purple);
+    border: 0;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 10px;
+    padding: 8px 14px;
+    white-space: nowrap;
+    box-shadow: 0 6px 14px rgba(91, 77, 255, 0.22);
+}
+
+#createTourProModal #tourProOpenGuestModalBtn:hover,
+#createTourProModal .ctp-btn-primary:hover {
+    background: var(--ctp-purple-deep);
+    color: #fff;
+}
+
+#createTourProModal #tourProGuestsHelper {
+    margin: 0;
+    font-size: 11px;
+    color: var(--ctp-muted);
+    font-weight: 400;
+}
+
+#createTourProModal .ctp-dest-title {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin-bottom: 10px;
+}
+
+#createTourProModal .ctp-dest-title .ctp-label {
+    margin: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+#createTourProModal .ctp-suggestions {
+    z-index: 1080;
+    max-height: 180px;
+    overflow-y: auto;
+    display: none;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+    font-size: 13px;
+    background: #fff;
+    border: 1px solid var(--ctp-border);
+    border-radius: 10px;
+}
+
+#createTourProModal #selectedDestinations .badge,
+#createTourProModal #selectedDestinations span {
+    font-size: 12px;
+}
+
+/* Lead guest card */
+#createTourProModal .ctp-lead-guest-toggle {
+    width: 100%;
+    border: 0;
+    background: var(--ctp-header);
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    text-align: left;
+    color: var(--ctp-text);
+}
+
+#createTourProModal .ctp-lead-guest-toggle.collapsed .ctp-lead-chevron {
+    transform: rotate(180deg);
+}
+
+#createTourProModal .ctp-lead-chevron {
+    transition: transform 0.2s ease;
+    font-size: 20px;
+    color: #64748b;
+}
+
+#createTourProModal #ctpLeadGuestBody {
+    background: #fff;
+    border: 0;
+    border-radius: 0;
+    padding: 14px;
+}
+
+#createTourProModal #ctpLeadGuestBody .ctp-lead-error {
+    display: none;
+    color: var(--ctp-danger);
+    font-size: 11px;
+    line-height: 1.35;
+    margin-top: 4px;
+}
+
+#createTourProModal #ctpLeadGuestBody .ctp-lead-error.is-visible {
+    display: block;
+}
+
+#createTourProModal #ctpLeadGuestBody .is-invalid {
+    border-color: var(--ctp-danger);
+}
+
+#createTourProModal .ctp-lead-head-copy .ctp-card-sub {
+    display: block;
+}
+
+/* Footer */
+#createTourProModal .modal-footer,
+#createTourProModal .ctp-main-foot {
+    border-top: 1px solid #f1f5f9;
+    padding: 12px 22px 16px;
+    background: #fff;
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+#createTourProModal .ctp-btn-cancel {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    color: #64748b;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 10px;
+    padding: 8px 16px;
+}
+
+#createTourProModal .ctp-btn-cancel:hover {
+    background: #f8fafc;
+    color: #334155;
+}
+
+#createTourProModal #submitTourProBtn {
+    background: var(--ctp-purple);
+    border: 0;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 10px;
+    padding: 8px 18px;
+    box-shadow: 0 6px 14px rgba(91, 77, 255, 0.22);
+}
+
+#createTourProModal #submitTourProBtn:hover:not(:disabled) {
+    background: var(--ctp-purple-deep);
+    color: #fff;
+}
+
+#createTourProModal #submitTourProBtn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+/* Select2 inside this modal */
+#createTourProModal .select2-container {
+    width: 100% !important;
+}
+
+#createTourProModal .select2-container--default .select2-selection--single {
+    height: var(--ctp-input-h);
+    min-height: var(--ctp-input-h);
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    font-size: 13px;
+    padding-left: 4px;
+}
+
+#createTourProModal .ctp-icon-field .select2-container--default .select2-selection--single {
+    padding-left: 28px;
+}
+
+#createTourProModal .select2-container--default .select2-selection--single .select2-selection__rendered {
+    line-height: calc(var(--ctp-input-h) - 2px);
+    padding-left: 8px;
+    font-size: 13px;
+    color: var(--ctp-text);
+}
+
+#createTourProModal .select2-container--default .select2-selection--single .select2-selection__placeholder {
+    color: #94a3b8;
+}
+
+#createTourProModal .select2-container--default .select2-selection--single .select2-selection__arrow {
+    height: calc(var(--ctp-input-h) - 2px);
+    right: 6px;
+}
+
+#createTourProModal .select2-container--default.select2-container--focus .select2-selection--single {
+    border-color: #a5b4fc;
+}
+
+.select2-container--open .select2-dropdown--below {
+    z-index: 2000;
+}
+
+.select2-container--open .select2-dropdown {
+    border-color: var(--ctp-border);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+/* Hidden FIT qty row stays out of the new layout unless JS shows it */
+#createTourProModal #tourProFitPaxRow {
+    margin-bottom: 12px;
+}
+
+@media (max-width: 991.98px) {
+    #createTourProModal .ctp-shell {
+        flex-direction: column;
+        min-height: 0;
+        max-height: 92vh;
+    }
+
+    #createTourProModal .ctp-sidenav {
+        width: 100%;
+        flex: none;
+        flex-direction: row;
+        overflow-x: auto;
+        padding: 10px 12px;
+        gap: 6px;
+    }
+
+    #createTourProModal .ctp-sidenav::after,
+    #createTourProModal .ctp-sidenav-foot {
+        display: none;
+    }
+
+    #createTourProModal .ctp-step {
+        flex: 0 0 auto;
+        margin: 0;
+        white-space: nowrap;
+        padding: 8px 10px;
+    }
+
+    #createTourProModal .ctp-step-sub {
+        display: none;
+    }
+
+    #createTourProModal .modal-dialog {
+        max-width: calc(100% - 16px);
+        margin: 8px auto;
+    }
+}

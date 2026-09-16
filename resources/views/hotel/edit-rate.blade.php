@@ -35,7 +35,7 @@
                      <!-- Event Type -->
                      <div class="col-md-3 mb-3">
                         <label for="event_type" class="form-label"><strong>Event Type</strong><span class="text-danger">*</span></label>
-                        <select class="form-control" name="event_type" required>
+                        <select id="event_type" class="form-control" name="event_type" required>
                            <option value="">Select Event Type</option>
                            <option value="Fair Date" {{ $rate->event_type == "Fair Date" ? 'selected' : '' }}>Fair Date</option>
                            <option value="Blackout Date" {{ $rate->event_type == "Blackout Date" ? 'selected' : '' }}>Blackout Date</option>
@@ -43,10 +43,21 @@
                         </select>
                      </div>
                      
-                     <!-- Price -->
+                     <div class="col-md-3 mb-3" id="price_cost">
+                        <label for="price_cost" class="form-label"><strong>Price(Cost)</strong></label>
+                        <input value="{{ $rate->price_cost }}" type="number" step="0.01" min="0" class="form-control" name="price_cost" placeholder="Enter Price(Cost)">
+                     </div>
                      <div class="col-md-3 mb-3" id="price">
-                        <label for="price" class="form-label"><strong>Price</strong></label><span class="text-danger">*</span>
-                        <input value="{{$rate->price}}" type="number" class="form-control" name="price" placeholder="Enter Price" required>
+                        <label for="price" class="form-label"><strong>Price(Sell)</strong></label><span class="text-danger">*</span>
+                        <input value="{{$rate->price}}" type="number" step="0.01" min="0" class="form-control" name="price" placeholder="Enter Price(Sell)">
+                     </div>
+                     <div class="col-md-3 mb-3" id="surcharge_cost" style="display: none;">
+                        <label for="surcharge_cost" class="form-label"><strong>Surcharge(Cost)</strong></label>
+                        <input value="{{ $rate->price_cost }}" type="number" step="0.01" min="0" class="form-control" name="surcharge_cost" placeholder="Enter Surcharge(Cost)">
+                     </div>
+                     <div class="col-md-3 mb-3" id="surcharge" style="display: none;">
+                        <label for="surcharge" class="form-label"><strong>Surcharge(Sell)</strong></label><span class="text-danger">*</span>
+                        <input value="{{$rate->price}}" type="number" step="0.01" min="0" class="form-control" name="surcharge" placeholder="Enter Surcharge(Sell)">
                      </div>
 
                         <!-- Weekday -->
@@ -61,28 +72,49 @@
                            <input value="{{$rate->weekend_price}}" type="number" name="weekend_price" class="form-control" placeholder="Enter Base weekend price">
                      </div>
 
-                     <!-- Breakfast Price -->
                      <div class="mb-3 col-md-3">
-                        <label for="breakfast_price" class="form-label"><strong>Breakfast Price</strong></label>
-                        <input value="{{$rate->breakfast_price}}" type="number" step="0.01" min="0" name="breakfast_price" class="form-control" placeholder="Enter breakfast price">
+                        <label for="breakfast_cost_price" class="form-label"><strong>Breakfast Price(Cost)</strong></label>
+                        <input value="{{$rate->breakfast_cost_price}}" type="number" step="0.01" min="0" name="breakfast_cost_price" class="form-control" placeholder="Enter breakfast price (cost)">
+                        @error('breakfast_cost_price')
+                           <div class="text-danger mt-1">{{ $message }}</div>
+                        @enderror
+                     </div>
+
+                     <div class="mb-3 col-md-3">
+                        <label for="breakfast_price" class="form-label"><strong>Breakfast Price(Sell)</strong></label>
+                        <input value="{{$rate->breakfast_price}}" type="number" step="0.01" min="0" name="breakfast_price" class="form-control" placeholder="Enter breakfast price (sell)">
                         @error('breakfast_price')
                            <div class="text-danger mt-1">{{ $message }}</div>
                         @enderror
                      </div>
 
-                     <!-- Lunch Price -->
                      <div class="mb-3 col-md-3">
-                        <label for="lunch_price" class="form-label"><strong>Lunch Price</strong></label>
-                        <input value="{{$rate->lunch_price}}" type="number" step="0.01" min="0" name="lunch_price" class="form-control" placeholder="Enter lunch price">
+                        <label for="lunch_cost_price" class="form-label"><strong>Lunch Price(Cost)</strong></label>
+                        <input value="{{$rate->lunch_cost_price}}" type="number" step="0.01" min="0" name="lunch_cost_price" class="form-control" placeholder="Enter lunch price (cost)">
+                        @error('lunch_cost_price')
+                           <div class="text-danger mt-1">{{ $message }}</div>
+                        @enderror
+                     </div>
+
+                     <div class="mb-3 col-md-3">
+                        <label for="lunch_price" class="form-label"><strong>Lunch Price(Sell)</strong></label>
+                        <input value="{{$rate->lunch_price}}" type="number" step="0.01" min="0" name="lunch_price" class="form-control" placeholder="Enter lunch price (sell)">
                         @error('lunch_price')
                            <div class="text-danger mt-1">{{ $message }}</div>
                         @enderror
                      </div>
 
-                     <!-- Dinner Price -->
                      <div class="mb-3 col-md-3">
-                        <label for="dinner_price" class="form-label"><strong>Dinner Price</strong></label>
-                        <input value="{{$rate->dinner_price}}" type="number" step="0.01" min="0" name="dinner_price" class="form-control" placeholder="Enter dinner price">
+                        <label for="dinner_cost_price" class="form-label"><strong>Dinner Price(Cost)</strong></label>
+                        <input value="{{$rate->dinner_cost_price}}" type="number" step="0.01" min="0" name="dinner_cost_price" class="form-control" placeholder="Enter dinner price (cost)">
+                        @error('dinner_cost_price')
+                           <div class="text-danger mt-1">{{ $message }}</div>
+                        @enderror
+                     </div>
+
+                     <div class="mb-3 col-md-3">
+                        <label for="dinner_price" class="form-label"><strong>Dinner Price(Sell)</strong></label>
+                        <input value="{{$rate->dinner_price}}" type="number" step="0.01" min="0" name="dinner_price" class="form-control" placeholder="Enter dinner price (sell)">
                         @error('dinner_price')
                            <div class="text-danger mt-1">{{ $message }}</div>
                         @enderror
@@ -188,60 +220,30 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        // Select the event type dropdown
         const eventTypeDropdown = document.querySelector('select[name="event_type"]');
-        const priceField = document.getElementById('price');
-        const weekdayPriceField = document.getElementById('base_weekday_price');
-        const weekendPriceField = document.getElementById('base_weekend_price');
-
-        // Function to toggle field visibility
-        function toggleFields() {
-            const selectedEventType = eventTypeDropdown.value;
-            
-            if (selectedEventType === "Season") {
-                // Show weekday and weekend price
-                weekdayPriceField.style.display = "block";
-                weekendPriceField.style.display = "block";
-
-                // Hide the price input field
-                priceField.style.display = "none";
-            } else {
-                // Show price input field
-                priceField.style.display = "block";
-
-                // Hide weekday and weekend price
-                weekdayPriceField.style.display = "none";
-                weekendPriceField.style.display = "none";
-            }
-        }
-
-        // Add event listener to the dropdown
-         eventTypeDropdown.onchange = function() {
-            toggleFields(); // Call toggleFields on change
-         };
-         
-         // Initialize fields visibility on page load
-         toggleFields();
+        eventTypeDropdown.addEventListener('change', toggleFields);
+        toggleFields();
     });
     
-    // Make the toggleFields function globally available
     function toggleFields() {
         const eventTypeDropdown = document.querySelector('select[name="event_type"]');
         const priceField = document.getElementById('price');
+        const priceCostField = document.getElementById('price_cost');
+        const surchargeField = document.getElementById('surcharge');
+        const surchargeCostField = document.getElementById('surcharge_cost');
         const weekdayPriceField = document.getElementById('base_weekday_price');
         const weekendPriceField = document.getElementById('base_weekend_price');
-        
         const selectedEventType = eventTypeDropdown.value;
-        
-        if (selectedEventType === "Season") {
-            weekdayPriceField.style.display = "block";
-            weekendPriceField.style.display = "block";
-            priceField.style.display = "none";
-        } else {
-            priceField.style.display = "block";
-            weekdayPriceField.style.display = "none";
-            weekendPriceField.style.display = "none";
-        }
+        const showSeason = selectedEventType === 'Season';
+        const showFair = selectedEventType === 'Fair Date';
+        const showBlackout = selectedEventType === 'Blackout Date';
+
+        weekdayPriceField.style.display = showSeason ? 'block' : 'none';
+        weekendPriceField.style.display = showSeason ? 'block' : 'none';
+        priceField.style.display = showBlackout ? 'block' : 'none';
+        priceCostField.style.display = showBlackout ? 'block' : 'none';
+        surchargeField.style.display = showFair ? 'block' : 'none';
+        surchargeCostField.style.display = showFair ? 'block' : 'none';
     }
 </script>
 
