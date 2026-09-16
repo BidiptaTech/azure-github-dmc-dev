@@ -90,14 +90,22 @@ const BookingSlice = createSlice({
     setSearchLocation: (state, action) => {
       const payload = action.payload;
 
+      const toCodes = (value) =>
+        String(value)
+          .split(",")
+          .map((code) => code.trim())
+          .filter(Boolean);
+
       if (Array.isArray(payload)) {
-        state.searchLocation = payload.filter(Boolean);
+        state.searchLocation = payload.flatMap(toCodes);
         return;
       }
 
       if (payload != null && payload !== "") {
-        state.searchLocation = [payload];
+        // Supports "SG, ID" → ["SG", "ID"]
+        state.searchLocation = toCodes(payload);
       }
+      console.log("searchLocation", state.searchLocation);
     },
     setCheckIn: (state, action) => {
       state.checkIn = action.payload;

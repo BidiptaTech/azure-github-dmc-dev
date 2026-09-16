@@ -13,8 +13,9 @@ import NightsStayIcon from "@mui/icons-material/NightsStay";
 
 // Simple styled components focusing on width and z-index
 const StyledFormControl = styled(FormControl)(({ theme }) => ({
-  width: '100%',
-  minWidth: '180px',
+  width: "100%",
+  minWidth: 0,
+  maxWidth: "100%",
 }));
 
 const StyledMenuItem = styled(MenuItem)(({ theme, isNight }) => ({

@@ -15,14 +15,21 @@ import { setId } from "@/slice/hotel/hotelSlice";
 //import { format } from "date-fns";
 export const fetchVehicles = createAsyncThunk(
   "localtour/fetchVehicles",
-  async (params1 = {}, { rejectWithValue, getState }) => {
+  async (params1 = {}, { rejectWithValue, getState, dispatch }) => {
     try {
       const state = getState(); // ✅ Get Redux state
-      const { PickupPlaceid, DropoffPlaceid, pickdate, entrytime } =
-        state.localtour;
+      const {
+        PickupPlaceid,
+        DropoffPlaceid,
+        pickdate,
+        entrytime,
+        exitpickup,
+        hourlyCity,
+      } = state.localtour;
       const selectedDmcId = selectDmcId(state);
 
-      if (!PickupPlaceid) {
+      const pickupPayload = exitpickup;
+      if (!pickupPayload) {
         throw new Error("Pickup location is required");
       }
 
@@ -34,7 +41,7 @@ export const fetchVehicles = createAsyncThunk(
 
       // ✅ Build query parameters dynamically
       const params = {
-        pickup: JSON.stringify(PickupPlaceid),
+        pickup: JSON.stringify(exitpickup),
         time: JSON.stringify(entrytime),
         date: travelDate, // ✅ Include formatted date
         dmc_id: selectedDmcId,
@@ -42,8 +49,17 @@ export const fetchVehicles = createAsyncThunk(
         limit: (params1 && params1.limit) || undefined,
       };
 
-      if (DropoffPlaceid) {
-        params.dropoff = JSON.stringify(DropoffPlaceid);
+      // if (DropoffPlaceid) {
+      //   params.dropoff = JSON.stringify(DropoffPlaceid);
+      // }
+
+      // Selected city name for Hourly (and any other flow that sets it)
+      const cityName =
+        (params1 && params1.city) ||
+        hourlyCity ||
+        "";
+      if (cityName) {
+        params.city = cityName;
       }
 
       // ✅ Make API request with dynamic params
@@ -707,11 +723,15 @@ const LocalSlice = createSlice({
     dropLocation: "",
     roundTrip: false,
     searchDayIndex: null, // Track which dayIndex initiated the search
+    hourlyCity: "", // Selected city name for Hourly vehicle search
   },
   reducers: {
     setentrypickup: (state, action) => {
       state.entrypickup = action.payload;
       console.log("entry", state.entrypickup);
+    },
+    setHourlyCity: (state, action) => {
+      state.hourlyCity = action.payload || "";
     },
     setentrydropoff: (state, action) => {
       state.entrydropoff = action.payload;
@@ -877,6 +897,7 @@ const LocalSlice = createSlice({
     
       state.PickupZoneid = "";
       state.DropoffZoneid = "";
+      state.hourlyCity = "";
       //state.selectedVehicleId = null;
       state.status = "idle";
       state.error = null;
@@ -1047,6 +1068,7 @@ export const {
   setHourCount,
   setSearchDayIndex,
   clearSearchDayIndex,
+  setHourlyCity,
 } = LocalSlice.actions;
 
 export default LocalSlice.reducer;

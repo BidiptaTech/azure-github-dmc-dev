@@ -171,6 +171,8 @@ const stepsSlice = createSlice({
         state.active_status = payload.active_status;
       }
       if (payload.type != null) state.type = payload.type;
+      console.log(payload.currentStep, "currentStep");
+      console.log(payload.localCurrentStep, "localCurrentStep");
     },
     // Trigger search for a specific step
     triggerSearch: (state, action) => {

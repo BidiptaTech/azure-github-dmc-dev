@@ -53,7 +53,9 @@ const MainFilterSearchBox2 = ({ Location }) => {
   const tourDestination = useSelector(
     (state) => state.hotels.tourdetails?.destination
   );
+  console.log(tourDestination, "tourDestination");
   const searchLocation = useSelector((state) => state.bookings?.searchLocation);
+  console.log(searchLocation, "searchLocation");
   const userCountry = useSelector((state) => state.auth?.user_country);
   const cityWiseDates = useSelector(selectCityWiseDates);
 

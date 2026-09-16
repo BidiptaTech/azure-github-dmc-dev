@@ -88,8 +88,14 @@ const commonSlice = createSlice({
       console.log("City stored in commonSlice:", state.selectedCity);
     },
     setCityWiseDates: (state, action) => {
-      // Expected: [{ city: "Kolkata", checkIn: "DD/MM/YYYY", checkOut: "DD/MM/YYYY" }, ...]
-      state.cityWiseDates = Array.isArray(action.payload) ? action.payload : [];
+      // Expected: [{ city, checkIn, checkOut }, ...]
+      // Also accepts API shape: [{ city, checkin, checkout }, ...]
+      const list = Array.isArray(action.payload) ? action.payload : [];
+      state.cityWiseDates = list.map((item) => ({
+        city: item?.city || "",
+        checkIn: item?.checkIn || item?.checkin || "",
+        checkOut: item?.checkOut || item?.checkout || "",
+      }));
       console.log("City-wise dates stored in commonSlice:", state.cityWiseDates);
     },
     clearCityWiseDates: (state) => {

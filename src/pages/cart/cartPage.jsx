@@ -98,7 +98,9 @@ const CartPage = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const cart = useSelector(selectCart);
-
+  const { localCurrentStep } = useSelector(
+    (state) => state.steps
+  );
   const trips = useMemo(
     () =>
       (Array.isArray(cart) ? cart : []).filter(
@@ -143,6 +145,28 @@ const CartPage = () => {
 
   const handleEditTrip = (trip) => {
     restoreTripToRedux(trip);
+
+    const stepIndex = Number(localCurrentStep);
+    const navState = {
+      editCartTripId: trip.tripId,
+      cartTrip: trip,
+    };
+
+    // 0 hotel, 1 port, 2 attraction, 3 guide, 4 restaurants, 5 local transfer
+    const stepPaths = {
+      0: null, // hotel uses query params below
+      1: "/dashboard/db-dashboard/pickupdrop",
+      2: "/dashboard/db-dashboard/attractions",
+      3: "/dashboard/db-dashboard/tourguide",
+      4: "/dashboard/db-dashboard/restaurants",
+      5: "/dashboard/db-dashboard/localtransfer",
+    };
+
+    if (stepIndex > 0 && stepPaths[stepIndex]) {
+      navigate(stepPaths[stepIndex], { state: navState });
+      return;
+    }
+
     const locationLabel = Array.isArray(trip.destination)
       ? trip.destination
           .map((d) => (typeof d === "object" ? d?.city : d))
@@ -159,10 +183,7 @@ const CartPage = () => {
       }),
     });
     navigate(`/dashboard/db-dashboard/view-hotel-search/0?${searchParams}`, {
-      state: {
-        editCartTripId: trip.tripId,
-        cartTrip: trip,
-      },
+      state: navState,
     });
   };
 
@@ -258,7 +279,7 @@ const CartPage = () => {
         >
           <Box>
             <Typography variant="h4" fontWeight={800} color="#0f172a">
-              Shopping Cart
+              Cart
             </Typography>
             <Typography color="text.secondary" mt={0.5}>
               {totals.itemCount} item{totals.itemCount === 1 ? "" : "s"} in cart
@@ -316,14 +337,14 @@ const CartPage = () => {
                         <Stack direction="row" spacing={1.5} alignItems="flex-start">
                           <FlightTakeoffOutlinedIcon sx={{ mt: 0.3 }} />
                           <Box>
-                            <Typography fontWeight={700}>
-                              Trip {tripIndex + 1}:{" "}
+                            <Typography fontWeight={700} color="#ffffff">
+                              Trip City:{""}
                               {formatDestination(trip.destination)}
                             </Typography>
-                            <Typography variant="body2" sx={{ opacity: 0.95 }}>
+                            <Typography variant="body2" sx={{ opacity: 0.95 ,color: "#ffffff"}}>
                               {trip.check_in || "—"} → {trip.check_out || "—"}
                             </Typography>
-                            <Typography variant="caption" sx={{ opacity: 0.9 }}>
+                            <Typography variant="caption" sx={{ opacity: 0.9 ,color: "#ffffff"}}>
                               {trip.adult || 0} adults · {trip.child || 0}{" "}
                               children · {trip.infant || 0} infants ·{" "}
                               {trip.bookings.length} booking
@@ -344,7 +365,7 @@ const CartPage = () => {
                                     label={`${cityDate.city}: ${cityDate.checkIn} – ${cityDate.checkOut}`}
                                     sx={{
                                       bgcolor: "rgba(255,255,255,0.18)",
-                                      color: "#fff",
+                                      color: "#ffffff",
                                       fontWeight: 600,
                                       fontSize: "0.7rem",
                                     }}
@@ -1009,7 +1030,7 @@ const CartPage = () => {
                         >
                           <Box>
                             <Typography variant="body2" fontWeight={700}>
-                              Trip {index + 1} ({trip.bookings.length})
+                              Tour bookings({trip.bookings.length})
                             </Typography>
                             <Typography variant="caption" color="text.secondary">
                               {formatDestination(trip.destination)}
@@ -1032,7 +1053,7 @@ const CartPage = () => {
                             "&:hover": { bgcolor: "#2a43b0" },
                           }}
                         >
-                          Checkout Trip {index + 1}
+                          Checkout the Trip
                         </Button>
                       </Box>
                     );
@@ -1059,7 +1080,7 @@ const CartPage = () => {
                   }}
                   sx={{ textTransform: "none", color: "#64748b" }}
                 >
-                  Continue Shopping
+                  Continue To Trip
                 </Button>
               </CardContent>
             </Card>

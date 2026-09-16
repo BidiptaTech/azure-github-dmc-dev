@@ -15,6 +15,7 @@ import {
   InputAdornment,
   Stack,
   Divider,
+  Chip,
 } from "@mui/material";
 import { useSelector } from "react-redux";
 import { toast } from "react-toastify";
@@ -50,9 +51,38 @@ const fieldSx = {
   },
 };
 
+const hasCartCustomerInfo = (info) =>
+  Boolean(
+    info &&
+      typeof info === "object" &&
+      (String(info.fullName || "").trim() || String(info.email || "").trim())
+  );
+
+/** Stable section wrapper — must stay outside the form component to avoid remount/focus loss */
+const FormSection = ({ title, children }) => (
+  <Box sx={{ mb: 1.75 }}>
+    <Typography
+      variant="caption"
+      fontWeight={700}
+      color="#64748b"
+      sx={{
+        mb: 1,
+        display: "block",
+        textTransform: "uppercase",
+        letterSpacing: "0.04em",
+        fontSize: "0.7rem",
+      }}
+    >
+      {title}
+    </Typography>
+    <Stack spacing={1.25}>{children}</Stack>
+  </Box>
+);
+
 /**
  * Cart checkout customer form — same fields/validation as hotel CustomerInfo,
  * compact layout for checkout.
+ * When cart trip already has customerInfo, form is prefilled and read-only.
  */
 const CartCustomerInfo = forwardRef(function CartCustomerInfo(
   { onFormChange, initialCustomerInfo },
@@ -61,6 +91,12 @@ const CartCustomerInfo = forwardRef(function CartCustomerInfo(
   const searchLocation = useSelector((state) => state.bookings.searchLocation);
   const existingUserInfo = useSelector(
     (state) => state.customerInfo?.userInfo
+  );
+  const onFormChangeRef = useRef(onFormChange);
+  onFormChangeRef.current = onFormChange;
+
+  const [isStaticFromCart] = useState(() =>
+    hasCartCustomerInfo(initialCustomerInfo)
   );
 
   const [countries, setCountries] = useState([]);
@@ -71,10 +107,11 @@ const CartCustomerInfo = forwardRef(function CartCustomerInfo(
   const [isManualCountryCode, setIsManualCountryCode] = useState(false);
   const countryManuallyOverriddenRef = useRef(false);
   const hasInitializedCountryRef = useRef(false);
+  const lockedFromCartRef = useRef(isStaticFromCart);
+  const hasNotifiedInitialRef = useRef(false);
 
   const [form, setForm] = useState(() => {
-    // Prefer cart trip customerInfo (persisted with services)
-    if (initialCustomerInfo?.fullName || initialCustomerInfo?.email) {
+    if (hasCartCustomerInfo(initialCustomerInfo)) {
       return { ...emptyForm, ...initialCustomerInfo };
     }
     if (existingUserInfo?.fullName) {
@@ -92,8 +129,21 @@ const CartCustomerInfo = forwardRef(function CartCustomerInfo(
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
 
+  // Prefill once from cart customerInfo when form is locked
   useEffect(() => {
-    onFormChange?.(form);
+    if (!isStaticFromCart || !hasCartCustomerInfo(initialCustomerInfo)) return;
+    lockedFromCartRef.current = true;
+    const updated = { ...emptyForm, ...initialCustomerInfo };
+    setForm(updated);
+    onFormChangeRef.current?.(updated);
+    // Only on mount lock — avoid resetting while parent re-renders
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isStaticFromCart]);
+
+  useEffect(() => {
+    if (hasNotifiedInitialRef.current) return;
+    hasNotifiedInitialRef.current = true;
+    onFormChangeRef.current?.(form);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -128,35 +178,43 @@ const CartCustomerInfo = forwardRef(function CartCustomerInfo(
     if (!countries.length || hasInitializedCountryRef.current) return;
 
     let defaultCountry = null;
-    if (searchLocation?.[0]) {
+    if (form.countryCode) {
+      defaultCountry = countries.find(
+        (c) => c.country_code === form.countryCode
+      );
+    }
+    if (!defaultCountry && searchLocation?.[0] && !isStaticFromCart) {
       defaultCountry = countries.find(
         (c) =>
           String(c.code).toLowerCase() ===
           String(searchLocation[0]).toLowerCase()
       );
     }
-    if (!defaultCountry && form.countryCode) {
-      defaultCountry = countries.find(
-        (c) => c.country_code === form.countryCode
-      );
-    }
     if (!defaultCountry) defaultCountry = countries[0];
 
     hasInitializedCountryRef.current = true;
     setSelectedCountry(defaultCountry);
-    setIsManualCountryCode(false);
-    setDialMinLength(defaultCountry.contact_min_length || 8);
-    setDialMaxLength(defaultCountry.contact_max_length || 15);
+    setIsManualCountryCode(
+      Boolean(form.countryCode) &&
+        !countries.some((c) => c.country_code === form.countryCode)
+    );
+    setDialMinLength(defaultCountry?.contact_min_length || 8);
+    setDialMaxLength(defaultCountry?.contact_max_length || 15);
+
+    if (isStaticFromCart) return;
+
     setForm((prev) => {
       const updated = {
         ...prev,
         countryCode: prev.countryCode || defaultCountry.country_code,
       };
       localStorage.setItem("lastHotelUserInfo", JSON.stringify(updated));
-      onFormChange?.(updated);
+      onFormChangeRef.current?.(updated);
       return updated;
     });
-  }, [countries, searchLocation]);
+    // Intentionally omit form.countryCode — only run once countries load
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [countries, searchLocation, isStaticFromCart]);
 
   const validateField = (name, value) => {
     switch (name) {
@@ -190,11 +248,13 @@ const CartCustomerInfo = forwardRef(function CartCustomerInfo(
   };
 
   const persist = (updated) => {
+    if (lockedFromCartRef.current || isStaticFromCart) return;
     localStorage.setItem("lastHotelUserInfo", JSON.stringify(updated));
-    onFormChange?.(updated);
+    onFormChangeRef.current?.(updated);
   };
 
   const handleChange = (e) => {
+    if (isStaticFromCart) return;
     const { name, value } = e.target;
     const updated = { ...form, [name]: value };
     setForm(updated);
@@ -205,12 +265,14 @@ const CartCustomerInfo = forwardRef(function CartCustomerInfo(
   };
 
   const handleBlur = (e) => {
+    if (isStaticFromCart) return;
     const { name, value } = e.target;
     setTouched((prev) => ({ ...prev, [name]: true }));
     setErrors((prev) => ({ ...prev, [name]: validateField(name, value) }));
   };
 
   const handleCountryChange = (event) => {
+    if (isStaticFromCart) return;
     const selectedCountryCode = event.target.value;
     if (selectedCountryCode === MANUAL_COUNTRY_VALUE) {
       countryManuallyOverriddenRef.current = true;
@@ -247,6 +309,7 @@ const CartCustomerInfo = forwardRef(function CartCustomerInfo(
   };
 
   const handleManualCountryCodeChange = (e) => {
+    if (isStaticFromCart) return;
     const value = sanitizeDialCode(e.target.value);
     countryManuallyOverriddenRef.current = true;
     setIsManualCountryCode(true);
@@ -258,6 +321,9 @@ const CartCustomerInfo = forwardRef(function CartCustomerInfo(
   useImperativeHandle(ref, () => ({
     getFormData: () => form,
     isFormValid: () => {
+      if (isStaticFromCart && (form.fullName?.trim() || form.email?.trim())) {
+        return true;
+      }
       const requiredFields = ["fullName", "email", "phone", "address1"];
       const newErrors = {};
       let isValid = true;
@@ -276,25 +342,15 @@ const CartCustomerInfo = forwardRef(function CartCustomerInfo(
     },
   }));
 
-  const Section = ({ title, children }) => (
-    <Box sx={{ mb: 1.75 }}>
-      <Typography
-        variant="caption"
-        fontWeight={700}
-        color="#64748b"
-        sx={{
-          mb: 1,
-          display: "block",
-          textTransform: "uppercase",
-          letterSpacing: "0.04em",
-          fontSize: "0.7rem",
-        }}
-      >
-        {title}
-      </Typography>
-      <Stack spacing={1.25}>{children}</Stack>
-    </Box>
-  );
+  const lockedFieldSx = isStaticFromCart
+    ? {
+        ...fieldSx,
+        "& .MuiOutlinedInput-root": {
+          ...fieldSx["& .MuiOutlinedInput-root"],
+          bgcolor: "#f8fafc",
+        },
+      }
+    : fieldSx;
 
   return (
     <Box
@@ -305,16 +361,37 @@ const CartCustomerInfo = forwardRef(function CartCustomerInfo(
         bgcolor: "#fff",
       }}
     >
-      <Typography
-        variant="subtitle1"
-        fontWeight={800}
-        color="#0f172a"
-        sx={{ mb: 1.5, lineHeight: 1.2 }}
+      <Stack
+        direction="row"
+        alignItems="center"
+        justifyContent="space-between"
+        spacing={1}
+        sx={{ mb: 1.5 }}
       >
-        Customer details
-      </Typography>
+        <Typography
+          variant="subtitle1"
+          fontWeight={800}
+          color="#0f172a"
+          sx={{ lineHeight: 1.2 }}
+        >
+          Customer details
+        </Typography>
+        {isStaticFromCart && (
+          <Chip
+            size="small"
+            label="From cart · read-only"
+            sx={{
+              height: 24,
+              fontSize: "0.7rem",
+              fontWeight: 600,
+              bgcolor: "#eef2ff",
+              color: "#3554d1",
+            }}
+          />
+        )}
+      </Stack>
 
-      <Section title="Contact">
+      <FormSection title="Contact">
         <TextField
           fullWidth
           size="small"
@@ -326,7 +403,9 @@ const CartCustomerInfo = forwardRef(function CartCustomerInfo(
           error={touched.fullName && Boolean(errors.fullName)}
           helperText={touched.fullName && errors.fullName}
           required
-          sx={fieldSx}
+          disabled={isStaticFromCart}
+          InputProps={{ readOnly: isStaticFromCart }}
+          sx={lockedFieldSx}
         />
         <Stack direction={{ xs: "column", sm: "row" }} spacing={1.25}>
           <TextField
@@ -341,7 +420,9 @@ const CartCustomerInfo = forwardRef(function CartCustomerInfo(
             error={touched.email && Boolean(errors.email)}
             helperText={touched.email && errors.email}
             required
-            sx={fieldSx}
+            disabled={isStaticFromCart}
+            InputProps={{ readOnly: isStaticFromCart }}
+            sx={lockedFieldSx}
           />
           <TextField
             fullWidth
@@ -354,8 +435,9 @@ const CartCustomerInfo = forwardRef(function CartCustomerInfo(
             error={touched.phone && Boolean(errors.phone)}
             helperText={touched.phone && errors.phone}
             required
-            sx={fieldSx}
+            disabled={isStaticFromCart}
             InputProps={{
+              readOnly: isStaticFromCart,
               startAdornment: (
                 <InputAdornment position="start">
                   <Box
@@ -375,7 +457,7 @@ const CartCustomerInfo = forwardRef(function CartCustomerInfo(
                         }
                         onChange={handleCountryChange}
                         disableUnderline
-                        disabled={countriesLoading}
+                        disabled={countriesLoading || isStaticFromCart}
                         displayEmpty
                         sx={{ fontSize: "0.8rem" }}
                       >
@@ -393,21 +475,26 @@ const CartCustomerInfo = forwardRef(function CartCustomerInfo(
                         onChange={handleManualCountryCodeChange}
                         variant="standard"
                         placeholder="+XX"
+                        disabled={isStaticFromCart}
                         sx={{ width: 48, "& input": { fontSize: "0.8rem" } }}
-                        InputProps={{ disableUnderline: true }}
+                        InputProps={{
+                          disableUnderline: true,
+                          readOnly: isStaticFromCart,
+                        }}
                       />
                     )}
                   </Box>
                 </InputAdornment>
               ),
             }}
+            sx={lockedFieldSx}
           />
         </Stack>
-      </Section>
+      </FormSection>
 
       <Divider sx={{ my: 1.5 }} />
 
-      <Section title="Address">
+      <FormSection title="Address">
         <TextField
           fullWidth
           size="small"
@@ -419,7 +506,9 @@ const CartCustomerInfo = forwardRef(function CartCustomerInfo(
           error={touched.address1 && Boolean(errors.address1)}
           helperText={touched.address1 && errors.address1}
           required
-          sx={fieldSx}
+          disabled={isStaticFromCart}
+          InputProps={{ readOnly: isStaticFromCart }}
+          sx={lockedFieldSx}
         />
         <TextField
           fullWidth
@@ -429,7 +518,9 @@ const CartCustomerInfo = forwardRef(function CartCustomerInfo(
           value={form.address2}
           onChange={handleChange}
           onBlur={handleBlur}
-          sx={fieldSx}
+          disabled={isStaticFromCart}
+          InputProps={{ readOnly: isStaticFromCart }}
+          sx={lockedFieldSx}
         />
         <Stack direction={{ xs: "column", sm: "row" }} spacing={1.25}>
           <TextField
@@ -440,7 +531,9 @@ const CartCustomerInfo = forwardRef(function CartCustomerInfo(
             value={form.state}
             onChange={handleChange}
             onBlur={handleBlur}
-            sx={fieldSx}
+            disabled={isStaticFromCart}
+            InputProps={{ readOnly: isStaticFromCart }}
+            sx={lockedFieldSx}
           />
           <TextField
             fullWidth
@@ -450,14 +543,16 @@ const CartCustomerInfo = forwardRef(function CartCustomerInfo(
             value={form.zip}
             onChange={handleChange}
             onBlur={handleBlur}
-            sx={fieldSx}
+            disabled={isStaticFromCart}
+            InputProps={{ readOnly: isStaticFromCart }}
+            sx={lockedFieldSx}
           />
         </Stack>
-      </Section>
+      </FormSection>
 
       <Divider sx={{ my: 1.5 }} />
 
-      <Section title="Notes">
+      <FormSection title="Notes">
         <TextField
           fullWidth
           size="small"
@@ -468,9 +563,11 @@ const CartCustomerInfo = forwardRef(function CartCustomerInfo(
           onBlur={handleBlur}
           multiline
           minRows={2}
-          sx={fieldSx}
+          disabled={isStaticFromCart}
+          InputProps={{ readOnly: isStaticFromCart }}
+          sx={lockedFieldSx}
         />
-      </Section>
+      </FormSection>
     </Box>
   );
 });

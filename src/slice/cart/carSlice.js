@@ -47,7 +47,11 @@ export const normalizeCartCustomerInfo = (raw) => {
     state: source.state || "",
     zip: source.zip || source.postal_code || "",
     specialRequests:
-      source.specialRequests || source.special_requests || source.comment || "",
+      source.specialRequests ||
+      source.specialRequest ||
+      source.special_requests ||
+      source.comment ||
+      "",
   };
   const hasAny = Object.values(normalized).some((v) => String(v || "").trim());
   return hasAny ? normalized : null;
@@ -119,7 +123,11 @@ export const buildTourMeta = (tourDetails = {}) => {
   const child = Number(tourDetails.child ?? tourDetails.Children ?? 0);
   const infant = Number(tourDetails.infant ?? tourDetails.Infants ?? 0);
   const cityWiseDates = Array.isArray(tourDetails.cityWiseDates)
-    ? tourDetails.cityWiseDates
+    ? tourDetails.cityWiseDates.map((item) => ({
+        city: item?.city || "",
+        checkIn: item?.checkIn || item?.checkin || "",
+        checkOut: item?.checkOut || item?.checkout || "",
+      }))
     : [];
   const country =
     tourDetails.country ||
@@ -259,21 +267,62 @@ const cartSlice = createSlice({
     },
     /**
      * Attach / update customer details on a trip (persisted with dmc_cart).
-     * Used before final Book Now / Make an Enquiry submit.
+     * Used before final Book Now / Make an Enquiry submit, and when restoring
+     * customerInfo from fetchEditid (Pending / Upcoming edit).
+     * Resolve trip by: tripId → tourId/tour_id → first cart trip.
+     * If cart is empty and tourDetails is provided, creates a shell trip.
      */
     setTripCustomerInfo: (state, action) => {
-      const { tripId, customerInfo } = action.payload || {};
+      const payload = action.payload || {};
       state.lastActionError = null;
-      if (!tripId || !Array.isArray(state.cart)) {
-        state.lastActionError = "Trip not found for customer info.";
-        return;
+
+      if (!Array.isArray(state.cart)) {
+        state.cart = [];
       }
-      const trip = state.cart.find((t) => t.tripId === tripId);
+
+      const tripId = payload.tripId;
+      const tourId = payload.tourId ?? payload.tour_id;
+      const rawCustomerInfo =
+        payload.customerInfo !== undefined ? payload.customerInfo : payload;
+
+      let trip = null;
+      if (tripId) {
+        trip = state.cart.find((t) => t.tripId === tripId) || null;
+      }
+      if (!trip && tourId != null && tourId !== "") {
+        trip =
+          state.cart.find((t) => String(t.tour_id) === String(tourId)) || null;
+      }
+      if (!trip && state.cart.length) {
+        trip = state.cart[0];
+      }
+
+      // Edit restore with empty cart: create a shell trip so customerInfo persists
+      if (!trip && payload.tourDetails) {
+        if (state.cart.length >= MAX_CART_TRIPS) {
+          trip = state.cart[0];
+        } else {
+          const meta = buildTourMeta(payload.tourDetails);
+          state.cart.push({
+            tripId: `trip-${Date.now()}-${Math.random()
+              .toString(36)
+              .slice(2, 8)}`,
+            ...meta,
+            customerInfo: null,
+            bookings: [],
+          });
+          trip = state.cart[state.cart.length - 1];
+        }
+      }
+
       if (!trip) {
-        state.lastActionError = "Trip not found for customer info.";
         return;
       }
-      trip.customerInfo = normalizeCartCustomerInfo(customerInfo);
+
+      trip.customerInfo = normalizeCartCustomerInfo(rawCustomerInfo);
+      if (tourId != null && tourId !== "" && (trip.tour_id == null || trip.tour_id === "")) {
+        trip.tour_id = tourId;
+      }
       persistCart(state);
     },
     clearTripCustomerInfo: (state, action) => {

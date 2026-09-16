@@ -55,6 +55,7 @@ const MainFilterSearchBox = () => {
   const selectedCities = useSelector(
     (state) => state.cities?.selectedCities || []
   );
+  console.log(selectedCities, "selectedCities");
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [selectedDates, setSelectedDates] = useState([]);
   const [cityDates, setCityDates] = useState({});
@@ -366,13 +367,13 @@ const MainFilterSearchBox = () => {
     const destinationName = selectedCities
       .map((city) => city.city)
       .filter(Boolean);
-
+ console.log(destinationName, "destinationName");
     // City + country pairs for search/tour state
     const destinationLocations = selectedCities.map((city) => ({
       city: city.city,
       country: city.country || "",
     }));
-
+    console.log(destinationLocations, "destinationLocations");
     const destinationCountries = [
       ...new Set(
         selectedCities.map((city) => city.country).filter(Boolean)
@@ -505,11 +506,10 @@ const MainFilterSearchBox = () => {
     );
     dispatch(setId(0));
 
-    // Set selected cities into city slice for service APIs
+    // Set selected cities into city slice for service APIs ("City, Country" per city)
     dispatch(
       setCity({
-        cities: destinationName,
-        country: selectedCities[0]?.country || "",
+        cities: destinationLocations,
       })
     );
     dispatch(setSelectedCity(null));
