@@ -47,6 +47,9 @@ import travClikImage from "../../../../public/Images/hotel/travclick.jpg";
 import { selectSelectedDmcLogo, selectSelectedDmcCompanyName } from "../../../slice/dmc/dmcSlice"; // Import DMC slice selectors
 
 export default function HotelProperties() {
+  // Temporarily hide DMC / Travclicks price detail boxes on hotel cards
+  const SHOW_PRICE_DETAILS = false;
+
   const amenities = ["Breakfast", "WiFi", "Parking", "Swimming Pool"];
 
   // const { state } = useLocation();
@@ -701,11 +704,16 @@ export default function HotelProperties() {
             // For display purposes
             const displayTravClicksPrice = travClicksPrice;
             const displayUsdTravClicksPrice = usdtravClicksPrice;
+            const starRating =
+              parseFloat((item?.category || "").replace(/[^\d.]/g, "")) || 0;
 
             return (
               <div className="col-12" key={item.id}>
                 <div className="border-top-light pt-30">
-                  <div className="row x-gap-20 y-gap-20">
+                  <div
+                    className="row x-gap-20 y-gap-20"
+                    style={{ alignItems: "stretch" }}
+                  >
                     <div className="col-md-auto">
                       <div className="cardImage ratio ratio-1:1 w-250 md:w-1/1 rounded-4">
                         <div className="cardImage__content">
@@ -722,7 +730,7 @@ export default function HotelProperties() {
                                     <img
                                       className="rounded-4 col-12 js-lazy"
                                       src={slide}
-                                      alt="image"
+                                      alt={item?.hotel_name || "hotel"}
                                       style={{
                                         objectFit: "cover",
                                         height: "220px",
@@ -739,7 +747,7 @@ export default function HotelProperties() {
                                       e.target.onerror = null;
                                       e.target.src = "travclick.png";
                                     }}
-                                    alt="Image"
+                                    alt={item?.hotel_name || "hotel"}
                                     style={{
                                       objectFit: "cover",
                                       height: "220px",
@@ -759,92 +767,135 @@ export default function HotelProperties() {
                       </div>
                     </div>
 
-                    <div className="col-md">
-                      <div className="d-flex justify-content-between">
-                        <h3 className="text-18 lh-16 fw-500">
+                    <div
+                      className="col-md"
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        justifyContent: "center",
+                        minWidth: 0,
+                      }}
+                    >
+                      <div className="d-flex flex-wrap items-center gap-2 mb-5">
+                        <h3
+                          className="text-18 lh-16 fw-500 mb-0"
+                          style={{ marginRight: "8px" }}
+                        >
                           {item?.hotel_name}
                         </h3>
-                        {/* <div className="d-flex align-items-center">
-                          <div className="bg-blue-1 text-white px-3 py-1 rounded-pill me-2" style={{ fontSize: "12px" }}>
-                            {parseFloat((item?.category || "").replace(/[^\d]/g, "")) || 0}-Star
-                          </div>
-                          <Rating
-                            value={parseFloat((item?.category || "").replace(/[^\d]/g, "")) || 0}
-                            readOnly
-                            precision={0.5}
-                            size="small"
-                          />
-                        </div> */}
-                      </div>
-
-                      <div className="row x-gap-10 y-gap-10 items-center pt-10">
-                        <div className="col-auto">
+                        {starRating > 0 && (
                           <div className="d-flex items-center">
-                            <i className="icon-location-2 text-14 text-blue-1 mr-5"></i>
-                            <p className="text-14">{item?.location}</p>
+                            <Rating
+                              value={starRating}
+                              readOnly
+                              precision={0.5}
+                              size="small"
+                            />
+                            <span
+                              className="text-12 text-light-1 ml-5"
+                              style={{ whiteSpace: "nowrap" }}
+                            >
+                              {starRating}-Star
+                            </span>
                           </div>
+                        )}
+                      </div>
+
+                      {item?.location && (
+                        <div
+                          className="d-flex items-start pt-5"
+                          style={{ maxWidth: "100%" }}
+                        >
+                          <i
+                            className="icon-location-2 text-14 text-blue-1 mr-5"
+                            style={{ marginTop: "3px", flexShrink: 0 }}
+                          ></i>
+                          <p
+                            className="text-14 text-light-1 mb-0"
+                            style={{
+                              display: "-webkit-box",
+                              WebkitLineClamp: 2,
+                              WebkitBoxOrient: "vertical",
+                              overflow: "hidden",
+                              lineHeight: 1.45,
+                            }}
+                            title={item.location}
+                          >
+                            {item.location}
+                          </p>
+                        </div>
+                      )}
+
+                      <div className="d-flex items-center flex-wrap gap-2 pt-15">
+                        <div className="border-light rounded-100 py-3 px-10 text-12 lh-14">
+                          <i className="icon-wifi text-blue-1 mr-5"></i>
+                          WiFi
+                        </div>
+                        <div className="border-light rounded-100 py-3 px-10 text-12 lh-14">
+                          <i className="icon-coffee text-blue-1 mr-5"></i>
+                          Breakfast
+                        </div>
+                        <div className="border-light rounded-100 py-3 px-10 text-12 lh-14">
+                          <i className="icon-parking text-blue-1 mr-5"></i>
+                          Parking
+                        </div>
+                        <div className="border-light rounded-100 py-3 px-10 text-12 lh-14">
+                          <i className="icon-pool text-blue-1 mr-5"></i>
+                          Pool
                         </div>
                       </div>
 
-                      {/* Static Facilities */}
-                      <div className="row x-gap-10 y-gap-10 pt-10">
-                        <div className="col-12">
-                          <div className="d-flex items-center flex-wrap gap-2">
-                            <div className="border-light rounded-100 py-3 px-10 text-12 lh-14">
-                              <i className="icon-wifi text-blue-1 mr-5"></i>
-                              WiFi
-                            </div>
-                            <div className="border-light rounded-100 py-3 px-10 text-12 lh-14">
-                              <i className="icon-coffee text-blue-1 mr-5"></i>
-                              Breakfast
-                            </div>
-                            <div className="border-light rounded-100 py-3 px-10 text-12 lh-14">
-                              <i className="icon-parking text-blue-1 mr-5"></i>
-                              Parking
-                            </div>
-                            <div className="border-light rounded-100 py-3 px-10 text-12 lh-14">
-                              <i className="icon-pool text-blue-1 mr-5"></i>
-                              Pool
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Categories */}
-                      <div className="mt-10">
-                        <div className="d-flex flex-wrap gap-2">
-                          <Chip
-                            label="Family Friendly"
-                            size="small"
-                            color="primary"
-                            variant="outlined"
-                            icon={<CheckIcon fontSize="small" />}
-                            sx={{
-                              height: "24px",
-                              "& .MuiChip-label": { fontSize: "11px", px: 1 },
-                              "& .MuiChip-icon": { fontSize: "14px" },
-                            }}
-                          />
-                          <Chip
-                            label="Business"
-                            size="small"
-                            color="primary"
-                            variant="outlined"
-                            icon={<CheckIcon fontSize="small" />}
-                            sx={{
-                              height: "24px",
-                              "& .MuiChip-label": { fontSize: "11px", px: 1 },
-                              "& .MuiChip-icon": { fontSize: "14px" },
-                            }}
-                          />
-                        </div>
+                      <div className="d-flex flex-wrap gap-2 mt-15">
+                        <Chip
+                          label="Family Friendly"
+                          size="small"
+                          color="primary"
+                          variant="outlined"
+                          icon={<CheckIcon fontSize="small" />}
+                          sx={{
+                            height: "24px",
+                            "& .MuiChip-label": { fontSize: "11px", px: 1 },
+                            "& .MuiChip-icon": { fontSize: "14px" },
+                          }}
+                        />
+                        <Chip
+                          label="Business"
+                          size="small"
+                          color="primary"
+                          variant="outlined"
+                          icon={<CheckIcon fontSize="small" />}
+                          sx={{
+                            height: "24px",
+                            "& .MuiChip-label": { fontSize: "11px", px: 1 },
+                            "& .MuiChip-icon": { fontSize: "14px" },
+                          }}
+                        />
                       </div>
                     </div>
 
-                    <div className="col-md-auto text-right md:text-left">
-                      {/* Price Display - Improved */}
-                      <div className="d-flex flex-column align-items-end md:align-items-start">
-                        {(isDmcAvailable || isTravclicksAvailable) && (
+                    <div
+                      className="col-md-auto"
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <div
+                        className="d-flex flex-column align-items-center"
+                        style={{
+                          minWidth: SHOW_PRICE_DETAILS ? "200px" : "180px",
+                          width: "100%",
+                          height: "100%",
+                          justifyContent: "center",
+                          padding: SHOW_PRICE_DETAILS ? "0" : "12px 8px",
+                          borderLeft: SHOW_PRICE_DETAILS
+                            ? "none"
+                            : "1px solid #e5e7eb",
+                        }}
+                      >
+                        {SHOW_PRICE_DETAILS &&
+                          (isDmcAvailable || isTravclicksAvailable) && (
                           <Box sx={{ mt: 1, fontSize: "14px", width: "100%" }}>
                             <Box
                               sx={{
@@ -1138,16 +1189,15 @@ export default function HotelProperties() {
                           </Box>
                         )}
 
-                        {/* Add warning message here, only when Travclicks mode is selected */}
-                        {selectedPriceModes[item.id] === "travclicks" && 
-                          item?.travclicks_price > 0 && 
+                        {SHOW_PRICE_DETAILS &&
+                          selectedPriceModes[item.id] === "travclicks" &&
+                          item?.travclicks_price > 0 &&
                           (bookingType === "booking" || bookingType === "null") && (
                           <Typography variant="caption" sx={{ color: 'red', fontSize: '0.75rem', mt: 1, mb: 1, display: 'block' }}>
                             This marketplace product isn't eligible for DMC enquiry.
                           </Typography>
                         )}
 
-                        {/* Call to Action Button */}
                         <Button
                           variant="contained"
                           color="primary"
@@ -1155,7 +1205,7 @@ export default function HotelProperties() {
                           className="button -md -dark-1 bg-blue-1 text-white py-10 w-100"
                           sx={{
                             borderRadius: "8px",
-                            padding: "8px 15px",
+                            padding: "10px 18px",
                             textTransform: "none",
                             fontWeight: "600",
                             boxShadow: "0 4px 10px rgba(53, 84, 209, 0.25)",
@@ -1164,8 +1214,10 @@ export default function HotelProperties() {
                               transform: "translateY(-2px)",
                             },
                             transition: "all 0.3s ease",
-                            mt: 1.5,
+                            mt: SHOW_PRICE_DETAILS ? 1.5 : 0,
                             fontSize: "14px",
+                            minWidth: "160px",
+                            whiteSpace: "nowrap",
                           }}
                         >
                           See Availability
