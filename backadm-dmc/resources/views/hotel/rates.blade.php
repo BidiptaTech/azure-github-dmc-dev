@@ -228,40 +228,74 @@
                            <option value="Blackout Date">Blackout Date</option>
                         </select>
                      </div>
-            
-                     <!-- Price -->
-                     <div class="col-md-3 mb-3" id="price" style="display: none;">
-                        <label for="price" class="form-label"><strong>Price</strong></label><span class="text-danger">*</span>
-                        <input type="number" class="form-control" name="price" placeholder="Enter Price">
+
+                     <!-- Price (Blackout cost) -->
+                     <div class="col-md-3 mb-3" id="price_cost" style="display: none;">
+                        <label for="price_cost" class="form-label"><strong>Price(Cost)</strong></label>
+                        <input type="number" step="0.01" min="0" class="form-control" name="price_cost" placeholder="Enter Price(Cost)">
                      </div>
-                     <!-- Surcharge -->
-                     <div class="col-md-3 mb-3" id="surcharge" style="display: none;">
-                        <label for="surcharge" class="form-label"><strong>Surcharge</strong></label><span class="text-danger">*</span>
-                        <input type="number" class="form-control" name="surcharge" placeholder="Enter Surcharge">
+            
+                     <!-- Price (Blackout sell) -->
+                     <div class="col-md-3 mb-3" id="price" style="display: none;">
+                        <label for="price" class="form-label"><strong>Price(Sell)</strong></label><span class="text-danger">*</span>
+                        <input type="number" step="0.01" min="0" class="form-control" name="price" placeholder="Enter Price(Sell)">
                      </div>
 
-                     <!-- Breakfast Price -->
+                     <!-- Surcharge (Fair cost) -->
+                     <div class="col-md-3 mb-3" id="surcharge_cost" style="display: none;">
+                        <label for="surcharge_cost" class="form-label"><strong>Surcharge(Cost)</strong></label>
+                        <input type="number" step="0.01" min="0" class="form-control" name="surcharge_cost" placeholder="Enter Surcharge(Cost)">
+                     </div>
+                     
+                     <!-- Surcharge (Fair sell) -->
+                     <div class="col-md-3 mb-3" id="surcharge" style="display: none;">
+                        <label for="surcharge" class="form-label"><strong>Surcharge(Sell)</strong></label><span class="text-danger">*</span>
+                        <input type="number" step="0.01" min="0" class="form-control" name="surcharge" placeholder="Enter Surcharge(Sell)">
+                     </div>
+
                      <div class="col-md-3 mb-3">
-                        <label for="breakfast_price" class="form-label"><strong>Breakfast Price</strong></label>
-                        <input type="number" step="0.01" min="0" class="form-control" name="breakfast_price" placeholder="Enter breakfast price">
+                        <label for="breakfast_cost_price" class="form-label"><strong>Breakfast Price(Cost)</strong></label>
+                        <input type="number" step="0.01" min="0" class="form-control" name="breakfast_cost_price" placeholder="Enter breakfast price (cost)">
+                        @error('breakfast_cost_price')
+                           <div class="text-danger mt-1">{{ $message }}</div>
+                        @enderror
+                     </div>
+
+                     <div class="col-md-3 mb-3">
+                        <label for="breakfast_price" class="form-label"><strong>Breakfast Price(Sell)</strong></label>
+                        <input type="number" step="0.01" min="0" class="form-control" name="breakfast_price" placeholder="Enter breakfast price (sell)">
                         @error('breakfast_price')
                            <div class="text-danger mt-1">{{ $message }}</div>
                         @enderror
                      </div>
 
-                     <!-- Lunch Price -->
                      <div class="col-md-3 mb-3">
-                        <label for="lunch_price" class="form-label"><strong>Lunch Price</strong></label>
-                        <input type="number" step="0.01" min="0" class="form-control" name="lunch_price" placeholder="Enter lunch price">
+                        <label for="lunch_cost_price" class="form-label"><strong>Lunch Price(Cost)</strong></label>
+                        <input type="number" step="0.01" min="0" class="form-control" name="lunch_cost_price" placeholder="Enter lunch price (cost)">
+                        @error('lunch_cost_price')
+                           <div class="text-danger mt-1">{{ $message }}</div>
+                        @enderror
+                     </div>
+
+                     <div class="col-md-3 mb-3">
+                        <label for="lunch_price" class="form-label"><strong>Lunch Price(Sell)</strong></label>
+                        <input type="number" step="0.01" min="0" class="form-control" name="lunch_price" placeholder="Enter lunch price (sell)">
                         @error('lunch_price')
                            <div class="text-danger mt-1">{{ $message }}</div>
                         @enderror
                      </div>
 
-                     <!-- Dinner Price -->
                      <div class="col-md-3 mb-3">
-                        <label for="dinner_price" class="form-label"><strong>Dinner Price</strong></label>
-                        <input type="number" step="0.01" min="0" class="form-control" name="dinner_price" placeholder="Enter dinner price">
+                        <label for="dinner_cost_price" class="form-label"><strong>Dinner Price(Cost)</strong></label>
+                        <input type="number" step="0.01" min="0" class="form-control" name="dinner_cost_price" placeholder="Enter dinner price (cost)">
+                        @error('dinner_cost_price')
+                           <div class="text-danger mt-1">{{ $message }}</div>
+                        @enderror
+                     </div>
+
+                     <div class="col-md-3 mb-3">
+                        <label for="dinner_price" class="form-label"><strong>Dinner Price(Sell)</strong></label>
+                        <input type="number" step="0.01" min="0" class="form-control" name="dinner_price" placeholder="Enter dinner price (sell)">
                         @error('dinner_price')
                            <div class="text-danger mt-1">{{ $message }}</div>
                         @enderror
@@ -636,25 +670,22 @@
 
     const eventTypeSelect = document.getElementById('event_type');
     const priceContainer = document.getElementById('price');
+    const priceCostContainer = document.getElementById('price_cost');
     const surchargeContainer = document.getElementById('surcharge');
+    const surchargeCostContainer = document.getElementById('surcharge_cost');
 
-    // Add event listener for change on event type
-    eventTypeSelect.addEventListener('change', function () {
-        const selectedValue = this.value;
+    function toggleFairBlackoutPriceFields() {
+        const selectedValue = eventTypeSelect.value;
+        const showFair = selectedValue === 'Fair Date';
+        const showBlackout = selectedValue === 'Blackout Date';
+        surchargeContainer.style.display = showFair ? 'block' : 'none';
+        surchargeCostContainer.style.display = showFair ? 'block' : 'none';
+        priceContainer.style.display = showBlackout ? 'block' : 'none';
+        priceCostContainer.style.display = showBlackout ? 'block' : 'none';
+    }
 
-        // Show/Hide fields based on selection
-        if (selectedValue === 'Fair Date') {
-            surchargeContainer.style.display = 'block';
-            priceContainer.style.display = 'none';
-        } else if (selectedValue === 'Blackout Date') {
-            priceContainer.style.display = 'block';
-            surchargeContainer.style.display = 'none';
-        } else {
-            // Hide both if no valid selection
-            priceContainer.style.display = 'none';
-            surchargeContainer.style.display = 'none';
-        }
-    });
+    eventTypeSelect.addEventListener('change', toggleFairBlackoutPriceFields);
+    toggleFairBlackoutPriceFields();
 </script>
 @include('components.currency-price-note-dmc-script')
 @endsection
