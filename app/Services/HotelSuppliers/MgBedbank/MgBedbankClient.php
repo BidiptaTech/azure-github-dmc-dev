@@ -96,6 +96,15 @@ class MgBedbankClient
      * @param  array<string, mixed>  $payload
      * @return array<string, mixed>
      */
+    public function cancelReservation(array $payload): array
+    {
+        return $this->post('CancelReservation', $payload);
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
     public function post(string $endpoint, array $payload): array
     {
         $baseUrl = rtrim($this->credential('base_url'), '/');
