@@ -1004,6 +1004,7 @@
 @include('enquiryform_pro.partials.remove-form-selection-alert-js')
 @include('enquiryform_pro.partials.hotel-check-times-js')
 @include('enquiryform_pro.partials.stay-rate-full-calendar')
+@include('enquiryform_pro.partials.hotel-cost-sell-js')
 <script>window.hasNegotiationHistory = @json($hasNegotiationHistory);</script>
 @php
     // DMC information for cost sheet print (same pattern as invoices/pdf/final.blade.php)
@@ -7223,7 +7224,9 @@
     // Helper function to get header values (adults, children, infants, country)
     function getHeaderValues() {
         const adultCount = parseInt(document.getElementById('adultCountInput')?.value || 0);
-        const childCount = parseInt(document.getElementById('childCountInput')?.value || 0);
+        const childCount = typeof getHeaderChildCount === 'function'
+            ? getHeaderChildCount()
+            : (parseInt(document.getElementById('childCountInput')?.value || 0) || 0);
         const infantCount = parseInt(document.getElementById('infantCountInput')?.value || 0);
         
         let cities = [];
@@ -7251,6 +7254,178 @@
             countries: countries,
             cities: cities
         };
+    }
+
+    // Tour sites / attractions: adult & child qty follow header pax.
+    // If that pax type is present, minimum selectable is 1 (cannot stay 0).
+    function getTourSitePaxBounds() {
+        const header = typeof getHeaderValues === 'function' ? getHeaderValues() : {};
+        const adults = Math.max(0, parseInt(header.adults, 10) || 0);
+        const children = Math.max(0, typeof getHeaderChildCount === 'function'
+            ? getHeaderChildCount()
+            : (parseInt(header.children, 10) || 0));
+        return {
+            adults: adults,
+            children: children,
+            adultMin: adults > 0 ? 1 : 0,
+            adultMax: adults,
+            childMin: children > 0 ? 1 : 0,
+            childMax: children
+        };
+    }
+
+    function clampTourSitePaxQty(value, kind) {
+        const bounds = getTourSitePaxBounds();
+        const raw = parseInt(value, 10);
+        if (kind === 'child') {
+            if (bounds.children <= 0) return 0;
+            if (isNaN(raw) || raw <= 0) return bounds.children;
+            return Math.min(bounds.childMax, Math.max(bounds.childMin, raw));
+        }
+        if (bounds.adults <= 0) return 0;
+        if (isNaN(raw) || raw <= 0) return bounds.adults;
+        return Math.min(bounds.adultMax, Math.max(bounds.adultMin, raw));
+    }
+
+    function applyTourSitePaxQtyToInput(input, kind, forceValue) {
+        if (!input) return 0;
+        const bounds = getTourSitePaxBounds();
+        const isChild = kind === 'child';
+        const min = isChild ? bounds.childMin : bounds.adultMin;
+        const max = isChild ? bounds.childMax : bounds.adultMax;
+        const parent = isChild ? bounds.children : bounds.adults;
+        input.min = String(min);
+        input.max = String(max);
+        if (parent <= 0) {
+            input.value = '0';
+            input.disabled = true;
+            input.readOnly = true;
+            input.style.backgroundColor = '#f5f5f5';
+            input.style.cursor = 'not-allowed';
+            return 0;
+        }
+        input.disabled = false;
+        input.readOnly = false;
+        input.style.backgroundColor = '';
+        input.style.cursor = '';
+        const current = parseInt(input.value, 10);
+        const next = (forceValue === true || isNaN(current) || current <= 0)
+            ? parent
+            : clampTourSitePaxQty(current, kind);
+        input.value = String(next);
+        return next;
+    }
+
+    function bindTourSitePaxQtyInput(input, kind) {
+        if (!input || input.hasAttribute('data-tour-pax-bound')) return;
+        input.setAttribute('data-tour-pax-bound', kind);
+        const enforce = function () {
+            input.value = String(clampTourSitePaxQty(input.value, kind));
+        };
+        input.addEventListener('input', enforce);
+        input.addEventListener('change', enforce);
+        input.addEventListener('blur', enforce);
+    }
+
+    function applyTourSitePaxQtyToModal(forceValue) {
+        document.querySelectorAll('.attraction-adult-qty').forEach(function (input) {
+            applyTourSitePaxQtyToInput(input, 'adult', forceValue);
+            bindTourSitePaxQtyInput(input, 'adult');
+        });
+        document.querySelectorAll('.attraction-child-qty').forEach(function (input) {
+            applyTourSitePaxQtyToInput(input, 'child', forceValue);
+            bindTourSitePaxQtyInput(input, 'child');
+        });
+    }
+
+    function syncTourListPaxQtyFromHeader(forceValue) {
+        if (typeof tourList === 'undefined' || !Array.isArray(tourList)) return;
+        tourList.forEach(function (tour) {
+            tour.adultsQty = clampTourSitePaxQty(forceValue === true ? 0 : tour.adultsQty, 'adult');
+            tour.childQty = clampTourSitePaxQty(forceValue === true ? 0 : tour.childQty, 'child');
+        });
+    }
+
+    function applyRestaurantGuidePaxQtyFromHeader(forceValue) {
+        const adultInput = document.getElementById('restaurantGuideAdultQty');
+        const childInput = document.getElementById('restaurantGuideChildQty');
+        if (adultInput) {
+            applyTourSitePaxQtyToInput(adultInput, 'adult', forceValue);
+            bindTourSitePaxQtyInput(adultInput, 'adult');
+        }
+        if (childInput) {
+            applyTourSitePaxQtyToInput(childInput, 'child', forceValue);
+            bindTourSitePaxQtyInput(childInput, 'child');
+        }
+    }
+
+    function syncMealListPaxQtyFromHeader(forceValue) {
+        if (typeof mealList === 'undefined' || !Array.isArray(mealList)) return;
+        mealList.forEach(function (meal) {
+            meal.adultsQty = clampTourSitePaxQty(forceValue === true ? 0 : meal.adultsQty, 'adult');
+            meal.childQty = clampTourSitePaxQty(forceValue === true ? 0 : meal.childQty, 'child');
+        });
+    }
+
+    function syncTransferListPaxQtyFromHeader(forceValue) {
+        if (typeof transferList === 'undefined' || !Array.isArray(transferList)) return;
+        transferList.forEach(function (transfer) {
+            const adults = clampTourSitePaxQty(
+                forceValue === true ? 0 : (transfer.adults ?? transfer.adultsQty),
+                'adult'
+            );
+            const children = clampTourSitePaxQty(
+                forceValue === true ? 0 : (transfer.child ?? transfer.childQty),
+                'child'
+            );
+            transfer.adults = adults;
+            transfer.adultsQty = adults;
+            transfer.child = children;
+            transfer.childQty = children;
+        });
+    }
+
+    function applyGuideModalPaxQtyFromHeader(forceValue) {
+        document.querySelectorAll('.guide-adult-qty').forEach(function (input) {
+            applyTourSitePaxQtyToInput(input, 'adult', forceValue);
+            bindTourSitePaxQtyInput(input, 'adult');
+        });
+        document.querySelectorAll('.guide-child-qty').forEach(function (input) {
+            applyTourSitePaxQtyToInput(input, 'child', forceValue);
+            bindTourSitePaxQtyInput(input, 'child');
+        });
+    }
+
+    function syncGuideListPaxQtyFromHeader(forceValue) {
+        if (typeof guideList === 'undefined' || !Array.isArray(guideList)) return;
+        guideList.forEach(function (guide) {
+            const adults = clampTourSitePaxQty(forceValue === true ? 0 : (guide.adultsQty ?? guide.adults), 'adult');
+            const children = clampTourSitePaxQty(forceValue === true ? 0 : (guide.childQty ?? guide.children ?? guide.child), 'child');
+            guide.adultsQty = adults;
+            guide.adults = adults;
+            guide.childQty = children;
+            guide.children = children;
+            guide.child = children;
+        });
+    }
+
+    function applyMiscModalPaxQtyFromHeader(forceValue) {
+        document.querySelectorAll('.misc-adult-qty').forEach(function (input) {
+            applyTourSitePaxQtyToInput(input, 'adult', forceValue);
+            bindTourSitePaxQtyInput(input, 'adult');
+        });
+        document.querySelectorAll('.misc-child-qty').forEach(function (input) {
+            applyTourSitePaxQtyToInput(input, 'child', forceValue);
+            bindTourSitePaxQtyInput(input, 'child');
+        });
+    }
+
+    function syncMiscListPaxQtyFromHeader(forceValue) {
+        if (typeof miscList === 'undefined' || !Array.isArray(miscList)) return;
+        miscList.forEach(function (item) {
+            item.adultsQty = clampTourSitePaxQty(forceValue === true ? 0 : item.adultsQty, 'adult');
+            item.childQty = clampTourSitePaxQty(forceValue === true ? 0 : item.childQty, 'child');
+        });
     }
     
     // Update all max attributes across all forms when header values change
@@ -7306,7 +7481,18 @@
         if (busInfant) busInfant?.setAttribute('max', headerValues.infants);
         
         // Update attraction and meal inputs (these are dynamically created, so we update them when modals open)
-        // The validation is already handled in applyHeaderValuesToModal function
+        if (typeof applyTourSitePaxQtyToModal === 'function') {
+            applyTourSitePaxQtyToModal(false);
+        }
+        if (typeof applyRestaurantGuidePaxQtyFromHeader === 'function') {
+            applyRestaurantGuidePaxQtyFromHeader(false);
+        }
+        if (typeof applyGuideModalPaxQtyFromHeader === 'function') {
+            applyGuideModalPaxQtyFromHeader(false);
+        }
+        if (typeof applyMiscModalPaxQtyFromHeader === 'function') {
+            applyMiscModalPaxQtyFromHeader(false);
+        }
     }
 
     // ------------------------- Hotel Helper Utilities -------------------------
@@ -7386,15 +7572,16 @@
         return { pax, extraBed };
     }
 
-    function helperPriceCacheKey(pax, extraBed, dates) {
-        return `${pax}_${extraBed}_${(dates || []).join(',')}`;
+    function helperPriceCacheKey(pax, extraBed, dates, mealPlan) {
+        return `${pax}_${extraBed}_${mealPlan || ''}_unitMeals_${(dates || []).join(',')}`;
     }
 
     function getCachedHelperPriceResult(combo, occupancy) {
         if (!combo?._helperPriceCache) return null;
         const dates = getStayDateStrings();
         const { pax, extraBed } = occupancyToHelperParams(occupancy);
-        return combo._helperPriceCache[helperPriceCacheKey(pax, extraBed, dates)] || null;
+        const mealPlan = getComboMealPlanForHelper(combo);
+        return combo._helperPriceCache[helperPriceCacheKey(pax, extraBed, dates, mealPlan)] || null;
     }
 
     window._hotelPriceFetchCache = window._hotelPriceFetchCache || {};
@@ -7435,12 +7622,12 @@
         if (!combo._helperPriceCache) {
             combo._helperPriceCache = {};
         }
-        const ck = helperPriceCacheKey(pax, extraBed, dates);
+        const ck = helperPriceCacheKey(pax, extraBed, dates, mealPlan);
         if (combo._helperPriceCache[ck]) {
             return combo._helperPriceCache[ck];
         }
 
-        const globalKey = [hotelUniqueId, roomId, bedId, mealPlan, pax, extraBed, dates.join(',')].join('|');
+        const globalKey = [hotelUniqueId, roomId, bedId, mealPlan, pax, extraBed, 'unitMeals', dates.join(',')].join('|');
         if (Object.prototype.hasOwnProperty.call(window._hotelPriceFetchCache, globalKey)) {
             const cached = window._hotelPriceFetchCache[globalKey];
             if (cached) combo._helperPriceCache[ck] = cached;
@@ -7464,6 +7651,7 @@
                     meal_plan: mealPlan,
                     pax,
                     extra_bed: extraBed,
+                    unit_meals: true,
                     dates,
                 }),
             });
@@ -7638,19 +7826,26 @@
         const room = combo?.roomData || {};
         const rates = ratesOverride || enquiryProGetHotelRates();
         const applicableRate = enquiryProGetApplicableRateForDate(dateStr, rates);
+        const roomBf = enquiryProParsePrice(room.breakfast_price || room.breakfastPrice);
+        const roomLn = enquiryProParsePrice(room.lunch_price || room.lunchPrice);
+        const roomDn = enquiryProParsePrice(room.dinner_price || room.dinnerPrice);
+        // Match HotelPriceHelper: rate meal if >0, else room default (even on season/fair/blackout).
         if (applicableRate) {
+            const rateBf = enquiryProParsePrice(applicableRate.breakfast_price);
+            const rateLn = enquiryProParsePrice(applicableRate.lunch_price);
+            const rateDn = enquiryProParsePrice(applicableRate.dinner_price);
             return {
-                breakfast: enquiryProParsePrice(applicableRate.breakfast_price),
-                lunch: enquiryProParsePrice(applicableRate.lunch_price),
-                dinner: enquiryProParsePrice(applicableRate.dinner_price),
+                breakfast: rateBf > 0 ? rateBf : roomBf,
+                lunch: rateLn > 0 ? rateLn : roomLn,
+                dinner: rateDn > 0 ? rateDn : roomDn,
                 eventType: applicableRate.event_type || null,
                 eventName: applicableRate.event || null,
             };
         }
         return {
-            breakfast: enquiryProParsePrice(room.breakfast_price || room.breakfastPrice),
-            lunch: enquiryProParsePrice(room.lunch_price || room.lunchPrice),
-            dinner: enquiryProParsePrice(room.dinner_price || room.dinnerPrice),
+            breakfast: roomBf,
+            lunch: roomLn,
+            dinner: roomDn,
             eventType: null,
             eventName: null,
         };
@@ -7698,9 +7893,26 @@
     function getHelperAvgPerNightFromCache(combo, occupancy) {
         const cached = getCachedHelperPriceResult(combo, occupancy);
         if (!cached?.success || !cached.nights) return null;
-        const roomAvg = cached.room_total / cached.nights;
+        // Room from helper; meals as unit rates (season/fair/blackout) — not meal_total (× pax).
+        const roomAvg = (Number(cached.room_total) || 0) / cached.nights;
         const mealAvg = enquiryProHelperMealSupplementPerNight(combo);
         return roundToNextZero(roomAvg + mealAvg);
+    }
+
+    function getHelperAvgCostPerNightFromCache(combo, occupancy) {
+        const cached = getCachedHelperPriceResult(combo, occupancy);
+        if (!cached?.success || !cached.nights) return null;
+        if (cached.room_cost_total == null) return null;
+        const roomAvg = (Number(cached.room_cost_total) || 0) / cached.nights;
+        let mealAvg = 0;
+        const dates = getStayDateStrings();
+        const rates = enquiryProGetHotelRates();
+        if (dates.length && typeof enquiryProLodgingMealForNight === 'function') {
+            mealAvg = dates.reduce((s, d) => s + enquiryProLodgingMealForNight(combo, d, rates, true).total, 0) / dates.length;
+        } else {
+            mealAvg = enquiryProHelperMealSupplementPerNight(combo);
+        }
+        return Math.round((roomAvg + mealAvg) * 100) / 100;
     }
 
     function getHelperBreakdownAvg(combo, occupancy, weekendFilter) {
@@ -7713,6 +7925,7 @@
         if (!nights.length) return null;
         const total = nights.reduce((sum, n) => {
             const roomPart = parseFloat(n.room_price) || 0;
+            // Unit meal (not helper meal_price which is × pax)
             const mealPart = enquiryProMealSupplementForNight(combo, n.date);
             return sum + roomPart + mealPart;
         }, 0);
@@ -7793,7 +8006,9 @@
         const stayDates = getStayDateStrings();
         const hotelId = getSelectedHotelUniqueId();
 
-        if (!hotelId || !hotelRates.length || !stayDates.length) {
+        // Show calendar when stay dates exist (even with no season/fair/blackout rates)
+        // so weekday/weekend cost + sell can still display on each stay night.
+        if (!hotelId || !stayDates.length) {
             el.innerHTML = '';
             if (panel) panel.classList.add('d-none');
             return;
@@ -7892,6 +8107,10 @@
             if (day === 1) inner += `<span class="ep-cal-month-tag">${monthNamesShort[m]}</span>`;
             if (isStay) inner += `<span class="ep-cal-night-badge">N${nightNum}</span>`;
             inner += `<span class="ep-cal-day-num">${day}</span><span class="ep-cal-day-name">${dayName}</span>`;
+            if (isStay && typeof enquiryProStayNightPricePairHtml === 'function') {
+                const calCombo = typeof enquiryProCurrentCalendarCombo === 'function' ? enquiryProCurrentCalendarCombo() : null;
+                if (calCombo) inner += enquiryProStayNightPricePairHtml(calCombo, dateStr);
+            }
 
             currentWeek.push(`<div class="${cls}" title="${enquiryProEscapeHtml(tip)}">${inner}</div>`);
             if (currentWeek.length === 7) {
@@ -7916,6 +8135,7 @@
             <span class="ep-key-item"><span class="ep-key-swatch" style="background:#f8d7da;border-color:#dc3545;"></span> Blackout</span>
             <span class="ep-key-item"><span class="ep-key-swatch" style="background:#e8daef;border-color:#9b59b6;"></span> Fair</span>
             <span class="ep-key-item"><span class="ep-key-swatch" style="background:#fff3cd;border-color:#ffc107;"></span> Season</span>
+            <span class="ep-key-item"><span style="font-size:9px;color:#6c757d;font-weight:600;">C</span>/<span style="font-size:9px;color:#198754;font-weight:700;">S</span> Cost / Sell</span>
         </div>`;
 
         el.innerHTML = html;
@@ -8516,28 +8736,11 @@
                 }
             }
             
-            // Auto-fill all attraction rows with adult/child/infant counts and add validation
+            // Auto-fill all attraction rows with adult/child counts from header
             setTimeout(() => {
-                document.querySelectorAll('.attraction-adult-qty').forEach(input => {
-                    if (!input.value || input.value == '0') input.value = headerValues.adults;
-                    input.setAttribute('max', headerValues.adults);
-                    input.addEventListener('input', function() {
-                        if (parseInt(this.value) > headerValues.adults) {
-                            this.value = headerValues.adults;
-                            alert(`Adults cannot exceed ${headerValues.adults} (header value)`);
-                        }
-                    });
-                });
-                document.querySelectorAll('.attraction-child-qty').forEach(input => {
-                    if (!input.value || input.value == '0') input.value = headerValues.children;
-                    input.setAttribute('max', headerValues.children);
-                    input.addEventListener('input', function() {
-                        if (parseInt(this.value) > headerValues.children) {
-                            this.value = headerValues.children;
-                            alert(`Children cannot exceed ${headerValues.children} (header value)`);
-                        }
-                    });
-                });
+                if (typeof applyTourSitePaxQtyToModal === 'function') {
+                    applyTourSitePaxQtyToModal(true);
+                }
                 document.querySelectorAll('.attraction-infant-qty').forEach(input => {
                     if (!input.value || input.value == '0') input.value = headerValues.infants;
                     input.setAttribute('max', headerValues.infants);
@@ -8623,19 +8826,8 @@
             }, 100);
             
             // Sync restaurant guide adult/child qty fields with header counts
-            const restaurantGuideAdultQty = document.getElementById('restaurantGuideAdultQty');
-            const restaurantGuideChildQty = document.getElementById('restaurantGuideChildQty');
-            if (restaurantGuideAdultQty) {
-                if (!restaurantGuideAdultQty.value || restaurantGuideAdultQty.value == '0') {
-                    restaurantGuideAdultQty.value = headerValues.adults;
-                }
-                restaurantGuideAdultQty.setAttribute('max', headerValues.adults);
-            }
-            if (restaurantGuideChildQty) {
-                if (!restaurantGuideChildQty.value || restaurantGuideChildQty.value == '0') {
-                    restaurantGuideChildQty.value = headerValues.children;
-                }
-                restaurantGuideChildQty.setAttribute('max', headerValues.children);
+            if (typeof applyRestaurantGuidePaxQtyFromHeader === 'function') {
+                applyRestaurantGuidePaxQtyFromHeader(true);
             }
         } else if (modalType === 'transfer') {
             // Auto-fill adult/child/infant counts for all transfer types (local, flight, cruise, train, bus) with validation
@@ -8871,28 +9063,11 @@
                 }
             }
             
-            // Auto-fill all guide rows with adult/child counts and add validation
+            // Auto-fill all guide rows with adult/child counts from header
             setTimeout(() => {
-                document.querySelectorAll('.guide-adult-qty').forEach(input => {
-                    if (!input.value || input.value == '0') input.value = headerValues.adults;
-                    input.setAttribute('max', headerValues.adults);
-                    input.addEventListener('input', function() {
-                        if (parseInt(this.value) > headerValues.adults) {
-                            this.value = headerValues.adults;
-                            alert(`Adults cannot exceed ${headerValues.adults} (header value)`);
-                        }
-                    });
-                });
-                document.querySelectorAll('.guide-child-qty').forEach(input => {
-                    if (!input.value || input.value == '0') input.value = headerValues.children;
-                    input.setAttribute('max', headerValues.children);
-                    input.addEventListener('input', function() {
-                        if (parseInt(this.value) > headerValues.children) {
-                            this.value = headerValues.children;
-                            alert(`Children cannot exceed ${headerValues.children} (header value)`);
-                        }
-                    });
-                });
+                if (typeof applyGuideModalPaxQtyFromHeader === 'function') {
+                    applyGuideModalPaxQtyFromHeader(true);
+                }
             }, 500);
         } else if (modalType === 'misc' || modalType === 'miscellaneous') {
             // Filter miscellaneous city dropdown to show only header-selected cities
@@ -8934,26 +9109,9 @@
             
             // Auto-fill all misc item rows with adult/child/infant counts and add validation
             setTimeout(() => {
-                document.querySelectorAll('.misc-adult-qty').forEach(input => {
-                    if (!input.value || input.value == '0') input.value = headerValues.adults;
-                    input.setAttribute('max', headerValues.adults);
-                    input.addEventListener('input', function() {
-                        if (parseInt(this.value) > headerValues.adults) {
-                            this.value = headerValues.adults;
-                            alert(`Adults cannot exceed ${headerValues.adults} (header value)`);
-                        }
-                    });
-                });
-                document.querySelectorAll('.misc-child-qty').forEach(input => {
-                    if (!input.value || input.value == '0') input.value = headerValues.children;
-                    input.setAttribute('max', headerValues.children);
-                    input.addEventListener('input', function() {
-                        if (parseInt(this.value) > headerValues.children) {
-                            this.value = headerValues.children;
-                            alert(`Children cannot exceed ${headerValues.children} (header value)`);
-                        }
-                    });
-                });
+                if (typeof applyMiscModalPaxQtyFromHeader === 'function') {
+                    applyMiscModalPaxQtyFromHeader(true);
+                }
                 document.querySelectorAll('.misc-infant-qty').forEach(input => {
                     if (!input.value || input.value == '0') input.value = headerValues.infants;
                     input.setAttribute('max', headerValues.infants);
@@ -12489,6 +12647,10 @@
                         weekend_price: room.weekend_price,
                         double_weekday_price: room.double_weekday_price,
                         double_weekend_price: room.double_weekend_price,
+                        weekday_cost_price: room.weekday_cost_price,
+                        weekend_cost_price: room.weekend_cost_price,
+                        double_weekday_cost_price: room.double_weekday_cost_price,
+                        double_weekend_cost_price: room.double_weekend_cost_price,
                         breakfast_price: room.breakfast_price,
                         lunch_price: room.lunch_price,
                         dinner_price: room.dinner_price,
@@ -12496,9 +12658,14 @@
                         child_lunch_price: room.child_lunch_price,
                         child_dinner_price: room.child_dinner_price,
                         extra_bed_price: room.extra_bed_price,
+                        breakfast_cost_price: room.breakfast_cost_price,
+                        lunch_cost_price: room.lunch_cost_price,
+                        dinner_cost_price: room.dinner_cost_price,
                         // Child with bed and child without bed prices from rooms table
                         child_with_bed: room.child_with_bed,
                         child_without_bed: room.child_without_bed,
+                        child_with_bed_cost: room.child_with_bed_cost,
+                        child_without_bed_cost: room.child_without_bed_cost,
                         breakfast_included: room.breakfast_included,
                         max_occupancy: room.max_occupancy,
                         room_type: room.room_type,
@@ -12794,6 +12961,10 @@
                                 weekend_price: firstRoom.weekend_price,
                                 double_weekday_price: firstRoom.double_weekday_price,
                                 double_weekend_price: firstRoom.double_weekend_price,
+                                weekday_cost_price: firstRoom.weekday_cost_price,
+                                weekend_cost_price: firstRoom.weekend_cost_price,
+                                double_weekday_cost_price: firstRoom.double_weekday_cost_price,
+                                double_weekend_cost_price: firstRoom.double_weekend_cost_price,
                                 breakfast_price: firstRoom.breakfast_price,
                                 lunch_price: firstRoom.lunch_price,
                                 dinner_price: firstRoom.dinner_price,
@@ -12801,9 +12972,14 @@
                                 child_lunch_price: firstRoom.child_lunch_price,
                                 child_dinner_price: firstRoom.child_dinner_price,
                                 extra_bed_price: bed.extra_bed_price || firstRoom.extra_bed_price || 0,
+                                breakfast_cost_price: firstRoom.breakfast_cost_price,
+                                lunch_cost_price: firstRoom.lunch_cost_price,
+                                dinner_cost_price: firstRoom.dinner_cost_price,
                                 // Child with bed and child without bed prices from rooms table
                                 child_with_bed: firstRoom.child_with_bed,
                                 child_without_bed: firstRoom.child_without_bed,
+                                child_with_bed_cost: firstRoom.child_with_bed_cost,
+                                child_without_bed_cost: firstRoom.child_without_bed_cost,
                                 // Baby cot / infant price from bed data
                                 baby_cot_price: bed.baby_cot_price || 0,
                                 breakfast_included: firstRoom.breakfast_included,
@@ -12831,6 +13007,7 @@
                                 extraBedAvailable: !!(bed.extra_bed == 1 || bed.extra_bed === true),
                                 babyCotAvailable: bed.baby_cot || false,
                                 weekendDays: weekendDays || [],
+                                hotelRates: (typeof enquiryProGetHotelRates === 'function' ? enquiryProGetHotelRates() : []),
                                 roomData: roomDataWithPrices,
                                 bedData: bed
                             });
@@ -13089,6 +13266,11 @@
 
             const priceInput = row.querySelector('.combo-price');
             const sellInput = row.querySelector('.combo-sell');
+
+            if (typeof enquiryProApplyComboCostSell === 'function') {
+                enquiryProApplyComboCostSell(combo, row);
+                return;
+            }
 
             // AVG COST = base per-room rate for the standard double-occupancy distribution
             // (capped at maxOccupancy in case the room only allows a single guest).
@@ -13457,6 +13639,10 @@
      */
     function computeComboAvgCostPerNight(combo, headerValues) {
         if (!combo) return 0;
+        if (typeof enquiryProAvgLodgingForStay === 'function') {
+            const costNight = enquiryProAvgLodgingForStay(combo, true);
+            return Number.isFinite(costNight) ? costNight : 0;
+        }
         const hv = headerValues || getHeaderValues();
         const rooms = Math.max(1, parseInt(combo.rooms, 10) || 1);
         const totalAdults = Math.max(0, parseInt(hv.adults, 10) || 0);
@@ -13625,9 +13811,16 @@
         
         pricingSummary.style.display = 'block';
         
-        // Calculate prices for all occupancy types
+        // Calculate prices for all occupancy types.
+        // Twin average = same night-by-night avg cost/sell as combo table / View price breakdown.
+        const twinAvgCost = (typeof enquiryProAvgLodgingForStay === 'function')
+            ? enquiryProAvgLodgingForStay(combo, true)
+            : computePerNightRoomPrice(combo, { adults: 2, childWithBed: 0, childWithoutBed: 0 });
+        const twinAvgSell = (typeof enquiryProAvgLodgingForStay === 'function')
+            ? enquiryProAvgLodgingForStay(combo, false)
+            : twinAvgCost;
         const singleCost = computePerNightRoomPrice(combo, { adults: 1, childWithBed: 0, childWithoutBed: 0 });
-        const twinCost = computePerNightRoomPrice(combo, { adults: 2, childWithBed: 0, childWithoutBed: 0 });
+        const twinCost = twinAvgCost;
         const tripleCost = computePerNightRoomPrice(combo, { adults: 2, childWithBed: 1, childWithoutBed: 0 });
         const childWithBedCost = calculateChildPricing(combo, true);
         const childWithoutBedCost = calculateChildPricing(combo, false);
@@ -13656,9 +13849,10 @@
         };
         const extraBedPrice = parsePrice(combo.extraBedPrice || room.extra_bed_price || room.extraBedPrice || 0);
         
-        // Round all prices to next 0 (ceiling)
+        // Round all prices to next 0 (ceiling). Twin avg matches combo Avg Cost / Sell (no re-ceil on cost).
         const singleCostRounded = roundToNextZero(singleCost);
-        const twinCostRounded = roundToNextZero(twinCost);
+        const twinCostRounded = Number.isFinite(twinAvgCost) ? Math.round(twinAvgCost * 100) / 100 : 0;
+        const twinSellRounded = Number.isFinite(twinAvgSell) ? twinAvgSell : twinCostRounded;
         const tripleCostRounded = roundToNextZero(tripleCost);
         const childWithBedCostRounded = roundToNextZero(childWithBedCost);
         const childWithoutBedCostRounded = roundToNextZero(childWithoutBedCost);
@@ -13722,7 +13916,7 @@
         if (twinSellEl) {
             const wasEdited = twinSellEl.getAttribute('data-user-edited') === 'true';
             if (!wasEdited && (!twinSellEl.value || twinSellEl.value === '0' || twinSellEl.value === '')) {
-                twinSellEl.value = Number.isFinite(twinCostRounded) ? twinCostRounded.toFixed(2) : '0.00';
+                twinSellEl.value = Number.isFinite(twinSellRounded) ? twinSellRounded.toFixed(2) : '0.00';
             }
         }
         if (tripleSellEl) {
@@ -13782,6 +13976,11 @@
 
             const priceInput = row.querySelector('.combo-price');
             const sellInput = row.querySelector('.combo-sell');
+
+            if (typeof enquiryProApplyComboCostSell === 'function') {
+                enquiryProApplyComboCostSell(combo, row);
+                return;
+            }
 
             const maxOcc = Math.max(1, parseInt(combo.maxOccupancy || 99, 10) || 99);
             const baseAdults = Math.min(2, maxOcc);
@@ -13972,7 +14171,26 @@
         
         const hotelFocSvc = document.getElementById('accommodationHotelFocServiceDiscount')?.checked !== false;
         
-        return combinations.map(combo => ({
+        return combinations.map(combo => {
+            // Same as create: AVG COST / SELL from night-by-night lodging (unit meals), unless user edited.
+            const priceFromInput = parseFloat(combo.price);
+            const costNight = (combo.priceUserEdited && Number.isFinite(priceFromInput) && priceFromInput > 0)
+                ? priceFromInput
+                : (typeof enquiryProAvgLodgingForStay === 'function'
+                    ? enquiryProAvgLodgingForStay(combo, true)
+                    : (parseFloat(combo.price) || 0));
+            const sellFromCombo = parseFloat(combo.sell);
+            let sellNight;
+            if (combo.sellUserEdited && Number.isFinite(sellFromCombo) && sellFromCombo > 0) {
+                sellNight = sellFromCombo;
+            } else if (typeof enquiryProAvgLodgingForStay === 'function') {
+                sellNight = enquiryProAvgLodgingForStay(combo, false);
+            } else if (Number.isFinite(sellFromCombo) && sellFromCombo > 0) {
+                sellNight = sellFromCombo;
+            } else {
+                sellNight = costNight;
+            }
+            return {
             id: generateId('hotel'),
             hotelId: hotelId, // Database ID
             hotel_unique_id: hotel_unique_id, // Unique ID for API calls
@@ -14005,9 +14223,9 @@
             ),
             extraBedAvailable: combo.extraBedAvailable !== false,
             supplement: combo.supplement || false,
-            roomPrice: combo.price,
-            cost: combo.price || 0,
-            sell: combo.sell || combo.price || 0,
+            roomPrice: costNight,
+            cost: costNight,
+            sell: sellNight,
             // Extra bed and child pricing from checkboxes
             hasExtraBed: combo.hasExtraBed || false,
             extraBedPrice: combo.extraBedPrice || 0,
@@ -14025,8 +14243,12 @@
             bedData: combo.bedData,
             weekendDays: combo.weekendDays || [],
             hotelRates: (typeof enquiryProGetHotelData === 'function' ? (enquiryProGetHotelData()?.rates || []) : []),
-            focServiceDiscount: hotelFocSvc
-        }));
+            focServiceDiscount: hotelFocSvc,
+            // New/edited from modal → always recalculate meal+room totals like create
+            savedSelectedMeals: null,
+            savedTotalPrice: null
+        };
+        });
     }
 
     function startHotelModalPreview() {
@@ -16293,10 +16515,13 @@
                         <small style="color: #666; font-size: 0.6rem;">
                             Room: ${hotel.roomType || 'N/A'} | Bed: ${hotel.bedType || 'N/A'} | Meal: ${hotel.mealPlan || 'N/A'} | Meal Pax: ${hotel.mealPax != null ? hotel.mealPax : '—'}
                         </small>
-                    </a>
+                    </a><br>
+                    <button type="button" class="btn btn-link btn-sm p-0 ep-price-details-btn mt-1" onclick="enquiryProOpenHotelPriceDetails(${index})" title="View hotel price breakdown">
+                        <i class="ri-file-list-3-line"></i> View details
+                    </button>
                 </td>
-                <td><input type="datetime-local" value="${checkInValue}" onchange="updateAccommodationField(${index}, 'checkIn', this.value); recalculateNights(${index})" style="width: 130px; font-size: 11px; padding: 2px 4px;"></td>
-                <td><input type="datetime-local" value="${checkOutValue}" onchange="updateAccommodationField(${index}, 'checkOut', this.value); recalculateNights(${index})" style="width: 130px; font-size: 11px; padding: 2px 4px;"></td>
+                <td><input type="datetime-local" value="${checkInValue}" disabled readonly tabindex="-1" title="Check-in date is locked after adding the room" style="width: 130px; font-size: 11px; padding: 2px 4px; background-color: #f5f5f5; cursor: not-allowed;"></td>
+                <td><input type="datetime-local" value="${checkOutValue}" disabled readonly tabindex="-1" title="Check-out date is locked after adding the room" style="width: 130px; font-size: 11px; padding: 2px 4px; background-color: #f5f5f5; cursor: not-allowed;"></td>
                 <td><input type="number" value="${hotel.nights}" readonly style="background-color: #f5f5f5;"></td>
                 <td><input type="number" value="${hotel.rooms}" min="1" onchange="updateAccommodationField(${index}, 'rooms', this.value)"></td>
                 <td><input type="text" class="accommodation-price-field" value="${(hotel.cost || hotel.roomPrice || 0).toFixed(2)}" readonly style="background-color: #f5f5f5;"></td>
@@ -18449,7 +18674,7 @@
             return `
             <tr>
                 <td><input type="checkbox" class="arrivalDeparture-checkbox" value="${item.id}"></td>
-                <td><input type="datetime-local" value="${normalizeDateTimeLocal(item.dateTime)}" onchange="updateArrivalDepartureDateTime(${item.originalIndex}, this.value)" style="width: 130px; font-size: 11px; padding: 2px 4px;"></td>
+                <td><input type="datetime-local" value="${normalizeDateTimeLocal(item.dateTime)}" disabled readonly tabindex="-1" title="Date/time is locked after adding — edit in the modal" style="width: 130px; font-size: 11px; padding: 2px 4px; background-color: #f5f5f5; cursor: not-allowed;"></td>
                 <td>
                     <a href="javascript:void(0)" onclick="editArrivalDeparture(${item.originalIndex})" style="color: #0d6efd; text-decoration: underline; cursor: pointer;">
                         ${item.portName || '-'}
@@ -20294,6 +20519,10 @@
                         }
                     });
                     tbody.innerHTML = html;
+
+                    if (typeof applyTourSitePaxQtyToModal === 'function') {
+                        applyTourSitePaxQtyToModal(true);
+                    }
                     
                     // City-filter Tour Details guide dropdowns + apply city default guide
                     if (typeof filterAttractionGuidesByCity === 'function') {
@@ -20356,6 +20585,9 @@
                         // Fire callback after rows exist (e.g. editTour restore)
                         if (typeof onLoadedCallback === 'function') {
                             onLoadedCallback();
+                        }
+                        if (typeof applyTourSitePaxQtyToModal === 'function') {
+                            applyTourSitePaxQtyToModal(isEditingTour ? false : true);
                         }
                     }, 100);
                 } else {
@@ -20440,9 +20672,13 @@
             const ticketName = row.getAttribute('data-ticket-name') || '';
             
             // Get values from the row
-            const adultsQty = parseInt(row.querySelector('.attraction-adult-qty').value) || 0;
+            const adultsQty = typeof clampTourSitePaxQty === 'function'
+                ? clampTourSitePaxQty(row.querySelector('.attraction-adult-qty')?.value, 'adult')
+                : (parseInt(row.querySelector('.attraction-adult-qty').value) || 0);
             const adultCharge = row.querySelector('.attraction-adult-charge').value || '0.00';
-            const childQty = parseInt(row.querySelector('.attraction-child-qty').value) || 0;
+            const childQty = typeof clampTourSitePaxQty === 'function'
+                ? clampTourSitePaxQty(row.querySelector('.attraction-child-qty')?.value, 'child')
+                : (parseInt(row.querySelector('.attraction-child-qty').value) || 0);
             const childCharge = row.querySelector('.attraction-child-charge').value || '0.00';
             const infantQty = parseInt(row.querySelector('.attraction-infant-qty').value) || 0;
             const infantCharge = row.querySelector('.attraction-infant-charge').value || '0.00';
@@ -20790,9 +21026,13 @@
             const lineFocDisc = row.querySelector('.attraction-foc-discount')?.checked === true;
             
             // Get values from the row
-            const adultsQty = parseInt(row.querySelector('.attraction-adult-qty').value) || 0;
+            const adultsQty = typeof clampTourSitePaxQty === 'function'
+                ? clampTourSitePaxQty(row.querySelector('.attraction-adult-qty')?.value, 'adult')
+                : (parseInt(row.querySelector('.attraction-adult-qty').value) || 0);
             const adultCharge = row.querySelector('.attraction-adult-charge').value || '0.00';
-            const childQty = parseInt(row.querySelector('.attraction-child-qty').value) || 0;
+            const childQty = typeof clampTourSitePaxQty === 'function'
+                ? clampTourSitePaxQty(row.querySelector('.attraction-child-qty')?.value, 'child')
+                : (parseInt(row.querySelector('.attraction-child-qty').value) || 0);
             const childCharge = row.querySelector('.attraction-child-charge').value || '0.00';
             const infantQty = parseInt(row.querySelector('.attraction-infant-qty').value) || 0;
             const infantCharge = row.querySelector('.attraction-infant-charge').value || '0.00';
@@ -21304,6 +21544,13 @@
         table.style.display = 'table';
         emptyMessage.style.display = 'none';
         
+        if (typeof syncTourListPaxQtyFromHeader === 'function') {
+            syncTourListPaxQtyFromHeader(false);
+        }
+        const tourPaxBounds = typeof getTourSitePaxBounds === 'function'
+            ? getTourSitePaxBounds()
+            : { adults: 0, children: 0, adultMin: 0, adultMax: 0, childMin: 0, childMax: 0 };
+
         tbody.innerHTML = tourList.map((tour, index) => {
             // Ensure dateTime has time component, if not add default time 10:00
             let dateTimeValue = tour.dateTime || '';
@@ -21315,17 +21562,17 @@
             <tr>
                 <td><input type="checkbox" class="tour-checkbox" value="${tour.id}"></td>
                 <td>
-                    <input type="datetime-local" value="${dateTimeValue}" onchange="updateTourField(${index}, 'dateTime', this.value)" style="width: 130px; font-size: 11px; padding: 2px 4px;">
+                    <input type="datetime-local" value="${dateTimeValue}" disabled readonly tabindex="-1" title="Date/time is locked after adding — edit in the modal" style="width: 130px; font-size: 11px; padding: 2px 4px; background-color: #f5f5f5; cursor: not-allowed;">
                 </td>
                 <td>
                     <a href="javascript:void(0)" onclick="editTour(${index})" style="color: #0d6efd; text-decoration: underline; cursor: pointer;">
                         ${tour.attractionName}
                     </a>
                 </td>
-                <td><input type="number" value="${tour.adultsQty}" onchange="updateTourField(${index}, 'adultsQty', this.value)"></td>
+                <td><input type="number" value="${tour.adultsQty}" min="${tourPaxBounds.adultMin}" max="${tourPaxBounds.adultMax}" ${tourPaxBounds.adults <= 0 ? 'disabled' : ''} onchange="updateTourField(${index}, 'adultsQty', this.value); this.value = tourList[${index}].adultsQty;" ${tourPaxBounds.adults <= 0 ? 'style="background-color: #f5f5f5; cursor: not-allowed;"' : ''}></td>
                 <td><input type="text" value="${parseFloat(String(tour.adultCost).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" readonly style="background-color: #f5f5f5;"></td>
                 <td><input type="number" value="${parseFloat(String(tour.adultSell).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" onchange="updateTourField(${index}, 'adultSell', this.value)" step="1"></td>
-                <td><input type="number" value="${tour.childQty}" onchange="updateTourField(${index}, 'childQty', this.value)"></td>
+                <td><input type="number" value="${tour.childQty}" min="${tourPaxBounds.childMin}" max="${tourPaxBounds.childMax}" ${tourPaxBounds.children <= 0 ? 'disabled' : ''} onchange="updateTourField(${index}, 'childQty', this.value); this.value = tourList[${index}].childQty;" ${tourPaxBounds.children <= 0 ? 'style="background-color: #f5f5f5; cursor: not-allowed;"' : ''}></td>
                 <td><input type="text" value="${parseFloat(String(tour.childCost).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" readonly style="background-color: #f5f5f5;"></td>
                 <td><input type="number" value="${parseFloat(String(tour.childSell).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" onchange="updateTourField(${index}, 'childSell', this.value)" step="1"></td>
                 ${buildOutsideFocCellHtml(getTourFocDiscountState(tour), `updateTourField(${index}, 'focServiceDiscount', this.checked)`)}
@@ -21404,13 +21651,17 @@
         if (checkbox) checkbox.checked = true;
 
         const adultQty = row.querySelector('.attraction-adult-qty');
-        if (adultQty) adultQty.value = tour.adultsQty || 0;
+        if (adultQty) adultQty.value = typeof clampTourSitePaxQty === 'function'
+            ? clampTourSitePaxQty(tour.adultsQty, 'adult')
+            : (tour.adultsQty || 0);
 
         const adultCharge = row.querySelector('.attraction-adult-charge');
         if (adultCharge) adultCharge.value = `${parseFloat(String(tour.adultCost || 0).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}`;
 
         const childQty = row.querySelector('.attraction-child-qty');
-        if (childQty) childQty.value = tour.childQty || 0;
+        if (childQty) childQty.value = typeof clampTourSitePaxQty === 'function'
+            ? clampTourSitePaxQty(tour.childQty, 'child')
+            : (tour.childQty || 0);
 
         const childCharge = row.querySelector('.attraction-child-charge');
         if (childCharge) childCharge.value = `${parseFloat(String(tour.childCost || 0).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}`;
@@ -21531,10 +21782,16 @@
     function updateTourField(index, field, value) {
         if (tourList[index]) {
             const tour = tourList[index];
+            if (field === 'adultsQty' && typeof clampTourSitePaxQty === 'function') {
+                value = clampTourSitePaxQty(value, 'adult');
+            }
+            if (field === 'childQty' && typeof clampTourSitePaxQty === 'function') {
+                value = clampTourSitePaxQty(value, 'child');
+            }
             tour[field] = value;
             
             // If supplement is changed, do NOT sync with linked services
-            if (field === 'supplement' || field === 'focServiceDiscount') {
+            if (field === 'supplement' || field === 'focServiceDiscount' || field === 'adultsQty' || field === 'childQty') {
                 recalculateTotals();
             }
             
@@ -21815,6 +22072,10 @@
                     });
                     tbody.innerHTML = html;
 
+                    if (typeof applyGuideModalPaxQtyFromHeader === 'function') {
+                        applyGuideModalPaxQtyFromHeader(true);
+                    }
+
                     // Auto-select city-scoped default guide
                     if (window.defaultValues && window.defaultValues.guide) {
                         const defaultGuideId = String(window.defaultValues.guide);
@@ -21923,8 +22184,12 @@
             let baseCost = parseFloat(costInput?.value || 0);
             let baseSell = parseFloat(sellInput?.value || 0);
             
-            const adultQty = parseInt(adultQtyInput?.value || 0) || 0;
-            const childQty = parseInt(childQtyInput?.value || 0) || 0;
+            const adultQty = typeof clampTourSitePaxQty === 'function'
+                ? clampTourSitePaxQty(adultQtyInput?.value, 'adult')
+                : (parseInt(adultQtyInput?.value || 0) || 0);
+            const childQty = typeof clampTourSitePaxQty === 'function'
+                ? clampTourSitePaxQty(childQtyInput?.value, 'child')
+                : (parseInt(childQtyInput?.value || 0) || 0);
             
             if (isNaN(baseCost) || baseCost < 0) baseCost = 0;
             if (isNaN(baseSell) || baseSell < 0) baseSell = baseCost;
@@ -22023,8 +22288,12 @@
             let baseCost = parseFloat(costInput?.value || 0);
             let baseSell = parseFloat(sellInput?.value || 0);
             
-            const adultQty = parseInt(adultQtyInput?.value || 0) || 0;
-            const childQty = parseInt(childQtyInput?.value || 0) || 0;
+            const adultQty = typeof clampTourSitePaxQty === 'function'
+                ? clampTourSitePaxQty(adultQtyInput?.value, 'adult')
+                : (parseInt(adultQtyInput?.value || 0) || 0);
+            const childQty = typeof clampTourSitePaxQty === 'function'
+                ? clampTourSitePaxQty(childQtyInput?.value, 'child')
+                : (parseInt(childQtyInput?.value || 0) || 0);
             
             if (isNaN(baseCost) || baseCost < 0) baseCost = 0;
             if (isNaN(baseSell) || baseSell < 0) baseSell = baseCost;
@@ -22101,6 +22370,13 @@
         
         table.style.display = 'table';
         emptyMessage.style.display = 'none';
+
+        if (typeof syncGuideListPaxQtyFromHeader === 'function') {
+            syncGuideListPaxQtyFromHeader(false);
+        }
+        const guidePaxBounds = typeof getTourSitePaxBounds === 'function'
+            ? getTourSitePaxBounds()
+            : { adults: 0, children: 0, adultMin: 0, adultMax: 0, childMin: 0, childMax: 0 };
         
         tbody.innerHTML = guideList.map((guide, index) => {
             // Ensure dateTime has time component, if not add default time 09:00
@@ -22114,7 +22390,7 @@
             const checkboxHtml = `<input type="checkbox" class="guide-checkbox" value="${guide.id}">`;
             
             // Date and time is now editable in guide table
-            const dateHtml = `<input type="datetime-local" value="${dateTimeValue}" onchange="updateGuideField(${index}, 'dateTime', this.value)" style="width: 130px; font-size: 11px; padding: 2px 4px;">`;
+            const dateHtml = `<input type="datetime-local" value="${dateTimeValue}" disabled readonly tabindex="-1" title="Date/time is locked after adding — edit in the modal" style="width: 130px; font-size: 11px; padding: 2px 4px; background-color: #f5f5f5; cursor: not-allowed;">`;
 
             // Determine supplement checkbox display - show checkbox for linked guides too
             const supplementCheckboxHtml = guide.isStandalone !== false
@@ -22147,8 +22423,8 @@
                 <td>${tourActivityHtml}</td>
                 <td>${languagesDisplay}</td>
                 <td><input type="text" value="${guideNameDisplay}" onchange="updateGuideField(${index}, 'guideName', this.value)" style="width: 100px;"></td>
-                <td><input type="number" value="${guide.adultsQty || guide.adults || 0}" onchange="updateGuideField(${index}, 'adultsQty', this.value)" step="1" min="0" max="99" style="width: 70px; text-align: center;"></td>
-                <td><input type="number" value="${guide.childQty || guide.children || 0}" onchange="updateGuideField(${index}, 'childQty', this.value)" step="1" min="0" max="99" style="width: 70px; text-align: center;"></td>
+                <td><input type="number" value="${guide.adultsQty || guide.adults || 0}" min="${guidePaxBounds.adultMin}" max="${guidePaxBounds.adultMax}" ${guidePaxBounds.adults <= 0 ? 'disabled' : ''} onchange="updateGuideField(${index}, 'adultsQty', this.value); this.value = guideList[${index}].adultsQty;" step="1" ${guidePaxBounds.adults <= 0 ? 'style="width: 70px; text-align: center; background-color: #f5f5f5; cursor: not-allowed;"' : 'style="width: 70px; text-align: center;"'}></td>
+                <td><input type="number" value="${guide.childQty || guide.children || 0}" min="${guidePaxBounds.childMin}" max="${guidePaxBounds.childMax}" ${guidePaxBounds.children <= 0 ? 'disabled' : ''} onchange="updateGuideField(${index}, 'childQty', this.value); this.value = guideList[${index}].childQty;" step="1" ${guidePaxBounds.children <= 0 ? 'style="width: 70px; text-align: center; background-color: #f5f5f5; cursor: not-allowed;"' : 'style="width: 70px; text-align: center;"'}></td>
                 <td><input type="text" value="${guide.cost || 0}" readonly style="background-color: #f5f5f5;"></td>
                 <td><input type="number" value="${guide.sell || 0}" onchange="updateGuideField(${index}, 'sell', this.value)" step="1"></td>
                 ${buildOutsideFocCellHtml(isServiceFocChecked(guide, false), `updateGuideField(${index}, 'focServiceDiscount', this.checked)`)}
@@ -22320,12 +22596,19 @@
                             quantityInput.value = 1;
                         }
                         const adultQtyInput = row.querySelector('.guide-adult-qty');
-                        if (adultQtyInput && guide.adultsQty !== undefined) {
-                            adultQtyInput.value = guide.adultsQty;
+                        if (adultQtyInput) {
+                            adultQtyInput.value = typeof clampTourSitePaxQty === 'function'
+                                ? clampTourSitePaxQty(guide.adultsQty ?? guide.adults ?? 0, 'adult')
+                                : (guide.adultsQty || 0);
                         }
                         const childQtyInput = row.querySelector('.guide-child-qty');
-                        if (childQtyInput && guide.childQty !== undefined) {
-                            childQtyInput.value = guide.childQty;
+                        if (childQtyInput) {
+                            childQtyInput.value = typeof clampTourSitePaxQty === 'function'
+                                ? clampTourSitePaxQty(guide.childQty ?? guide.children ?? 0, 'child')
+                                : (guide.childQty || 0);
+                        }
+                        if (typeof applyGuideModalPaxQtyFromHeader === 'function') {
+                            applyGuideModalPaxQtyFromHeader(false);
                         }
                         const gFoc = row.querySelector('.guide-foc-discount');
                         if (gFoc) gFoc.checked = !!(guide.focServiceDiscount || guide.foc_service_discount);
@@ -22452,6 +22735,12 @@
     function updateGuideField(index, field, value) {
         if (guideList[index]) {
             const guide = guideList[index];
+            if (field === 'adultsQty' && typeof clampTourSitePaxQty === 'function') {
+                value = clampTourSitePaxQty(value, 'adult');
+            }
+            if (field === 'childQty' && typeof clampTourSitePaxQty === 'function') {
+                value = clampTourSitePaxQty(value, 'child');
+            }
             guide[field] = value;
             
             // If dateTime field is changed, update linked tour date and expand header dates
@@ -22642,32 +22931,9 @@
                 
                 // Auto-fill adult/child/infant counts from header for all newly created rows
                 const headerValues = getHeaderValues();
-                document.querySelectorAll('.misc-adult-qty').forEach(input => {
-                    if (!input.value || input.value == '0') input.value = headerValues.adults;
-                    input.setAttribute('max', headerValues.adults);
-                    // Remove any existing listeners to avoid duplicates
-                    const newInput = input.cloneNode(true);
-                    input.parentNode.replaceChild(newInput, input);
-                    newInput.addEventListener('input', function() {
-                        if (parseInt(this.value) > headerValues.adults) {
-                            this.value = headerValues.adults;
-                            alert(`Adults cannot exceed ${headerValues.adults} (header value)`);
-                        }
-                    });
-                });
-                document.querySelectorAll('.misc-child-qty').forEach(input => {
-                    if (!input.value || input.value == '0') input.value = headerValues.children;
-                    input.setAttribute('max', headerValues.children);
-                    // Remove any existing listeners to avoid duplicates
-                    const newInput = input.cloneNode(true);
-                    input.parentNode.replaceChild(newInput, input);
-                    newInput.addEventListener('input', function() {
-                        if (parseInt(this.value) > headerValues.children) {
-                            this.value = headerValues.children;
-                            alert(`Children cannot exceed ${headerValues.children} (header value)`);
-                        }
-                    });
-                });
+                if (typeof applyMiscModalPaxQtyFromHeader === 'function') {
+                    applyMiscModalPaxQtyFromHeader(true);
+                }
                 document.querySelectorAll('.misc-infant-qty').forEach(input => {
                     if (!input.value || input.value == '0') input.value = headerValues.infants;
                     input.setAttribute('max', headerValues.infants);
@@ -22730,9 +22996,13 @@
             const itemName = row.getAttribute('data-item-name');
             
             // Get values from the row
-            const adultsQty = parseInt(row.querySelector('.misc-adult-qty').value) || 0;
+            const adultsQty = typeof clampTourSitePaxQty === 'function'
+                ? clampTourSitePaxQty(row.querySelector('.misc-adult-qty')?.value, 'adult')
+                : (parseInt(row.querySelector('.misc-adult-qty').value) || 0);
             const adultCharge = row.querySelector('.misc-adult-charge').value || '0.00';
-            const childQty = parseInt(row.querySelector('.misc-child-qty').value) || 0;
+            const childQty = typeof clampTourSitePaxQty === 'function'
+                ? clampTourSitePaxQty(row.querySelector('.misc-child-qty')?.value, 'child')
+                : (parseInt(row.querySelector('.misc-child-qty').value) || 0);
             const childCharge = row.querySelector('.misc-child-charge').value || '0.00';
             const infantQty = parseInt(row.querySelector('.misc-infant-qty').value) || 0;
             const infantCharge = row.querySelector('.misc-infant-charge').value || '0.00';
@@ -22775,9 +23045,13 @@
                 const itemName = row.getAttribute('data-item-name');
                 
                 // Get values from the row
-                const adultsQty = parseInt(row.querySelector('.misc-adult-qty').value) || 0;
+                const adultsQty = typeof clampTourSitePaxQty === 'function'
+                    ? clampTourSitePaxQty(row.querySelector('.misc-adult-qty')?.value, 'adult')
+                    : (parseInt(row.querySelector('.misc-adult-qty').value) || 0);
                 const adultCharge = row.querySelector('.misc-adult-charge').value || '0.00';
-                const childQty = parseInt(row.querySelector('.misc-child-qty').value) || 0;
+                const childQty = typeof clampTourSitePaxQty === 'function'
+                    ? clampTourSitePaxQty(row.querySelector('.misc-child-qty')?.value, 'child')
+                    : (parseInt(row.querySelector('.misc-child-qty').value) || 0);
                 const childCharge = row.querySelector('.misc-child-charge').value || '0.00';
                 const infantQty = parseInt(row.querySelector('.misc-infant-qty').value) || 0;
                 const infantCharge = row.querySelector('.misc-infant-charge').value || '0.00';
@@ -22842,20 +23116,27 @@
         
         table.style.display = 'table';
         emptyMessage.style.display = 'none';
+
+        if (typeof syncMiscListPaxQtyFromHeader === 'function') {
+            syncMiscListPaxQtyFromHeader(false);
+        }
+        const miscPaxBounds = typeof getTourSitePaxBounds === 'function'
+            ? getTourSitePaxBounds()
+            : { adults: 0, children: 0, adultMin: 0, adultMax: 0, childMin: 0, childMax: 0 };
         
         tbody.innerHTML = miscList.map((item, index) => `
             <tr>
                 <td><input type="checkbox" class="misc-checkbox" value="${item.id}"></td>
-                <td><input type="datetime-local" value="${normalizeDateTimeLocal(item.dateTime)}" onchange="updateMiscField(${index}, 'dateTime', this.value)" style="width: 130px; font-size: 11px; padding: 2px 4px;"></td>
+                <td><input type="datetime-local" value="${normalizeDateTimeLocal(item.dateTime)}" disabled readonly tabindex="-1" title="Date/time is locked after adding — edit in the modal" style="width: 130px; font-size: 11px; padding: 2px 4px; background-color: #f5f5f5; cursor: not-allowed;"></td>
                 <td>
                     <a href="javascript:void(0)" onclick="editMisc(${index})" style="color: #0d6efd; text-decoration: underline; cursor: pointer;">
                         ${item.itemName}
                     </a>
                 </td>
-                <td><input type="number" value="${item.adultsQty}" onchange="updateMiscField(${index}, 'adultsQty', this.value)"></td>
+                <td><input type="number" value="${item.adultsQty}" min="${miscPaxBounds.adultMin}" max="${miscPaxBounds.adultMax}" ${miscPaxBounds.adults <= 0 ? 'disabled' : ''} onchange="updateMiscField(${index}, 'adultsQty', this.value); this.value = miscList[${index}].adultsQty;" ${miscPaxBounds.adults <= 0 ? 'style="background-color: #f5f5f5; cursor: not-allowed;"' : ''}></td>
                 <td><input type="text" value="${parseFloat(String(item.adultCost).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" readonly style="background-color: #f5f5f5;"></td>
                 <td><input type="number" value="${parseFloat(String(item.adultSell).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" onchange="updateMiscField(${index}, 'adultSell', this.value)" step="1"></td>
-                <td><input type="number" value="${item.childQty}" onchange="updateMiscField(${index}, 'childQty', this.value)"></td>
+                <td><input type="number" value="${item.childQty}" min="${miscPaxBounds.childMin}" max="${miscPaxBounds.childMax}" ${miscPaxBounds.children <= 0 ? 'disabled' : ''} onchange="updateMiscField(${index}, 'childQty', this.value); this.value = miscList[${index}].childQty;" ${miscPaxBounds.children <= 0 ? 'style="background-color: #f5f5f5; cursor: not-allowed;"' : ''}></td>
                 <td><input type="text" value="${parseFloat(String(item.childCost).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" readonly style="background-color: #f5f5f5;"></td>
                 <td><input type="number" value="${parseFloat(String(item.childSell).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" onchange="updateMiscField(${index}, 'childSell', this.value)" step="1"></td>
                 <td><input type="number" value="${item.infantQty}" onchange="updateMiscField(${index}, 'infantQty', this.value)"></td>
@@ -22934,9 +23215,9 @@
                     if (el) el.value = value ?? el.value;
                 };
                 
-                setVal('.misc-adult-qty', item.adultsQty);
+                setVal('.misc-adult-qty', typeof clampTourSitePaxQty === 'function' ? clampTourSitePaxQty(item.adultsQty, 'adult') : item.adultsQty);
                 setVal('.misc-adult-charge', parseFloat(String(item.adultCost || 0).replace(/[^0-9.-]/g, '') || 0).toFixed(2));
-                setVal('.misc-child-qty', item.childQty);
+                setVal('.misc-child-qty', typeof clampTourSitePaxQty === 'function' ? clampTourSitePaxQty(item.childQty, 'child') : item.childQty);
                 setVal('.misc-child-charge', parseFloat(String(item.childCost || 0).replace(/[^0-9.-]/g, '') || 0).toFixed(2));
                 setVal('.misc-infant-qty', item.infantQty);
                 setVal('.misc-infant-charge', parseFloat(String(item.infantCost || 0).replace(/[^0-9.-]/g, '') || 0).toFixed(2));
@@ -23014,6 +23295,12 @@
     // Update miscellaneous field
     function updateMiscField(index, field, value) {
         if (miscList[index]) {
+            if (field === 'adultsQty' && typeof clampTourSitePaxQty === 'function') {
+                value = clampTourSitePaxQty(value, 'adult');
+            }
+            if (field === 'childQty' && typeof clampTourSitePaxQty === 'function') {
+                value = clampTourSitePaxQty(value, 'child');
+            }
             miscList[index][field] = value;
             if (field === 'dateTime') {
                 recalculateHeaderDatesFromServices();
@@ -23451,6 +23738,9 @@
                     document.getElementById('restaurantGuideSelect'),
                     document.getElementById('mealDestination')?.value || ''
                 );
+            }
+            if (typeof applyRestaurantGuidePaxQtyFromHeader === 'function') {
+                applyRestaurantGuidePaxQtyFromHeader(true);
             }
             updateRestaurantGuidePricing();
         }
@@ -24406,8 +24696,12 @@
             const guideSelect = document.getElementById('restaurantGuideSelect');
             
             // Get adult and child quantities from modal inputs
-            const restaurantGuideAdultQty = parseInt(document.getElementById('restaurantGuideAdultQty')?.value || '0') || 0;
-            const restaurantGuideChildQty = parseInt(document.getElementById('restaurantGuideChildQty')?.value || '0') || 0;
+            const restaurantGuideAdultQty = typeof clampTourSitePaxQty === 'function'
+                ? clampTourSitePaxQty(document.getElementById('restaurantGuideAdultQty')?.value, 'adult')
+                : (parseInt(document.getElementById('restaurantGuideAdultQty')?.value || '0') || 0);
+            const restaurantGuideChildQty = typeof clampTourSitePaxQty === 'function'
+                ? clampTourSitePaxQty(document.getElementById('restaurantGuideChildQty')?.value, 'child')
+                : (parseInt(document.getElementById('restaurantGuideChildQty')?.value || '0') || 0);
             
             let guideId = null;
             let guideInfo = null;
@@ -24798,8 +25092,12 @@
             const guideSelect = document.getElementById('restaurantGuideSelect');
             
             // Get adult and child quantities from modal inputs
-            const restaurantGuideAdultQty = parseInt(document.getElementById('restaurantGuideAdultQty')?.value || '0') || 0;
-            const restaurantGuideChildQty = parseInt(document.getElementById('restaurantGuideChildQty')?.value || '0') || 0;
+            const restaurantGuideAdultQty = typeof clampTourSitePaxQty === 'function'
+                ? clampTourSitePaxQty(document.getElementById('restaurantGuideAdultQty')?.value, 'adult')
+                : (parseInt(document.getElementById('restaurantGuideAdultQty')?.value || '0') || 0);
+            const restaurantGuideChildQty = typeof clampTourSitePaxQty === 'function'
+                ? clampTourSitePaxQty(document.getElementById('restaurantGuideChildQty')?.value, 'child')
+                : (parseInt(document.getElementById('restaurantGuideChildQty')?.value || '0') || 0);
             
             let guideId = null;
             let guideInfo = null;
@@ -25184,6 +25482,13 @@
         
         table.style.display = 'table';
         emptyMessage.style.display = 'none';
+
+        if (typeof syncMealListPaxQtyFromHeader === 'function') {
+            syncMealListPaxQtyFromHeader(false);
+        }
+        const mealPaxBounds = typeof getTourSitePaxBounds === 'function'
+            ? getTourSitePaxBounds()
+            : { adults: 0, children: 0, adultMin: 0, adultMax: 0, childMin: 0, childMax: 0 };
         
         tbody.innerHTML = mealList.map((meal, index) => {
             const mealType = (meal.mealType || '').toLowerCase();
@@ -25219,16 +25524,16 @@
             return `
             <tr>
                 <td><input type="checkbox" class="meal-checkbox" value="${meal.id}"></td>
-                <td><input type="datetime-local" value="${dateTimeValue}" onchange="updateMealField(${index}, 'dateTime', this.value)" style="width: 130px; font-size: 11px; padding: 2px 4px;"></td>
+                <td><input type="datetime-local" value="${dateTimeValue}" disabled readonly tabindex="-1" title="Date/time is locked after adding — edit in the modal" style="width: 130px; font-size: 11px; padding: 2px 4px; background-color: #f5f5f5; cursor: not-allowed;"></td>
                 <td>
                     <a href="javascript:void(0)" onclick="editMeal(${index})" style="color: #0d6efd; text-decoration: underline; cursor: pointer;">
                         ${meal.restaurantName || 'Restaurant'} - ${displayMealType}${mealSpecificDisplay}
                     </a>
                 </td>
-                <td><input type="number" value="${meal.adultsQty}" onchange="updateMealField(${index}, 'adultsQty', this.value)"></td>
+                <td><input type="number" value="${meal.adultsQty}" min="${mealPaxBounds.adultMin}" max="${mealPaxBounds.adultMax}" ${mealPaxBounds.adults <= 0 ? 'disabled' : ''} onchange="updateMealField(${index}, 'adultsQty', this.value); this.value = mealList[${index}].adultsQty;" ${mealPaxBounds.adults <= 0 ? 'style="background-color: #f5f5f5; cursor: not-allowed;"' : ''}></td>
                 <td><input type="text" value="${parseFloat(String(meal.adultCost).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" readonly style="background-color: #f5f5f5;"></td>
                 <td><input type="number" value="${parseFloat(String(meal.adultSell).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" onchange="updateMealField(${index}, 'adultSell', this.value)" step="1"></td>
-                <td><input type="number" value="${meal.childQty}" onchange="updateMealField(${index}, 'childQty', this.value)"></td>
+                <td><input type="number" value="${meal.childQty}" min="${mealPaxBounds.childMin}" max="${mealPaxBounds.childMax}" ${mealPaxBounds.children <= 0 ? 'disabled' : ''} onchange="updateMealField(${index}, 'childQty', this.value); this.value = mealList[${index}].childQty;" ${mealPaxBounds.children <= 0 ? 'style="background-color: #f5f5f5; cursor: not-allowed;"' : ''}></td>
                 <td><input type="text" value="${parseFloat(String(meal.childCost).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" readonly style="background-color: #f5f5f5;"></td>
                 <td><input type="number" value="${parseFloat(String(meal.childSell).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" onchange="updateMealField(${index}, 'childSell', this.value)" step="1"></td>
                 ${buildOutsideFocCellHtml(isServiceFocChecked(meal, false), `updateMealField(${index}, 'focServiceDiscount', this.checked)`)}
@@ -25631,12 +25936,19 @@
                         console.log('Set hours to:', guideInfo.hours);
                     }
                     
-                    if (adultQtyInput && guideInfo.adultsQty !== undefined) {
-                        adultQtyInput.value = guideInfo.adultsQty || guideInfo.adults_qty || 0;
+                    if (adultQtyInput) {
+                        adultQtyInput.value = typeof clampTourSitePaxQty === 'function'
+                            ? clampTourSitePaxQty(guideInfo.adultsQty || guideInfo.adults_qty || 0, 'adult')
+                            : (guideInfo.adultsQty || guideInfo.adults_qty || 0);
                     }
                     
-                    if (childQtyInput && guideInfo.childQty !== undefined) {
-                        childQtyInput.value = guideInfo.childQty || guideInfo.child_qty || 0;
+                    if (childQtyInput) {
+                        childQtyInput.value = typeof clampTourSitePaxQty === 'function'
+                            ? clampTourSitePaxQty(guideInfo.childQty || guideInfo.child_qty || 0, 'child')
+                            : (guideInfo.childQty || guideInfo.child_qty || 0);
+                    }
+                    if (typeof applyRestaurantGuidePaxQtyFromHeader === 'function') {
+                        applyRestaurantGuidePaxQtyFromHeader(false);
                     }
                     
                     updateRestaurantGuidePricing(); // Update pricing based on hours
@@ -25785,6 +26097,12 @@
     function updateMealField(index, field, value) {
         if (mealList[index]) {
             const meal = mealList[index];
+            if (field === 'adultsQty' && typeof clampTourSitePaxQty === 'function') {
+                value = clampTourSitePaxQty(value, 'adult');
+            }
+            if (field === 'childQty' && typeof clampTourSitePaxQty === 'function') {
+                value = clampTourSitePaxQty(value, 'child');
+            }
             meal[field] = value;
             
             // If supplement is changed, do NOT sync with linked services
@@ -25811,7 +26129,7 @@
                 // Expand header dates
                 expandHeaderDatesIfNeeded(value, false);
             }
-            if (field === 'focServiceDiscount') {
+            if (field === 'focServiceDiscount' || field === 'adultsQty' || field === 'childQty') {
                 recalculateTotals();
             }
         }
@@ -26065,9 +26383,20 @@
             // Make service name clickable for both standalone and linked transfers
             const serviceHtml = `<a href="javascript:void(0)" onclick="editTransfer(${index})" style="color: #0d6efd; text-decoration: underline; cursor: pointer;">${displayName || '-'}</a>`;
             
-            // Get adult and child values - support both field name formats
-            const adults = transfer.adults || transfer.adultsQty || 0;
-            const child = transfer.child || transfer.childQty || 0;
+            // Get adult and child values from parent header (min 1 when that pax type exists)
+            const transferPaxBounds = typeof getTourSitePaxBounds === 'function'
+                ? getTourSitePaxBounds()
+                : { adults: 0, children: 0, adultMin: 0, adultMax: 0, childMin: 0, childMax: 0 };
+            const adults = typeof clampTourSitePaxQty === 'function'
+                ? clampTourSitePaxQty(transfer.adults ?? transfer.adultsQty, 'adult')
+                : (transfer.adults || transfer.adultsQty || 0);
+            const child = typeof clampTourSitePaxQty === 'function'
+                ? clampTourSitePaxQty(transfer.child ?? transfer.childQty, 'child')
+                : (transfer.child || transfer.childQty || 0);
+            transfer.adults = adults;
+            transfer.adultsQty = adults;
+            transfer.child = child;
+            transfer.childQty = child;
             
             // Determine supplement checkbox display - show checkbox for linked transfers too
             const supplementCheckboxHtml = transfer.isStandalone 
@@ -26103,7 +26432,7 @@
             return `
             <tr>
                 <td>${checkboxHtml}</td>
-                <td><input type="datetime-local" value="${dateTimeValue}" onchange="updateTransferField(${index}, 'dateTime', this.value)" style="width: 130px; font-size: 11px; padding: 2px 4px;"></td>
+                <td><input type="datetime-local" value="${dateTimeValue}" disabled readonly tabindex="-1" title="Date/time is locked after adding — edit in the modal" style="width: 130px; font-size: 11px; padding: 2px 4px; background-color: #f5f5f5; cursor: not-allowed;"></td>
                 <td>
                     ${serviceHtml}
                 </td>
@@ -26111,8 +26440,8 @@
                 <td>${getVehicleType(transfer)}</td>
                 <td>${typeDropdown}</td>
                 <td>${wayDropdown}</td>
-                <td><input type="number" value="${adults}" onchange="updateTransferField(${index}, 'adults', this.value)" style="width: 50px;"></td>
-                <td><input type="number" value="${child}" onchange="updateTransferField(${index}, 'child', this.value)" style="width: 50px;"></td>
+                <td><input type="number" value="${adults}" min="${transferPaxBounds.adultMin}" max="${transferPaxBounds.adultMax}" ${transferPaxBounds.adults <= 0 ? 'disabled' : ''} onchange="updateTransferField(${index}, 'adults', this.value); this.value = transferList[${index}].adults;" ${transferPaxBounds.adults <= 0 ? 'style="width: 50px; background-color: #f5f5f5; cursor: not-allowed;"' : 'style="width: 50px;"'}></td>
+                <td><input type="number" value="${child}" min="${transferPaxBounds.childMin}" max="${transferPaxBounds.childMax}" ${transferPaxBounds.children <= 0 ? 'disabled' : ''} onchange="updateTransferField(${index}, 'child', this.value); this.value = transferList[${index}].child;" ${transferPaxBounds.children <= 0 ? 'style="width: 50px; background-color: #f5f5f5; cursor: not-allowed;"' : 'style="width: 50px;"'}></td>
                 <td><input type="text" value="${displayCost}" readonly style="width: 70px; background-color: #f5f5f5;"></td>
                 <td><input type="number" value="${displaySell}" onchange="updateTransferField(${index}, 'sell', this.value)" step="1" style="width: 70px;"></td>
                 ${buildOutsideFocCellHtml(isServiceFocChecked(transfer, false), `updateTransferField(${index}, 'focServiceDiscount', this.checked)`)}
@@ -26130,6 +26459,12 @@
     async function updateTransferField(index, field, value) {
         if (transferList[index]) {
             const transfer = transferList[index];
+            if (field === 'adults' && typeof clampTourSitePaxQty === 'function') {
+                value = clampTourSitePaxQty(value, 'adult');
+            }
+            if (field === 'child' && typeof clampTourSitePaxQty === 'function') {
+                value = clampTourSitePaxQty(value, 'child');
+            }
             transfer[field] = value;
             
             // Also update alternate field names for consistency
@@ -34402,8 +34737,10 @@
                 console.warn('updateArrivalDepartureTable function not found');
             }
             
-            // Update accommodation table
-            if (typeof updateAccommodationTable === 'function') {
+            // Update accommodation table (enrich catalog first so cost≠sell + View details work)
+            if (typeof enquiryProEnrichAllAccommodationCatalog === 'function') {
+                await enquiryProEnrichAllAccommodationCatalog();
+            } else if (typeof updateAccommodationTable === 'function') {
                 updateAccommodationTable();
             } else {
                 console.warn('updateAccommodationTable function not found');

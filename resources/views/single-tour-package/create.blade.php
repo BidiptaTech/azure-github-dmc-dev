@@ -1903,9 +1903,9 @@
                     <div class="card shadow-sm border-0">
                         <div class="card-body">
                             <div class="mb-3">
-                                <h6 class="mb-1">Current Bookings</h6>
-                                <p class="text-muted mb-0" id="bookingsSummary">No bookings added yet</p>
-                            </div>
+                                    <h6 class="mb-1">Current Bookings</h6>
+                                    <p class="text-muted mb-0" id="bookingsSummary">No bookings added yet</p>
+                                </div>
 
                             {{-- City-wise markup / discount (above save) — saved to tours.currency_markups --}}
                             <div class="mb-3">
@@ -1977,16 +1977,16 @@
                             <input type="hidden" id="discount_price" name="discount_price" form="singleTourPackageForm" value="{{ old('discount_price') !== null ? (int) ceil((float) old('discount_price')) : 0 }}">
 
                             <div class="d-flex justify-content-end align-items-end flex-wrap gap-3">
-                                <span class="d-inline-block tour-submit-wrap tour-submit-wrap--disabled"
-                                      id="tour-submit-btn-wrap"
-                                      tabindex="0"
-                                      data-bs-toggle="tooltip"
-                                      data-bs-placement="top"
-                                      title="Please book at least one service (hotel, attraction, restaurant, guide, or transport) before saving the tour package.">
-                                    <button type="button" class="btn px-5" id="savePackageBtn" onclick="handleSavePackage(this)" disabled style="height: 48px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; border: none; font-size: 1rem; font-weight: 500; border-radius: 8px;">
-                                        <i class="ri-save-line me-2"></i>Save Tour Package
-                                    </button>
-                                </span>
+                                    <span class="d-inline-block tour-submit-wrap tour-submit-wrap--disabled"
+                                          id="tour-submit-btn-wrap"
+                                          tabindex="0"
+                                          data-bs-toggle="tooltip"
+                                          data-bs-placement="top"
+                                          title="Please book at least one service (hotel, attraction, restaurant, guide, or transport) before saving the tour package.">
+                                        <button type="button" class="btn px-5" id="savePackageBtn" onclick="handleSavePackage(this)" disabled style="height: 48px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; border: none; font-size: 1rem; font-weight: 500; border-radius: 8px;">
+                                            <i class="ri-save-line me-2"></i>Save Tour Package
+                                        </button>
+                                    </span>
                             </div>
                         </div>
                     </div>
@@ -3722,15 +3722,15 @@
                                     checkOutTime: selectedHotelInfo.check_out_time || "",
                                     cancellation_charge: null
                                 } : {
-                                    hotel_id: hotel.id,
-                                    hotel_name: hotel.name,
+                                        hotel_id: hotel.id,
+                                        hotel_name: hotel.name,
                                     image: "",
                                     location: (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : '') || hotel.city || "Location not specified",
                                     country: (typeof window.getActiveServiceCountry === 'function' ? window.getActiveServiceCountry() : '') || hotel.country || '',
                                     city: (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : '') || hotel.city || '',
                                     checkInTime: hotel.check_in_time || "",
                                     checkOutTime: hotel.check_out_time || "",
-                                    cancellation_charge: null
+                                        cancellation_charge: null
                                 },
                                 
                                 // Price mode information
@@ -8862,7 +8862,7 @@
                         $uc.val(country).trigger('change');
                     }
                     if (typeof window.setTourPackageCurrency === 'function') {
-                        window.setTourPackageCurrency(window.getCurrencyForCountryName(country));
+                    window.setTourPackageCurrency(window.getCurrencyForCountryName(country));
                     }
                 }
             });
@@ -11164,7 +11164,7 @@
                         discountField.value = '0';
                     }
                     if (discountField) {
-                        discountField.dataset.focDiscountAuto = '0';
+                    discountField.dataset.focDiscountAuto = '0';
                     }
                     if (typeof window.syncDiscountPriceFromCityMarkups === 'function') {
                         window.syncDiscountPriceFromCityMarkups();
@@ -14713,13 +14713,13 @@
                 },
                 body: JSON.stringify((typeof window.withInventoryDmcPayload === 'function')
                     ? window.withInventoryDmcPayload({
-                        vehicle_id: vehicleId,
-                        attraction_id: attractionId,
-                        pickup_location_id: pickupLocationId,
-                        pickup_location_type: pickupLocationType,
-                        transfer_type: transferType,
-                        transfer_way: transferWay,
-                        city: cityName,
+                    vehicle_id: vehicleId,
+                    attraction_id: attractionId,
+                    pickup_location_id: pickupLocationId,
+                    pickup_location_type: pickupLocationType,
+                    transfer_type: transferType,
+                    transfer_way: transferWay,
+                    city: cityName,
                         country: country,
                         dmc_id: serviceDmcId
                     }, cityName)
@@ -14733,7 +14733,7 @@
                         city: cityName,
                         country: country,
                         dmc_id: serviceDmcId
-                    })
+                })
             })
             .then(response => response.json())
             .then(data => {
@@ -15130,13 +15130,13 @@
                 },
                 body: JSON.stringify((typeof window.withInventoryDmcPayload === 'function')
                     ? window.withInventoryDmcPayload({
-                        vehicle_id: vehicleId,
-                        restaurant_id: restaurantId,
-                        pickup_location_id: pickupLocationId,
-                        pickup_location_type: pickupLocationType,
-                        transfer_type: transferType,
-                        transfer_way: transferWay,
-                        city: cityName,
+                    vehicle_id: vehicleId,
+                    restaurant_id: restaurantId,
+                    pickup_location_id: pickupLocationId,
+                    pickup_location_type: pickupLocationType,
+                    transfer_type: transferType,
+                    transfer_way: transferWay,
+                    city: cityName,
                         country: country,
                         dmc_id: serviceDmcId
                     }, cityName)
@@ -15150,7 +15150,7 @@
                         city: cityName,
                         country: country,
                         dmc_id: serviceDmcId
-                    })
+                })
             })
             .then(response => response.json())
             .then(data => {
@@ -20165,7 +20165,7 @@
                                                 <span class="fw-semibold" style="color: #495057; font-size: 0.8rem;">REMARKS :: </span><span style="color: #212529; font-size: 0.8rem;">${hotel.remarks || ''}</span>
                                             </div>
                                         </div>
-
+                                        
                                         <div class="mt-2 d-flex flex-wrap align-items-center gap-2">
                                             <button type="button"
                                                 class="btn btn-outline-primary btn-sm d-inline-flex align-items-center gap-1"
@@ -20178,7 +20178,7 @@
                                             <span class="badge" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; border-radius: 6px; font-size: 0.8rem; font-weight: 600; padding: 0.4rem 0.75rem;">
                                                 Total: ${getTourCurrency()} ${window.computeHotelBookingGrandTotal(hotel, cwbChildren, cnbChildren).toFixed(2)}
                                             </span>
-                                        </div>
+                                                                </div>
                                         
                                         <!-- Is Supplement -->
                                         <div class="mt-2 form-check">
@@ -35602,12 +35602,12 @@
                     || document.getElementById('modal_exit_city')?.value
                     || (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : ''))
                 : {
-                    from_zone_id: actualFromZoneId,
-                    to_zone_id: actualToZoneId,
-                    from_zone_type: zone_status == 1 ? fromZoneType : '',
-                    to_zone_type: zone_status == 1 ? toZoneType : '',
-                    zone_status: zone_status
-                })
+                from_zone_id: actualFromZoneId,
+                to_zone_id: actualToZoneId,
+                from_zone_type: zone_status == 1 ? fromZoneType : '',
+                to_zone_type: zone_status == 1 ? toZoneType : '',
+                zone_status: zone_status
+            })
         })
             .then(response => response.json())
             .then(data => {
@@ -38246,7 +38246,7 @@
                     from_zone_type: zone_status == 1 ? fromZoneType : '',
                     to_zone_type: zone_status == 1 ? toZoneType : '',
                     zone_status: zone_status
-                    })
+                })
             })
                 .then(response => response.json())
                 .then(data => {

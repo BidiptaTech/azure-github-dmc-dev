@@ -1500,10 +1500,15 @@ class HotelController extends Controller
                 'hotel_id' => 'required',
                 'event_type' => 'required|string',
                 'price' => 'nullable|numeric',
+                'price_cost' => 'nullable|numeric|min:0',
                 'surcharge' => 'nullable|numeric',
+                'surcharge_cost' => 'nullable|numeric|min:0',
                 'breakfast_price' => 'nullable|numeric',
+                'breakfast_cost_price' => 'nullable|numeric|min:0',
                 'lunch_price' => 'nullable|numeric',
+                'lunch_cost_price' => 'nullable|numeric|min:0',
                 'dinner_price' => 'nullable|numeric',
+                'dinner_cost_price' => 'nullable|numeric|min:0',
                 'date_range' => 'required|string',
                 'rate_status' => 'nullable|integer',
             ];
@@ -1532,17 +1537,27 @@ class HotelController extends Controller
                 return redirect()->back()->with('error', 'Unable to determine DMC for this rate.');
             }
 
+            if ($request->event_type === 'Fair Date') {
+                $eventSell = $request->surcharge;
+                $eventCost = $request->surcharge_cost;
+            } else {
+                $eventSell = $request->price;
+                $eventCost = $request->price_cost;
+            }
+
             $rate = Rate::create([
                 'event' => $request->event,
                 'hotel_id' => $request->hotel_id,
                 // 'rate_id' => $rateId,
                 'event_type' => $request->event_type,
-                'price' => $request->price ? $request->price : $request->surcharge,
-                'weekday_price' => 0.00,
-                'weekend_price' => 0.00,
+                'price' => $eventSell,
+                'price_cost' => $eventCost,
                 'breakfast_price' => $request->breakfast_price ?? 0.00,
+                'breakfast_cost_price' => $request->breakfast_cost_price,
                 'lunch_price' => $request->lunch_price ?? 0.00,
+                'lunch_cost_price' => $request->lunch_cost_price,
                 'dinner_price' => $request->dinner_price ?? 0.00,
+                'dinner_cost_price' => $request->dinner_cost_price,
                 'start_date' => $firstDate,
                 'end_date' => $lastDate,
                 'dmc_id' => $dmcId, // Set DMC ID based on user role
@@ -1762,14 +1777,26 @@ class HotelController extends Controller
             $firstDate = Carbon::createFromFormat('m/d/Y', $firstDate);
             $lastDate = Carbon::createFromFormat('m/d/Y', $lastDate);
         
+            if ($request->event_type === 'Fair Date') {
+                $eventSell = $request->surcharge;
+                $eventCost = $request->surcharge_cost;
+            } else {
+                $eventSell = $request->price;
+                $eventCost = $request->price_cost;
+            }
+
             $rate->event = $request->event;
             $rate->event_type = $request->event_type;
-            $rate->price = $request->price;
+            $rate->price = $eventSell;
+            $rate->price_cost = $eventCost;
             $rate->weekday_price = $request->weekday_price ? $request->weekday_price : 0.00;
             $rate->weekend_price = $request->weekend_price ? $request->weekend_price : 0.00;
             $rate->breakfast_price = $request->breakfast_price ?? 0.00;
+            $rate->breakfast_cost_price = $request->breakfast_cost_price;
             $rate->lunch_price = $request->lunch_price ?? 0.00;
+            $rate->lunch_cost_price = $request->lunch_cost_price;
             $rate->dinner_price = $request->dinner_price ?? 0.00;
+            $rate->dinner_cost_price = $request->dinner_cost_price;
             $rate->start_date = $firstDate;
             $rate->end_date = $lastDate;
             $rate->is_active = $request->rate_status == 1 ? 1 : 0;

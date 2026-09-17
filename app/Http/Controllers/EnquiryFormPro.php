@@ -1252,20 +1252,29 @@ class EnquiryFormPro extends Controller
             'agency_id' => 'required|exists:agencies,agency_id',
             'agent_id' => 'required|exists:agents,agent_id',
             'salutation' => 'required|in:Mr,Mrs,Ms,Miss,Dr,Prof',
-            'customer_name' => 'required|string|max:255',
-            'contact_number' => 'nullable|string|max:20',
+            'customer_name' => ['required', 'string', 'max:100', 'regex:/^[\p{L}]+(?:[\p{L}\s\-]*[\p{L}])?$/u'],
+            'contact_number' => ['nullable', 'string', 'max:15', 'regex:/^[0-9]*$/'],
             'email' => 'nullable|email|max:255',
             'customer_country_code' => 'nullable|string|max:20',
-            'customer_address1' => 'nullable|string|max:255',
-            'customer_address2' => 'nullable|string|max:255',
-            'customer_state' => 'nullable|string|max:100',
-            'customer_zip' => 'nullable|string|max:30',
-            'customer_passport' => 'nullable|string|max:50',
+            'customer_address1' => ['nullable', 'string', 'max:255', 'regex:/^[\p{L}0-9\s.,#\'\-\/]*$/u'],
+            'customer_address2' => ['nullable', 'string', 'max:255', 'regex:/^[\p{L}0-9\s.,#\'\-\/]*$/u'],
+            'customer_state' => ['nullable', 'string', 'max:100', 'regex:/^[\p{L}\s\-]*$/u'],
+            'customer_zip' => ['nullable', 'digits:5'],
+            'customer_passport' => ['nullable', 'string', 'max:20', 'regex:/^[A-Za-z0-9]*$/'],
             'customer_passport_expiry' => 'nullable|date',
-            'customer_special_requests' => 'nullable|string|max:2000',
+            'customer_special_requests' => ['nullable', 'string', 'max:2000', 'regex:/^[^<>{}\[\]\\\\`$^*=~|]*$/'],
             'multiple_destination' => 'nullable|boolean',
             'destination_single' => 'nullable|string',
             'destinations' => 'nullable|json',
+        ], [
+            'customer_name.regex' => 'Full name can only contain letters. Quotes and special characters are not allowed.',
+            'contact_number.regex' => 'Phone number can only contain digits 0-9.',
+            'customer_zip.digits' => 'ZIP code must be exactly 5 digits.',
+            'customer_passport.regex' => 'Passport number can only contain letters and numbers.',
+            'customer_special_requests.regex' => 'Special requests contain invalid or unsafe characters.',
+            'customer_address1.regex' => 'Address line 1 contains invalid characters.',
+            'customer_address2.regex' => 'Address line 2 contains invalid characters.',
+            'customer_state.regex' => 'State can only contain letters.',
         ]);
         
         // Get agency and agent details
@@ -1635,13 +1644,21 @@ class EnquiryFormPro extends Controller
                     'event' => $rate->event,
                     'event_type' => $rate->event_type,
                     'price' => $rate->price ?? 0,
+                    'price_cost' => $rate->price_cost ?? 0,
                     'weekday_price' => $rate->weekday_price ?? 0,
                     'weekend_price' => $rate->weekend_price ?? 0,
                     'double_weekday_price' => $rate->double_weekday_price ?? 0,
                     'double_weekend_price' => $rate->double_weekend_price ?? 0,
+                    'weekday_cost_price' => $rate->weekday_cost_price ?? 0,
+                    'weekend_cost_price' => $rate->weekend_cost_price ?? 0,
+                    'double_weekday_cost_price' => $rate->double_weekday_cost_price ?? 0,
+                    'double_weekend_cost_price' => $rate->double_weekend_cost_price ?? 0,
                     'breakfast_price' => $rate->breakfast_price ?? 0,
                     'lunch_price' => $rate->lunch_price ?? 0,
                     'dinner_price' => $rate->dinner_price ?? 0,
+                    'breakfast_cost_price' => $rate->breakfast_cost_price ?? 0,
+                    'lunch_cost_price' => $rate->lunch_cost_price ?? 0,
+                    'dinner_cost_price' => $rate->dinner_cost_price ?? 0,
                     'start_date' => $rate->start_date,
                     'end_date' => $rate->end_date,
                 ];
@@ -5291,6 +5308,7 @@ class EnquiryFormPro extends Controller
             $mealPlan = $request->input('meal_plan');
             $pax = (int) $request->input('pax', 1);
             $extraBed = (int) $request->input('extra_bed', 0);
+            $unitMeals = filter_var($request->input('unit_meals', false), FILTER_VALIDATE_BOOLEAN);
             $dates = $request->input('dates', []);
 
             if (is_string($dates)) {
@@ -5313,7 +5331,20 @@ class EnquiryFormPro extends Controller
                 ], 422);
             }
 
-            $result = HotelPriceHelper::calculatePrice($hotelUniqueId, $roomId, $bedId, $dates, $mealPlan, $pax, $extraBed);
+            $result = HotelPriceHelper::calculatePrice(
+                $hotelUniqueId,
+                $roomId,
+                $bedId,
+                $dates,
+                $mealPlan,
+                $pax,
+                $extraBed,
+                null,
+                0,
+                false,
+                false,
+                $unitMeals
+            );
 
             // Always 200 so the browser does not log failed HTTP requests for expected pricing misses.
             return response()->json($result);

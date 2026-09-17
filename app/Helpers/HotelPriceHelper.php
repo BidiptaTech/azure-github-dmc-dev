@@ -43,6 +43,7 @@ class HotelPriceHelper
      * @param int          $children          children among pax (capped to pax); meal rate uses children_price
      * @param bool         $childWithBed      when true, charge rooms.child_with_bed × children × nights
      * @param bool         $childWithoutBed   when true, charge rooms.child_without_bed × children × nights
+     * @param bool         $unitMeals         when true, meals are unit rates (no × pax) — Pro avg / details
      * @return array
      */
     public static function calculatePrice(
@@ -58,7 +59,8 @@ class HotelPriceHelper
         $childWithBed = false,
         $childWithoutBed = false,
         $childWithBedCount = null,
-        $childWithoutBedCount = null
+        $childWithoutBedCount = null,
+        $unitMeals = false
     ): array
     {
         try {
@@ -87,6 +89,7 @@ class HotelPriceHelper
             }
             $childWithBed = $childWithBed || $childWithBedCount > 0;
             $childWithoutBed = $childWithoutBed || $childWithoutBedCount > 0;
+            $unitMeals = filter_var($unitMeals, FILTER_VALIDATE_BOOLEAN);
 
             $hotel = Hotel::where('hotel_unique_id', $hotelUniqueId)->first();
             if (!$hotel) {
@@ -142,21 +145,29 @@ class HotelPriceHelper
                 }
             }
 
-            // Default room prices (from rooms table).
+            // Default room prices (from rooms table). Sell drives calculation; cost is for display.
             $roomWeekdaySingle = floatval($room->weekday_price ?? 0);
             $roomWeekendSingle = floatval($room->weekend_price ?? 0);
             $roomWeekdayDouble = floatval($room->double_weekday_price ?? 0);
             $roomWeekendDouble = floatval($room->double_weekend_price ?? 0);
+            $roomWeekdaySingleCost = self::pickPositive($room->weekday_cost_price ?? null, $roomWeekdaySingle);
+            $roomWeekendSingleCost = self::pickPositive($room->weekend_cost_price ?? null, $roomWeekendSingle);
+            $roomWeekdayDoubleCost = self::pickPositive($room->double_weekday_cost_price ?? null, $roomWeekdayDouble);
+            $roomWeekendDoubleCost = self::pickPositive($room->double_weekend_cost_price ?? null, $roomWeekendDouble);
 
             // Default meal prices (from the rooms table for the selected room).
             $roomBreakfast = floatval($room->breakfast_price ?? 0);
             $roomLunch     = floatval($room->lunch_price ?? 0);
             $roomDinner    = floatval($room->dinner_price ?? 0);
+            $roomBreakfastCost = self::pickPositive($room->breakfast_cost_price ?? null, $roomBreakfast);
+            $roomLunchCost     = self::pickPositive($room->lunch_cost_price ?? null, $roomLunch);
+            $roomDinnerCost    = self::pickPositive($room->dinner_cost_price ?? null, $roomDinner);
 
             // Child meal multiplier: rooms.children_price → 0=free, 1=half, 2=full.
+            // Pro unit meals: charge configured meal rate once per room-night (no × pax).
             $childrenPriceCode = (int) round(floatval($room->children_price ?? 2));
             $childMealFactor = self::resolveChildMealFactor($childrenPriceCode);
-            $mealPaxEquivalent = $adults + ($children * $childMealFactor);
+            $mealPaxEquivalent = $unitMeals ? 1.0 : ($adults + ($children * $childMealFactor));
 
             // Variant price handling (applies to Season + Blackout Date).
             // If the selected room has no explicit varient_price and is not the base room,
@@ -178,7 +189,9 @@ class HotelPriceHelper
             }
 
             $roomTotal = 0.0;
+            $roomCostTotal = 0.0;
             $mealTotal = 0.0;
+            $mealCostTotal = 0.0;
             $breakfastTotal = 0.0;
             $lunchTotal = 0.0;
             $dinnerTotal = 0.0;
@@ -215,7 +228,7 @@ class HotelPriceHelper
                 $surcharge  = 0.0;
 
                 // Meal prices: prefer this DMC's rate when set (>0), else room defaults.
-                // Avoids sibling-DMC rates (e.g. breakfast 35) overriding room breakfast 12.
+                // Fair / Blackout: sell from rate when set; cost from rate cost columns when set, else 0.
                 $mealSource = 'room';
                 if ($rate) {
                     $rateBf = floatval($rate->breakfast_price ?? 0);
@@ -227,19 +240,41 @@ class HotelPriceHelper
                     $breakfastPrice = $rateBf > 0 ? $rateBf : $roomBreakfast;
                     $lunchPrice     = $rateLn > 0 ? $rateLn : $roomLunch;
                     $dinnerPrice    = $rateDn > 0 ? $rateDn : $roomDinner;
+
+                    if ($eventType === 'Fair Date' || $eventType === 'Blackout Date') {
+                        $breakfastCostPrice = floatval($rate->breakfast_cost_price ?? 0);
+                        $lunchCostPrice     = floatval($rate->lunch_cost_price ?? 0);
+                        $dinnerCostPrice    = floatval($rate->dinner_cost_price ?? 0);
+                    } else {
+                        // Season (and any other rate): meal cost from rate when set, else room.
+                        $breakfastCostPrice = self::pickPositive($rate->breakfast_cost_price ?? null, $roomBreakfastCost);
+                        $lunchCostPrice     = self::pickPositive($rate->lunch_cost_price ?? null, $roomLunchCost);
+                        $dinnerCostPrice    = self::pickPositive($rate->dinner_cost_price ?? null, $roomDinnerCost);
+                    }
                 } else {
                     $breakfastPrice = $roomBreakfast;
                     $lunchPrice     = $roomLunch;
                     $dinnerPrice    = $roomDinner;
+                    $breakfastCostPrice = $roomBreakfastCost;
+                    $lunchCostPrice     = $roomLunchCost;
+                    $dinnerCostPrice    = $roomDinnerCost;
                 }
 
                 // Variant price for this night (Season + Blackout only).
                 $variantPrice = self::resolveVariantPrice($room, $baseRoom, $selectedVarient, $isSelectedBaseRoom, $isWeekend, $pax);
+                $variantCost = self::resolveVariantCostPrice($room, $baseRoom, $isSelectedBaseRoom, $isWeekend, $pax);
 
                 // Room components for this night (segregated for UI cut-down).
                 $roomBase = 0.0;
+                $roomCostBase = 0.0;
                 $surcharge = 0.0;
                 $appliedVariant = 0.0;
+                $appliedVariantCost = 0.0;
+
+                $sellSingle = $isWeekend ? $roomWeekendSingle : $roomWeekdaySingle;
+                $sellDouble = $isWeekend ? $roomWeekendDouble : $roomWeekdayDouble;
+                $costSingle = $isWeekend ? $roomWeekendSingleCost : $roomWeekdaySingleCost;
+                $costDouble = $isWeekend ? $roomWeekendDoubleCost : $roomWeekdayDoubleCost;
 
                 // Room price for this night. Extra-bed charge is added based on the
                 // selected number of extra beds ($extraBedTotal), independent of pax.
@@ -248,14 +283,23 @@ class HotelPriceHelper
                     $roomBase = floatval($rate->price ?? 0);
                     $appliedVariant = $variantPrice;
                     $roomPrice = $roomBase + $appliedVariant + $extraBedTotal;
+                    $roomCostBase = self::pickPositive(
+                        $rate->price_cost ?? null,
+                        ($pax <= 1) ? $costSingle : $costDouble
+                    );
+                    $appliedVariantCost = $variantCost;
+                    $roomCostPrice = $roomCostBase + $appliedVariantCost + $extraBedTotal;
                 } elseif ($rate && $eventType === 'Fair Date') {
                     // Fair Date: rooms-table price (pax based) + the rate's price as a surcharge.
-                    $singlePrice = $isWeekend ? $roomWeekendSingle : $roomWeekdaySingle;
-                    $doublePrice = $isWeekend ? $roomWeekendDouble : $roomWeekdayDouble;
+                    // Cost mirrors sell: room weekday/weekend cost + fair cost surcharge
+                    // (weekday/weekend cost on rate when set, else same surcharge as sell).
                     $surcharge   = floatval($rate->price ?? 0);
+                    $costSurcharge = self::pickPositive($rate->price_cost ?? null, $surcharge);
 
-                    $roomBase = ($pax <= 1) ? $singlePrice : $doublePrice;
+                    $roomBase = ($pax <= 1) ? $sellSingle : $sellDouble;
                     $roomPrice = $roomBase + $surcharge + $extraBedTotal;
+                    $roomCostBase = ($pax <= 1) ? $costSingle : $costDouble;
+                    $roomCostPrice = $roomCostBase + $costSurcharge + $extraBedTotal;
                     if ($surcharge > 0) {
                         $fairChargeTotal += $surcharge;
                         $fairNights++;
@@ -264,17 +308,25 @@ class HotelPriceHelper
                     // Season: rate's weekday/weekend (single/double) price + variant + extra beds.
                     $singlePrice = $isWeekend ? floatval($rate->weekend_price ?? 0) : floatval($rate->weekday_price ?? 0);
                     $doublePrice = $isWeekend ? floatval($rate->double_weekend_price ?? 0) : floatval($rate->double_weekday_price ?? 0);
+                    $singleCost = $isWeekend
+                        ? self::pickPositive($rate->weekend_cost_price ?? null, $costSingle)
+                        : self::pickPositive($rate->weekday_cost_price ?? null, $costSingle);
+                    $doubleCost = $isWeekend
+                        ? self::pickPositive($rate->double_weekend_cost_price ?? null, $costDouble)
+                        : self::pickPositive($rate->double_weekday_cost_price ?? null, $costDouble);
 
                     $roomBase = ($pax <= 1) ? $singlePrice : $doublePrice;
                     $appliedVariant = $variantPrice;
                     $roomPrice = $roomBase + $appliedVariant + $extraBedTotal;
+                    $roomCostBase = ($pax <= 1) ? $singleCost : $doubleCost;
+                    $appliedVariantCost = $variantCost;
+                    $roomCostPrice = $roomCostBase + $appliedVariantCost + $extraBedTotal;
                 } else {
                     // No applicable rate: use the rooms-table prices directly (no variant adjustment).
-                    $singlePrice = $isWeekend ? $roomWeekendSingle : $roomWeekdaySingle;
-                    $doublePrice = $isWeekend ? $roomWeekendDouble : $roomWeekdayDouble;
-
-                    $roomBase = ($pax <= 1) ? $singlePrice : $doublePrice;
+                    $roomBase = ($pax <= 1) ? $sellSingle : $sellDouble;
                     $roomPrice = $roomBase + $extraBedTotal;
+                    $roomCostBase = ($pax <= 1) ? $costSingle : $costDouble;
+                    $roomCostPrice = $roomCostBase + $extraBedTotal;
                 }
 
                 // Meal price for this night.
@@ -284,9 +336,15 @@ class HotelPriceHelper
                 $nightLunch     = $meals['lunch'] ? $lunchPrice * $mealPaxEquivalent : 0.0;
                 $nightDinner    = $meals['dinner'] ? $dinnerPrice * $mealPaxEquivalent : 0.0;
                 $mealPrice = $nightBreakfast + $nightLunch + $nightDinner;
+                $nightBreakfastCost = $chargeBreakfast ? $breakfastCostPrice * $mealPaxEquivalent : 0.0;
+                $nightLunchCost     = $meals['lunch'] ? $lunchCostPrice * $mealPaxEquivalent : 0.0;
+                $nightDinnerCost    = $meals['dinner'] ? $dinnerCostPrice * $mealPaxEquivalent : 0.0;
+                $mealCostPrice = $nightBreakfastCost + $nightLunchCost + $nightDinnerCost;
 
                 $roomTotal += $roomPrice;
+                $roomCostTotal += $roomCostPrice;
                 $mealTotal += $mealPrice;
+                $mealCostTotal += $mealCostPrice;
                 $breakfastTotal += $nightBreakfast;
                 $lunchTotal     += $nightLunch;
                 $dinnerTotal    += $nightDinner;
@@ -298,11 +356,17 @@ class HotelPriceHelper
                     'source'          => $source,
                     'event_type'      => $eventType,
                     'room_base'       => round($roomBase, 2),
+                    'room_cost_base'  => round($roomCostBase, 2),
                     'surcharge'       => round($surcharge, 2),
+                    'surcharge_cost'  => round(($eventType === 'Fair Date')
+                        ? max(0, ($roomCostPrice - $roomCostBase - $extraBedTotal))
+                        : 0, 2),
                     'variant_price'   => round($appliedVariant, 2),
                     'extra_bed_total' => round($extraBedTotal, 2),
                     'room_price'      => round($roomPrice, 2),
+                    'room_cost'       => round($roomCostPrice, 2),
                     'meal_price'      => round($mealPrice, 2),
+                    'meal_cost'       => round($mealCostPrice, 2),
                     'meal_source'     => $mealSource,
                     'breakfast_meal'  => round($nightBreakfast, 2),
                     'lunch_meal'      => round($nightLunch, 2),
@@ -319,6 +383,7 @@ class HotelPriceHelper
                     'meal_pax_equivalent' => round($mealPaxEquivalent, 2),
                     'breakfast_complementary' => $breakfastComplementary && !empty($meals['breakfast']),
                     'night_total'     => round($roomPrice + $mealPrice, 2),
+                    'night_cost_total'=> round($roomCostPrice + $mealCostPrice, 2),
                 ];
             }
 
@@ -326,11 +391,19 @@ class HotelPriceHelper
             $nightCount = count($dates);
             $childWithBedUnit = floatval($room->child_with_bed ?? 0);
             $childWithoutBedUnit = floatval($room->child_without_bed ?? 0);
+            $childWithBedCostUnit = self::pickPositive($room->child_with_bed_cost ?? null, $childWithBedUnit);
+            $childWithoutBedCostUnit = self::pickPositive($room->child_without_bed_cost ?? null, $childWithoutBedUnit);
             $childWithBedTotal = ($childWithBed && $childWithBedCount > 0 && $childWithBedUnit > 0)
                 ? $childWithBedUnit * $childWithBedCount * $nightCount
                 : 0.0;
             $childWithoutBedTotal = ($childWithoutBed && $childWithoutBedCount > 0 && $childWithoutBedUnit > 0)
                 ? $childWithoutBedUnit * $childWithoutBedCount * $nightCount
+                : 0.0;
+            $childWithBedCostTotal = ($childWithBed && $children > 0 && $childWithBedCostUnit > 0)
+                ? $childWithBedCostUnit * $children * $nightCount
+                : 0.0;
+            $childWithoutBedCostTotal = ($childWithoutBed && $children > 0 && $childWithoutBedCostUnit > 0)
+                ? $childWithoutBedCostUnit * $children * $nightCount
                 : 0.0;
 
             return [
@@ -352,9 +425,11 @@ class HotelPriceHelper
                 'nights'          => $nightCount,
                 'extra_bed_price' => round($extraBedPrice, 2),
                 'room_total'      => round($roomTotal, 2),
+                'room_cost_total' => round($roomCostTotal, 2),
                 'fair_charge_total' => round($fairChargeTotal, 2),
                 'fair_nights'     => $fairNights,
                 'meal_total'      => round($mealTotal, 2),
+                'meal_cost_total' => round($mealCostTotal, 2),
                 'breakfast_total' => round($breakfastTotal, 2),
                 'lunch_total'     => round($lunchTotal, 2),
                 'dinner_total'    => round($dinnerTotal, 2),
@@ -364,6 +439,8 @@ class HotelPriceHelper
                     'children'   => $childWithBedCount,
                     'nights'     => $nightCount,
                     'total'      => round($childWithBedTotal, 2),
+                    'cost_unit'  => round($childWithBedCostUnit, 2),
+                    'cost_total' => round($childWithBedCostTotal, 2),
                 ],
                 'child_without_bed' => [
                     'enabled'    => $childWithoutBed && $childWithoutBedCount > 0,
@@ -371,6 +448,8 @@ class HotelPriceHelper
                     'children'   => $childWithoutBedCount,
                     'nights'     => $nightCount,
                     'total'      => round($childWithoutBedTotal, 2),
+                    'cost_unit'  => round($childWithoutBedCostUnit, 2),
+                    'cost_total' => round($childWithoutBedCostTotal, 2),
                 ],
                 'room_meal_defaults' => [
                     'breakfast_price' => round($roomBreakfast, 2),
@@ -378,6 +457,7 @@ class HotelPriceHelper
                     'dinner_price'    => round($roomDinner, 2),
                 ],
                 'grand_total'     => round($roomTotal + $mealTotal + $childWithBedTotal + $childWithoutBedTotal, 2),
+                'grand_cost_total'=> round($roomCostTotal + $mealCostTotal + $childWithBedCostTotal + $childWithoutBedCostTotal, 2),
                 'breakdown'       => $breakdown,
             ];
         } catch (\Exception $e) {
@@ -391,6 +471,54 @@ class HotelPriceHelper
 
             return self::errorResponse('Failed to calculate hotel price: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Prefer a stored cost amount; fall back to the sell amount when cost is empty.
+     */
+    private static function pickPositive($preferred, $fallback): float
+    {
+        $preferred = floatval($preferred ?? 0);
+        if ($preferred > 0) {
+            return $preferred;
+        }
+        return floatval($fallback ?? 0);
+    }
+
+    /**
+     * Cost-side variant, matching resolveVariantPrice but using *_cost_price columns.
+     */
+    private static function resolveVariantCostPrice($room, $baseRoom, bool $isSelectedBaseRoom, bool $isWeekend, int $pax): float
+    {
+        $explicit = floatval($room->varient_price ?? 0);
+        if ($explicit != 0.0) {
+            return $explicit;
+        }
+        if ($isSelectedBaseRoom) {
+            return 0.0;
+        }
+        if ($baseRoom) {
+            return self::roomDimensionCostPrice($room, $isWeekend, $pax)
+                - self::roomDimensionCostPrice($baseRoom, $isWeekend, $pax);
+        }
+        return 0.0;
+    }
+
+    private static function roomDimensionCostPrice($room, bool $isWeekend, int $pax): float
+    {
+        if (!$room) {
+            return 0.0;
+        }
+        if ($pax <= 1) {
+            return self::pickPositive(
+                $isWeekend ? ($room->weekend_cost_price ?? null) : ($room->weekday_cost_price ?? null),
+                $isWeekend ? ($room->weekend_price ?? 0) : ($room->weekday_price ?? 0)
+            );
+        }
+        return self::pickPositive(
+            $isWeekend ? ($room->double_weekend_cost_price ?? null) : ($room->double_weekday_cost_price ?? null),
+            $isWeekend ? ($room->double_weekend_price ?? 0) : ($room->double_weekday_price ?? 0)
+        );
     }
 
     /**
