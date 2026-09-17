@@ -56,7 +56,9 @@ class HotelPriceHelper
         $dmcId = null,
         $children = 0,
         $childWithBed = false,
-        $childWithoutBed = false
+        $childWithoutBed = false,
+        $childWithBedCount = null,
+        $childWithoutBedCount = null
     ): array
     {
         try {
@@ -66,6 +68,25 @@ class HotelPriceHelper
             $adults = max(0, $pax - $children);
             $childWithBed = filter_var($childWithBed, FILTER_VALIDATE_BOOLEAN);
             $childWithoutBed = filter_var($childWithoutBed, FILTER_VALIDATE_BOOLEAN);
+            $childWithBedCount = $childWithBedCount !== null
+                ? max(0, min((int) $childWithBedCount, $children))
+                : ($childWithBed ? $children : 0);
+            $childWithoutBedCount = $childWithoutBedCount !== null
+                ? max(0, min((int) $childWithoutBedCount, $children))
+                : ($childWithoutBed ? $children : 0);
+            // Prefer explicit split counts when both are provided
+            if ($childWithBedCount + $childWithoutBedCount > $children && $children > 0) {
+                $overflow = ($childWithBedCount + $childWithoutBedCount) - $children;
+                if ($childWithBedCount >= $overflow) {
+                    $childWithBedCount -= $overflow;
+                } else {
+                    $overflow -= $childWithBedCount;
+                    $childWithBedCount = 0;
+                    $childWithoutBedCount = max(0, $childWithoutBedCount - $overflow);
+                }
+            }
+            $childWithBed = $childWithBed || $childWithBedCount > 0;
+            $childWithoutBed = $childWithoutBed || $childWithoutBedCount > 0;
 
             $hotel = Hotel::where('hotel_unique_id', $hotelUniqueId)->first();
             if (!$hotel) {
@@ -301,15 +322,15 @@ class HotelPriceHelper
                 ];
             }
 
-            // Child with/without bed (rooms table) — only when checkbox enabled and children present.
+            // Child with/without bed (rooms table) — charged by split counts when provided.
             $nightCount = count($dates);
             $childWithBedUnit = floatval($room->child_with_bed ?? 0);
             $childWithoutBedUnit = floatval($room->child_without_bed ?? 0);
-            $childWithBedTotal = ($childWithBed && $children > 0 && $childWithBedUnit > 0)
-                ? $childWithBedUnit * $children * $nightCount
+            $childWithBedTotal = ($childWithBed && $childWithBedCount > 0 && $childWithBedUnit > 0)
+                ? $childWithBedUnit * $childWithBedCount * $nightCount
                 : 0.0;
-            $childWithoutBedTotal = ($childWithoutBed && $children > 0 && $childWithoutBedUnit > 0)
-                ? $childWithoutBedUnit * $children * $nightCount
+            $childWithoutBedTotal = ($childWithoutBed && $childWithoutBedCount > 0 && $childWithoutBedUnit > 0)
+                ? $childWithoutBedUnit * $childWithoutBedCount * $nightCount
                 : 0.0;
 
             return [
@@ -338,16 +359,16 @@ class HotelPriceHelper
                 'lunch_total'     => round($lunchTotal, 2),
                 'dinner_total'    => round($dinnerTotal, 2),
                 'child_with_bed'  => [
-                    'enabled'    => $childWithBed,
+                    'enabled'    => $childWithBed && $childWithBedCount > 0,
                     'unit_price' => round($childWithBedUnit, 2),
-                    'children'   => $children,
+                    'children'   => $childWithBedCount,
                     'nights'     => $nightCount,
                     'total'      => round($childWithBedTotal, 2),
                 ],
                 'child_without_bed' => [
-                    'enabled'    => $childWithoutBed,
+                    'enabled'    => $childWithoutBed && $childWithoutBedCount > 0,
                     'unit_price' => round($childWithoutBedUnit, 2),
-                    'children'   => $children,
+                    'children'   => $childWithoutBedCount,
                     'nights'     => $nightCount,
                     'total'      => round($childWithoutBedTotal, 2),
                 ],

@@ -2149,13 +2149,11 @@
                             
                             // Get zone names for header
                             if(isset($firstBookingData['from_zone_id']) && $firstBookingData['from_zone_id']) {
-                                $fromZone = \DB::table('zones')->where('zone_id', $firstBookingData['from_zone_id'])->first();
-                                $headerFromZone = $fromZone ? $fromZone->zone_type : 'Zone ' . $firstBookingData['from_zone_id'];
+                                $headerFromZone = resolveBookingZoneLabel($firstBookingData['from_zone_id'], 'N/A');
                             }
                             
                             if(isset($firstBookingData['to_zone_id']) && $firstBookingData['to_zone_id']) {
-                                $toZone = \DB::table('zones')->where('zone_id', $firstBookingData['to_zone_id'])->first();
-                                $headerToZone = $toZone ? $toZone->zone_type : 'Zone ' . $firstBookingData['to_zone_id'];
+                                $headerToZone = resolveBookingZoneLabel($firstBookingData['to_zone_id'], 'N/A');
                             }
                         }
                     @endphp
@@ -2197,13 +2195,11 @@
                                             $toZoneName = 'N/A';
                                             
                                             if(isset($booking['from_zone_id']) && $booking['from_zone_id']) {
-                                                $fromZone = \DB::table('zones')->where('zone_id', $booking['from_zone_id'])->first();
-                                                $fromZoneName = $fromZone ? $fromZone->zone_type : 'Zone ' . $booking['from_zone_id'];
+                                                $fromZoneName = resolveBookingZoneLabel($booking['from_zone_id'], 'N/A');
                                             }
                                             
                                             if(isset($booking['to_zone_id']) && $booking['to_zone_id']) {
-                                                $toZone = \DB::table('zones')->where('zone_id', $booking['to_zone_id'])->first();
-                                                $toZoneName = $toZone ? $toZone->zone_type : 'Zone ' . $booking['to_zone_id'];
+                                                $toZoneName = resolveBookingZoneLabel($booking['to_zone_id'], 'N/A');
                                             }
                                         @endphp
                                         
