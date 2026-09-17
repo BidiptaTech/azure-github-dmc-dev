@@ -57,7 +57,7 @@ $mybedsFields = [
 ];
 
 $mgBedbankFields = [
-    'base_url' => ['env_suffix' => 'API_BASE_URL', 'legacy_suffix' => 'API_BASE_URL', 'label' => 'API Base URL', 'type' => 'url', 'default' => 'http://uat-jarvis1-xmlsell.mgbedbank.com/1.0/Hotel'],
+    'base_url' => ['env_suffix' => 'API_BASE_URL', 'legacy_suffix' => 'API_BASE_URL', 'label' => 'API Base URL', 'type' => 'url', 'default' => 'https://uat-jarvis1-xmlsell.mgbedbank.com/1.0/Hotel'],
     'agency_code' => ['env_suffix' => 'AGENCY_CODE', 'legacy_suffix' => 'AGENCY_CODE', 'label' => 'Agency Code', 'type' => 'text'],
     'username' => ['env_suffix' => 'USERNAME', 'legacy_suffix' => 'USERNAME', 'label' => 'Username', 'type' => 'text'],
     'password' => ['env_suffix' => 'PASSWORD', 'legacy_suffix' => 'PASSWORD', 'label' => 'Password', 'type' => 'password'],

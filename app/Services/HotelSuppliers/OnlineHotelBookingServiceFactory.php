@@ -3,6 +3,7 @@
 namespace App\Services\HotelSuppliers;
 
 use App\Services\HotelSuppliers\Contracts\OnlineHotelBookingService;
+use App\Services\HotelSuppliers\Contracts\OnlineHotelCancellable;
 use App\Services\HotelSuppliers\MgBedbank\MgBedbankBookingService;
 use App\Services\HotelSuppliers\Tinivia\TiniviaBookingService;
 use RuntimeException;
@@ -21,10 +22,36 @@ class OnlineHotelBookingServiceFactory
         };
     }
 
+    /**
+     * Booking confirmation and cancellation are separate capabilities: a supplier
+     * may support search/book before its cancel API is wired up.
+     */
+    public function makeCancellable(string $supplierCode): OnlineHotelCancellable
+    {
+        return match (strtolower(trim($supplierCode))) {
+            'mg_bedbank' => app(MgBedbankBookingService::class),
+
+            default => throw new RuntimeException(
+                'Cancellation for online supplier "' . $supplierCode . '" is not supported yet.'
+            ),
+        };
+    }
+
     public function supports(string $supplierCode): bool
     {
         try {
             $this->make($supplierCode);
+
+            return true;
+        } catch (RuntimeException) {
+            return false;
+        }
+    }
+
+    public function supportsCancellation(string $supplierCode): bool
+    {
+        try {
+            $this->makeCancellable($supplierCode);
 
             return true;
         } catch (RuntimeException) {

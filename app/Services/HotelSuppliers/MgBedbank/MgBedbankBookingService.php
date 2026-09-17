@@ -4,15 +4,17 @@ namespace App\Services\HotelSuppliers\MgBedbank;
 
 use App\Services\HotelSuppliers\Adapters\MgBedbankHotelAdapter;
 use App\Services\HotelSuppliers\Contracts\OnlineHotelBookingService;
+use App\Services\HotelSuppliers\Contracts\OnlineHotelCancellable;
 use App\Services\HotelSuppliers\HotelSearchRequest;
 use App\Services\HotelSuppliers\RecheckPriceComparison;
 use Illuminate\Support\Facades\Cache;
 use RuntimeException;
 
 /**
- * Confirms MG Bedbank online hotel orders: SearchHotel → RecheckHotel → BookHotel.
+ * Confirms and cancels MG Bedbank online hotel orders:
+ * SearchHotel → RecheckHotel → BookHotel, and CancelReservation on remove.
  */
-class MgBedbankBookingService implements OnlineHotelBookingService
+class MgBedbankBookingService implements OnlineHotelBookingService, OnlineHotelCancellable
 {
     public function __construct(
         private RecheckPriceComparison $priceComparison,
@@ -224,6 +226,120 @@ class MgBedbankBookingService implements OnlineHotelBookingService
                 'supplier_gross_price' => $recheckResult['supplier_gross_price'] ?? null,
                 'currency' => $recheckResult['currency'] ?? null,
             ],
+        ];
+    }
+
+    /**
+     * Cancel the whole MG reservation stored on `orders.booking_details`.
+     *
+     * Partial room cancellation is not supported by MG; SimulationFlag may be
+     * set via $options to quote charges without cancelling.
+     *
+     * @param  array<string, mixed>  $bookingDetails
+     * @param  array<string, string|null>  $credentials
+     * @param  array{simulate?: bool, cancel_date?: string|null}  $options
+     * @return array<string, mixed>
+     */
+    public function cancelFromBookingDetails(
+        array $bookingDetails,
+        array $credentials,
+        array $options = [],
+    ): array {
+        $bookResponse = is_array($bookingDetails['book_response'] ?? null)
+            ? $bookingDetails['book_response']
+            : [];
+        $responseDetails = is_array($bookResponse['bookingDetails'] ?? null)
+            ? $bookResponse['bookingDetails']
+            : [];
+
+        $mgBookingId = trim((string) (
+            $responseDetails['mgBookingID']
+            ?? $responseDetails['MGBookingID']
+            ?? $bookingDetails['mg_booking_id']
+            ?? ''
+        ));
+        $agencyBookingId = trim((string) (
+            $responseDetails['agencyBookingID']
+            ?? $responseDetails['AgencyBookingID']
+            ?? $bookingDetails['agency_booking_id']
+            ?? ''
+        ));
+
+        if ($mgBookingId === '' && $agencyBookingId === '') {
+            throw new RuntimeException(
+                'MG Bedbank cancellation requires MGBookingID or AgencyBookingID from the stored booking.'
+            );
+        }
+
+        $simulate = (bool) ($options['simulate'] ?? false);
+        $cancelDate = trim((string) ($options['cancel_date'] ?? ''));
+
+        if ($simulate && $cancelDate === '') {
+            throw new RuntimeException('CancelDate is required when simulating an MG Bedbank cancellation.');
+        }
+
+        $client = new MgBedbankClient($credentials);
+
+        $payload = [
+            'MGBookingID' => $mgBookingId,
+            'AgencyBookingID' => $agencyBookingId,
+            'SimulationFlag' => $simulate,
+            'Language' => strtoupper($client->credential('language', 'EN')),
+            'DetailLevel' => 'FULL',
+        ];
+
+        if ($simulate) {
+            $payload['CancelDate'] = $cancelDate;
+        }
+
+        $body = $client->cancelReservation($payload);
+        $errorCode = trim((string) ($body['errorCode'] ?? $body['ErrorCD'] ?? ''));
+
+        // Already cancelled at the supplier — treat as success so local remove can proceed.
+        if ($errorCode === 'JRVXML106') {
+            return [
+                'supplier_code' => 'mg_bedbank',
+                'api_environment' => $bookingDetails['api_environment'] ?? ($credentials['api_environment'] ?? 'demo'),
+                'mg_booking_id' => $mgBookingId,
+                'agency_booking_id' => $agencyBookingId,
+                'simulated' => $simulate,
+                'already_cancelled' => true,
+                'cancel_payload' => $payload,
+                'cancel_response' => $body,
+                'cancelled_at' => now()->toIso8601String(),
+                'status' => 'CANCELCONF',
+            ];
+        }
+
+        if ($reason = $client->failureReason($body)) {
+            throw new RuntimeException('MG Bedbank cancellation failed: ' . $reason);
+        }
+
+        $cancelled = is_array($body['bookingDetails'] ?? null) ? $body['bookingDetails'] : [];
+        $charges = is_array($cancelled['cancellationPolicies']['cancellationCharges'] ?? null)
+            ? $cancelled['cancellationPolicies']['cancellationCharges']
+            : (is_array($cancelled['cancellationCharges'] ?? null) ? $cancelled['cancellationCharges'] : []);
+
+        return [
+            'supplier_code' => 'mg_bedbank',
+            'api_environment' => $bookingDetails['api_environment'] ?? ($credentials['api_environment'] ?? 'demo'),
+            'mg_booking_id' => (string) ($cancelled['mgBookingID'] ?? $mgBookingId),
+            'agency_booking_id' => (string) ($cancelled['agencyBookingID'] ?? $agencyBookingId),
+            'mg_booking_version_id' => (string) ($cancelled['mgBookingVersionID'] ?? ''),
+            'agency_voucher_no' => (string) ($cancelled['agencyVoucherNo'] ?? ''),
+            'simulated' => $simulate,
+            'already_cancelled' => false,
+            'status' => (string) ($cancelled['status'] ?? ''),
+            'cancel_date' => (string) ($cancelled['cancelDate'] ?? $cancelled['cancelDt'] ?? ''),
+            'cancellation_charges' => [
+                'amount' => (float) ($charges['amount'] ?? $charges['Amt'] ?? 0),
+                'b2b_markup' => (float) ($charges['b2BMarkup'] ?? $charges['B2BMarkup'] ?? 0),
+                'gross_amount' => (float) ($charges['grossAmount'] ?? $charges['GrossAmt'] ?? 0),
+                'currency' => (string) ($charges['currency'] ?? $charges['Currency'] ?? ''),
+            ],
+            'cancel_payload' => $payload,
+            'cancel_response' => $body,
+            'cancelled_at' => now()->toIso8601String(),
         ];
     }
 

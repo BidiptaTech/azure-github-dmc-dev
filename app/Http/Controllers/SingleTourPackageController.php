@@ -38,6 +38,7 @@ use App\Models\MultiRestaurant;
 use App\Models\PackagedAttraction;
 use App\Services\ApiEnvironmentResolver;
 use App\Services\HotelSuppliers\OnlineHotelAggregator;
+use App\Services\HotelSuppliers\OnlineHotelCancellationService;
 use App\Services\AttractionSuppliers\OnlineAttractionAggregator;
 use App\Services\AttractionSuppliers\OnlineAttractionOrderService;
 use App\Services\EnquiryAmountTopUpService;
@@ -629,6 +630,24 @@ class SingleTourPackageController extends Controller
             $tourId = (int) $order->tour_id;
             $tour = Tour::where('tour_id', $tourId)->first();
             $tourStatus = $tour ? $tour->tour_status : null;
+
+            // Cancel with the supplier before soft-deleting so a failed API call
+            // does not leave a live reservation while the local order is gone.
+            try {
+                app(OnlineHotelCancellationService::class)->cancelIfApplicable($order);
+            } catch (\Throwable $e) {
+                Log::error('Online hotel supplier cancellation failed during order remove', [
+                    'order_id' => $order->id,
+                    'booking_id' => $order->booking_id,
+                    'order_type' => $order->order_type ?? null,
+                    'error' => $e->getMessage(),
+                ]);
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to cancel the online hotel with the supplier: ' . $e->getMessage(),
+                ], 422);
+            }
 
             DB::transaction(function () use ($order, $tourId, $tourStatus) {
                 $payload = is_array($order->data) && isset($order->data[0]) ? $order->data[0] : (is_array($order->data) ? $order->data : []);
