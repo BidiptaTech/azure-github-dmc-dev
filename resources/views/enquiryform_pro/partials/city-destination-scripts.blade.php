@@ -39,6 +39,113 @@
         ];
     @endphp
     window.transferDestinationCatalog = @json($transferDestinationCatalog);
+    window.operatingDmcId = parseInt(@json((int) ($dmc_id ?? 0)), 10) || 0;
+    window.siblingDmcCountryMap = @json($siblingDmcCountryMap ?? []);
+    window.siblingDmcCityMap = @json($siblingDmcCityMap ?? []);
+
+    window.resolveDmcIdForCountry = function (country) {
+        const c = String(country || '').trim();
+        const map = window.siblingDmcCountryMap || {};
+        if (!c) return window.operatingDmcId || 0;
+        if (map[c]) return parseInt(map[c], 10) || window.operatingDmcId || 0;
+        const lower = c.toLowerCase();
+        for (const key of Object.keys(map)) {
+            if (String(key).toLowerCase() === lower) {
+                return parseInt(map[key], 10) || window.operatingDmcId || 0;
+            }
+        }
+        return window.operatingDmcId || 0;
+    };
+
+    window.resolveDmcIdForCity = function (cityName, countryHint) {
+        const city = String(cityName || '').trim();
+        const cityMap = window.siblingDmcCityMap || {};
+        if (city) {
+            const lower = city.toLowerCase();
+            if (cityMap[city]) return parseInt(cityMap[city], 10) || 0;
+            if (cityMap[lower]) return parseInt(cityMap[lower], 10) || 0;
+            for (const key of Object.keys(cityMap)) {
+                if (String(key).toLowerCase() === lower) {
+                    return parseInt(cityMap[key], 10) || 0;
+                }
+            }
+        }
+        let country = '';
+        if (typeof resolveCountryForCity === 'function') {
+            country = resolveCountryForCity(city);
+        }
+        if (!country) country = String(countryHint || '').trim();
+        return window.resolveDmcIdForCountry(country);
+    };
+
+    window.getActiveServiceDmcId = function (cityName) {
+        const city = String(cityName || '').trim();
+        return window.resolveDmcIdForCity(city) || window.operatingDmcId || 0;
+    };
+
+    window.pickInventoryCityName = function (cityHint) {
+        let city = String(cityHint || '').trim();
+        if (!city || city.indexOf(',') === -1) {
+            return city;
+        }
+        const parts = city.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+        const active = (typeof window.getActiveServiceCity === 'function')
+            ? String(window.getActiveServiceCity() || '').trim()
+            : '';
+        if (active) {
+            const hit = parts.find(function (p) { return p.toLowerCase() === active.toLowerCase(); });
+            if (hit) return hit;
+        }
+        if (typeof window.resolveDmcIdForCity === 'function') {
+            for (let i = 0; i < parts.length; i++) {
+                const id = window.resolveDmcIdForCity(parts[i]);
+                if (id && String(id) !== String(window.operatingDmcId || '')) {
+                    return parts[i];
+                }
+            }
+        }
+        return parts[0] || city;
+    };
+
+    window.resolveEnquiryProActiveCity = function (preferred) {
+        const explicit = String(preferred || '').trim();
+        if (explicit) return explicit;
+        const ids = [
+            'localDestination', 'arrivalDepartureCity', 'hotelDestination',
+            'tourDestination', 'guideDestination', 'mealDestination', 'miscDestination'
+        ];
+        for (let i = 0; i < ids.length; i++) {
+            const v = String(document.getElementById(ids[i])?.value || '').trim();
+            if (v) return v;
+        }
+        return '';
+    };
+
+    window.appendSiblingDmcQuery = function (url, cityName, options) {
+        const city = (typeof window.pickInventoryCityName === 'function')
+            ? window.pickInventoryCityName(cityName)
+            : cityName;
+        const opts = options || {};
+        const cityParam = opts.cityParam || 'destination';
+        const country = (typeof resolveCountryForCity === 'function') ? (resolveCountryForCity(city) || '') : '';
+        const dmcId = (typeof window.getActiveServiceDmcId === 'function')
+            ? window.getActiveServiceDmcId(city)
+            : (window.operatingDmcId || '');
+        const addParam = function (u, key, val) {
+            if (val === null || val === undefined || val === '') return u;
+            const re = new RegExp('[?&]' + key + '=');
+            if (re.test(u)) return u;
+            return u + (u.indexOf('?') >= 0 ? '&' : '?') + key + '=' + encodeURIComponent(val);
+        };
+        let out = url;
+        out = addParam(out, cityParam, city);
+        if (cityParam !== 'city') {
+            out = addParam(out, 'city', city);
+        }
+        out = addParam(out, 'country', country);
+        out = addParam(out, 'dmc_id', dmcId);
+        return out;
+    };
 
     function getSelectedCountriesFromCities() {
         if (typeof selectedDestinations === 'undefined' || !Array.isArray(selectedDestinations)) {
@@ -274,6 +381,551 @@
     }
     window.groupHotelsByServiceCity = groupHotelsByServiceCity;
 
+    // ==================== CITY-WISE TOUR DATE WINDOWS ====================
+    window.enquiryProInitialCityDateRanges = @json($initialData['city_date_ranges'] ?? []);
+    window.enquiryProCityDateRanges = Array.isArray(window.enquiryProInitialCityDateRanges)
+        ? window.enquiryProInitialCityDateRanges.map(function (range) {
+            return {
+                city: String(range.city || '').trim(),
+                start_date: String(range.start_date || range.start || '').substring(0, 10),
+                end_date: String(range.end_date || range.end || '').substring(0, 10)
+            };
+        })
+        : [];
+
+    function enquiryProDateOnly(value) {
+        return String(value || '').substring(0, 10);
+    }
+
+    function enquiryProIsoDateToUtc(value) {
+        const parts = enquiryProDateOnly(value).split('-').map(Number);
+        if (parts.length !== 3 || parts.some(function (n) { return !Number.isFinite(n); })) return null;
+        return new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
+    }
+
+    function enquiryProUtcDateString(date) {
+        return date ? date.toISOString().substring(0, 10) : '';
+    }
+
+    function enquiryProTourDateBounds() {
+        const startInput = (typeof getHeaderStartInput === 'function')
+            ? getHeaderStartInput()
+            : document.querySelector('input#tourStartDate');
+        const endInput = (typeof getHeaderEndInput === 'function')
+            ? getHeaderEndInput()
+            : document.querySelector('input#tourEndDate');
+        return {
+            start: enquiryProDateOnly(startInput?.value),
+            end: enquiryProDateOnly(endInput?.value)
+        };
+    }
+
+    function enquiryProShiftDate(value, days) {
+        const date = enquiryProIsoDateToUtc(value);
+        if (!date) return '';
+        return enquiryProUtcDateString(new Date(date.getTime() + (days * 86400000)));
+    }
+
+    function enquiryProNightCount(start, end) {
+        const from = enquiryProIsoDateToUtc(start);
+        const to = enquiryProIsoDateToUtc(end);
+        if (!from || !to) return 0;
+        return Math.max(0, Math.round((to.getTime() - from.getTime()) / 86400000));
+    }
+
+    function enquiryProBuildDefaultCityRanges(cities, tourStart, tourEnd) {
+        const start = enquiryProIsoDateToUtc(tourStart);
+        const end = enquiryProIsoDateToUtc(tourEnd);
+        if (!start || !end || end <= start || !cities.length) return [];
+        const totalNights = Math.round((end.getTime() - start.getTime()) / 86400000);
+        if (totalNights < cities.length) return [];
+
+        return cities.map(function (city, index) {
+            const from = new Date(start.getTime() + Math.round((totalNights * index) / cities.length) * 86400000);
+            const to = new Date(start.getTime() + Math.round((totalNights * (index + 1)) / cities.length) * 86400000);
+            return { city: city, start_date: enquiryProUtcDateString(from), end_date: enquiryProUtcDateString(to) };
+        });
+    }
+
+    function getCityDateRange(city) {
+        const key = serviceCityKey(city);
+        if (!key) return null;
+        return (window.enquiryProCityDateRanges || []).find(function (range) {
+            return serviceCityKey(range.city) === key;
+        }) || null;
+    }
+    window.getCityDateRange = getCityDateRange;
+
+    function getDefaultMealCountForCity(city) {
+        const range = getCityDateRange(city);
+        if (range && range.start_date && range.end_date) {
+            const nights = enquiryProNightCount(range.start_date, range.end_date);
+            if (nights > 0) return nights;
+        }
+        const fallback = parseInt(document.getElementById('nightsDisplay')?.textContent, 10);
+        return Number.isFinite(fallback) && fallback > 0 ? fallback : 1;
+    }
+    window.getDefaultMealCountForCity = getDefaultMealCountForCity;
+
+    function getCityAnchoredDateTime(city, dateTime, offsetDays, fallbackTime) {
+        const timePart = (String(dateTime || '').split('T')[1] || fallbackTime || '12:00').substring(0, 5);
+        const range = getCityDateRange(city);
+        let start = enquiryProDateOnly(dateTime);
+        if (!start && range && range.start_date) start = range.start_date;
+        if (!start) start = enquiryProTourDateBounds().start || '';
+        if (!start) return dateTime || '';
+
+        let target = enquiryProShiftDate(start, offsetDays || 0) || start;
+        if (range && range.start_date && target < range.start_date) target = range.start_date;
+        if (range && range.end_date && target > range.end_date) target = range.end_date;
+        return target + 'T' + timePart;
+    }
+    window.getCityAnchoredDateTime = getCityAnchoredDateTime;
+
+    function syncCityDateRangePanel(options) {
+        options = options || {};
+        const section = document.getElementById('cityDateRangeSection');
+        const rows = document.getElementById('cityDateRangeRows');
+        if (!section || !rows) return;
+
+        const cities = (typeof selectedDestinations !== 'undefined' && Array.isArray(selectedDestinations))
+            ? selectedDestinations.map(function (city) { return String(city || '').trim(); }).filter(Boolean)
+            : [];
+        const bounds = enquiryProTourDateBounds();
+        const readOnly = section.dataset.readonly === '1';
+        section.style.display = cities.length ? '' : 'none';
+        if (!cities.length) {
+            rows.innerHTML = '';
+            window.enquiryProCityDateRanges = [];
+            return;
+        }
+
+        const existingByCity = {};
+        (window.enquiryProCityDateRanges || []).forEach(function (range) {
+            existingByCity[serviceCityKey(range.city)] = range;
+        });
+        const defaults = enquiryProBuildDefaultCityRanges(cities, bounds.start, bounds.end);
+        const defaultByCity = {};
+        defaults.forEach(function (range) { defaultByCity[serviceCityKey(range.city)] = range; });
+
+        // Rebuild the ranges: keep existing cities' windows, redistribute remaining nights
+        // evenly among new cities so adding/removing a city always produces a valid chain.
+        const hasExisting = cities.some(function (c) { return !!existingByCity[serviceCityKey(c)]; });
+        if (!hasExisting) {
+            // First time: use the even-split defaults for all cities.
+            window.enquiryProCityDateRanges = defaults.length ? defaults : cities.map(function (c) {
+                return { city: c, start_date: '', end_date: '' };
+            });
+        } else if (readOnly) {
+            window.enquiryProCityDateRanges = cities.map(function (city) {
+                const current = existingByCity[serviceCityKey(city)];
+                return current ? { ...current, city: city } : { city: city, start_date: '', end_date: '' };
+            });
+        } else {
+            // Separate cities that already have a range from brand-new ones.
+            const kept = [];
+            const newCityIndices = [];
+            cities.forEach(function (city, index) {
+                const current = existingByCity[serviceCityKey(city)];
+                if (current && current.start_date && current.end_date
+                    && current.start_date >= bounds.start && current.end_date <= bounds.end) {
+                    kept.push({ index: index, range: { ...current, city: city } });
+                } else {
+                    newCityIndices.push(index);
+                }
+            });
+
+            // Build the result array, inserting new cities into the gaps.
+            const result = new Array(cities.length);
+            kept.forEach(function (item) { result[item.index] = item.range; });
+
+            const totalNights = enquiryProNightCount(bounds.start, bounds.end);
+            const keptNights = kept.reduce(function (sum, item) {
+                return sum + enquiryProNightCount(item.range.start_date, item.range.end_date);
+            }, 0);
+
+            if (newCityIndices.length) {
+                const nightsForNew = Math.max(newCityIndices.length, totalNights - keptNights);
+                const nightsPerNew = Math.max(1, Math.floor(nightsForNew / newCityIndices.length));
+
+                // If existing cities take up too many nights, shrink them proportionally.
+                if (keptNights + newCityIndices.length > totalNights && kept.length) {
+                    const targetKept = totalNights - (newCityIndices.length * 1);
+                    let assignedKept = 0;
+                    kept.forEach(function (item, i) {
+                        const oldN = enquiryProNightCount(item.range.start_date, item.range.end_date);
+                        const share = i === kept.length - 1
+                            ? targetKept - assignedKept
+                            : Math.max(1, Math.round(oldN * targetKept / keptNights));
+                        item.newNights = share;
+                        assignedKept += share;
+                    });
+                }
+            }
+
+            // Walk left-to-right and stitch the chain: each city starts where the previous ended.
+            let cursor = bounds.start;
+            for (let i = 0; i < cities.length; i++) {
+                if (result[i]) {
+                    const item = kept.find(function (k) { return k.index === i; });
+                    const nights = item.newNights !== undefined
+                        ? item.newNights
+                        : enquiryProNightCount(item.range.start_date, item.range.end_date);
+                    result[i].start_date = cursor;
+                    result[i].end_date = enquiryProShiftDate(cursor, nights);
+                    cursor = result[i].end_date;
+                } else {
+                    const isLast = i === cities.length - 1;
+                    const nightsPerNew = Math.max(1, Math.floor(
+                        Math.max(newCityIndices.length, totalNights - keptNights) / newCityIndices.length));
+                    const nights = isLast
+                        ? enquiryProNightCount(cursor, bounds.end) || nightsPerNew
+                        : nightsPerNew;
+                    result[i] = {
+                        city: cities[i],
+                        start_date: cursor,
+                        end_date: enquiryProShiftDate(cursor, nights)
+                    };
+                    cursor = result[i].end_date;
+                }
+            }
+            // Last city always reaches the tour end.
+            result[cities.length - 1].end_date = bounds.end;
+
+            window.enquiryProCityDateRanges = result;
+        }
+
+        const total = window.enquiryProCityDateRanges.length;
+        rows.innerHTML = '';
+        window.enquiryProCityDateRanges.forEach(function (range, index) {
+            // Every city needs at least one night, so each side of the chain reserves a day per remaining city.
+            const startMin = enquiryProShiftDate(bounds.start, index) || bounds.start;
+            const startMax = enquiryProShiftDate(bounds.end, -(total - index)) || bounds.end;
+            const endMin = enquiryProShiftDate(bounds.start, index + 1) || bounds.end;
+            const endMax = enquiryProShiftDate(bounds.end, -(total - index - 1)) || bounds.end;
+            const nights = enquiryProNightCount(range.start_date, range.end_date);
+            const lockStart = index === 0;
+            const lockEnd = index === total - 1;
+
+            const col = document.createElement('div');
+            col.className = 'city-stay-col';
+            col.innerHTML = `
+                <div class="city-stay-card${readOnly ? ' is-locked' : ''}">
+                    <div class="city-stay-card-head">
+                        <span class="city-stay-seq">${index + 1}</span>
+                        <span class="city-stay-name" title="${range.city}">${range.city}</span>
+                        <span class="city-stay-nights">${nights} ${nights === 1 ? 'Night' : 'Nights'}</span>
+                    </div>
+                    <div class="city-stay-card-body">
+                        <div class="city-stay-field">
+                            <label>Check-in</label>
+                            <input type="date" class="form-control form-control-sm city-date-range-start"
+                                data-index="${index}" value="${range.start_date}" min="${startMin}" max="${startMax}"
+                                ${(readOnly || lockStart) ? 'disabled' : ''}>
+                        </div>
+                        <span class="city-stay-arrow"><i class="ri-arrow-right-line"></i></span>
+                        <div class="city-stay-field">
+                            <label>Check-out</label>
+                            <input type="date" class="form-control form-control-sm city-date-range-end"
+                                data-index="${index}" value="${range.end_date}" min="${endMin}" max="${endMax}"
+                                ${(readOnly || lockEnd) ? 'disabled' : ''}>
+                        </div>
+                    </div>
+                    <div class="city-stay-note">${lockStart ? 'Starts with the tour' : 'Starts when ' + (window.enquiryProCityDateRanges[index - 1]?.city || 'previous city') + ' ends'}${lockEnd ? ' &middot; Ends with the tour' : ''}</div>
+                </div>`;
+            rows.appendChild(col);
+        });
+
+        if (!readOnly) {
+            rows.querySelectorAll('.city-date-range-start,.city-date-range-end').forEach(function (input) {
+                input.addEventListener('change', function () {
+                    const index = parseInt(this.dataset.index, 10);
+                    const isStart = this.classList.contains('city-date-range-start');
+                    applyCityDateRangeEdit(index, isStart ? 'start_date' : 'end_date', this.value);
+                });
+            });
+        }
+        validateCityDateRanges({ showError: options.showError === true });
+    }
+    window.syncCityDateRangePanel = syncCityDateRangePanel;
+
+    // Cities are stored as one continuous chain: a city's check-out is always the next city's check-in.
+    function applyCityDateRangeEdit(index, field, value) {
+        const ranges = window.enquiryProCityDateRanges || [];
+        const range = ranges[index];
+        const newValue = enquiryProDateOnly(value);
+        if (!range || !newValue) return;
+        const previousRanges = JSON.parse(JSON.stringify(ranges));
+
+        range[field] = newValue;
+        if (field === 'end_date') {
+            if (range.end_date <= range.start_date) {
+                range.start_date = enquiryProShiftDate(range.end_date, -1);
+            }
+            if (ranges[index + 1]) {
+                ranges[index + 1].start_date = range.end_date;
+                if (ranges[index + 1].end_date <= ranges[index + 1].start_date) {
+                    ranges[index + 1].end_date = enquiryProShiftDate(ranges[index + 1].start_date, 1);
+                }
+            }
+        } else {
+            if (range.end_date <= range.start_date) {
+                range.end_date = enquiryProShiftDate(range.start_date, 1);
+            }
+            if (ranges[index - 1]) {
+                ranges[index - 1].end_date = range.start_date;
+                if (ranges[index - 1].end_date <= ranges[index - 1].start_date) {
+                    ranges[index - 1].start_date = enquiryProShiftDate(ranges[index - 1].end_date, -1);
+                }
+            }
+        }
+
+        syncCityDateRangePanel({ showError: true });
+        if (typeof applyOpenServiceCityDateRanges === 'function') applyOpenServiceCityDateRanges();
+        if (typeof window.onEnquiryProCityDateRangesEdited === 'function') {
+            try {
+                window.onEnquiryProCityDateRangesEdited({
+                    index: index,
+                    field: field,
+                    value: newValue,
+                    previousRanges: previousRanges,
+                    nextRanges: JSON.parse(JSON.stringify(window.enquiryProCityDateRanges || []))
+                });
+            } catch (error) {
+                console.error('Failed handling editable city date change:', error);
+            }
+        }
+    }
+
+    function validateCityDateRanges(options) {
+        options = options || {};
+        const cities = (typeof selectedDestinations !== 'undefined' && Array.isArray(selectedDestinations))
+            ? selectedDestinations.map(function (city) { return String(city || '').trim(); }).filter(Boolean)
+            : [];
+        const bounds = enquiryProTourDateBounds();
+        const ranges = window.enquiryProCityDateRanges || [];
+        let message = '';
+
+        if (!cities.length) message = 'Select at least one city.';
+        else if (ranges.length !== cities.length) message = 'Set dates for every selected city.';
+        else if (!bounds.start || !bounds.end) message = 'Select the tour start and end dates first.';
+        else if (ranges.some(function (r) { return !r.start_date || !r.end_date; })) message = 'Set From and To dates for every city.';
+        else if (ranges.some(function (r) {
+            return r.start_date < bounds.start || r.end_date > bounds.end || r.end_date <= r.start_date;
+        })) message = 'Each city must be inside the tour dates and include at least one night.';
+        else if (ranges[0].start_date !== bounds.start || ranges[ranges.length - 1].end_date !== bounds.end) {
+            message = 'The first city must start on the tour start date and the last city must end on the tour end date.';
+        } else {
+            for (let i = 1; i < ranges.length; i++) {
+                if (ranges[i].start_date !== ranges[i - 1].end_date) {
+                    message = 'City date ranges must connect without gaps or overlaps.';
+                    break;
+                }
+            }
+        }
+
+        const errorEl = document.getElementById('cityDateRangeError');
+        if (errorEl) {
+            errorEl.textContent = message;
+            errorEl.style.display = message && options.showError ? '' : 'none';
+        }
+        return { valid: !message, message: message, ranges: ranges };
+    }
+    window.validateCityDateRanges = validateCityDateRanges;
+
+    // Each service date input, the city select that drives it, and the day of the city window it should land on.
+    const ENQUIRY_PRO_CITY_DATE_FIELDS = {
+        accommodation: [
+            { id: 'checkInDate', anchor: 'start', time: '14:00' },
+            { id: 'checkOutDate', anchor: 'end', time: '12:00' }
+        ],
+        tour: [{ id: 'tourDateTime', anchor: 'start', time: '09:00' }],
+        meal: [{ id: 'mealDateTime', anchor: 'start', time: '12:00' }],
+        guide: [{ id: 'guideDate', anchor: 'start', time: '10:00' }],
+        misc: [{ id: 'miscDate', anchor: 'start', time: '09:00' }],
+        local: [{ id: 'localDateTime', anchor: 'start', time: '09:00' }],
+        arrivaldeparture: [
+            { id: 'arrivalDateTime', anchor: 'start', time: '09:00' },
+            { id: 'departureDateTime', anchor: 'end', time: '09:00' }
+        ]
+    };
+    ENQUIRY_PRO_CITY_DATE_FIELDS.arrival = ENQUIRY_PRO_CITY_DATE_FIELDS.arrivaldeparture;
+    ENQUIRY_PRO_CITY_DATE_FIELDS.departure = ENQUIRY_PRO_CITY_DATE_FIELDS.arrivaldeparture;
+
+    const ENQUIRY_PRO_CITY_SELECT_BY_CONTEXT = {
+        accommodation: 'hotelDestination',
+        tour: 'tourDestination',
+        meal: 'mealDestination',
+        guide: 'guideDestination',
+        misc: 'miscDestination',
+        local: 'localDestination',
+        arrivaldeparture: 'arrivalDepartureCity'
+    };
+
+    // Flags the service modals set while they populate an existing entry for editing.
+    const ENQUIRY_PRO_EDIT_FLAGS = {
+        accommodation: 'editingAccommodationIndex',
+        tour: 'editingTourIndex',
+        meal: 'editingMealIndex',
+        guide: 'editingGuideIndex',
+        misc: 'editingMiscIndex',
+        local: 'editingTransferIndex',
+        arrivaldeparture: 'editingArrivalDepartureIndex'
+    };
+    window._enquiryProLastCityByContext = window._enquiryProLastCityByContext || {};
+
+    function enquiryProIsEditingContext(key) {
+        if (key === 'accommodation' && window._populatingAccommodationEdit) return true;
+        const flag = ENQUIRY_PRO_EDIT_FLAGS[key];
+        const value = flag ? window[flag] : null;
+        return value !== null && value !== undefined && value !== false;
+    }
+
+    function enquiryProApplyRangeToInput(input, range, field, force) {
+        const isDateOnly = input.type === 'date';
+        input.min = isDateOnly ? range.start_date : range.start_date + 'T00:00';
+        input.max = isDateOnly ? range.end_date : range.end_date + 'T23:59';
+
+        const current = String(input.value || '');
+        const currentDate = enquiryProDateOnly(current);
+        const currentTime = current.split('T')[1] || field.time;
+        const anchorDate = field.anchor === 'end' ? range.end_date : range.start_date;
+        let targetDate = currentDate;
+        if (force || !currentDate) targetDate = anchorDate;
+        else if (currentDate < range.start_date) targetDate = range.start_date;
+        else if (currentDate > range.end_date) targetDate = range.end_date;
+        if (targetDate === currentDate) return;
+
+        input.value = isDateOnly ? targetDate : targetDate + 'T' + currentTime.substring(0, 5);
+    }
+
+    function applyCityDateRangeToContext(city, context, options) {
+        options = options || {};
+        const key = String(context || '').toLowerCase();
+        if (key === 'all') {
+            applyOpenServiceCityDateRanges(options);
+            return getCityDateRange(city);
+        }
+        const fields = ENQUIRY_PRO_CITY_DATE_FIELDS[key];
+        const range = getCityDateRange(city);
+        if (!range || !fields || !range.start_date || !range.end_date) return null;
+
+        // Moving a service to another city must re-seat its dates on that city's window; clamping alone
+        // would keep a shared boundary date (e.g. the previous city's check-out) and collapse the stay.
+        const cityKey = serviceCityKey(city);
+        const previousKey = window._enquiryProLastCityByContext[key];
+        const cityChanged = previousKey !== undefined && previousKey !== cityKey;
+        window._enquiryProLastCityByContext[key] = cityKey;
+        const force = options.reset === true
+            || (cityChanged && !enquiryProIsEditingContext(key));
+
+        fields.forEach(function (field) {
+            const input = document.getElementById(field.id);
+            if (input) enquiryProApplyRangeToInput(input, range, field, force);
+        });
+
+        if (key === 'accommodation') {
+            const checkIn = document.getElementById('checkInDate');
+            const checkOut = document.getElementById('checkOutDate');
+            if (checkIn && checkOut && checkIn.value && checkOut.value
+                && enquiryProDateOnly(checkOut.value) <= enquiryProDateOnly(checkIn.value)) {
+                const nextDay = enquiryProShiftDate(enquiryProDateOnly(checkIn.value), 1);
+                const bounded = nextDay && nextDay <= range.end_date ? nextDay : range.end_date;
+                checkOut.value = checkOut.type === 'date'
+                    ? bounded
+                    : bounded + 'T' + ((checkOut.value.split('T')[1] || '12:00').substring(0, 5));
+            }
+            // updateCheckOutMinDate() strips the max attribute, so restore the city ceiling afterwards.
+            if (checkOut) checkOut.max = checkOut.type === 'date' ? range.end_date : range.end_date + 'T23:59';
+            if (typeof calculateAccommodationNights === 'function') {
+                try { calculateAccommodationNights(); } catch (e) { /* modal not ready */ }
+            }
+        }
+        return range;
+    }
+    window.applyCityDateRangeToContext = applyCityDateRangeToContext;
+
+    function applyOpenServiceCityDateRanges(options) {
+        Object.keys(ENQUIRY_PRO_CITY_SELECT_BY_CONTEXT).forEach(function (context) {
+            const city = document.getElementById(ENQUIRY_PRO_CITY_SELECT_BY_CONTEXT[context])?.value || '';
+            if (city) applyCityDateRangeToContext(city, context, options);
+        });
+    }
+    window.applyOpenServiceCityDateRanges = applyOpenServiceCityDateRanges;
+
+    // Re-apply the window after the service modals' own change handlers have run.
+    document.addEventListener('change', function (event) {
+        const id = event.target?.id;
+        if (!id || window._enquiryProReapplyingCityWindow) return;
+        const context = Object.keys(ENQUIRY_PRO_CITY_DATE_FIELDS).find(function (key) {
+            return ENQUIRY_PRO_CITY_DATE_FIELDS[key].some(function (field) { return field.id === id; });
+        });
+        if (!context) return;
+        const citySelectId = ENQUIRY_PRO_CITY_SELECT_BY_CONTEXT[context] || ENQUIRY_PRO_CITY_SELECT_BY_CONTEXT.arrivaldeparture;
+        const city = document.getElementById(citySelectId)?.value || '';
+        if (!city) return;
+        window._enquiryProReapplyingCityWindow = true;
+        try { applyCityDateRangeToContext(city, context); }
+        finally { window._enquiryProReapplyingCityWindow = false; }
+    });
+
+    // Service modals prefill their dates while opening, so align them with the city window once they are visible.
+    function enquiryProQueueCityWindowSync() {
+        setTimeout(function () { applyOpenServiceCityDateRanges(); }, 80);
+    }
+    document.addEventListener('shown.bs.modal', enquiryProQueueCityWindowSync);
+    if (window.jQuery) {
+        window.jQuery(document).on('shown.bs.modal', enquiryProQueueCityWindowSync);
+    }
+
+    function validateServiceDateForCity(city, startValue, endValue, serviceLabel) {
+        const range = getCityDateRange(city);
+        if (!range) return { valid: false, message: `Set the city dates for ${city || 'this city'} first.` };
+        const start = enquiryProDateOnly(startValue);
+        const end = enquiryProDateOnly(endValue || startValue);
+        const valid = !!start && start >= range.start_date && end <= range.end_date && end >= start;
+        return {
+            valid: valid,
+            message: valid ? '' : `${serviceLabel || 'Service'} for ${range.city} must be between ${range.start_date} and ${range.end_date}.`
+        };
+    }
+    window.validateServiceDateForCity = validateServiceDateForCity;
+
+    function ensureModalServiceDateWithinCity(cityInputId, startInputId, endInputId, serviceLabel) {
+        const city = document.getElementById(cityInputId)?.value || '';
+        const start = document.getElementById(startInputId)?.value || '';
+        const end = endInputId ? (document.getElementById(endInputId)?.value || '') : start;
+        const result = validateServiceDateForCity(city, start, end, serviceLabel);
+        if (!result.valid) {
+            alert(result.message);
+            const input = document.getElementById(!start ? startInputId : (endInputId && !end ? endInputId : startInputId));
+            if (input) input.focus();
+            return false;
+        }
+        return true;
+    }
+    window.ensureModalServiceDateWithinCity = ensureModalServiceDateWithinCity;
+
+    document.addEventListener('change', function (event) {
+        const contextById = {
+            hotelDestination: 'accommodation',
+            tourDestination: 'tour',
+            mealDestination: 'meal',
+            guideDestination: 'guide',
+            miscDestination: 'misc',
+            localDestination: 'local',
+            arrivalDepartureCity: 'arrivaldeparture'
+        };
+        const context = contextById[event.target?.id];
+        if (!context) return;
+        // A user picking another city always re-seats the dates; programmatic changes (edit population) only clamp.
+        applyCityDateRangeToContext(event.target.value, context, { reset: event.isTrusted === true });
+    });
+
+    document.addEventListener('DOMContentLoaded', function () {
+        setTimeout(function () { syncCityDateRangePanel(); }, 0);
+    });
+
     /** Find hotel-synced entry_port / exit_port for a city (empty city → first hotel-synced of that type). */
     function findHotelSyncedArrDep(list, travelType, cityName) {
         const key = serviceCityKey(cityName);
@@ -336,11 +988,15 @@
         const $sel = window.jQuery(select);
         if (!$sel.length || !$sel.hasClass('select2-hidden-accessible')) return;
         const val = $sel.val();
-        const opt = select.querySelector('option[value="' + escapeCssAttr(String(val || '')) + '"]');
+        const opt = typeof findOptionByExactValue === 'function'
+            ? findOptionByExactValue(select, val)
+            : null;
         if (val && opt && (opt.disabled || opt.hidden)) {
             $sel.val('').trigger('change');
+        } else if (val) {
+            $sel.val(val).trigger('change');
         } else {
-            $sel.trigger('change.select2');
+            $sel.trigger('change');
         }
     }
 
@@ -425,7 +1081,7 @@
     }
 
     /** Build Ports/Hotels/Attractions/Restaurants optgroups for one city (single-city dropoff logic). */
-    function buildTransferDestinationOptionsHTML(forCity) {
+    function buildTransferDestinationOptionsHTML(forCity, extraOpts) {
         const catalog = window.transferDestinationCatalog || {};
         const city = String(forCity || '').trim();
         const cities = city ? [city] : (typeof getActiveServiceCityNames === 'function' ? getActiveServiceCityNames() : []);
@@ -438,12 +1094,22 @@
             return transferItemMatchesCityScope(Object.assign({}, item, { type: type }), cities, cityIds, countries) === true;
         }
 
+        const opts = extraOpts || {};
+        const prefixTypes = !!opts.prefixLocationTypes;
+        function locValue(type, id) {
+            const raw = String(id == null ? '' : id);
+            if (!raw) return '';
+            if (!prefixTypes || type === 'hotel') return raw;
+            if (raw.indexOf(type + ':') === 0) return raw;
+            return type + ':' + raw;
+        }
+
         let html = '';
         const ports = catalogItemsArray(catalog.ports).filter(function (p) { return keep(p, 'port'); });
         if (ports.length) {
             html += '<optgroup label="Ports">';
             ports.forEach(function (p) {
-                html += '<option value="' + escapeHtmlAttr(p.id) + '" data-name="' + escapeHtmlAttr(p.name) + '" data-type="port" data-port-id="' + escapeHtmlAttr(p.id) + '" data-city-id="' + escapeHtmlAttr(p.city_id || '') + '" data-country="' + escapeHtmlAttr(p.country || '') + '">' + escapeHtmlAttr(p.name) + '</option>';
+                html += '<option value="' + escapeHtmlAttr(locValue('port', p.id)) + '" data-name="' + escapeHtmlAttr(p.name) + '" data-type="port" data-port-id="' + escapeHtmlAttr(p.id) + '" data-city-id="' + escapeHtmlAttr(p.city_id || '') + '" data-country="' + escapeHtmlAttr(p.country || '') + '">' + escapeHtmlAttr(p.name) + '</option>';
             });
             html += '</optgroup>';
         }
@@ -461,7 +1127,7 @@
         if (attractions.length) {
             html += '<optgroup label="Attractions">';
             attractions.forEach(function (a) {
-                html += '<option value="' + escapeHtmlAttr(a.id) + '" data-name="' + escapeHtmlAttr(a.name) + '" data-type="attraction" data-attraction-id="' + escapeHtmlAttr(a.id) + '" data-zone-id="' + escapeHtmlAttr(a.zone_id || '') + '" data-location="' + escapeHtmlAttr(a.location || '') + '" data-country="' + escapeHtmlAttr(a.country || '') + '">' + escapeHtmlAttr(a.name) + '</option>';
+                html += '<option value="' + escapeHtmlAttr(locValue('attraction', a.id)) + '" data-name="' + escapeHtmlAttr(a.name) + '" data-type="attraction" data-attraction-id="' + escapeHtmlAttr(a.id) + '" data-zone-id="' + escapeHtmlAttr(a.zone_id || '') + '" data-location="' + escapeHtmlAttr(a.location || '') + '" data-country="' + escapeHtmlAttr(a.country || '') + '">' + escapeHtmlAttr(a.name) + '</option>';
             });
             html += '</optgroup>';
         }
@@ -470,7 +1136,7 @@
         if (restaurants.length) {
             html += '<optgroup label="Restaurants">';
             restaurants.forEach(function (r) {
-                html += '<option value="' + escapeHtmlAttr(r.id) + '" data-name="' + escapeHtmlAttr(r.name) + '" data-type="restaurant" data-restaurant-id="' + escapeHtmlAttr(r.id) + '" data-zone-id="' + escapeHtmlAttr(r.zone_id || '') + '" data-city="' + escapeHtmlAttr(r.city || '') + '" data-country="' + escapeHtmlAttr(r.country || '') + '">' + escapeHtmlAttr(r.name) + '</option>';
+                html += '<option value="' + escapeHtmlAttr(locValue('restaurant', r.id)) + '" data-name="' + escapeHtmlAttr(r.name) + '" data-type="restaurant" data-restaurant-id="' + escapeHtmlAttr(r.id) + '" data-zone-id="' + escapeHtmlAttr(r.zone_id || '') + '" data-city="' + escapeHtmlAttr(r.city || '') + '" data-country="' + escapeHtmlAttr(r.country || '') + '">' + escapeHtmlAttr(r.name) + '</option>';
             });
             html += '</optgroup>';
         }
@@ -538,7 +1204,10 @@
             const hotelsUrl = (typeof window.enquiryProGetHotelsUrl === 'string' && window.enquiryProGetHotelsUrl)
                 ? window.enquiryProGetHotelsUrl
                 : '/enquiry-form-pro/get-hotels';
-            const res = await fetch(hotelsUrl + (hotelsUrl.indexOf('?') >= 0 ? '&' : '?') + 'destination=' + encodeURIComponent(dest));
+            const fetchUrl = (typeof window.appendSiblingDmcQuery === 'function')
+                ? window.appendSiblingDmcQuery(hotelsUrl, dest)
+                : hotelsUrl + (hotelsUrl.indexOf('?') >= 0 ? '&' : '?') + 'destination=' + encodeURIComponent(dest);
+            const res = await fetch(fetchUrl);
             const data = await res.json();
             const list = (data && (data.hotels || data.data)) ? (data.hotels || data.data) : [];
             if (Array.isArray(list) && list.length) {
@@ -704,11 +1373,10 @@
             departureCities.length ? departureCities : scopeCities
         );
 
-        // Other transfer pickers use hotel/header scope
-        const otherCities = scopeCities;
-        ['localPickup', 'localDrop', 'hotelTransferDestination'].forEach(function (id) {
-            filterSelectOptionsByCityScope(document.getElementById(id), otherCities);
-        });
+        // Hotel transfer dropoff uses hotel/header scope.
+        // Local pickup/drop are owned by applyLocalTransferCityFilters — filtering
+        // them here wipes prefixed values and Select2 restore.
+        filterSelectOptionsByCityScope(document.getElementById('hotelTransferDestination'), scopeCities);
 
         // Attraction / restaurant modal dropoffs: use that modal's destination city when set
         const tourCity = String(document.getElementById('tourDestination')?.value || '').trim();
@@ -740,13 +1408,17 @@
     function filterModalTransferDestinationsByCity(cityName, selector) {
         const city = String(cityName || '').trim();
         const sel = selector || '.attraction-transfer-destination, #restaurantTransferDestination';
-        const optionsHtml = buildTransferDestinationOptionsHTML(city);
+        const isLocalTransfer = /#localPickup|#localDrop/.test(String(sel));
+        const optionsHtml = buildTransferDestinationOptionsHTML(city, { prefixLocationTypes: isLocalTransfer });
 
         document.querySelectorAll(sel).forEach(function (select) {
             if (!select) return;
             const prevValue = select.value;
-            select.innerHTML = '<option value="">Select Dropoff</option>' + optionsHtml;
-            if (prevValue && select.querySelector('option[value="' + escapeCssAttr(prevValue) + '"]')) {
+            const placeholder = isLocalTransfer
+                ? (select.id === 'localPickup' ? 'Select Pickup Location' : 'Select Drop Location')
+                : 'Select Dropoff';
+            select.innerHTML = '<option value="">' + placeholder + '</option>' + optionsHtml;
+            if (prevValue && findOptionByExactValue(select, prevValue)) {
                 select.value = prevValue;
             } else {
                 select.value = '';
@@ -1264,7 +1936,8 @@
         ['#localPickup', '#localDrop'].forEach(function (sel) {
             const $el = jQuery(sel);
             if (!$el.length) return;
-            const val = $el.val();
+            const el = $el.get(0);
+            const val = el ? String(el.value || '') : String($el.val() || '');
             if ($el.hasClass('select2-hidden-accessible')) {
                 $el.select2('destroy');
             }
@@ -1276,10 +1949,404 @@
                 width: '100%',
                 dropdownParent: $modal.length ? $modal : jQuery(document.body)
             });
-            if (val) $el.val(val).trigger('change.select2');
+            if (val) {
+                $el.val(val).trigger('change');
+            }
         });
     }
     window.reinitLocalPickupDropSelect2 = reinitLocalPickupDropSelect2;
+
+    /**
+     * Parse local transfer tokens like attraction:12 / restaurant:8 / port:3.
+     * Hotels stay as hotel_unique_id (no prefix).
+     */
+    function parseTransferLocationValue(value, fallbackType) {
+        const raw = String(value || '').trim();
+        const fallback = String(fallbackType || '').toLowerCase();
+        if (!raw) return { type: fallback, id: '' };
+        const known = ['hotel', 'port', 'attraction', 'restaurant', 'zone'];
+        const colon = raw.indexOf(':');
+        if (colon > 0) {
+            const type = raw.slice(0, colon).toLowerCase();
+            if (known.indexOf(type) !== -1) {
+                return { type: type, id: raw.slice(colon + 1) };
+            }
+        }
+        return { type: fallback, id: raw };
+    }
+    window.parseTransferLocationValue = parseTransferLocationValue;
+
+    function findOptionByExactValue(select, value) {
+        if (!select) return null;
+        const raw = String(value ?? '');
+        if (!raw) return null;
+        return Array.from(select.options).find(function (opt) {
+            return String(opt.value) === raw;
+        }) || null;
+    }
+    window.findOptionByExactValue = findOptionByExactValue;
+
+    function stripTransferLocationPrefix(value, fallbackType) {
+        const parsed = parseTransferLocationValue(String(value || ''), fallbackType || '');
+        return parsed.id || String(value || '');
+    }
+    window.stripTransferLocationPrefix = stripTransferLocationPrefix;
+
+    /**
+     * Resolve local pickup/drop to entity + zone ids without CSS selectors
+     * (option values like attraction:12 break querySelector).
+     */
+    function resolveSelectLocationForZonePrice(select, rawValue, hintedType) {
+        const parsed = parseTransferLocationValue(String(rawValue || ''), hintedType || '');
+        let type = String(parsed.type || hintedType || '').toLowerCase();
+        let id = parsed.id || '';
+        let zoneId = '';
+        if (!select) {
+            return { type: type, id: String(id || ''), zoneId: '' };
+        }
+        let option = findOptionByExactValue(select, rawValue);
+        if (!option && parsed.type && parsed.id) {
+            option = findOptionByExactValue(select, parsed.type + ':' + parsed.id)
+                || findOptionByExactValue(select, parsed.id);
+        }
+        if (!option && parsed.id) {
+            const attrMap = {
+                hotel: 'data-hotel-unique-id',
+                port: 'data-port-id',
+                attraction: 'data-attraction-id',
+                restaurant: 'data-restaurant-id'
+            };
+            const attr = attrMap[parsed.type] || attrMap[type];
+            if (attr) {
+                option = Array.from(select.options).find(function (opt) {
+                    return String(opt.getAttribute(attr) || '') === String(parsed.id);
+                }) || null;
+            }
+        }
+        if (!option && select.selectedIndex >= 0) {
+            const selected = select.options[select.selectedIndex];
+            if (selected && selected.value) option = selected;
+        }
+        if (option) {
+            type = String(option.getAttribute('data-type') || type || '').toLowerCase();
+            zoneId = String(option.getAttribute('data-zone-id') || '').trim();
+            if (type === 'hotel') {
+                id = option.getAttribute('data-hotel-unique-id') || option.value || id;
+            } else if (type === 'port') {
+                id = option.getAttribute('data-port-id') || id;
+            } else if (type === 'attraction') {
+                id = option.getAttribute('data-attraction-id') || id;
+            } else if (type === 'restaurant') {
+                id = option.getAttribute('data-restaurant-id') || id;
+            }
+        }
+        const cleaned = parseTransferLocationValue(String(id || ''), type);
+        if (cleaned.type && ['hotel', 'port', 'attraction', 'restaurant', 'zone'].indexOf(cleaned.type) !== -1 && cleaned.id) {
+            if (cleaned.type !== 'hotel') {
+                type = cleaned.type;
+                id = cleaned.id;
+            }
+        }
+        return { type: type, id: String(id || ''), zoneId: String(zoneId || '') };
+    }
+    window.resolveSelectLocationForZonePrice = resolveSelectLocationForZonePrice;
+
+    function resolveLocalTransferZoneLookup(pickupId, pickupType, dropId, dropType) {
+        const pickupSelect = document.getElementById('localPickup');
+        const dropSelect = document.getElementById('localDrop');
+        let actualPickupId = pickupId;
+        let actualDropId = dropId;
+        let actualPickupType = pickupType;
+        let actualDropType = dropType;
+        let pickupZoneId = '';
+        let dropZoneId = '';
+
+        const pickupRaw = String(pickupId || '');
+        const dropRaw = String(dropId || '');
+        const pickupMatchesLocal = pickupSelect && pickupSelect.value
+            && (String(pickupSelect.value) === pickupRaw || pickupRaw.indexOf(':') > 0);
+        const dropMatchesLocal = dropSelect && dropSelect.value
+            && (String(dropSelect.value) === dropRaw || dropRaw.indexOf(':') > 0);
+
+        if (pickupMatchesLocal) {
+            const resolved = resolveSelectLocationForZonePrice(pickupSelect, pickupRaw || pickupSelect.value, pickupType);
+            if (resolved.id) actualPickupId = resolved.id;
+            if (resolved.type) actualPickupType = resolved.type;
+            pickupZoneId = resolved.zoneId;
+        } else {
+            const parsed = parseTransferLocationValue(pickupRaw, pickupType);
+            if (parsed.id) actualPickupId = parsed.id;
+            if (parsed.type) actualPickupType = parsed.type;
+        }
+        if (dropMatchesLocal) {
+            const resolved = resolveSelectLocationForZonePrice(dropSelect, dropRaw || dropSelect.value, dropType);
+            if (resolved.id) actualDropId = resolved.id;
+            if (resolved.type) actualDropType = resolved.type;
+            dropZoneId = resolved.zoneId;
+        } else {
+            const parsed = parseTransferLocationValue(dropRaw, dropType);
+            if (parsed.id) actualDropId = parsed.id;
+            if (parsed.type) actualDropType = parsed.type;
+        }
+
+        return {
+            actualPickupId: actualPickupId,
+            actualPickupType: actualPickupType,
+            actualDropId: actualDropId,
+            actualDropType: actualDropType,
+            pickupZoneId: pickupZoneId,
+            dropZoneId: dropZoneId
+        };
+    }
+    window.resolveLocalTransferZoneLookup = resolveLocalTransferZoneLookup;
+
+    function resolveTransferLocationIdsForZoneFetch(transfer) {
+        if (!transfer) return { pickupId: '', dropId: '', pickupType: 'hotel', dropType: 'hotel' };
+        return {
+            pickupId: transfer.pickupId || transfer.fromZoneId || '',
+            dropId: transfer.dropId || transfer.dropoffId || transfer.toZoneId || '',
+            pickupType: transfer.pickupType || 'hotel',
+            dropType: transfer.dropType || transfer.dropoffType || 'hotel'
+        };
+    }
+    window.resolveTransferLocationIdsForZoneFetch = resolveTransferLocationIdsForZoneFetch;
+
+    function splitLocalTransferRoute(text) {
+        const s = String(text || '').trim();
+        if (!s) return { pickup: '', drop: '' };
+        const parts = s.split(/\s*(?:→|->|\/)\s*/);
+        return {
+            pickup: String(parts[0] || '').trim(),
+            drop: String(parts.slice(1).join(' / ') || '').trim()
+        };
+    }
+    window.splitLocalTransferRoute = splitLocalTransferRoute;
+
+    function prefixedLocalTransferValue(type, id) {
+        const t = String(type || '').toLowerCase();
+        const raw = String(id == null ? '' : id);
+        if (!raw) return '';
+        if (!t || t === 'hotel') return raw;
+        if (raw.indexOf(t + ':') === 0) return raw;
+        return t + ':' + raw;
+    }
+
+    function findCatalogTransferLocation(type, id, name) {
+        const catalog = window.transferDestinationCatalog || {};
+        const groups = [
+            { type: 'attraction', items: catalogItemsArray(catalog.attractions) },
+            { type: 'restaurant', items: catalogItemsArray(catalog.restaurants) },
+            { type: 'port', items: catalogItemsArray(catalog.ports) },
+            { type: 'hotel', items: catalogItemsArray(catalog.hotels) }
+        ];
+        const wantType = String(type || '').toLowerCase();
+        const wantId = String(id || '').trim();
+        const wantName = String(name || '').trim().toLowerCase();
+        if (!wantId && !wantName) return null;
+
+        function search(items, t) {
+            if (!items || !items.length) return null;
+            if (wantId) {
+                for (let i = 0; i < items.length; i++) {
+                    const item = items[i];
+                    if (item && String(item.id) === wantId) return Object.assign({ type: t }, item);
+                }
+            }
+            if (wantName) {
+                for (let i = 0; i < items.length; i++) {
+                    const item = items[i];
+                    if (item && String(item.name || '').trim().toLowerCase() === wantName) {
+                        return Object.assign({ type: t }, item);
+                    }
+                }
+            }
+            return null;
+        }
+
+        if (wantType) {
+            const typed = groups.find(function (g) { return g.type === wantType; });
+            if (typed) {
+                const hit = search(typed.items, typed.type);
+                if (hit) return hit;
+            }
+        }
+        for (let g = 0; g < groups.length; g++) {
+            const hit = search(groups[g].items, groups[g].type);
+            if (hit) return hit;
+        }
+        return null;
+    }
+    window.findCatalogTransferLocation = findCatalogTransferLocation;
+
+    function injectLocalTransferLocationOption(select, loc) {
+        if (!select || !loc) return '';
+        const type = String(loc.type || '').toLowerCase();
+        const id = String(loc.id || '').trim();
+        const value = loc.value || prefixedLocalTransferValue(type, id) || String(loc.name || '');
+        if (!value) return '';
+        const existing = findOptionByExactValue(select, value);
+        if (existing) return value;
+        const opt = document.createElement('option');
+        const label = loc.name || value;
+        opt.value = value;
+        opt.textContent = label;
+        opt.setAttribute('data-name', label);
+        if (type) opt.setAttribute('data-type', type);
+        if (loc.zone_id) opt.setAttribute('data-zone-id', loc.zone_id);
+        const fallbackCity = String(document.getElementById('localDestination')?.value || '');
+        const city = loc.city || (type !== 'attraction' ? fallbackCity : '');
+        const location = loc.location || (type === 'attraction' ? fallbackCity : '');
+        if (city) opt.setAttribute('data-city', city);
+        if (location) opt.setAttribute('data-location', location);
+        if (loc.country) opt.setAttribute('data-country', loc.country);
+        if (type === 'hotel') opt.setAttribute('data-hotel-unique-id', id || value);
+        if (type === 'port') opt.setAttribute('data-port-id', id);
+        if (type === 'attraction') opt.setAttribute('data-attraction-id', id);
+        if (type === 'restaurant') opt.setAttribute('data-restaurant-id', id);
+        select.appendChild(opt);
+        return value;
+    }
+
+    function setLocalTransferLocationSelect(selectSelector, rawId, locType, displayName) {
+        if (typeof jQuery === 'undefined') return;
+        const $el = jQuery(selectSelector);
+        if (!$el.length) return;
+        const el = $el.get(0);
+        const parsed = parseTransferLocationValue(rawId, locType);
+        const type = String(parsed.type || locType || '').toLowerCase();
+        const name = String(displayName || '').trim();
+        const candidates = [];
+        if (type && parsed.id && type !== 'hotel') {
+            candidates.push(type + ':' + parsed.id);
+        }
+        if (rawId) candidates.push(String(rawId));
+        if (parsed.id) candidates.push(String(parsed.id));
+
+        let matched = '';
+        for (let i = 0; i < candidates.length; i++) {
+            const c = String(candidates[i]);
+            let $opts = $el.find('option').filter(function () {
+                return String(this.value) === c;
+            });
+            if (type && $opts.length > 1) {
+                const $typed = $opts.filter('[data-type="' + type + '"]');
+                if ($typed.length) $opts = $typed;
+            }
+            if ($opts.length) {
+                matched = $opts.first().val();
+                break;
+            }
+        }
+        if (!matched && type && parsed.id) {
+            const attrMap = {
+                hotel: 'data-hotel-unique-id',
+                port: 'data-port-id',
+                attraction: 'data-attraction-id',
+                restaurant: 'data-restaurant-id'
+            };
+            const attr = attrMap[type];
+            if (attr) {
+                const $byAttr = $el.find('option').filter(function () {
+                    return String(this.getAttribute(attr) || '') === String(parsed.id);
+                });
+                if ($byAttr.length) matched = $byAttr.first().val();
+            }
+        }
+        if (!matched && name) {
+            const nameLc = name.toLowerCase();
+            const $byName = $el.find('option').filter(function () {
+                if (!this.value) return false;
+                const n = String(this.getAttribute('data-name') || this.textContent || '').trim().toLowerCase();
+                return n === nameLc;
+            });
+            if ($byName.length) {
+                if (type) {
+                    const $typed = $byName.filter('[data-type="' + type + '"]');
+                    matched = ($typed.length ? $typed : $byName).first().val();
+                } else {
+                    matched = $byName.first().val();
+                }
+            }
+        }
+        if (!matched) {
+            const catalogHit = findCatalogTransferLocation(type, parsed.id, name);
+            if (catalogHit) {
+                matched = injectLocalTransferLocationOption(el, catalogHit);
+            }
+        }
+        if (!matched && (parsed.id || rawId || name)) {
+            matched = injectLocalTransferLocationOption(el, {
+                type: type,
+                id: parsed.id,
+                value: (type && type !== 'hotel' && parsed.id)
+                    ? (type + ':' + parsed.id)
+                    : String(rawId || parsed.id || ''),
+                name: name || String(rawId || parsed.id || '')
+            });
+        }
+        if (matched) {
+            const opt = findOptionByExactValue(el, matched);
+            if (opt) opt.selected = true;
+            el.value = matched;
+            $el.val(matched);
+            if ($el.hasClass('select2-hidden-accessible')) {
+                $el.trigger('change');
+            }
+        }
+    }
+    window.setLocalTransferLocationSelect = setLocalTransferLocationSelect;
+
+    /** Only copy drop → pickup when pickup is still empty (never overwrite attraction→restaurant). */
+    function bindLocalPickupDropSync() {
+        if (typeof jQuery === 'undefined') return;
+        jQuery('#localDrop').off('change.localPickupSync').on('change.localPickupSync', function () {
+            const dropValue = jQuery(this).val();
+            const pickupVal = jQuery('#localPickup').val();
+            if (dropValue && !pickupVal) {
+                jQuery('#localPickup').val(dropValue).trigger('change');
+            }
+        });
+    }
+    window.bindLocalPickupDropSync = bindLocalPickupDropSync;
+
+    function applyQueuedLocalTransferLocationRestore() {
+        const state = window._localTransferRestoreState;
+        if (!state) return;
+        window._localTransferRestoreLock = true;
+        if (typeof jQuery !== 'undefined') {
+            jQuery('#localDrop').off('change.localPickupSync');
+        }
+        setLocalTransferLocationSelect('#localPickup', state.pickupId, state.pickupType, state.pickupName);
+        setLocalTransferLocationSelect('#localDrop', state.dropId, state.dropType, state.dropName);
+        reinitLocalPickupDropSelect2();
+        bindLocalPickupDropSync();
+        window._localTransferRestoreLock = false;
+    }
+    window.applyQueuedLocalTransferLocationRestore = applyQueuedLocalTransferLocationRestore;
+
+    function bindTransferModalLocationRestore() {
+        const modal = document.getElementById('transferModal');
+        if (!modal || modal.dataset.localRestoreBound === '1') return !!modal;
+        modal.dataset.localRestoreBound = '1';
+        modal.addEventListener('shown.bs.modal', function () {
+            if (!window._localTransferRestoreState) return;
+            applyQueuedLocalTransferLocationRestore();
+            setTimeout(function () {
+                if (window._localTransferRestoreState) {
+                    applyQueuedLocalTransferLocationRestore();
+                }
+            }, 80);
+        });
+        modal.addEventListener('hidden.bs.modal', function () {
+            window._localTransferRestoreState = null;
+            window._localTransferRestoreLock = false;
+        });
+        return true;
+    }
+    window.bindTransferModalLocationRestore = bindTransferModalLocationRestore;
+    if (!bindTransferModalLocationRestore()) {
+        document.addEventListener('DOMContentLoaded', bindTransferModalLocationRestore);
+    }
 
     /**
      * Local Transfer modal: filter pickup/drop/vehicle/guide by city + apply defaults.
@@ -1294,20 +2361,62 @@
             window.resolveActiveDefaultValues(city);
         }
 
-        Promise.resolve(
+        return Promise.resolve(
             city && typeof ensureTransferCatalogForCity === 'function'
                 ? ensureTransferCatalogForCity(city)
                 : null
         ).then(function () {
+            ['#localPickup', '#localDrop'].forEach(function (sel) {
+                const $el = (typeof jQuery !== 'undefined') ? jQuery(sel) : null;
+                if ($el && $el.length && $el.hasClass('select2-hidden-accessible') && jQuery.fn.select2) {
+                    $el.select2('destroy');
+                }
+            });
             if (typeof filterModalTransferDestinationsByCity === 'function') {
                 filterModalTransferDestinationsByCity(city, '#localPickup, #localDrop');
             }
-            reinitLocalPickupDropSelect2();
 
-            if (!opts.skipDefaults && city && typeof applyDefaultTransferDropoffHotel === 'function') {
+            if (typeof jQuery !== 'undefined') {
+                jQuery('#localDrop').off('change.localPickupSync');
+            }
+
+            if (opts.restorePickup || opts.restoreDrop) {
+                window._localTransferRestoreState = {
+                    pickupId: (opts.restorePickup && opts.restorePickup.id) || '',
+                    pickupType: (opts.restorePickup && opts.restorePickup.type) || '',
+                    pickupName: (opts.restorePickup && opts.restorePickup.name) || '',
+                    dropId: (opts.restoreDrop && opts.restoreDrop.id) || '',
+                    dropType: (opts.restoreDrop && opts.restoreDrop.type) || '',
+                    dropName: (opts.restoreDrop && opts.restoreDrop.name) || ''
+                };
+            }
+
+            if (opts.restorePickup) {
+                setLocalTransferLocationSelect(
+                    '#localPickup',
+                    opts.restorePickup.id,
+                    opts.restorePickup.type,
+                    opts.restorePickup.name
+                );
+            }
+            if (opts.restoreDrop) {
+                setLocalTransferLocationSelect(
+                    '#localDrop',
+                    opts.restoreDrop.id,
+                    opts.restoreDrop.type,
+                    opts.restoreDrop.name
+                );
+            }
+
+            if (!opts.deferSelect2) {
+                reinitLocalPickupDropSelect2();
+            }
+
+            if (!opts.skipDefaults && !window._localTransferRestoreState && city && typeof applyDefaultTransferDropoffHotel === 'function') {
                 const dropEl = document.getElementById('localDrop');
+                const pickupEl = document.getElementById('localPickup');
                 applyDefaultTransferDropoffHotel(dropEl, city);
-                if (dropEl && dropEl.value && typeof jQuery !== 'undefined') {
+                if (dropEl && dropEl.value && pickupEl && !pickupEl.value && typeof jQuery !== 'undefined') {
                     jQuery('#localPickup').val(dropEl.value).trigger('change');
                 }
             }
@@ -1487,6 +2596,9 @@
         }
 
         const ctx = String(context || 'all').toLowerCase();
+        if (typeof applyCityDateRangeToContext === 'function') {
+            applyCityDateRangeToContext(city, ctx);
+        }
         const isEditingAccommodation = window.editingAccommodationIndex !== null
             && window.editingAccommodationIndex !== undefined;
         const skipArrDep = !!window._populatingAccommodationEdit
@@ -1529,7 +2641,12 @@
         }
 
         if ((ctx === 'local' || ctx === 'all') && typeof applyLocalTransferCityFilters === 'function') {
-            applyLocalTransferCityFilters(city, { skipDefaults: ctx === 'all' });
+            const restoringLocal = !!(window._localTransferRestoreState || window._localTransferRestoreLock);
+            const editingLocal = typeof enquiryProIsEditingContext === 'function'
+                && enquiryProIsEditingContext('local');
+            if (!restoringLocal && !editingLocal) {
+                applyLocalTransferCityFilters(city, { skipDefaults: ctx === 'all' });
+            }
         }
 
         return defaults;

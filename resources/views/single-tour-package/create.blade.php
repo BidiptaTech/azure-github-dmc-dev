@@ -371,6 +371,12 @@
             color: #fff;
         }
 
+        .city-toggle.is-thirdparty-disabled {
+            opacity: 0.65;
+            pointer-events: none;
+            cursor: not-allowed;
+        }
+
         /* Guest Selector Modal Button Hover Effects */
         #mainGuestSelectorModal .btn:hover {
             transform: translateY(-1px);
@@ -716,6 +722,163 @@
             border-color: #12b0eb !important;
             box-shadow: 0 2px 8px rgba(24, 193, 255, 0.35);
         }
+
+        /* City-wise markup / discount — match create form look */
+        @include('enquiryform_pro.partials.markup-discount-section-styles')
+        #submitSection .enquiry-md-panel {
+            max-width: 100%;
+            border: 1px solid #dee2e6;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.08);
+            overflow: visible;
+        }
+        #submitSection .enquiry-md-panel__body {
+            overflow-x: auto;
+            overflow-y: visible;
+        }
+        #submitSection .enquiry-md-panel__head {
+            padding: 0.65rem 1rem;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.12) 0%, rgba(118, 75, 162, 0.1) 100%);
+            border-bottom: 1px solid rgba(102, 126, 234, 0.2);
+        }
+        #submitSection .enquiry-md-panel__title {
+            font-size: 0.78rem;
+            letter-spacing: 0.04em;
+            color: #4338ca;
+        }
+        #submitSection .enquiry-md-panel__hint {
+            font-size: 0.72rem;
+            color: #64748b;
+        }
+        #submitSection .enquiry-md-panel__count {
+            min-width: 20px;
+            height: 20px;
+            border-radius: 10px;
+            font-size: 0.7rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+        }
+        #submitSection .enquiry-md-table {
+            width: 100%;
+            min-width: 560px;
+            table-layout: auto;
+        }
+        #submitSection .enquiry-md-table-wrap {
+            overflow-x: auto;
+        }
+        #submitSection .enquiry-md-table th {
+            font-size: 0.72rem;
+            padding: 0.5rem 0.65rem;
+            background: #f8f9fa;
+            white-space: nowrap;
+        }
+        #submitSection .enquiry-md-table td {
+            padding: 0.65rem 0.75rem;
+            vertical-align: middle;
+            overflow: visible;
+        }
+        #submitSection .enquiry-md-table td.enquiry-md-cell-markup {
+            min-width: 120px;
+        }
+        #submitSection .enquiry-md-city__name {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #212529;
+        }
+        #submitSection .enquiry-md-city__meta {
+            font-size: 0.72rem;
+            color: #6c757d;
+        }
+        #submitSection .enquiry-md-badge {
+            font-size: 0.72rem;
+            font-weight: 600;
+            padding: 0.2rem 0.5rem;
+            border-radius: 6px;
+            background: #e7f1ff;
+            color: #0d6efd;
+        }
+        #submitSection .enquiry-md-panel select.enquiry-md-control,
+        #submitSection .enquiry-md-panel input.enquiry-md-control,
+        #submitSection #enquiryProMarkupMultiWrap select.city-markup-type,
+        #submitSection #enquiryProMarkupMultiWrap select.city-discount-type,
+        #submitSection #enquiryProMarkupMultiWrap input.city-markup-value,
+        #submitSection #enquiryProMarkupMultiWrap input.city-hotel-markup,
+        #submitSection #enquiryProMarkupMultiWrap input.city-other-markup,
+        #submitSection #enquiryProMarkupMultiWrap input.city-discount-value,
+        #submitSection #enquiryProMarkupSingleWrap select,
+        #submitSection #enquiryProMarkupSingleWrap input[type="number"] {
+            height: 36px;
+            min-height: 36px;
+            font-size: 0.8rem !important;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+            padding: 0.25rem 0.5rem;
+            box-sizing: border-box;
+        }
+        /* Markup type select was forced to 58px by shared styles — widen so Flat/Type fit */
+        #submitSection #enquiryProMarkupMultiWrap select.city-markup-type {
+            width: 100% !important;
+            min-width: 110px !important;
+            max-width: 140px;
+            padding-right: 1.75rem !important;
+            appearance: auto;
+            -webkit-appearance: menulist;
+        }
+        #submitSection #enquiryProMarkupMultiWrap select.city-discount-type {
+            width: 100% !important;
+            min-width: 100px !important;
+            max-width: 130px;
+            padding-right: 1.75rem !important;
+            appearance: auto;
+            -webkit-appearance: menulist;
+        }
+        #submitSection #enquiryProMarkupMultiWrap input.city-hotel-markup,
+        #submitSection #enquiryProMarkupMultiWrap input.city-other-markup,
+        #submitSection #enquiryProMarkupMultiWrap input.city-discount-value {
+            width: 100% !important;
+            min-width: 64px;
+            text-align: right;
+        }
+        #submitSection .enquiry-md-table td.enquiry-md-cell-discount {
+            min-width: 110px;
+        }
+        #submitSection .city-discount-value.is-foc-locked {
+            background: #fff7ed !important;
+            border-color: #fdba74 !important;
+            color: #9a3412;
+            font-weight: 600;
+        }
+        #submitSection .enquiry-md-markup-input {
+            display: flex;
+            align-items: stretch;
+            min-width: 120px;
+            max-width: 170px;
+        }
+        #submitSection .enquiry-md-markup-input .enquiry-md-control {
+            border-top-right-radius: 0 !important;
+            border-bottom-right-radius: 0 !important;
+            flex: 1 1 auto;
+            min-width: 0;
+            width: 100% !important;
+            height: 36px;
+        }
+        #submitSection .enquiry-md-markup-input .city-markup-suffix {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 42px;
+            height: 36px;
+            padding: 0 0.45rem;
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: #64748b;
+            background: #f1f5f9;
+            border: 1px solid #dee2e6;
+            border-left: 0;
+            border-radius: 0 8px 8px 0;
+            white-space: nowrap;
+            box-sizing: border-box;
+        }
     </style>
     <div class="content-wrapper">
     <div class="container-xxl flex-grow-1 container-p-y">
@@ -797,12 +960,18 @@
                     $dmcUser = \App\Models\User::where('userId', $finalDmcId)->first();
                 }
 
+                $isThirdPartyDmc = strtolower(trim((string) (optional($dmcUser)->thirdparty ?? 'no'))) === 'yes';
+
                 $dmcCurrency = strtoupper(trim((string) (
                     optional($dmcUser)->currency
                     ?? auth()->user()->currency
                     ?? \App\Helpers\CommonHelper::getDmcCurrencyByCountry()
                     ?? 'SGD'
                 ))) ?: 'SGD';
+
+                // Master-DMC sibling map: country => inventory DMC id (Singapore→SG DMC, India→IN DMC)
+                $siblingDmcCountryMap = \App\Helpers\CommonHelper::getSiblingDmcCountryMap((int) $finalDmcId);
+                $siblingDmcCityMap = \App\Helpers\CommonHelper::getSiblingDmcCityMap((int) $finalDmcId);
             @endphp
             
             <!-- Main Form Card - All in One Row -->
@@ -835,16 +1004,22 @@
                                             <span class="slider"></span>
                                         </div>
                                     </div>
-                                    <div class="ms-3" style="min-width: 230px;">
-                                        <div class="city-toggle">
+                                    <div class="ms-3 d-flex align-items-center flex-wrap gap-2" style="min-width: 230px;">
+                                        <div class="city-toggle{{ !empty($isThirdPartyDmc) ? ' is-thirdparty-disabled' : '' }}" @if(!empty($isThirdPartyDmc)) title="Multi City cannot be accessed for 3rd party DMC." @endif>
                                             <input type="radio" name="city_mode" id="city_mode_single" value="single" checked>
                                             <label for="city_mode_single">Single City</label>
 
-                                            <input type="radio" name="city_mode" id="city_mode_multi" value="multi">
+                                            <input type="radio" name="city_mode" id="city_mode_multi" value="multi" @if(!empty($isThirdPartyDmc)) disabled @endif>
                                             <label for="city_mode_multi">Multi City</label>
 
                                             <span class="slider"></span>
                                         </div>
+                                        @if(!empty($isThirdPartyDmc))
+                                            <div class="d-flex align-items-center px-2 py-1" style="background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.35); border-radius: 8px; color: #fff; font-size: 0.72rem; line-height: 1.25; max-width: 220px;">
+                                                <i class="ri-information-line me-1" style="font-size: 0.9rem;"></i>
+                                                <span>Multi City cannot be accessed for 3rd party DMC.</span>
+                                            </div>
+                                        @endif
                                     </div>
                                 </div>
                             </div>
@@ -1301,19 +1476,6 @@
                                     </div>
                                 </div>
                             </div>
-                            
-                            <!-- Supplement breakfast (shown when room has breakfast_included = 1) -->
-                            <div id="hotelSupplementBreakfastWrap" class="row g-2 mb-3" style="display: none;">
-                                <div class="col-md-12">
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="hotelSupplementBreakfastIncluded" value="1" onchange="if(typeof updateRoomPriceDisplay==='function') updateRoomPriceDisplay();">
-                                        <label class="form-check-label" for="hotelSupplementBreakfastIncluded" style="color: #495057; font-size: 0.85rem;">
-                                            Supplement breakfast included
-                                        </label>
-                                    </div>
-                                    <small class="text-muted d-block" style="font-size: 0.75rem;">Room offers complementary breakfast. Check if supplement breakfast applies to this booking.</small>
-                                </div>
-                            </div>
 
                             <!-- Child pricing (shown only when selected room has child_with_bed/child_without_bed prices) -->
                             <div id="hotelChildPricingSection" class="row g-2 mb-3" style="display: none;">
@@ -1429,9 +1591,44 @@
                                             <i class="ri-add-line me-1"></i> Add
                                         </button>
 
+                                        <button type="button" class="btn btn-outline-primary d-none align-items-center gap-1" id="liteHotelViewDetailsBtn" onclick="window.toggleLiteHotelPriceBreakdownPanel && window.toggleLiteHotelPriceBreakdownPanel()" title="View hotel pricing details" style="height: 36px; border-radius: 6px; font-size: 0.85rem; font-weight: 500; padding: 0.375rem 1rem; white-space: nowrap;">
+                                            <i class="ri-file-list-3-line" id="liteHotelViewDetailsBtnIcon"></i>
+                                            <span id="liteHotelViewDetailsBtnLabel">View details</span>
+                                        </button>
+
                                         <button type="button" class="btn btn-outline-secondary" id="clearHotelFormBtn" onclick="clearHotelForm()" title="Reset hotel form fields" style="height: 36px; border-radius: 6px; font-size: 0.85rem; font-weight: 500; padding: 0.375rem 1rem; white-space: nowrap;">
                                             <i class="ri-eraser-line me-1"></i>Clear
                                         </button>
+                                    </div>
+                                </div>
+
+                                <!-- Hotel Pricing Details — toggled by View details / Hide details -->
+                                <div id="liteHotelPriceBreakdownPanel" class="row g-2 mt-2 mb-2" style="display: none;">
+                                    <div class="col-12">
+                                        <div class="card shadow-sm" style="border-radius: 8px; border: 2px solid #60a5fa; overflow: hidden;">
+                                            <div style="background: linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%); padding: 10px 15px; border-bottom: 1px solid #cbd5e1;">
+                                                <div class="d-flex align-items-center justify-content-between">
+                                                    <div class="d-flex align-items-center">
+                                                        <i class="ri-hotel-line me-2" style="font-size: 1.1rem; color: #0d9488;"></i>
+                                                        <span class="fw-bold" style="font-size: 0.85rem; color: #1e293b;">Hotel Pricing Details</span>
+                                                    </div>
+                                                    <button type="button" class="btn btn-sm btn-link p-0 text-decoration-none" id="liteHotelPriceInfoBtn" onclick="window.toggleLiteHotelPriceBreakdownPanel && window.toggleLiteHotelPriceBreakdownPanel(false)" title="Hide pricing details" style="color: #2563eb;">
+                                                        <i class="ri-close-line" style="font-size: 1.1rem;"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div class="card-body p-3" id="liteHotelPriceBreakdownBody" style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);">
+                                                <div id="liteHotelPriceGridBody">
+                                                    <div class="text-muted text-center py-2" style="font-size: 0.75rem;">Click Get Price to see breakdown</div>
+                                                </div>
+                                                <div class="border-top pt-2 mt-2" style="border-color: #93c5fd !important;">
+                                                    <div class="d-flex justify-content-between align-items-center">
+                                                        <span class="fw-bold" style="font-size: 0.8rem; color: #1e40af;">Total:</span>
+                                                        <span class="fw-bold" style="font-size: 0.9rem; color: #198754;" id="liteHotelGrandTotal">{{ $dmcCurrency }} 0.00</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                                 
@@ -1442,6 +1639,27 @@
 
                             <!-- Selected Hotels Display -->
                             <div id="selectedHotels"></div>
+
+                            <!-- Selected hotel price breakdown modal (after Add) -->
+                            <div class="modal fade" id="selectedHotelPriceBreakdownModal" tabindex="-1" aria-labelledby="selectedHotelPriceBreakdownModalLabel" aria-hidden="true">
+                                <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+                                    <div class="modal-content" style="border-radius: 10px; border: 2px solid #60a5fa; overflow: hidden;">
+                                        <div class="modal-header py-2" style="background: linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%); border-bottom: 1px solid #cbd5e1;">
+                                            <div class="d-flex align-items-center">
+                                                <i class="ri-calculator-line me-2" style="font-size: 1.1rem; color: #2563eb;"></i>
+                                                <h5 class="modal-title fw-bold mb-0" id="selectedHotelPriceBreakdownModalLabel" style="font-size: 0.95rem; color: #1e293b;">Price Breakdown</h5>
+                                            </div>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                        </div>
+                                        <div class="modal-body p-3" id="selectedHotelPriceBreakdownModalBody" style="background: #ffffff;">
+                                            <div class="text-muted text-center py-2" style="font-size: 0.8rem;">No breakdown available</div>
+                                        </div>
+                                        <div class="modal-footer py-2" style="background: #f8fafc;">
+                                            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Close</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
 
                             <!-- Hotel Summary -->
                             <div class="row mt-3">
@@ -1589,7 +1807,7 @@
                                     <div class="col-md-2">
                                         <label class="form-label mb-1" style="font-size: 0.8rem;">Country Code</label>
                                         @php
-                                            $country_cod = App\Models\Country::where('is_active', 1)->get();
+                                            $country_cod = App\Models\Country::get();
                                             $singapore = $country_cod->firstWhere('name', 'Singapore');
                                             $defaultCountryCode = $singapore ? $singapore->country_code : ($country_cod->first()->country_code ?? '');
                                         @endphp
@@ -1684,34 +1902,81 @@
                 <div class="col-12">
                     <div class="card shadow-sm border-0">
                         <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
-                                <div>
+                            <div class="mb-3">
                                     <h6 class="mb-1">Current Bookings</h6>
                                     <p class="text-muted mb-0" id="bookingsSummary">No bookings added yet</p>
                                 </div>
-                                <div class="d-flex align-items-end gap-3 flex-wrap">
-                                    <div style="min-width: 200px;">
-                                        <label for="discount_price" class="form-label fw-semibold mb-1" style="color:#495057; font-size:0.8rem;">
-                                            <i class="ri-price-tag-3-line me-1" style="color:#667eea;"></i>Discount Amount
-                                        </label>
-                                        <div class="input-group">
-                                            <input
-                                                type="number"
-                                                min="0"
-                                                step="1"
-                                                class="form-control"
-                                                id="discount_price"
-                                                name="discount_price"
-                                                form="singleTourPackageForm"
-                                                value="{{ old('discount_price') !== null ? (int) ceil((float) old('discount_price')) : 0 }}"
-                                                placeholder="0"
-                                                style="height: 48px; border-radius: 8px 0 0 8px; font-size: 0.95rem;"
-                                            >
-                                            <span class="input-group-text fw-semibold" style="height: 48px; border-radius: 0 8px 8px 0; font-size: 0.85rem; background:#f8f9fa; color:#495057;">
-                                                {{ $dmcCurrency }}
-                                            </span>
+
+                            {{-- City-wise markup / discount (above save) — saved to tours.currency_markups --}}
+                            <div class="mb-3">
+                                <div id="enquiryProMarkupSingleWrap" class="enquiry-md-panel" style="display: none;">
+                                    <div class="enquiry-md-panel__head" role="button" tabindex="0" aria-expanded="true"
+                                         onclick="toggleEnquiryMdAccordion(this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleEnquiryMdAccordion(this);}">
+                                        <div class="enquiry-md-panel__head-left">
+                                            <span class="enquiry-md-panel__chevron" aria-hidden="true">▼</span>
+                                            <p class="enquiry-md-panel__title">Pricing adjustments</p>
+                                        </div>
+                                        <p class="enquiry-md-panel__hint">Markup &amp; discount</p>
+                                    </div>
+                                    <div class="enquiry-md-panel__body">
+                                        <div class="enquiry-md-single">
+                                            <div class="enquiry-md-field enquiry-md-field--markup">
+                                                <label class="enquiry-md-field__label" for="markupType">Markup</label>
+                                                <select id="markupType" class="enquiry-md-control" onchange="handleMarkupTypeChange()">
+                                                    <option value="" selected>Type</option>
+                                                    <option value="percentage">%</option>
+                                                    <option value="flat">Fixed</option>
+                                                </select>
+                                                <input type="number" id="markupValue" class="enquiry-md-control" value="0" step="1" min="0" disabled
+                                                       oninput="applyMarkupDiscount()" placeholder="0">
+                                            </div>
+                                            <div class="enquiry-md-field enquiry-md-field--discount">
+                                                <label class="enquiry-md-field__label" for="discountType">Discount</label>
+                                                <select id="discountType" class="enquiry-md-control" onchange="handleDiscountTypeChange()">
+                                                    <option value="" selected>Type</option>
+                                                    <option value="percentage">%</option>
+                                                    <option value="flat">Fixed</option>
+                                                    <option value="foc">FOC</option>
+                                                </select>
+                                                <input type="number" id="discountValue" class="enquiry-md-control" value="0" step="1" min="0" disabled
+                                                       oninput="applyMarkupDiscount()" placeholder="0">
+                                            </div>
                                         </div>
                                     </div>
+                                </div>
+                                <div id="enquiryProMarkupMultiWrap" class="enquiry-md-panel" style="display: none;">
+                                    <div class="enquiry-md-panel__head" role="button" tabindex="0" aria-expanded="true"
+                                         onclick="toggleEnquiryMdAccordion(this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleEnquiryMdAccordion(this);}">
+                                        <div class="enquiry-md-panel__head-left">
+                                            <span class="enquiry-md-panel__chevron" aria-hidden="true">▼</span>
+                                            <p class="enquiry-md-panel__title">Pricing by city</p>
+                                            <span class="enquiry-md-panel__count" id="enquiryProMarkupCityCount">0</span>
+                                        </div>
+                                        <p class="enquiry-md-panel__hint">Per destination currency</p>
+                                    </div>
+                                    <div class="enquiry-md-panel__body">
+                                        <div class="enquiry-md-table-wrap">
+                                            <table class="enquiry-md-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th scope="col">City</th>
+                                                        <th scope="col" class="enquiry-md-th-markup">Markup type</th>
+                                                        <th scope="col" class="enquiry-md-th-markup">Hotel markup</th>
+                                                        <th scope="col" class="enquiry-md-th-markup">Other markup</th>
+                                                        <th scope="col" class="enquiry-md-th-discount">Disc type</th>
+                                                        <th scope="col" class="enquiry-md-th-discount">Disc value</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="enquiryProCityMarkupBody"></tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <input type="hidden" id="discount_price" name="discount_price" form="singleTourPackageForm" value="{{ old('discount_price') !== null ? (int) ceil((float) old('discount_price')) : 0 }}">
+
+                            <div class="d-flex justify-content-end align-items-end flex-wrap gap-3">
                                     <span class="d-inline-block tour-submit-wrap tour-submit-wrap--disabled"
                                           id="tour-submit-btn-wrap"
                                           tabindex="0"
@@ -1722,7 +1987,6 @@
                                             <i class="ri-save-line me-2"></i>Save Tour Package
                                         </button>
                                     </span>
-                                </div>
                             </div>
                         </div>
                     </div>
@@ -1734,6 +1998,7 @@
                     
                     // DMC User data for zone handling
                     const UserDmc = @json($dmcUser);
+                    window.IS_THIRD_PARTY_DMC = @json(!empty($isThirdPartyDmc));
 
                     window.TOUR_PACKAGE_CURRENCY = @json($dmcCurrency);
                     window.getTourCurrency = function () {
@@ -1745,6 +2010,264 @@
                     };
                     window.formatTourPriceParen = function (amount) {
                         return '(' + window.getTourCurrency() + ' ' + Number(amount || 0).toFixed(2) + ')';
+                    };
+
+                    /** City + country for the stay currently being edited (multi-city plan or single city). */
+                    window.getActiveServiceGeo = function () {
+                        const geo = { city: '', country: '' };
+                        const fromOption = function (opt, fallbackValue) {
+                            const out = { city: '', country: '' };
+                            if (!opt) {
+                                out.city = String(fallbackValue || '').trim();
+                                return out;
+                            }
+                            out.city = String(opt.getAttribute('data-city-name') || '').trim()
+                                || String(opt.textContent || '').split('(')[0].trim()
+                                || String(fallbackValue || '').trim();
+                            out.country = String(opt.getAttribute('data-country') || '').trim();
+                            if (!out.country) {
+                                const m = String(opt.textContent || '').match(/\(([^)]+)\)\s*$/);
+                                if (m && m[1]) out.country = String(m[1]).trim();
+                            }
+                            return out;
+                        };
+                        try {
+                            const modeEl = document.querySelector('input[name="city_mode"]:checked');
+                            const isMulti = modeEl && modeEl.value === 'multi';
+                            if (isMulti) {
+                                const bundle = document.getElementById('segmentServicesBundle');
+                                const seg = bundle ? bundle.closest('.segment') : null;
+                                const sel = seg ? seg.querySelector('.city-select') : null;
+                                if (sel && sel.selectedIndex >= 0) {
+                                    const parsed = fromOption(sel.options[sel.selectedIndex], sel.value);
+                                    if (parsed.city || parsed.country) return parsed;
+                                }
+                            }
+
+                            const sc = document.getElementById('single_city');
+                            if (sc && String(sc.value || '').trim()) {
+                                let parsed = fromOption(sc.selectedIndex >= 0 ? sc.options[sc.selectedIndex] : null, sc.value);
+                                try {
+                                    if (typeof $ !== 'undefined' && $(sc).data('select2')) {
+                                        const d = $(sc).select2('data');
+                                        if (d && d[0]) {
+                                            if (!parsed.city && d[0].text) parsed.city = String(d[0].text).split('(')[0].trim();
+                                            if (!parsed.country && d[0].country) parsed.country = String(d[0].country).trim();
+                                        }
+                                    }
+                                } catch (e) { /* ignore */ }
+                                if (parsed.city || parsed.country) {
+                                    geo.city = parsed.city;
+                                    geo.country = parsed.country;
+                                }
+                            }
+                            if (!geo.country) {
+                                geo.country = String(document.getElementById('user_country')?.value || '').trim();
+                            }
+                        } catch (e) { /* ignore */ }
+                        return geo;
+                    };
+                    window.getActiveServiceCity = function () {
+                        return String((window.getActiveServiceGeo() || {}).city || '').trim();
+                    };
+                    window.getActiveServiceCountry = function () {
+                        return String((window.getActiveServiceGeo() || {}).country || '').trim();
+                    };
+
+                    // Master DMC multi-country inventory: city/country → sibling DMC id
+                    window.operatingDmcId = parseInt('{{ (int) $finalDmcId }}', 10) || 0;
+                    window.siblingDmcCountryMap = @json($siblingDmcCountryMap ?? []);
+                    window.siblingDmcCityMap = @json($siblingDmcCityMap ?? []);
+                    window.resolveDmcIdForCountry = function (country) {
+                        const c = String(country || '').trim();
+                        const map = window.siblingDmcCountryMap || {};
+                        if (!c) return window.operatingDmcId || 0;
+                        if (map[c]) return parseInt(map[c], 10) || window.operatingDmcId || 0;
+                        const lower = c.toLowerCase();
+                        for (const key of Object.keys(map)) {
+                            if (String(key).toLowerCase() === lower) {
+                                return parseInt(map[key], 10) || window.operatingDmcId || 0;
+                            }
+                        }
+                        return window.operatingDmcId || 0;
+                    };
+                    /** Look up country for a city from form selects (data-country), not active segment. */
+                    window.resolveCountryForCityName = function (cityName) {
+                        const target = String(cityName || '').trim().toLowerCase();
+                        if (!target) return '';
+                        try {
+                            const selectors = [
+                                '#single_city', '#user_city', '#multi_cities',
+                                'select.city-select', 'select[id*="_city_"]', 'select[id*="City"]',
+                                '#modal_hotel_city_select', '#modal_attraction_city_select', '#modal_guide_city_select'
+                            ];
+                            for (const sel of selectors) {
+                                const els = document.querySelectorAll(sel);
+                                for (const el of els) {
+                                    const opts = el.options ? Array.from(el.options) : [];
+                                    for (const opt of opts) {
+                                        const optCity = String(opt.value || '').trim().toLowerCase();
+                                        const optText = String(opt.textContent || '').replace(/\s*\([^)]*\)\s*$/, '').trim().toLowerCase();
+                                        const optCityName = String(opt.getAttribute('data-city-name') || '').trim().toLowerCase();
+                                        if (optCity === target || optText === target || (optCityName && optCityName === target)) {
+                                            const dc = String(opt.getAttribute('data-country') || '').trim();
+                                            if (dc) return dc;
+                                        }
+                                    }
+                                }
+                            }
+                            // single_city: value is often numeric city_id — match by name / select2 country
+                            const sc = document.getElementById('single_city');
+                            if (sc && String(sc.value || '').trim()) {
+                                const opt = sc.selectedOptions && sc.selectedOptions[0] ? sc.selectedOptions[0] : null;
+                                const selCity = String(sc.value || '').trim().toLowerCase();
+                                const optCityName = opt
+                                    ? (String(opt.getAttribute('data-city-name') || '').trim().toLowerCase()
+                                        || String(opt.textContent || '').replace(/\s*\([^)]*\)\s*$/, '').trim().toLowerCase())
+                                    : '';
+                                let matched = (selCity === target || (optCityName && optCityName === target));
+                                if (!matched && typeof window.getSingleCityName === 'function') {
+                                    matched = String(window.getSingleCityName() || '').trim().toLowerCase() === target;
+                                }
+                                if (matched) {
+                                    if (opt) {
+                                        const dc = String(opt.getAttribute('data-country') || '').trim();
+                                        if (dc) return dc;
+                                    }
+                                    try {
+                                        if (typeof $ !== 'undefined' && $(sc).data('select2')) {
+                                            const d = $(sc).select2('data');
+                                            if (d && d[0] && d[0].country) {
+                                                return String(d[0].country).trim();
+                                            }
+                                        }
+                                    } catch (eSc) { /* ignore */ }
+                                }
+                            }
+                            const uc = document.getElementById('user_country');
+                            if (uc && uc.value && selCityMatchesUserCity(target)) {
+                                return String(uc.value || '').trim();
+                            }
+                        } catch (e) { /* ignore */ }
+                        return '';
+                    };
+                    function selCityMatchesUserCity(target) {
+                        try {
+                            const sc = document.getElementById('single_city');
+                            if (!sc) return false;
+                            const selVal = String(sc.value || '').trim().toLowerCase();
+                            if (selVal === target) return true;
+                            if (typeof window.getSingleCityName === 'function') {
+                                return String(window.getSingleCityName() || '').trim().toLowerCase() === target;
+                            }
+                            return false;
+                        } catch (e) { return false; }
+                    }
+                    window.resolveDmcIdForCity = function (cityName, countryHint) {
+                        const city = String(cityName || '').trim();
+                        const cityMap = window.siblingDmcCityMap || {};
+                        if (city) {
+                            const lower = city.toLowerCase();
+                            if (cityMap[city]) return parseInt(cityMap[city], 10) || 0;
+                            if (cityMap[lower]) return parseInt(cityMap[lower], 10) || 0;
+                            for (const key of Object.keys(cityMap)) {
+                                if (String(key).toLowerCase() === lower) {
+                                    return parseInt(cityMap[key], 10) || 0;
+                                }
+                            }
+                        }
+                        // Prefer country belonging to THIS city — never trust a stale active-segment country
+                        let country = window.resolveCountryForCityName(cityName);
+                        if (!country) {
+                            country = String(countryHint || '').trim();
+                        }
+                        // City name itself may be a country capital / same as country (e.g. Singapore)
+                        if (!country && cityName) {
+                            const map = window.siblingDmcCountryMap || {};
+                            const lower = String(cityName).trim().toLowerCase();
+                            for (const key of Object.keys(map)) {
+                                if (String(key).toLowerCase() === lower) {
+                                    country = key;
+                                    break;
+                                }
+                            }
+                        }
+                        if (!country && typeof window.getActiveServiceCountry === 'function' && !cityName) {
+                            country = window.getActiveServiceCountry();
+                        }
+                        return window.resolveDmcIdForCountry(country);
+                    };
+                    window.getActiveServiceDmcId = function (cityName) {
+                        const city = String(cityName || (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : '') || '').trim();
+                        // Country must come from the city itself (e.g. Batam → Indonesia sibling DMC)
+                        let countryFromCity = city ? window.resolveCountryForCityName(city) : '';
+                        if (!countryFromCity && typeof window.getActiveServiceGeo === 'function') {
+                            const geo = window.getActiveServiceGeo() || {};
+                            const activeCity = String(geo.city || '').trim().toLowerCase();
+                            if (!city || !activeCity || city.toLowerCase() === activeCity) {
+                                countryFromCity = String(geo.country || '').trim();
+                            }
+                        }
+                        return window.resolveDmcIdForCity(city, countryFromCity) || window.operatingDmcId || 0;
+                    };
+                    window.pickInventoryCityName = function (cityHint) {
+                        let city = String(cityHint || '').trim();
+                        if (!city || city.indexOf(',') === -1) {
+                            return city;
+                        }
+                        const parts = city.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+                        const active = (typeof window.getActiveServiceCity === 'function')
+                            ? String(window.getActiveServiceCity() || '').trim()
+                            : '';
+                        if (active) {
+                            const hit = parts.find(function (p) { return p.toLowerCase() === active.toLowerCase(); });
+                            if (hit) return hit;
+                        }
+                        if (typeof window.resolveDmcIdForCity === 'function') {
+                            for (let i = 0; i < parts.length; i++) {
+                                const id = window.resolveDmcIdForCity(parts[i]);
+                                if (id && String(id) !== String(window.operatingDmcId || '')) {
+                                    return parts[i];
+                                }
+                            }
+                        }
+                        return parts[0] || city;
+                    };
+                    window.withInventoryDmcPayload = function (payload, cityHint) {
+                        const base = payload && typeof payload === 'object' ? payload : {};
+                        let city = String(cityHint || base.city || (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : '') || document.getElementById('modal_local_transfer_city')?.value || document.getElementById('modal_exit_city')?.value || '').trim();
+                        if (typeof window.pickInventoryCityName === 'function') {
+                            city = window.pickInventoryCityName(city) || city;
+                        }
+                        let country = String(base.country || '').trim();
+                        if (!country && city && typeof window.resolveCountryForCityName === 'function') {
+                            country = String(window.resolveCountryForCityName(city) || '').trim();
+                        }
+                        const dmcId = (typeof window.getActiveServiceDmcId === 'function')
+                            ? window.getActiveServiceDmcId(city)
+                            : (window.operatingDmcId || '');
+                        return Object.assign({}, base, {
+                            city: city || base.city || '',
+                            country: country || base.country || '',
+                            dmc_id: dmcId || base.dmc_id || ''
+                        });
+                    };
+                    /** Build hotel/room inventory query params for a city. */
+                    window.buildInventoryDmcQuery = function (cityName) {
+                        let city = String(cityName || '').trim();
+                        if (typeof window.pickInventoryCityName === 'function') {
+                            city = window.pickInventoryCityName(city) || city;
+                        }
+                        const country = city ? (window.resolveCountryForCityName(city) || '') : '';
+                        const dmcId = (typeof window.getActiveServiceDmcId === 'function')
+                            ? window.getActiveServiceDmcId(city)
+                            : (window.operatingDmcId || '');
+                        return {
+                            city: city,
+                            country: country,
+                            dmc_id: dmcId,
+                            qs: `city=${encodeURIComponent(city)}&country=${encodeURIComponent(country)}&dmc_id=${encodeURIComponent(dmcId || '')}`
+                        };
                     };
 
                     // ==============================
@@ -1929,24 +2452,135 @@
                         return room.breakfast_included == 1 || room.breakfast_included === true || room.breakfast_included === '1';
                     };
 
+                    /** Breakfast available for charging (breakfast flag) — not complementary. */
+                    window.isRoomBreakfastChargeable = function(room) {
+                        if (!room) return false;
+                        if (window.isRoomBreakfastIncluded(room)) return false;
+                        return room.breakfast == 1 || room.breakfast === true || room.breakfast === '1';
+                    };
+
+                    /**
+                     * Complementary breakfast → "breakfast (complementary)";
+                     * Chargeable breakfast → plain "breakfast" (no chargeable label in UI).
+                     */
+                    window.getBreakfastPlanPhrase = function(rooms) {
+                        const list = Array.isArray(rooms) ? rooms : (rooms ? [rooms] : []);
+                        if (!list.length) return null;
+                        if (list.some(window.isRoomBreakfastIncluded)) {
+                            return 'breakfast (complementary)';
+                        }
+                        if (list.some(function (r) {
+                            return r && (r.breakfast == 1 || r.breakfast === true || r.breakfast === '1');
+                        })) {
+                            return 'breakfast';
+                        }
+                        return null;
+                    };
+
+                    /** Build meal-plan option strings for a set of rooms (room-type scoped). */
+                    window.buildHotelMealPlanOptions = function(rooms, roomText) {
+                        roomText = roomText || 'room';
+                        const list = Array.isArray(rooms) ? rooms : [];
+                        const plans = [];
+                        const hasRoomsOnly = list.some(function (r) {
+                            return r && (r.rooms_only == 1 || r.rooms_only === true || r.rooms_only === '1');
+                        });
+                        const hasComplementaryBreakfast = list.some(window.isRoomBreakfastIncluded);
+                        const bfPhrase = window.getBreakfastPlanPhrase(list);
+                        const hasBreakfast = !!bfPhrase;
+                        const hasLunch = list.some(function (r) {
+                            return r && (r.lunch == 1 || r.lunch === true || r.lunch === '1');
+                        });
+                        const hasDinner = list.some(function (r) {
+                            return r && (r.dinner == 1 || r.dinner === true || r.dinner === '1');
+                        });
+
+                        // Hide "room only" when complementary breakfast is included with the room.
+                        if (!hasRoomsOnly && !hasComplementaryBreakfast) {
+                            plans.push(roomText + ' only');
+                        }
+                        if (hasBreakfast) {
+                            plans.push(roomText + ' with ' + bfPhrase);
+                        }
+                        if (hasLunch) {
+                            plans.push(roomText + ' with lunch');
+                        }
+                        if (hasDinner) {
+                            plans.push(roomText + ' with dinner');
+                        }
+                        if (hasBreakfast && hasLunch) {
+                            plans.push(roomText + ' with ' + bfPhrase + ' + lunch');
+                        }
+                        if (hasBreakfast && hasDinner) {
+                            plans.push(roomText + ' with ' + bfPhrase + ' + dinner');
+                        }
+                        if (hasLunch && hasDinner) {
+                            plans.push(roomText + ' with lunch + dinner');
+                        }
+                        if (hasBreakfast && hasLunch && hasDinner) {
+                            plans.push(roomText + ' with all meals (' + bfPhrase + ' + lunch + dinner)');
+                        }
+                        return plans;
+                    };
+
                     window.updateHotelSupplementBreakfastVisibility = function(roomType) {
-                        const wrap = document.getElementById('hotelSupplementBreakfastWrap');
-                        const chk = document.getElementById('hotelSupplementBreakfastIncluded');
-                        if (!wrap) return;
-
-                        let show = false;
-                        if (roomType && window.roomData && Array.isArray(window.roomData)) {
-                            const roomsOfType = window.roomData.filter(function(r) { return r.room_type === roomType; });
-                            show = roomsOfType.some(window.isRoomBreakfastIncluded);
-                        }
-
-                        wrap.style.display = show ? '' : 'none';
-                        if (!show && chk) {
-                            chk.checked = false;
-                        }
+                        // Supplement breakfast checkbox removed — complementary is handled via meal plan / pricing.
                     };
 
                     // Define calculateCorrectMealCosts early to ensure it's available
+                    window.getChildMealFactor = function (childrenPriceCode) {
+                        const code = parseInt(childrenPriceCode, 10);
+                        if (code === 0) return 0;
+                        if (code === 1) return 0.5;
+                        return 1;
+                    };
+
+                    window.resolveHotelMealGuestSplit = function (pax, tourChildren) {
+                        const total = Math.max(1, parseInt(pax, 10) || 1);
+                        const kids = Math.min(Math.max(0, parseInt(tourChildren, 10) || 0), total);
+                        return { adults: total - kids, children: kids, pax: total };
+                    };
+
+                    /** Adult/child meal detail: Adult SGD 12.00 × 2 + Child SGD 6.00 × 2 × nights */
+                    window.formatAdultChildMealDetail = function (opts) {
+                        opts = opts || {};
+                        const cur = opts.currency || (typeof getTourCurrency === 'function' ? getTourCurrency() : '');
+                        const adultUnit = Number(opts.adultUnit) || 0;
+                        const adultCount = Math.max(0, parseInt(opts.adults, 10) || 0);
+                        const childCount = Math.max(0, parseInt(opts.children, 10) || 0);
+                        const childFactor = (opts.childFactor != null)
+                            ? Number(opts.childFactor)
+                            : (typeof window.getChildMealFactor === 'function' ? window.getChildMealFactor(opts.childrenPrice) : 1);
+                        const childUnit = adultUnit * childFactor;
+                        const nights = Math.max(1, parseInt(opts.nights, 10) || 1);
+                        const rooms = Math.max(1, parseInt(opts.rooms, 10) || 1);
+                        const total = opts.total != null
+                            ? Number(opts.total)
+                            : ((adultUnit * adultCount) + (childUnit * childCount)) * nights * rooms;
+
+                        const parts = [];
+                        if (adultCount > 0) {
+                            parts.push(`Adult price ${cur} ${adultUnit.toFixed(2)} × ${adultCount}`);
+                        }
+                        if (childCount > 0) {
+                            if (childFactor <= 0) {
+                                parts.push(`Child free × ${childCount}`);
+                            } else if (Math.abs(childFactor - 0.5) < 0.001) {
+                                parts.push(`Child price ${cur} ${childUnit.toFixed(2)} (half) × ${childCount}`);
+                            } else {
+                                parts.push(`Child price ${cur} ${childUnit.toFixed(2)} × ${childCount}`);
+                            }
+                        }
+                        if (!parts.length) {
+                            parts.push(`${cur} ${adultUnit.toFixed(2)}/person × 0`);
+                        }
+                        let line = parts.join(' + ') + ` × ${nights} night(s)`;
+                        if (rooms > 1) line += ` × ${rooms} room(s)`;
+                        line += ` = ${cur} ${total.toFixed(2)}`;
+                        if (opts.suffix) line += ' ' + opts.suffix;
+                        return line;
+                    };
+
                     window.calculateCorrectMealCosts = function(mealPlan, numNights, adults, children, mealPrices, numRooms, opts) {
                         opts = opts || {};
                         if (!mealPlan || mealPlan === 'Not specified' || mealPlan.includes('only')) {
@@ -1954,8 +2588,20 @@
                         }
                         
                         let totalMealCost = 0;
-                        const totalGuests = adults + children;
-                        const skipBreakfastCost = !!opts.supplementBreakfastIncluded;
+                        const adultCount = Math.max(0, parseInt(adults, 10) || 0);
+                        const childCount = Math.max(0, parseInt(children, 10) || 0);
+                        const childrenPriceCode = opts.childrenPrice != null
+                            ? opts.childrenPrice
+                            : (mealPrices && mealPrices.children_price != null ? mealPrices.children_price : 2);
+                        const childFactor = (opts.childMealFactor != null)
+                            ? Number(opts.childMealFactor)
+                            : (typeof window.getChildMealFactor === 'function'
+                                ? window.getChildMealFactor(childrenPriceCode)
+                                : 1);
+                        // Adults full + children × rooms.children_price (0 free / 0.5 half / 1 full)
+                        const mealPaxEq = adultCount + (childCount * childFactor);
+                        // Complementary breakfast is free; charge only when not complementary (chargable).
+                        const skipBreakfastCost = !!(opts.breakfastIncluded || opts.complementaryBreakfast || opts.supplementBreakfastIncluded);
 
                         // Prefer the rate-aware per-meal totals from HotelPriceHelper when available.
                         // helperMeals holds per-single-room totals (already × pax × nights), so we
@@ -1975,21 +2621,21 @@
                             if (!skipBreakfastCost && (mealPlan.includes('breakfast') || mealPlan.includes('bf'))) {
                                 const breakfastPrice = parseFloat(mealPrices.breakfast_price) || 0;
                                 if (breakfastPrice > 0) {
-                                    totalMealCost += breakfastPrice * totalGuests * numNights * numRooms;
+                                    totalMealCost += breakfastPrice * mealPaxEq * numNights * numRooms;
                                 }
                             }
                             
                             if (mealPlan.includes('lunch')) {
                                 const lunchPrice = parseFloat(mealPrices.lunch_price) || 0;
                                 if (lunchPrice > 0) {
-                                    totalMealCost += lunchPrice * totalGuests * numNights * numRooms;
+                                    totalMealCost += lunchPrice * mealPaxEq * numNights * numRooms;
                                 }
                             }
                             
                             if (mealPlan.includes('dinner')) {
                                 const dinnerPrice = parseFloat(mealPrices.dinner_price) || 0;
                                 if (dinnerPrice > 0) {
-                                    totalMealCost += dinnerPrice * totalGuests * numNights * numRooms;
+                                    totalMealCost += dinnerPrice * mealPaxEq * numNights * numRooms;
                                 }
                             }
                         }
@@ -2005,7 +2651,8 @@
                         const plan = (hotel.mealPlan || '').toLowerCase();
 
                         if (mealType === 'breakfast') {
-                            if (hotel.supplement_breakfast_included) return 0;
+                            // Complementary (or marked supplement-included) → no charge
+                            if (hotel.breakfast_included_room || hotel.supplement_breakfast_included) return 0;
                             if (!plan.includes('breakfast') && !plan.includes('bf')) return 0;
                         } else if (!plan.includes(mealType)) {
                             return 0;
@@ -2027,33 +2674,61 @@
                         const nights = parseInt(hotel.totalNights, 10) || 1;
                         const rooms = parseInt(hotel.numberOfRooms, 10) || 1;
                         const plan = (hotel.mealPlan || '').toLowerCase();
+                        const tourChildren = hotel.children != null
+                            ? parseInt(hotel.children, 10) || 0
+                            : (hotel.helperMeals && hotel.helperMeals.children != null
+                                ? parseInt(hotel.helperMeals.children, 10) || 0
+                                : (parseInt(document.getElementById('children')?.value || '0', 10) || 0));
+                        const split = (hotel.helperMeals && hotel.helperMeals.adults != null)
+                            ? {
+                                adults: Math.max(0, parseInt(hotel.helperMeals.adults, 10) || 0),
+                                children: Math.max(0, parseInt(hotel.helperMeals.children, 10) || 0),
+                                pax: persons
+                              }
+                            : (typeof window.resolveHotelMealGuestSplit === 'function'
+                                ? window.resolveHotelMealGuestSplit(persons, tourChildren)
+                                : { adults: persons, children: 0 });
+                        const childrenPrice = hotel.children_price != null
+                            ? hotel.children_price
+                            : (hotel.helperMeals && hotel.helperMeals.children_price != null
+                                ? hotel.helperMeals.children_price
+                                : (hotel.mealPrices && hotel.mealPrices.children_price != null ? hotel.mealPrices.children_price : 2));
+                        const childFactor = hotel.child_meal_factor != null
+                            ? Number(hotel.child_meal_factor)
+                            : (hotel.helperMeals && hotel.helperMeals.child_meal_factor != null
+                                ? Number(hotel.helperMeals.child_meal_factor)
+                                : (typeof window.getChildMealFactor === 'function' ? window.getChildMealFactor(childrenPrice) : 1));
 
-                        if (mealType === 'breakfast' && hotel.supplement_breakfast_included) {
-                            return 'Included (supplement)';
+                        if (mealType === 'breakfast' && (hotel.breakfast_included_room || hotel.supplement_breakfast_included)) {
+                            return hotel.breakfast_included_room ? 'Included (complementary)' : 'Included (supplement)';
                         }
                         if (mealType === 'breakfast' && !plan.includes('breakfast') && !plan.includes('bf')) return '';
                         if (mealType !== 'breakfast' && !plan.includes(mealType)) return '';
 
                         const total = window.getHotelMealTypeTotal(hotel, mealType);
-
-                        if (hotel.helperMeals && typeof hotel.helperMeals === 'object') {
+                        let adultUnit = 0;
+                        if (hotel.helperMeals && hotel.helperMeals.breakdown && hotel.helperMeals.breakdown.length) {
+                            const unitKey = mealType + '_unit';
+                            for (let i = 0; i < hotel.helperMeals.breakdown.length; i++) {
+                                const u = Number(hotel.helperMeals.breakdown[i][unitKey] || 0);
+                                if (u > 0) { adultUnit = u; break; }
+                            }
+                        }
+                        if (adultUnit <= 0) {
+                            const priceKey = mealType + '_price';
+                            adultUnit = parseFloat(hotel.mealPrices && hotel.mealPrices[priceKey]) || 0;
+                        }
+                        // If helper averaged into total without unit, derive adult unit from meal-eq
+                        if (adultUnit <= 0 && hotel.helperMeals && typeof hotel.helperMeals === 'object') {
                             const perRoom = parseFloat(hotel.helperMeals[mealType]) || 0;
-                            if (perRoom <= 0 && total <= 0) {
-                                return `${cur} 0.00`;
+                            const mealEq = split.adults + (split.children * childFactor);
+                            if (mealEq > 0 && nights > 0) {
+                                adultUnit = perRoom / (mealEq * nights);
                             }
-                            const divisor = persons * nights;
-                            const perPersonNight = divisor > 0 ? (perRoom / divisor) : 0;
-                            let line = `${cur} ${perPersonNight.toFixed(2)}/person/night × ${persons} person(s) × ${nights} night(s)`;
-                            if (rooms > 1) {
-                                line += ` × ${rooms} room(s)`;
-                            }
-                            line += ` = ${cur} ${total.toFixed(2)} (rate-based)`;
-                            return line;
                         }
 
-                        const priceKey = mealType + '_price';
-                        const unit = parseFloat(hotel.mealPrices && hotel.mealPrices[priceKey]) || 0;
-                        return `${cur} ${unit.toFixed(2)} × ${persons} person(s) × ${nights} night(s) × ${rooms} room(s) = ${cur} ${total.toFixed(2)}`;
+                        // Flat meal total only (no Adult price × pax × nights formula in UI)
+                        return `${cur} ${(Number(total) || 0).toFixed(2)}`;
                     };
 
                     window.formatHotelMealCostSummaryHtml = function(hotel) {
@@ -2067,8 +2742,8 @@
                             if (amt > 0) {
                                 const label = meal.charAt(0).toUpperCase() + meal.slice(1);
                                 parts.push(`${label} ${cur} ${amt.toFixed(2)}`);
-                            } else if (meal === 'breakfast' && hotel.supplement_breakfast_included) {
-                                parts.push('Breakfast included (supplement)');
+                            } else if (meal === 'breakfast' && (hotel.breakfast_included_room || hotel.supplement_breakfast_included)) {
+                                parts.push(hotel.breakfast_included_room ? 'Breakfast included (complementary)' : 'Breakfast included (supplement)');
                             }
                         });
                         const total = window.calculateCorrectMealCosts(
@@ -2078,7 +2753,7 @@
                             0,
                             hotel.mealPrices,
                             hotel.numberOfRooms,
-                            { supplementBreakfastIncluded: !!hotel.supplement_breakfast_included, helperMeals: hotel.helperMeals || null }
+                            { breakfastIncluded: !!(hotel.breakfast_included_room), supplementBreakfastIncluded: !!hotel.supplement_breakfast_included, helperMeals: hotel.helperMeals || null }
                         );
                         if (!parts.length) {
                             return `${cur} ${Number(total).toFixed(2)}`;
@@ -2169,7 +2844,7 @@
                                 0,
                                 hotel.mealPrices,
                                 hotel.numberOfRooms,
-                                { supplementBreakfastIncluded: !!hotel.supplement_breakfast_included, helperMeals: hotel.helperMeals || null }
+                                { breakfastIncluded: !!(hotel.breakfast_included_room), supplementBreakfastIncluded: !!hotel.supplement_breakfast_included, helperMeals: hotel.helperMeals || null }
                             );
                         }
                         const cwbCost = (hotel.childWithBedEnabled && (parseFloat(hotel.childWithBedPrice) || 0) > 0)
@@ -2214,8 +2889,12 @@
                         if (hotel.mealPlan && !hotel.mealPlan.includes('only')) {
                             ['breakfast', 'lunch', 'dinner'].forEach(function(meal) {
                                 const label = meal.charAt(0).toUpperCase() + meal.slice(1);
-                                if (meal === 'breakfast' && hotel.supplement_breakfast_included) {
-                                    html += window.formatHotelCostSummaryRowHtml('Breakfast (Meal)', 'Included', 'Supplement breakfast included');
+                                if (meal === 'breakfast' && hotel.breakfast_included_room) {
+                                    html += window.formatHotelCostSummaryRowHtml(
+                                        'Breakfast (Meal)',
+                                        'Included',
+                                        ''
+                                    );
                                     return;
                                 }
                                 const amt = window.getHotelMealTypeTotal(hotel, meal);
@@ -2223,7 +2902,7 @@
                                     html += window.formatHotelCostSummaryRowHtml(
                                         label + ' (Meal)',
                                         amt,
-                                        window.formatHotelMealBreakdownLine(hotel, meal)
+                                        ''
                                     );
                                 }
                             });
@@ -2841,8 +3520,20 @@
                         }
                         
                         let totalMealCost = 0;
-                        const totalGuests = adults + children;
-                        const skipBreakfastCost = !!opts.supplementBreakfastIncluded;
+                        const adultCount = Math.max(0, parseInt(adults, 10) || 0);
+                        const childCount = Math.max(0, parseInt(children, 10) || 0);
+                        const childrenPriceCode = opts.childrenPrice != null
+                            ? opts.childrenPrice
+                            : (mealPrices && mealPrices.children_price != null ? mealPrices.children_price : 2);
+                        const childFactor = (opts.childMealFactor != null)
+                            ? Number(opts.childMealFactor)
+                            : (typeof window.getChildMealFactor === 'function'
+                                ? window.getChildMealFactor(childrenPriceCode)
+                                : 1);
+                        // Adults full + children × rooms.children_price (0 free / 0.5 half / 1 full)
+                        const mealPaxEq = adultCount + (childCount * childFactor);
+                        // Complementary breakfast is free; charge only when not complementary (chargable).
+                        const skipBreakfastCost = !!(opts.breakfastIncluded || opts.complementaryBreakfast || opts.supplementBreakfastIncluded);
 
                         // Prefer the rate-aware per-meal totals from HotelPriceHelper when available.
                         // helperMeals holds per-single-room totals (already × pax × nights), so we
@@ -2862,32 +3553,32 @@
                             if (!skipBreakfastCost && (mealPlan.includes('breakfast') || mealPlan.includes('bf'))) {
                                 const breakfastPrice = parseFloat(mealPrices.breakfast_price) || 0;
                                 if (breakfastPrice > 0) {
-                                    const breakfastCost = breakfastPrice * totalGuests * numNights * numRooms;
+                                    const breakfastCost = breakfastPrice * mealPaxEq * numNights * numRooms;
                                     totalMealCost += breakfastCost;
-                                    console.log(`CORRECTED Breakfast: ${getTourCurrency()} ${breakfastPrice} × ${totalGuests} guests × ${numNights} nights × ${numRooms} rooms = ${getTourCurrency()} ${breakfastCost}`);
+                                    console.log(`CORRECTED Breakfast: ${getTourCurrency()} ${breakfastPrice} × mealEq ${mealPaxEq} × ${numNights} nights × ${numRooms} rooms = ${getTourCurrency()} ${breakfastCost}`);
                                 }
                             }
                             
                             if (mealPlan.includes('lunch')) {
                                 const lunchPrice = parseFloat(mealPrices.lunch_price) || 0;
                                 if (lunchPrice > 0) {
-                                    const lunchCost = lunchPrice * totalGuests * numNights * numRooms;
+                                    const lunchCost = lunchPrice * mealPaxEq * numNights * numRooms;
                                     totalMealCost += lunchCost;
-                                    console.log(`CORRECTED Lunch: ${getTourCurrency()} ${lunchPrice} × ${totalGuests} guests × ${numNights} nights × ${numRooms} rooms = ${getTourCurrency()} ${lunchCost}`);
+                                    console.log(`CORRECTED Lunch: ${getTourCurrency()} ${lunchPrice} × mealEq ${mealPaxEq} × ${numNights} nights × ${numRooms} rooms = ${getTourCurrency()} ${lunchCost}`);
                                 }
                             }
                             
                             if (mealPlan.includes('dinner')) {
                                 const dinnerPrice = parseFloat(mealPrices.dinner_price) || 0;
                                 if (dinnerPrice > 0) {
-                                    const dinnerCost = dinnerPrice * totalGuests * numNights * numRooms;
+                                    const dinnerCost = dinnerPrice * mealPaxEq * numNights * numRooms;
                                     totalMealCost += dinnerCost;
-                                    console.log(`CORRECTED Dinner: ${getTourCurrency()} ${dinnerPrice} × ${totalGuests} guests × ${numNights} nights × ${numRooms} rooms = ${getTourCurrency()} ${dinnerCost}`);
+                                    console.log(`CORRECTED Dinner: ${getTourCurrency()} ${dinnerPrice} × mealEq ${mealPaxEq} × ${numNights} nights × ${numRooms} rooms = ${getTourCurrency()} ${dinnerCost}`);
                                 }
                             }
                         }
                         
-                        console.log(`CORRECTED Meal cost: Plan: ${mealPlan}, Guests: ${totalGuests}, Nights: ${numNights}, Rooms: ${numRooms}, Total: ${getTourCurrency()} ${totalMealCost}`);
+                        console.log(`CORRECTED Meal cost: Plan: ${mealPlan}, Adults: ${adultCount}, Children: ${childCount}, Factor: ${childFactor}, MealEq: ${mealPaxEq}, Nights: ${numNights}, Rooms: ${numRooms}, Total: ${getTourCurrency()} ${totalMealCost}`);
                         return totalMealCost;
                     };
 
@@ -3016,6 +3707,8 @@
                                 id: null,
                                 bookingType: 'enquiry',
                                 bookingDate: [checkInDate, checkOutDate], // Selected check-in and check-out dates
+                                city: (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : '') || (selectedHotelInfo && selectedHotelInfo.city) || hotel.city || '',
+                                country: (typeof window.getActiveServiceCountry === 'function' ? window.getActiveServiceCountry() : '') || (selectedHotelInfo && selectedHotelInfo.country) || hotel.country || '',
                                 
                                 // Hotel Details
                                 hotelDetails: selectedHotelInfo ? {
@@ -3023,17 +3716,21 @@
                                     hotel_name: selectedHotelInfo.name,
                                     image: selectedHotelInfo.main_image,
                                     location: selectedHotelInfo.city,
+                                    country: (typeof window.getActiveServiceCountry === 'function' ? window.getActiveServiceCountry() : '') || selectedHotelInfo.country || '',
+                                    city: (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : '') || selectedHotelInfo.city || '',
                                     checkInTime: selectedHotelInfo.check_in_time || "",
                                     checkOutTime: selectedHotelInfo.check_out_time || "",
                                     cancellation_charge: null
                                 } : {
-                                    hotel_id: hotel.id,
-                                    hotel_name: hotel.name,
+                                        hotel_id: hotel.id,
+                                        hotel_name: hotel.name,
                                     image: "",
-                                    location: "Location not specified",
+                                    location: (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : '') || hotel.city || "Location not specified",
+                                    country: (typeof window.getActiveServiceCountry === 'function' ? window.getActiveServiceCountry() : '') || hotel.country || '',
+                                    city: (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : '') || hotel.city || '',
                                     checkInTime: hotel.check_in_time || "",
                                     checkOutTime: hotel.check_out_time || "",
-                                    cancellation_charge: null
+                                        cancellation_charge: null
                                 },
                                 
                                 // Price mode information
@@ -3063,21 +3760,41 @@
                                         selectedMeals: {
                                             meal_1: {
                                                 type: hotel.mealPlan || hotel.meal_plan || "",
-                                                // Calculate total meal cost using the same logic as the display
+                                                // Calculate total meal cost using adults + half/full/free child meals
                                                 price: (() => {
                                                     const numNights = parseInt(hotel.totalNights) || 1;
                                                     const numRooms = parseInt(hotel.numberOfRooms) || 1;
                                                     const numPersons = parseInt(hotel.selectedPersons) || 1;
+                                                    const kids = Math.max(0, parseInt(hotel.children, 10) || parseInt(children, 10) || 0);
+                                                    const split = (typeof window.resolveHotelMealGuestSplit === 'function')
+                                                        ? window.resolveHotelMealGuestSplit(numPersons, kids)
+                                                        : { adults: Math.max(0, numPersons - kids), children: kids };
+                                                    const childrenPriceCode = hotel.children_price != null
+                                                        ? hotel.children_price
+                                                        : (hotel.helperMeals && hotel.helperMeals.children_price != null
+                                                            ? hotel.helperMeals.children_price
+                                                            : (hotel.mealPrices && hotel.mealPrices.children_price != null ? hotel.mealPrices.children_price : 2));
+                                                    const childMealFactor = hotel.child_meal_factor != null
+                                                        ? Number(hotel.child_meal_factor)
+                                                        : (typeof window.getChildMealFactor === 'function'
+                                                            ? window.getChildMealFactor(childrenPriceCode)
+                                                            : 1);
                                                     
                                                     if (typeof window.calculateCorrectMealCosts === 'function') {
                                                         return window.calculateCorrectMealCosts(
                                                             hotel.mealPlan || hotel.meal_plan || "", 
                                                             numNights, 
-                                                            numPersons, 
-                                                            0, 
+                                                            split.adults, 
+                                                            split.children, 
                                                             hotel.mealPrices, 
                                                             numRooms,
-                                                            { supplementBreakfastIncluded: !!hotel.supplement_breakfast_included, helperMeals: hotel.helperMeals || null }
+                                                            {
+                                                                breakfastIncluded: !!(hotel.breakfast_included_room),
+                                                                supplementBreakfastIncluded: !!hotel.supplement_breakfast_included,
+                                                                helperMeals: hotel.helperMeals || null,
+                                                                childrenPrice: childrenPriceCode,
+                                                                childMealFactor: childMealFactor
+                                                            }
                                                         );
                                                     }
                                                     
@@ -3085,14 +3802,15 @@
                                                     let mealCost = 0;
                                                     if (hotel.mealPrices && typeof hotel.mealPrices === 'object') {
                                                         const mealPlan = hotel.mealPlan || hotel.meal_plan || "";
+                                                        const mealEq = split.adults + (split.children * childMealFactor);
                                                         if (mealPlan.includes('breakfast') || mealPlan.includes('bf')) {
-                                                            mealCost += (parseFloat(hotel.mealPrices.breakfast_price) || 0) * numPersons * numNights * numRooms;
+                                                            mealCost += (parseFloat(hotel.mealPrices.breakfast_price) || 0) * mealEq * numNights * numRooms;
                                                         }
                                                         if (mealPlan.includes('lunch')) {
-                                                            mealCost += (parseFloat(hotel.mealPrices.lunch_price) || 0) * numPersons * numNights * numRooms;
+                                                            mealCost += (parseFloat(hotel.mealPrices.lunch_price) || 0) * mealEq * numNights * numRooms;
                                                         }
                                                         if (mealPlan.includes('dinner')) {
-                                                            mealCost += (parseFloat(hotel.mealPrices.dinner_price) || 0) * numPersons * numNights * numRooms;
+                                                            mealCost += (parseFloat(hotel.mealPrices.dinner_price) || 0) * mealEq * numNights * numRooms;
                                                         }
                                                     }
                                                     return mealCost;
@@ -3115,6 +3833,27 @@
                                     children: Math.max(children || (parseInt(hotel.children) || 0), 1),
                                     total_cost: (parseFloat(hotel.childWithoutBedPrice) || 0) * Math.max(children || (parseInt(hotel.children) || 0), 1) * (parseInt(hotel.numberOfRooms) || 1) * (parseInt(hotel.totalNights) || 1)
                                 } : null,
+
+                                // Persist child count + half-meal (rooms.children_price: 0 free / 1 half / 2 full)
+                                children: Math.max(0, parseInt(hotel.children, 10) || parseInt(children, 10) || 0),
+                                children_price: (() => {
+                                    if (hotel.children_price != null) return parseInt(hotel.children_price, 10);
+                                    if (hotel.helperMeals && hotel.helperMeals.children_price != null) return parseInt(hotel.helperMeals.children_price, 10);
+                                    if (hotel.mealPrices && hotel.mealPrices.children_price != null) return parseInt(hotel.mealPrices.children_price, 10);
+                                    return 2;
+                                })(),
+                                child_meal_factor: (() => {
+                                    if (hotel.child_meal_factor != null) return Number(hotel.child_meal_factor);
+                                    if (hotel.helperMeals && hotel.helperMeals.child_meal_factor != null) return Number(hotel.helperMeals.child_meal_factor);
+                                    const code = hotel.children_price != null
+                                        ? hotel.children_price
+                                        : (hotel.helperMeals && hotel.helperMeals.children_price != null
+                                            ? hotel.helperMeals.children_price
+                                            : (hotel.mealPrices && hotel.mealPrices.children_price != null ? hotel.mealPrices.children_price : 2));
+                                    return (typeof window.getChildMealFactor === 'function')
+                                        ? window.getChildMealFactor(code)
+                                        : 1;
+                                })(),
 
                                 extra_bed: (() => {
                                     const maxOcc = parseInt(hotel.maxOccupancy) || 0;
@@ -3180,9 +3919,37 @@
                                         }
                                     }
                                     
-                                    // Calculate meal costs based on meal plan, guest count, and number of rooms
+                                    // Calculate meal costs: adults full + children half/free/full (rooms.children_price)
+                                    const mealKids = Math.max(0, parseInt(hotel.children, 10) || parseInt(children, 10) || 0);
+                                    const mealSplit = (typeof window.resolveHotelMealGuestSplit === 'function')
+                                        ? window.resolveHotelMealGuestSplit(selPersons, mealKids)
+                                        : { adults: Math.max(0, selPersons - mealKids), children: mealKids };
+                                    const mealChildrenPrice = hotel.children_price != null
+                                        ? hotel.children_price
+                                        : (hotel.helperMeals && hotel.helperMeals.children_price != null
+                                            ? hotel.helperMeals.children_price
+                                            : (hotel.mealPrices && hotel.mealPrices.children_price != null ? hotel.mealPrices.children_price : 2));
+                                    const mealChildFactor = hotel.child_meal_factor != null
+                                        ? Number(hotel.child_meal_factor)
+                                        : (typeof window.getChildMealFactor === 'function'
+                                            ? window.getChildMealFactor(mealChildrenPrice)
+                                            : 1);
                                     const mealCost = (typeof window.calculateCorrectMealCosts === 'function') 
-                                        ? window.calculateCorrectMealCosts(hotel.mealPlan, numNights, hotel.selectedPersons || 1, 0, hotel.mealPrices, numRooms, { supplementBreakfastIncluded: !!hotel.supplement_breakfast_included, helperMeals: hotel.helperMeals || null })
+                                        ? window.calculateCorrectMealCosts(
+                                            hotel.mealPlan,
+                                            numNights,
+                                            mealSplit.adults,
+                                            mealSplit.children,
+                                            hotel.mealPrices,
+                                            numRooms,
+                                            {
+                                                breakfastIncluded: !!(hotel.breakfast_included_room),
+                                                supplementBreakfastIncluded: !!hotel.supplement_breakfast_included,
+                                                helperMeals: hotel.helperMeals || null,
+                                                childrenPrice: mealChildrenPrice,
+                                                childMealFactor: mealChildFactor
+                                            }
+                                          )
                                         : 0;
                                     
                                     // Calculate child with bed and child without bed costs
@@ -3215,13 +3982,7 @@
                                     return checkboxChecked;
                                 })(),
 
-                                supplement_breakfast_included: (() => {
-                                    const cardChk = document.getElementById(`hotel_supplement_breakfast_${index}`);
-                                    if (cardChk) {
-                                        return cardChk.checked;
-                                    }
-                                    return !!(hotel.supplement_breakfast_included);
-                                })(),
+                                supplement_breakfast_included: 0,
                                 breakfast_included_room: hotel.breakfast_included_room ? 1 : 0
                             };
                         });
@@ -3444,6 +4205,8 @@
                                         
                                         // Attraction Information
                                         bookingDate: document.getElementById(`day${day}_attraction_${index}_date`)?.value || getTourDateForDay(day),
+                                        city: (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : '') || document.getElementById(`day${day}_attraction_city_${index}`)?.value || '',
+                                        country: (typeof window.getActiveServiceCountry === 'function' ? window.getActiveServiceCountry() : '') || (document.getElementById(`day${day}_attraction_city_${index}`)?.options[document.getElementById(`day${day}_attraction_city_${index}`)?.selectedIndex]?.getAttribute('data-country') || ''),
                                         visitTime: timeSlot || "10:00-00:00",
                                         adultCount: guestInfo.adults || 0,
                                         childCount: guestInfo.children || 0,
@@ -3702,8 +4465,8 @@
                                         bookingDate: guideDate,
                                         dayIndex: parseInt(day),
                                         Tax: "7.00", // Default tax value
-                                        city: "Singapore", // Default city
-                                        country: "Singapore", // Default country
+                                        city: (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : ''),
+                                        country: (typeof window.getActiveServiceCountry === 'function' ? window.getActiveServiceCountry() : ''),
                                         languages: selectedOption.dataset.languages ? JSON.parse(selectedOption.dataset.languages) : [], // Parse languages if available
                                         experience: parseInt(selectedOption.dataset.experience) || 0, // Get experience from dataset
                                         remarks: document.getElementById(`day${day}_guide_${index}_remarks`)?.value || '',
@@ -3772,6 +4535,12 @@
                                     const selectedDishValue = dishSelect?.value || '';
                                     const selectedDishOption = dishSelect?.options[dishSelect?.selectedIndex];
                                     const selectedDishText = selectedDishOption?.text || selectedDishValue || '';
+                                    const mealAdultPrice = selectedDishOption
+                                        ? (parseFloat(selectedDishOption.dataset.adultPrice || selectedDishOption.getAttribute('data-adult-price') || 0) || 0)
+                                        : 0;
+                                    const mealChildPrice = selectedDishOption
+                                        ? (parseFloat(selectedDishOption.dataset.childPrice || selectedDishOption.getAttribute('data-child-price') || 0) || 0)
+                                        : 0;
                                     
                                     // Get transfer options
                                     const transferRequired = document.getElementById(`day${day}_restaurant_${index}_transfer_required`)?.value || 'No';
@@ -3883,11 +4652,19 @@
                                         
                                         // Restaurant Information
                                         bookingDate: document.getElementById(`day${day}_restaurant_${index}_date`)?.value || getTourDateForDay(day),
+                                        city: (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : '') || document.getElementById(`day${day}_restaurant_city_${index}`)?.value || '',
+                                        country: (typeof window.getActiveServiceCountry === 'function' ? window.getActiveServiceCountry() : '') || (document.getElementById(`day${day}_restaurant_city_${index}`)?.options[document.getElementById(`day${day}_restaurant_city_${index}`)?.selectedIndex]?.getAttribute('data-country') || ''),
                                         visitTime: formatVisitTime(timeSlot),
                                         adultCount: guestInfo.adults || 0,
                                         childCount: guestInfo.children || 0,
                                         restaurantId: parseInt(restaurantId),
                                         restaurantName: selectedOption.text,
+                                        adult_price: mealAdultPrice,
+                                        child_price: mealChildPrice,
+                                        meal_details: {
+                                            adult_price: mealAdultPrice,
+                                            child_price: mealChildPrice
+                                        },
                                         
                                         // Meal Information
                                         mealType: normalizeMealType(mealType),
@@ -3898,6 +4675,8 @@
                                             item_name: dishName || "Menu Item",
                                             name: dishName || "Menu Item",
                                             price: parseFloat(totalPrice) || 0,
+                                            adult_price: mealAdultPrice,
+                                            child_price: mealChildPrice,
                                             meal_id: parseInt(mealId) || parseInt(restaurantId),
                                             category: document.getElementById(`day${day}_meal_category_${index}`)?.value || "",
                                             item_type: document.getElementById(`day${day}_meal_item_type_${index}`)?.value || "",
@@ -4067,8 +4846,9 @@
                                                 const citySelect = document.getElementById('modal_local_transfer_city');
                                                 const cityOption = citySelect?.options[citySelect?.selectedIndex];
                                                 const countryFromCityOption = cityOption?.getAttribute('data-country') || '';
+                                                const countryFromStay = (typeof window.getActiveServiceCountry === 'function') ? window.getActiveServiceCountry() : '';
                                                 const countryFromField = document.getElementById('user_country')?.value || '';
-                                                const countryValue = countryFromCityOption || countryFromField || '';
+                                                const countryValue = countryFromCityOption || countryFromStay || countryFromField || '';
                                                 return countryValue || pickupZone.dataset.country || "";
                                             })(),
                                             fullName: customerData.fullName,
@@ -4191,8 +4971,9 @@
                                                 const citySelect = document.getElementById('modal_exit_city');
                                                 const cityOption = citySelect?.options[citySelect?.selectedIndex];
                                                 const countryFromCityOption = cityOption?.getAttribute('data-country') || '';
+                                                const countryFromStay = (typeof window.getActiveServiceCountry === 'function') ? window.getActiveServiceCountry() : '';
                                                 const countryFromField = document.getElementById('user_country')?.value || '';
-                                                const countryValue = countryFromCityOption || countryFromField || '';
+                                                const countryValue = countryFromCityOption || countryFromStay || countryFromField || '';
                                                 return countryValue || pickupZone.dataset.country || "";
                                             })(),
                                             fullName: customerData.fullName,
@@ -4333,10 +5114,10 @@
                                             fullName: customerData.fullName,
                                             email: customerData.email,
                                             phone: customerData.phone,
-                                            country: "Singapore",
+                                            country: (typeof window.getActiveServiceCountry === 'function' ? window.getActiveServiceCountry() : ''),
                                             countryCode: customerData.countryCode,
                                             state: customerData.state || null,
-                                            city: "Singapore",
+                                            city: (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : ''),
                                             zip: customerData.zip,
                                             address1: customerData.address1,
                                             address2: customerData.address2 || null,
@@ -4429,10 +5210,10 @@
                                             fullName: customerData.fullName,
                                             email: customerData.email,
                                             phone: customerData.phone,
-                                            country: "Singapore",
+                                            country: (typeof window.getActiveServiceCountry === 'function' ? window.getActiveServiceCountry() : ''),
                                             countryCode: customerData.countryCode,
                                             state: customerData.state || null,
-                                            city: "Singapore",
+                                            city: (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : ''),
                                             zip: customerData.zip,
                                             address1: customerData.address1,
                                             address2: customerData.address2 || null,
@@ -4610,7 +5391,7 @@
                                                 document.getElementById(`day${day}_${section}_tax`)?.value || "0.00")),
                                             Night_Start_Time: nightStartTime || null,
                                             Night_End_Time: nightEndTime || null,
-                                            country: pickupZone.dataset.country || "Singapore",
+                                            country: pickupZone.dataset.country || (typeof window.getActiveServiceCountry === 'function' ? window.getActiveServiceCountry() : ''),
                                             fullName: customerData.fullName,
                                             email: customerData.email,
                                             phone: customerData.phone,
@@ -4746,8 +5527,9 @@
                                             // Get country from city select option's data-country attribute, or from user_country field
                                             const cityOption = citySelect?.options[citySelect?.selectedIndex];
                                             const countryFromCityOption = cityOption?.getAttribute('data-country') || '';
+                                            const countryFromStay = (typeof window.getActiveServiceCountry === 'function') ? window.getActiveServiceCountry() : '';
                                             const countryFromField = document.getElementById('user_country')?.value || '';
-                                            const countryValue = countryFromCityOption || countryFromField || '';
+                                            const countryValue = countryFromCityOption || countryFromStay || countryFromField || '';
                                             
                                             const transportData = {
                                                 id: `entry-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -4862,8 +5644,9 @@
                                                     const citySelect = document.getElementById('modal_exit_city');
                                                     const cityOption = citySelect?.options[citySelect?.selectedIndex];
                                                     const countryFromCityOption = cityOption?.getAttribute('data-country') || '';
+                                                    const countryFromStay = (typeof window.getActiveServiceCountry === 'function') ? window.getActiveServiceCountry() : '';
                                                     const countryFromField = document.getElementById('user_country')?.value || '';
-                                                    const countryValue = countryFromCityOption || countryFromField || '';
+                                                    const countryValue = countryFromCityOption || countryFromStay || countryFromField || '';
                                                     return countryValue || pickupZone.dataset.country || "";
                                                 })(),
                                                 fullName: customerData.fullName,
@@ -5025,16 +5808,17 @@
                                                         // Get city from the city select field
                                                         const citySelect = document.getElementById('modal_local_transfer_city');
                                                         const cityValue = citySelect?.value || '';
-                                                        return cityValue || "Singapore";
+                                                        return cityValue || (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : '');
                                                     })(),
                                                     country: (() => {
                                                         // Get country from city select option's data-country attribute, or from user_country field
                                                         const citySelect = document.getElementById('modal_local_transfer_city');
                                                         const cityOption = citySelect?.options[citySelect?.selectedIndex];
                                                         const countryFromCityOption = cityOption?.getAttribute('data-country') || '';
+                                                        const countryFromStay = (typeof window.getActiveServiceCountry === 'function') ? window.getActiveServiceCountry() : '';
                                                         const countryFromField = document.getElementById('user_country')?.value || '';
-                                                        const countryValue = countryFromCityOption || countryFromField || '';
-                                                        return countryValue || "Singapore";
+                                                        const countryValue = countryFromCityOption || countryFromStay || countryFromField || '';
+                                                        return countryValue || (typeof window.getActiveServiceCountry === 'function' ? window.getActiveServiceCountry() : '');
                                                     })(),
                                                                     bookingType: "enquiry",
                                                                     vehicleIndex: vehicleIndex, // Add index to identify which vehicle this is
@@ -5191,15 +5975,16 @@
                                                         // Get city from the exit city select field
                                                         const citySelect = document.getElementById('modal_exit_city');
                                                         const cityValue = citySelect?.value || '';
-                                                        return cityValue || "";
+                                                        return cityValue || (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : '');
                                                     })(),
                                                     country: (() => {
                                                         // Get country from exit city select option's data-country attribute, or from user_country field
                                                         const citySelect = document.getElementById('modal_exit_city');
                                                         const cityOption = citySelect?.options[citySelect?.selectedIndex];
                                                         const countryFromCityOption = cityOption?.getAttribute('data-country') || '';
+                                                        const countryFromStay = (typeof window.getActiveServiceCountry === 'function') ? window.getActiveServiceCountry() : '';
                                                         const countryFromField = document.getElementById('user_country')?.value || '';
-                                                        const countryValue = countryFromCityOption || countryFromField || '';
+                                                        const countryValue = countryFromCityOption || countryFromStay || countryFromField || '';
                                                         return countryValue || "";
                                                     })(),
                                                     userInfo: {
@@ -5918,7 +6703,10 @@
                             return null;
                         };
                         let tourId = resolveTourId();
-                        const cityMode = (document.querySelector('input[name="city_mode"]:checked') || {}).value || 'single';
+                        let cityMode = (document.querySelector('input[name="city_mode"]:checked') || {}).value || 'single';
+                        if (window.IS_THIRD_PARTY_DMC) {
+                            cityMode = 'single';
+                        }
                         const isMultiCity = (cityMode === 'multi');
                         const enquiry = @json($enquiry);
                         const csrfToken = document.querySelector('input[name="_token"]').value;
@@ -6029,13 +6817,41 @@
                             fd.append('paying_pax', document.getElementById('paying_pax')?.value || 0);
                             fd.append('discount', document.getElementById('discount')?.value || 0);
                         }
-                        // Manual discount price (applies to both FIT and GROUP); store ceiling (e.g. 847.64 → 848)
+                        // Discount amount comes from city Disc Value (flat/FOC) — no separate input
+                        if (typeof window.syncDiscountPriceFromCityMarkups === 'function') {
+                            window.syncDiscountPriceFromCityMarkups();
+                        }
                         const discountRaw = parseFloat(document.getElementById('discount_price')?.value || '0') || 0;
                         fd.append('discount_price', String(Math.ceil(discountRaw)));
                         // Persist Single/Multi city selection to DB column `city_type`
                         fd.append('city_type', (document.querySelector('input[name="city_mode"]:checked') || {}).value || 'single');
                         // Identify the source of this tour creation (manual single tour package form)
                         fd.append('tour_booking_from', 'manual_single_form');
+                        // City-wise markup / discount → tours.currency_markups
+                        // Read from DOM first (do NOT refresh/rebuild city rows here — that was wiping values).
+                        if (typeof window.syncActiveCurrencyMarkupToStore === 'function') {
+                            window.syncActiveCurrencyMarkupToStore();
+                        }
+                        let currencyMarkupsPayload = [];
+                        if (typeof window.collectLiteCurrencyMarkupsFromDom === 'function') {
+                            currencyMarkupsPayload = window.collectLiteCurrencyMarkupsFromDom();
+                        } else if (typeof window.getCurrencyMarkupsPayload === 'function') {
+                            currencyMarkupsPayload = window.getCurrencyMarkupsPayload();
+                        }
+                        if (!Array.isArray(currencyMarkupsPayload)) {
+                            currencyMarkupsPayload = [];
+                        }
+                        fd.append('currency_markups', JSON.stringify(currencyMarkupsPayload));
+                        if (currencyMarkupsPayload.length) {
+                            const primaryMd = currencyMarkupsPayload[0] || {};
+                            fd.append('markup_type', primaryMd.markup_type || '');
+                            fd.append('markup_value', primaryMd.markup_value != null ? primaryMd.markup_value : 0);
+                            fd.append('discount_type', primaryMd.discount_type || '');
+                            fd.append('discount_value', primaryMd.discount_value != null ? primaryMd.discount_value : 0);
+                        }
+                        try {
+                            console.log('Saving currency_markups:', currencyMarkupsPayload);
+                        } catch (e) { /* ignore */ }
                         return fd;
                     };
 
@@ -6899,13 +7715,30 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
     <!-- Select2 Initialization Script -->
     @php
-        $countryCurrencyMap = $countries
-            ->filter(fn ($c) => !empty($c->name) && !empty($c->currency))
-            ->mapWithKeys(fn ($c) => [$c->name => strtoupper(trim((string) $c->currency))]);
+        // Full country → currency map so multi-city rows show IDR/INR/SGD correctly (not only DMC list)
+        $countryCurrencyMap = \App\Models\Country::query()
+            ->whereNotNull('currency')
+            ->where('currency', '!=', '')
+            ->get(['name', 'currency'])
+            ->mapWithKeys(static function ($c) {
+                return [trim((string) $c->name) => strtoupper(trim((string) $c->currency))];
+            })
+            ->all();
+        $cityCountryMap = \App\Models\City::query()
+            ->whereNotNull('country')
+            ->where('country', '!=', '')
+            ->get(['name', 'country'])
+            ->mapWithKeys(static function ($c) {
+                return [trim((string) $c->name) => trim((string) $c->country)];
+            })
+            ->all();
     @endphp
     <script>
         window.TOUR_PACKAGE_CURRENCY = @json($dmcCurrency);
         window.COUNTRY_CURRENCY_MAP = @json($countryCurrencyMap);
+        window.CITY_COUNTRY_MAP = @json($cityCountryMap);
+        // Runtime geo from Select2 / option stamps (authoritative for multi-city rows)
+        window.LITE_CITY_GEO = window.LITE_CITY_GEO || {};
         window.getTourCurrency = function () {
             const el = document.getElementById('tour_package_currency');
             return (el && el.value) ? el.value : (window.TOUR_PACKAGE_CURRENCY || 'SGD');
@@ -6913,20 +7746,630 @@
         window.getCurrencyForCountryName = function (countryName) {
             const name = String(countryName || '').trim();
             if (!name) {
-                return window.getTourCurrency();
+                return '';
             }
             const map = window.COUNTRY_CURRENCY_MAP || {};
             if (map[name]) {
-                return map[name];
+                return String(map[name]).trim().toUpperCase();
             }
             const lower = name.toLowerCase();
             for (const key of Object.keys(map)) {
                 if (String(key).toLowerCase() === lower) {
-                    return map[key];
+                    return String(map[key] || '').trim().toUpperCase();
                 }
             }
-            return window.TOUR_PACKAGE_CURRENCY || 'SGD';
+            // Hard fallbacks so Flat suffixes never wrongly inherit tour SGD
+            const fallback = {
+                indonesia: 'IDR', india: 'INR', singapore: 'SGD', malaysia: 'MYR',
+                thailand: 'THB', vietnam: 'VND', philippines: 'PHP', 'sri lanka': 'LKR',
+                'united arab emirates': 'AED', uae: 'AED', dubai: 'AED'
+            };
+            return fallback[lower] || '';
         };
+
+        // Bridges for enquiry-pro currency markup scripts (city-wise markup table)
+        window.resolveCurrencyForCountry = window.getCurrencyForCountryName;
+        window.resolveCountryForCity = function (cityName) {
+            const city = String(cityName || '').trim();
+            if (!city) return '';
+            const geo = window.LITE_CITY_GEO && window.LITE_CITY_GEO[city];
+            if (geo && geo.country) return String(geo.country).trim();
+            // Prefer DB city→country map (reliable for Batam→Indonesia, etc.)
+            const map = window.CITY_COUNTRY_MAP || {};
+            if (map[city]) return String(map[city]).trim();
+            const lower = city.toLowerCase();
+            for (const key of Object.keys(map)) {
+                if (String(key).toLowerCase() === lower) {
+                    return String(map[key] || '').trim();
+                }
+            }
+            if (typeof window.resolveCountryForCityName === 'function') {
+                const fromOpts = window.resolveCountryForCityName(city);
+                if (fromOpts) return fromOpts;
+            }
+            return '';
+        };
+        /** Resolve display/save currency for a city (country currency — not tour SGD). */
+        window.resolveCurrencyForCityName = function (cityName, countryHint) {
+            const city = String(cityName || '').trim();
+            const geo = city && window.LITE_CITY_GEO ? window.LITE_CITY_GEO[city] : null;
+            if (geo && geo.currency) {
+                return String(geo.currency).trim().toUpperCase();
+            }
+            let country = String(countryHint || (geo && geo.country) || '').trim();
+            if (!country && typeof window.resolveCountryForCity === 'function') {
+                country = String(window.resolveCountryForCity(cityName) || '').trim();
+            }
+            let currency = '';
+            if (country && typeof window.resolveCurrencyForCountry === 'function') {
+                currency = String(window.resolveCurrencyForCountry(country) || '').trim().toUpperCase();
+            }
+            // Only use tour currency when city/country truly unknown
+            if (!currency && !country) {
+                currency = String(window.getTourCurrency() || 'SGD').trim().toUpperCase();
+            }
+            return currency;
+        };
+        var selectedDestinations = [];
+        window.selectedDestinations = selectedDestinations;
+
+        window.rememberLiteCityGeo = function (cityName, country, currencyHint) {
+            const city = String(cityName || '').replace(/\s*\([^)]*\)\s*$/, '').trim();
+            if (!city || /^\d+$/.test(city)) return;
+            let countryName = String(country || '').trim();
+            if (!countryName && typeof window.resolveCountryForCity === 'function') {
+                countryName = String(window.resolveCountryForCity(city) || '').trim();
+            }
+            let currency = String(currencyHint || '').trim().toUpperCase();
+            if (!currency && countryName) {
+                currency = String(window.getCurrencyForCountryName(countryName) || '').trim().toUpperCase();
+            }
+            window.LITE_CITY_GEO[city] = {
+                country: countryName,
+                currency: currency
+            };
+        };
+
+        window.stampMultiCitiesGeoFromSelect2 = function () {
+            if (typeof jQuery === 'undefined') return;
+            const $mc = jQuery('#multi_cities');
+            if (!$mc.length || !$mc.data('select2')) return;
+            const data = $mc.select2('data') || [];
+            data.forEach(function (item) {
+                if (!item) return;
+                const id = String(item.id != null ? item.id : '');
+                let country = item.country ? String(item.country).trim() : '';
+                const rawText = String(item.text || '');
+                if (!country) {
+                    const m = rawText.match(/\(([^)]+)\)\s*$/);
+                    if (m && m[1]) country = String(m[1]).trim();
+                }
+                const cityName = rawText.replace(/\s*\([^)]*\)\s*$/, '').trim()
+                    || String(item.city_name || item.name || '').trim();
+                const $opt = $mc.find('option').filter(function () {
+                    return String(jQuery(this).val()) === id;
+                });
+                if ($opt.length) {
+                    if (cityName) $opt.attr('data-city-name', cityName);
+                    if (country) $opt.attr('data-country', country);
+                }
+                if (cityName) {
+                    window.rememberLiteCityGeo(cityName, country);
+                }
+            });
+        };
+
+        window.syncLiteTourSelectedDestinations = function () {
+            const cities = [];
+            const addCity = function (name, country) {
+                const label = String(name || '').replace(/\s*\([^)]*\)\s*$/, '').trim();
+                if (!label || /^\d+$/.test(label)) return;
+                if (cities.indexOf(label) === -1) cities.push(label);
+                if (country || label) {
+                    window.rememberLiteCityGeo(label, country);
+                }
+            };
+            const labelFromOption = function (opt) {
+                if (!opt) return { name: '', country: '' };
+                const name = String(opt.getAttribute('data-city-name') || '').trim()
+                    || String(opt.textContent || '').replace(/\s*\([^)]*\)\s*$/, '').trim();
+                let country = String(opt.getAttribute('data-country') || '').trim();
+                if (!country) {
+                    const m = String(opt.textContent || '').match(/\(([^)]+)\)\s*$/);
+                    if (m && m[1]) country = String(m[1]).trim();
+                }
+                return { name: name, country: country };
+            };
+            const mode = (document.querySelector('input[name="city_mode"]:checked') || {}).value || 'single';
+            if (mode === 'multi') {
+                window.stampMultiCitiesGeoFromSelect2();
+                const multi = document.getElementById('multi_cities');
+                if (multi) {
+                    Array.from(multi.selectedOptions || []).forEach(function (opt) {
+                        const parsed = labelFromOption(opt);
+                        addCity(parsed.name || opt.value, parsed.country);
+                    });
+                }
+                document.querySelectorAll('#segmentsWrapper .city-select').forEach(function (sel) {
+                    const opt = sel.options && sel.selectedIndex >= 0 ? sel.options[sel.selectedIndex] : null;
+                    const parsed = labelFromOption(opt);
+                    addCity(parsed.name || (opt ? opt.value : sel.value), parsed.country);
+                });
+            } else {
+                const sc = document.getElementById('single_city');
+                if (sc) {
+                    const opt = sc.options && sc.selectedIndex >= 0 ? sc.options[sc.selectedIndex] : null;
+                    let parsed = labelFromOption(opt);
+                    if ((!parsed.name || /^\d+$/.test(parsed.name)) && typeof jQuery !== 'undefined' && jQuery(sc).data('select2')) {
+                        const d = jQuery(sc).select2('data');
+                        if (d && d[0]) {
+                            parsed.name = String(d[0].text || d[0].city_name || d[0].name || '')
+                                .replace(/\s*\([^)]*\)\s*$/, '').trim();
+                            if (!parsed.country && d[0].country) {
+                                parsed.country = String(d[0].country).trim();
+                            }
+                        }
+                    }
+                    addCity(parsed.name, parsed.country);
+                }
+            }
+            selectedDestinations.length = 0;
+            cities.forEach(function (c) { selectedDestinations.push(c); });
+            window.selectedDestinations = selectedDestinations;
+            if (typeof window.refreshEnquiryProCurrencyMarkupOptions === 'function') {
+                window.refreshEnquiryProCurrencyMarkupOptions();
+            }
+        };
+
+        window.handleMarkupTypeChange = function () {
+            const mt = document.getElementById('markupType');
+            const mv = document.getElementById('markupValue');
+            if (mv && mt) {
+                mv.disabled = !mt.value;
+                if (!mt.value) mv.value = 0;
+            }
+            if (typeof window.syncActiveCurrencyMarkupToStore === 'function') {
+                window.syncActiveCurrencyMarkupToStore();
+            }
+            if (typeof window.applyMarkupDiscount === 'function') {
+                window.applyMarkupDiscount();
+            }
+        };
+        window.handleDiscountTypeChange = function () {
+            const dt = document.getElementById('discountType');
+            const dv = document.getElementById('discountValue');
+            if (dv && dt) {
+                if (!dt.value) {
+                    dv.disabled = true;
+                    dv.value = 0;
+                    dv.classList.remove('is-foc-locked');
+                } else if (dt.value === 'foc') {
+                    dv.disabled = true;
+                    dv.classList.add('is-foc-locked');
+                    if (typeof window.computeAutoFocDiscount === 'function') {
+                        dv.value = window.computeAutoFocDiscount() || 0;
+                    }
+                } else {
+                    dv.disabled = false;
+                    dv.classList.remove('is-foc-locked');
+                }
+            }
+            if (typeof window.syncActiveCurrencyMarkupToStore === 'function') {
+                window.syncActiveCurrencyMarkupToStore();
+            }
+            if (typeof window.syncDiscountPriceFromCityMarkups === 'function') {
+                window.syncDiscountPriceFromCityMarkups();
+            }
+            if (typeof window.applyMarkupDiscount === 'function') {
+                window.applyMarkupDiscount();
+            }
+        };
+        window.applyMarkupDiscount = function () {
+            if (typeof window.syncActiveCurrencyMarkupToStore === 'function') {
+                window.syncActiveCurrencyMarkupToStore();
+            }
+            if (typeof window.syncDiscountPriceFromCityMarkups === 'function') {
+                window.syncDiscountPriceFromCityMarkups();
+            }
+        };
+
+        /** Lite create: FOC factors from GROUP tour type + Treat FOC checkbox. */
+        window.getEnquiryProGroupFocFactors = function () {
+            const checked = document.querySelector('input[name="tour_type"]:checked');
+            const tourType = String((checked && checked.value) || window.selectedTourType || 'FIT').toUpperCase();
+            if (tourType !== 'GROUP') {
+                return {
+                    isGroup: false, totalPax: 0, payingPax: 0, payingAdults: 0,
+                    focSize: 0, discountOn: false, focFactor: 1, hotelFactor: 1, otherFactor: 1
+                };
+            }
+            const adults = parseInt(document.getElementById('adults')?.value || '0', 10) || 0;
+            const children = parseInt(document.getElementById('children')?.value || '0', 10) || 0;
+            const focSize = Math.max(0, parseInt(document.getElementById('foc_size')?.value || '0', 10) || 0);
+            const totalPax = adults + children;
+            const payingAdults = Math.max(0, adults - focSize);
+            let payingPax = payingAdults + children;
+            if (payingPax < 1) payingPax = totalPax > 0 ? totalPax : 1;
+            let focFactor = 1;
+            if (payingPax > 0 && totalPax > payingPax) focFactor = totalPax / payingPax;
+            const discountOn = !!(document.getElementById('include_foc_in_group_price')?.checked);
+            const distributionFactor = (focFactor !== 1 && !discountOn) ? focFactor : 1;
+            return {
+                isGroup: true,
+                totalPax,
+                payingPax,
+                payingAdults,
+                focSize,
+                discountOn,
+                focFactor,
+                hotelFactor: distributionFactor,
+                otherFactor: distributionFactor
+            };
+        };
+
+        window.computeAutoFocDiscount = function () {
+            if (typeof window.calculateLiteFOCDiscountAmount === 'function') {
+                return window.calculateLiteFOCDiscountAmount() || 0;
+            }
+            return 0;
+        };
+
+        /** Map city Disc Value (flat/FOC) into hidden discount_price used on save. */
+        window.syncDiscountPriceFromCityMarkups = function () {
+            const hidden = document.getElementById('discount_price');
+            if (!hidden) return;
+            const payload = (typeof window.collectLiteCurrencyMarkupsFromDom === 'function')
+                ? window.collectLiteCurrencyMarkupsFromDom()
+                : ((typeof window.getCurrencyMarkupsPayload === 'function')
+                    ? window.getCurrencyMarkupsPayload()
+                    : []);
+            let flatTotal = 0;
+            let focTotal = 0;
+            let hasFoc = false;
+            (payload || []).forEach(function (row) {
+                const dt = String(row.discount_type || '').toLowerCase();
+                const dv = parseFloat(row.discount_value) || 0;
+                if (dt === 'foc') {
+                    hasFoc = true;
+                    // FOC is tour-level and mirrored on each city row — do not multiply by city count
+                    focTotal = Math.max(focTotal, dv);
+                } else if (dt === 'flat') {
+                    flatTotal += dv;
+                }
+            });
+            const total = (hasFoc ? focTotal : 0) + flatTotal;
+            hidden.value = String(Math.ceil(total > 0 ? total : 0));
+            hidden.dataset.focDiscountAuto = hasFoc ? '1' : (hidden.dataset.focDiscountAuto || '0');
+        };
+
+        /** Read markup rows directly from the Pricing-by-city table (authoritative for save). */
+        window.collectLiteCurrencyMarkupsFromDom = function () {
+            const rows = [];
+            const body = document.getElementById('enquiryProCityMarkupBody');
+            if (body) {
+                body.querySelectorAll('tr[data-city]').forEach(function (tr) {
+                    const city = String(tr.getAttribute('data-city') || '').trim();
+                    if (!city || city.indexOf('__lite_markup_pad__') === 0) return;
+                    const countryRaw = String(tr.getAttribute('data-country') || '').trim();
+                    const country = countryRaw
+                        || ((typeof window.resolveCountryForCity === 'function')
+                            ? String(window.resolveCountryForCity(city) || '').trim()
+                            : '');
+                    const currency = (typeof window.resolveCurrencyForCityName === 'function')
+                        ? window.resolveCurrencyForCityName(city, country)
+                        : String(tr.getAttribute('data-currency') || '').trim().toUpperCase();
+                    if (country) tr.setAttribute('data-country', country);
+                    if (currency) tr.setAttribute('data-currency', currency);
+                    const mt = String(tr.querySelector('.city-markup-type')?.value || '').trim();
+                    const hotelEl = tr.querySelector('.city-hotel-markup');
+                    const otherEl = tr.querySelector('.city-other-markup');
+                    const markupEl = tr.querySelector('.city-markup-value');
+                    const hotelMk = hotelEl
+                        ? (parseFloat(hotelEl.value || 0) || 0)
+                        : (parseFloat(markupEl?.value || 0) || 0);
+                    const otherMk = otherEl
+                        ? (parseFloat(otherEl.value || 0) || 0)
+                        : 0;
+                    const markupTotal = hotelMk + otherMk;
+                    let dt = String(tr.querySelector('.city-discount-type')?.value || '').trim();
+                    let dv = parseFloat(tr.querySelector('.city-discount-value')?.value || 0) || 0;
+                    if (dt === 'foc' && typeof window.computeAutoFocDiscount === 'function') {
+                        const focHdr = (typeof window.getEnquiryProGroupFocFactors === 'function')
+                            ? window.getEnquiryProGroupFocFactors()
+                            : null;
+                        const active = focHdr && focHdr.isGroup && focHdr.focSize > 0 && focHdr.discountOn;
+                        if (active) {
+                            dv = window.computeAutoFocDiscount() || dv;
+                            const inp = tr.querySelector('.city-discount-value');
+                            if (inp) inp.value = dv;
+                        }
+                    }
+                    rows.push({
+                        city: city,
+                        country: country,
+                        currency: currency,
+                        markup_type: mt || null,
+                        markup_value: markupTotal,
+                        hotel_markup: hotelMk,
+                        other_markup: otherMk,
+                        discount_type: dt || null,
+                        discount_value: dv
+                    });
+                    window.enquiryProCityMarkups = window.enquiryProCityMarkups || {};
+                    window.enquiryProCityMarkups[city] = {
+                        city: city,
+                        country: country,
+                        currency: currency,
+                        markup_type: mt,
+                        markup_value: markupTotal,
+                        hotel_markup: hotelMk,
+                        other_markup: otherMk,
+                        discount_type: dt,
+                        discount_value: dv
+                    };
+                    if (currency) {
+                        window.enquiryProCurrencyMarkups = window.enquiryProCurrencyMarkups || {};
+                        window.enquiryProCurrencyMarkups[currency] = Object.assign({}, window.enquiryProCityMarkups[city]);
+                    }
+                });
+            }
+            if (!rows.length) {
+                const city = (window.selectedDestinations && window.selectedDestinations[0])
+                    ? String(window.selectedDestinations[0]).trim()
+                    : '';
+                if (city) {
+                    const mt = String(document.getElementById('markupType')?.value || '').trim();
+                    const mv = parseFloat(document.getElementById('markupValue')?.value || 0) || 0;
+                    const dt = String(document.getElementById('discountType')?.value || '').trim();
+                    const dv = parseFloat(document.getElementById('discountValue')?.value || 0) || 0;
+                    const country = (typeof window.resolveCountryForCity === 'function')
+                        ? String(window.resolveCountryForCity(city) || '').trim()
+                        : '';
+                    const currency = (typeof window.resolveCurrencyForCityName === 'function')
+                        ? window.resolveCurrencyForCityName(city, country)
+                        : '';
+                    rows.push({
+                        city: city,
+                        country: country,
+                        currency: currency,
+                        markup_type: mt || null,
+                        markup_value: mv,
+                        hotel_markup: mv,
+                        other_markup: 0,
+                        discount_type: dt || null,
+                        discount_value: dv
+                    });
+                }
+            }
+            return rows;
+        };
+
+        /** Apply FOC type + auto amount onto every city markup row (and single controls). */
+        window.applyFocToCityDiscountFields = function (amount, enabled) {
+            const amt = Math.max(0, Math.ceil(Number(amount) || 0));
+            const body = document.getElementById('enquiryProCityMarkupBody');
+            if (body) {
+                body.querySelectorAll('tr[data-city]').forEach(function (tr) {
+                    const dt = tr.querySelector('.city-discount-type');
+                    const dv = tr.querySelector('.city-discount-value');
+                    if (!dt || !dv) return;
+                    if (enabled) {
+                        dt.value = 'foc';
+                        dv.value = amt;
+                        dv.disabled = true;
+                        dv.classList.add('is-foc-locked');
+                    } else if (dt.value === 'foc') {
+                        dt.value = '';
+                        dv.value = 0;
+                        dv.disabled = true;
+                        dv.classList.remove('is-foc-locked');
+                    }
+                });
+            }
+            const singleDt = document.getElementById('discountType');
+            const singleDv = document.getElementById('discountValue');
+            if (singleDt && singleDv) {
+                if (enabled) {
+                    singleDt.value = 'foc';
+                    singleDv.value = amt;
+                    singleDv.disabled = true;
+                    singleDv.classList.add('is-foc-locked');
+                } else if (singleDt.value === 'foc') {
+                    singleDt.value = '';
+                    singleDv.value = 0;
+                    singleDv.disabled = true;
+                    singleDv.classList.remove('is-foc-locked');
+                }
+            }
+            if (typeof window.syncActiveCurrencyMarkupToStore === 'function') {
+                window.syncActiveCurrencyMarkupToStore();
+            }
+            if (typeof window.syncDiscountPriceFromCityMarkups === 'function') {
+                window.syncDiscountPriceFromCityMarkups();
+            }
+        };
+
+        @include('enquiryform_pro.partials.markup-discount-currency-scripts')
+
+        // Lite create: Pricing by city = Hotel/Other markup + Disc (FOC auto when Treat FOC is on)
+        window.buildCityMarkupRowHtml = function (target, entry) {
+            const city = target.city || '';
+            let country = String(target.country || '').trim();
+            if (!country && typeof window.resolveCountryForCity === 'function') {
+                country = String(window.resolveCountryForCity(city) || '').trim();
+            }
+            let currency = String(target.currency || '').trim().toUpperCase();
+            if (typeof window.resolveCurrencyForCityName === 'function') {
+                currency = window.resolveCurrencyForCityName(city, country) || currency;
+            }
+            if (!currency && country && typeof window.getCurrencyForCountryName === 'function') {
+                currency = String(window.getCurrencyForCountryName(country) || '').trim().toUpperCase();
+            }
+            window.rememberLiteCityGeo(city, country, currency);
+            const mt = entry.markup_type || '';
+            const hotelMk = entry.hotel_markup != null
+                ? (parseFloat(entry.hotel_markup) || 0)
+                : (parseFloat(entry.markup_value || 0) || 0);
+            const otherMk = entry.other_markup != null
+                ? (parseFloat(entry.other_markup) || 0)
+                : 0;
+            let dt = entry.discount_type || '';
+            let dv = entry.discount_value != null ? (parseFloat(entry.discount_value) || 0) : 0;
+            // Prefer live FOC amount when Treat FOC is active
+            const focHdr = (typeof window.getEnquiryProGroupFocFactors === 'function')
+                ? window.getEnquiryProGroupFocFactors()
+                : null;
+            const focActive = !!(focHdr && focHdr.isGroup && focHdr.focSize > 0 && focHdr.discountOn);
+            if (focActive) {
+                dt = 'foc';
+                if (typeof window.computeAutoFocDiscount === 'function') {
+                    dv = window.computeAutoFocDiscount() || dv;
+                }
+            }
+            const markupDisabled = mt ? '' : 'disabled';
+            const discountDisabled = (!dt || dt === 'foc') ? 'disabled' : '';
+            const focClass = dt === 'foc' ? ' is-foc-locked' : '';
+            const suffix = (mt === 'flat') ? (currency || 'AMT') : '%';
+            const esc = function (s) {
+                return String(s || '')
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#39;');
+            };
+            const label = currency
+                ? (city + ' · ' + currency + (country ? ' (' + country + ')' : ''))
+                : city;
+
+            return ''
+                + '<tr data-city="' + esc(city) + '" data-country="' + esc(country) + '" data-currency="' + esc(currency) + '">'
+                + '<td>'
+                + '<div class="enquiry-md-city" title="' + esc(label) + '">'
+                + '<span class="enquiry-md-city__name">' + esc(city) + '</span>'
+                + (country ? '<span class="enquiry-md-city__meta">' + esc(country) + '</span>' : '')
+                + '</div>'
+                + '</td>'
+                + '<td class="enquiry-md-cell-markup">'
+                + '<select class="city-markup-type enquiry-md-control" onchange="handleCityMarkupRowChange(this)">'
+                + '<option value=""' + (!mt ? ' selected' : '') + '>Type</option>'
+                + '<option value="percentage"' + (mt === 'percentage' ? ' selected' : '') + '>%</option>'
+                + '<option value="flat"' + (mt === 'flat' ? ' selected' : '') + '>Flat</option>'
+                + '</select>'
+                + '</td>'
+                + '<td class="enquiry-md-cell-markup">'
+                + '<div class="enquiry-md-markup-input">'
+                + '<input type="number" class="city-hotel-markup enquiry-md-control" value="' + hotelMk + '" step="1" min="0" ' + markupDisabled
+                + ' placeholder="0" oninput="handleCityMarkupRowChange(this)">'
+                + '<span class="city-markup-suffix">' + esc(suffix) + '</span>'
+                + '</div>'
+                + '</td>'
+                + '<td class="enquiry-md-cell-markup">'
+                + '<div class="enquiry-md-markup-input">'
+                + '<input type="number" class="city-other-markup enquiry-md-control" value="' + otherMk + '" step="1" min="0" ' + markupDisabled
+                + ' placeholder="0" oninput="handleCityMarkupRowChange(this)">'
+                + '<span class="city-markup-suffix">' + esc(suffix) + '</span>'
+                + '</div>'
+                + '</td>'
+                + '<td class="enquiry-md-cell-discount">'
+                + '<select class="city-discount-type enquiry-md-control" onchange="handleCityMarkupRowChange(this)"'
+                + (focActive ? ' disabled' : '') + '>'
+                + '<option value=""' + (!dt ? ' selected' : '') + '>Type</option>'
+                + '<option value="percentage"' + (dt === 'percentage' ? ' selected' : '') + '>%</option>'
+                + '<option value="flat"' + (dt === 'flat' ? ' selected' : '') + '>Fixed</option>'
+                + '<option value="foc"' + (dt === 'foc' ? ' selected' : '') + '>FOC</option>'
+                + '</select>'
+                + '</td>'
+                + '<td class="enquiry-md-cell-discount">'
+                + '<input type="number" class="city-discount-value enquiry-md-control' + focClass + '" value="' + dv + '" step="1" min="0" ' + discountDisabled
+                + ' placeholder="0" oninput="handleCityMarkupRowChange(this)"'
+                + ' title="' + (dt === 'foc'
+                    ? 'Auto FOC discount (Treat FOC pax as discount)'
+                    : 'Discount value') + '">'
+                + '</td>'
+                + '</tr>';
+        };
+
+        // After city-row change, refresh Flat currency suffix from city country + sync discount_price
+        (function () {
+            const _cityChange = window.handleCityMarkupRowChange;
+            window.handleCityMarkupRowChange = function (el) {
+                if (typeof _cityChange === 'function') _cityChange(el);
+                const tr = el && el.closest ? el.closest('tr[data-city]') : null;
+                if (tr) {
+                    const city = String(tr.getAttribute('data-city') || '').trim();
+                    let country = String(tr.getAttribute('data-country') || '').trim();
+                    if (!country && typeof window.resolveCountryForCity === 'function') {
+                        country = String(window.resolveCountryForCity(city) || '').trim();
+                        if (country) tr.setAttribute('data-country', country);
+                    }
+                    const currency = (typeof window.resolveCurrencyForCityName === 'function')
+                        ? window.resolveCurrencyForCityName(city, country)
+                        : String(tr.getAttribute('data-currency') || '').trim().toUpperCase();
+                    if (currency) tr.setAttribute('data-currency', currency);
+                    const mt = tr.querySelector('.city-markup-type');
+                    const suffix = (mt && mt.value === 'flat') ? (currency || 'AMT') : '%';
+                    tr.querySelectorAll('.city-markup-suffix').forEach(function (s) {
+                        s.textContent = suffix;
+                    });
+                }
+                if (typeof window.syncDiscountPriceFromCityMarkups === 'function') {
+                    window.syncDiscountPriceFromCityMarkups();
+                }
+            };
+        })();
+
+        // Lite create: show Pricing-by-city table for any chosen city (including a single city).
+        (function () {
+            const _refresh = window.refreshEnquiryProCurrencyMarkupOptions;
+            if (typeof _refresh !== 'function') return;
+            window.refreshEnquiryProCurrencyMarkupOptions = function () {
+                const singleWrap = document.getElementById('enquiryProMarkupSingleWrap');
+                const multiWrap = document.getElementById('enquiryProMarkupMultiWrap');
+                const body = document.getElementById('enquiryProCityMarkupBody');
+                const countEl = document.getElementById('enquiryProMarkupCityCount');
+                const realCities = selectedDestinations.slice().filter(Boolean);
+                if (!realCities.length) {
+                    if (singleWrap) singleWrap.style.display = 'none';
+                    if (multiWrap) multiWrap.style.display = 'none';
+                    if (body) body.innerHTML = '';
+                    if (countEl) countEl.textContent = '0';
+                    return;
+                }
+                const needPad = realCities.length === 1;
+                if (needPad) {
+                    selectedDestinations.push('__lite_markup_pad__');
+                }
+                try {
+                    _refresh();
+                } finally {
+                    if (needPad) {
+                        selectedDestinations.length = 0;
+                        realCities.forEach(function (c) { selectedDestinations.push(c); });
+                        if (body) {
+                            const padRow = body.querySelector('tr[data-city="__lite_markup_pad__"]');
+                            if (padRow) padRow.remove();
+                        }
+                        if (countEl) countEl.textContent = String(realCities.length);
+                    }
+                }
+                if (singleWrap) singleWrap.style.display = 'none';
+                if (multiWrap) multiWrap.style.display = 'block';
+                // Re-apply FOC discount into Disc type/value after row rebuild
+                if (typeof window.recomputeFOCDiscountPrice === 'function') {
+                    window.recomputeFOCDiscountPrice();
+                } else if (typeof window.syncDiscountPriceFromCityMarkups === 'function') {
+                    window.syncDiscountPriceFromCityMarkups();
+                }
+            };
+        })();
+
+        document.addEventListener('DOMContentLoaded', function () {
+            if (typeof window.syncLiteTourSelectedDestinations === 'function') {
+                window.syncLiteTourSelectedDestinations();
+            }
+        });
+
         window.setTourPackageCurrency = function (code, options) {
             options = options || {};
             const cur = String(code || '').trim().toUpperCase() || 'SGD';
@@ -7130,6 +8573,11 @@
             }
             const cityValue = cityName;
             const cityId = meta.id ? String(meta.id) : '';
+            const country = String(meta.country || '').trim();
+            const displayLabel = country ? (cityName + ' (' + country + ')') : cityName;
+            const escAttr = function (s) {
+                return String(s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+            };
 
             window.SERVICE_CITY_SELECTORS.forEach(function (sel) {
                 $(sel).each(function () {
@@ -7137,14 +8585,14 @@
                     if (!$dd.length) return;
 
                     const prevVal = String($dd.val() || '');
-                    const idAttr = cityId ? ' data-id="' + cityId.replace(/"/g, '&quot;') + '"' : '';
-                    $dd.html(
-                        '<option value="' + cityValue.replace(/"/g, '&quot;') + '"' + idAttr + ' selected>' +
-                        cityName.replace(/</g, '&lt;') + '</option>'
-                    );
+                    let attrs = ' value="' + escAttr(cityValue) + '" selected';
+                    if (cityId) attrs += ' data-id="' + escAttr(cityId) + '"';
+                    if (country) attrs += ' data-country="' + escAttr(country) + '"';
+                    attrs += ' data-city-name="' + escAttr(cityName) + '"';
+                    $dd.html('<option' + attrs + '>' + escAttr(displayLabel) + '</option>');
                     $dd.val(cityValue);
                     $dd.prop('disabled', true);
-                    window.refreshServiceCitySelect2($dd, cityName, true);
+                    window.refreshServiceCitySelect2($dd, displayLabel, true);
 
                     if (prevVal !== cityValue) {
                         $dd.trigger('change');
@@ -7191,21 +8639,40 @@
             const selectedVal = String($sc.val() || '').trim();
             let selectedText = window.getSingleCityName() || selectedVal;
             let selectedDataId = '';
+            let selectedCountry = '';
+            let rawLabel = '';
 
             try {
                 const data = $sc.select2('data');
                 if (data && data.length && data[0]) {
-                    if (data[0].text) selectedText = String(data[0].text).split('(')[0].trim();
+                    if (data[0].text) {
+                        rawLabel = String(data[0].text);
+                        selectedText = rawLabel.split('(')[0].trim();
+                    }
                     if (data[0].id !== undefined && data[0].id !== null) {
                         selectedDataId = String(data[0].id).trim();
+                    }
+                    if (data[0].country) {
+                        selectedCountry = String(data[0].country).trim();
                     }
                 }
             } catch (e) { /* select2 not ready */ }
 
+            const $opt = $sc.find('option:selected');
+            if (!selectedCountry && $opt.length) {
+                selectedCountry = String($opt.attr('data-country') || '').trim();
+            }
+            if (!selectedCountry) {
+                if (!rawLabel && $opt.length) rawLabel = String($opt.text() || '').trim();
+                const m = String(rawLabel || '').match(/\(([^)]+)\)\s*$/);
+                if (m && m[1]) selectedCountry = String(m[1]).trim();
+            }
+
             return {
                 value: selectedVal,
                 text: selectedText,
-                id: selectedDataId
+                id: selectedDataId,
+                country: selectedCountry
             };
         };
 
@@ -7267,7 +8734,11 @@
                     });
 
                     if (matchedVal === null) {
-                        $dd.append($('<option></option>').attr('value', needle).text(needle));
+                        const geo = (typeof window.getActiveServiceGeo === 'function') ? window.getActiveServiceGeo() : {};
+                        const $opt = $('<option></option>').attr('value', needle).text(needle);
+                        if (geo.country) $opt.attr('data-country', geo.country);
+                        if (geo.city) $opt.attr('data-city-name', geo.city);
+                        $dd.append($opt);
                         matchedVal = needle;
                     }
 
@@ -7360,11 +8831,39 @@
 
             $('#single_city').on('change select2:select select2:clear', function () {
                 window.syncSingleCityToAllServices();
+                if (typeof window.syncLiteTourSelectedDestinations === 'function') {
+                    window.syncLiteTourSelectedDestinations();
+                }
             });
             $('#single_city').on('select2:select', function (e) {
-                const country = e.params && e.params.data && e.params.data.country;
-                if (country && typeof window.setTourPackageCurrency === 'function') {
+                const data = (e.params && e.params.data) ? e.params.data : {};
+                let country = data.country ? String(data.country).trim() : '';
+                if (!country && data.text) {
+                    const m = String(data.text).match(/\(([^)]+)\)\s*$/);
+                    if (m && m[1]) country = String(m[1]).trim();
+                }
+                const cityName = String(data.text || '').split('(')[0].trim()
+                    || (typeof window.getSingleCityName === 'function' ? window.getSingleCityName() : '');
+
+                // Persist country on the option so sibling-DMC resolution works like multi-city
+                const $opt = $('#single_city option:selected');
+                if ($opt.length) {
+                    if (country) $opt.attr('data-country', country);
+                    if (cityName) $opt.attr('data-city-name', cityName);
+                }
+
+                if (country) {
+                    const $uc = $('#user_country');
+                    if ($uc.length && String($uc.val() || '') !== country) {
+                        if (!$uc.find('option').filter(function () { return String($(this).val()) === country; }).length) {
+                            $uc.append($('<option></option>').attr('value', country).text(country));
+                        }
+                        // Ports/currency follow city country; re-lock service cities after populate
+                        $uc.val(country).trigger('change');
+                    }
+                    if (typeof window.setTourPackageCurrency === 'function') {
                     window.setTourPackageCurrency(window.getCurrencyForCountryName(country));
+                    }
                 }
             });
 
@@ -7384,6 +8883,14 @@
                         return data;
                     },
                     cache: true
+                }
+            });
+            $('#multi_cities').on('select2:select select2:unselect', function () {
+                if (typeof window.stampMultiCitiesGeoFromSelect2 === 'function') {
+                    window.stampMultiCitiesGeoFromSelect2();
+                }
+                if (typeof window.syncLiteTourSelectedDestinations === 'function') {
+                    window.syncLiteTourSelectedDestinations();
                 }
             });
 
@@ -7438,7 +8945,11 @@
                 master.forEach(function (id) {
                     const label = labelById[id] || id;
                     const cityName = String(label).split('(')[0].trim();
-                    const ctry = countryById[id] || '';
+                    let ctry = countryById[id] || '';
+                    if (!ctry) {
+                        const m = String(label).match(/\(([^)]+)\)\s*$/);
+                        if (m && m[1]) ctry = String(m[1]).trim();
+                    }
                     html += `<option value="${id}" data-city-name="${escAttr(cityName)}" data-country="${escAttr(ctry)}">${label}</option>`;
                 });
 
@@ -7475,6 +8986,13 @@
                 $clone.find('[id]').removeAttr('id');
                 $clone.find('label[for]').removeAttr('for');
 
+                // Show native selected values instead of empty Select2 chrome in the snapshot.
+                $clone.find('.select2-container').remove();
+                $clone.find('select.select2-hidden-accessible')
+                    .removeClass('select2-hidden-accessible')
+                    .removeAttr('data-select2-id')
+                    .css({ width: '100%', display: 'block' });
+
                 // Make it read-only (visual snapshot).
                 $clone.find('input, select, textarea, button').prop('disabled', true);
                 $clone.addClass('segment-services-frozen');
@@ -7488,6 +9006,26 @@
                 );
 
                 $segment.find('.segment-services').append($clone);
+
+                const key = String($segment.data('index') || '');
+                if (key) {
+                    if (!window.__segmentFrozenHtmlByIdx) window.__segmentFrozenHtmlByIdx = {};
+                    window.__segmentFrozenHtmlByIdx[key] = $clone.prop('outerHTML');
+                }
+            }
+
+            function restoreFrozenSnapshotsIfMissing() {
+                $('#segmentsWrapper .segment').each(function () {
+                    const $s = $(this);
+                    if ($s.find('.segment-services-frozen').length) return;
+                    const key = String($s.data('index') || '');
+                    const html = key && window.__segmentFrozenHtmlByIdx ? window.__segmentFrozenHtmlByIdx[key] : '';
+                    if (!html) return;
+                    $s.find('.segment-services').append(html);
+                    $s.find('.segment-body-collapse').addClass('show');
+                    $s.find('.segment-services-banner').removeClass('d-none');
+                    $s.find('.segment-header').removeClass('d-none');
+                });
             }
 
             /** Badges next to Hotel Accommodations: segment stay (e.g. 01 Mar – 05 Mar, 2026), not full tour. */
@@ -7577,6 +9115,12 @@
             }
 
             function setCityMode(mode) {
+                if (window.IS_THIRD_PARTY_DMC) {
+                    mode = 'single';
+                    $('#city_mode_single').prop('checked', true);
+                    $('#city_mode_multi').prop('checked', false).prop('disabled', true);
+                    $('.city-toggle').addClass('is-thirdparty-disabled');
+                }
                 const isMulti = mode === 'multi';
                 $('#multiCityControls').toggleClass('d-none', !isMulti);
                 $('#single_city').closest('.col-md-6, .col-md-2, .col-12').toggleClass('d-none', isMulti);
@@ -7590,6 +9134,9 @@
                     window.releaseServiceCityDropdownsForMultiCity();
                 }
                 refreshGlobalServicesVisibility();
+                if (typeof window.syncLiteTourSelectedDestinations === 'function') {
+                    window.syncLiteTourSelectedDestinations();
+                }
             }
 
             function clearTourPackageHeaderFields() {
@@ -7689,6 +9236,40 @@
                 }
             }
 
+            /** Move the live services bundle home without deleting other city plans' frozen snapshots. */
+            function detachLiveServicesBundleKeepSnapshots() {
+                const $bundle = $('#segmentServicesBundle');
+                const $home = $('#servicesAccordionHome');
+                if ($bundle.length && $home.length) {
+                    $home.after($bundle);
+                }
+            }
+
+            function deleteSegmentStoredState(rmKey) {
+                if (!rmKey) return;
+                if (window.__segmentServiceState) delete window.__segmentServiceState[rmKey];
+                if (window.__segmentServiceMeta) delete window.__segmentServiceMeta[rmKey];
+                if (window.__segmentLastValidRange) delete window.__segmentLastValidRange[rmKey];
+                if (window.__segmentBundleDomByIdx) delete window.__segmentBundleDomByIdx[rmKey];
+                if (window.__segmentFrozenHtmlByIdx) delete window.__segmentFrozenHtmlByIdx[rmKey];
+            }
+
+            function findNextCompleteCityPlan($except) {
+                let $found = $();
+                $('#segmentsWrapper .segment').each(function () {
+                    const $s = $(this);
+                    if ($except && $except.length && $s.is($except)) return;
+                    const city = $s.find('.city-select').val();
+                    const start = $s.find('.start-date').val();
+                    const end = $s.find('.end-date').val();
+                    if (city && start && end) {
+                        $found = $s;
+                        return false;
+                    }
+                });
+                return $found;
+            }
+
             function refreshAllOnCityModeSwitch() {
                 ensureServicesBundleAtHome();
 
@@ -7763,6 +9344,7 @@
                 if (window.__segmentServiceState) window.__segmentServiceState = {};
                 if (window.__segmentServiceMeta) window.__segmentServiceMeta = {};
                 if (window.__segmentLastValidRange) window.__segmentLastValidRange = {};
+                if (window.__segmentFrozenHtmlByIdx) window.__segmentFrozenHtmlByIdx = {};
 
                 clearMultiSegmentStayContext();
                 ensureServicesBundleAtHome();
@@ -7789,6 +9371,7 @@
                 if (window.__segmentServiceState) window.__segmentServiceState = {};
                 if (window.__segmentServiceMeta) window.__segmentServiceMeta = {};
                 if (window.__segmentLastValidRange) window.__segmentLastValidRange = {};
+                if (window.__segmentFrozenHtmlByIdx) window.__segmentFrozenHtmlByIdx = {};
 
                 clearMultiSegmentStayContext();
                 ensureServicesBundleAtHome();
@@ -7832,7 +9415,12 @@
             }
 
             $(document).on('change', 'input[name="city_mode"]', function () {
-                const mode = $(this).val();
+                let mode = $(this).val();
+                if (window.IS_THIRD_PARTY_DMC) {
+                    $('#city_mode_single').prop('checked', true);
+                    $('#city_mode_multi').prop('checked', false).prop('disabled', true);
+                    mode = 'single';
+                }
                 resetTourPackageCityMode(mode);
                 setCityMode(mode);
                 window.syncSingleCityToAllServices();
@@ -7892,6 +9480,10 @@
             });
 
             $('#addCityPlan').on('click', function () {
+                if (window.IS_THIRD_PARTY_DMC) {
+                    alert('This is a 3rd party DMC. Multi City cannot be accessed.');
+                    return;
+                }
                 const master = getMasterCities();
                 if (!master.length) {
                     alert('Please select cities in the master list first.');
@@ -7974,15 +9566,31 @@
             $(document).on('click', '.removeSegment', function () {
                 const $seg = $(this).closest('.segment');
                 const rmKey = $seg.length ? String($seg.data('index')) : '';
-                if (rmKey && window.__segmentServiceState && window.__segmentServiceState[rmKey]) {
-                    delete window.__segmentServiceState[rmKey];
-                }
-                if ($seg.find('#segmentServicesBundle').length) {
-                    ensureServicesBundleAtHome();
+                const hadLiveBundle = $seg.find('#segmentServicesBundle').length > 0;
+
+                deleteSegmentStoredState(rmKey);
+
+                if (hadLiveBundle) {
+                    // Keep other city plans' frozen snapshots. Do not re-open the previous
+                    // plan as live — that rebuilds daily services and drops attractions,
+                    // guides, restaurants and transport (hotels survive via JS arrays).
+                    detachLiveServicesBundleKeepSnapshots();
                     clearMultiSegmentStayContext();
+                    if (typeof window.clearAllSelectedServices === 'function') {
+                        window.clearAllSelectedServices();
+                    }
+                    if (typeof window.resetServicesBundleFormControls === 'function') {
+                        window.resetServicesBundleFormControls();
+                    }
                 }
+
                 $seg.remove();
+                restoreFrozenSnapshotsIfMissing();
                 refreshGlobalServicesVisibility();
+
+                if (typeof window.scheduleTourSubmitButtonUpdate === 'function') {
+                    window.scheduleTourSubmitButtonUpdate();
+                }
             });
 
             // When master list changes, update all segment dropdown options
@@ -7990,10 +9598,16 @@
                 $('#segmentsWrapper .city-select').each(function () {
                     rebuildSegmentCityOptions($(this));
                 });
+                if (typeof window.syncLiteTourSelectedDestinations === 'function') {
+                    window.syncLiteTourSelectedDestinations();
+                }
             });
 
             // Load services grid dynamically per segment when city+dates valid and within main range
             $(document).on('change', '.city-select, .start-date, .end-date', function () {
+                if ($(this).hasClass('city-select') && typeof window.syncLiteTourSelectedDestinations === 'function') {
+                    window.syncLiteTourSelectedDestinations();
+                }
                 const $segment = $(this).closest('.segment');
                 const city = $segment.find('.city-select').val();
                 const start = $segment.find('.start-date').val();
@@ -8328,6 +9942,12 @@
                     // Populate cities for the selected country
                     if (typeof populateAllCityDropdowns === 'function') {
                         populateAllCityDropdowns(selectedCountry);
+                    }
+
+                    // Single-city: re-lock service cities after country populate (sibling-country inventory)
+                    if (typeof window.isSingleCityMode === 'function' && window.isSingleCityMode()
+                        && typeof window.scheduleSyncSingleCityToAllServices === 'function') {
+                        window.scheduleSyncSingleCityToAllServices();
                     }
                     
                     // Fetch ports for the selected country using country ID
@@ -9502,6 +11122,7 @@
                 const raw = perPaxTotal * focSize;
                 return raw > 0 ? Math.ceil(raw) : 0;
             }
+            window.calculateLiteFOCDiscountAmount = calculateFOCDiscountAmount;
 
             // The hidden service JSON fields (attraction_data, restaurant_data, etc.) are
             // only filled by the page's own update* functions on save. To reflect what the
@@ -9527,29 +11148,40 @@
 
             function updateDiscountPrice() {
                 const discountField = getEl('discount_price');
-                if (!discountField) return;
+                const focEnabled = isFOCDiscountEnabled();
 
-                if (!isFOCDiscountEnabled()) {
-                    if (discountField.dataset.focDiscountAuto === '1') {
+                if (!focEnabled) {
+                    if (typeof window.applyFocToCityDiscountFields === 'function') {
+                        // Only clear FOC rows if they were auto-managed
+                        const anyFocRow = document.querySelector('#enquiryProCityMarkupBody .city-discount-type');
+                        const focSelected = anyFocRow && Array.from(document.querySelectorAll('#enquiryProCityMarkupBody .city-discount-type'))
+                            .some(function (el) { return el.value === 'foc'; });
+                        if (focSelected && discountField && discountField.dataset.focDiscountAuto === '1') {
+                            window.applyFocToCityDiscountFields(0, false);
+                        }
+                    }
+                    if (discountField && discountField.dataset.focDiscountAuto === '1') {
                         discountField.value = '0';
                     }
+                    if (discountField) {
                     discountField.dataset.focDiscountAuto = '0';
-                    discountField.readOnly = false;
-                    discountField.style.background = '';
-                    discountField.removeAttribute('title');
+                    }
+                    if (typeof window.syncDiscountPriceFromCityMarkups === 'function') {
+                        window.syncDiscountPriceFromCityMarkups();
+                    }
                     return;
                 }
 
                 refreshHiddenServiceFields();
                 const discountAmount = calculateFOCDiscountAmount();
-                if (discountField.dataset.focDiscountAuto !== '0') {
+                if (typeof window.applyFocToCityDiscountFields === 'function') {
+                    window.applyFocToCityDiscountFields(discountAmount, true);
+                } else if (discountField) {
                     discountField.value = discountAmount > 0 ? String(Math.ceil(discountAmount)) : '0';
+                }
+                if (discountField) {
                     discountField.dataset.focDiscountAuto = '1';
                 }
-                discountField.readOnly = false;
-                discountField.style.background = '';
-                discountField.title =
-                    'Suggested from FOC (editable). Typing here stops auto-updates; change FOC size / group size or toggle "Treat FOC pax as discount" to refresh the suggestion.';
             }
 
             window.recomputeFOCDiscountPrice = function (opts) {
@@ -9560,29 +11192,22 @@
                 updateDiscountPrice();
             };
 
-            document.addEventListener('blur', function (e) {
-                if (e?.target?.id !== 'discount_price') return;
-                const raw = parseFloat(e.target.value || '0');
-                if (!isNaN(raw) && raw > 0) {
-                    e.target.value = String(Math.ceil(raw));
-                } else if (!isNaN(raw) && raw <= 0) {
-                    e.target.value = '0';
-                }
-            }, true);
-
             document.addEventListener('input', function (e) {
                 const id = e?.target?.id || '';
-                if (id === 'discount_price') {
-                    if (e.target) {
-                        e.target.dataset.focDiscountAuto = '0';
+                const cls = String(e?.target?.className || '');
+                if (cls.indexOf('city-discount-value') !== -1 || id === 'discountValue') {
+                    if (e.target && !e.target.disabled) {
+                        const hidden = getEl('discount_price');
+                        if (hidden) hidden.dataset.focDiscountAuto = '0';
+                    }
+                    if (typeof window.syncDiscountPriceFromCityMarkups === 'function') {
+                        window.syncDiscountPriceFromCityMarkups();
                     }
                     return;
                 }
                 if (id === 'foc_size' || id === 'group_size_display') {
                     const df = getEl('discount_price');
-                    if (df) {
-                        df.dataset.focDiscountAuto = '1';
-                    }
+                    if (df) df.dataset.focDiscountAuto = '1';
                     updateDiscountPrice();
                 }
             }, true);
@@ -9591,9 +11216,8 @@
                 const target = e?.target;
                 if (!target) return;
                 const id = target.id || '';
-                const cls = target.className || '';
+                const cls = String(target.className || '');
 
-                // Direct FOC controls — turn auto suggestion back on when these change
                 if (
                     id === 'include_foc_in_group_price'
                     || id === 'foc_size'
@@ -9601,16 +11225,42 @@
                     || target.name === 'tour_type'
                 ) {
                     const df = getEl('discount_price');
-                    if (df) {
-                        df.dataset.focDiscountAuto = '1';
-                    }
+                    if (df) df.dataset.focDiscountAuto = '1';
                     updateDiscountPrice();
                     return;
                 }
 
-                // Common service-selection signals: attraction/ticket/restaurant/guide etc.
-                // We match by id pattern so any day_*_attraction / _ticket / _restaurant
-                // change triggers a recompute.
+                if (cls.indexOf('city-discount-type') !== -1 || id === 'discountType') {
+                    if (target.value === 'foc') {
+                        const df = getEl('discount_price');
+                        if (df) df.dataset.focDiscountAuto = '1';
+                        refreshHiddenServiceFields();
+                        const amt = calculateFOCDiscountAmount();
+                        if (typeof window.applyFocToCityDiscountFields === 'function' && isFOCDiscountEnabled()) {
+                            window.applyFocToCityDiscountFields(amt, true);
+                        } else {
+                            const tr = target.closest ? target.closest('tr[data-city]') : null;
+                            const dv = tr
+                                ? tr.querySelector('.city-discount-value')
+                                : getEl('discountValue');
+                            if (dv) {
+                                dv.value = amt || 0;
+                                dv.disabled = true;
+                                dv.classList.add('is-foc-locked');
+                            }
+                            if (typeof window.syncActiveCurrencyMarkupToStore === 'function') {
+                                window.syncActiveCurrencyMarkupToStore();
+                            }
+                            if (typeof window.syncDiscountPriceFromCityMarkups === 'function') {
+                                window.syncDiscountPriceFromCityMarkups();
+                            }
+                        }
+                    } else if (typeof window.syncDiscountPriceFromCityMarkups === 'function') {
+                        window.syncDiscountPriceFromCityMarkups();
+                    }
+                    return;
+                }
+
                 if (
                     /^day\d+_(attraction|restaurant|guide|transport|entry|exit)_/i.test(id)
                     || /attraction-select|ticket-select|restaurant-select|meal-select|guide-select|transport-select/i.test(cls)
@@ -11721,7 +13371,7 @@
                 cityMessage.style.display = 'none';
                 
                 // Load attractions for the specific city
-                const currentDmcId = '{{ $finalDmcId }}';
+                const currentDmcId = (typeof window.getActiveServiceDmcId === 'function' ? window.getActiveServiceDmcId(typeof cityName !== 'undefined' ? cityName : '') : '{{ $finalDmcId }}');
                 
                 window.fetchJsonDeduped(`{{ route('fetch-attractions-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${currentDmcId}`)
                     .then(data => {
@@ -11977,7 +13627,7 @@
                 languageSelect.innerHTML = '<option value="">Loading languages...</option>';
                 
                 // Load guides for the specific city
-                const currentDmcId = '{{ $finalDmcId }}';
+                const currentDmcId = (typeof window.getActiveServiceDmcId === 'function' ? window.getActiveServiceDmcId(typeof cityName !== 'undefined' ? cityName : '') : '{{ $finalDmcId }}');
                 
                 window.fetchJsonDeduped(`{{ route('fetch-guides-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${currentDmcId}`)
                     .then(data => {
@@ -12589,8 +14239,11 @@
             
             vehicleSelect.innerHTML = '<option value="">Loading vehicles...</option>';
             vehicleSelect.disabled = true;
+            const inv = (typeof window.buildInventoryDmcQuery === 'function')
+                ? window.buildInventoryDmcQuery(cityName)
+                : { qs: `city=${encodeURIComponent(cityName)}` };
             
-            fetch(`{{ route('fetch-vehicles-by-city-dmc') }}?city=${encodeURIComponent(cityName)}`)
+            fetch(`{{ route('fetch-vehicles-by-city-dmc') }}?${inv.qs}`)
                 .then(response => response.json())
                 .then(data => {
                     vehicleSelect.innerHTML = '<option value="">Select Vehicle</option>';
@@ -12612,14 +14265,14 @@
                         });
                         console.log(`Loaded ${data.vehicles.length} vehicles for attraction transfer in ${cityName}`);
                     } else {
-                        vehicleSelect.innerHTML += '<option disabled>No vehicles available</option>';
+                        vehicleSelect.innerHTML += '<option value="" disabled>No vehicles available</option>';
                     }
                     
                     vehicleSelect.disabled = false;
                 })
                 .catch(error => {
                     console.error('Error loading vehicles for attraction transfer:', error);
-                    vehicleSelect.innerHTML = '<option disabled>Error loading vehicles</option>';
+                    vehicleSelect.innerHTML = '<option value="" disabled>Error loading vehicles</option>';
                     vehicleSelect.disabled = false;
                 });
         }
@@ -12772,11 +14425,11 @@
             pickupSelect.disabled = true;
             
             // Get DMC ID for the requests
-            const dmcId = '{{ $finalDmcId }}';
+            const dmcId = (typeof window.getActiveServiceDmcId === 'function' ? window.getActiveServiceDmcId(typeof cityName !== 'undefined' ? cityName : '') : '{{ $finalDmcId }}');
             
             // Make AJAX calls for attractions, hotels and restaurants (same as entry_dropoff_location_select)
             Promise.all([
-                window.fetchJsonDeduped(`{{ route('fetch-hotels-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`),
+                window.fetchJsonDeduped(`{{ route('fetch-hotels-by-dmc') }}?city=${encodeURIComponent(cityName)}&country=${encodeURIComponent((typeof window.resolveCountryForCityName === 'function' ? window.resolveCountryForCityName(cityName) : '') || '')}&dmc_id=${dmcId}`),
                 window.fetchJsonDeduped(`{{ route('fetch-attractions-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`),
                 window.fetchJsonDeduped(`{{ route('fetch-restaurants-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`)
             ])
@@ -13018,23 +14671,19 @@
             const attractionId = attractionSelect.value;
             const pickupLocationOption = pickupLocationSelect.options[pickupLocationSelect.selectedIndex];
             const pickupLocationType = pickupLocationOption ? pickupLocationOption.getAttribute('data-type') : '';
-            // Prefer zone_id when available (zone-based pricing), otherwise fall back to raw value
-            const pickupLocationZoneId = pickupLocationOption ? pickupLocationOption.getAttribute('data-zone-id') : '';
-            const pickupLocationId = pickupLocationZoneId || pickupLocationSelect.value;
+            const pickupLocationId = pickupLocationSelect.value;
             const transferType = transferTypeSelect.value; // Private or Shared
             const transferWay = transferWaySelect.value; // One Way or Both Way
             const cityName = citySelect ? citySelect.value : '';
+            const country = (typeof window.resolveCountryForCityName === 'function')
+                ? (window.resolveCountryForCityName(cityName) || '')
+                : '';
+            const serviceDmcId = (typeof window.getActiveServiceDmcId === 'function')
+                ? (window.getActiveServiceDmcId(cityName) || '')
+                : '';
             
             // Get attraction data - try to fetch from API if not in option
             const attractionOption = attractionSelect.options[attractionSelect.selectedIndex];
-            let country = '';
-            
-            // Try to get country from city select or fetch attraction details
-            if (citySelect && citySelect.value) {
-                // We'll get country from the backend response
-            }
-            
-            // For now, we'll let the backend handle country lookup
             
             console.log('Fetching transfer pricing:', {
                 vehicleId,
@@ -13044,7 +14693,8 @@
                 transferType,
                 transferWay,
                 cityName,
-                country
+                country,
+                serviceDmcId
             });
             
             // Show loading state
@@ -13061,7 +14711,8 @@
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
                     'Accept': 'application/json'
                 },
-                body: JSON.stringify({
+                body: JSON.stringify((typeof window.withInventoryDmcPayload === 'function')
+                    ? window.withInventoryDmcPayload({
                     vehicle_id: vehicleId,
                     attraction_id: attractionId,
                     pickup_location_id: pickupLocationId,
@@ -13069,7 +14720,19 @@
                     transfer_type: transferType,
                     transfer_way: transferWay,
                     city: cityName,
-                    country: country
+                        country: country,
+                        dmc_id: serviceDmcId
+                    }, cityName)
+                    : {
+                        vehicle_id: vehicleId,
+                        attraction_id: attractionId,
+                        pickup_location_id: pickupLocationId,
+                        pickup_location_type: pickupLocationType,
+                        transfer_type: transferType,
+                        transfer_way: transferWay,
+                        city: cityName,
+                        country: country,
+                        dmc_id: serviceDmcId
                 })
             })
             .then(response => response.json())
@@ -13425,23 +15088,19 @@
             const restaurantId = restaurantSelect.value;
             const pickupLocationOption = pickupLocationSelect.options[pickupLocationSelect.selectedIndex];
             const pickupLocationType = pickupLocationOption ? pickupLocationOption.getAttribute('data-type') : '';
-            // Prefer zone_id when available (zone-based pricing), otherwise fall back to raw value
-            const pickupLocationZoneId = pickupLocationOption ? pickupLocationOption.getAttribute('data-zone-id') : '';
-            const pickupLocationId = pickupLocationZoneId || pickupLocationSelect.value;
+            const pickupLocationId = pickupLocationSelect.value;
             const transferType = transferTypeSelect.value; // Private or Shared
             const transferWay = transferWaySelect.value; // One Way or Both Way
             const cityName = citySelect ? citySelect.value : '';
+            const country = (typeof window.resolveCountryForCityName === 'function')
+                ? (window.resolveCountryForCityName(cityName) || '')
+                : '';
+            const serviceDmcId = (typeof window.getActiveServiceDmcId === 'function')
+                ? (window.getActiveServiceDmcId(cityName) || '')
+                : '';
             
             // Get restaurant data
             const restaurantOption = restaurantSelect.options[restaurantSelect.selectedIndex];
-            let country = '';
-            
-            // Try to get country from city select or fetch restaurant details
-            if (citySelect && citySelect.value) {
-                // We'll get country from the backend response
-            }
-            
-            // For now, we'll let the backend handle country lookup
             
             console.log('Fetching restaurant transfer pricing:', {
                 vehicleId,
@@ -13451,7 +15110,8 @@
                 transferType,
                 transferWay,
                 cityName,
-                country
+                country,
+                serviceDmcId
             });
             
             // Show loading state
@@ -13468,7 +15128,8 @@
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
                     'Accept': 'application/json'
                 },
-                body: JSON.stringify({
+                body: JSON.stringify((typeof window.withInventoryDmcPayload === 'function')
+                    ? window.withInventoryDmcPayload({
                     vehicle_id: vehicleId,
                     restaurant_id: restaurantId,
                     pickup_location_id: pickupLocationId,
@@ -13476,7 +15137,19 @@
                     transfer_type: transferType,
                     transfer_way: transferWay,
                     city: cityName,
-                    country: country
+                        country: country,
+                        dmc_id: serviceDmcId
+                    }, cityName)
+                    : {
+                        vehicle_id: vehicleId,
+                        restaurant_id: restaurantId,
+                        pickup_location_id: pickupLocationId,
+                        pickup_location_type: pickupLocationType,
+                        transfer_type: transferType,
+                        transfer_way: transferWay,
+                        city: cityName,
+                        country: country,
+                        dmc_id: serviceDmcId
                 })
             })
             .then(response => response.json())
@@ -13790,7 +15463,7 @@
                 }
                 
                 // Load guides for the specific city
-                const currentDmcId = '{{ $finalDmcId }}';
+                const currentDmcId = (typeof window.getActiveServiceDmcId === 'function' ? window.getActiveServiceDmcId(typeof cityName !== 'undefined' ? cityName : '') : '{{ $finalDmcId }}');
                 
                 window.fetchJsonDeduped(`{{ route('fetch-guides-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${currentDmcId}`)
                     .then(data => {
@@ -13924,7 +15597,7 @@
                 if (cityMessage) cityMessage.style.display = 'none';
                 refreshRestaurantSelect2('Loading restaurants...', false);
                 
-                const currentDmcId = '{{ $finalDmcId }}';
+                const currentDmcId = (typeof window.getActiveServiceDmcId === 'function' ? window.getActiveServiceDmcId(typeof cityName !== 'undefined' ? cityName : '') : '{{ $finalDmcId }}');
                 
                 window.fetchJsonDeduped(`{{ route('fetch-restaurants-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${currentDmcId}`)
                     .then(data => {
@@ -14043,8 +15716,11 @@
             
             vehicleSelect.innerHTML = '<option value="">Loading vehicles...</option>';
             vehicleSelect.disabled = true;
+            const inv = (typeof window.buildInventoryDmcQuery === 'function')
+                ? window.buildInventoryDmcQuery(cityName)
+                : { qs: `city=${encodeURIComponent(cityName)}` };
             
-            fetch(`{{ route('fetch-vehicles-by-city-dmc') }}?city=${encodeURIComponent(cityName)}`)
+            fetch(`{{ route('fetch-vehicles-by-city-dmc') }}?${inv.qs}`)
                 .then(response => response.json())
                 .then(data => {
                     vehicleSelect.innerHTML = '<option value="">Select Vehicle</option>';
@@ -14068,14 +15744,14 @@
                         // Apply filter based on selected transfer type
                         window.filterRestaurantTransferVehiclesByType(day, index);
                     } else {
-                        vehicleSelect.innerHTML += '<option disabled>No vehicles available</option>';
+                        vehicleSelect.innerHTML += '<option value="" disabled>No vehicles available</option>';
                     }
                     
                     vehicleSelect.disabled = false;
                 })
                 .catch(error => {
                     console.error('Error loading vehicles for restaurant transfer:', error);
-                    vehicleSelect.innerHTML = '<option disabled>Error loading vehicles</option>';
+                    vehicleSelect.innerHTML = '<option value="" disabled>Error loading vehicles</option>';
                     vehicleSelect.disabled = false;
                 });
         }
@@ -14092,11 +15768,11 @@
             pickupSelect.disabled = true;
             
             // Get DMC ID for the requests
-            const dmcId = '{{ $finalDmcId }}';
+            const dmcId = (typeof window.getActiveServiceDmcId === 'function' ? window.getActiveServiceDmcId(typeof cityName !== 'undefined' ? cityName : '') : '{{ $finalDmcId }}');
             
             // Make AJAX calls for attractions, hotels and restaurants (same as entry_dropoff_location_select)
             Promise.all([
-                window.fetchJsonDeduped(`{{ route('fetch-hotels-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`),
+                window.fetchJsonDeduped(`{{ route('fetch-hotels-by-dmc') }}?city=${encodeURIComponent(cityName)}&country=${encodeURIComponent((typeof window.resolveCountryForCityName === 'function' ? window.resolveCountryForCityName(cityName) : '') || '')}&dmc_id=${dmcId}`),
                 window.fetchJsonDeduped(`{{ route('fetch-attractions-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`),
                 window.fetchJsonDeduped(`{{ route('fetch-restaurants-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`)
             ])
@@ -14267,7 +15943,7 @@
                 }
                 
                 // Load zones for the specific city
-                const currentDmcId = '{{ $finalDmcId }}';
+                const currentDmcId = (typeof window.getActiveServiceDmcId === 'function' ? window.getActiveServiceDmcId(typeof cityName !== 'undefined' ? cityName : '') : '{{ $finalDmcId }}');
                 
                 fetch(`{{ route('fetch-zones-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${currentDmcId}`)
                     .then(response => response.json())
@@ -15318,15 +16994,18 @@
                 bedPriceDisplay.style.display = 'none';
             }
             
-            // Get current user's DMC ID from authentication
-            const currentDmcId = '{{ $finalDmcId }}';
-            console.log('Current DMC ID:', currentDmcId);
+            // Get inventory DMC for THIS city (Singapore city → Singapore DMC hotels/rooms)
+            const inv = (typeof window.buildInventoryDmcQuery === 'function')
+                ? window.buildInventoryDmcQuery(cityName)
+                : { qs: `city=${encodeURIComponent(cityName)}&dmc_id=${encodeURIComponent((typeof window.getActiveServiceDmcId === 'function' ? window.getActiveServiceDmcId(cityName) : '{{ $finalDmcId }}') || '')}`, dmc_id: (typeof window.getActiveServiceDmcId === 'function' ? window.getActiveServiceDmcId(cityName) : '{{ $finalDmcId }}') };
+            const currentDmcId = inv.dmc_id;
+            console.log('Current DMC ID:', currentDmcId, 'city:', cityName, 'country:', inv.country || '');
             
             // Show DMC info in loading status
             hotelLoadingStatus.innerHTML = `<i class="ri-loader-2-line spin me-1"></i>Loading hotels for DMC ${currentDmcId} in ${cityName}...`;
             
             // Fetch hotels from API using DMC-specific endpoint
-            window.fetchJsonDeduped(`{{ route('fetch-hotels-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${currentDmcId}`)
+            window.fetchJsonDeduped(`{{ route('fetch-hotels-by-dmc') }}?${inv.qs}`)
                 .then(response => {
                     console.log('Hotel API Response:', response);
                     
@@ -15458,8 +17137,11 @@
             
             vehicleSelect.innerHTML = '<option value="">Loading vehicles...</option>';
             vehicleSelect.disabled = true;
+            const inv = (typeof window.buildInventoryDmcQuery === 'function')
+                ? window.buildInventoryDmcQuery(cityName)
+                : { qs: `city=${encodeURIComponent(cityName)}` };
             
-            fetch(`{{ route('fetch-vehicles-by-city-dmc') }}?city=${encodeURIComponent(cityName)}`)
+            fetch(`{{ route('fetch-vehicles-by-city-dmc') }}?${inv.qs}`)
                 .then(response => response.json())
                 .then(data => {
                     vehicleSelect.innerHTML = '<option value="">Select Vehicle</option>';
@@ -15479,14 +17161,14 @@
                         });
                         console.log(`Loaded ${data.vehicles.length} vehicles for hotel transfer in ${cityName}`);
                     } else {
-                        vehicleSelect.innerHTML += '<option disabled>No vehicles available</option>';
+                        vehicleSelect.innerHTML += '<option value="" disabled>No vehicles available</option>';
                     }
                     
                     vehicleSelect.disabled = false;
                 })
                 .catch(error => {
                     console.error('Error loading vehicles for hotel transfer:', error);
-                    vehicleSelect.innerHTML = '<option disabled>Error loading vehicles</option>';
+                    vehicleSelect.innerHTML = '<option value="" disabled>Error loading vehicles</option>';
                     vehicleSelect.disabled = false;
                 });
         }
@@ -15511,11 +17193,11 @@
             }
             
             // Get DMC ID for the requests
-            const dmcId = '{{ $finalDmcId }}';
+            const dmcId = (typeof window.getActiveServiceDmcId === 'function' ? window.getActiveServiceDmcId(typeof cityName !== 'undefined' ? cityName : '') : '{{ $finalDmcId }}');
             
             // Make AJAX calls for attractions, hotels and restaurants (same as entry_dropoff_location_select)
             Promise.all([
-                window.fetchJsonDeduped(`{{ route('fetch-hotels-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`),
+                window.fetchJsonDeduped(`{{ route('fetch-hotels-by-dmc') }}?city=${encodeURIComponent(cityName)}&country=${encodeURIComponent((typeof window.resolveCountryForCityName === 'function' ? window.resolveCountryForCityName(cityName) : '') || '')}&dmc_id=${dmcId}`),
                 window.fetchJsonDeduped(`{{ route('fetch-attractions-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`),
                 window.fetchJsonDeduped(`{{ route('fetch-restaurants-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`)
             ])
@@ -15649,8 +17331,14 @@
                 if (typeof jQuery !== 'undefined') jQuery(mealPlanSelect).prop('disabled', false);
             }
             
-            // Get current user's DMC ID for room filtering
-            const currentDmcId = '{{ $finalDmcId }}';
+            // Get inventory DMC for THIS city (Singapore → Singapore DMC room prices)
+            const roomCity = (typeof cityName !== 'undefined' && cityName)
+                ? cityName
+                : ((typeof window.getActiveServiceCity === 'function') ? window.getActiveServiceCity() : '');
+            const roomInv = (typeof window.buildInventoryDmcQuery === 'function')
+                ? window.buildInventoryDmcQuery(roomCity)
+                : { dmc_id: (typeof window.getActiveServiceDmcId === 'function' ? window.getActiveServiceDmcId(roomCity) : '{{ $finalDmcId }}'), country: '', city: roomCity };
+            const currentDmcId = roomInv.dmc_id;
             
             // Show loading state with DMC info
             if (roomTypeSelect) roomTypeSelect.innerHTML = '<option value="">Loading rooms for DMC...</option>';
@@ -15658,7 +17346,7 @@
             if (mealPlanSelect) mealPlanSelect.innerHTML = '<option value="">Loading rooms for DMC...</option>';
             
             // Fetch rooms for the selected hotel with DMC filtering
-            fetch(`{{ route('fetch-rooms-by-hotel') }}?hotel_id=${encodeURIComponent(hotelId)}&dmc_id=${currentDmcId}`)
+            fetch(`{{ route('fetch-rooms-by-hotel') }}?hotel_id=${encodeURIComponent(hotelId)}&dmc_id=${encodeURIComponent(currentDmcId || '')}&city=${encodeURIComponent(roomInv.city || '')}&country=${encodeURIComponent(roomInv.country || '')}`)
                 .then(response => {
                     if (!response.ok) {
                         throw new Error('Network response was not ok');
@@ -15769,45 +17457,12 @@
                         }
                         
                         // Check what meals are available across all room types (using database boolean fields)
-                        const hasBreakfast = roomsToUse.some(room => room.breakfast == 1 || room.breakfast === true || (window.isRoomBreakfastIncluded && window.isRoomBreakfastIncluded(room)));
-                        const hasLunch = roomsToUse.some(room => room.lunch == 1 || room.lunch === true);
-                        const hasDinner = roomsToUse.some(room => room.dinner == 1 || room.dinner === true);
-                        
-                        // Check if any room has rooms_only = 1 (if so, don't show "room only" option)
-                        const hasRoomsOnly = roomsToUse.some(room => room.rooms_only == 1 || room.rooms_only === true || room.rooms_only === '1');
-                        
-                        // Generate meal plan options - only show "1 room" options based on database values
+                        // Generate meal plan options — breakfast labeled complementary vs chargable by priority
                         const roomText = "room";
-                        
-                        // Add "Room Only" option only if rooms_only is NOT 1
-                        if (!hasRoomsOnly) {
-                            mealPlans.add(`${roomText} only`);
-                        }
-                        
-                        // Add specific meal options based on database values (breakfast/lunch/dinner = 1)
-                        if (hasBreakfast) {
-                            mealPlans.add(`${roomText} with breakfast`);
-                        }
-                        if (hasLunch) {
-                            mealPlans.add(`${roomText} with lunch`);
-                        }
-                        if (hasDinner) {
-                            mealPlans.add(`${roomText} with dinner`);
-                        }
-                        
-                        // Add combination meal options based on database values
-                        if (hasBreakfast && hasLunch) {
-                            mealPlans.add(`${roomText} with breakfast + lunch`);
-                        }
-                        if (hasBreakfast && hasDinner) {
-                            mealPlans.add(`${roomText} with breakfast + dinner`);
-                        }
-                        if (hasLunch && hasDinner) {
-                            mealPlans.add(`${roomText} with lunch + dinner`);
-                        }
-                        if (hasBreakfast && hasLunch && hasDinner) {
-                            mealPlans.add(`${roomText} with all meals (breakfast + lunch + dinner)`);
-                        }
+                        const mealPlanList = (typeof window.buildHotelMealPlanOptions === 'function')
+                            ? window.buildHotelMealPlanOptions(roomsToUse, roomText)
+                            : [];
+                        mealPlanList.forEach(function (p) { mealPlans.add(p); });
                         
                         // Populate room types with pricing information
                         roomTypes.forEach(roomType => {
@@ -16376,48 +18031,13 @@
 
             console.log('Updating meal plans for room type:', roomType, 'Rooms:', roomsOfType);
 
-            // Determine meal availability for this specific room type
-            const hasBreakfast = roomsOfType.some(room => room.breakfast == 1 || room.breakfast === true || window.isRoomBreakfastIncluded(room));
-            const hasLunch = roomsOfType.some(room => room.lunch == 1 || room.lunch === true);
-            const hasDinner = roomsOfType.some(room => room.dinner == 1 || room.dinner === true);
-            const hasRoomsOnly = roomsOfType.some(room => room.rooms_only == 1 || room.rooms_only === true || room.rooms_only === '1');
-
             if (typeof window.updateHotelSupplementBreakfastVisibility === 'function') {
                 window.updateHotelSupplementBreakfastVisibility(roomType);
             }
 
-            const mealPlans = new Set();
-            const roomText = 'room';
-
-            // Follow the same rooms_only rule used when building hotel-wide plans
-            if (!hasRoomsOnly) {
-                mealPlans.add(`${roomText} only`);
-            }
-
-            // Add specific meal options only when that meal exists for this room type
-            if (hasBreakfast) {
-                mealPlans.add(`${roomText} with breakfast`);
-            }
-            if (hasLunch) {
-                mealPlans.add(`${roomText} with lunch`);
-            }
-            if (hasDinner) {
-                mealPlans.add(`${roomText} with dinner`);
-            }
-
-            // Add combination options based on availability for this room type
-            if (hasBreakfast && hasLunch) {
-                mealPlans.add(`${roomText} with breakfast + lunch`);
-            }
-            if (hasBreakfast && hasDinner) {
-                mealPlans.add(`${roomText} with breakfast + dinner`);
-            }
-            if (hasLunch && hasDinner) {
-                mealPlans.add(`${roomText} with lunch + dinner`);
-            }
-            if (hasBreakfast && hasLunch && hasDinner) {
-                mealPlans.add(`${roomText} with all meals (breakfast + lunch + dinner)`);
-            }
+            const mealPlans = (typeof window.buildHotelMealPlanOptions === 'function')
+                ? window.buildHotelMealPlanOptions(roomsOfType, 'room')
+                : [];
 
             // Clean and sort options using existing helper
             const cleanedMealPlans = typeof cleanMealPlanOptions === 'function'
@@ -17314,6 +18934,10 @@
 
             const mealPlan = mealPlanSelect ? mealPlanSelect.value : '';
             const pax = parseInt(selectedPersonsInput ? selectedPersonsInput.value : '1') || 1;
+            const tourChildren = parseInt(document.getElementById('children')?.value || '0', 10) || 0;
+            const childrenForPrice = Math.min(Math.max(0, tourChildren), pax);
+            const childWithBedForPrice = !!(document.getElementById('chkChildWithBed')?.checked);
+            const childWithoutBedForPrice = !!(document.getElementById('chkChildWithoutBed')?.checked);
 
             // Number of extra beds selected (persons beyond the room's max occupancy).
             let extraBed = 0;
@@ -17345,6 +18969,17 @@
                 ? document.querySelector('meta[name="csrf-token"]').getAttribute('content')
                 : '{{ csrf_token() }}';
 
+            const priceCity = (typeof cityName !== 'undefined' && cityName)
+                ? cityName
+                : ((typeof window.getActiveServiceCity === 'function') ? window.getActiveServiceCity() : '');
+            const priceInv = (typeof window.buildInventoryDmcQuery === 'function')
+                ? window.buildInventoryDmcQuery(priceCity)
+                : {
+                    city: priceCity,
+                    country: (typeof window.resolveCountryForCityName === 'function' ? window.resolveCountryForCityName(priceCity) : '') || '',
+                    dmc_id: (typeof window.getActiveServiceDmcId === 'function' ? window.getActiveServiceDmcId(priceCity) : '{{ $finalDmcId }}')
+                };
+
             fetch('{{ route("get-hotel-price") }}', {
                 method: 'POST',
                 headers: {
@@ -17359,8 +18994,14 @@
                     bed_id: bedId,
                     meal_plan: mealPlan,
                     pax: pax,
+                    children: childrenForPrice,
+                    child_with_bed: childWithBedForPrice,
+                    child_without_bed: childWithoutBedForPrice,
                     extra_bed: extraBed,
-                    dates: dates
+                    dates: dates,
+                    city: priceInv.city || '',
+                    country: priceInv.country || '',
+                    dmc_id: priceInv.dmc_id || ''
                 })
             })
             .then(response => response.json())
@@ -17384,6 +19025,9 @@
                         hotelUniqueId, roomId, bedId, mealPlan, pax, extraBed, dates
                     );
                     console.log('Hotel price result:', data);
+                    if (typeof window.renderLiteHotelHelperBreakdown === 'function') {
+                        window.renderLiteHotelHelperBreakdown(data, numberOfRooms);
+                    }
                     showNotification(
                         `Price calculated: ${getTourCurrency()} ${Number(data.grand_total).toFixed(2)} ` +
                         `(Room: ${Number(data.room_total).toFixed(2)}, Meals: ${Number(data.meal_total).toFixed(2)}, ${data.nights} night(s))`,
@@ -17402,6 +19046,399 @@
                 if (spinner) spinner.classList.add('d-none');
                 if (getPriceBtn) getPriceBtn.disabled = false;
             });
+        };
+
+        /**
+         * Build per-night price-cut HTML: Room + Fair + Extra bed + Meals = night total.
+         */
+        window.formatHotelNightPriceCutHtml = function (n, cur, rooms) {
+            rooms = parseInt(rooms, 10) || 1;
+            const roomBase = Number(n.room_base != null ? n.room_base : 0);
+            const fair = Number(n.surcharge || 0);
+            const variant = Number(n.variant_price || 0);
+            const extraBed = Number(n.extra_bed_total || 0);
+            const bf = Number(n.breakfast_meal || 0);
+            const ln = Number(n.lunch_meal || 0);
+            const dn = Number(n.dinner_meal || 0);
+            const meal = Number(n.meal_price || 0);
+            const nightTotal = Number(n.night_total || 0) * rooms;
+            const adults = n.adults != null ? parseInt(n.adults, 10) : null;
+            const children = n.children != null ? parseInt(n.children, 10) : null;
+            const childFactor = n.child_meal_factor != null ? Number(n.child_meal_factor) : 1;
+            const mealEq = n.meal_pax_equivalent != null ? Number(n.meal_pax_equivalent) : null;
+
+            const cutParts = [];
+            if (roomBase > 0) cutParts.push(`Room ${cur} ${(roomBase * rooms).toFixed(2)}`);
+            if (fair > 0) cutParts.push(`Fair ${cur} ${(fair * rooms).toFixed(2)}`);
+            if (variant > 0) cutParts.push(`Variant ${cur} ${(variant * rooms).toFixed(2)}`);
+            if (extraBed > 0) cutParts.push(`Extra bed ${cur} ${(extraBed * rooms).toFixed(2)}`);
+            if (bf > 0) cutParts.push(`Breakfast ${cur} ${(bf * rooms).toFixed(2)}`);
+            if (ln > 0) cutParts.push(`Lunch ${cur} ${(ln * rooms).toFixed(2)}`);
+            if (dn > 0) cutParts.push(`Dinner ${cur} ${(dn * rooms).toFixed(2)}`);
+            if (meal > 0 && bf <= 0 && ln <= 0 && dn <= 0) {
+                cutParts.push(`Meals ${cur} ${(meal * rooms).toFixed(2)}`);
+            }
+
+            let mealNotes = [];
+            const mealTypes = [
+                { key: 'breakfast', amt: bf, unit: Number(n.breakfast_unit || 0), roomUnit: Number(n.room_breakfast_unit || 0) },
+                { key: 'lunch', amt: ln, unit: Number(n.lunch_unit || 0), roomUnit: Number(n.room_lunch_unit || 0) },
+                { key: 'dinner', amt: dn, unit: Number(n.dinner_unit || 0), roomUnit: Number(n.room_dinner_unit || 0) }
+            ];
+            mealTypes.forEach(function (m) {
+                if (m.amt <= 0 || m.unit <= 0) return;
+                const label = m.key.charAt(0).toUpperCase() + m.key.slice(1);
+                let note = '';
+                if (adults != null && children != null && typeof window.formatAdultChildMealDetail === 'function') {
+                    note = window.formatAdultChildMealDetail({
+                        currency: cur,
+                        adultUnit: m.unit,
+                        adults: adults,
+                        children: children,
+                        childFactor: childFactor,
+                        nights: 1,
+                        rooms: rooms,
+                        total: m.amt * rooms
+                    });
+                } else if (mealEq != null) {
+                    note = `${cur} ${m.unit.toFixed(2)} × ${mealEq} meal-pax = ${cur} ${(m.amt * rooms).toFixed(2)}`;
+                } else {
+                    note = `${label} ${cur} ${(m.amt * rooms).toFixed(2)}`;
+                }
+                if (n.meal_source === 'rate' && m.roomUnit > 0 && Math.abs(m.unit - m.roomUnit) > 0.001) {
+                    note += ` · rate unit ${cur} ${m.unit.toFixed(2)} (room default ${cur} ${m.roomUnit.toFixed(2)})`;
+                }
+                mealNotes.push(note);
+            });
+
+            const evt = n.event_type
+                ? ` <span style="color:#b45309; font-weight:600;">(${n.event_type})</span>`
+                : '';
+            const cutLine = cutParts.length
+                ? cutParts.join(' + ') + ` = ${cur} ${nightTotal.toFixed(2)}`
+                : `${cur} ${nightTotal.toFixed(2)}`;
+
+            return `<div class="mb-2 pb-2" style="border-bottom: 1px dashed #bfdbfe;">
+                <div class="d-flex justify-content-between align-items-start" style="font-size: 0.75rem;">
+                    <div class="d-flex align-items-start pe-2">
+                        <i class="ri-calendar-line me-2 mt-1" style="font-size: 0.9rem; color: #2563eb;"></i>
+                        <div>
+                            <div style="color:#475569; font-weight:600;">${n.date} (${n.day})${evt}</div>
+                            <div style="color:#64748b; font-size:0.68rem; margin-top:2px;">${cutLine}</div>
+                            ${mealNotes.map(function (t) {
+                                return `<div style="color:#0369a1; font-size:0.65rem; margin-top:1px;">${t}</div>`;
+                            }).join('')}
+                        </div>
+                    </div>
+                    <span style="color:#1e293b; font-weight:600; white-space:nowrap;">${cur} ${nightTotal.toFixed(2)}</span>
+                </div>
+            </div>`;
+        };
+
+        /**
+         * Build Hotel Pricing Details HTML (per-night cut + summary + total).
+         * Same content for Get Price "View details" and post-Add "View price breakdown".
+         * Returns object: html, grand, cur
+         */
+        window.buildLiteHotelHelperBreakdownHtml = function (data, numberOfRooms) {
+            if (!data) return { html: '', grand: 0, cur: '' };
+            const cur = (typeof getTourCurrency === 'function' ? getTourCurrency() : '{{ $dmcCurrency }}');
+            const rooms = parseInt(numberOfRooms, 10) || 1;
+            const pax = parseInt(data.pax, 10) || 1;
+            const nights = parseInt(data.nights, 10) || (Array.isArray(data.breakdown) ? data.breakdown.length : 1) || 1;
+            const roomTotal = Number(data.room_total || 0) * rooms;
+            const mealTotal = Number(data.meal_total || 0) * rooms;
+            const grand = Number(data.grand_total || 0) * rooms;
+            const rowStyle = 'font-size: 0.75rem;';
+            let html = '';
+
+            if (Array.isArray(data.breakdown) && data.breakdown.length) {
+                html += `<div class="mb-2" style="font-size:0.7rem; color:#64748b; font-weight:600; text-transform:uppercase; letter-spacing:0.03em;">Per-night price cut</div>`;
+                data.breakdown.forEach(function (n) {
+                    if (typeof window.formatHotelNightPriceCutHtml === 'function') {
+                        html += window.formatHotelNightPriceCutHtml(n, cur, rooms);
+                    } else {
+                        const nightAmt = Number(n.night_total || 0) * rooms;
+                        html += `<div class="d-flex justify-content-between mb-1" style="${rowStyle}">
+                            <span style="color:#475569;">${n.date} (${n.day})</span>
+                            <span style="color:#1e293b; font-weight:500;">${cur} ${nightAmt.toFixed(2)}</span>
+                        </div>`;
+                    }
+                });
+            }
+
+            html += `<div class="mb-2 mt-1" style="font-size:0.7rem; color:#64748b; font-weight:600; text-transform:uppercase; letter-spacing:0.03em;">Summary</div>`;
+
+            const fairCharge = Number(data.fair_charge_total || 0) * rooms;
+            const roomBase = Math.max(0, roomTotal - fairCharge);
+            html += `<div class="d-flex justify-content-between align-items-center mb-1 border-top pt-2 mt-1" style="${rowStyle}">
+                <span style="color:#475569;"><strong>Room Cost${rooms > 1 ? ' (× ' + rooms + ' rooms)' : ''}:</strong></span>
+                <span style="color:#1e293b; font-weight:500;">${cur} ${roomBase.toFixed(2)}</span>
+            </div>`;
+
+            if (fairCharge > 0) {
+                const fairNights = parseInt(data.fair_nights, 10) || 0;
+                const fairUnit = fairNights > 0 ? (Number(data.fair_charge_total || 0) / fairNights) : 0;
+                let fairDetail = '';
+                if (fairNights > 0) {
+                    fairDetail = `${cur} ${fairUnit.toFixed(2)} × ${fairNights} fair night(s)`;
+                    if (rooms > 1) fairDetail += ` × ${rooms} room(s)`;
+                    fairDetail += ` = ${cur} ${fairCharge.toFixed(2)}`;
+                }
+                html += `<div class="mb-1" style="${rowStyle}">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <span style="color:#b45309;"><strong>Fair Charge:</strong></span>
+                        <span style="color:#b45309; font-weight:500;">${cur} ${fairCharge.toFixed(2)}</span>
+                    </div>
+                    ${fairDetail ? `<div style="color:#92400e; font-size:0.7rem; text-align:right;">${fairDetail}</div>` : ''}
+                </div>`;
+            }
+
+            const mealLabels = [
+                { key: 'breakfast', totalKey: 'breakfast_total', unitKey: 'breakfast_unit', mealKey: 'breakfast_meal', roomUnitKey: 'room_breakfast_unit' },
+                { key: 'lunch', totalKey: 'lunch_total', unitKey: 'lunch_unit', mealKey: 'lunch_meal', roomUnitKey: 'room_lunch_unit' },
+                { key: 'dinner', totalKey: 'dinner_total', unitKey: 'dinner_unit', mealKey: 'dinner_meal', roomUnitKey: 'room_dinner_unit' }
+            ];
+            mealLabels.forEach(function (m) {
+                const perRoomMeal = Number(data[m.totalKey] || 0);
+                if (m.key === 'breakfast' && data.breakfast_complementary && (data.meals && data.meals.breakfast)) {
+                    html += `<div class="d-flex justify-content-between align-items-center mb-1" style="${rowStyle}">
+                        <span style="color:#475569;"><strong>Breakfast (Meal):</strong></span>
+                        <span style="color:#198754; font-weight:500;">Included (complementary)</span>
+                    </div>`;
+                    return;
+                }
+                if (perRoomMeal <= 0) return;
+                const total = perRoomMeal * rooms;
+                const label = m.key.charAt(0).toUpperCase() + m.key.slice(1);
+                const adults = data.adults != null
+                    ? Math.max(0, parseInt(data.adults, 10) || 0)
+                    : Math.max(0, pax - (parseInt(data.children, 10) || 0));
+                const children = data.children != null
+                    ? Math.max(0, parseInt(data.children, 10) || 0)
+                    : 0;
+                const childFactor = data.child_meal_factor != null
+                    ? Number(data.child_meal_factor)
+                    : (typeof window.getChildMealFactor === 'function'
+                        ? window.getChildMealFactor(data.children_price)
+                        : 1);
+
+                const unitBuckets = {};
+                if (Array.isArray(data.breakdown)) {
+                    data.breakdown.forEach(function (n) {
+                        const u = Number(n[m.unitKey] || 0);
+                        const amt = Number(n[m.mealKey] || 0);
+                        if (u <= 0 || amt <= 0) return;
+                        const key = u.toFixed(2);
+                        if (!unitBuckets[key]) {
+                            unitBuckets[key] = {
+                                unit: u,
+                                nights: 0,
+                                amount: 0,
+                                roomUnit: Number(n[m.roomUnitKey] || 0),
+                                mealSource: n.meal_source || 'room'
+                            };
+                        }
+                        unitBuckets[key].nights += 1;
+                        unitBuckets[key].amount += amt;
+                    });
+                }
+                const buckets = Object.keys(unitBuckets).map(function (k) { return unitBuckets[k]; });
+                let detailHtml = '';
+                if (buckets.length > 1) {
+                    detailHtml = buckets.map(function (b) {
+                        let line = '';
+                        if (typeof window.formatAdultChildMealDetail === 'function') {
+                            line = window.formatAdultChildMealDetail({
+                                currency: cur,
+                                adultUnit: b.unit,
+                                adults: adults,
+                                children: children,
+                                childFactor: childFactor,
+                                nights: b.nights,
+                                rooms: rooms,
+                                total: b.amount * rooms
+                            });
+                        } else {
+                            line = `${cur} ${b.unit.toFixed(2)} × ${b.nights} night(s) = ${cur} ${(b.amount * rooms).toFixed(2)}`;
+                        }
+                        if (b.mealSource === 'rate' && b.roomUnit > 0 && Math.abs(b.unit - b.roomUnit) > 0.001) {
+                            line += ` · rate ${cur} ${b.unit.toFixed(2)} (room ${cur} ${b.roomUnit.toFixed(2)})`;
+                        }
+                        return `<div style="color:#64748b; font-size:0.7rem; text-align:right;">${line}</div>`;
+                    }).join('');
+                } else {
+                    const unit = buckets.length ? buckets[0].unit : (
+                        data.room_meal_defaults ? Number(data.room_meal_defaults[m.key + '_price'] || 0) : 0
+                    );
+                    let detail = '';
+                    if (typeof window.formatAdultChildMealDetail === 'function') {
+                        detail = window.formatAdultChildMealDetail({
+                            currency: cur,
+                            adultUnit: unit,
+                            adults: adults,
+                            children: children,
+                            childFactor: childFactor,
+                            childrenPrice: data.children_price,
+                            nights: nights,
+                            rooms: rooms,
+                            total: total,
+                            suffix: m.key === 'breakfast' ? '' : ''
+                        });
+                    } else {
+                        detail = `${cur} ${unit.toFixed(2)} × ${nights} night(s) = ${cur} ${total.toFixed(2)}`;
+                    }
+                    if (buckets.length === 1 && buckets[0].mealSource === 'rate'
+                        && buckets[0].roomUnit > 0
+                        && Math.abs(buckets[0].unit - buckets[0].roomUnit) > 0.001) {
+                        detail += ` · rate unit ${cur} ${buckets[0].unit.toFixed(2)} (room default ${cur} ${buckets[0].roomUnit.toFixed(2)})`;
+                    }
+                    detailHtml = `<div style="color:#64748b; font-size:0.7rem; text-align:right;">${detail}</div>`;
+                }
+
+                html += `<div class="mb-1" style="${rowStyle}">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <span style="color:#475569;"><strong>${label} (Meal):</strong></span>
+                        <span style="color:#1e293b; font-weight:500;">${cur} ${total.toFixed(2)}</span>
+                    </div>
+                    ${detailHtml}
+                </div>`;
+            });
+
+            if (mealTotal > 0 && !Number(data.breakfast_total) && !Number(data.lunch_total) && !Number(data.dinner_total)) {
+                html += `<div class="d-flex justify-content-between align-items-center mb-1" style="${rowStyle}">
+                    <span style="color:#475569;"><strong>Meals:</strong></span>
+                    <span style="color:#1e293b; font-weight:500;">${cur} ${mealTotal.toFixed(2)}</span>
+                </div>`;
+            }
+
+            if (data.extra_bed && Number(data.extra_bed) > 0) {
+                html += `<div class="d-flex justify-content-between align-items-center mb-1" style="${rowStyle}">
+                    <span style="color:#475569;"><strong>Extra bed(s):</strong> <small class="text-muted">(incl. in room)</small></span>
+                    <span style="color:#1e293b; font-weight:500;">${data.extra_bed} @ ${cur} ${Number(data.extra_bed_price || 0).toFixed(2)}</span>
+                </div>`;
+            }
+
+            const cwb = data.child_with_bed || null;
+            const cnb = data.child_without_bed || null;
+            if (cwb && Number(cwb.total || 0) > 0) {
+                const cwbTotal = Number(cwb.total) * rooms;
+                let cwbDetail = `${cur} ${Number(cwb.unit_price || 0).toFixed(2)} × ${cwb.children || 0} child(ren) × ${cwb.nights || nights} night(s)`;
+                if (rooms > 1) cwbDetail += ` × ${rooms} room(s)`;
+                cwbDetail += ` = ${cur} ${cwbTotal.toFixed(2)}`;
+                html += `<div class="mb-1" style="${rowStyle}">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <span style="color:#475569;"><strong>Child with Bed:</strong></span>
+                        <span style="color:#1e293b; font-weight:500;">${cur} ${cwbTotal.toFixed(2)}</span>
+                    </div>
+                    <div style="color:#64748b; font-size:0.7rem; text-align:right;">${cwbDetail}</div>
+                </div>`;
+            }
+            if (cnb && Number(cnb.total || 0) > 0) {
+                const cnbTotal = Number(cnb.total) * rooms;
+                let cnbDetail = `${cur} ${Number(cnb.unit_price || 0).toFixed(2)} × ${cnb.children || 0} child(ren) × ${cnb.nights || nights} night(s)`;
+                if (rooms > 1) cnbDetail += ` × ${rooms} room(s)`;
+                cnbDetail += ` = ${cur} ${cnbTotal.toFixed(2)}`;
+                html += `<div class="mb-1" style="${rowStyle}">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <span style="color:#475569;"><strong>Child without Bed:</strong></span>
+                        <span style="color:#1e293b; font-weight:500;">${cur} ${cnbTotal.toFixed(2)}</span>
+                    </div>
+                    <div style="color:#64748b; font-size:0.7rem; text-align:right;">${cnbDetail}</div>
+                </div>`;
+            }
+
+            return { html: html, grand: grand, cur: cur };
+        };
+
+        /**
+         * Hotel Pricing Details for Lite create — night rows, Room Cost, meal lines, Total.
+         * Complementary breakfast shows as Included (no charge).
+         */
+        window.renderLiteHotelHelperBreakdown = function (data, numberOfRooms) {
+            const panel = document.getElementById('liteHotelPriceBreakdownPanel');
+            const body = document.getElementById('liteHotelPriceBreakdownBody');
+            const gridBody = document.getElementById('liteHotelPriceGridBody');
+            const grandEl = document.getElementById('liteHotelGrandTotal');
+            if (!panel || !gridBody || !data) return;
+
+            const built = window.buildLiteHotelHelperBreakdownHtml(data, numberOfRooms);
+            gridBody.innerHTML = built.html;
+            if (grandEl) grandEl.textContent = built.cur + ' ' + Number(built.grand || 0).toFixed(2);
+            // Keep panel hidden; show View details button so user can open/hide it
+            if (panel) panel.style.display = 'none';
+            if (body) body.style.display = 'block';
+            if (typeof window.setLiteHotelViewDetailsButtonVisible === 'function') {
+                window.setLiteHotelViewDetailsButtonVisible(true);
+            }
+            if (typeof window.syncLiteHotelViewDetailsButtonState === 'function') {
+                window.syncLiteHotelViewDetailsButtonState(false);
+            }
+        };
+
+        window.setLiteHotelViewDetailsButtonVisible = function (visible) {
+            const btn = document.getElementById('liteHotelViewDetailsBtn');
+            if (!btn) return;
+            if (visible) {
+                btn.classList.remove('d-none');
+                btn.classList.add('d-inline-flex');
+            } else {
+                btn.classList.add('d-none');
+                btn.classList.remove('d-inline-flex');
+            }
+        };
+
+        window.syncLiteHotelViewDetailsButtonState = function (isOpen) {
+            const btn = document.getElementById('liteHotelViewDetailsBtn');
+            const label = document.getElementById('liteHotelViewDetailsBtnLabel');
+            const icon = document.getElementById('liteHotelViewDetailsBtnIcon');
+            if (label) label.textContent = isOpen ? 'Hide details' : 'View details';
+            if (icon) icon.className = isOpen ? 'ri-eye-off-line' : 'ri-file-list-3-line';
+            if (btn) {
+                btn.title = isOpen ? 'Hide hotel pricing details' : 'View hotel pricing details';
+                btn.classList.toggle('btn-primary', !!isOpen);
+                btn.classList.toggle('btn-outline-primary', !isOpen);
+                btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+            }
+        };
+
+        /** Show / hide Hotel Pricing Details panel (View details / Hide details). */
+        window.toggleLiteHotelPriceBreakdownPanel = function (forceShow) {
+            const panel = document.getElementById('liteHotelPriceBreakdownPanel');
+            if (!panel) return;
+            const willShow = forceShow === true
+                ? true
+                : (forceShow === false ? false : panel.style.display === 'none');
+            panel.style.display = willShow ? '' : 'none';
+            if (typeof window.syncLiteHotelViewDetailsButtonState === 'function') {
+                window.syncLiteHotelViewDetailsButtonState(willShow);
+            }
+            if (willShow) {
+                try { panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch (e) { /* ignore */ }
+            }
+        };
+
+        window.toggleLiteHotelPriceBreakdownBody = function () {
+            window.toggleLiteHotelPriceBreakdownPanel();
+        };
+
+        window.clearLiteHotelHelperBreakdown = function () {
+            const panel = document.getElementById('liteHotelPriceBreakdownPanel');
+            const gridBody = document.getElementById('liteHotelPriceGridBody');
+            const grandEl = document.getElementById('liteHotelGrandTotal');
+            if (panel) panel.style.display = 'none';
+            if (typeof window.setLiteHotelViewDetailsButtonVisible === 'function') {
+                window.setLiteHotelViewDetailsButtonVisible(false);
+            }
+            if (typeof window.syncLiteHotelViewDetailsButtonState === 'function') {
+                window.syncLiteHotelViewDetailsButtonState(false);
+            }
+            if (gridBody) {
+                gridBody.innerHTML = '<div class="text-muted text-center py-2" style="font-size: 0.75rem;">Click Get Price to see breakdown</div>';
+            }
+            if (grandEl) {
+                grandEl.textContent = (typeof getTourCurrency === 'function' ? getTourCurrency() : '{{ $dmcCurrency }}') + ' 0.00';
+            }
         };
 
             // Add Hotel Function
@@ -17622,8 +19659,7 @@
                 const roomRec = window.roomData.find(function(r) { return r.room_type === roomType; });
                 roomBreakfastIncluded = window.isRoomBreakfastIncluded ? window.isRoomBreakfastIncluded(roomRec) : false;
             }
-            const supplementBreakfastChk = document.getElementById('hotelSupplementBreakfastIncluded');
-            const supplementBreakfastIncluded = roomBreakfastIncluded && supplementBreakfastChk && supplementBreakfastChk.checked;
+            const supplementBreakfastIncluded = false;
 
             // If a "Get Price" (HotelPriceHelper) result matches the current selection,
             // carry its rate-aware per-meal totals (per single room) so the meal breakdown
@@ -17660,10 +19696,31 @@
                             ? window.lastHotelPriceResult.breakdown
                             : [],
                         pax: Number(window.lastHotelPriceResult.pax) || hpPax,
-                        nights: Number(window.lastHotelPriceResult.nights) || nightNumbers.length
+                        nights: Number(window.lastHotelPriceResult.nights) || nightNumbers.length,
+                        adults: window.lastHotelPriceResult.adults != null
+                            ? Number(window.lastHotelPriceResult.adults)
+                            : null,
+                        children: window.lastHotelPriceResult.children != null
+                            ? Number(window.lastHotelPriceResult.children)
+                            : null,
+                        children_price: window.lastHotelPriceResult.children_price != null
+                            ? window.lastHotelPriceResult.children_price
+                            : null,
+                        child_meal_factor: window.lastHotelPriceResult.child_meal_factor != null
+                            ? Number(window.lastHotelPriceResult.child_meal_factor)
+                            : null
                     };
                 }
             } catch (e) { console.warn('helperMeals signature check failed:', e); }
+
+            const childrenPriceFromHelper = helperMeals && helperMeals.children_price != null
+                ? helperMeals.children_price
+                : (mealPrices && mealPrices.children_price != null ? mealPrices.children_price : null);
+            const childMealFactorFromHelper = helperMeals && helperMeals.child_meal_factor != null
+                ? helperMeals.child_meal_factor
+                : (typeof window.getChildMealFactor === 'function' && childrenPriceFromHelper != null
+                    ? window.getChildMealFactor(childrenPriceFromHelper)
+                    : null);
 
             const hotelData = {
                 id: hotelSelect.value,
@@ -17702,9 +19759,15 @@
                 childWithBedPrice: childWithBedPrice,
                 childWithoutBedPrice: childWithoutBedPrice,
                 children: numChildren,
+                children_price: childrenPriceFromHelper,
+                child_meal_factor: childMealFactorFromHelper,
                 remarks: hotelRemarks,
                 breakfast_included_room: roomBreakfastIncluded ? 1 : 0,
-                supplement_breakfast_included: supplementBreakfastIncluded
+                supplement_breakfast_included: supplementBreakfastIncluded,
+                // Full Get Price helper payload for post-Add "View price breakdown" (same as View details)
+                helperPriceResult: (window.lastHotelPriceResult && window.lastHotelPriceResult.success)
+                    ? JSON.parse(JSON.stringify(window.lastHotelPriceResult))
+                    : null
             };
             
             console.log('=== ADDING HOTEL ===');
@@ -17733,6 +19796,11 @@
             
             // Show success notification
             showNotification(`Hotel "${hotelData.name}" added successfully for ${hotelData.totalNights} nights!`, 'success');
+
+            if (typeof window.clearLiteHotelHelperBreakdown === 'function') {
+                window.clearLiteHotelHelperBreakdown();
+            }
+            window.lastHotelPriceResult = null;
             
             // Reset all hotel form fields to empty/initial state
             try {
@@ -17819,8 +19887,6 @@
                 const chkCnb = document.getElementById('chkChildWithoutBed');
                 if (chkCwb) chkCwb.checked = false;
                 if (chkCnb) chkCnb.checked = false;
-                const supplementBreakfastChkReset = document.getElementById('hotelSupplementBreakfastIncluded');
-                if (supplementBreakfastChkReset) supplementBreakfastChkReset.checked = false;
                 if (typeof window.updateHotelSupplementBreakfastVisibility === 'function') {
                     window.updateHotelSupplementBreakfastVisibility(null);
                 }
@@ -18014,7 +20080,7 @@
                 }
                 let mealCost = 0;
                 if (typeof window.calculateCorrectMealCosts === 'function') {
-                    mealCost = window.calculateCorrectMealCosts(h.mealPlan, h.totalNights || 1, h.selectedPersons || 1, 0, h.mealPrices, h.numberOfRooms || 1, { supplementBreakfastIncluded: !!h.supplement_breakfast_included, helperMeals: h.helperMeals || null });
+                    mealCost = window.calculateCorrectMealCosts(h.mealPlan, h.totalNights || 1, h.selectedPersons || 1, 0, h.mealPrices, h.numberOfRooms || 1, { breakfastIncluded: !!(h.breakfast_included_room), supplementBreakfastIncluded: !!h.supplement_breakfast_included, helperMeals: h.helperMeals || null });
                 } else {
                     const totalGuests = h.selectedPersons || 1;
                     if (h.mealPrices && typeof h.mealPrices === 'object') {
@@ -18100,64 +20166,20 @@
                                             </div>
                                         </div>
                                         
-                                        <!-- Meal Costs Breakdown -->
-                                        ${hotel.mealPlan && !hotel.mealPlan.includes('only') ? `
-                                            <div class="mt-2 p-2 rounded" style="background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 6px;">
-                                                <small class="d-block mb-1" style="color: #495057; font-size: 0.8rem; font-weight: 600;">
-                                                    <i class="ri-restaurant-line me-1" style="color: #667eea;"></i>Meal Costs Breakdown:
-                                                </small>
-                                                ${hotel.mealPrices ? `
-                                                    <div style="font-size: 0.8rem;">
-                                                        ${hotel.mealPlan.includes('breakfast') || hotel.mealPlan.includes('bf') ? `
-                                                            <div class="mb-2">
-                                                                <div class="d-flex justify-content-between mb-1">
-                                                                    <span style="color: #495057;">Breakfast:</span>
-                                                                    <span style="color: #212529; font-weight: 500; text-align: right; max-width: 72%;">${window.formatHotelMealBreakdownLine(hotel, 'breakfast')}</span>
+                                        <div class="mt-2 d-flex flex-wrap align-items-center gap-2">
+                                            <button type="button"
+                                                class="btn btn-outline-primary btn-sm d-inline-flex align-items-center gap-1"
+                                                onclick="window.openSelectedHotelPriceBreakdown(${index})"
+                                                title="View meal and cost breakdown"
+                                                style="border-radius: 6px; font-size: 0.8rem; font-weight: 500; padding: 0.35rem 0.75rem;">
+                                                <i class="ri-file-list-3-line"></i>
+                                                <span>View price breakdown</span>
+                                            </button>
+                                            <span class="badge" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; border-radius: 6px; font-size: 0.8rem; font-weight: 600; padding: 0.4rem 0.75rem;">
+                                                Total: ${getTourCurrency()} ${window.computeHotelBookingGrandTotal(hotel, cwbChildren, cnbChildren).toFixed(2)}
+                                            </span>
                                                                 </div>
-                                                            </div>
-                                                        ` : ''}
-                                                        ${hotel.mealPlan.includes('lunch') ? `
-                                                            <div class="mb-2">
-                                                                <div class="d-flex justify-content-between mb-1">
-                                                                    <span style="color: #495057;">Lunch:</span>
-                                                                    <span style="color: #212529; font-weight: 500; text-align: right; max-width: 72%;">${window.formatHotelMealBreakdownLine(hotel, 'lunch')}</span>
-                                                                </div>
-                                                            </div>
-                                                        ` : ''}
-                                                        ${hotel.mealPlan.includes('dinner') ? `
-                                                            <div class="mb-2">
-                                                                <div class="d-flex justify-content-between mb-1">
-                                                                    <span style="color: #495057;">Dinner:</span>
-                                                                    <span style="color: #212529; font-weight: 500; text-align: right; max-width: 72%;">${window.formatHotelMealBreakdownLine(hotel, 'dinner')}</span>
-                                                                </div>
-                                                            </div>
-                                                        ` : ''}
-                                                    </div>
-                                                ` : '<small style="color: #6c757d; font-size: 0.8rem;">Meal prices not available</small>'}
-                                            </div>
-                                        ` : ''}
                                         
-                                        <!-- Cost Summary -->
-                                        <div class="mt-2 p-2 rounded" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; border-radius: 6px; color: #ffffff;">
-                                            <small class="d-block mb-2" style="font-size: 0.85rem; font-weight: 600; color: #ffffff !important;">
-                                                <i class="ri-calculator-line me-1"></i>Cost Summary:
-                                            </small>
-                                            <div style="font-size: 0.8rem;">
-                                                ${window.renderHotelCostSummaryBreakdownHtml(hotel, cwbChildren, cnbChildren)}
-                                                <hr class="my-2" style="border-color: rgba(255, 255, 255, 0.3);">
-                                                <div class="d-flex justify-content-between" style="font-weight: 700; font-size: 0.9rem; color: #ffffff !important;">
-                                                    <span>Total:</span>
-                                                    <span>${getTourCurrency()} ${window.computeHotelBookingGrandTotal(hotel, cwbChildren, cnbChildren).toFixed(2)}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        
-                                        ${(hotel.breakfast_included_room == 1 || hotel.breakfast_included_room === true) ? `
-                                        <div class="mt-2 form-check">
-                                            <input class="form-check-input" type="checkbox" name="hotel_supplement_breakfast_${index}" id="hotel_supplement_breakfast_${index}" ${hotel.supplement_breakfast_included ? 'checked' : ''} onchange="selectedHotels[${index}].supplement_breakfast_included = this.checked; if(typeof displaySelectedHotels==='function') displaySelectedHotels(); if(typeof updateHotelDataField==='function') updateHotelDataField();">
-                                            <label class="form-check-label" style="color: #495057; font-size: 0.85rem;" for="hotel_supplement_breakfast_${index}">Supplement breakfast included</label>
-                                        </div>
-                                        ` : ''}
                                         <!-- Is Supplement -->
                                         <div class="mt-2 form-check">
                                             <input class="form-check-input" type="checkbox" name="hotel_is_supplement_${index}" id="hotel_is_supplement_${index}" ${(hotel.supplement || hotel.is_supplement) ? 'checked' : ''} onchange="if(typeof updateHotelDataField==='function') updateHotelDataField();">
@@ -18204,6 +20226,71 @@
         }
 
         window.displaySelectedHotels = displaySelectedHotels;
+
+        /** Full Hotel Pricing Details for selected hotel popup (same as Get Price View details). */
+        window.buildSelectedHotelPriceBreakdownHtml = function (hotel) {
+            if (!hotel) return '<div class="text-muted text-center py-2">No breakdown available</div>';
+
+            const helperData = hotel.helperPriceResult || null;
+            if (helperData && typeof window.buildLiteHotelHelperBreakdownHtml === 'function') {
+                const rooms = parseInt(hotel.numberOfRooms, 10) || 1;
+                const built = window.buildLiteHotelHelperBreakdownHtml(helperData, rooms);
+                return `<div class="card shadow-sm mb-0" style="border-radius: 8px; border: 2px solid #60a5fa; overflow: hidden;">
+                    <div style="background: linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%); padding: 10px 15px; border-bottom: 1px solid #cbd5e1;">
+                        <div class="d-flex align-items-center">
+                            <i class="ri-hotel-line me-2" style="font-size: 1.1rem; color: #0d9488;"></i>
+                            <span class="fw-bold" style="font-size: 0.85rem; color: #1e293b;">Hotel Pricing Details</span>
+                        </div>
+                    </div>
+                    <div class="card-body p-3" style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);">
+                        ${built.html || '<div class="text-muted text-center py-2" style="font-size:0.75rem;">No night breakdown available</div>'}
+                        <div class="border-top pt-2 mt-2" style="border-color: #93c5fd !important;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="fw-bold" style="font-size: 0.8rem; color: #1e40af;">Total:</span>
+                                <span class="fw-bold" style="font-size: 0.9rem; color: #198754;">${built.cur} ${Number(built.grand || 0).toFixed(2)}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+            }
+
+            return '<div class="text-muted text-center py-3" style="font-size: 0.85rem;">Full price breakup is available when the hotel was added after <strong>Get Price</strong>.</div>';
+        };
+
+        window.openSelectedHotelPriceBreakdown = function (index) {
+            const hotel = (typeof selectedHotels !== 'undefined' && Array.isArray(selectedHotels))
+                ? selectedHotels[index]
+                : null;
+            if (!hotel) {
+                alert('Hotel breakdown not found.');
+                return;
+            }
+
+            const modalEl = document.getElementById('selectedHotelPriceBreakdownModal');
+            const bodyEl = document.getElementById('selectedHotelPriceBreakdownModalBody');
+            const titleEl = document.getElementById('selectedHotelPriceBreakdownModalLabel');
+            if (!modalEl || !bodyEl) return;
+
+            if (titleEl) {
+                titleEl.textContent = (hotel.name ? (String(hotel.name).split('(')[0].trim() + ' — ') : '') + 'Hotel Pricing Details';
+            }
+            bodyEl.innerHTML = window.buildSelectedHotelPriceBreakdownHtml(hotel);
+
+            try {
+                if (modalEl.parentElement !== document.body) {
+                    document.body.appendChild(modalEl);
+                }
+                if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                    bootstrap.Modal.getOrCreateInstance(modalEl).show();
+                    return;
+                }
+            } catch (e) { /* fall through */ }
+            modalEl.classList.add('show');
+            modalEl.style.display = 'block';
+            modalEl.removeAttribute('aria-hidden');
+            document.body.classList.add('modal-open');
+        };
+
         window.pushSelectedHotel = function (hotelData) {
             selectedHotels.push(hotelData);
             lastSelectedHotelId = hotelData.id;
@@ -18212,7 +20299,12 @@
 
             // Generate daily services based on tour dates
         function generateDailyServices() {
-            const container = document.getElementById('dailyServicesContainer');
+            const liveBundle = document.getElementById('segmentServicesBundle');
+            const container = (liveBundle && liveBundle.querySelector('#dailyServicesContainer'))
+                || document.getElementById('dailyServicesContainer');
+            if (!container || container.closest('.segment-services-frozen')) {
+                return;
+            }
 
             const useSeg = window.multiSegmentStayRange && window.multiSegmentStayRange.start && window.multiSegmentStayRange.end &&
                 typeof $ !== 'undefined' &&
@@ -18433,6 +20525,24 @@
                                                     </div>
                                                     <input type="hidden" name="day${day}_entry_0_passengers" id="day${day}_entry_0_passengers" value="1">
                                                 </div>
+                                                    <!-- Custom Price after Children -->
+                                                    <div class="col-12 entry-port-custom-price-field" id="day${day}_entry_0_price_field" style="display: none;">
+                                                        <div class="alert alert-warning mb-0">
+                                                            <div class="form-group mb-0">
+                                                                <label class="form-label fw-semibold mb-2">
+                                                                    <i class="ri-money-dollar-circle-line me-2"></i>Custom Price <span class="text-danger">*</span>
+                                                                </label>
+                                                                <div class="input-group">
+                                                                    <span class="input-group-text tour-currency-prefix">${typeof getTourCurrency === 'function' ? getTourCurrency() : @json($dmcCurrency)}</span>
+                                                                    <input type="number" class="form-control" id="day${day}_entry_0_custom_price" name="day${day}_entry_0_custom_price" min="0" step="0.01" placeholder="Enter custom price" oninput="updateEntryPortCustomPricing(${day}, 'entry_0')" onchange="updateEntryPortCustomPricing(${day}, 'entry_0')">
+                                                                    <span class="input-group-text">.00</span>
+                                                                </div>
+                                                                <small class="form-text text-muted mt-1">
+                                                                    <i class="ri-information-line me-1"></i>Enter the custom price for this entry port service
+                                                                </small>
+                                                            </div>
+                                                        </div>
+                                                    </div>
                                                     <!-- Remarks full width (col-md-12) -->
                                                     <div class="col-md-12 mt-2">
                                                         <div class="form-check mb-2">
@@ -18521,25 +20631,6 @@
                                                     </div>
                                                 </div>
                                             </div>
-                                            
-                                            <!-- Custom Price Field for Entry Port (Zone = 0) -->
-                                            <div class="col-12 mt-3 entry-port-custom-price-field" id="day${day}_entry_0_price_field" style="display: none;">
-                                                <div class="alert alert-warning">
-                                                    <div class="form-group mb-0">
-                                                        <label class="form-label fw-semibold mb-2">
-                                                            <i class="ri-money-dollar-circle-line me-2"></i>Custom Price <span class="text-danger">*</span>
-                                                        </label>
-                                                        <div class="input-group">
-                                                            <span class="input-group-text tour-currency-prefix">{{ $dmcCurrency }}</span>
-                                                            <input type="number" class="form-control" id="day${day}_entry_0_custom_price" name="day${day}_entry_0_custom_price" min="0" step="0.01" placeholder="Enter custom price" oninput="updateEntryPortCustomPricing(${day}, 'entry_0')" onchange="updateEntryPortCustomPricing(${day}, 'entry_0')">
-                                                            <span class="input-group-text">.00</span>
-                                                        </div>
-                                                        <small class="form-text text-muted mt-1">
-                                                            <i class="ri-information-line me-1"></i>Enter the custom price for this entry port service
-                                                        </small>
-                                                        </div>
-                                                    </div>
-                                                </div>
                                                 
                                                 <!-- Hidden fields for entry port pricing -->
                                             <div class="col-12">
@@ -18756,6 +20847,24 @@
                                                     </div>
                                                     <input type="hidden" name="day${day}_exit_0_passengers" id="day${day}_exit_0_passengers" value="1">
                                                 </div>
+                                                    <!-- Custom Price after Children -->
+                                                    <div class="col-12 exit-port-custom-price-field" id="day${day}_exit_0_price_field" style="display: none;">
+                                                        <div class="alert alert-warning mb-0">
+                                                            <div class="form-group mb-0">
+                                                                <label class="form-label fw-semibold mb-2">
+                                                                    <i class="ri-money-dollar-circle-line me-2"></i>Custom Price <span class="text-danger">*</span>
+                                                                </label>
+                                                                <div class="input-group">
+                                                                    <span class="input-group-text tour-currency-prefix">${typeof getTourCurrency === 'function' ? getTourCurrency() : @json($dmcCurrency)}</span>
+                                                                    <input type="number" class="form-control" onwheel="event.preventDefault(); return false;" id="day${day}_exit_0_custom_price" name="day${day}_exit_0_custom_price" min="0" step="0.01" placeholder="Enter custom price" oninput="updateExitPortCustomPricing(${day}, 'exit_0')" onchange="updateExitPortCustomPricing(${day}, 'exit_0')">
+                                                                    <span class="input-group-text">.00</span>
+                                                                </div>
+                                                                <small class="form-text text-muted mt-1">
+                                                                    <i class="ri-information-line me-1"></i>Enter the custom price for this exit port service
+                                                                </small>
+                                                            </div>
+                                                        </div>
+                                                    </div>
                                                     <!-- Remarks full width (col-md-12) -->
                                                     <div class="col-md-12 mt-2">
                                                         <div class="form-check mb-2">
@@ -18840,25 +20949,6 @@
                                                                     </div>
                                                                 </div>
                                                             </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                
-                                                <!-- Custom Price Field for Exit Port (Zone = 0) -->
-                                                <div class="col-12 mt-3 exit-port-custom-price-field" id="day${day}_exit_0_price_field" style="display: none;">
-                                                    <div class="alert alert-warning">
-                                                        <div class="form-group mb-0">
-                                                            <label class="form-label fw-semibold mb-2">
-                                                                <i class="ri-money-dollar-circle-line me-2"></i>Custom Price <span class="text-danger">*</span>
-                                                            </label>
-                                                            <div class="input-group">
-                                                                <span class="input-group-text tour-currency-prefix">{{ $dmcCurrency }}</span>
-                                                                <input type="number" class="form-control" onwheel="event.preventDefault(); return false;" id="day${day}_exit_0_custom_price" name="day${day}_exit_0_custom_price" min="0" step="0.01" placeholder="Enter custom price" oninput="updateExitPortCustomPricing(${day}, 'exit_0')" onchange="updateExitPortCustomPricing(${day}, 'exit_0')">
-                                                                <span class="input-group-text">.00</span>
-                                                            </div>
-                                                            <small class="form-text text-muted mt-1">
-                                                                <i class="ri-information-line me-1"></i>Enter the custom price for this exit port service
-                                                            </small>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -21378,7 +23468,7 @@
             ticketSelect.innerHTML = '<option value="">Loading tickets...</option>';
             
             // Get current DMC ID
-            const currentDmcId = '{{ $finalDmcId }}';
+            const currentDmcId = (typeof window.getActiveServiceDmcId === 'function' ? window.getActiveServiceDmcId(typeof cityName !== 'undefined' ? cityName : '') : '{{ $finalDmcId }}');
             
             fetch('{{ route('fetch-tickets-by-attraction') }}?attraction_id=' + attractionId + '&dmc_id=' + currentDmcId)
                 .then(response => response.json())
@@ -25511,6 +27601,25 @@
                                 </div>
                                 <input type="hidden" name="day${day}_entry_${newIndex}_passengers" id="day${day}_entry_${newIndex}_passengers" value="1">
 
+                                <!-- Custom Price after Children -->
+                                <div class="mt-2 col-12 entry-port-custom-price-field" id="day${day}_entry_${newIndex}_price_field" style="display: none;">
+                                    <div class="alert alert-warning mb-0">
+                                        <div class="form-group mb-0">
+                                            <label class="form-label fw-semibold mb-2">
+                                                <i class="ri-money-dollar-circle-line me-2"></i>Custom Price <span class="text-danger">*</span>
+                                            </label>
+                                            <div class="input-group">
+                                                <span class="input-group-text tour-currency-prefix">${typeof getTourCurrency === 'function' ? getTourCurrency() : @json($dmcCurrency)}</span>
+                                                <input type="number" class="form-control" id="day${day}_entry_${newIndex}_custom_price" name="day${day}_entry_${newIndex}_custom_price" min="0" step="0.01" placeholder="Enter custom price" oninput="updateEntryPortCustomPricing(${day}, 'entry_${newIndex}')" onchange="updateEntryPortCustomPricing(${day}, 'entry_${newIndex}')">
+                                                <span class="input-group-text">.00</span>
+                                            </div>
+                                            <small class="form-text text-muted mt-1">
+                                                <i class="ri-information-line me-1"></i>Enter the custom price for this entry port service
+                                            </small>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 <!-- Is Supplement -->
                                 <div class="mt-2 col-12">
                                     <div class="form-check">
@@ -25597,24 +27706,6 @@
                                                 </div>
                                             </div>
                                         </div>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- Custom Price Field for Additional Entry Port (Zone = 0) -->
-                            <div class="col-12 mt-2 entry-port-custom-price-field" id="day${day}_entry_${newIndex}_price_field" style="display: none;">
-                                <div class="alert" style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px; padding: 0.75rem 1rem;">
-                                    <div class="form-group mb-0">
-                                        <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.85rem;">
-                                            <i class="ri-money-dollar-circle-line me-1" style="color: #667eea;"></i>Custom Price <span class="text-danger">*</span>
-                                        </label>
-                                        <div class="input-group" style="max-width: 200px;">
-                                            <span class="input-group-text" style="background: #f8f9fa; font-size: 0.8rem; height: 36px; border: 1px solid #dee2e6; border-right: none; border-radius: 6px 0 0 6px; padding: 0.375rem 0.5rem; width: 45px;">{{ $dmcCurrency }}</span>
-                                            <input type="number" class="form-control" id="day${day}_entry_${newIndex}_custom_price" name="day${day}_entry_${newIndex}_custom_price" min="0" step="0.01" placeholder="0.00" oninput="updateEntryPortCustomPricing(${day}, 'entry_${newIndex}')" onchange="updateEntryPortCustomPricing(${day}, 'entry_${newIndex}')" style="height: 36px; border-radius: 0 6px 6px 0; border: 1px solid #dee2e6; border-left: none; background: #f8f9fa; font-size: 0.85rem; width: 155px;">
-                                        </div>
-                                        <small class="form-text text-muted mt-1" style="font-size: 0.75rem;">
-                                            <i class="ri-information-line me-1"></i>Enter the custom price for this entry port service
-                                        </small>
                                     </div>
                                 </div>
                             </div>
@@ -25881,6 +27972,25 @@
                                 </div>
                                 <input type="hidden" name="day${day}_exit_${newIndex}_passengers" id="day${day}_exit_${newIndex}_passengers" value="1">
 
+                                <!-- Custom Price after Children -->
+                                <div class="mt-2 col-12 exit-port-custom-price-field" id="day${day}_exit_${newIndex}_price_field" style="display: none;">
+                                    <div class="alert alert-warning mb-0">
+                                        <div class="form-group mb-0">
+                                            <label class="form-label fw-semibold mb-2">
+                                                <i class="ri-money-dollar-circle-line me-2"></i>Custom Price <span class="text-danger">*</span>
+                                            </label>
+                                            <div class="input-group">
+                                                <span class="input-group-text tour-currency-prefix">${typeof getTourCurrency === 'function' ? getTourCurrency() : @json($dmcCurrency)}</span>
+                                                <input type="number" class="form-control" onwheel="event.preventDefault(); return false;" id="day${day}_exit_${newIndex}_custom_price" name="day${day}_exit_${newIndex}_custom_price" min="0" step="0.01" placeholder="Enter custom price" oninput="updateExitPortCustomPricing(${day}, 'exit_${newIndex}')" onchange="updateExitPortCustomPricing(${day}, 'exit_${newIndex}')">
+                                                <span class="input-group-text">.00</span>
+                                            </div>
+                                            <small class="form-text text-muted mt-1">
+                                                <i class="ri-information-line me-1"></i>Enter the custom price for this exit port service
+                                            </small>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 <!-- Is Supplement -->
                                 <div class="mt-2 col-12">
                                     <div class="form-check">
@@ -25966,25 +28076,6 @@
                                                     </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <!-- Custom Price Field for Additional Exit Port (Zone = 0) -->
-                                <div class="col-12 mt-3 exit-port-custom-price-field" id="day${day}_exit_${newIndex}_price_field" style="display: none;">
-                                    <div class="alert alert-warning">
-                                        <div class="form-group mb-0">
-                                            <label class="form-label fw-semibold mb-2">
-                                                <i class="ri-money-dollar-circle-line me-2"></i>Custom Price <span class="text-danger">*</span>
-                                            </label>
-                                            <div class="input-group">
-                                                <span class="input-group-text tour-currency-prefix">{{ $dmcCurrency }}</span>
-                                                <input type="number" class="form-control" onwheel="event.preventDefault(); return false;" id="day${day}_exit_${newIndex}_custom_price" name="day${day}_exit_${newIndex}_custom_price" min="0" step="0.01" placeholder="Enter custom price" oninput="updateExitPortCustomPricing(${day}, 'exit_${newIndex}')" onchange="updateExitPortCustomPricing(${day}, 'exit_${newIndex}')">
-                                                <span class="input-group-text">.00</span>
-                                            </div>
-                                            <small class="form-text text-muted mt-1">
-                                                <i class="ri-information-line me-1"></i>Enter the custom price for this exit port service
-                                            </small>
                                         </div>
                                     </div>
                                 </div>
@@ -26108,6 +28199,8 @@
                     const exitPriceField = document.getElementById(`day${day}_exit_${newIndex}_price_field`);
                     if (exitPriceField) {
                         exitPriceField.style.display = 'block';
+                        const priceDisplay = document.getElementById(`day${day}_exit_${newIndex}_price_display`);
+                        if (priceDisplay) priceDisplay.style.display = 'block';
                         console.log(`Showing custom price field for additional exit port (zone=0): day${day}_exit_${newIndex}_price_field`);
                     }
                     
@@ -26969,7 +29062,6 @@
             const addBtn = document.getElementById('addHotelBtn');
             const childWith = document.getElementById('chkChildWithBed');
             const childWithout = document.getElementById('chkChildWithoutBed');
-            const suppBreakfast = document.getElementById('hotelSupplementBreakfastIncluded');
             const isMulti = h.isMultiCity();
             const keepCity = isMulti && hotelCity ? (hotelCity.value || '') : '';
 
@@ -27054,7 +29146,6 @@
             // Do not clear selected nights / night summary
             if (childWith) childWith.checked = false;
             if (childWithout) childWithout.checked = false;
-            if (suppBreakfast) suppBreakfast.checked = false;
             window.selectedBedInfo = null;
             const personSelector = document.getElementById('personSelector');
             if (personSelector) personSelector.innerHTML = '<div class="text-muted small">Select bed type first</div>';
@@ -27069,6 +29160,10 @@
             if (typeof window.updateHotelSupplementBreakfastVisibility === 'function') {
                 window.updateHotelSupplementBreakfastVisibility(null);
             }
+            if (typeof window.clearLiteHotelHelperBreakdown === 'function') {
+                window.clearLiteHotelHelperBreakdown();
+            }
+            window.lastHotelPriceResult = null;
 
             // Multi-city: restore segment city and ensure hotels list is available
             if (isMulti && keepCity && hotelCity) {
@@ -28594,8 +30689,46 @@
             });
     }
 
-    // Fetch ports for the selected city (ports.city_id = cities.city_id) and fill the pickup dropdown.
-    // The city name alone is enough — the server resolves cities.city_id and the country from it.
+    // Arrival/departure ports come from the city's country, not only that city.
+    window.getCountryForPortCity = function(cityName, selectId) {
+        const select = document.getElementById(selectId);
+        if (select) {
+            const selected = select.options[select.selectedIndex];
+            if (selected && selected.value === cityName && selected.getAttribute('data-country')) {
+                return selected.getAttribute('data-country');
+            }
+            const match = Array.from(select.options).find(function (o) { return o.value === cityName; });
+            if (match && match.getAttribute('data-country')) {
+                return match.getAttribute('data-country');
+            }
+        }
+        if (Array.isArray(window.allCitiesData)) {
+            const city = window.allCitiesData.find(function (c) { return c && c.name === cityName; });
+            if (city && city.country) {
+                return city.country;
+            }
+        }
+        const countrySelect = document.getElementById('user_country');
+        if (countrySelect && countrySelect.value) {
+            return countrySelect.value;
+        }
+        const hidden = document.getElementById('country_id');
+        return (hidden && hidden.value) || '';
+    };
+
+    window.buildPortsByCountryUrl = function(cityName, selectId) {
+        const params = new URLSearchParams();
+        const country = window.getCountryForPortCity(cityName, selectId);
+        if (country) {
+            params.set('country_id', country);
+        }
+        if (cityName) {
+            params.set('city', cityName);
+        }
+        return `{{ route('fetch-ports-by-country-single-tour') }}?${params.toString()}`;
+    };
+
+    // Fetch all ports in the selected city's country and fill the arrival pickup dropdown.
     window.loadEntryPickupPortsForCity = function(cityName) {
         const pickupSelect = document.getElementById('entry_pickup_port_select');
         if (!pickupSelect) return;
@@ -28605,25 +30738,16 @@
             return;
         }
 
-        // Send country too when we can (harmless), but city is what matters.
-        const countrySelect = document.getElementById('user_country');
-        let country = (document.getElementById('country_id') && document.getElementById('country_id').value) || '';
-        if (!country && countrySelect && countrySelect.value) {
-            const opt = countrySelect.options[countrySelect.selectedIndex];
-            country = (opt && opt.getAttribute('data-country-id')) || countrySelect.value;
-        }
-
         pickupSelect.innerHTML = '<option value="">Loading ports...</option>';
         $.ajax({
-            url: "{{ route('fetch-ports-by-country-single-tour') }}",
+            url: window.buildPortsByCountryUrl(cityName, 'modal_local_transfer_city'),
             type: "GET",
-            data: { country_id: country, city: cityName },
             dataType: 'json'
         }).done(function(response) {
             const ports = (response && response.ports) ? response.ports : [];
             pickupSelect.innerHTML = ports.length
                 ? '<option value="">Select pickup port</option>'
-                : '<option value="">No ports for this city</option>';
+                : '<option value="">No ports for this country</option>';
             ports.forEach(function(port) {
                 const option = document.createElement('option');
                 option.value = port.port_id;
@@ -28671,7 +30795,7 @@
         }
         
         // Get DMC ID for the requests
-        const dmcId = '{{ $finalDmcId }}';
+        const dmcId = (typeof window.getActiveServiceDmcId === 'function' ? window.getActiveServiceDmcId(typeof cityName !== 'undefined' ? cityName : '') : '{{ $finalDmcId }}');
         const dropoffSelect = document.getElementById('entry_dropoff_location_select');
         
         if (!dropoffSelect) {
@@ -28687,10 +30811,10 @@
         console.log('Making AJAX calls for city:', cityName, 'DMC ID:', dmcId);
         
         Promise.all([
-            window.fetchJsonDeduped(`{{ route('fetch-hotels-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`),
+            window.fetchJsonDeduped(`{{ route('fetch-hotels-by-dmc') }}?city=${encodeURIComponent(cityName)}&country=${encodeURIComponent((typeof window.resolveCountryForCityName === 'function' ? window.resolveCountryForCityName(cityName) : '') || '')}&dmc_id=${dmcId}`),
             window.fetchJsonDeduped(`{{ route('fetch-attractions-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`),
             window.fetchJsonDeduped(`{{ route('fetch-restaurants-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`),
-            window.fetchJsonDeduped(`{{ route('fetch-ports-by-country-single-tour') }}?city=${encodeURIComponent(cityName)}`)
+            window.fetchJsonDeduped(window.buildPortsByCountryUrl(cityName, 'modal_local_transfer_city'))
         ])
         .then(([hotelsData, attractionsData, restaurantsData, portsData]) => {
             console.log('AJAX responses received:');
@@ -28702,7 +30826,7 @@
             // Clear the dropdown
             dropoffSelect.innerHTML = '<option value="">Select pickup port first</option>';
             
-            // Add Ports first — city-dependent (ports.city_id = cities.city_id)
+            // Add Ports first — all ports in the selected city's country
             const ports = (portsData && portsData.ports) ? portsData.ports : [];
             if (ports && ports.length > 0) {
                 const portGroup = document.createElement('optgroup');
@@ -28822,7 +30946,7 @@
         }
         
         // Get DMC ID for the requests
-        const dmcId = '{{ $finalDmcId }}';
+        const dmcId = (typeof window.getActiveServiceDmcId === 'function' ? window.getActiveServiceDmcId(typeof cityName !== 'undefined' ? cityName : '') : '{{ $finalDmcId }}');
         const pickupSelect = document.getElementById('exit_pickup_location_select');
         
         if (!pickupSelect) {
@@ -28838,10 +30962,10 @@
         console.log('Making AJAX calls for exit port city:', cityName, 'DMC ID:', dmcId);
         
         Promise.all([
-            window.fetchJsonDeduped(`{{ route('fetch-hotels-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`),
+            window.fetchJsonDeduped(`{{ route('fetch-hotels-by-dmc') }}?city=${encodeURIComponent(cityName)}&country=${encodeURIComponent((typeof window.resolveCountryForCityName === 'function' ? window.resolveCountryForCityName(cityName) : '') || '')}&dmc_id=${dmcId}`),
             window.fetchJsonDeduped(`{{ route('fetch-attractions-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`),
             window.fetchJsonDeduped(`{{ route('fetch-restaurants-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`),
-            window.fetchJsonDeduped(`{{ route('fetch-ports-by-country-single-tour') }}?city=${encodeURIComponent(cityName)}`)
+            window.fetchJsonDeduped(window.buildPortsByCountryUrl(cityName, 'modal_exit_city'))
         ])
         .then(([hotelsData, attractionsData, restaurantsData, portsData]) => {
             console.log('Exit port AJAX responses received:');
@@ -28850,13 +30974,13 @@
             console.log('Restaurants:', restaurantsData);
             console.log('Ports:', portsData);
 
-            // Departure drop off ports — city-dependent (ports.city_id = cities.city_id)
+            // Departure drop off ports — all ports in the selected city's country
             const exitDropoffSelect = document.getElementById('exit_dropoff_port_select');
             if (exitDropoffSelect) {
                 const exitPorts = (portsData && portsData.ports) ? portsData.ports : [];
                 exitDropoffSelect.innerHTML = exitPorts.length
                     ? '<option value="">Select dropoff port</option>'
-                    : '<option value="">No ports for this city</option>';
+                    : '<option value="">No ports for this country</option>';
                 exitPorts.forEach(function(port) {
                     const option = document.createElement('option');
                     option.value = port.port_id;
@@ -29225,6 +31349,8 @@
                     const exitPriceField = document.getElementById(`day${day}_exit_0_price_field`);
                     if (exitPriceField) {
                         exitPriceField.style.display = 'block';
+                        const priceDisplay = document.getElementById(`day${day}_exit_0_price_display`);
+                        if (priceDisplay) priceDisplay.style.display = 'block';
                         console.log(`Showing custom price field for primary exit port (zone=0): day${day}_exit_0_price_field`);
                     }
                     
@@ -29251,7 +31377,7 @@
                 </select>
             `;
             
-            // Dropoff field (ports) — city-dependent: filled by loadExitPortsForCity for the selected city.
+            // Dropoff field (ports) — country-wide: filled by loadExitPortsForCity from the city's country.
             dropoffContainer.innerHTML = `
                 <select class="form-select dropoff-zone-select border-2" name="day${day}_exit_dropoff_zone_id" id="exit_dropoff_port_select">
                     <option value="">Select city first</option>
@@ -30459,7 +32585,12 @@
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
                 },
-                body: JSON.stringify({
+                body: JSON.stringify((typeof window.withInventoryDmcPayload === 'function')
+                ? window.withInventoryDmcPayload({
+                    from_zone_id: fromZoneId,
+                    to_zone_id: toZoneId
+                })
+                : {
                     from_zone_id: fromZoneId,
                     to_zone_id: toZoneId
                 })
@@ -32320,73 +34451,66 @@
     // Update exit port custom pricing function (Zone = 0)
     window.updateExitPortCustomPricing = function(day, section) {
         console.log('Updating exit port custom pricing for day', day, 'section', section);
-        
-        // Get the custom price input field
+
         const customPriceInput = document.getElementById(`day${day}_${section}_custom_price`);
         const priceDisplay = document.getElementById(`day${day}_${section}_price_display`);
-        
+
         if (!customPriceInput || !priceDisplay) {
             console.error('Custom price input or price display not found for exit port', section);
             return;
         }
-        
+
         const customPrice = parseFloat(customPriceInput.value) || 0;
-        
+        const adults = parseInt(document.getElementById(`day${day}_${section}_adults`)?.value || document.getElementById('adults')?.value) || 0;
+        const children = parseInt(document.getElementById(`day${day}_${section}_children`)?.value || document.getElementById('children')?.value) || 0;
+        const totalGuests = adults + children;
+        const cur = typeof getTourCurrency === 'function' ? getTourCurrency() : 'SGD';
+
+        priceDisplay.style.display = 'block';
+
+        const pricingContent = document.getElementById(`day${day}_${section}_pricing_content`);
+        const totalDisplay = document.getElementById(`day${day}_${section}_total_price_display`);
+
         if (customPrice > 0) {
-            // Get guest count for display
-            const adults = parseInt(document.getElementById('adults')?.value) || 0;
-            const children = parseInt(document.getElementById('children')?.value) || 0;
-            const totalGuests = adults + children;
-            
-            // Update price display with custom price
-            priceDisplay.style.display = 'block';
-            priceDisplay.innerHTML = `
-                <div class="d-flex align-items-center">
-                    <i class="ri-money-dollar-circle-line me-2 fs-4"></i>
-                    <div>
-                        <strong>Exit Port Custom Pricing</strong>
-                        <div class="small">
-                            <strong>Custom Price:</strong> <span class="text-success fw-bold">${getTourCurrency()} ${customPrice.toFixed(2)}</span><br>
-                            <strong>Service Type:</strong> Private<br>
-                            <strong>Total Guests:</strong> ${totalGuests} (${adults} adults, ${children} children)<br>
-                            <small class="text-info">Fixed price for exit port service in zone 0 mode.</small>
-                        </div>
+            if (pricingContent) {
+                pricingContent.innerHTML = `
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span>Custom price:</span>
+                        <span class="fw-semibold">${cur} ${customPrice.toFixed(2)}</span>
                     </div>
-                </div>
-            `;
-            
-            // Store pricing data in hidden fields
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span>Service type:</span>
+                        <span class="fw-semibold">Private</span>
+                    </div>
+                    <small class="text-muted">Private vehicle: fixed price per trip (not per person).</small>
+                `;
+            }
+            if (totalDisplay) {
+                totalDisplay.textContent = `${cur} ${customPrice.toFixed(2)}`;
+            }
+
             const basePriceField = document.getElementById(`day${day}_${section}_base_price`);
             const totalPriceField = document.getElementById(`day${day}_${section}_total_price`);
             const guestCountField = document.getElementById(`day${day}_${section}_guest_count`);
-            
+
             if (basePriceField) basePriceField.value = customPrice.toFixed(2);
             if (totalPriceField) totalPriceField.value = customPrice.toFixed(2);
             if (guestCountField) guestCountField.value = totalGuests;
-            
-            console.log(`Exit port custom pricing updated for day ${day}, section ${section}: ${getTourCurrency()} ${customPrice.toFixed(2)}`);
-            
-            // Update departure header after custom pricing change
-            if (section.startsWith('exit')) {
-                updateDepartureHeader(day);
-            }
-            
+
+            console.log(`Exit port custom pricing updated for day ${day}, section ${section}: ${cur} ${customPrice.toFixed(2)}`);
         } else {
-            // Hide price display if no custom price
-            priceDisplay.style.display = 'none';
-            // Clear hidden fields
             const basePriceField = document.getElementById(`day${day}_${section}_base_price`);
             const totalPriceField = document.getElementById(`day${day}_${section}_total_price`);
             const guestCountField = document.getElementById(`day${day}_${section}_guest_count`);
-            
+
             if (basePriceField) basePriceField.value = '0';
             if (totalPriceField) totalPriceField.value = '0';
             if (guestCountField) guestCountField.value = '0';
-            
-            // Update departure header after custom pricing change
-            if (section.startsWith('exit')) {
-                updateDepartureHeader(day);
-            }
+            if (totalDisplay) totalDisplay.textContent = `${cur} 0.00`;
+        }
+
+        if (section.startsWith('exit')) {
+            updateDepartureHeader(day);
         }
     }
 
@@ -32445,8 +34569,8 @@
                     vehicle_model: selectedOption.dataset.vehicleModel || "",
                     model_year: selectedOption.dataset.modelYear || null,
                     seating_capacity: selectedOption.dataset.seatingcapacity || 0,
-                    city: "Singapore", // Default city
-                    country: "Singapore" // Default country
+                    city: (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : ''),
+                    country: (typeof window.getActiveServiceCountry === 'function' ? window.getActiveServiceCountry() : '')
                 };
             }
             
@@ -32527,8 +34651,8 @@
                 vehicle_id: vehicleId,
                 service_type: serviceType,
                 passengers: passengers,
-                country: "Singapore",
-                city: "Singapore",
+                country: (typeof window.getActiveServiceCountry === 'function' ? window.getActiveServiceCountry() : ''),
+                city: (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : ''),
                 transport_type: "entry_port"
             };
             
@@ -32582,8 +34706,8 @@
                     vehicle_model: selectedOption.dataset.vehicleModel || "",
                     model_year: selectedOption.dataset.modelYear || null,
                     seating_capacity: selectedOption.dataset.seatingcapacity || 0,
-                    city: "Singapore",
-                    country: "Singapore"
+                    city: (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : ''),
+                    country: (typeof window.getActiveServiceCountry === 'function' ? window.getActiveServiceCountry() : '')
                 };
             }
             
@@ -32657,8 +34781,8 @@
                 vehicle_id: vehicleId,
                 service_type: serviceType,
                 passengers: document.getElementById(`day${day}_exit_0_passengers`)?.value || 1,
-                country: "Singapore",
-                city: "Singapore",
+                country: (typeof window.getActiveServiceCountry === 'function' ? window.getActiveServiceCountry() : ''),
+                city: (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : ''),
                 transport_type: "exit_port"
             };
             
@@ -32727,8 +34851,8 @@
                     vehicle_model: selectedOption.dataset.vehicleModel || "",
                     model_year: selectedOption.dataset.modelYear || null,
                     seating_capacity: selectedOption.dataset.seatingcapacity || 0,
-                    city: "Singapore",
-                    country: "Singapore"
+                    city: (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : ''),
+                    country: (typeof window.getActiveServiceCountry === 'function' ? window.getActiveServiceCountry() : '')
                 };
             }
             
@@ -32804,8 +34928,8 @@
                 vehicle_id: vehicleId,
                 service_type: serviceType,
                 passengers: document.getElementById(`day${day}_transport_passengers`)?.value || 1,
-                country: "Singapore",
-                city: "Singapore",
+                country: (typeof window.getActiveServiceCountry === 'function' ? window.getActiveServiceCountry() : ''),
+                city: (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : ''),
                 transport_type: "transport"
             };
             
@@ -33297,6 +35421,8 @@
                                 const exitPriceField = document.getElementById(`day${day}_${exitSection}_price_field`);
                                 if (exitPriceField) {
                                     exitPriceField.style.display = 'block';
+                                    const priceDisplay = document.getElementById(`day${day}_${exitSection}_price_display`);
+                                    if (priceDisplay) priceDisplay.style.display = 'block';
                                     console.log(`Showing custom price field for exit port (zone=0): day${day}_${exitSection}_price_field`);
                                 }
                                 
@@ -33465,7 +35591,17 @@
                 'Content-Type': 'application/json',
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
             },
-            body: JSON.stringify({
+            body: JSON.stringify((typeof window.withInventoryDmcPayload === 'function')
+                ? window.withInventoryDmcPayload({
+                    from_zone_id: actualFromZoneId,
+                    to_zone_id: actualToZoneId,
+                    from_zone_type: zone_status == 1 ? fromZoneType : '',
+                    to_zone_type: zone_status == 1 ? toZoneType : '',
+                    zone_status: zone_status
+                }, document.getElementById('modal_local_transfer_city')?.value
+                    || document.getElementById('modal_exit_city')?.value
+                    || (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : ''))
+                : {
                 from_zone_id: actualFromZoneId,
                 to_zone_id: actualToZoneId,
                 from_zone_type: zone_status == 1 ? fromZoneType : '',
@@ -33652,9 +35788,9 @@
                 console.log('Populating entry port dropoff (new interface), city:', cityName);
                 dropoffZoneSelect.innerHTML = '<option value="">Loading locations...</option>';
                 
-                const dmcId = '{{ $finalDmcId }}';
+                const dmcId = (typeof window.getActiveServiceDmcId === 'function' ? window.getActiveServiceDmcId(typeof cityName !== 'undefined' ? cityName : '') : '{{ $finalDmcId }}');
                 // Fetch all hotels for the city so dropdown shows every hotel
-                window.fetchJsonDeduped(`{{ route('fetch-hotels-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`)
+                window.fetchJsonDeduped(`{{ route('fetch-hotels-by-dmc') }}?city=${encodeURIComponent(cityName)}&country=${encodeURIComponent((typeof window.resolveCountryForCityName === 'function' ? window.resolveCountryForCityName(cityName) : '') || '')}&dmc_id=${dmcId}`)
                     .then(hotelsData => {
                         dropoffZoneSelect.innerHTML = '<option value="">Select dropoff location</option>';
                         if (hotelsData.success && hotelsData.hotels && hotelsData.hotels.length > 0) {
@@ -34719,6 +36855,10 @@
                         
                         // Package-level country fallback (city-driven flows may leave this empty).
                         const resolveSelectedCountryName = () => {
+                            if (typeof window.getActiveServiceCountry === 'function') {
+                                const fromStay = window.getActiveServiceCountry();
+                                if (fromStay) return fromStay;
+                            }
                             const fromCountryField = document.getElementById('user_country')?.value || '';
                             if (fromCountryField) return fromCountryField;
                             
@@ -35487,6 +37627,8 @@
                                         const exitPriceField = document.getElementById(`day${day}_${exitSection}_price_field`);
                                         if (exitPriceField) {
                                             exitPriceField.style.display = 'block';
+                                            const priceDisplay = document.getElementById(`day${day}_${exitSection}_price_display`);
+                                            if (priceDisplay) priceDisplay.style.display = 'block';
                                             console.log(`Showing custom price field for exit port (zone=0): day${day}_${exitSection}_price_field`);
                                         }
                                         
@@ -36088,7 +38230,17 @@
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
                 },
-                body: JSON.stringify({
+                body: JSON.stringify((typeof window.withInventoryDmcPayload === 'function')
+                    ? window.withInventoryDmcPayload({
+                    from_zone_id: actualFromZoneId,
+                    to_zone_id: actualToZoneId,
+                    from_zone_type: zone_status == 1 ? fromZoneType : '',
+                    to_zone_type: zone_status == 1 ? toZoneType : '',
+                    zone_status: zone_status
+                    }, (typeof window.getTransportRowCity === 'function' ? window.getTransportRowCity(day, 0) : '')
+                        || document.getElementById('modal_local_transfer_city')?.value
+                        || (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : ''))
+                    : {
                     from_zone_id: actualFromZoneId,
                     to_zone_id: actualToZoneId,
                     from_zone_type: zone_status == 1 ? fromZoneType : '',

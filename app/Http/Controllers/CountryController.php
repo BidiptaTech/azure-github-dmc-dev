@@ -598,6 +598,15 @@ class CountryController extends Controller
 
     private function resolveDmcIdForUser($user)
     {
+        if (!$user) {
+            return null;
+        }
+
+        $dmcId = CommonHelper::getDmcId($user);
+        if (!empty($dmcId)) {
+            return $dmcId;
+        }
+
         $roleId = (int) ($user->role_id ?? 0);
 
         // Direct DMC roles
@@ -605,12 +614,7 @@ class CountryController extends Controller
             return $user->userId ?? null;
         }
 
-        // Operational + Finance team roles (and similar) are created under a DMC userId
-        if (in_array($roleId, [34, 124, 125, 36, 126, 127], true)) {
-            return $user->created_by ?? null;
-        }
-
-        // Fallback: if this user is created under a DMC
+        // Multi-role (138), operational, finance, and similar staff under a DMC
         return $user->created_by ?? null;
     }
 

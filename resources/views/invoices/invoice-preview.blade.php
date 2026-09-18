@@ -136,9 +136,9 @@ use Illuminate\Support\Facades\Crypt;
                     <span class="toolbar-label">Invoice View</span>
                     <div class="btn-group btn-group-sm" role="group" aria-label="Full invoice or price breakup">
                         <a href="{{ route('invoices.preview', ['invoiceId' => Crypt::encrypt($invoice->invoice_id), 'mode' => 'full', 'currency' => $selectedCurrency, 'logo_type' => $logoType ?? 'dmc', 'format' => $format ?? 'standard']) }}"
-                           class="btn {{ $mode === 'full' ? 'btn-primary' : 'btn-outline-secondary' }}">Packaged</a>
+                           class="btn {{ $mode === 'full' ? 'btn-primary' : 'btn-outline-secondary' }}">Price breakup</a>
                         <a href="{{ route('invoices.preview', ['invoiceId' => Crypt::encrypt($invoice->invoice_id), 'mode' => 'price-only', 'currency' => $selectedCurrency, 'logo_type' => $logoType ?? 'dmc', 'format' => $format ?? 'standard']) }}"
-                           class="btn {{ $mode === 'price-only' ? 'btn-info' : 'btn-outline-secondary' }}">Price breakup</a>
+                           class="btn {{ $mode === 'price-only' ? 'btn-info' : 'btn-outline-secondary' }}">Packaged</a>
                     </div>
                 </div>
             </div>

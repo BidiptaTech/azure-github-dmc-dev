@@ -6,6 +6,8 @@
 @section('content')
 @php
     $preselectedCountry = old('country', $selectedCountry ?? $zoneCountry ?? '');
+    $listUrl = $listUrl ?? route('zones.index');
+    $listQuery = $listQuery ?? [];
 @endphp
 <style>
     /* Select2 — same integration as vehicles add-vehicle */
@@ -130,12 +132,15 @@
             <div class="card mb-4">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5>Edit Zone</h5>
-                    <a href="{{ route('zones.index') }}" class="btn btn-secondary">Back to List</a>
+                    <a href="{{ $listUrl }}" class="btn btn-secondary">Back to List</a>
                 </div>
                 <div class="card-body">
                     <form action="{{ route('zones.update', $zone->zone_id) }}" method="POST">
                         @csrf
                         @method('PUT')
+                        @foreach($listQuery as $returnKey => $returnValue)
+                            <input type="hidden" name="return_to[{{ $returnKey }}]" value="{{ $returnValue }}">
+                        @endforeach
                         
                         <div class="row mb-3">
                             <div class="col-md-3">
@@ -260,7 +265,7 @@
 
                         <div class="mt-4">
                             <button type="submit" class="btn btn-primary">Update Zone</button>
-                            <a href="{{ route('zones.index') }}" class="btn btn-outline-secondary">Cancel</a>
+                            <a href="{{ $listUrl }}" class="btn btn-outline-secondary">Cancel</a>
                         </div>
                     </form>
                 </div>

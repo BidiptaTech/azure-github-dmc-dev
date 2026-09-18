@@ -763,12 +763,13 @@
         'packagesUrl' => route('package-bookings.confirmed'),
     ])
     @php
-        // Travel-date filter window: defaults to the next 30 days, selectable one year either side.
+        // Default: show all Confirmed bookings whose travel end (check_out) is today or later.
+        // Start Date = today; End Date left blank (no 30-day upper bound).
         $filterMinDate = now()->subYear()->toDateString();
         $filterMaxDate = now()->addYear()->toDateString();
         $filterStartDate = now()->toDateString();
-        $filterEndDate = now()->addDays(30)->toDateString();
-        $filterRangeLabel = now()->format('M j') . ' - ' . now()->addDays(30)->format('M j, Y');
+        $filterEndDate = '';
+        $filterRangeLabel = 'Today onwards (' . now()->format('M j, Y') . ')';
 
         $toDateOnly = function ($value) {
             if (empty($value)) {
@@ -781,17 +782,16 @@
             }
         };
 
-        // Rows whose stay overlaps the default window, used for the initial stat counts.
-        $defaultRangeTours = $tours->filter(function ($tour) use ($toDateOnly, $filterStartDate, $filterEndDate) {
+        // Rows whose travel end is today or in the future (used for initial stat counts).
+        $defaultRangeTours = $tours->filter(function ($tour) use ($toDateOnly, $filterStartDate) {
             $checkIn = $toDateOnly($tour->check_in_time ?? null);
             $checkOut = $toDateOnly($tour->check_out_time ?? null);
             if (!$checkIn && !$checkOut) {
                 return false;
             }
-            $stayStart = $checkIn ?: $checkOut;
             $stayEnd = $checkOut ?: $checkIn;
 
-            return $stayStart <= $filterEndDate && $stayEnd >= $filterStartDate;
+            return $stayEnd >= $filterStartDate;
         });
     @endphp
 
@@ -4470,13 +4470,11 @@
                             
                             // Get zone names for header
                             if(isset($firstBookingData['from_zone_id']) && $firstBookingData['from_zone_id']) {
-                                $fromZone = \DB::table('zones')->where('zone_id', $firstBookingData['from_zone_id'])->first();
-                                $headerFromZone = $fromZone ? $fromZone->zone_type : 'Zone ' . $firstBookingData['from_zone_id'];
+                                $headerFromZone = resolveBookingZoneLabel($firstBookingData['from_zone_id'], 'N/A');
                             }
                             
                             if(isset($firstBookingData['to_zone_id']) && $firstBookingData['to_zone_id']) {
-                                $toZone = \DB::table('zones')->where('zone_id', $firstBookingData['to_zone_id'])->first();
-                                $headerToZone = $toZone ? $toZone->zone_type : 'Zone ' . $firstBookingData['to_zone_id'];
+                                $headerToZone = resolveBookingZoneLabel($firstBookingData['to_zone_id'], 'N/A');
                             }
                         }
                     @endphp
@@ -4519,13 +4517,11 @@
                                             $toZoneName = 'N/A';
                                             
                                             if(isset($booking['from_zone_id']) && $booking['from_zone_id']) {
-                                                $fromZone = \DB::table('zones')->where('zone_id', $booking['from_zone_id'])->first();
-                                                $fromZoneName = $fromZone ? $fromZone->zone_type : 'Zone ' . $booking['from_zone_id'];
+                                                $fromZoneName = resolveBookingZoneLabel($booking['from_zone_id'], 'N/A');
                                             }
                                             
                                             if(isset($booking['to_zone_id']) && $booking['to_zone_id']) {
-                                                $toZone = \DB::table('zones')->where('zone_id', $booking['to_zone_id'])->first();
-                                                $toZoneName = $toZone ? $toZone->zone_type : 'Zone ' . $booking['to_zone_id'];
+                                                $toZoneName = resolveBookingZoneLabel($booking['to_zone_id'], 'N/A');
                                             }
                                         @endphp
                                         
@@ -22463,7 +22459,7 @@ function resetFilters() {
         agentSelect.value = '';
     }
     
-    // Dates go back to the default travel window rather than being cleared
+    // Dates go back to the default: Start = today, End blank (today onwards)
     if (startDateInput) startDateInput.value = startDateInput.getAttribute('data-default-value') || '';
     if (endDateInput) {
         endDateInput.value = endDateInput.getAttribute('data-default-value') || '';
@@ -22595,7 +22591,9 @@ window.filterTable = function() {
             show = false;
         }
         
-        // Travel date filter: keep a tour when its check-in / check-out stay overlaps the selected range.
+        // Travel date filter by check_in / check_out.
+        // With only Start Date set (default = today), keeps tours whose end
+        // date (check_out, falling back to check_in) is on/after that date.
         if (startDateValue || endDateValue) {
             if (!checkIn && !checkOut) {
                 // No travel dates recorded, so the tour cannot match a travel window
@@ -22663,7 +22661,7 @@ window.filterTable = function() {
                 label = `${start.toLocaleString('default', { month: 'short' })} ${start.getDate()} - ${end.toLocaleString('default', { month: 'short' })} ${end.getDate()}, ${end.getFullYear()}`;
             }
         } else if (start) {
-            label = `From ${start.toLocaleString('default', { month: 'short', day: '2-digit', year: 'numeric' })}`;
+            label = `Today onwards (${start.toLocaleString('default', { month: 'short', day: '2-digit', year: 'numeric' })})`;
         } else if (end) {
             label = `Up to ${end.toLocaleString('default', { month: 'short', day: '2-digit', year: 'numeric' })}`;
         }
@@ -22726,7 +22724,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Apply initial filter on page load to show the default travel window
+    // Apply initial filter on page load (travel end date today or future)
     filterTable();
 });
 

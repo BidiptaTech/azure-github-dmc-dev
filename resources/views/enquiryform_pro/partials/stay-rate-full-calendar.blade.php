@@ -364,6 +364,15 @@
         overflow: hidden;
         text-overflow: ellipsis;
     }
+    .ep-full-cal-day-price .ep-cal-price-pair {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        line-height: 1.05;
+        margin-top: 1px;
+    }
+    .ep-full-cal-day-price .ep-cal-c { font-size: 8px; color: #6c757d; font-weight: 600; }
+    .ep-full-cal-day-price .ep-cal-s { font-size: 8px; color: #198754; font-weight: 700; }
     .ep-full-cal-day-meal {
         font-size: 7px;
         color: #6b7280;
@@ -519,6 +528,7 @@
                     <span class="ep-legend-pill"><span class="ep-key-swatch" style="background:#fef2f2;border-color:#fca5a5;"></span> Blackout</span>
                     <span class="ep-legend-pill"><span class="ep-key-swatch" style="background:#faf5ff;border-color:#d8b4fe;"></span> Fair</span>
                     <span class="ep-legend-pill"><span class="ep-key-swatch" style="background:#fff7ed;border-color:#fdba74;"></span> Season</span>
+                    <span class="ep-legend-pill"><span style="font-size:9px;color:#6c757d;font-weight:600;">C</span>/<span style="font-size:9px;color:#198754;font-weight:700;">S</span> Cost / Sell</span>
                     <span class="ep-legend-pill"><span class="ep-key-swatch" style="background:#fafafa;border-color:#e5e7eb;"></span> Available</span>
                     <span class="ep-legend-pill"><span class="ep-key-swatch" style="box-shadow:inset 0 0 0 2px #22c55e;background:#fff;"></span> Check-in</span>
                     <span class="ep-legend-pill"><span class="ep-key-swatch" style="box-shadow:inset 0 0 0 2px #1e3a8a;background:#fff;"></span> Check-out</span>
@@ -698,8 +708,20 @@
         ];
         if (isStay && nightNum) rows.push(`Stay night: N${nightNum}`);
         if (applicable?.event) rows.push(`Event: ${epFullCalEscape(applicable.event)}`);
-        const priceLine = epFullCalRatePriceLine(applicable);
-        if (priceLine) rows.push(`Rate: ${epFullCalEscape(priceLine)}`);
+        if (isStay && typeof enquiryProLodgingPriceForNight === 'function') {
+            const calCombo = typeof enquiryProCurrentCalendarCombo === 'function' ? enquiryProCurrentCalendarCombo() : null;
+            if (calCombo) {
+                const rates = calCombo.hotelRates || calCombo.rates || ctx.hotelRates || [];
+                const cost = enquiryProLodgingPriceForNight(calCombo, dateStr, rates, true);
+                const sell = enquiryProLodgingPriceForNight(calCombo, dateStr, rates, false);
+                const dayKind = cost.isWeekend ? 'Weekend' : 'Weekday';
+                rows.push(`${dayKind} cost: ${Number(cost.price || 0).toFixed(2)}`);
+                rows.push(`${dayKind} sell: ${Number(sell.price || 0).toFixed(2)}`);
+            }
+        } else {
+            const priceLine = epFullCalRatePriceLine(applicable);
+            if (priceLine) rows.push(`Rate: ${epFullCalEscape(priceLine)}`);
+        }
         const meal = epFullCalMealHint(applicable);
         if (meal) rows.push(epFullCalEscape(meal));
         if (isWeekend) rows.push('Weekend pricing may apply');
@@ -860,7 +882,16 @@
         inner += '</div>';
         inner += `<span class="ep-full-cal-day-name">${dayName}</span>`;
         inner += `<span class="ep-full-cal-status-pill ${pillCls}">${epFullCalEscape(status)}</span>`;
-        if (priceLine) inner += `<span class="ep-full-cal-day-price">${epFullCalEscape(priceLine)}</span>`;
+        if (isStay && typeof enquiryProStayNightPricePairHtml === 'function') {
+            const calCombo = typeof enquiryProCurrentCalendarCombo === 'function' ? enquiryProCurrentCalendarCombo() : null;
+            if (calCombo) {
+                inner += `<span class="ep-full-cal-day-price">${enquiryProStayNightPricePairHtml(calCombo, dateStr)}</span>`;
+            } else if (priceLine) {
+                inner += `<span class="ep-full-cal-day-price">${epFullCalEscape(priceLine)}</span>`;
+            }
+        } else if (priceLine) {
+            inner += `<span class="ep-full-cal-day-price">${epFullCalEscape(priceLine)}</span>`;
+        }
         if (mealLine) inner += `<span class="ep-full-cal-day-meal">${epFullCalEscape(mealLine)}</span>`;
 
         return `<div class="${cls}" tabindex="0" role="gridcell" aria-label="${epFullCalEscape(status)} ${day}" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-html="true" data-bs-custom-class="ep-full-cal-tooltip" data-ep-tip="${encodeURIComponent(tipHtml)}">${inner}</div>`;
@@ -916,7 +947,7 @@
     window.enquiryProOpenFullStayCalendar = function () {
         if (!epFullCalDeps()) return;
         const ctx = epFullCalBuildContext();
-        if (!ctx.stayDates.length || !ctx.hotelRates.length) {
+        if (!ctx.stayDates.length) {
             if (typeof toastr !== 'undefined') {
                 toastr.info('Select hotel and stay dates to view the calendar.');
             } else {

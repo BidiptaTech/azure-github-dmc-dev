@@ -16,8 +16,9 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use App\Helpers\CommonHelper;
-use App\Mail\DmcMail;
+use App\Mail\TravclicksMail;
 use App\Services\FirebaseService;
+use App\Models\Attraction;
 
 class EditTourController extends Controller
 {
@@ -65,6 +66,9 @@ class EditTourController extends Controller
                 $tour->city = $validated['city'] ?: null;
             }
 
+            // When a city from a new country is added, append that country to tours.destination (CSV).
+            $this->syncTourDestinationFromCities($tour);
+
             $saved = $tour->save();
             if (!$saved) {
                 throw new \Exception('Failed to save city plans.');
@@ -77,6 +81,7 @@ class EditTourController extends Controller
                 'data' => [
                     'city_type' => $tour->city_type,
                     'city' => $tour->city,
+                    'destination' => $tour->destination,
                 ],
             ]);
         } catch (\Throwable $e) {
@@ -94,13 +99,9 @@ class EditTourController extends Controller
     }
 
     /**
-     * Remove a saved multi-city plan (city + date range) and soft-delete all services
-     * that fall within that removed stay date range.
-     *
-     * This is used by the red "×" button in multi-city mode to ensure:
-     * - the row is removed from the UI
-     * - the `tours.city` string is updated (plan removed)
-     * - services are soft-deleted (or removed from multi-service orders) for that stay range
+     * Remove a saved multi-city plan (city + date range) from tours.city (city-plan JSON/string).
+     * Also removes the matching token from tours.destination, but only when this tour has
+     * no active orders associated with that destination/city.
      */
     public function removeCityPlan(Request $request, $tour)
     {
@@ -131,29 +132,43 @@ class EditTourController extends Controller
             $end = Carbon::createFromFormat('Y-m-d', $validated['end'])->startOfDay();
             $cityDisplay = isset($validated['city_display']) ? trim((string) $validated['city_display']) : '';
 
-            // 1) Remove plan from tours.city string
+            // 1) Always remove this city plan from tours.city (city-plan JSON/string)
             $originalCity = (string) ($tour->city ?? '');
-            $newCity = $this->removeCityPlanFromCityString($originalCity, $cityDisplay, $start->format('Y-m-d'), $end->format('Y-m-d'));
+            $newCity = $this->removeCityPlanFromCityString(
+                $originalCity,
+                $cityDisplay,
+                $start->format('Y-m-d'),
+                $end->format('Y-m-d')
+            );
+            $newCity = $this->removeOrphanMasterCityToken($newCity, $cityDisplay);
             $tour->city = $newCity !== '' ? $newCity : null;
             $tour->city_type = $tour->city ? 'multi' : ($tour->city_type ?: 'single');
-            $tour->save();
 
-            // 2) Soft-delete services within removed stay date range
-            $affected = $this->getServicesWithinDateRange($tour->tour_id, $start, $end);
-            $deletedCount = 0;
-            if (!empty($affected)) {
-                $deletedCount = count($affected);
-                $this->deleteServicesByIndexOrOrder($affected);
+            // 2) Remove from tours.destination only when no active order uses that destination
+            $destinationRemoved = false;
+            $destinationKeptReason = null;
+            if ($this->tourHasActiveOrdersForDestination($tour->tour_id, $cityDisplay)) {
+                $destinationKeptReason = 'Active order(s) still exist for this destination on the tour.';
+            } else {
+                $destinationRemoved = $this->removeUnusedDestinationForCity($tour, $cityDisplay);
             }
+
+            $tour->save();
 
             DB::commit();
             return response()->json([
                 'success' => true,
-                'message' => 'City plan removed.',
+                'message' => $destinationRemoved
+                    ? 'City plan removed and destination updated.'
+                    : ($destinationKeptReason
+                        ? 'City plan removed. Destination kept because active order(s) exist for it.'
+                        : 'City plan removed.'),
                 'data' => [
                     'tour_id' => $tour->tour_id,
                     'city' => $tour->city,
-                    'deleted_services_count' => $deletedCount,
+                    'destination' => $tour->destination,
+                    'destination_removed' => $destinationRemoved,
+                    'destination_kept_reason' => $destinationKeptReason,
                 ],
             ]);
         } catch (\Throwable $e) {
@@ -267,6 +282,69 @@ class EditTourController extends Controller
         return ($city && !empty($city->country)) ? (string) $city->country : null;
     }
 
+    /**
+     * Extract city display labels from tours.city (dated segments and date-less master entries).
+     *
+     * @return array<int, string>
+     */
+    private function extractCityDisplaysFromCityString(string $raw): array
+    {
+        $raw = trim($raw);
+        if ($raw === '') {
+            return [];
+        }
+
+        $displays = [];
+        $re = '/^([^,\[]+?)\s*\[(\d{4}-\d{2}-\d{2})\s*(?:→|->)\s*(\d{4}-\d{2}-\d{2})\]\s*$/u';
+        $parts = array_values(array_filter(array_map('trim', explode(',', $raw))));
+        foreach ($parts as $part) {
+            if ($part === '') {
+                continue;
+            }
+            if (preg_match($re, $part, $m)) {
+                $display = trim((string) ($m[1] ?? ''));
+            } else {
+                $display = $part;
+            }
+            if ($display !== '') {
+                $displays[] = $display;
+            }
+        }
+
+        return $displays;
+    }
+
+    /**
+     * Ensure tours.destination includes every country referenced by the current city plans.
+     * Existing destination countries are kept (order preserved); new ones are appended CSV-style.
+     */
+    private function syncTourDestinationFromCities(Tour $tour, ?string $cityRaw = null, ?string $baseDestination = null): void
+    {
+        $cityRaw = $cityRaw !== null ? $cityRaw : (string) ($tour->city ?? '');
+        $baseDestination = $baseDestination !== null ? $baseDestination : (string) ($tour->destination ?? '');
+
+        $countries = CommonHelper::parseTourDestinationCountries($baseDestination);
+
+        foreach ($this->extractCityDisplaysFromCityString($cityRaw) as $display) {
+            $country = $this->cityPlanCountry($display);
+            if ($country === null || trim($country) === '') {
+                continue;
+            }
+            $exists = false;
+            foreach ($countries as $existing) {
+                if (strcasecmp((string) $existing, $country) === 0) {
+                    $exists = true;
+                    break;
+                }
+            }
+            if (!$exists) {
+                $countries[] = $country;
+            }
+        }
+
+        $tour->destination = !empty($countries) ? implode(', ', $countries) : $tour->destination;
+    }
+
     private function isCountryAllowedForRestricted(?string $country, array $ownCountryNames): bool
     {
         // Unknown country cannot be judged; do not block existing behaviour for it.
@@ -374,19 +452,172 @@ class EditTourController extends Controller
     }
 
     /**
-     * Collect services whose booking dates fall within (or overlap) the given inclusive range.
-     * We rely on non-overlapping city plans; date range uniquely identifies the segment.
-     *
-     * Hotels use a [check_in, check_out] range — match by overlap so stays that span
-     * the city plan are included even when neither endpoint sits inside the stay window.
-     * Single-date services match when their date is inside the stay window.
+     * If no dated plan remains for this city, also drop a date-less master-list token
+     * like "Singapore (Singapore)" from tours.city.
      */
-    private function getServicesWithinDateRange($tourId, Carbon $startDate, Carbon $endDate): array
+    private function removeOrphanMasterCityToken(string $cityRaw, string $cityDisplay): string
+    {
+        $want = $this->normalizeCityDisplay($cityDisplay);
+        if ($want === '' || trim($cityRaw) === '') {
+            return $cityRaw;
+        }
+
+        $re = '/^([^,\[]+?)\s*\[(\d{4}-\d{2}-\d{2})\s*(?:→|->)\s*(\d{4}-\d{2}-\d{2})\]\s*$/u';
+        $parts = array_values(array_filter(array_map('trim', explode(',', $cityRaw))));
+        $stillHasDatedPlan = false;
+        foreach ($parts as $part) {
+            if (!preg_match($re, $part, $m)) {
+                continue;
+            }
+            if ($this->normalizeCityDisplay((string) ($m[1] ?? '')) === $want) {
+                $stillHasDatedPlan = true;
+                break;
+            }
+        }
+        if ($stillHasDatedPlan) {
+            return $cityRaw;
+        }
+
+        $out = [];
+        foreach ($parts as $part) {
+            if (preg_match($re, $part)) {
+                $out[] = $part;
+                continue;
+            }
+            if ($this->normalizeCityDisplay($part) === $want) {
+                continue;
+            }
+            $out[] = $part;
+        }
+
+        return implode(', ', $out);
+    }
+
+    /**
+     * True when this tour has any active (non-deleted) order whose service city/country
+     * matches the destination being considered for removal.
+     */
+    private function tourHasActiveOrdersForDestination(int $tourId, string $cityDisplay): bool
+    {
+        $wantCountry = $this->normalizeCityDisplay((string) ($this->cityPlanCountry($cityDisplay) ?? ''));
+        $wantCity = $this->normalizeCityDisplay($cityDisplay);
+        if ($wantCountry === '' && $wantCity === '') {
+            return false;
+        }
+
+        $orders = Order::where('tour_id', $tourId)->get();
+        foreach ($orders as $order) {
+            $serviceData = $order->data;
+            if (empty($serviceData) || !is_array($serviceData)) {
+                continue;
+            }
+
+            $serviceArray = isset($serviceData[0]) ? $serviceData : [$serviceData];
+            foreach ($serviceArray as $service) {
+                if (!is_array($service)) {
+                    continue;
+                }
+
+                $svcCityRaw = $this->extractServiceCity($service, (string) $order->type);
+                $svcCity = $this->normalizeCityDisplay($svcCityRaw);
+                $svcCountry = $this->normalizeCityDisplay((string) ($this->cityPlanCountry($svcCityRaw) ?? ''));
+
+                // Also accept explicit country fields on the payload when present
+                foreach (['country', 'Country', 'service_country'] as $ck) {
+                    if (!empty($service[$ck]) && is_string($service[$ck])) {
+                        $svcCountry = $svcCountry !== ''
+                            ? $svcCountry
+                            : $this->normalizeCityDisplay($service[$ck]);
+                    }
+                }
+
+                if ($wantCity !== '' && $svcCity !== '' && $svcCity === $wantCity) {
+                    return true;
+                }
+                if ($wantCountry !== '' && $svcCountry !== '' && $svcCountry === $wantCountry) {
+                    return true;
+                }
+                // Destination token often equals country or city name (e.g. "Singapore")
+                if ($wantCountry !== '' && $svcCity !== '' && $svcCity === $wantCountry) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Remove the country/city token of a removed city plan from tours.destination
+     * when no remaining city plan still references it.
+     *
+     * @return bool True when destination was changed
+     */
+    private function removeUnusedDestinationForCity(Tour $tour, string $cityDisplay): bool
+    {
+        $country = $this->cityPlanCountry($cityDisplay);
+        $cityName = $this->normalizeCityDisplay($cityDisplay);
+        if (($country === null || trim((string) $country) === '') && $cityName === '') {
+            return false;
+        }
+
+        // Keep destination entry if another remaining plan still needs this country/city.
+        foreach ($this->extractCityDisplaysFromCityString((string) ($tour->city ?? '')) as $display) {
+            $otherCountry = $this->cityPlanCountry($display);
+            $otherCity = $this->normalizeCityDisplay($display);
+            if ($country && $otherCountry && strcasecmp((string) $otherCountry, (string) $country) === 0) {
+                return false;
+            }
+            if ($cityName !== '' && $otherCity === $cityName) {
+                return false;
+            }
+        }
+
+        $before = (string) ($tour->destination ?? '');
+        $tokens = CommonHelper::parseTourDestinationCountries($before);
+        if (empty($tokens)) {
+            return false;
+        }
+
+        $filtered = [];
+        foreach ($tokens as $token) {
+            $t = trim((string) $token);
+            if ($t === '') {
+                continue;
+            }
+            if ($country && strcasecmp($t, (string) $country) === 0) {
+                continue;
+            }
+            if ($cityName !== '' && strcasecmp($this->normalizeCityDisplay($t), $cityName) === 0) {
+                continue;
+            }
+            $filtered[] = $t;
+        }
+
+        $tour->destination = !empty($filtered) ? implode(', ', $filtered) : null;
+
+        return trim((string) ($tour->destination ?? '')) !== trim($before);
+    }
+
+    /**
+     * Collect services whose booking dates fall within (or overlap) the given inclusive range.
+     *
+     * When $cityDisplay is provided, only services for that city are returned so adjacent
+     * plans that share a boundary date (e.g. Kolkata ends 03, Delhi starts 03) do not
+     * wipe each other's bookings.
+     *
+     * Hotels use a [check_in, check_out] range — match by overlap.
+     * Single-date services match when their date is inside the stay window.
+     *
+     * @return array<int, array{order_id:mixed,type:string,name:string,index:int}>
+     */
+    private function getServicesWithinDateRange($tourId, Carbon $startDate, Carbon $endDate, ?string $cityDisplay = null): array
     {
         $affected = [];
         $orders = Order::where('tour_id', $tourId)->get();
         $start = $startDate->copy()->startOfDay();
         $end = $endDate->copy()->startOfDay();
+        $wantCity = $this->normalizeCityDisplay($cityDisplay ?? '');
 
         foreach ($orders as $order) {
             $serviceData = $order->data;
@@ -395,6 +626,16 @@ class EditTourController extends Controller
             $serviceArray = isset($serviceData[0]) ? $serviceData : [$serviceData];
             foreach ($serviceArray as $index => $service) {
                 if (!is_array($service)) continue;
+
+                $svcCity = $wantCity !== ''
+                    ? $this->normalizeCityDisplay($this->extractServiceCity($service, (string) $order->type))
+                    : '';
+
+                // City-scoped delete: skip services that clearly belong to another city plan.
+                if ($wantCity !== '' && $svcCity !== '' && $svcCity !== $wantCity) {
+                    continue;
+                }
+
                 $dates = $this->extractServiceDates($service, $order->type);
                 if (empty($dates)) continue;
 
@@ -415,8 +656,17 @@ class EditTourController extends Controller
                     $svcEnd = $parsed[0]->gte($parsed[1]) ? $parsed[0] : $parsed[1];
                     $inRange = $svcStart->lte($end) && $svcEnd->gte($start);
                 } else {
+                    // Legacy single-date rows with no city: treat stay end as exclusive
+                    // so shared boundary day (e.g. 03) is left for the next city plan.
+                    $useExclusiveEnd = ($wantCity !== '' && $svcCity === '');
+
                     foreach ($parsed as $dt) {
-                        if ($dt->betweenIncluded($start, $end)) {
+                        if ($useExclusiveEnd) {
+                            if ($dt->gte($start) && $dt->lt($end)) {
+                                $inRange = true;
+                                break;
+                            }
+                        } elseif ($dt->betweenIncluded($start, $end)) {
                             $inRange = true;
                             break;
                         }
@@ -435,6 +685,91 @@ class EditTourController extends Controller
         }
 
         return $affected;
+    }
+
+    /**
+     * Normalize city display for comparisons: "Kolkata (India)" → "kolkata".
+     */
+    private function normalizeCityDisplay(?string $raw): string
+    {
+        $s = trim((string) $raw);
+        if ($s === '') {
+            return '';
+        }
+        $s = preg_replace('/\s*\([^)]*\)\s*$/', '', $s) ?? $s;
+        $s = trim($s);
+
+        return mb_strtolower($s);
+    }
+
+    /**
+     * Best-effort city from a service payload (mirrors editform data-service-city).
+     */
+    private function extractServiceCity(array $service, string $serviceType): string
+    {
+        $candidates = [];
+
+        switch ($serviceType) {
+            case 'hotel':
+                $details = is_array($service['hotelDetails'] ?? null) ? $service['hotelDetails'] : [];
+                $candidates = [
+                    $details['location'] ?? null,
+                    $details['city'] ?? null,
+                    $service['city'] ?? null,
+                    $service['location'] ?? null,
+                ];
+                break;
+
+            case 'attraction':
+                $candidates = [
+                    $service['city'] ?? null,
+                    $service['AttractionCity'] ?? null,
+                    $service['attraction_city'] ?? null,
+                    $service['location'] ?? null,
+                ];
+                break;
+
+            case 'restaurant':
+                $candidates = [
+                    $service['city'] ?? null,
+                    $service['location'] ?? null,
+                ];
+                break;
+
+            case 'guide':
+                $candidates = [
+                    $service['city'] ?? null,
+                ];
+                break;
+
+            case 'entry_port':
+            case 'exit_port':
+            case 'travel_hourly':
+            case 'travel_point':
+            case 'local_transport':
+                $candidates = [
+                    $service['city'] ?? null,
+                    $service['pickup_city'] ?? null,
+                    $service['PickupCity'] ?? null,
+                    $service['location'] ?? null,
+                ];
+                break;
+
+            default:
+                $candidates = [
+                    $service['city'] ?? null,
+                    $service['location'] ?? null,
+                ];
+                break;
+        }
+
+        foreach ($candidates as $c) {
+            if (is_string($c) && trim($c) !== '') {
+                return trim($c);
+            }
+        }
+
+        return '';
     }
 
     /**
@@ -607,7 +942,10 @@ class EditTourController extends Controller
             if (!empty($validated['display_id'])) {
                 $tour->display_id = $validated['display_id'];
             }
+            // Base destination from the form, then merge any countries present in city plans
+            // (e.g. user added "Batam (Indonesia)" while destination was still "Singapore").
             $tour->destination = $validated['user_country'];
+            $this->syncTourDestinationFromCities($tour);
             $tour->check_in_time = $checkIn;
             $tour->check_out_time = $checkOut;
 
@@ -638,11 +976,7 @@ class EditTourController extends Controller
                 $tour->discount = 0.0;
             }
 
-            // UI field discount_price → existing column discount_amount (ceiling, e.g. 847.64 → 848)
-            $tour->discount_amount = (float) ceil((float) ($request->input(
-                'discount_price',
-                $request->input('discount_amount', $tour->discount_amount ?? 0)
-            ) ?: 0));
+            // Discount amount / currency markups are locked on edit — keep stored values.
 
             // If tour date range changed, ensure multi-city plans still fit within the new tour range.
             // Any city plan that is not fully contained in [checkIn, checkOut] is removed from tours.city,
@@ -654,7 +988,12 @@ class EditTourController extends Controller
                         try {
                             $segStart = Carbon::createFromFormat('Y-m-d', $seg['start'])->startOfDay();
                             $segEnd = Carbon::createFromFormat('Y-m-d', $seg['end'])->startOfDay();
-                            $affected = $this->getServicesWithinDateRange($tour->tour_id, $segStart, $segEnd);
+                            $affected = $this->getServicesWithinDateRange(
+                                $tour->tour_id,
+                                $segStart,
+                                $segEnd,
+                                (string) ($seg['cityDisplay'] ?? '')
+                            );
                             if (!empty($affected)) {
                                 $this->deleteServicesByIndexOrOrder($affected);
                                 $deletedServicesCount += count($affected);
@@ -1188,26 +1527,31 @@ class EditTourController extends Controller
                         ->first();
                 }
 
-                $guestData = [
-                    'guest_name' => $fullName ?: 'Guest',
-                    'email' => $email ?: null,
-                    'country_code' => $countryCode ?: null,
-                    'contact' => $phone ?: null,
-                    'whatsapp_no' => $phone ?: null,
-                    'passport' => $passport,
-                    'passport_exp' => $passportExp,
-                    'salutation' => $salutation,
-                ];
-
                 if ($existing) {
-                    $existing->update($guestData);
+                    $existing->guest_name = $fullName ?: 'Guest';
+                    $existing->email = $email ?: null;
+                    $existing->country_code = $countryCode ?: null;
+                    $existing->contact = $phone ?: null;
+                    $existing->whatsapp_no = $phone ?: null;
+                    $existing->passport = $passport;
+                    $existing->passport_exp = $passportExp;
+                    $existing->salutation = $salutation;
+                    $existing->save();
                     if (!$existing->hasTourId($tourIdInt)) {
                         $existing->addTourId($tourIdInt);
                     }
                 } else {
-                    $guestData['guest_id'] = $nextGuestId();
-                    $guestData['tour_id'] = [$tourIdInt];
-                    Guest::create($guestData);
+                    $guest = new Guest();
+                    $guest->tour_id = [$tourIdInt];
+                    $guest->guest_name = $fullName ?: 'Guest';
+                    $guest->email = $email ?: null;
+                    $guest->country_code = $countryCode ?: null;
+                    $guest->contact = $phone ?: null;
+                    $guest->whatsapp_no = $phone ?: null;
+                    $guest->passport = $passport;
+                    $guest->passport_exp = $passportExp;
+                    $guest->salutation = $salutation;
+                    $guest->save();
                 }
             }
 
@@ -1246,26 +1590,31 @@ class EditTourController extends Controller
                             ->first();
                     }
 
-                    $guestData = [
-                        'guest_name' => $name ?: 'Guest',
-                        'email' => $email ?: null,
-                        'country_code' => $countryCode ?: null,
-                        'contact' => $contact ?: null,
-                        'whatsapp_no' => $contact ?: null,
-                        'passport' => $passport,
-                        'passport_exp' => $passportExp,
-                        'salutation' => $salutation,
-                    ];
-
                     if ($existing) {
-                        $existing->update($guestData);
+                        $existing->guest_name = $name ?: 'Guest';
+                        $existing->email = $email ?: null;
+                        $existing->country_code = $countryCode ?: null;
+                        $existing->contact = $contact ?: null;
+                        $existing->whatsapp_no = $contact ?: null;
+                        $existing->passport = $passport;
+                        $existing->passport_exp = $passportExp;
+                        $existing->salutation = $salutation;
+                        $existing->save();
                         if (!$existing->hasTourId($tourIdInt)) {
                             $existing->addTourId($tourIdInt);
                         }
                     } else {
-                        $guestData['guest_id'] = $nextGuestId();
-                        $guestData['tour_id'] = [$tourIdInt];
-                        Guest::create($guestData);
+                        $guest = new Guest();
+                        $guest->tour_id = [$tourIdInt];
+                        $guest->guest_name = $name ?: 'Guest';
+                        $guest->email = $email ?: null;
+                        $guest->country_code = $countryCode ?: null;
+                        $guest->contact = $contact ?: null;
+                        $guest->whatsapp_no = $contact ?: null;
+                        $guest->passport = $passport;
+                        $guest->passport_exp = $passportExp;
+                        $guest->salutation = $salutation;
+                        $guest->save();
                     }
                 }
             }
@@ -1438,9 +1787,9 @@ class EditTourController extends Controller
             $extractedHtml = $matches[0];
             $subject = 'Welcome! Your Tour Tracking Credentials';
             $emailHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>' . $subject . '</title>' . $styles . '</head><body>' . $extractedHtml . '</body></html>';
-
-            Mail::to($guest->email)->send(new DmcMail($emailHtml, $subject));
-
+            
+            Mail::to($guest->email)->send(new TravclicksMail($emailHtml, $subject));
+            
             Log::info("Guest credentials email sent successfully to: {$guest->email}", [
                 'guest_id' => $guest->guest_id,
                 'guest_name' => $guest->guest_name,
@@ -2136,14 +2485,20 @@ class EditTourController extends Controller
             'attraction_name' => 'nullable|string|max:255', // Optional for backward compatibility
             'attraction_id' => 'nullable',
             'ticket_name' => 'nullable|string|max:255',
+            'ticket_id' => 'nullable',
             'visit_time' => 'nullable|string|max:255',
             'adult_count' => 'nullable|integer|min:0',
             'child_count' => 'nullable|integer|min:0',
             'senior_count' => 'nullable|integer|min:0',
             'total_price' => 'nullable|numeric|min:0',
+            'adult_price' => 'nullable|numeric|min:0',
+            'child_price' => 'nullable|numeric|min:0',
+            'senior_price' => 'nullable|numeric|min:0',
             'notes' => 'nullable|string|max:1000',
             'remarks' => 'nullable|string|max:1000',
             'supplement' => 'nullable',
+            'is_bundle' => 'nullable',
+            'package_attraction_id' => 'nullable',
         ]);
 
         try {
@@ -2211,27 +2566,80 @@ class EditTourController extends Controller
                     $currentPayload['AttractionName'] = $validated['attraction_name'];
                     $currentPayload['attraction_name'] = $validated['attraction_name'];
                 }
-                if (array_key_exists('attraction_id', $validated)) {
-                    $currentPayload['attraction_id'] = $validated['attraction_id'];
-                }
-                if (array_key_exists('ticket_name', $validated)) {
-                    $currentPayload['ticketName'] = $validated['ticket_name'];
-                }
-                if (array_key_exists('visit_time', $validated)) {
-                    $currentPayload['visitTime'] = $validated['visit_time'];
+
+                // Keep AttractionId in sync with the selected attraction; stale IDs
+                // cause the edit form to rematch the old attraction after refresh.
+                $incomingAttractionId = $request->input('attraction_id', $validated['attraction_id'] ?? null);
+                if ($incomingAttractionId !== null && trim((string) $incomingAttractionId) !== '') {
+                    $currentPayload['AttractionId'] = is_numeric($incomingAttractionId)
+                        ? (int) $incomingAttractionId
+                        : $incomingAttractionId;
+                    $currentPayload['attraction_id'] = $currentPayload['AttractionId'];
+                } elseif ($request->has('attraction_id') || array_key_exists('attraction_id', $validated)) {
+                    // Explicit empty id (e.g. free-text / unmatched name) — clear stale id.
+                    unset($currentPayload['AttractionId'], $currentPayload['attraction_id']);
+                } elseif (! empty($validated['attraction_name'])) {
+                    $resolvedAttraction = Attraction::query()
+                        ->whereNull('deleted_at')
+                        ->where('name', $validated['attraction_name'])
+                        ->first(['attraction_id', 'name']);
+                    if ($resolvedAttraction) {
+                        $currentPayload['AttractionId'] = $resolvedAttraction->attraction_id;
+                        $currentPayload['attraction_id'] = $resolvedAttraction->attraction_id;
+                        $currentPayload['AttractionName'] = $resolvedAttraction->name;
+                        $currentPayload['attraction_name'] = $resolvedAttraction->name;
+                    } else {
+                        unset($currentPayload['AttractionId'], $currentPayload['attraction_id']);
+                    }
                 }
 
-                if (!empty($validated['adult_count'])) {
+                if (array_key_exists('ticket_name', $validated)) {
+                    $currentPayload['ticketName'] = $validated['ticket_name'];
+                    $currentPayload['ticket_name'] = $validated['ticket_name'];
+                }
+                $incomingTicketId = $request->input('ticket_id', $validated['ticket_id'] ?? null);
+                if ($incomingTicketId !== null && trim((string) $incomingTicketId) !== '') {
+                    $currentPayload['ticketId'] = is_numeric($incomingTicketId)
+                        ? (int) $incomingTicketId
+                        : $incomingTicketId;
+                    $currentPayload['ticket_id'] = $currentPayload['ticketId'];
+                } elseif ($request->has('ticket_id')) {
+                    unset($currentPayload['ticketId'], $currentPayload['ticket_id']);
+                }
+
+                if (array_key_exists('visit_time', $validated)) {
+                    $currentPayload['visitTime'] = $validated['visit_time'];
+                    $currentPayload['time_slot'] = $validated['visit_time'];
+                }
+
+                if (array_key_exists('adult_count', $validated) && $validated['adult_count'] !== null) {
                     $currentPayload['adultCount'] = (int) $validated['adult_count'];
                 }
-                if (!empty($validated['child_count'])) {
+                if (array_key_exists('child_count', $validated) && $validated['child_count'] !== null) {
                     $currentPayload['childCount'] = (int) $validated['child_count'];
                 }
-                if (!empty($validated['senior_count'])) {
+                if (array_key_exists('senior_count', $validated) && $validated['senior_count'] !== null) {
                     $currentPayload['seniorCount'] = (int) $validated['senior_count'];
                 }
-                if (!empty($validated['total_price'])) {
+                if (array_key_exists('total_price', $validated) && $validated['total_price'] !== null) {
                     $currentPayload['totalPrice'] = (float) $validated['total_price'];
+                    $currentPayload['price'] = (float) $validated['total_price'];
+                }
+
+                $ticketDetails = is_array($currentPayload['ticket_details'] ?? null)
+                    ? $currentPayload['ticket_details']
+                    : [];
+                if ($request->filled('adult_price')) {
+                    $ticketDetails['adult_price'] = (float) $request->input('adult_price');
+                }
+                if ($request->filled('child_price')) {
+                    $ticketDetails['child_price'] = (float) $request->input('child_price');
+                }
+                if ($request->filled('senior_price')) {
+                    $ticketDetails['senior_price'] = (float) $request->input('senior_price');
+                }
+                if ($ticketDetails !== []) {
+                    $currentPayload['ticket_details'] = $ticketDetails;
                 }
 
                 if (!empty($validated['notes'])) {
@@ -2346,6 +2754,7 @@ class EditTourController extends Controller
             'guide_id' => 'nullable',
             'package_hours' => 'nullable|string|max:255',
             'pickup_time' => 'nullable|string|max:255',
+            'pickup_date' => 'nullable|date',
             'guest_name' => 'nullable|string|max:255',
             'notes' => 'nullable|string|max:1000',
             'remarks' => 'nullable|string|max:1000',
@@ -2406,8 +2815,14 @@ class EditTourController extends Controller
                 if (array_key_exists('package_hours', $validated)) {
                     $currentPayload['hours'] = $validated['package_hours'];
                 }
-                if (array_key_exists('pickup_time', $validated)) {
+                if (array_key_exists('pickup_time', $validated) && $validated['pickup_time'] !== null && $validated['pickup_time'] !== '') {
                     $currentPayload['entrytime'] = $validated['pickup_time'];
+                    $currentPayload['pickup_time'] = $validated['pickup_time'];
+                }
+                if (!empty($validated['pickup_date'])) {
+                    $pickupYmd = \Carbon\Carbon::parse($validated['pickup_date'])->format('Y-m-d');
+                    $currentPayload['pickupdate'] = $pickupYmd;
+                    $currentPayload['bookingDate'] = $pickupYmd;
                 }
                 if (array_key_exists('guest_name', $validated)) {
                     $currentPayload['fullName'] = $validated['guest_name'];

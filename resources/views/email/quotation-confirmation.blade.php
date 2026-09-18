@@ -125,14 +125,83 @@
             $travelTo = null;
         }
 
-        $travellingDate = $travelFrom ? strtolower($travelFrom->format('jS F')) : 'N/A';
+        $travellingDate = 'N/A';
+        if ($travelFrom && $travelTo) {
+            $travellingDate = $travelFrom->format('d M Y') . ' to ' . $travelTo->format('d M Y');
+        } elseif ($travelFrom) {
+            $travellingDate = $travelFrom->format('d M Y');
+        }
         $inclusionDateRange = ($travelFrom && $travelTo)
             ? $travelFrom->format('d M Y') . ' to ' . $travelTo->format('d M Y')
             : 'N/A';
 
+        $resolveVehicleDisplayName = static function ($rawName, $rawId = null) {
+            $name = trim((string) $rawName);
+            $id = trim((string) ($rawId ?? ''));
+            $token = $id !== '' ? $id : $name;
+            $needsLookup = $token !== '' && (
+                $name === ''
+                || $name === $token
+                || (ctype_digit($name) && (string) ((int) $name) === $name)
+            );
+            if (! $needsLookup) {
+                return $name;
+            }
+            if ($token === '') {
+                return $name;
+            }
+            try {
+                $vehicle = \App\Models\Vehicle::withTrashed()
+                    ->where(function ($q) use ($token) {
+                        $q->where('vehicle_id', $token);
+                        if (ctype_digit($token)) {
+                            $q->orWhere('id', (int) $token);
+                        }
+                    })
+                    ->orderByRaw('CASE WHEN deleted_at IS NULL THEN 0 ELSE 1 END')
+                    ->first(['vehicle_name', 'vehicle_type', 'vehicle_id', 'id', 'dmc_id', 'deleted_at']);
+                if ($vehicle && $vehicle->deleted_at) {
+                    $dmcId = (int) ($vehicle->dmc_id ?? 0);
+                    $active = \App\Models\Vehicle::query()
+                        ->whereNull('deleted_at')
+                        ->when($dmcId > 0, function ($q) use ($dmcId) {
+                            $q->where(function ($qq) use ($dmcId) {
+                                $qq->where('dmc_id', $dmcId)
+                                    ->orWhere('dmc_id', (string) $dmcId)
+                                    ->orWhereRaw('CAST(dmc_id AS TEXT) = ?', [(string) $dmcId]);
+                            });
+                        })
+                        ->orderBy('id')
+                        ->first(['vehicle_name', 'vehicle_type']);
+                    if ($active) {
+                        $vehicle = $active;
+                    }
+                }
+                if ($vehicle) {
+                    $resolved = trim((string) ($vehicle->vehicle_name ?? ''));
+                    if ($resolved === '') {
+                        $resolved = trim((string) ($vehicle->vehicle_type ?? ''));
+                    }
+                    if ($resolved !== '' && !(ctype_digit($resolved) && $resolved === $token)) {
+                        return $resolved;
+                    }
+                }
+            } catch (\Throwable $e) {
+                // keep original
+            }
+            return $name !== '' ? $name : $token;
+        };
+
         $isProTour = (int)($tour->is_pro ?? 0) === 1;
-        $occupancyKey = $pdfAdults >= 2 ? 'double' : 'single';
-        $roomingText = $pdfAdults >= 2 ? '01 DBL TWIN' : '01 SGL';
+
+        $hotelDisplayOccupancy = \App\Helpers\CommonHelper::resolveQuotationHotelDisplayOccupancy(
+            $orders ?? collect(),
+            is_array($hotelOptions ?? null) ? $hotelOptions : null,
+            $pdfAdults
+        );
+        $occupancyKey = $hotelDisplayOccupancy['occupancy_key'];
+        $roomingText = $hotelDisplayOccupancy['rooming_text'];
+        $displayOccupancyKey = $occupancyKey;
 
         $pdfBaseCurrency = strtoupper($baseCurrency ?? ($tour->currency ?? 'SGD'));
         $pdfSelectedCurrency = strtoupper($selectedCurrency ?? $pdfBaseCurrency);
@@ -146,6 +215,10 @@
 
         $formatMoney = function ($amount) use ($currencyLabel, $formatAmount) {
             return $currencyLabel . ' ' . $formatAmount($amount);
+        };
+
+        $formatMoneyPerPax = function ($amount) use ($formatMoney) {
+            return $formatMoney($amount) . ' /pax';
         };
 
         $supplements = $tourPrices['supplyments'] ?? ($tourPrices['supplements'] ?? []);
@@ -162,6 +235,9 @@
         $groupDiscountAmount = (float)($tour->discount_amount ?? 0);
         $otherTotalForOccupancy = $occupancyKey === 'double' ? $otherDoubleTotal : $otherSingleTotal;
 
+        // Per-pax other-services rate for quotation display (attraction + restaurant unit prices, not line totals).
+        $otherServicesDisplayTotal = $otherTotalForOccupancy;
+
         $hotelOnlySingleTotal = max(0, (float)($tourPrices['single_sharing'] ?? 0) - $otherSingleTotal);
         $hotelOnlyDoubleTotal = max(0, (float)($tourPrices['double_sharing'] ?? 0) - $otherDoubleTotal);
         if ($isProTour) {
@@ -171,6 +247,245 @@
         $hotelOnlyTripleTotal = $tripleSharingTotal > 0
             ? max(0, $tripleSharingTotal - $otherSingleTotal)
             : 0;
+
+        $tripleOccupancyAvailable = $hotelOnlyTripleTotal > 0;
+
+        $formatOccupancyHotelCells = function ($single, $double, $triple, $tripleAvailable, callable $moneyFormatter) use ($displayOccupancyKey) {
+            $blank = '';
+            $singleCell = $blank;
+            $doubleCell = $blank;
+            $tripleCell = $blank;
+
+            if ($displayOccupancyKey === 'single' && (float) $single > 0) {
+                $singleCell = $moneyFormatter($single);
+            } elseif ($displayOccupancyKey === 'double' && (float) $double > 0) {
+                $doubleCell = $moneyFormatter($double);
+            } elseif ($displayOccupancyKey === 'triple' && $tripleAvailable && (float) $triple > 0) {
+                $tripleCell = $moneyFormatter($triple);
+            }
+
+            return [$singleCell, $doubleCell, $tripleCell];
+        };
+
+        // Overall hotel cost for entire package (from country_sharing, fallback to hotel-only totals).
+        $countrySharingRows = is_array($tourPrices['country_sharing'] ?? null)
+            ? $tourPrices['country_sharing']
+            : [];
+        $overallHotelSingle = 0.0;
+        $overallHotelDouble = 0.0;
+        $overallHotelTriple = 0.0;
+        $overallHotelConvertedOk = false;
+
+        if (!empty($countrySharingRows)) {
+            $overallHotelConvertedOk = true;
+            foreach ($countrySharingRows as $share) {
+                $fromCurrency = strtoupper((string) ($share['currency'] ?? $pdfBaseCurrency));
+                $hSingle = (float) ($share['hotel_single'] ?? 0);
+                $hDouble = (float) ($share['hotel_double'] ?? 0);
+                $hTriple = (float) ($share['hotel_triple'] ?? 0);
+                if ($isProTour) {
+                    $hSingle = $hDouble > 0 ? $hDouble : $hSingle;
+                }
+
+                $cSingle = \App\Helpers\CurrencyHelper::convertAmount($hSingle, $fromCurrency, $pdfSelectedCurrency);
+                $cDouble = \App\Helpers\CurrencyHelper::convertAmount($hDouble, $fromCurrency, $pdfSelectedCurrency);
+                $cTriple = \App\Helpers\CurrencyHelper::convertAmount($hTriple, $fromCurrency, $pdfSelectedCurrency);
+
+                if ($cSingle === null || $cDouble === null) {
+                    $overallHotelConvertedOk = false;
+                    break;
+                }
+
+                $overallHotelSingle += (float) $cSingle;
+                $overallHotelDouble += (float) $cDouble;
+                $overallHotelTriple += ($cTriple !== null) ? (float) $cTriple : 0.0;
+            }
+        }
+
+        if ($overallHotelConvertedOk && ! empty($countrySharingRows)) {
+            $overallHotelSingleDisplay = ceil($overallHotelSingle);
+            $overallHotelDoubleDisplay = ceil($overallHotelDouble);
+            $overallHotelTripleDisplay = $overallHotelTriple > 0 ? ceil($overallHotelTriple) : 0;
+            $overallTripleAvailable = $overallHotelTripleDisplay > 0;
+        } else {
+            $overallHotelSingleDisplay = $hotelOnlySingleTotal;
+            $overallHotelDoubleDisplay = $hotelOnlyDoubleTotal;
+            $overallHotelTripleDisplay = $hotelOnlyTripleTotal;
+            $overallTripleAvailable = $tripleOccupancyAvailable;
+        }
+
+        $hotelPerPaxFromOrders = \App\Helpers\CommonHelper::resolveHotelQuotationPerPaxFromOrders(
+            $orders ?? collect(),
+            $tour,
+            $pdfSelectedCurrency
+        );
+        if ($hotelPerPaxFromOrders && ($hotelPerPaxFromOrders['per_pax'] ?? 0) > 0) {
+            $orderHotelPerPax = (float) $hotelPerPaxFromOrders['per_pax'];
+            $overallHotelSingleDisplay = $orderHotelPerPax;
+            $overallHotelDoubleDisplay = $orderHotelPerPax;
+            $overallHotelTripleDisplay = $orderHotelPerPax;
+        }
+
+        [$overallCellSingle, $overallCellDouble, $overallCellTriple] = $formatOccupancyHotelCells(
+            $overallHotelSingleDisplay,
+            $overallHotelDoubleDisplay,
+            $overallHotelTripleDisplay,
+            $overallTripleAvailable,
+            fn ($amount) => $formatMoneyPerPax($amount)
+        );
+
+        // Overall quotation price from actual order totals.
+        $extractQuotationOrderAmount = function ($order) use ($isProTour) {
+            $data = is_string($order->data ?? null) ? json_decode($order->data, true) : ($order->data ?? null);
+            if (! is_array($data)) {
+                return 0.0;
+            }
+
+            $items = isset($data[0]) ? $data : [$data];
+            $orderType = (string) ($order->type ?? '');
+            $total = 0.0;
+
+            foreach ($items as $item) {
+                if (! is_array($item)) {
+                    continue;
+                }
+
+                $itemPrice = (float) ($item['totalPrice'] ?? $item['price'] ?? 0);
+                $transferPrice = 0.0;
+                if ($orderType !== 'hotel' && isset($item['transfer_options']['cost']) && $item['transfer_options']['cost'] > 0) {
+                    if ($isProTour && isset($item['transfer_options']['totalPrice'])) {
+                        $transferPrice = (float) $item['transfer_options']['totalPrice'];
+                    } else {
+                        $transferPrice = (float) $item['transfer_options']['cost'];
+                    }
+                }
+
+                $guidePrice = 0.0;
+                if (isset($item['guide_options']) && is_array($item['guide_options'])) {
+                    $gv = $item['guide_options']['total_price']
+                        ?? $item['guide_options']['cost']
+                        ?? $item['guide_options']['Cost']
+                        ?? $item['guide_options']['sell']
+                        ?? $item['guide_options']['Sell']
+                        ?? 0;
+                    if ($gv > 0) {
+                        $guidePrice = (float) $gv;
+                    }
+                }
+
+                $total += $itemPrice + $transferPrice + $guidePrice;
+            }
+
+            return $total;
+        };
+
+        $resolveQuotationOrderLabel = function ($order) {
+            $typeLabel = \Illuminate\Support\Str::headline(str_replace('_', ' ', (string) ($order->type ?? 'Order')));
+            $bookingId = $order->booking_id ?? '';
+            $data = is_string($order->data ?? null) ? json_decode($order->data, true) : ($order->data ?? null);
+            $item = is_array($data) ? (isset($data[0]) && is_array($data[0]) ? $data[0] : $data) : [];
+            $name = trim((string) (
+                $item['hotelDetails']['hotel_name']
+                ?? $item['hotelname']
+                ?? $item['AttractionName']
+                ?? $item['attractionName']
+                ?? $item['restaurantName']
+                ?? $item['restaurant_name']
+                ?? ''
+            ));
+
+            $label = $typeLabel;
+            if ($name !== '') {
+                $label .= ' — ' . $name;
+            }
+            if ($bookingId !== '') {
+                $label .= ' (#' . $bookingId . ')';
+            }
+
+            return $label;
+        };
+
+        $quotationOrderRows = [];
+        $overallQuotationTotal = 0.0;
+        $overallQuotationConvertedOk = true;
+
+        foreach (($orders ?? collect()) as $order) {
+            if ((int) ($order->status ?? 0) !== 1) {
+                continue;
+            }
+
+            $amount = $extractQuotationOrderAmount($order);
+            if ($amount <= 0) {
+                continue;
+            }
+
+            $orderCurrency = strtoupper(trim((string) ($order->currency ?? $pdfBaseCurrency)));
+            if ($orderCurrency === '') {
+                $orderCurrency = $pdfBaseCurrency;
+            }
+
+            $convertedAmount = \App\Helpers\CurrencyHelper::convertAmount($amount, $orderCurrency, $pdfSelectedCurrency);
+            if ($convertedAmount === null) {
+                if ($orderCurrency === $pdfSelectedCurrency) {
+                    $convertedAmount = $amount;
+                } else {
+                    $overallQuotationConvertedOk = false;
+                    $convertedAmount = $amount;
+                }
+            }
+
+            $quotationOrderRows[] = [
+                'label' => $resolveQuotationOrderLabel($order),
+                'amount' => $amount,
+                'currency' => $orderCurrency,
+                'converted_amount' => (float) $convertedAmount,
+            ];
+
+            if ($overallQuotationConvertedOk) {
+                $overallQuotationTotal += (float) $convertedAmount;
+            }
+        }
+
+        if (! $overallQuotationConvertedOk) {
+            $overallQuotationTotal = array_sum(array_column($quotationOrderRows, 'amount'));
+        } else {
+            $overallQuotationTotal = ceil($overallQuotationTotal);
+        }
+
+        $pdfOverallQuotationFormatted = $overallQuotationTotal > 0 ? $formatMoney($overallQuotationTotal) : '';
+
+        $priceBreakdown = \App\Helpers\CommonHelper::buildQuotationPriceBreakdown(
+            $tour,
+            $tourPrices,
+            $pdfAdults,
+            $pdfChildren,
+            $pdfInfants
+        );
+
+        $formatBreakdownLine = function (array $line) use ($formatMoney) {
+            $multiplierLabel = (string) ($line['multiplier_label'] ?? $line['multiplier'] ?? 1);
+            $childPart = (float) ($line['child_part'] ?? 0);
+            $childUnit = (float) ($line['child_unit'] ?? 0);
+            $childCount = (int) ($line['child_count'] ?? 0);
+
+            if ($childPart > 0) {
+                $parts = [];
+                if ((float) ($line['per_head'] ?? 0) > 0) {
+                    $parts[] = $formatMoney($line['per_head']) . ' × ' . $multiplierLabel;
+                }
+                if ($childUnit > 0 && $childCount > 0) {
+                    $parts[] = $formatMoney($childUnit) . ' × ' . $childCount;
+                }
+
+                return implode(' + ', $parts) . ' = ' . $formatMoney($line['line_total'] ?? 0);
+            }
+
+            return $formatMoney($line['per_head'] ?? 0)
+                . ' × '
+                . $multiplierLabel
+                . ' = '
+                . $formatMoney($line['line_total'] ?? 0);
+        };
 
         $bookedAttractionCards = [];
         $bookedRestaurantCards = [];
@@ -380,6 +695,43 @@
         $tdStyle = $cellBorder . ' padding:6px; font-size:12px; vertical-align:top;';
     }
 
+    if (! isset($priceBreakdown) || ! is_array($priceBreakdown)) {
+        $priceBreakdown = ['lines' => [], 'grand_total' => (float) ($total_estimation ?? 0)];
+    }
+
+    $formatBreakdownLineEmail = function (array $line) use ($currencyCode) {
+        $format = static function ($amount) use ($currencyCode) {
+            if (! is_numeric($amount)) {
+                return $currencyCode . ' 0';
+            }
+
+            return $currencyCode . ' ' . number_format((float) $amount, 0, '.', ',');
+        };
+
+        $multiplierLabel = (string) ($line['multiplier_label'] ?? $line['multiplier'] ?? 1);
+        $childPart = (float) ($line['child_part'] ?? 0);
+        $childUnit = (float) ($line['child_unit'] ?? 0);
+        $childCount = (int) ($line['child_count'] ?? 0);
+
+        if ($childPart > 0) {
+            $parts = [];
+            if ((float) ($line['per_head'] ?? 0) > 0) {
+                $parts[] = $format($line['per_head']) . ' × ' . $multiplierLabel;
+            }
+            if ($childUnit > 0 && $childCount > 0) {
+                $parts[] = $format($childUnit) . ' × ' . $childCount;
+            }
+
+            return implode(' + ', $parts) . ' = ' . $format($line['line_total'] ?? 0);
+        }
+
+        return $format($line['per_head'] ?? 0)
+            . ' × '
+            . $multiplierLabel
+            . ' = '
+            . $format($line['line_total'] ?? 0);
+    };
+
     // Build "What's included" from booked service types
     $includedCounts = [
         'hotel'      => 0,
@@ -544,61 +896,6 @@
                         </td>
                     </tr>
 
-                    <!-- TRIP SUMMARY -->
-                    <tr>
-                        <td style="padding:22px 28px 4px 28px;">
-                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid {{ $border }}; border-radius:12px;">
-                                <tr>
-                                    <td style="padding:16px 18px 4px 18px;">
-                                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-                                            <tr>
-                                                <td style="font-size:14px; font-weight:700; color:{{ $textDark }};">📋 Trip summary</td>
-                                                <td style="text-align:right;"><a href="{{ $detailsUrl }}" style="font-size:12px; color:{{ $brandBlue }}; text-decoration:none; font-weight:600;">View details ›</a></td>
-                                            </tr>
-                                        </table>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td style="padding:10px 18px 16px 18px;">
-                                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-                                            <tr>
-                                                @php
-                                                    $summaryCells = [
-                                                        ['Destination', $destinationDisplay],
-                                                        ['Dates', $tripDates],
-                                                        ['Guests', $guestsText],
-                                                        ['Quoted by', $bookedVia],
-                                                        ['Est. Quotation Value', $packageValue],
-                                                    ];
-                                                @endphp
-                                                @foreach($summaryCells as $cell)
-                                                    <td style="vertical-align:top; padding-right:10px; width:20%;">
-                                                        <div style="font-size:11px; color:{{ $textMuted }}; margin-bottom:4px;">{{ $cell[0] }}</div>
-                                                        <div style="font-size:13px; font-weight:700; color:{{ $loop->last ? $brandBlue : $textDark }};">{{ $cell[1] }}</div>
-                                                    </td>
-                                                @endforeach
-                                            </tr>
-                                            @if(!empty($requested_days) || !empty($available_days))
-                                                <tr>
-                                                    <td colspan="5" style="padding-top:10px;">
-                                                        @if(!empty($requested_days))
-                                                            <span style="font-size:11px; color:{{ $textMuted }};">Requested: </span>
-                                                            <span style="font-size:12px; font-weight:600; color:{{ $textDark }};">{{ $requested_nights ?? max(0, (int) $requested_days - 1) }} night{{ (($requested_nights ?? max(0, (int) $requested_days - 1)) !== 1) ? 's' : '' }}</span>
-                                                        @endif
-                                                        @if(!empty($available_days))
-                                                            <span style="font-size:11px; color:{{ $textMuted }}; margin-left:12px;">Package available: </span>
-                                                            <span style="font-size:12px; font-weight:600; color:{{ $textDark }};">{{ $available_nights ?? max(0, (int) $available_days - 1) }} night{{ (($available_nights ?? max(0, (int) $available_days - 1)) !== 1) ? 's' : '' }}</span>
-                                                        @endif
-                                                    </td>
-                                                </tr>
-                                            @endif
-                                        </table>
-                                    </td>
-                                </tr>
-                            </table>
-                        </td>
-                    </tr>
-
                     <!-- QUOTATION BODY (PDF-style when full tour data is available) -->
                     @if($hasPdfQuotationLayout)
                         <tr>
@@ -628,6 +925,11 @@
                                             <td style="padding:4px 0;"><strong>Discount amount:</strong> {{ $formatMoney($groupDiscountAmount) }}</td>
                                         </tr>
                                     @endif
+                                    @if(!empty($pdfOverallQuotationFormatted))
+                                        <tr>
+                                            <td style="padding:4px 0;"><strong>Overall Quotation Price:</strong> {{ $pdfOverallQuotationFormatted }}</td>
+                                        </tr>
+                                    @endif
                                 </table>
 
                                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse; border:2px solid #000; table-layout:fixed;">
@@ -641,7 +943,6 @@
                                     </tr>
                                     <tr>
                                         <td width="50%" style="{{ $cellBorder }} padding:8px 6px; vertical-align:top;">
-                                            <div style="margin-bottom:6px;"><strong>Date:</strong> {{ $inclusionDateRange }}</div>
                                             <div style="font-weight:bold; margin-bottom:6px;">Inclusions:</div>
                                             @php
                                                 $hotelPriceLookup = [];
@@ -671,7 +972,6 @@
                                             @endif
                                         </td>
                                         <td width="50%" style="{{ $cellBorder }} padding:8px 6px; vertical-align:top;">
-                                            <div style="margin-bottom:6px;"><strong>Date:</strong> {{ $inclusionDateRange }}</div>
                                             <div style="font-weight:bold; margin-bottom:6px;">Inclusions:</div>
                                             @php $hasAnyOtherInclusions = (!empty($bookedAttractionCards) || !empty($bookedRestaurantCards) || !empty($bookedArrivals) || !empty($bookedDepartures) || !empty($bookedLocalTransfers)); @endphp
                                             @if($hasAnyOtherInclusions)
@@ -686,10 +986,16 @@
                                                         <li style="margin:2px 0; line-height:1.35;">
                                                             <strong>Attraction:</strong> {{ $attrTitle }}
                                                             @if(is_array($ad) && is_array($tr) && (!empty($tr['vehicle_name']) || !empty($tr['type']) || !empty($tr['pickup_location_name'])))
+                                                                @php
+                                                                    $attrVehicleLabel = $resolveVehicleDisplayName(
+                                                                        $tr['vehicle_name'] ?? '',
+                                                                        $tr['vehicle_id'] ?? ($tr['vehicle_details']['vehicle_id'] ?? null)
+                                                                    );
+                                                                @endphp
                                                                 <div style="margin:2px 0 0 14px;">
                                                                     <strong>Transfer / vehicle:</strong>
                                                                     {{ implode(' · ', array_filter([$tr['type'] ?? null, $tr['way'] ?? null])) }}
-                                                                    @if(!empty($tr['vehicle_name'])) — {{ $tr['vehicle_name'] }} @endif
+                                                                    @if($attrVehicleLabel !== '') — {{ $attrVehicleLabel }} @endif
                                                                     @if(!empty($tr['pickup_location_name']) || !empty($tr['pickup_time']))
                                                                         <br>
                                                                         @if(!empty($tr['pickup_location_name']))<strong>Pickup:</strong> {{ $tr['pickup_location_name'] }}@endif
@@ -716,10 +1022,16 @@
                                                         <li style="margin:2px 0; line-height:1.35;">
                                                             <strong>Restaurant:</strong> {{ $restTitle }}@if(!empty($mealPlan)) — {{ $mealPlan }}@endif
                                                             @if(is_array($rs) && is_array($tr) && (!empty($tr['vehicle_name']) || !empty($tr['pickup_location_name']) || !empty($tr['pickup_time'])))
+                                                                @php
+                                                                    $restVehicleLabel = $resolveVehicleDisplayName(
+                                                                        $tr['vehicle_name'] ?? '',
+                                                                        $tr['vehicle_id'] ?? ($tr['vehicle_details']['vehicle_id'] ?? null)
+                                                                    );
+                                                                @endphp
                                                                 <div style="margin:2px 0 0 14px;">
                                                                     <strong>Transfer / vehicle:</strong>
                                                                     {{ implode(' · ', array_filter([$tr['type'] ?? null, $tr['way'] ?? null])) }}
-                                                                    @if(!empty($tr['vehicle_name'])) — {{ $tr['vehicle_name'] }} @endif
+                                                                    @if($restVehicleLabel !== '') — {{ $restVehicleLabel }} @endif
                                                                 </div>
                                                             @endif
                                                         </li>
@@ -748,24 +1060,33 @@
                                                     <th style="{{ $thStyle }} width:33%;">Triple</th>
                                                 </tr>
                                                 <tr>
-                                                    <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $formatMoney($hotelOnlySingleTotal) }}</td>
-                                                    <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $formatMoney($hotelOnlyDoubleTotal) }}</td>
-                                                    <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $formatMoney($hotelOnlyTripleTotal) }}</td>
+                                                    <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $overallCellSingle }}</td>
+                                                    <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $overallCellDouble }}</td>
+                                                    <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $overallCellTriple }}</td>
                                                 </tr>
                                             </table>
                                         </td>
                                         <td width="50%" style="{{ $cellBorder }} padding:8px 6px; vertical-align:top;">
                                             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse; border:1px solid #000;">
                                                 <tr>
-                                                    <th style="{{ $thStyle }}">Price (per pax)</th>
+                                                    <th style="{{ $thStyle }}">Total Price</th>
                                                 </tr>
                                                 <tr>
-                                                    <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $formatMoney($otherTotalForOccupancy) }}</td>
+                                                    <td style="{{ $tdStyle }} text-align:center; font-weight:bold;">{{ $formatMoneyPerPax($otherServicesDisplayTotal) }}</td>
                                                 </tr>
                                             </table>
                                         </td>
                                     </tr>
                                 </table>
+
+                                @if(!empty($pdfOverallQuotationFormatted))
+                                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse; border:2px solid #000; table-layout:fixed; margin-top:14px;">
+                                        <tr>
+                                            <td style="{{ $tdStyle }} text-align:right; font-weight:bold; width:70%;">Overall Quotation Price</td>
+                                            <td style="{{ $tdStyle }} text-align:center; font-weight:bold; width:30%;">{{ $pdfOverallQuotationFormatted }}</td>
+                                        </tr>
+                                    </table>
+                                @endif
 
                                 @if(!empty($suppHotels))
                                     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse; margin-top:14px;">
@@ -790,15 +1111,23 @@
                                                 if ($isProTour) {
                                                     $suppSingle = $suppDouble > 0 ? $suppDouble : $suppSingle;
                                                 }
+                                                $suppTripleAvailable = $suppTriple > 0;
+                                                [$suppCellSingle, $suppCellDouble, $suppCellTriple] = $formatOccupancyHotelCells(
+                                                    $suppSingle,
+                                                    $suppDouble,
+                                                    $suppTriple,
+                                                    $suppTripleAvailable,
+                                                    fn ($amount) => $formatMoneyPerPax($amount)
+                                                );
                                             @endphp
                                             <tr>
                                                 <td style="{{ $tdStyle }}">
                                                     {{ $hotelLabel }}
                                                     @if($niceDate)<span style="color:#444;"> ({{ $niceDate }})</span>@endif
                                                 </td>
-                                                <td style="{{ $tdStyle }} text-align:center;">{{ $formatMoney($suppSingle) }}</td>
-                                                <td style="{{ $tdStyle }} text-align:center;">{{ $formatMoney($suppDouble) }}</td>
-                                                <td style="{{ $tdStyle }} text-align:center;">{{ $suppTriple > 0 ? $formatMoney($suppTriple) : '—' }}</td>
+                                                <td style="{{ $tdStyle }} text-align:center;">{{ $suppCellSingle }}</td>
+                                                <td style="{{ $tdStyle }} text-align:center;">{{ $suppCellDouble }}</td>
+                                                <td style="{{ $tdStyle }} text-align:center;">{{ $suppCellTriple }}</td>
                                             </tr>
                                         @endforeach
                                     </table>

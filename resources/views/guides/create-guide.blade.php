@@ -195,7 +195,7 @@
                 <span class="d-flex align-items-center flex-wrap gap-2">
                     Add New Guide
                     <x-currency-price-note
-                        :country="old('country', $userCountry ?? $selectedCountry ?? null)"
+                        :country="old('country')"
                         :watch-country="true"
                         country-select-id="country"
                     />
@@ -343,15 +343,11 @@
                                 </label>
                                 @php
                                     $scopedCountries = $masterDmcCountries ?? $country ?? collect();
-                                    $preselectedCountry = old('country', $userCountry ?? '');
-                                    if ($preselectedCountry === '' && $scopedCountries->count() === 1) {
-                                        $preselectedCountry = $scopedCountries->first()->name;
-                                    }
+                                    // Only restore what the user submitted themselves; never pick a country for them.
+                                    $preselectedCountry = old('country', '');
                                 @endphp
                                 <select class="form-control" id="country" name="country" required onchange="validateDriverAge(document.getElementById('driver_age'))">
-                                    @if($scopedCountries->count() !== 1)
-                                        <option value="">Select Country</option>
-                                    @endif
+                                    <option value="">Select Country</option>
                                     @foreach($scopedCountries as $countryOption)
                                         <option value="{{ $countryOption->name }}" {{ $preselectedCountry == $countryOption->name ? 'selected' : '' }}>
                                             {{ $countryOption->name }}
@@ -977,14 +973,7 @@ $(document).ready(function() {
             width: '100%'
         });
 
-        // Initialize Select2 for Country dropdown (only for role_id 1 and 20)
-        @if(in_array(auth()->user()->role_id, [1, 20]))
-        $('#country').select2({
-            placeholder: "Search and Select Country",
-            allowClear: true,
-            width: '100%'
-        });
-        @endif
+        // Country's Select2 is initialised once, further down with the city/DMC wiring.
 
         // Initialize Select2 for Languages dropdown(s)
         initLanguageSelect2();
@@ -1136,7 +1125,7 @@ $(document).ready(function() {
     var currentCity = @json(old('city', ''));
 
     @php
-        $hasPreloadedCitiesJs = isset($cities) && count($cities) > 0 && !empty($userCountry ?? old('country'));
+        $hasPreloadedCitiesJs = isset($cities) && count($cities) > 0 && filled(old('country'));
     @endphp
 
     $('#citySelect').select2({
@@ -1152,17 +1141,14 @@ $(document).ready(function() {
         width: '100%'
     });
 
-    function populateCountryOptions(countries, selectedCountry) {
+    function populateCountryOptions(countries) {
         var $country = $('#country');
-        $country.empty();
-        if (!countries || countries.length !== 1) {
-            $country.append('<option value="">Select Country</option>');
-        }
+        $country.empty().append('<option value="">Select Country</option>');
         $.each(countries || [], function(i, name) {
-            var selected = (name === selectedCountry) ? 'selected' : '';
-            $country.append('<option value="' + name + '" ' + selected + '>' + name + '</option>');
+            $country.append('<option value="' + name + '">' + name + '</option>');
         });
-        $country.trigger('change.select2');
+        // The agent picks the country; refresh Select2 only, so no city load is triggered.
+        $country.val('').trigger('change.select2');
     }
 
     function loadCitiesByCountry(countryName, preserveCity) {
@@ -1210,9 +1196,9 @@ $(document).ready(function() {
             dataType: 'json',
             success: function(response) {
                 var countries = response.countries || (response.country ? [response.country] : []);
-                var selected = response.country || (countries[0] || '');
-                populateCountryOptions(countries, selected);
-                loadCitiesByCountry(selected, false);
+                populateCountryOptions(countries);
+                $('#citySelect').prop('disabled', true).empty()
+                    .append('<option value="">Select Country First</option>').trigger('change');
             },
             error: function() {
                 $('#citySelect').prop('disabled', true).empty().append('<option value="">Error loading cities</option>').trigger('change');

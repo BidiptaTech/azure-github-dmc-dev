@@ -14,6 +14,8 @@ class MiscellaneousPrice extends Model
     protected $fillable = [
         'mis_id',
         'dmc_id',
+        'country',
+        'city',
         'adult_price',
         'child_price',
         'infant_price',

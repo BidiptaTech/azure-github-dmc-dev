@@ -62,6 +62,8 @@
         
         // Final DMC ID for the form
         $finalDmcId = $dmcId;
+        $siblingDmcCountryMap = \App\Helpers\CommonHelper::getSiblingDmcCountryMap((int) $finalDmcId);
+        $siblingDmcCityMap = \App\Helpers\CommonHelper::getSiblingDmcCityMap((int) $finalDmcId);
         
         // Determine created_by based on role hierarchy (for backward compatibility)
         $createdBy = null;
@@ -77,6 +79,72 @@
     
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <script>window.hasNegotiationHistory = @json($hasNegotiationHistory);</script>
+    <script>
+        window.operatingDmcId = parseInt('{{ (int) $finalDmcId }}', 10) || 0;
+        window.siblingDmcCountryMap = @json($siblingDmcCountryMap ?? []);
+        window.siblingDmcCityMap = @json($siblingDmcCityMap ?? []);
+        window.resolveDmcIdForCountry = function (country) {
+            const c = String(country || '').trim();
+            const map = window.siblingDmcCountryMap || {};
+            if (!c) return window.operatingDmcId || 0;
+            if (map[c]) return parseInt(map[c], 10) || window.operatingDmcId || 0;
+            const lower = c.toLowerCase();
+            for (const key of Object.keys(map)) {
+                if (String(key).toLowerCase() === lower) {
+                    return parseInt(map[key], 10) || window.operatingDmcId || 0;
+                }
+            }
+            return window.operatingDmcId || 0;
+        };
+        window.resolveDmcIdForCity = function (cityName, countryHint) {
+            const city = String(cityName || '').trim();
+            const cityMap = window.siblingDmcCityMap || {};
+            if (city) {
+                const lower = city.toLowerCase();
+                if (cityMap[city]) return parseInt(cityMap[city], 10) || 0;
+                if (cityMap[lower]) return parseInt(cityMap[lower], 10) || 0;
+                for (const key of Object.keys(cityMap)) {
+                    if (String(key).toLowerCase() === lower) {
+                        return parseInt(cityMap[key], 10) || 0;
+                    }
+                }
+            }
+            return window.resolveDmcIdForCountry(countryHint);
+        };
+        window.getActiveServiceDmcId = function (cityName) {
+            return window.resolveDmcIdForCity(cityName) || window.operatingDmcId || 0;
+        };
+        window.pickInventoryCityName = function (cityHint) {
+            let city = String(cityHint || '').trim();
+            if (!city || city.indexOf(',') === -1) {
+                return city;
+            }
+            const parts = city.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+            if (typeof window.resolveDmcIdForCity === 'function') {
+                for (let i = 0; i < parts.length; i++) {
+                    const id = window.resolveDmcIdForCity(parts[i]);
+                    if (id && String(id) !== String(window.operatingDmcId || '')) {
+                        return parts[i];
+                    }
+                }
+            }
+            return parts[0] || city;
+        };
+        window.withInventoryDmcPayload = function (payload, cityHint) {
+            const base = payload && typeof payload === 'object' ? payload : {};
+            let city = String(cityHint || base.city || '').trim();
+            if (typeof window.pickInventoryCityName === 'function') {
+                city = window.pickInventoryCityName(city) || city;
+            }
+            const dmcId = (typeof window.getActiveServiceDmcId === 'function')
+                ? window.getActiveServiceDmcId(city)
+                : (window.operatingDmcId || '');
+            return Object.assign({}, base, {
+                city: city || base.city || '',
+                dmc_id: dmcId || base.dmc_id || ''
+            });
+        };
+    </script>
     
     <!-- Google Maps API Script -->
     <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCLzISM9kkNCKKmQs7BcpSll4emFw1yicw&libraries=places"></script>
@@ -5053,7 +5121,16 @@
                 'Content-Type': 'application/json',
                 'X-CSRF-TOKEN': '{{ csrf_token() }}'
             },
-            body: JSON.stringify({
+            body: JSON.stringify((typeof window.withInventoryDmcPayload === 'function')
+                ? window.withInventoryDmcPayload({
+                from_zone_id: pickupZoneId,
+                to_zone_id: dropoffZoneId,
+                from_zone_type: zone_status == 1 ? fromZoneType : '',
+                to_zone_type: zone_status == 1 ? toZoneType : '',
+                zone_status: zone_status,
+                city: selectedCity
+            }, selectedCity)
+                : {
                 from_zone_id: pickupZoneId,
                 to_zone_id: dropoffZoneId,
                 from_zone_type: zone_status == 1 ? fromZoneType : '',
@@ -5371,7 +5448,16 @@
         const user_dmc = @json($UserDmc);
         const zone_status = user_dmc.zone_on;
         
-        const params = {
+        const params = (typeof window.withInventoryDmcPayload === 'function')
+            ? window.withInventoryDmcPayload({
+            from_zone_id: actualFromZoneId,
+            to_zone_id: actualToZoneId,
+            from_zone_type: fromZoneType,
+            to_zone_type: toZoneType,
+            city: selectedCity,
+            zone_status: zone_status
+        }, selectedCity)
+            : {
             from_zone_id: actualFromZoneId,
             to_zone_id: actualToZoneId,
             from_zone_type: fromZoneType,
@@ -5677,13 +5763,20 @@
                 'Content-Type': 'application/json',
                 'X-CSRF-TOKEN': '{{ csrf_token() }}'
             },
-            body: JSON.stringify({
+            body: JSON.stringify((typeof window.withInventoryDmcPayload === 'function')
+                ? window.withInventoryDmcPayload({
                 from_zone_id: pickupZoneId,
                 to_zone_id: dropoffZoneId,
                 from_zone_type: 'zone',
                 to_zone_type: 'zone',
-                zone_status: zone_status,
-                // city parameter removed
+                zone_status: zone_status
+            })
+                : {
+                from_zone_id: pickupZoneId,
+                to_zone_id: dropoffZoneId,
+                from_zone_type: 'zone',
+                to_zone_type: 'zone',
+                zone_status: zone_status
             })
         })
         .then(response => response.json())
@@ -5785,7 +5878,7 @@
         const user_dmc = @json($UserDmc);
         const zone_status = user_dmc.zone_on;
 
-        fetch(`{{ route('fetch-vehicles-by-city-dmc') }}?city=${encodeURIComponent(city)}&zone_status=${zone_status}`)
+        fetch(`{{ route('fetch-vehicles-by-city-dmc') }}?city=${encodeURIComponent(city)}&zone_status=${zone_status}&dmc_id=${typeof window.getActiveServiceDmcId === 'function' ? window.getActiveServiceDmcId(city) : ''}`)
             .then(response => response.json())
             .then(data => {
                 console.log('Point-to-Point dropoff vehicle search response:', data);
@@ -7429,7 +7522,9 @@
         resetHotelModalFields();
         
         // Get current user's DMC ID for hotel filtering
-        const currentDmcId = document.getElementById('dmc_id').value;
+        const currentDmcId = (typeof window.getActiveServiceDmcId === 'function')
+            ? window.getActiveServiceDmcId(cityName)
+            : document.getElementById('dmc_id').value;
         console.log('Loading hotels for city:', cityName, 'DMC ID:', currentDmcId);
         
         // Fetch hotels from API using DMC-specific endpoint (same as create.blade.php)
@@ -7525,7 +7620,12 @@
         mealPlanSelect.disabled = true;
         
         // Get current user's DMC ID for room filtering
-        const currentDmcId = document.getElementById('dmc_id').value;
+        const hotelCityForDmc = document.getElementById('modal_city_select')
+            ? document.getElementById('modal_city_select').value
+            : '';
+        const currentDmcId = (typeof window.getActiveServiceDmcId === 'function')
+            ? window.getActiveServiceDmcId(hotelCityForDmc)
+            : document.getElementById('dmc_id').value;
         
         // Fetch rooms for the selected hotel with DMC filtering (same as create.blade.php)
         fetch(`{{ route('fetch-rooms-by-hotel') }}?hotel_id=${encodeURIComponent(hotelId)}&dmc_id=${currentDmcId}`)

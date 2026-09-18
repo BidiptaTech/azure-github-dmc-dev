@@ -28,6 +28,7 @@ use App\Models\EmailsSetup;
 use App\Models\DmcFuncApp;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Country;
+use App\Models\City;
 use App\Models\Invoice;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
@@ -111,6 +112,72 @@ class CommonHelper
             return is_array($decoded) ? $decoded : [];
         }
         return [];
+    }
+
+    /**
+     * Parse package_bookings.travel_dates JSON into Y-m-d start/end.
+     *
+     * Expected shape:
+     * { "start_date": "YYYY-MM-DD", "end_date": "YYYY-MM-DD", "duration_days": int }
+     *
+     * Also accepts legacy check_in / check_out keys. Empty strings are ignored.
+     * If end_date is missing and duration_days is set, end_date = start_date + duration_days - 1.
+     *
+     * @return array{start_date: ?string, end_date: ?string, duration_days: int}
+     */
+    public static function parsePackageTravelDates($value): array
+    {
+        $td = self::normalizeJsonArray($value);
+        $pick = static function (array $src, array $keys): ?string {
+            foreach ($keys as $key) {
+                $v = $src[$key] ?? null;
+                if (is_string($v) && trim($v) !== '') {
+                    return trim($v);
+                }
+            }
+            return null;
+        };
+
+        $startRaw = $pick($td, ['start_date', 'startDate', 'check_in', 'check_in_date']);
+        $endRaw = $pick($td, ['end_date', 'endDate', 'check_out', 'check_out_date']);
+        $duration = (int) ($td['duration_days'] ?? $td['duration'] ?? 0);
+
+        $start = null;
+        $end = null;
+        try {
+            if ($startRaw) {
+                $start = \Carbon\Carbon::parse($startRaw)->toDateString();
+            }
+        } catch (\Throwable $e) {
+            $start = null;
+        }
+        try {
+            if ($endRaw) {
+                $end = \Carbon\Carbon::parse($endRaw)->toDateString();
+            }
+        } catch (\Throwable $e) {
+            $end = null;
+        }
+
+        if ($start && !$end && $duration > 0) {
+            try {
+                $end = \Carbon\Carbon::parse($start)->addDays(max(0, $duration - 1))->toDateString();
+            } catch (\Throwable $e) {
+                $end = $start;
+            }
+        }
+        if ($start && !$end) {
+            $end = $start;
+        }
+        if ($end && !$start) {
+            $start = $end;
+        }
+
+        return [
+            'start_date' => $start,
+            'end_date' => $end,
+            'duration_days' => $duration,
+        ];
     }
 
     /**
@@ -242,10 +309,10 @@ class CommonHelper
     public static function image_path($name, $logoFile, $container = 'uploads') {
         $get_filestorage = Setting::where('name', $name)->where('status', 1)->first();
         $logoName = 'logo_' . time() . '_' . Str::random(6) . '.' . $logoFile->getClientOriginalExtension();
-        
+       
         if ($get_filestorage) {
             try {
-                
+               
                 if ($get_filestorage->value == 'local') {
                     $destinationPath = public_path('build/images');
                     $logoFile->move($destinationPath, $logoName);
@@ -410,6 +477,525 @@ class CommonHelper
         return ['master_value' => $url];
     }
 
+    /**
+     * Delete a JSON blob from the AI Azure storage account.
+     * Treats BlobNotFound as success (already gone).
+     */
+    public static function deleteJsonFromAzure(string $fileName, string $container = 'aiuploads'): bool
+    {
+        $fileName = trim($fileName);
+        if ($fileName === '') {
+            return false;
+        }
+
+        $storage = Setting::where('name', 'file_storage')->where('status', 1)->first();
+        if (! $storage || $storage->value !== 'azure') {
+            Log::warning('Azure JSON delete skipped: file_storage is not azure', [
+                'file_name' => $fileName,
+            ]);
+
+            return false;
+        }
+
+        try {
+            $config = self::azureAiDiskConfig();
+            if (empty($config['name']) || empty($config['key'])) {
+                Log::warning('Azure JSON delete skipped: missing AI storage credentials', [
+                    'file_name' => $fileName,
+                ]);
+
+                return false;
+            }
+
+            $blobContainer = self::azureAiContainer($container);
+            $connectionString = sprintf(
+                'DefaultEndpointsProtocol=https;AccountName=%s;AccountKey=%s;EndpointSuffix=core.windows.net',
+                $config['name'],
+                $config['key']
+            );
+
+            $blobClient = BlobRestProxy::createBlobService($connectionString);
+            $blobClient->deleteBlob($blobContainer, $fileName);
+
+            Log::info('Azure JSON blob deleted', [
+                'file_name' => $fileName,
+                'container' => $blobContainer,
+                'account' => $config['name'],
+            ]);
+
+            return true;
+        } catch (\Throwable $e) {
+            $message = $e->getMessage();
+            if (
+                stripos($message, 'BlobNotFound') !== false
+                || stripos($message, 'The specified blob does not exist') !== false
+            ) {
+                Log::info('Azure JSON blob already absent', [
+                    'file_name' => $fileName,
+                    'container' => $container,
+                ]);
+
+                return true;
+            }
+
+            Log::error('Azure JSON delete failed: ' . $message, [
+                'file_name' => $fileName,
+                'container' => $container,
+            ]);
+
+            return false;
+        }
+    }
+
+    /**
+     * List blob names in the AI container that start with a prefix.
+     *
+     * @return list<string>
+     */
+    public static function listAzureJsonBlobs(string $prefix = '', string $container = 'aiuploads'): array
+    {
+        $storage = Setting::where('name', 'file_storage')->where('status', 1)->first();
+        if (! $storage || $storage->value !== 'azure') {
+            return [];
+        }
+
+        try {
+            $config = self::azureAiDiskConfig();
+            if (empty($config['name']) || empty($config['key'])) {
+                return [];
+            }
+
+            $blobContainer = self::azureAiContainer($container);
+            $connectionString = sprintf(
+                'DefaultEndpointsProtocol=https;AccountName=%s;AccountKey=%s;EndpointSuffix=core.windows.net',
+                $config['name'],
+                $config['key']
+            );
+
+            $blobClient = BlobRestProxy::createBlobService($connectionString);
+            $options = new \MicrosoftAzure\Storage\Blob\Models\ListBlobsOptions();
+            if (trim($prefix) !== '') {
+                $options->setPrefix($prefix);
+            }
+
+            $names = [];
+            $nextMarker = null;
+            do {
+                if ($nextMarker !== null && $nextMarker !== '') {
+                    $options->setMarker($nextMarker);
+                }
+                $result = $blobClient->listBlobs($blobContainer, $options);
+                foreach ($result->getBlobs() as $blob) {
+                    $name = trim((string) $blob->getName());
+                    if ($name !== '') {
+                        $names[] = $name;
+                    }
+                }
+                $nextMarker = method_exists($result, 'getNextMarker') ? $result->getNextMarker() : null;
+            } while (! empty($nextMarker));
+
+            return $names;
+        } catch (\Throwable $e) {
+            Log::error('Azure JSON list failed: ' . $e->getMessage(), [
+                'prefix' => $prefix,
+                'container' => $container,
+            ]);
+
+            return [];
+        }
+    }
+
+    /**
+     * Azure AI Search config from services.azure_search / .env.
+     *
+     * @return array{endpoint: string, admin_key: string, index: string, indexer: string, key_field: string, api_version: string}|null
+     */
+    public static function azureSearchConfig(): ?array
+    {
+        $cfg = config('services.azure_search', []);
+        $endpoint = rtrim(trim((string) ($cfg['endpoint'] ?? '')), '/');
+        $adminKey = trim((string) ($cfg['admin_key'] ?? ''));
+        $index = trim((string) ($cfg['index'] ?? ''));
+
+        if ($endpoint === '' || $adminKey === '' || $index === '') {
+            return null;
+        }
+
+        return [
+            'endpoint' => $endpoint,
+            'admin_key' => $adminKey,
+            'index' => $index,
+            'indexer' => trim((string) ($cfg['indexer'] ?? '')),
+            'key_field' => trim((string) ($cfg['key_field'] ?? 'id')) ?: 'id',
+            'api_version' => trim((string) ($cfg['api_version'] ?? '2024-07-01')) ?: '2024-07-01',
+        ];
+    }
+
+    /**
+     * Delete documents from Azure AI Search by key (default field: id = package_id).
+     *
+     * @param  list<string>  $documentKeys
+     * @return array{ok: bool, deleted: list<string>, skipped: bool, error: ?string}
+     */
+    public static function deleteAzureSearchDocumentsByKeys(array $documentKeys): array
+    {
+        $keys = [];
+        foreach ($documentKeys as $key) {
+            $key = trim((string) $key);
+            if ($key !== '') {
+                $keys[$key] = true;
+            }
+        }
+        $keys = array_keys($keys);
+
+        $empty = ['ok' => true, 'deleted' => [], 'skipped' => true, 'error' => null];
+        if ($keys === []) {
+            return $empty;
+        }
+
+        $cfg = self::azureSearchConfig();
+        if ($cfg === null) {
+            Log::warning('Azure Search document delete skipped: AZURE_SEARCH_* not configured');
+
+            return [
+                'ok' => false,
+                'deleted' => [],
+                'skipped' => true,
+                'error' => 'Azure Search not configured',
+            ];
+        }
+
+        $keyField = $cfg['key_field'];
+        $deleted = [];
+        $url = sprintf(
+            '%s/indexes/%s/docs/index?api-version=%s',
+            $cfg['endpoint'],
+            rawurlencode($cfg['index']),
+            rawurlencode($cfg['api_version'])
+        );
+
+        try {
+            foreach (array_chunk($keys, 500) as $chunk) {
+                $value = [];
+                foreach ($chunk as $docKey) {
+                    $value[] = [
+                        '@search.action' => 'delete',
+                        $keyField => $docKey,
+                    ];
+                }
+
+                $response = Http::withHeaders([
+                    'api-key' => $cfg['admin_key'],
+                    'Content-Type' => 'application/json',
+                ])->timeout(60)->post($url, ['value' => $value]);
+
+                if (! $response->successful()) {
+                    Log::error('Azure Search document delete failed', [
+                        'status' => $response->status(),
+                        'body' => $response->body(),
+                        'keys' => $chunk,
+                    ]);
+
+                    return [
+                        'ok' => false,
+                        'deleted' => $deleted,
+                        'skipped' => false,
+                        'error' => 'HTTP ' . $response->status() . ': ' . $response->body(),
+                    ];
+                }
+
+                $deleted = array_merge($deleted, $chunk);
+            }
+
+            Log::info('Azure Search documents deleted by key', [
+                'index' => $cfg['index'],
+                'key_field' => $keyField,
+                'count' => count($deleted),
+                'keys' => $deleted,
+            ]);
+
+            return [
+                'ok' => true,
+                'deleted' => $deleted,
+                'skipped' => false,
+                'error' => null,
+            ];
+        } catch (\Throwable $e) {
+            Log::error('Azure Search document delete exception: ' . $e->getMessage());
+
+            return [
+                'ok' => false,
+                'deleted' => $deleted,
+                'skipped' => false,
+                'error' => $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * List document keys currently in the Azure AI Search index.
+     *
+     * @return list<string>
+     */
+    public static function listAzureSearchDocumentKeys(int $pageSize = 1000): array
+    {
+        $cfg = self::azureSearchConfig();
+        if ($cfg === null) {
+            return [];
+        }
+
+        $keyField = $cfg['key_field'];
+        $keys = [];
+        $skip = 0;
+
+        try {
+            do {
+                $url = sprintf(
+                    '%s/indexes/%s/docs/search?api-version=%s',
+                    $cfg['endpoint'],
+                    rawurlencode($cfg['index']),
+                    rawurlencode($cfg['api_version'])
+                );
+
+                $response = Http::withHeaders([
+                    'api-key' => $cfg['admin_key'],
+                    'Content-Type' => 'application/json',
+                ])->timeout(60)->post($url, [
+                    'search' => '*',
+                    'select' => $keyField,
+                    'top' => $pageSize,
+                    'skip' => $skip,
+                ]);
+
+                if (! $response->successful()) {
+                    Log::warning('Azure Search list keys failed', [
+                        'status' => $response->status(),
+                        'body' => $response->body(),
+                    ]);
+
+                    break;
+                }
+
+                $payload = $response->json();
+                $rows = is_array($payload['value'] ?? null) ? $payload['value'] : [];
+                foreach ($rows as $row) {
+                    if (! is_array($row)) {
+                        continue;
+                    }
+                    $key = trim((string) ($row[$keyField] ?? ''));
+                    if ($key !== '') {
+                        $keys[] = $key;
+                    }
+                }
+
+                $count = count($rows);
+                $skip += $count;
+            } while ($count === $pageSize && $skip < 100000);
+
+            return array_values(array_unique($keys));
+        } catch (\Throwable $e) {
+            Log::error('Azure Search list keys exception: ' . $e->getMessage());
+
+            return $keys;
+        }
+    }
+
+    /**
+     * Remove index docs whose keys are not in the active package id set (stale after blob deletes).
+     *
+     * @param  list<string>  $activePackageIds
+     * @return array{ok: bool, deleted: list<string>, skipped: bool, error: ?string}
+     */
+    public static function purgeAzureSearchOrphansNotIn(array $activePackageIds): array
+    {
+        $cfg = self::azureSearchConfig();
+        if ($cfg === null) {
+            return [
+                'ok' => false,
+                'deleted' => [],
+                'skipped' => true,
+                'error' => 'Azure Search not configured',
+            ];
+        }
+
+        $active = [];
+        foreach ($activePackageIds as $id) {
+            $id = trim((string) $id);
+            if ($id !== '') {
+                $active[$id] = true;
+            }
+        }
+
+        $indexed = self::listAzureSearchDocumentKeys();
+        $orphans = [];
+        foreach ($indexed as $key) {
+            if (! isset($active[$key])) {
+                $orphans[] = $key;
+            }
+        }
+
+        if ($orphans === []) {
+            return [
+                'ok' => true,
+                'deleted' => [],
+                'skipped' => false,
+                'error' => null,
+            ];
+        }
+
+        Log::info('Azure Search orphan purge starting', [
+            'active_count' => count($active),
+            'indexed_count' => count($indexed),
+            'orphan_count' => count($orphans),
+            'orphans' => $orphans,
+        ]);
+
+        return self::deleteAzureSearchDocumentsByKeys($orphans);
+    }
+
+    /**
+     * Reset then run the Azure AI Search indexer so it re-reads current blob JSON.
+     *
+     * @return array{ok: bool, reset: bool, run: bool, skipped: bool, error: ?string}
+     */
+    public static function resetAndRunAzureSearchIndexer(): array
+    {
+        $cfg = self::azureSearchConfig();
+        if ($cfg === null || $cfg['indexer'] === '') {
+            Log::warning('Azure Search indexer reset/run skipped: endpoint/key/index/indexer not configured');
+
+            return [
+                'ok' => false,
+                'reset' => false,
+                'run' => false,
+                'skipped' => true,
+                'error' => 'Azure Search indexer not configured',
+            ];
+        }
+
+        $headers = [
+            'api-key' => $cfg['admin_key'],
+            'Content-Type' => 'application/json',
+        ];
+
+        try {
+            $resetUrl = sprintf(
+                '%s/indexers/%s/reset?api-version=%s',
+                $cfg['endpoint'],
+                rawurlencode($cfg['indexer']),
+                rawurlencode($cfg['api_version'])
+            );
+            $resetResponse = Http::withHeaders($headers)->timeout(60)->post($resetUrl);
+            if (! $resetResponse->successful() && $resetResponse->status() !== 204) {
+                Log::error('Azure Search indexer reset failed', [
+                    'status' => $resetResponse->status(),
+                    'body' => $resetResponse->body(),
+                ]);
+
+                return [
+                    'ok' => false,
+                    'reset' => false,
+                    'run' => false,
+                    'skipped' => false,
+                    'error' => 'Reset HTTP ' . $resetResponse->status() . ': ' . $resetResponse->body(),
+                ];
+            }
+
+            $runUrl = sprintf(
+                '%s/indexers/%s/run?api-version=%s',
+                $cfg['endpoint'],
+                rawurlencode($cfg['indexer']),
+                rawurlencode($cfg['api_version'])
+            );
+            $runResponse = Http::withHeaders($headers)->timeout(60)->post($runUrl);
+            if (! $runResponse->successful() && $runResponse->status() !== 202) {
+                Log::error('Azure Search indexer run failed', [
+                    'status' => $runResponse->status(),
+                    'body' => $runResponse->body(),
+                ]);
+
+                return [
+                    'ok' => false,
+                    'reset' => true,
+                    'run' => false,
+                    'skipped' => false,
+                    'error' => 'Run HTTP ' . $runResponse->status() . ': ' . $runResponse->body(),
+                ];
+            }
+
+            Log::info('Azure Search indexer reset + run triggered', [
+                'indexer' => $cfg['indexer'],
+                'index' => $cfg['index'],
+            ]);
+
+            return [
+                'ok' => true,
+                'reset' => true,
+                'run' => true,
+                'skipped' => false,
+                'error' => null,
+            ];
+        } catch (\Throwable $e) {
+            Log::error('Azure Search indexer reset/run exception: ' . $e->getMessage());
+
+            return [
+                'ok' => false,
+                'reset' => false,
+                'run' => false,
+                'skipped' => false,
+                'error' => $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * After blob JSON sync: delete removed package docs, purge orphans, reset+run indexer.
+     *
+     * @param  list<string>  $deletedPackageIds
+     * @param  list<string>  $activePackageIds
+     * @return array{ok: bool, deleted_keys: list<string>, orphan_deleted: list<string>, indexer: array<string, mixed>, skipped: bool, error: ?string}
+     */
+    public static function syncAzureSearchAfterDayLevelChange(array $deletedPackageIds, array $activePackageIds): array
+    {
+        $result = [
+            'ok' => false,
+            'deleted_keys' => [],
+            'orphan_deleted' => [],
+            'indexer' => [],
+            'skipped' => false,
+            'error' => null,
+        ];
+
+        if (self::azureSearchConfig() === null) {
+            $result['skipped'] = true;
+            $result['error'] = 'Azure Search not configured';
+
+            return $result;
+        }
+
+        $deleteResult = self::deleteAzureSearchDocumentsByKeys($deletedPackageIds);
+        $result['deleted_keys'] = $deleteResult['deleted'] ?? [];
+
+        $orphanResult = self::purgeAzureSearchOrphansNotIn($activePackageIds);
+        $result['orphan_deleted'] = $orphanResult['deleted'] ?? [];
+
+        $indexerResult = self::resetAndRunAzureSearchIndexer();
+        $result['indexer'] = $indexerResult;
+
+        $result['ok'] = (! empty($deleteResult['ok']) || ! empty($deleteResult['skipped']))
+            && (! empty($orphanResult['ok']) || ! empty($orphanResult['skipped']))
+            && (! empty($indexerResult['ok']) || ! empty($indexerResult['skipped']));
+
+        if (! $result['ok']) {
+            $result['error'] = $deleteResult['error']
+                ?? $orphanResult['error']
+                ?? $indexerResult['error']
+                ?? 'Azure Search sync failed';
+        }
+
+        return $result;
+    }
+
     /*
     * Upload file to Azure with dynamic container support
     * Date 16-06-2025
@@ -419,7 +1005,7 @@ class CommonHelper
         try {
             // Get Azure configuration
             $config = config('filesystems.disks.azure');
-            
+           
             // Create connection string
             $connectionString = sprintf(
                 'DefaultEndpointsProtocol=https;AccountName=%s;AccountKey=%s;EndpointSuffix=core.windows.net',
@@ -429,10 +1015,10 @@ class CommonHelper
 
             // Create blob client
             $blobClient = BlobRestProxy::createBlobService($connectionString);
-            
+           
             // Ensure container exists
             self::ensureAzureContainerExists($blobClient, $container);
-            
+           
             Log::info('Attempting Azure upload', [
                 'file_name' => $fileName,
                 'container' => $container
@@ -440,10 +1026,10 @@ class CommonHelper
 
             // Read file content
             $fileContent = file_get_contents($file->getRealPath());
-            
+           
             // Upload directly using blob client
             $blobClient->createBlockBlob($container, $fileName, $fileContent);
-            
+           
             // Generate URL
             $logoPath = sprintf(
                 'https://%s.blob.core.windows.net/%s/%s',
@@ -451,7 +1037,7 @@ class CommonHelper
                 $container,
                 $fileName
             );
-            
+           
             Log::info('Azure upload successful', [
                 'path' => $fileName,
                 'url' => $logoPath,
@@ -468,7 +1054,7 @@ class CommonHelper
                 'file_name' => $fileName,
                 'container' => $container
             ]);
-            
+           
             return [
                 'master_value' => null,
                 'error' => $e->getMessage()
@@ -665,7 +1251,7 @@ class CommonHelper
              $booking_data = Order::where('tour_id', $tour_id)
                 ->get();
         }
-        
+       
         $date_service = [];
         $hotel = [];
         $attraction = [];
@@ -676,36 +1262,36 @@ class CommonHelper
         $guide = [];
         $restaurant = [];
         $local_transport = [];
-    
+   
         foreach ($booking_data as $booking) {
             $json_data = $booking->data;
-    
+   
             // Check if data is a JSON string and decode it
             if (!empty($json_data) && is_string($json_data)) {
                 $array = json_decode($json_data, true);
-                
+               
                 if (json_last_error() === JSON_ERROR_NONE && is_array($array)) {
                     foreach ($array as $item) {
                         $bookingDates = $item['bookingDate'] ?? null;
                         $bookingType = $booking->type ?? null;
-    
+   
                         if (!$bookingDates || !$bookingType) {
                             Log::error("Missing bookingDate or type for booking ID: {$booking->booking_id}");
                             continue;
                         }
-    
+   
                         // Ensure bookingDates is always an array
                         if (!is_array($bookingDates)) {
                             $bookingDates = [$bookingDates];
                         }
-    
+   
                         // Expand date range if needed
                         $expandedDates = [];
                         if (count($bookingDates) == 2) {
                             try {
                                 $startDate = \Carbon\Carbon::createFromFormat('Y-m-d', $bookingDates[0]);
                                 $endDate = \Carbon\Carbon::createFromFormat('Y-m-d', $bookingDates[1]);
-                                
+                               
                                 // Include all dates in the range
                                 while ($startDate->lte($endDate)) {
                                     $expandedDates[] = $startDate->format('Y-m-d');
@@ -718,11 +1304,11 @@ class CommonHelper
                         } else {
                             $expandedDates = $bookingDates;
                         }
-    
+   
                         // Process each generated date
                         foreach ($expandedDates as $bookingDate) {
                             if (empty($bookingDate)) continue;
-                            
+                           
                             // For hotel bookings, skip the last date in date_service
                             if ($bookingType === 'hotel') {
                                 // Check if this is the last date in the range
@@ -732,12 +1318,12 @@ class CommonHelper
                                 } else {
                                     $isLastDate = $bookingDate === end($bookingDates);
                                 }
-                                
+                               
                                 if ($isLastDate) {
                                     continue; // Skip adding this date to date_service
                                 }
                             }
-                            
+                           
                             if (!isset($date_service[$bookingDate])) {
                                 $date_service[$bookingDate] = ['services' => []];
                             }
@@ -749,13 +1335,13 @@ class CommonHelper
                             }
                             $date_service[$bookingDate]['services'][$bookingType]['count']++;
                         }
-    
+   
                         // Organize data by type
                         $bookingArray = array_merge(
                             ['id' => $booking->booking_id, 'type' => $bookingType],
                             $item
                         );
-    
+   
                         switch ($bookingType) {
                             case 'hotel':
                                 $hotel[] = $bookingArray;
@@ -799,24 +1385,24 @@ class CommonHelper
                 foreach ($json_data as $item) {
                     $bookingDates = $item['bookingDate'] ?? null;
                     $bookingType = $booking->type ?? null;
-    
+   
                     if (!$bookingDates || !$bookingType) {
                         Log::error("Missing bookingDate or type for booking ID: {$booking->booking_id}");
                         continue;
                     }
-    
+   
                     // Ensure bookingDates is always an array
                     if (!is_array($bookingDates)) {
                         $bookingDates = [$bookingDates];
                     }
-    
+   
                     // Convert date range into all dates
                     $expandedDates = [];
                     if (count($bookingDates) == 2) {
                         try {
                             $startDate = \Carbon\Carbon::createFromFormat('Y-m-d', $bookingDates[0]);
                             $endDate = \Carbon\Carbon::createFromFormat('Y-m-d', $bookingDates[1]);
-                            
+                           
                             // Include all dates in the range
                             while ($startDate->lte($endDate)) {
                                 $expandedDates[] = $startDate->format('Y-m-d');
@@ -829,11 +1415,11 @@ class CommonHelper
                     } else {
                         $expandedDates = $bookingDates;
                     }
-    
+   
                     // Process each date
                     foreach ($expandedDates as $bookingDate) {
                         if (empty($bookingDate)) continue;
-                        
+                       
                         // For hotel bookings, skip the last date in date_service
                         if ($bookingType === 'hotel') {
                             // Check if this is the last date in the range
@@ -843,12 +1429,12 @@ class CommonHelper
                             } else {
                                 $isLastDate = $bookingDate === end($bookingDates);
                             }
-                            
+                           
                             if ($isLastDate) {
                                 continue; // Skip adding this date to date_service
                             }
                         }
-                        
+                       
                         if (!isset($date_service[$bookingDate])) {
                             $date_service[$bookingDate] = ['services' => []];
                         }
@@ -860,13 +1446,13 @@ class CommonHelper
                         }
                         $date_service[$bookingDate]['services'][$bookingType]['count']++;
                     }
-    
+   
                     // Organize data by type
                     $bookingArray = array_merge(
                         ['id' => $booking->booking_id, 'type' => $bookingType],
                         $item
                     );
-    
+   
                     switch ($bookingType) {
                         case 'hotel':
                             $hotel[] = $bookingArray;
@@ -906,7 +1492,7 @@ class CommonHelper
                 Log::error("Invalid or missing 'data' field for booking ID: {$booking->booking_id}");
             }
         }
-    
+   
         return [
             'date_service' => $date_service,
             'hotel' => $hotel,
@@ -931,7 +1517,7 @@ class CommonHelper
     }
 
     /*
-    *Common Response create tour and edit tour 
+    *Common Response create tour and edit tour
     *Date 29-01-2025
     */
     public static function CommonBookingResponse($agent_id, $tour_id, $type)
@@ -940,7 +1526,7 @@ class CommonHelper
             ->where('agent_id', $agent_id)
             ->where('status', '!=', 4)
             ->get();
-        
+       
         $date_service = [];
         $data = []; // Store only the requested type data
         $hotel_count = 0;
@@ -955,11 +1541,11 @@ class CommonHelper
 
         foreach ($booking_data as $booking) {
             $json_data = $booking->data;
-            
+           
             // Check if data is a JSON string and decode it
             if (!empty($json_data) && is_string($json_data)) {
                 $array = json_decode($json_data, true);
-                
+               
                 if (json_last_error() === JSON_ERROR_NONE && is_array($array)) {
                     foreach ($array as $item) {
                         $bookingDates = $item['bookingDate'] ?? null;
@@ -976,7 +1562,7 @@ class CommonHelper
                                 try {
                                     $startDate = \Carbon\Carbon::createFromFormat('Y-m-d', $bookingDates[0]);
                                     $endDate = \Carbon\Carbon::createFromFormat('Y-m-d', $bookingDates[1]);
-                                    
+                                   
                                     // Include all dates in the range
                                     while ($startDate->lte($endDate)) {
                                         $expandedDates[] = $startDate->format('Y-m-d');
@@ -993,7 +1579,7 @@ class CommonHelper
                             // Process each date
                             foreach ($expandedDates as $bookingDate) {
                                 if (empty($bookingDate)) continue;
-                                
+                               
                                 // For hotel bookings, skip the last date in date_service
                                 if ($booking->type === 'hotel') {
                                     // Check if this is the last date in the range
@@ -1003,23 +1589,23 @@ class CommonHelper
                                     } else {
                                         $isLastDate = $bookingDate === end($bookingDates);
                                     }
-                                    
+                                   
                                     if ($isLastDate) {
                                         continue; // Skip adding this date to date_service
                                     }
                                 }
-                                
+                               
                                 if (!isset($date_service[$bookingDate])) {
                                     $date_service[$bookingDate] = ['services' => []];
                                 }
-                                
+                               
                                 if (!isset($date_service[$bookingDate]['services'][$booking->type])) {
                                     $date_service[$bookingDate]['services'][$booking->type] = [
                                         'status' => $booking->status,
                                         'count' => 0
                                     ];
                                 }
-                                
+                               
                                 $date_service[$bookingDate]['services'][$booking->type]['count']++;
                             }
                         }
@@ -1041,9 +1627,9 @@ class CommonHelper
                         }
                         // Count booking types
                         if ($booking->type == 'hotel') $hotel_count++;
-                        if ($booking->type == 'attraction') 
+                        if ($booking->type == 'attraction')
                         $attraction_count++;
-                        if ($booking->type == 'attraction_package') 
+                        if ($booking->type == 'attraction_package')
                         $attraction_count++;
                         if ($booking->type == 'entry_port') $entry_port_count++;
                         if ($booking->type == 'exit_port') $exit_port_count++;
@@ -1072,7 +1658,7 @@ class CommonHelper
                             try {
                                 $startDate = \Carbon\Carbon::createFromFormat('Y-m-d', $bookingDates[0]);
                                 $endDate = \Carbon\Carbon::createFromFormat('Y-m-d', $bookingDates[1]);
-                                
+                               
                                 while ($startDate->lte($endDate)) {
                                     $expandedDates[] = $startDate->format('Y-m-d');
                                     $startDate->addDay();
@@ -1095,23 +1681,23 @@ class CommonHelper
                                 } else {
                                     $isLastDate = $bookingDate === end($bookingDates);
                                 }
-                                
+                               
                                 if ($isLastDate) {
                                     continue; // Skip adding this date to date_service
                                 }
                             }
-                            
+                           
                             if (!isset($date_service[$bookingDate])) {
                                 $date_service[$bookingDate] = ['services' => []];
                             }
-                            
+                           
                             if (!isset($date_service[$bookingDate]['services'][$booking->type])) {
                                 $date_service[$bookingDate]['services'][$booking->type] = [
                                     'status' => $booking->status,
                                     'count' => 0
                                 ];
                             }
-                            
+                           
                             $date_service[$bookingDate]['services'][$booking->type]['count']++;
                         }
                     }
@@ -1151,7 +1737,7 @@ class CommonHelper
         $service = [
             'date_service' => $date_service,
             'type' => $type,
-            'data' => $data, 
+            'data' => $data,
             'hotel_count' => $hotel_count,
             'attraction_count' => $attraction_count,
             'entry_port_count' => $entry_port_count,
@@ -1282,7 +1868,7 @@ class CommonHelper
     public static function calculateDmcModePricehotel($base_price, $dmc_id, $name, $type, $city)
     {
         $dmc = User::where('userId', $dmc_id)->first();
-        
+       
         if (!$dmc) {
             return [0, null]; // No valid DMC found, return 0
         }
@@ -1306,7 +1892,7 @@ class CommonHelper
             ->where('city', $city)
             ->where('dmc_id', $dmc->userId) // Use the resolved DMC
             ->first();
-            
+           
         }elseif ($type === 'guide') {
             $hotel = Guide::where('name', $name)
             ->where('city', $city)
@@ -1315,7 +1901,7 @@ class CommonHelper
         } else {
             return [0, null]; // Invalid type, return 0
         }
-        
+       
         if (!$hotel) {
             return [0, null]; // Hotel not linked to this DMC, return 0
         }
@@ -1327,10 +1913,10 @@ class CommonHelper
         return [$price ?? 0, $dmc->userId ?? null]; // Ensure price is numeric, fallback to 0
     }
  
-    //Vehicle dmc mode price 
+    //Vehicle dmc mode price
     public static function calculateDmcModePriceVehicle($base_price, $salesManagerId, $name, $type)
     {
-        $dmc = User::where('userId', $dmc_id)->first(); 
+        $dmc = User::where('userId', $dmc_id)->first();
         if (!$dmc) {
             return [0, null]; // No valid DMC found, return 0
         }
@@ -1447,10 +2033,10 @@ class CommonHelper
 
             // Store the file in the temporary disk
             $path = Storage::disk('azure_temp')->putFileAs($container, $file, $fileName);
-            
+           
             // Generate the URL for the stored file
             $url = Storage::disk('azure_temp')->url($path);
-            
+           
             return [
                 'master_value' => $url,
             ];
@@ -1461,7 +2047,7 @@ class CommonHelper
                 'file_name' => $fileName,
                 'container' => $container
             ]);
-            
+           
             return [
                 'master_value' => null,
                 'error' => $e->getMessage()
@@ -1482,15 +2068,15 @@ class CommonHelper
                 $config['name'],
                 $config['key']
             );
-            
+           
             $blobClient = BlobRestProxy::createBlobService($connectionString);
-            
+           
             // Extract filename from URL
             $fileName = basename(parse_url($imageUrl, PHP_URL_PATH));
-            
+           
             // Delete the blob
             $blobClient->deleteBlob('uploads', $fileName);
-            
+           
         } catch (\Exception $e) {
             // Ignore errors, just log
             Log::error('Azure image deletion failed: ' . $e->getMessage());
@@ -1502,7 +2088,7 @@ class CommonHelper
         try {
             // Process order data to prepare template data
             $data = [];
-            
+           
             // Extract data from order object if it's an object
             if (is_object($orderData)) {
                 // If it's an Order model object, extract what we need
@@ -1548,17 +2134,17 @@ class CommonHelper
                 ];
             }
 
-            
-            
+           
+           
             // If it's already an array, use it directly
             else if (is_array($orderData)) {
                 $data = $orderData;
             }
-            
+           
             // Get company settings for the email
             $logoSetting = self::masterSettingsName('logo');
             $nameSetting = self::masterSettingsName('name');
-            
+           
             // Add company info to the data array
             $companyData = [
                 "company" => [
@@ -1566,7 +2152,7 @@ class CommonHelper
                     "logo" => $orderData['dmc_logo'] ?? $logoSetting['master_value'] ?? asset('images/logo.png')
                 ]
             ];
-            
+           
             // Add mail settings for the template
             $mailSettings = (object)[
                 "support_email" => $orderData['dmc_email'] ?? null,
@@ -1576,7 +2162,7 @@ class CommonHelper
                 "instagram_url" => "https://instagram.com/yourcompany",
                 "linkedin_url" => "https://linkedin.com/company/yourcompany"
             ];
-            
+           
             // Merge all data
             $viewData = array_merge($data, $companyData);
             $viewData['mail_settings'] = $mailSettings;
@@ -1589,32 +2175,32 @@ class CommonHelper
             if (!view()->exists($template)) {
                 $template = 'mails.booking_confirmation'; // Default template
             }
-            
+           
             // Render the email template
             try {
                 $html = view($template, $viewData)->render();
             } catch (\Exception $e) {
                 return "Error rendering email template: " . $e->getMessage();
             }
-            
+           
             // Extract the entire style tag content
             preg_match('/<style>(.*?)<\/style>/s', $html, $styleMatches);
             $styles = !empty($styleMatches[0]) ? $styleMatches[0] : '';
-            
+           
             // Extract the email-container div with all its contents
             preg_match('/<div class="email-container">(.*?)<\/div>\s*$/s', $html, $matches);
             if (!empty($matches[0])) {
                 $extractedHtml = $matches[0];
-                
+               
                 // Add minimal HTML structure with the extracted styles
                 $emailHtml = '<!DOCTYPE html><html><head><title>' . $subject . '</title>' . $styles . '</head><body>' . $extractedHtml . '</body></html>';
-                
+               
                 // Send the email to the actual recipient
                 try {
                     Mail::to($email)->send(new DmcMail($emailHtml, $subject));
                     // Log successful email sending
                     Log::info("Email sent successfully to: {$email}", ['type' => $type, 'subject' => $subject]);
-                    
+                   
                     return true;
                 } catch (\Exception $e) {
                     return "Failed to send email: " . $e->getMessage();
@@ -2012,12 +2598,86 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         }
     }
 
+    /**
+     * Convert SMTP fields from an external API / DMC package payload into Laravel
+     * runtime SMTP config used when *sending* mail.
+     *
+     * Roles:
+     * - To: always the API `sender_email` (resolved by the caller) — never ai_email
+     * - From: SMTP auth mailbox (`smtp_user`) for deliverability alignment
+     * - From name: `ai_from_name` display name when present
+     * - `ai_email`: IMAP / inbound fetch only — not used as To or From here
+     *
+     * @param  array<string, mixed>  $primaryDmc
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>|null
+     */
+    public static function resolveApiRuntimeMailConfig(array $primaryDmc, array $payload = [], array $fallback = []): ?array
+    {
+        // Precedence: DMC entry > payload root > this DMC's stored mail settings.
+        // Empty values never mask a populated fallback, which is what lets the
+        // stored smtp_pass fill in when the API omits it.
+        $source = array_merge(
+            $fallback,
+            self::filterPopulatedMailFields($payload),
+            self::filterPopulatedMailFields($primaryDmc)
+        );
+        $host = trim((string) ($source['smtp_host'] ?? ''));
+        $port = filter_var($source['smtp_port'] ?? null, FILTER_VALIDATE_INT, [
+            'options' => ['min_range' => 1, 'max_range' => 65535],
+        ]);
+        $security = strtolower(trim((string) ($source['smtp_security'] ?? '')));
+        $security = $security === 'starttls' ? 'tls' : $security;
+        $username = trim((string) ($source['smtp_user'] ?? ''));
+        $password = (string) ($source['smtp_pass'] ?? '');
+
+        // From must match the SMTP login mailbox (never ai_email — that is for fetch).
+        $fromEmail = filter_var($username, FILTER_VALIDATE_EMAIL)
+            ? $username
+            : '';
+
+        if (
+            $fromEmail === ''
+            || $host === ''
+            || $port === false
+            || ! in_array($security, ['tls', 'ssl', 'none'], true)
+            || $username === ''
+            || $password === ''
+        ) {
+            return null;
+        }
+
+        return [
+            'host' => $host,
+            'port' => (int) $port,
+            'encryption' => $security,
+            'username' => $username,
+            'password' => $password,
+            'from_email' => $fromEmail,
+            'from_name' => trim((string) ($source['ai_from_name'] ?? '')) ?: config('app.name'),
+        ];
+    }
+
+    /**
+     * Drop null/blank entries so a lower-priority source can supply the value.
+     *
+     * @param  array<string, mixed>  $fields
+     * @return array<string, mixed>
+     */
+    private static function filterPopulatedMailFields(array $fields): array
+    {
+        return array_filter(
+            $fields,
+            static fn ($value) => $value !== null && (! is_string($value) || trim($value) !== '')
+        );
+    }
+
     public static function getDmcId($auth_user){
         if($auth_user->agent_id){
             $agent = Agent::where('agent_id', $auth_user->agent_id)->first();
             $sales_manager_dmc = $agent->sales_manager_dmc;
             $dmcId = null;
-            
+           
             if($agent->role_id == 11){
                 $dmcId = $sales_manager_dmc;
             }
@@ -2062,6 +2722,53 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         return null;
     }
 
+    /**
+     * Owning country DMC (role 11/20) for the logged-in user.
+     * Walks created_by up to the nearest normal DMC and never returns a Master DMC.
+     */
+    public static function resolveNearestNormalDmcId($user): ?int
+    {
+        if (!$user) {
+            return null;
+        }
+
+        $roleId = (int) ($user->role_id ?? 0);
+        if (in_array($roleId, self::NORMAL_DMC_ROLE_IDS, true)) {
+            return (int) $user->userId;
+        }
+
+        $current = $user;
+        $visited = [];
+        for ($i = 0; $i < 8; $i++) {
+            $parentId = (int) ($current->created_by ?? 0);
+            if ($parentId <= 0 || in_array($parentId, $visited, true)) {
+                break;
+            }
+            $visited[] = $parentId;
+            $parent = User::where('userId', $parentId)->first();
+            if (!$parent) {
+                break;
+            }
+            $parentRole = (int) ($parent->role_id ?? 0);
+            if (in_array($parentRole, self::NORMAL_DMC_ROLE_IDS, true)) {
+                return (int) $parent->userId;
+            }
+            if (in_array($parentRole, self::MASTER_DMC_ROLE_IDS, true)) {
+                break;
+            }
+            $current = $parent;
+        }
+
+        $fallback = (int) (self::getDmcId($user) ?? 0);
+        if ($fallback > 0) {
+            $owner = User::where('userId', $fallback)->first();
+            if ($owner && in_array((int) $owner->role_id, self::NORMAL_DMC_ROLE_IDS, true)) {
+                return $fallback;
+            }
+        }
+
+        return null;
+    }
 
     /**
      * Country used for multi-country tour visibility.
@@ -2151,7 +2858,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         }
 
         $ids = User::where('master_dmc_id', $masterDmcId)
-            ->where('role_id', 11)
+            ->whereIn('role_id', self::NORMAL_DMC_ROLE_IDS)
             ->pluck('userId')
             ->map(fn ($id) => (int) $id)
             ->filter()
@@ -2164,6 +2871,435 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         }
 
         return array_values(array_unique(array_filter($ids)));
+    }
+
+    /**
+     * Restrict a query to rows whose JSON dmc_id array contains any of the given DMC ids.
+     * Matches both integer and string storage (e.g. [4] vs ["4"]).
+     */
+    public static function whereJsonContainsDmcIds($query, $dmcIds)
+    {
+        $normalized = [];
+        $seen = [];
+        foreach ((array) $dmcIds as $id) {
+            $intId = (int) $id;
+            if ($intId <= 0) {
+                continue;
+            }
+            foreach ([$intId, (string) $intId] as $value) {
+                $key = gettype($value) . ':' . $value;
+                if (isset($seen[$key])) {
+                    continue;
+                }
+                $seen[$key] = true;
+                $normalized[] = $value;
+            }
+        }
+        if ($normalized === []) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query->where(function ($q) use ($normalized) {
+            foreach ($normalized as $id) {
+                $q->orWhereJsonContains('dmc_id', $id);
+            }
+        });
+    }
+
+    public static function modelSelectedByAnyDmc($model, $dmcIds): bool
+    {
+        if (!is_object($model) || !method_exists($model, 'hasSelectedByDmc')) {
+            return false;
+        }
+
+        foreach ((array) $dmcIds as $id) {
+            if ($id === null || $id === '') {
+                continue;
+            }
+            if ($model->hasSelectedByDmc($id)
+                || $model->hasSelectedByDmc((int) $id)
+                || $model->hasSelectedByDmc((string) $id)
+            ) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Unselect a hotel/attraction/restaurant for the logged-in DMC and any
+     * sibling city DMCs under the same Master. Returns true when at least one
+     * family DMC id was removed.
+     */
+    public static function removeDmcFamilySelectionFromModel($model, $baseDmcId): bool
+    {
+        if (!is_object($model) || !method_exists($model, 'getSelectedDmcIds')) {
+            return false;
+        }
+
+        $familyIds = self::getSiblingDmcIds($baseDmcId);
+        if ($familyIds === []) {
+            $familyIds = [(int) $baseDmcId];
+        }
+
+        $familyLookup = [];
+        foreach ($familyIds as $sid) {
+            $intId = (int) $sid;
+            if ($intId > 0) {
+                $familyLookup[(string) $intId] = true;
+            }
+        }
+
+        $kept = [];
+        $removed = false;
+        foreach ($model->getSelectedDmcIds() as $sid) {
+            if (isset($familyLookup[(string) ((int) $sid)])) {
+                $removed = true;
+                continue;
+            }
+            $kept[] = $sid;
+        }
+
+        if (!$removed) {
+            return false;
+        }
+
+        $model->dmc_id = $kept;
+        $model->save();
+
+        return true;
+    }
+
+    /**
+     * Country → sibling DMC id map under the same Master DMC as $baseDmcId.
+     * Example: ["Singapore" => 4, "India" => 12]
+     *
+     * @return array<string, int>
+     */
+    public static function getSiblingDmcCountryMap($baseDmcId): array
+    {
+        $baseDmcId = (int) $baseDmcId;
+        if ($baseDmcId <= 0) {
+            return [];
+        }
+
+        $siblingIds = self::getSiblingDmcIds($baseDmcId);
+        if ($siblingIds === []) {
+            return [];
+        }
+
+        $map = [];
+        $dmcs = User::whereIn('userId', $siblingIds)->get(['userId', 'country', 'role_id']);
+        foreach ($dmcs as $dmc) {
+            $dmcId = (int) $dmc->userId;
+            foreach (self::resolveSupportedCountriesForDmc($dmc) as $country) {
+                $key = self::normalizeCountryName($country);
+                if ($key === '') {
+                    continue;
+                }
+                // Prefer the operating/base DMC for countries it owns.
+                // Never let another sibling overwrite a base-DMC mapping
+                // (e.g. Indonesia DMC listing "Singapore" must not steal SG inventory).
+                if (!isset($map[$key])) {
+                    $map[$key] = $dmcId;
+                } elseif ($dmcId === $baseDmcId && (int) $map[$key] !== $baseDmcId) {
+                    $map[$key] = $dmcId;
+                }
+            }
+        }
+
+        return $map;
+    }
+
+    /**
+     * Sibling-DMC destination rows under the same Master DMC as $baseDmcId.
+     * Uses each child DMC's operating `country` column and all matching cities
+     * from the cities table. Does not use users.user_country or users.city.
+     *
+     * @return list<array{dmc_id:int, country:string, city:string, city_id:?int}>
+     */
+    public static function getSiblingDmcDestinations($baseDmcId): array
+    {
+        $baseDmcId = (int) $baseDmcId;
+        if ($baseDmcId <= 0) {
+            return [];
+        }
+
+        $siblingIds = self::getSiblingDmcIds($baseDmcId);
+        if ($siblingIds === []) {
+            return [];
+        }
+
+        $dmcs = User::whereIn('userId', $siblingIds)->get(['userId', 'country', 'role_id']);
+        $rows = [];
+        $seen = [];
+
+        foreach ($dmcs as $dmc) {
+            $dmcId = (int) $dmc->userId;
+            $countries = array_values(array_filter(
+                self::resolveSupportedCountriesForDmc($dmc),
+                static fn ($country) => trim((string) $country) !== ''
+            ));
+            if ($countries === []) {
+                continue;
+            }
+
+            $cityRecords = City::query()
+                ->where(function ($query) use ($countries) {
+                    foreach ($countries as $country) {
+                        $query->orWhereRaw('LOWER(TRIM(country)) = ?', [mb_strtolower(trim((string) $country))]);
+                    }
+                })
+                ->orderBy('name')
+                ->get(['city_id', 'id', 'name', 'country']);
+
+            foreach ($cityRecords as $cityRow) {
+                $canonicalCity = trim((string) ($cityRow->name ?? ''));
+                $country = self::normalizeCountryName((string) ($cityRow->country ?? ''));
+                if ($canonicalCity === '' || $country === '') {
+                    continue;
+                }
+                $key = mb_strtolower($country) . '|' . mb_strtolower($canonicalCity);
+                if (isset($seen[$key])) {
+                    continue;
+                }
+                $seen[$key] = true;
+                $cityId = (int) ($cityRow->city_id ?? $cityRow->id ?? 0);
+                $rows[] = [
+                    'dmc_id' => $dmcId,
+                    'country' => $country,
+                    'city' => $canonicalCity,
+                    'city_id' => $cityId > 0 ? $cityId : null,
+                ];
+            }
+        }
+
+        return $rows;
+    }
+
+    /**
+     * City name → sibling DMC id (exact mapped cities first).
+     *
+     * @return array<string, int>
+     */
+    public static function getSiblingDmcCityMap($baseDmcId): array
+    {
+        $map = [];
+        foreach (self::getSiblingDmcDestinations($baseDmcId) as $row) {
+            $city = trim((string) ($row['city'] ?? ''));
+            if ($city === '') {
+                continue;
+            }
+            $key = mb_strtolower($city);
+            if ($key === '' || isset($map[$key])) {
+                continue;
+            }
+            $map[$key] = (int) $row['dmc_id'];
+            $map[$city] = (int) $row['dmc_id'];
+        }
+
+        return $map;
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function getSiblingDmcCountryNames($baseDmcId): array
+    {
+        $names = [];
+        foreach (self::getSiblingDmcDestinations($baseDmcId) as $row) {
+            $country = trim((string) ($row['country'] ?? ''));
+            if ($country === '') {
+                continue;
+            }
+            $exists = false;
+            foreach ($names as $existing) {
+                if (self::countriesMatch($existing, $country)) {
+                    $exists = true;
+                    break;
+                }
+            }
+            if (!$exists) {
+                $names[] = $country;
+            }
+        }
+
+        return $names;
+    }
+
+    /**
+     * Select2 / destination-picker options from actual sibling DMC mappings.
+     *
+     * @return list<array{id:string, text:string, country:string, city:string, dmc_id:int}>
+     */
+    public static function getSiblingDmcCityOptions($baseDmcId, ?string $search = null): array
+    {
+        $search = trim((string) $search);
+        $needle = $search !== '' ? mb_strtolower($search) : '';
+        $options = [];
+
+        foreach (self::getSiblingDmcDestinations($baseDmcId) as $row) {
+            $city = trim((string) ($row['city'] ?? ''));
+            $country = trim((string) ($row['country'] ?? ''));
+            if ($city === '') {
+                continue;
+            }
+            if ($needle !== '') {
+                $hay = mb_strtolower($city . ' ' . $country);
+                if (mb_strpos($hay, $needle) === false) {
+                    continue;
+                }
+            }
+            $cityId = (int) ($row['city_id'] ?? 0);
+            $options[] = [
+                'id' => $cityId > 0 ? (string) $cityId : $city,
+                'text' => $country !== '' ? ($city . ' (' . $country . ')') : $city,
+                'country' => $country,
+                'city' => $city,
+                'dmc_id' => (int) $row['dmc_id'],
+            ];
+        }
+
+        usort($options, static function ($a, $b) {
+            return strcasecmp((string) $a['text'], (string) $b['text']);
+        });
+
+        return $options;
+    }
+
+    /**
+     * Allow a requested DMC id only when it is the auth/base DMC or a sibling
+     * under the same Master DMC. Otherwise fall back to $baseDmcId.
+     */
+    public static function coerceSiblingDmcId($baseDmcId, $candidateDmcId): int
+    {
+        $baseDmcId = (int) $baseDmcId;
+        $candidateDmcId = (int) $candidateDmcId;
+        if ($baseDmcId <= 0) {
+            return $candidateDmcId > 0 ? $candidateDmcId : 0;
+        }
+        if ($candidateDmcId <= 0 || $candidateDmcId === $baseDmcId) {
+            return $baseDmcId;
+        }
+
+        $siblings = self::getSiblingDmcIds($baseDmcId);
+        if (in_array($candidateDmcId, $siblings, true)) {
+            return $candidateDmcId;
+        }
+
+        return $baseDmcId;
+    }
+
+    /**
+     * Resolve inventory DMC for a destination country among Master-DMC siblings.
+     * Singapore city → Singapore DMC; India city → India DMC (same Master).
+     */
+    public static function resolveSiblingDmcIdForCountry($baseDmcId, ?string $country): int
+    {
+        $baseDmcId = (int) $baseDmcId;
+        if ($baseDmcId <= 0) {
+            return 0;
+        }
+
+        $country = trim((string) $country);
+        if ($country === '') {
+            return $baseDmcId;
+        }
+
+        $map = self::getSiblingDmcCountryMap($baseDmcId);
+        if ($map === []) {
+            return $baseDmcId;
+        }
+
+        $normalized = self::normalizeCountryName($country);
+        if ($normalized !== '' && isset($map[$normalized])) {
+            return (int) $map[$normalized];
+        }
+
+        foreach ($map as $mappedCountry => $dmcId) {
+            if (self::countriesMatch((string) $mappedCountry, $country)) {
+                return (int) $dmcId;
+            }
+        }
+
+        return $baseDmcId;
+    }
+
+    /**
+     * Resolve inventory DMC for a city (via city.country) among Master-DMC siblings.
+     * Optional $country short-circuits the City lookup when already known.
+     */
+    public static function resolveSiblingDmcIdForCity($baseDmcId, ?string $city, ?string $country = null): int
+    {
+        $baseDmcId = (int) $baseDmcId;
+        if ($baseDmcId <= 0) {
+            return 0;
+        }
+
+        $country = trim((string) $country);
+        $city = trim((string) $city);
+
+        // Tours can store multiple cities as CSV ("Kuala Lumpur,Singapore").
+        // Prefer the sibling-city token so Malaysia DMC booking Singapore uses Singapore inventory.
+        if ($city !== '' && str_contains($city, ',')) {
+            $parts = array_values(array_filter(array_map('trim', explode(',', $city))));
+            $fallback = 0;
+            foreach ($parts as $part) {
+                if ($part === '') {
+                    continue;
+                }
+                $found = self::resolveSiblingDmcIdForCity($baseDmcId, $part, $country !== '' ? $country : null);
+                if ($found > 0 && $found !== $baseDmcId) {
+                    return $found;
+                }
+                if ($found > 0) {
+                    $fallback = $found;
+                }
+            }
+            if ($fallback > 0) {
+                return $fallback;
+            }
+        }
+
+        if ($city !== '') {
+            $cityMap = self::getSiblingDmcCityMap($baseDmcId);
+            $cityKey = mb_strtolower($city);
+            if ($cityKey !== '' && isset($cityMap[$cityKey])) {
+                return (int) $cityMap[$cityKey];
+            }
+            if (isset($cityMap[$city])) {
+                return (int) $cityMap[$city];
+            }
+            foreach ($cityMap as $mappedCity => $dmcId) {
+                if (mb_strtolower((string) $mappedCity) === $cityKey) {
+                    return (int) $dmcId;
+                }
+            }
+        }
+
+        // City name may equal a sibling country label (e.g. city "Singapore")
+        if ($country === '' && $city !== '') {
+            $map = self::getSiblingDmcCountryMap($baseDmcId);
+            $cityNorm = self::normalizeCountryName($city);
+            if ($cityNorm !== '' && isset($map[$cityNorm])) {
+                return (int) $map[$cityNorm];
+            }
+            foreach ($map as $mappedCountry => $dmcId) {
+                if (self::countriesMatch((string) $mappedCountry, $city)) {
+                    return (int) $dmcId;
+                }
+            }
+
+            $cityRow = City::whereRaw('LOWER(name) = ?', [mb_strtolower($city)])->first();
+            $country = trim((string) ($cityRow->country ?? ''));
+        }
+
+        if ($country === '') {
+            return $baseDmcId;
+        }
+
+        return self::resolveSiblingDmcIdForCountry($baseDmcId, $country);
     }
 
     /**
@@ -2255,6 +3391,213 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         }
 
         return $countries;
+    }
+
+    /**
+     * Collapse whitespace and lowercase a label for attraction/ticket matching.
+     */
+    public static function normalizeServiceLabel(?string $value): string
+    {
+        return strtolower(trim(preg_replace('/\s+/', ' ', (string) $value) ?? ''));
+    }
+
+    /**
+     * Dropdown/catalog label used for attractions: "Name - Location".
+     */
+    public static function attractionDisplayLabel($attraction): string
+    {
+        $name = trim((string) (is_array($attraction) ? ($attraction['name'] ?? '') : ($attraction->name ?? '')));
+        $location = trim((string) (is_array($attraction)
+            ? ($attraction['location'] ?? $attraction['city'] ?? '')
+            : ($attraction->location ?? $attraction->city ?? '')));
+
+        if ($name === '') {
+            return $location;
+        }
+
+        return $location !== '' ? ($name . ' - ' . $location) : $name;
+    }
+
+    /**
+     * Parse open_time / close_time (JSON array string or plain time) into a list.
+     *
+     * @return list<string>
+     */
+    public static function parseAttractionTimeList($value): array
+    {
+        if ($value === null || $value === '') {
+            return [];
+        }
+        if (is_array($value)) {
+            return array_values(array_filter(array_map(
+                static fn ($v) => trim((string) $v),
+                $value
+            )));
+        }
+
+        $raw = trim((string) $value);
+        $decoded = json_decode($raw, true);
+        if (is_array($decoded)) {
+            return array_values(array_filter(array_map(
+                static fn ($v) => trim((string) $v),
+                $decoded
+            )));
+        }
+
+        return $raw !== '' ? [$raw] : [];
+    }
+
+    /**
+     * Build selectable time slots from attraction open/close times.
+     *
+     * @return list<array{open: string, close: string, slot: string}>
+     */
+    public static function attractionTimeSlots($attraction): array
+    {
+        $openTimes = self::parseAttractionTimeList(
+            is_array($attraction) ? ($attraction['open_time'] ?? null) : ($attraction->open_time ?? null)
+        );
+        $closeTimes = self::parseAttractionTimeList(
+            is_array($attraction) ? ($attraction['close_time'] ?? null) : ($attraction->close_time ?? null)
+        );
+        if ($openTimes === [] || $closeTimes === []) {
+            return [];
+        }
+
+        $slots = [];
+        foreach ($openTimes as $index => $openTime) {
+            $closeTime = $closeTimes[$index] ?? $closeTimes[0] ?? '';
+            if ($openTime === '' || $closeTime === '') {
+                continue;
+            }
+            $slots[] = [
+                'open' => $openTime,
+                'close' => $closeTime,
+                'slot' => $openTime . ' - ' . $closeTime,
+            ];
+        }
+
+        return $slots;
+    }
+
+    /**
+     * Compact payload for attraction <option data-attraction-data>.
+     * Avoids embedding the full Eloquent model (which can break JSON in HTML attributes).
+     *
+     * @return array<string, mixed>
+     */
+    public static function attractionSelectPayload($attraction): array
+    {
+        $tickets = collect(is_array($attraction) ? ($attraction['tickets'] ?? []) : ($attraction->tickets ?? []))
+            ->map(function ($ticket) {
+                return [
+                    'ticket_id' => is_array($ticket) ? ($ticket['ticket_id'] ?? null) : ($ticket->ticket_id ?? null),
+                    'name' => is_array($ticket) ? ($ticket['name'] ?? '') : ($ticket->name ?? ''),
+                    'ticket_name' => is_array($ticket) ? ($ticket['name'] ?? $ticket['ticket_name'] ?? '') : ($ticket->name ?? ''),
+                    'adult_price' => is_array($ticket) ? ($ticket['adult_price'] ?? 0) : ($ticket->adult_price ?? 0),
+                    'child_price' => is_array($ticket) ? ($ticket['child_price'] ?? 0) : ($ticket->child_price ?? 0),
+                    'senior_price' => is_array($ticket)
+                        ? ($ticket['senior_price'] ?? $ticket['senior_adult_price'] ?? 0)
+                        : ($ticket->senior_price ?? $ticket->senior_adult_price ?? 0),
+                ];
+            })
+            ->values()
+            ->all();
+
+        $openTimes = self::parseAttractionTimeList(
+            is_array($attraction) ? ($attraction['open_time'] ?? null) : ($attraction->open_time ?? null)
+        );
+        $closeTimes = self::parseAttractionTimeList(
+            is_array($attraction) ? ($attraction['close_time'] ?? null) : ($attraction->close_time ?? null)
+        );
+        $timeSlots = self::attractionTimeSlots($attraction);
+
+        return [
+            'attraction_id' => is_array($attraction) ? ($attraction['attraction_id'] ?? null) : ($attraction->attraction_id ?? null),
+            'name' => is_array($attraction) ? ($attraction['name'] ?? '') : ($attraction->name ?? ''),
+            'location' => is_array($attraction) ? ($attraction['location'] ?? '') : ($attraction->location ?? ''),
+            'open_time' => $openTimes,
+            'close_time' => $closeTimes,
+            'time_slots' => $timeSlots,
+            'tickets' => $tickets,
+        ];
+    }
+
+    /**
+     * Match a catalog attraction when AI/day-level names include " - Location"
+     * or differ only by case/whitespace.
+     *
+     * @param  iterable<mixed>  $attractions
+     */
+    public static function matchAttractionFromList($attractions, $name, $attractionId = null)
+    {
+        $attractions = collect($attractions);
+        $name = trim((string) $name);
+        $attractionId = ($attractionId !== null && $attractionId !== '') ? (string) $attractionId : '';
+        $hasUsableName = $name !== '' && strcasecmp($name, 'N/A') !== 0;
+        $target = $hasUsableName ? self::normalizeServiceLabel($name) : '';
+
+        $matchByName = function () use ($attractions, $target, $hasUsableName) {
+            if (! $hasUsableName) {
+                return null;
+            }
+
+            $exact = $attractions->first(function ($attraction) use ($target) {
+                $attrName = is_array($attraction) ? ($attraction['name'] ?? '') : ($attraction->name ?? '');
+
+                return self::normalizeServiceLabel($attrName) === $target;
+            });
+            if ($exact) {
+                return $exact;
+            }
+
+            return $attractions->first(function ($attraction) use ($target) {
+                $label = self::normalizeServiceLabel(self::attractionDisplayLabel($attraction));
+                if ($label === $target) {
+                    return true;
+                }
+
+                $attrName = self::normalizeServiceLabel(is_array($attraction) ? ($attraction['name'] ?? '') : ($attraction->name ?? ''));
+                if ($attrName === '') {
+                    return false;
+                }
+
+                return str_starts_with($target, $attrName . ' - ');
+            });
+        };
+
+        if ($attractionId !== '') {
+            $byId = $attractions->first(function ($attraction) use ($attractionId) {
+                $id = is_array($attraction)
+                    ? ($attraction['attraction_id'] ?? $attraction['id'] ?? '')
+                    : ($attraction->attraction_id ?? $attraction->id ?? '');
+
+                return (string) $id === $attractionId;
+            });
+            if ($byId) {
+                // If a name was also provided and does not belong to this ID, prefer name
+                // (stale AttractionId after an edit is a common case).
+                if ($hasUsableName) {
+                    $idName = self::normalizeServiceLabel(
+                        is_array($byId) ? ($byId['name'] ?? '') : ($byId->name ?? '')
+                    );
+                    $idLabel = self::normalizeServiceLabel(self::attractionDisplayLabel($byId));
+                    $nameMatchesId = $target === $idName
+                        || $target === $idLabel
+                        || ($idName !== '' && str_starts_with($target, $idName . ' - '));
+                    if (! $nameMatchesId) {
+                        $byName = $matchByName();
+                        if ($byName) {
+                            return $byName;
+                        }
+                    }
+                }
+
+                return $byId;
+            }
+        }
+
+        return $matchByName();
     }
 
     /**
@@ -2791,6 +4134,43 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         return null;
     }
 
+    /**
+     * Resolve lite/pro AI booking mode from DMC user settings (users.ai_response_type).
+     * Falls back to master DMC when the child DMC has no selection.
+     */
+    public static function resolveDmcAiResponseType(?User $dmcUser): ?string
+    {
+        if ($dmcUser === null) {
+            return null;
+        }
+
+        $type = strtolower(trim((string) ($dmcUser->ai_response_type ?? '')));
+        if (in_array($type, ['lite', 'pro'], true)) {
+            return $type;
+        }
+
+        $masterId = (int) ($dmcUser->master_dmc_id ?? 0);
+        if ($masterId > 0 && $masterId !== (int) $dmcUser->userId) {
+            $master = User::where('userId', $masterId)->first();
+            if ($master) {
+                $masterType = strtolower(trim((string) ($master->ai_response_type ?? '')));
+                if (in_array($masterType, ['lite', 'pro'], true)) {
+                    return $masterType;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Map DMC ai_response_type to tours.is_pro (1 = pro, 0 = lite).
+     */
+    public static function resolveTourIsProFromDmc(?User $dmcUser): int
+    {
+        return self::resolveDmcAiResponseType($dmcUser) === 'pro' ? 1 : 0;
+    }
+
     public static function normalizeEmailMessageId(?string $messageId): ?string
     {
         $messageId = trim((string) $messageId);
@@ -3131,49 +4511,77 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         ?string $threadSubject = null,
         array $referenceMessageIds = [],
         array $ccEmails = [],
-        array $bccEmails = []
+        array $bccEmails = [],
+        ?array $runtimeMailConfig = null
     ): void {
-        // Use DMC-specific SMTP from emails_setup (not .env)
-        self::applyEmailsSetupMailConfig();
+        $previousMailConfig = null;
+        if ($runtimeMailConfig !== null) {
+            $previousMailConfig = [
+                'default' => Config::get('mail.default'),
+                'smtp' => Config::get('mail.mailers.smtp'),
+                'from' => Config::get('mail.from'),
+            ];
+            self::applyRuntimeMailConfig($runtimeMailConfig);
+            $fromEmail = $fromEmail ?: ($runtimeMailConfig['from_email'] ?? null);
+            $fromName = $fromName ?: ($runtimeMailConfig['from_name'] ?? null);
+        } else {
+            // Use DMC-specific SMTP from emails_setup for normal sends.
+            self::applyEmailsSetupMailConfig();
+        }
 
-        if ($emailUuid !== null && $emailUuid !== '') {
-            $finalSubject = self::applyThreadReplySubject($subject, $threadSubject);
-            $referenceChain = self::buildEmailReferenceChain($emailUuid, $referenceMessageIds);
+        try {
+            if ($emailUuid !== null && $emailUuid !== '') {
+                $finalSubject = self::applyThreadReplySubject($subject, $threadSubject);
+                $referenceChain = self::buildEmailReferenceChain($emailUuid, $referenceMessageIds);
 
-            Mail::to($recipientEmail)->send(new AutomatedMail(
+                Mail::to($recipientEmail)->send(new AutomatedMail(
+                    $html,
+                    $finalSubject,
+                    $emailUuid,
+                    $fromEmail,
+                    $fromName,
+                    $replyToEmail,
+                    $referenceChain,
+                    $ccEmails,
+                    $bccEmails,
+                    $runtimeMailConfig
+                ));
+
+                Log::info('Threaded email sent', [
+                    'to' => $recipientEmail,
+                    'cc' => $ccEmails,
+                    'bcc' => $bccEmails,
+                    'in_reply_to' => $emailUuid,
+                    'references' => $referenceChain,
+                    'subject' => $finalSubject,
+                    'thread_subject' => $threadSubject,
+                ]);
+
+                return;
+            }
+
+            Mail::to($recipientEmail)->send(new DmcMail(
                 $html,
-                $finalSubject,
-                $emailUuid,
+                $subject,
                 $fromEmail,
                 $fromName,
                 $replyToEmail,
-                $referenceChain,
                 $ccEmails,
-                $bccEmails
+                $bccEmails,
+                $runtimeMailConfig
             ));
-
-            Log::info('Threaded email sent', [
-                'to' => $recipientEmail,
-                'cc' => $ccEmails,
-                'bcc' => $bccEmails,
-                'in_reply_to' => $emailUuid,
-                'references' => $referenceChain,
-                'subject' => $finalSubject,
-                'thread_subject' => $threadSubject,
-            ]);
-
-            return;
+        } finally {
+            if ($previousMailConfig !== null) {
+                Config::set('mail.default', $previousMailConfig['default']);
+                Config::set('mail.mailers.smtp', $previousMailConfig['smtp']);
+                Config::set('mail.from', $previousMailConfig['from']);
+                try {
+                    app('mail.manager')->purge('smtp');
+                } catch (\Throwable $e) {
+                    // Mail manager may not be bound in some contexts.
+                }
+            }
         }
-
-        Mail::to($recipientEmail)->send(new DmcMail(
-            $html,
-            $subject,
-            $fromEmail,
-            $fromName,
-            $replyToEmail,
-            $ccEmails,
-            $bccEmails
-        ));
     }
 
     /**
@@ -3205,7 +4613,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
     /**
      * Send tour proposal email to agent
      * Date: Current
-     * 
+     *
      * @param int $agentId - Agent ID
      * @param int $tourId - Tour ID
      * @param string $tourDisplayId - Tour Display ID
@@ -3418,11 +4826,14 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             $subject = 'Booking #' . ($emailData['tour_display_id'] !== 'N/A' ? $emailData['tour_display_id'] : '') . ' â€” Travclicks';
 
             $html = view('email.booking-confirmation', $emailData)->render();
+            $runtimeMailConfig = is_array($tourData['_mail_config'] ?? null)
+                ? $tourData['_mail_config']
+                : null;
             $dmcContactEmail = trim((string) ($emailData['dmc_contact_email'] ?? ''));
-            $fromEmail = (string) config('mail.from.address');
-            $fromName = trim((string) config('mail.from.name', 'Travclicks'));
+            $fromEmail = (string) ($runtimeMailConfig['from_email'] ?? config('mail.from.address'));
+            $fromName = trim((string) ($runtimeMailConfig['from_name'] ?? config('mail.from.name', 'Travclicks')));
             $dmcLabel = trim((string) ($emailData['dmc_label'] ?? $emailData['dmc_name'] ?? ''));
-            if ($dmcLabel !== '' && $dmcLabel !== 'DMC') {
+            if ($runtimeMailConfig === null && $dmcLabel !== '' && $dmcLabel !== 'DMC') {
                 $fromName = $dmcLabel.' via '.$fromName;
             }
             $replyTo = ($dmcContactEmail !== '' && filter_var($dmcContactEmail, FILTER_VALIDATE_EMAIL))
@@ -3440,7 +4851,8 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 $threadSubject,
                 $referenceMessageIds,
                 $ccEmails,
-                $bccEmails
+                $bccEmails,
+                $runtimeMailConfig
             );
 
             Log::info('Booking confirmation email sent', [
@@ -3488,18 +4900,22 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             $subject = 'Quotation #' . $displayId . ' from ' . $dmcName . ' â€” Travclicks';
 
             $html = view('email.quotation-confirmation', $emailData)->render();
+            $runtimeMailConfig = is_array($tourData['_mail_config'] ?? null)
+                ? $tourData['_mail_config']
+                : null;
             self::sendHtmlEmail(
                 $recipientEmail,
                 $html,
                 trim($subject),
-                null,
-                null,
-                null,
+                $runtimeMailConfig['from_email'] ?? null,
+                $runtimeMailConfig['from_name'] ?? null,
+                $runtimeMailConfig['from_email'] ?? null,
                 $emailUuid,
                 $threadSubject,
                 $referenceMessageIds,
                 $ccEmails,
-                $bccEmails
+                $bccEmails,
+                $runtimeMailConfig
             );
 
             Log::info('Quotation email sent', [
@@ -3979,7 +5395,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
 
         $baseCurrency = strtoupper((string) ($tour->currency ?? self::resolveTourEmailCurrency($tour, $dmcUser)));
 
-        return self::normalizeQuotationEmailData(array_merge($pdfData, [
+        return self::normalizeQuotationEmailData(array_merge($pdfData, self::buildTourTripSummaryFields($tour, $pdfData, $baseCurrency), [
             'dmc_name' => $dmcName,
             'dmc_logo' => self::resolveEmailLogoUrl($dmcUser?->logo ?? null),
             'dmc_label' => $dmcName,
@@ -4000,6 +5416,799 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             'logoType' => 'dmc',
             'quotationInformationHtml' => (string) ($pdfData['quotationInformationHtml'] ?? ''),
         ]));
+    }
+
+    /**
+     * City names for display, from the stored
+     * "Batam (Indonesia) [2026-08-14->2026-09-05], ..." format.
+     * Country suffixes, date ranges and cities already named by the
+     * destination are dropped so the summary reads "Indonesia - Batam".
+     */
+    protected static function formatTourCitiesLabel($rawCity, string $destination): string
+    {
+        $rawCity = trim((string) $rawCity);
+        if ($rawCity === '') {
+            return '';
+        }
+
+        $stripped = preg_replace(['/\[[^\]]*\]/u', '/\([^)]*\)/u'], '', $rawCity) ?? $rawCity;
+
+        $destinations = array_filter(array_map(
+            static fn ($part) => mb_strtolower(trim($part)),
+            explode(',', $destination)
+        ));
+
+        $cities = [];
+        foreach (explode(',', $stripped) as $part) {
+            $name = trim($part);
+            if ($name === '' || in_array(mb_strtolower($name), $destinations, true)) {
+                continue;
+            }
+            if (! in_array($name, $cities, true)) {
+                $cities[] = $name;
+            }
+        }
+
+        return implode(', ', $cities);
+    }
+
+    /**
+     * Flat "Trip summary" fields for the quotation/booking email header card.
+     *
+     * prepareEmailTemplateData() returns the PDF-shaped payload (tour object,
+     * bookingDetails, tourPrices), but the email card reads flat keys such as
+     * check_in_date / adults / country. Without this mapping the card renders
+     * N/A, 0 guest(s) and no value.
+     *
+     * @param  array<string, mixed>  $pdfData
+     * @return array<string, mixed>
+     */
+    protected static function buildTourTripSummaryFields(Tour $tour, array $pdfData, string $currencyCode): array
+    {
+        $bookingDetails = is_array($pdfData['bookingDetails'] ?? null) ? $pdfData['bookingDetails'] : [];
+
+        $adults = (int) ($bookingDetails['no_of_adults'] ?? $tour->adult ?? 0);
+        $children = (int) ($bookingDetails['no_of_children'] ?? $tour->child ?? 0);
+        $infants = (int) ($bookingDetails['no_of_infants'] ?? $tour->infant ?? 0);
+
+        $formatDate = static function ($value): string {
+            if (empty($value)) {
+                return 'N/A';
+            }
+
+            try {
+                return Carbon::parse($value)->format('M d, Y');
+            } catch (\Throwable $e) {
+                return 'N/A';
+            }
+        };
+
+        // tours has no country column; destination holds the country name.
+        $destination = trim((string) ($tour->destination ?? ''));
+        $city = self::formatTourCitiesLabel($tour->city ?? null, $destination);
+
+        $tourPrices = is_array($pdfData['tourPrices'] ?? null) ? $pdfData['tourPrices'] : [];
+        $estimatedTotal = self::estimateQuotationPackageTotal($tour, $tourPrices, $adults, $children, $infants);
+
+        return [
+            'country' => $destination,
+            'destination' => $destination !== '' ? $destination : 'N/A',
+            'cities_label' => $city,
+            'check_in_date' => $formatDate($tour->check_in_time ?? null),
+            'check_out_date' => $formatDate($tour->check_out_time ?? null),
+            'adults' => $adults,
+            'children' => $children,
+            'infants' => $infants,
+            'total_guests' => $adults + $children + $infants,
+            'currency_code' => $currencyCode,
+            'total_estimation' => round($estimatedTotal, 2),
+        ];
+    }
+
+    /**
+     * Intelligent Est. Quotation Value for FIT / GROUP rooming scenarios.
+     *
+     * Hotel = nightly_room_rate × rooms × trip_nights
+     * Other = other_per_head × chargeable adults (not × nights, not × children)
+     *
+     * tourPrices hotel figures are per-head stay totals (nights already summed for
+     * the hotel booking). Convert to a nightly ROOM rate before × trip nights.
+     *
+     * @param  array<string, mixed>  $tourPrices
+     */
+    protected static function estimateQuotationPackageTotal(
+        Tour $tour,
+        array $tourPrices,
+        int $adults,
+        int $children = 0,
+        int $infants = 0
+    ): float {
+        $otherSingle = (float) ($tourPrices['other_services_single'] ?? 0);
+        $otherDouble = (float) ($tourPrices['other_services_double'] ?? 0);
+        $hotelStaySingle = max(0, (float) ($tourPrices['single_sharing'] ?? 0) - $otherSingle);
+        $hotelStayDouble = max(0, (float) ($tourPrices['double_sharing'] ?? 0) - $otherDouble);
+        $hotelStayTriple = max(0, (float) ($tourPrices['triple_sharing'] ?? 0) - $otherSingle);
+
+        $tripNights = self::resolveTourNightCount($tour);
+        $hotelBookedNights = self::resolveHotelBookedNightCount($tour, $tourPrices, $tripNights);
+
+        $nightlyRoom = [
+            'single' => self::nightlyRoomRateFromStay($hotelStaySingle, $hotelBookedNights, 1),
+            'double' => self::nightlyRoomRateFromStay($hotelStayDouble, $hotelBookedNights, 2),
+            'triple' => self::nightlyRoomRateFromStay($hotelStayTriple, $hotelBookedNights, 3),
+        ];
+
+        $focSeats = strtoupper((string) ($tour->tour_type ?? 'FIT')) === 'GROUP'
+            ? max(0, (int) ($tour->foc_size ?? 0))
+            : 0;
+        $chargeableAdults = max(0, $adults - $focSeats);
+
+        $roomPlan = self::buildHotelRoomPlan(
+            $chargeableAdults,
+            $nightlyRoom['single'] > 0,
+            $nightlyRoom['double'] > 0,
+            $nightlyRoom['triple'] > 0
+        );
+
+        $hotelTotal = 0.0;
+        foreach ($roomPlan as $occupancy => $rooms) {
+            if ($rooms <= 0) {
+                continue;
+            }
+            $hotelTotal += $nightlyRoom[$occupancy] * $rooms * $tripNights;
+        }
+
+        $primaryOccupancy = $roomPlan['triple'] > 0 ? 'triple'
+            : ($roomPlan['double'] > 0 ? 'double' : 'single');
+        $otherPerHead = $primaryOccupancy === 'single'
+            ? $otherSingle
+            : ($otherDouble > 0 ? $otherDouble : $otherSingle);
+
+        return $hotelTotal + ($otherPerHead * $chargeableAdults);
+    }
+
+    /**
+     * Human-readable label for a booked order item in price breakdowns.
+     *
+     * @param  array<string, mixed>  $item
+     */
+    protected static function resolveOrderItemPriceLabel(string $type, array $item): string
+    {
+        $normalizedType = strtolower(str_replace(' ', '_', trim($type)));
+        $headline = static fn (string $value): string => \Illuminate\Support\Str::headline(
+            str_replace(['_', '-'], ' ', trim($value))
+        );
+
+        $name = trim((string) (
+            $item['AttractionName']
+            ?? $item['attractionName']
+            ?? $item['restaurantName']
+            ?? $item['restaurant_name']
+            ?? $item['hotelName']
+            ?? $item['name']
+            ?? ''
+        ));
+
+        return match ($normalizedType) {
+            'attraction', 'attraction_package' => 'Attraction' . ($name !== '' ? ': ' . $name : ''),
+            'restaurant' => 'Restaurant' . ($name !== '' ? ': ' . $name : ''),
+            'entry_port' => 'Arrival' . ($name !== '' ? ': ' . $name : ''),
+            'exit_port' => 'Departure' . ($name !== '' ? ': ' . $name : ''),
+            'guide' => 'Guide' . ($name !== '' ? ': ' . $name : ''),
+            'travel_point', 'point_to_point' => 'Point to Point' . ($name !== '' ? ': ' . $name : ''),
+            'travel_hourly', 'hourly' => 'Hourly Transfer' . ($name !== '' ? ': ' . $name : ''),
+            'local_transport', 'local_transfer', 'local_transfer_vehicle', 'port_transport' => 'Local Transfer' . ($name !== '' ? ': ' . $name : ''),
+            default => ($name !== '' ? $name : $headline($normalizedType !== '' ? $normalizedType : 'Service')),
+        };
+    }
+
+    /**
+     * Segregated quotation price breakdown for PDF / email display.
+     * Hotels show per-head × pax-in-room (e.g. double rate × 2). Other services show per-head × chargeable adults.
+     *
+     * @param  array<string, mixed>  $tourPrices
+     * @return array{lines: array<int, array<string, mixed>>, grand_total: float, occupancy_key: string, chargeable_adults: int}
+     */
+    public static function buildQuotationPriceBreakdown(
+        Tour $tour,
+        array $tourPrices,
+        int $adults,
+        int $children = 0,
+        int $infants = 0
+    ): array {
+        unset($infants);
+
+        $isProTour = (int) ($tour->is_pro ?? 0) === 1;
+        $tourType = strtoupper((string) ($tour->tour_type ?? 'FIT'));
+        $focSize = $tourType === 'GROUP' ? max(0, (int) ($tour->foc_size ?? 0)) : 0;
+        $chargeableAdults = max(0, $adults - $focSize);
+        $occupancyKey = $adults >= 2 ? 'double' : 'single';
+        $hotelPaxInRoom = $occupancyKey === 'double' ? 2 : 1;
+
+        $lines = [];
+        $grandTotal = 0.0;
+
+        foreach ($tourPrices['hotel_price_options'] ?? [] as $hotelOption) {
+            if (! is_array($hotelOption)) {
+                continue;
+            }
+
+            $label = trim((string) ($hotelOption['display_name'] ?? $hotelOption['hotel_name'] ?? 'Hotel'));
+            $single = (float) ($hotelOption['single'] ?? 0);
+            $double = (float) ($hotelOption['double'] ?? 0);
+            if ($isProTour && $double > 0) {
+                $single = $double;
+            }
+
+            $perHead = $occupancyKey === 'double' ? ($double > 0 ? $double : $single) : $single;
+            if ($perHead <= 0) {
+                continue;
+            }
+
+            $lineTotal = $perHead * $hotelPaxInRoom;
+            $lines[] = [
+                'label' => $label,
+                'category' => 'hotel',
+                'per_head' => $perHead,
+                'multiplier' => $hotelPaxInRoom,
+                'multiplier_label' => (string) $hotelPaxInRoom,
+                'line_total' => $lineTotal,
+                'formula' => 'per_head × pax',
+            ];
+            $grandTotal += $lineTotal;
+        }
+
+        foreach ($tourPrices['service_price_lines'] ?? [] as $serviceLine) {
+            if (! is_array($serviceLine)) {
+                continue;
+            }
+
+            $label = trim((string) ($serviceLine['label'] ?? 'Service'));
+            $single = (float) ($serviceLine['single'] ?? 0);
+            $double = (float) ($serviceLine['double'] ?? 0);
+            $childUnit = (float) ($serviceLine['child_unit'] ?? 0);
+            $perHead = $occupancyKey === 'double' ? ($double > 0 ? $double : $single) : $single;
+
+            if ($perHead <= 0 && $childUnit <= 0) {
+                continue;
+            }
+
+            $adultPart = $perHead * max(1, $chargeableAdults);
+            $childPart = $childUnit * max(0, $children);
+            $lineTotal = $adultPart + $childPart;
+
+            $lines[] = [
+                'label' => $label,
+                'category' => (string) ($serviceLine['type'] ?? 'other'),
+                'per_head' => $perHead,
+                'multiplier' => max(1, $chargeableAdults),
+                'multiplier_label' => (string) max(1, $chargeableAdults),
+                'child_unit' => $childUnit,
+                'child_count' => max(0, $children),
+                'child_part' => $childPart,
+                'line_total' => $lineTotal,
+                'formula' => $childPart > 0 ? 'adult + child' : 'per_head × pax',
+            ];
+            $grandTotal += $lineTotal;
+        }
+
+        return [
+            'lines' => $lines,
+            'grand_total' => $grandTotal,
+            'occupancy_key' => $occupancyKey,
+            'chargeable_adults' => $chargeableAdults,
+        ];
+    }
+
+    /**
+     * Trip nights from tour check-in / check-out (minimum 1).
+     */
+    protected static function resolveTourNightCount(Tour $tour): int
+    {
+        try {
+            if (! empty($tour->check_in_time) && ! empty($tour->check_out_time)) {
+                return max(1, (int) Carbon::parse($tour->check_in_time)->diffInDays(Carbon::parse($tour->check_out_time)));
+            }
+        } catch (\Throwable $e) {
+            // fall through
+        }
+
+        return 1;
+    }
+
+    /**
+     * Nights already baked into tourPrices hotel stay totals.
+     *
+     * @param  array<string, mixed>  $tourPrices
+     */
+    protected static function resolveHotelBookedNightCount(Tour $tour, array $tourPrices, int $tripNights): int
+    {
+        $options = $tourPrices['hotel_price_options'] ?? [];
+        if (is_array($options)) {
+            $nights = 0;
+            foreach ($options as $option) {
+                if (! is_array($option)) {
+                    continue;
+                }
+                $range = (string) ($option['date_range'] ?? $option['booking_range'] ?? '');
+                if (preg_match('/(\d{4}-\d{2}-\d{2})\s+to\s+(\d{4}-\d{2}-\d{2})/i', $range, $m)) {
+                    try {
+                        $nights += max(1, (int) Carbon::parse($m[1])->diffInDays(Carbon::parse($m[2])));
+                    } catch (\Throwable $e) {
+                        // ignore bad range
+                    }
+                }
+            }
+            if ($nights > 0) {
+                return $nights;
+            }
+        }
+
+        // Fall back to hotel order bookingDate ranges on this tour.
+        try {
+            $orders = Order::where('tour_id', $tour->tour_id)
+                ->where('status', 1)
+                ->where(function ($q) {
+                    $q->where('type', 'hotel')->orWhere('type', 'Hotel');
+                })
+                ->get();
+
+            $nights = 0;
+            foreach ($orders as $order) {
+                $raw = $order->data;
+                if (is_string($raw)) {
+                    $raw = json_decode($raw, true);
+                }
+                if (! is_array($raw) || $raw === []) {
+                    continue;
+                }
+                $items = isset($raw[0]) ? $raw : [$raw];
+                foreach ($items as $item) {
+                    if (! is_array($item)) {
+                        continue;
+                    }
+                    $bookingDate = $item['bookingDate'] ?? null;
+                    if (is_array($bookingDate) && count($bookingDate) >= 2 && ! empty($bookingDate[0]) && ! empty($bookingDate[1])) {
+                        $nights += max(1, (int) Carbon::parse($bookingDate[0])->diffInDays(Carbon::parse($bookingDate[1])));
+                        continue;
+                    }
+                    $night = (int) ($item['night'] ?? $item['nights'] ?? 0);
+                    if ($night > 0) {
+                        $nights += $night;
+                    }
+                }
+            }
+            if ($nights > 0) {
+                return $nights;
+            }
+        } catch (\Throwable $e) {
+            // fall through
+        }
+
+        return max(1, $tripNights);
+    }
+
+    /**
+     * Convert a per-head stay total into a nightly ROOM rate.
+     */
+    protected static function nightlyRoomRateFromStay(float $stayPerHead, int $hotelBookedNights, int $headsPerRoom): float
+    {
+        if ($stayPerHead <= 0 || $headsPerRoom <= 0) {
+            return 0.0;
+        }
+
+        $nights = max(1, $hotelBookedNights);
+
+        return ($stayPerHead / $nights) * $headsPerRoom;
+    }
+
+    /**
+     * Allocate rooms for chargeable adults using the largest available occupancy.
+     *
+     * @return array{single: int, double: int, triple: int}
+     */
+    protected static function buildHotelRoomPlan(
+        int $adults,
+        bool $singleAvailable,
+        bool $doubleAvailable,
+        bool $tripleAvailable
+    ): array {
+        $plan = ['single' => 0, 'double' => 0, 'triple' => 0];
+        $remaining = max(0, $adults);
+
+        if ($remaining === 0) {
+            if ($singleAvailable) {
+                $plan['single'] = 1;
+            } elseif ($doubleAvailable) {
+                $plan['double'] = 1;
+            }
+
+            return $plan;
+        }
+
+        if ($tripleAvailable) {
+            $plan['triple'] = intdiv($remaining, 3);
+            $remaining %= 3;
+        }
+
+        if ($doubleAvailable) {
+            $plan['double'] = intdiv($remaining, 2);
+            $remaining %= 2;
+            if ($remaining === 1 && ! $singleAvailable) {
+                $plan['double']++;
+                $remaining = 0;
+            }
+        }
+
+        if ($remaining > 0) {
+            if ($singleAvailable) {
+                $plan['single'] += $remaining;
+            } elseif ($doubleAvailable) {
+                $plan['double'] += $remaining;
+            } elseif ($tripleAvailable) {
+                $plan['triple'] += (int) ceil($remaining / 3);
+            }
+        }
+
+        if ($adults > 0 && ($plan['single'] + $plan['double'] + $plan['triple']) === 0) {
+            if ($doubleAvailable) {
+                $plan['double'] = max(1, (int) ceil($adults / 2));
+            } elseif ($singleAvailable) {
+                $plan['single'] = $adults;
+            } elseif ($tripleAvailable) {
+                $plan['triple'] = max(1, (int) ceil($adults / 3));
+            } else {
+                $plan['double'] = 1;
+            }
+        }
+
+        return $plan;
+    }
+
+    /**
+     * Resolve quotation hotel display occupancy from booked rooming (not total pax).
+     * e.g. 14 pax in 7 double rooms => double occupancy, not triple.
+     *
+     * Uses rooms.selected_persons (1→SGL, 2→DBL, 3→TRPL) — same source as Overall Package.
+     * Bed head_count is capacity only and must not override the booked occupancy.
+     *
+     * @param  \Illuminate\Support\Collection|array|null  $orders
+     * @param  array<int, array<string, mixed>>|null  $hotelOptions
+     * @return array{occupancy_key: string, rooming_text: string, room_counts: array{single: int, double: int, triple: int}}
+     */
+    public static function resolveQuotationHotelDisplayOccupancy($orders = null, ?array $hotelOptions = null, int $adults = 0): array
+    {
+        $roomCounts = ['single' => 0, 'double' => 0, 'triple' => 0];
+
+        $classifyOccupancy = static function (int $selectedPersons): ?string {
+            if ($selectedPersons >= 3) {
+                return 'triple';
+            }
+            if ($selectedPersons === 2) {
+                return 'double';
+            }
+            if ($selectedPersons === 1) {
+                return 'single';
+            }
+
+            return null;
+        };
+
+        $resolveRoomSelectedPersons = static function (array $room): int {
+            $selectedPersons = (int) ($room['selected_persons'] ?? $room['selectedPersons'] ?? 0);
+            if ($selectedPersons >= 1) {
+                return max(1, min(3, $selectedPersons));
+            }
+
+            $occ = strtolower(trim((string) ($room['occupancy'] ?? $room['room_occupancy'] ?? '')));
+            if ($occ !== '') {
+                if (str_contains($occ, 'triple') || $occ === '3') {
+                    return 3;
+                }
+                if (str_contains($occ, 'double') || $occ === '2' || str_contains($occ, 'twin')) {
+                    return 2;
+                }
+                if (str_contains($occ, 'single') || $occ === '1') {
+                    return 1;
+                }
+            }
+
+            // Last resort only: bed capacity (often 3 even when guest booked double)
+            $beds = isset($room['beds']) && is_array($room['beds']) ? $room['beds'] : [];
+            $maxHead = 0;
+            foreach ($beds as $bed) {
+                if (! is_array($bed)) {
+                    continue;
+                }
+                $maxHead = max(
+                    $maxHead,
+                    (int) ($bed['head_count'] ?? $bed['headCount'] ?? $bed['occupancy'] ?? 0)
+                );
+            }
+
+            return $maxHead >= 1 ? max(1, min(3, $maxHead)) : 0;
+        };
+
+        $orderList = $orders instanceof \Illuminate\Support\Collection
+            ? $orders
+            : collect($orders ?? []);
+
+        foreach ($orderList as $order) {
+            if (strtolower((string) ($order->type ?? '')) !== 'hotel') {
+                continue;
+            }
+
+            $rawData = $order->data;
+            if (is_string($rawData)) {
+                $rawData = json_decode($rawData, true);
+            }
+            if (empty($rawData) || ! is_array($rawData)) {
+                continue;
+            }
+
+            $items = isset($rawData[0]) && is_array($rawData[0]) ? $rawData : [$rawData];
+            foreach ($items as $item) {
+                if (! is_array($item)) {
+                    continue;
+                }
+
+                $rooms = $item['rooms'] ?? [];
+                if (! is_array($rooms)) {
+                    continue;
+                }
+
+                foreach ($rooms as $room) {
+                    if (! is_array($room)) {
+                        continue;
+                    }
+
+                    $noOfRooms = (int) ($room['no_of_room'] ?? $room['number_of_rooms'] ?? 0);
+                    $noOfRooms = $noOfRooms > 0 ? $noOfRooms : 1;
+                    $bucket = $classifyOccupancy($resolveRoomSelectedPersons($room));
+                    if ($bucket === null) {
+                        continue;
+                    }
+                    $roomCounts[$bucket] += $noOfRooms;
+                }
+            }
+        }
+
+        // Prefer hotel_price_options when available — same selected_persons as Overall Package lines
+        // Build labeled parts: "01 DBL TWIN (Singapore) + 01 TRPL (Batam)"
+        $roomingPartsLabeled = [];
+        if (is_array($hotelOptions) && count($hotelOptions) > 0) {
+            $fromOptions = ['single' => 0, 'double' => 0, 'triple' => 0];
+            $anyOptionSp = false;
+            foreach ($hotelOptions as $hotel) {
+                if (! is_array($hotel)) {
+                    continue;
+                }
+                $sp = (int) ($hotel['selected_persons'] ?? $hotel['selectedPersons'] ?? 0);
+                if ($sp <= 0) {
+                    if (! empty($hotel['show_triple']) || (float) ($hotel['triple'] ?? 0) > 0) {
+                        $sp = 3;
+                    } elseif (! empty($hotel['show_double']) || (float) ($hotel['double'] ?? 0) > 0) {
+                        $sp = 2;
+                    } elseif (! empty($hotel['show_single']) || (float) ($hotel['single'] ?? 0) > 0) {
+                        $sp = 1;
+                    }
+                }
+                if ($sp >= 1) {
+                    $anyOptionSp = true;
+                    $roomsQty = 1;
+                    if (isset($hotel['number_of_rooms']) && is_numeric($hotel['number_of_rooms'])) {
+                        $roomsQty = max(1, (int) $hotel['number_of_rooms']);
+                    } elseif (isset($hotel['rooms_count']) && is_numeric($hotel['rooms_count'])) {
+                        $roomsQty = max(1, (int) $hotel['rooms_count']);
+                    } elseif (isset($hotel['no_of_rooms']) && is_numeric($hotel['no_of_rooms'])) {
+                        $roomsQty = max(1, (int) $hotel['no_of_rooms']);
+                    }
+                    $bucket = $classifyOccupancy(max(1, min(3, $sp)));
+                    if ($bucket !== null) {
+                        $fromOptions[$bucket] += $roomsQty;
+                        $occLabel = match ($bucket) {
+                            'single' => 'SGL',
+                            'double' => 'DBL TWIN',
+                            'triple' => 'TRPL',
+                            default => 'DBL TWIN',
+                        };
+                        $cityLabel = trim((string) ($hotel['city'] ?? ''));
+                        if ($cityLabel === '') {
+                            $cityLabel = trim((string) ($hotel['country'] ?? ''));
+                        }
+                        $part = sprintf('%02d %s', $roomsQty, $occLabel);
+                        if ($cityLabel !== '') {
+                            $part .= ' (' . $cityLabel . ')';
+                        }
+                        $roomingPartsLabeled[] = $part;
+                    }
+                    continue;
+                }
+                $nor = $hotel['no_of_rooms'] ?? null;
+                if (is_array($nor)) {
+                    $fromOptions['single'] += (int) ($nor['single'] ?? 0);
+                    $fromOptions['double'] += (int) ($nor['double'] ?? 0);
+                    $fromOptions['triple'] += (int) ($nor['triple'] ?? 0);
+                }
+            }
+            if ($anyOptionSp && (($fromOptions['single'] + $fromOptions['double'] + $fromOptions['triple']) > 0)) {
+                $roomCounts = $fromOptions;
+            } elseif (($roomCounts['single'] + $roomCounts['double'] + $roomCounts['triple']) === 0) {
+                $roomCounts = $fromOptions;
+            }
+        }
+
+        $totalRooms = $roomCounts['single'] + $roomCounts['double'] + $roomCounts['triple'];
+
+        if ($totalRooms > 0) {
+            if ($roomCounts['triple'] > 0
+                && $roomCounts['triple'] >= $roomCounts['double']
+                && $roomCounts['triple'] >= $roomCounts['single']) {
+                $occupancyKey = 'triple';
+            } elseif ($roomCounts['double'] > 0 && $roomCounts['double'] >= $roomCounts['single']) {
+                $occupancyKey = 'double';
+            } else {
+                $occupancyKey = 'single';
+            }
+        } else {
+            // No hotel booked — do not invent rooming (e.g. 01 DBL TWIN).
+            $occupancyKey = $adults <= 1 ? 'single' : 'double';
+        }
+
+        if ($roomingPartsLabeled !== []) {
+            $roomingParts = $roomingPartsLabeled;
+        } else {
+            $roomingParts = [];
+            if ($roomCounts['single'] > 0) {
+                $roomingParts[] = sprintf('%02d SGL', $roomCounts['single']);
+            }
+            if ($roomCounts['double'] > 0) {
+                $roomingParts[] = sprintf('%02d DBL TWIN', $roomCounts['double']);
+            }
+            if ($roomCounts['triple'] > 0) {
+                $roomingParts[] = sprintf('%02d TRPL', $roomCounts['triple']);
+            }
+        }
+
+        return [
+            'occupancy_key' => $occupancyKey,
+            'rooming_text' => implode(' & ', $roomingParts),
+            'room_counts' => $roomCounts,
+            'has_hotel_rooms' => $totalRooms > 0,
+        ];
+    }
+
+    /**
+     * Hotel per-pax rate for quotation display from actual hotel order totalPrice.
+     * Formula: totalPrice / (number_of_rooms × head_count)
+     *
+     * @param  \Illuminate\Support\Collection|array|null  $orders
+     * @return array{per_pax: float, rooms: int, head_count: int, hotel_total: float}|null
+     */
+    public static function resolveHotelQuotationPerPaxFromOrders($orders = null, $tour = null, ?string $targetCurrency = null): ?array
+    {
+        $orderList = $orders instanceof \Illuminate\Support\Collection
+            ? $orders
+            : collect($orders ?? []);
+
+        $hotelTotal = 0.0;
+        $totalRooms = 0;
+        $headCountPerRoom = 0;
+
+        foreach ($orderList as $order) {
+            if ((int) ($order->status ?? 0) !== 1) {
+                continue;
+            }
+            if (strtolower((string) ($order->type ?? '')) !== 'hotel') {
+                continue;
+            }
+
+            $rawData = $order->data;
+            if (is_string($rawData)) {
+                $rawData = json_decode($rawData, true);
+            }
+            if (empty($rawData) || ! is_array($rawData)) {
+                continue;
+            }
+
+            $orderCurrency = strtoupper(trim((string) ($order->currency ?? '')));
+            if ($orderCurrency === '' && $tour) {
+                $orderCurrency = strtoupper(trim((string) ($tour->currency ?? 'SGD')));
+            }
+            if ($orderCurrency === '') {
+                $orderCurrency = strtoupper(trim((string) ($targetCurrency ?? 'SGD')));
+            }
+
+            $items = isset($rawData[0]) && is_array($rawData[0]) ? $rawData : [$rawData];
+            foreach ($items as $item) {
+                if (! is_array($item)) {
+                    continue;
+                }
+
+                $amount = (float) ($item['totalPrice'] ?? $item['price'] ?? 0);
+                if ($amount <= 0) {
+                    continue;
+                }
+
+                if ($targetCurrency !== null && $targetCurrency !== '') {
+                    $converted = CurrencyHelper::convertAmount($amount, $orderCurrency, $targetCurrency);
+                    $hotelTotal += ($converted !== null) ? (float) $converted : $amount;
+                } else {
+                    $hotelTotal += $amount;
+                }
+
+                $rooms = $item['rooms'] ?? [];
+                if (! is_array($rooms)) {
+                    continue;
+                }
+
+                foreach ($rooms as $room) {
+                    if (! is_array($room)) {
+                        continue;
+                    }
+
+                    $noOfRooms = max(1, (int) ($room['number_of_rooms'] ?? $room['no_of_room'] ?? 1));
+                    $totalRooms += $noOfRooms;
+
+                    $beds = isset($room['beds']) && is_array($room['beds']) ? $room['beds'] : [];
+                    if (! empty($beds) && is_array($beds[0] ?? null)) {
+                        $headCountPerRoom = max($headCountPerRoom, max(1, (int) ($beds[0]['head_count'] ?? $beds[0]['headCount'] ?? 1)));
+                    } else {
+                        $selected = (int) ($room['selected_persons'] ?? $room['selectedPersons'] ?? 0);
+                        $headCountPerRoom = max($headCountPerRoom, max(1, $selected > 0 ? $selected : 1));
+                    }
+                }
+            }
+        }
+
+        if ($hotelTotal <= 0 || $totalRooms <= 0) {
+            return null;
+        }
+
+        if ($headCountPerRoom <= 0) {
+            $headCountPerRoom = 1;
+        }
+
+        $divisor = $totalRooms * $headCountPerRoom;
+        $perPax = $hotelTotal / max(1, $divisor);
+
+        return [
+            'per_pax' => ceil($perPax),
+            'rooms' => $totalRooms,
+            'head_count' => $headCountPerRoom,
+            'hotel_total' => ceil($hotelTotal),
+        ];
+    }
+
+    /**
+     * Night count for a hotel order item (bookingDate range, else tour dates).
+     */
+    protected static function resolveHotelOrderNightCount(array $item, $tour = null): int
+    {
+        $bookingDate = $item['bookingDate'] ?? null;
+        if (is_array($bookingDate) && count($bookingDate) === 2) {
+            try {
+                $start = Carbon::parse($bookingDate[0]);
+                $end = Carbon::parse($bookingDate[1]);
+
+                return max(1, $start->diffInDays($end));
+            } catch (\Throwable $e) {
+                // fall through
+            }
+        }
+
+        if ($tour && ! empty($tour->check_in_time) && ! empty($tour->check_out_time)) {
+            try {
+                $start = Carbon::parse($tour->check_in_time);
+                $end = Carbon::parse($tour->check_out_time);
+
+                return max(1, $start->diffInDays($end));
+            } catch (\Throwable $e) {
+                // fall through
+            }
+        }
+
+        return 1;
     }
 
     /**
@@ -4047,7 +6256,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
     /**
      * Send welcome email to agency when first DMC selects them
      * Date: Current
-     * 
+     *
      * @param int $agencyId - Agency ID
      * @param int $dmcId - DMC ID that selected the agency
      * @return bool|string - true on success, error message on failure
@@ -4092,14 +6301,14 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             // Send the email
             try {
                 Mail::to($agency->email)->send(new DmcMail($html, $subject));
-                
+               
                 // Log successful email sending
                 Log::info("Agency welcome email sent successfully", [
                     'agency_id' => $agencyId,
                     'agency_email' => $agency->email,
                     'dmc_id' => $dmcId
                 ]);
-                
+               
                 return true;
             } catch (\Exception $e) {
                 Log::error("Failed to send agency welcome email", [
@@ -4125,7 +6334,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
     /**
      * Send partnership invitation email to agency when additional DMC selects them
      * Date: Current
-     * 
+     *
      * @param int $agencyId - Agency ID
      * @param int $dmcId - DMC ID that selected the agency
      * @return bool|string - true on success, error message on failure
@@ -4159,7 +6368,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             ];
 
             // Email subject
-            $subject = "ðŸŒ You've Been Invited to Partner with {$dmcName} on Travclicks";
+            $subject = "ðŸŒ You've Been Invited to Partner with {$dmcName} on Travclicks";
 
             // Render the email template
             try {
@@ -4175,7 +6384,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             // Send the email
             try {
                 Mail::to($agency->email)->send(new DmcMail($html, $subject));
-                
+               
                 // Log successful email sending
                 Log::info("Agency partnership email sent successfully", [
                     'agency_id' => $agencyId,
@@ -4183,7 +6392,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                     'dmc_id' => $dmcId,
                     'dmc_name' => $dmcName
                 ]);
-                
+               
                 return true;
             } catch (\Exception $e) {
                 Log::error("Failed to send agency partnership email", [
@@ -4220,7 +6429,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
     /**
      * Send negotiation update email to agent
      * Date: Current
-     * 
+     *
      * @param int $agentId - Agent ID
      * @param int $tourId - Tour ID
      * @param string $tourDisplayId - Tour Display ID
@@ -4252,7 +6461,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             if (!$dmcId && isset($negotiationData['tour'])) {
                 $dmcId = $negotiationData['tour']->dmc_id ?? null;
             }
-            
+           
             $dmc = User::where('userId', $dmcId)->first();
             $dmcName = $dmc ? ($dmc->company_name ?? $dmc->name ?? 'DMC') : 'DMC';
             $dmcLogo = $dmc ? ($dmc->logo ?? null) : null;
@@ -4304,7 +6513,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             // Send the email
             try {
                 Mail::to($agent->email)->send(new DmcMail($html, $subject));
-                
+               
                 // Log successful email sending
                 Log::info("Negotiation email sent successfully", [
                     'agent_id' => $agentId,
@@ -4313,7 +6522,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                     'tour_display_id' => $tourDisplayId,
                     'negotiated_amount' => $negotiationData['negotiated_amount'] ?? 0
                 ]);
-                
+               
                 return true;
             } catch (\Exception $e) {
                 Log::error("Failed to send negotiation email", [
@@ -4355,7 +6564,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 $exchangeRate = (float) $rate;
             }
         }
-        
+       
         $orders = Order::where('tour_id', $tourId)
             ->where('status', 1)
             ->orderBy('booking_id')
@@ -4381,7 +6590,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             'postal_pin' => 'N/A',
             'company_name' => 'N/A',
         ];
-        
+       
         if (!empty($tour->dmc_id)) {
             $dmcUser = User::where('userId', $tour->dmc_id)->first();
             if ($dmcUser) {
@@ -4400,7 +6609,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                     'postal_pin' => 'N/A', // Postal/Pin - can be added to User model if needed
                     'company_name' => $dmcUser->company_name ?? 'N/A',
                 ];
-                
+               
                 // Convert logo URL to base64 for PDF display
                 if (!empty($logoUrl)) {
                     try {
@@ -4419,7 +6628,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                             ];
                             $mimeType = $mimeMap[$extension] ?? 'image/png';
                         }
-                        
+                       
                         // Try using Laravel HTTP client first
                         $response = Http::timeout(10)->get($logoUrl);
                         if ($response->successful()) {
@@ -4523,40 +6732,40 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             if (is_string($orderData)) {
                 $orderData = json_decode($orderData, true);
             }
-            
+           
             if (is_array($orderData) && !empty($orderData)) {
                 $firstItem = is_array($orderData[0]) ? $orderData[0] : $orderData;
-                
+               
                 // Extract guest information
                 $bookingDetails['lead_guest_name'] = $firstItem['fullName'] ?? $firstItem['name'] ?? 'N/A';
                 $bookingDetails['email'] = $firstItem['email'] ?? 'N/A';
                 $bookingDetails['gender'] = $firstItem['gender'] ?? 'N/A';
                 $bookingDetails['passenger_type'] = $firstItem['passenger_type'] ?? 'N/A';
                 $bookingDetails['salutation'] = $firstItem['salutation'] ?? 'N/A';
-                
+               
                 // Format phone number with country code if available
                 $phone = $firstItem['phone'] ?? 'N/A';
                 $bookingDetails['phone'] = $phone;
-                
-                
+               
+               
                 // Combine address1 and address2 for full address
                 $address1 = $firstItem['address1'] ?? '';
                 $address2 = $firstItem['address2'] ?? '';
                 if (!empty($address1) || !empty($address2)) {
                     $bookingDetails['address'] = trim($address1 . ' ' . $address2);
                 }
-                
+               
                 // State
                 $bookingDetails['city'] = $firstItem['state'] ?? 'N/A';
-                
+               
                 // Postal/Zip code
                 $bookingDetails['postal_code'] = $firstItem['zip'] ?? 'N/A';
             }
         }
-        
+       
         // Initialize passengers array
         $allPassengers = [];
-        
+       
         // Extract passengers from orders if available
         if ($orders->count() > 0) {
             foreach ($orders as $order) {
@@ -4564,10 +6773,10 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 if (is_string($orderData)) {
                     $orderData = json_decode($orderData, true);
                 }
-                
+               
                 if (is_array($orderData) && !empty($orderData)) {
                     $orderItem = is_array($orderData[0]) ? $orderData[0] : $orderData;
-                    
+                   
                     // Check if this order has passengers array
                     if (isset($orderItem['passengers']) && is_array($orderItem['passengers'])) {
                         foreach ($orderItem['passengers'] as $passenger) {
@@ -4579,7 +6788,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 }
             }
         }
-        
+       
         // Extract main guest from mainguest column
         if (!empty($tour->mainguest)) {
             try {
@@ -4614,7 +6823,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                     if (empty($bookingDetails['postal_code']) && !empty($mainguestData['zip'])) {
                         $bookingDetails['postal_code'] = $mainguestData['zip'];
                     }
-                    
+                   
                     // Add main guest to passengers array
                     $mainGuest = [
                         'salutation' => $mainguestData['salutation'] ?? 'Mr',
@@ -4641,7 +6850,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 ]);
             }
         }
-        
+       
         // Extract additional guests from additionalguest column
         if (!empty($tour->additionalguest)) {
             try {
@@ -4700,7 +6909,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 ]);
             }
         }
-        
+       
         // Remove duplicate passengers (by name and email)
         $uniquePassengers = [];
         $seenPassengers = [];
@@ -4711,7 +6920,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 $uniquePassengers[] = $passenger;
             }
         }
-        
+       
         // Add passengers to bookingDetails
         if (!empty($uniquePassengers)) {
             $bookingDetails['passengers'] = $uniquePassengers;
@@ -4743,7 +6952,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         $hotelOptions = self::formatHotelsForPdf($orders, $tour, $tourPrices);
         // Native country/currency totals from orders.country + orders.currency
         $countryQuotationGroups = self::buildCountryQuotationGroups($orders, $tour);
-        
+       
         // Get DMC ID - first try from tour, otherwise from current user
         $dmcIdForBankDetails = null;
         if (!empty($tour->dmc_id)) {
@@ -4755,18 +6964,18 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 $dmcIdForBankDetails = self::getDmcId($currentUser);
             }
         }
-        
+       
         // Fetch bank details from bank_details table based on DMC ID
         $bankDetails = [];
         $termsAndConditions = '';
         $paymentTerms = [];
-        
+       
         if ($dmcIdForBankDetails) {
             $bankDetailRecord = BankDetail::where('dmc_id', $dmcIdForBankDetails)
                 ->where('is_active', 1)
                 ->orderBy('created_at', 'desc')
                 ->first();
-            
+           
             if ($bankDetailRecord) {
                 // Extract bank details
                 $bankDetails = [
@@ -4779,10 +6988,10 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                     'branch_code' => $bankDetailRecord->branch_code ?? '',
                     'aba_routing' => $bankDetailRecord->aba_routing ?? '',
                 ];
-                
+               
                 // Extract terms and conditions
                 $termsAndConditions = $bankDetailRecord->terms_and_conditions ?? '';
-                
+               
                 // Extract payment terms (already cast as array in model)
                 $paymentTerms = $bankDetailRecord->payment_terms ?? [];
                 if (is_string($paymentTerms)) {
@@ -4793,7 +7002,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 }
             }
         }
-        
+       
         // Fallback to DMC user bank_details if bank_details table record not found
         if (empty($bankDetails) && $dmcUser && isset($dmcUser->bank_details)) {
             $bankDetailsData = is_string($dmcUser->bank_details) ? json_decode($dmcUser->bank_details, true) : $dmcUser->bank_details;
@@ -4801,10 +7010,10 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 $bankDetails = $bankDetailsData;
             }
         }
-        
+       
         // Exclusions (can be extended to fetch from database if needed)
         $exclusions = '';
-        
+       
         try {
             // Configure DomPDF options to work without GD if possible
             //$pdf = Pdf::loadView('single-tour-package.pdf-itinerary', [
@@ -4823,6 +7032,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 'tourPrices' => $tourPrices,
                 'hotelOptions' => $hotelOptions,
                 'countryQuotationGroups' => $countryQuotationGroups,
+                'orders' => $orders,
                 'bankDetails' => $bankDetails,
                 'termsAndConditions' => $termsAndConditions,
                 'exclusions' => $exclusions,
@@ -4834,7 +7044,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 'logoType' => $logoType,
                 'user_agency' => $userAgencyForHeader,
             ]);
-            
+           
             $pdf->setPaper('a4');
             $pdf->setOption('enable-php', false);
             $pdf->setOption('isHtml5ParserEnabled', true);
@@ -4851,7 +7061,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 Log::warning('PDF generation failed with logo, retrying without logo', [
                     'error' => $e->getMessage()
                 ]);
-                
+               
                 // Retry without logo
                 //$pdf = Pdf::loadView('single-tour-package.pdf-itinerary', [
                 $pdf = Pdf::loadView($viewName, [
@@ -4869,6 +7079,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                     'tourPrices' => $tourPrices,
                     'hotelOptions' => $hotelOptions,
                     'countryQuotationGroups' => $countryQuotationGroups,
+                    'orders' => $orders,
                     'bankDetails' => $bankDetails,
                     'termsAndConditions' => $termsAndConditions,
                     'exclusions' => $exclusions,
@@ -4880,7 +7091,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                     'logoType' => $logoType,
                     'user_agency' => $userAgencyForHeader,
                 ]);
-                
+               
                 $pdf->setPaper('a4');
                 $pdf->setOption('enable-php', false);
                 $pdf->setOption('isHtml5ParserEnabled', true);
@@ -4892,7 +7103,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
 
                 return $pdf->download("tour-quotation.pdf");
             }
-            
+           
             // Re-throw if it's a different error
             throw $e;
         }
@@ -4934,7 +7145,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             'postal_pin' => 'N/A',
             'company_name' => 'N/A',
         ];
-        
+       
         if (!empty($tour->dmc_id)) {
             $dmcUser = User::where('userId', $tour->dmc_id)->first();
             if ($dmcUser) {
@@ -4953,7 +7164,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                     'postal_pin' => 'N/A',
                     'company_name' => $dmcUser->company_name ?? 'N/A',
                 ];
-                
+               
                 // Convert logo URL to base64 for display
                 if (!empty($logoUrl)) {
                     try {
@@ -4971,7 +7182,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                             ];
                             $mimeType = $mimeMap[$extension] ?? 'image/png';
                         }
-                        
+                       
                         $response = Http::timeout(10)->get($logoUrl);
                         if ($response->successful()) {
                             $imageContent = $response->body();
@@ -5013,7 +7224,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             $agent = Agent::with('agency')->where('agent_id', $tour->agent_id)->first();
             if ($agent) {
                 $agency = $agent->agency;
-                
+               
                 $agentDetails = [
                     'name' => ($agency && $agency->agency_name) ? $agency->agency_name : ($agent->name ?? 'N/A'),
                     'address' => ($agency && $agency->address) ? $agency->address : 'N/A',
@@ -5052,28 +7263,28 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             if (is_string($orderData)) {
                 $orderData = json_decode($orderData, true);
             }
-            
+           
             if (is_array($orderData) && !empty($orderData)) {
                 $firstItem = is_array($orderData[0]) ? $orderData[0] : $orderData;
-                
+               
                 $bookingDetails['lead_guest_name'] = $firstItem['fullName'] ?? $firstItem['name'] ?? 'N/A';
                 $bookingDetails['email'] = $firstItem['email'] ?? 'N/A';
                 $bookingDetails['gender'] = $firstItem['gender'] ?? 'N/A';
                 $bookingDetails['passenger_type'] = $firstItem['passenger_type'] ?? 'N/A';
                 $bookingDetails['salutation'] = $firstItem['salutation'] ?? 'N/A';
                 $bookingDetails['phone'] = $firstItem['phone'] ?? 'N/A';
-                
+               
                 $address1 = $firstItem['address1'] ?? '';
                 $address2 = $firstItem['address2'] ?? '';
                 if (!empty($address1) || !empty($address2)) {
                     $bookingDetails['address'] = trim($address1 . ' ' . $address2);
                 }
-                
+               
                 $bookingDetails['city'] = $firstItem['state'] ?? 'N/A';
                 $bookingDetails['postal_code'] = $firstItem['zip'] ?? 'N/A';
             }
         }
-        
+       
         // If passenger details are still empty, try to get from tour's mainguest column
         if (($bookingDetails['lead_guest_name'] === 'N/A' || empty($bookingDetails['lead_guest_name'])) && !empty($tour->mainguest)) {
             try {
@@ -5140,7 +7351,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         $tourPrices = self::calculateTourPrices($tourId);
         $hotelOptions = self::formatHotelsForPdf($orders, $tour, $tourPrices);
         $countryQuotationGroups = self::buildCountryQuotationGroups($orders, $tour);
-        
+       
         // Get DMC ID - first try from tour, otherwise from current user
         $dmcIdForBankDetails = null;
         if (!empty($tour->dmc_id)) {
@@ -5152,18 +7363,18 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 $dmcIdForBankDetails = self::getDmcId($currentUser);
             }
         }
-        
+       
         // Fetch bank details from bank_details table based on DMC ID
         $bankDetails = [];
         $termsAndConditions = '';
         $paymentTerms = [];
-        
+       
         if ($dmcIdForBankDetails) {
             $bankDetailRecord = BankDetail::where('dmc_id', $dmcIdForBankDetails)
                 ->where('is_active', 1)
                 ->orderBy('created_at', 'desc')
                 ->first();
-            
+           
             if ($bankDetailRecord) {
                 // Extract bank details
                 $bankDetails = [
@@ -5176,10 +7387,10 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                     'branch_code' => $bankDetailRecord->branch_code ?? '',
                     'aba_routing' => $bankDetailRecord->aba_routing ?? '',
                 ];
-                
+               
                 // Extract terms and conditions
                 $termsAndConditions = $bankDetailRecord->terms_and_conditions ?? '';
-                
+               
                 // Extract payment terms (already cast as array in model)
                 $paymentTerms = $bankDetailRecord->payment_terms ?? [];
                 if (is_string($paymentTerms)) {
@@ -5190,7 +7401,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 }
             }
         }
-        
+       
         // Fallback to DMC user bank_details if bank_details table record not found
         if (empty($bankDetails) && $dmcUser && isset($dmcUser->bank_details)) {
             $bankDetailsData = is_string($dmcUser->bank_details) ? json_decode($dmcUser->bank_details, true) : $dmcUser->bank_details;
@@ -5198,10 +7409,10 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 $bankDetails = $bankDetailsData;
             }
         }
-        
+       
         // Exclusions (can be extended to fetch from database if needed)
         $exclusions = '';
-        
+       
         return [
             'tour' => $tour,
             'servicesByDate' => $servicesByDate,
@@ -5217,6 +7428,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             'tourPrices' => $tourPrices,
             'hotelOptions' => $hotelOptions,
             'countryQuotationGroups' => $countryQuotationGroups,
+            'orders' => $orders,
             'bankDetails' => $bankDetails,
             'termsAndConditions' => $termsAndConditions,
             'exclusions' => $exclusions,
@@ -5225,145 +7437,412 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
     }
 
     /**
-     * Calculate single sharing and double sharing prices for a tour
-     * 
-     * @param int|string $tourId - Can be tour_id (integer) or display_id (string like "DMC-ORD3107")
-     * @return array ['single_sharing' => float, 'double_sharing' => float, 'triple_sharing' => float]
+     * Calculate per-pax tour prices from order totalPrice / pax.
+     *
+     * Formula (segregated segments):
+     * Final Per Pax =
+     *   (Hotel Price / Occupancy) + (Hotel Supplement / Occupancy)
+     *   + (Other Services / Total Pax) + (Other Supplements / Total Pax)
+     *   + (Hotel Markup / Total Pax) + (Other Markup / Total Pax)
+     *
+     * Discount (currency_markups.discount_value) is NOT applied per-pax —
+     * it is subtracted only from TOTAL COST (order total + markup − discount).
+     * Markup (hotel_markup + other_markup) is added to TOTAL COST.
+     *
+     * Occupancy (1/2/3) applies only to hotel + hotel supplement.
+     * Hotel / other supplements are calculated separately and returned only in
+     * supplements / supplyments — they are NOT merged into country_sharing,
+     * single/double/triple_sharing, or overall package totals.
+     * GROUP FOC distribution factor is applied on top of the diagram formula.
+     *
+     * @param int|string $tourId Tour id or display_id (e.g. DMC-ORD3107)
+     * @return array
      */
     public static function calculateTourPrices($tourId)
     {
-        // Check if input is display_id (string format like "DMC-ORD3107") or tour_id (integer)
+        $empty = [
+            'single_sharing' => 0,
+            'double_sharing' => 0,
+            'triple_sharing' => 0,
+            'baby_cot_sharing' => 0,
+            'other_services_single' => 0,
+            'other_services_double' => 0,
+            'country_sharing' => [],
+            'hotel_price_options' => [],
+            'service_price_lines' => [],
+            'segregated' => [
+                'hotel' => ['single' => 0, 'double' => 0, 'triple' => 0, 'baby_cot' => 0],
+                'attraction' => ['single' => 0, 'double' => 0],
+                'restaurant' => ['single' => 0, 'double' => 0],
+                'entry_port' => ['single' => 0, 'double' => 0],
+                'exit_port' => ['single' => 0, 'double' => 0],
+                'guide' => ['single' => 0, 'double' => 0],
+                'travel_hourly' => ['single' => 0, 'double' => 0],
+                'travel_point' => ['single' => 0, 'double' => 0],
+                'local_transport' => ['single' => 0, 'double' => 0],
+                'other' => ['single' => 0, 'double' => 0],
+            ],
+            'supplements' => [],
+            'supplyments' => [],
+        ];
+
         if (is_string($tourId) && (strpos($tourId, 'DMC-ORD') === 0 || strpos($tourId, 'ORD') === 0)) {
-            // It's a display_id, find tour by display_id
             $tour = Tour::where('display_id', $tourId)->first();
         } else {
-            // It's a tour_id, find tour by tour_id
             $tour = Tour::where('tour_id', $tourId)->first();
         }
-        
+
         if (!$tour) {
-            return [
-                'single_sharing' => 0,
-                'double_sharing' => 0,
-                'triple_sharing' => 0,
-                'baby_cot_sharing' => 0,
-                'other_services_single' => 0,
-                'other_services_double' => 0,
-                'country_sharing' => [],
-                'hotel_price_options' => [],
-                'segregated' => [
-                    'hotel' => ['single' => 0, 'double' => 0, 'triple' => 0, 'baby_cot' => 0],
-                    'attraction' => ['single' => 0, 'double' => 0],
-                    'restaurant' => ['single' => 0, 'double' => 0],
-                    'entry_port' => ['single' => 0, 'double' => 0],
-                    'exit_port' => ['single' => 0, 'double' => 0],
-                    'guide' => ['single' => 0, 'double' => 0],
-                    'travel_hourly' => ['single' => 0, 'double' => 0],
-                    'travel_point' => ['single' => 0, 'double' => 0],
-                    'local_transport' => ['single' => 0, 'double' => 0],
-                    'other' => ['single' => 0, 'double' => 0],
-                ],
-                'supplements' => [],
-            ];
+            return $empty;
         }
-        // Use the actual tour_id from the found tour for querying orders
-        $actualTourId = $tour->tour_id;
-        $orders = Order::where('tour_id', $actualTourId)
+
+        $orders = Order::where('tour_id', $tour->tour_id)
             ->where('status', 1)
             ->get();
 
-        // GROUP pricing inputs
-        // IMPORTANT (project convention):
-        // - `adult` is the TOTAL adult count (includes FOC adults)
-        // - `foc_size` is how many of those adults are FOC (free of charge)
-        // - `child` are paying children (FOC does not apply to child here)
-        $tourType = strtoupper((string)($tour->tour_type ?? 'FIT'));
-        $adultTotal = max(0, (int)($tour->adult ?? 0));
-        $childTotal = max(0, (int)($tour->child ?? 0));
-        $focSize = max(0, (int)($tour->foc_size ?? 0));
-
-        // Paying pax excludes FOC adults
+        $tourType = strtoupper((string) ($tour->tour_type ?? 'FIT'));
+        $adultTotal = max(0, (int) ($tour->adult ?? 0));
+        $childTotal = max(0, (int) ($tour->child ?? 0));
+        $focSize = max(0, (int) ($tour->foc_size ?? 0));
         $payingAdults = max(0, $adultTotal - $focSize);
         $payingPax = $payingAdults + $childTotal;
+        $totalPax = max(1, $adultTotal + $childTotal);
 
-        // Total pax is the real headcount travelling
-        $totalPax = $adultTotal + $childTotal;
-
-        // When GROUP has FOC, distribute total pax cost over paying pax.
-        // Example: adultTotal=12 (includes foc 2), childTotal=0 => total=12, paying=10 => factor=12/10.
-        $focDistributionFactor = ($tourType === 'GROUP' && $payingPax > 0 && $totalPax > $payingPax)
-            ? ((float)$totalPax / (float)$payingPax)
+        // GROUP + FOC: spread total-head cost over paying pax
+        $focFactor = ($tourType === 'GROUP' && $payingPax > 0 && ($adultTotal + $childTotal) > $payingPax)
+            ? ((float) ($adultTotal + $childTotal) / (float) $payingPax)
             : 1.0;
 
-        $totalSingleSharing = 0;
-        $totalDoubleSharing = 0;
-        $totalTripleSharing = 0;
-        $totalBabyCot = 0;
-        // Separate tracker for non-hotel, non-supplement services (for other_services response key)
-        $otherServiceSingle = 0.0;
-        $otherServiceDouble = 0.0;
-        // Track child-specific pricing component across attraction/restaurant services
-        $totalChildComponent = 0; // Sum of child unit prices (attraction + restaurant + â€¦)
-
-        // Country + currency trackers (native amounts; no FX mix of SGD/IDR/etc.)
-        $countryOtherBuckets = []; // key => ['country','currency','single','double']
         $fallbackCurrency = strtoupper(trim((string) ($tour->currency ?? 'SGD'))) ?: 'SGD';
-        
-        // Segregated prices by service type
-        $segregatedPrices = [
-            'hotel' => ['single' => 0, 'double' => 0, 'triple' => 0, 'baby_cot' => 0],
-            'attraction' => ['single' => 0, 'double' => 0],
-            'restaurant' => ['single' => 0, 'double' => 0],
-            'entry_port' => ['single' => 0, 'double' => 0],
-            'exit_port' => ['single' => 0, 'double' => 0],
-            'guide' => ['single' => 0, 'double' => 0],
-            'travel_hourly' => ['single' => 0, 'double' => 0],
-            'travel_point' => ['single' => 0, 'double' => 0],
-            'local_transport' => ['single' => 0, 'double' => 0],
-            'other' => ['single' => 0, 'double' => 0],
-        ];
+        $isProTour = (int) ($tour->is_pro ?? 0) === 1;
 
-        // Supplements: services with "supplement": true (excluded from main total).
-        // Non-hotel supplement rows expose full line booking total; hotel supplements use stay totals per rooming.
-        $supplements = [];
-        // Merge hotel supplements: same hotel/date-range => one supplement row (avoid duplicates)
-        $hotelSupplementBuckets = [];
-
-        // Counter for hotels to segregate individually
-        $hotelCount = 0;
-        // Track which hotel occupancies are actually booked on this tour
-        $bookedHotelOccupancies = ['single' => false, 'double' => false, 'triple' => false];
-        
-        // Merge hotel rows: same hotel_id + same date range => one hotel bucket.
-        // Each bucket stores per-head price for single/double/triple once (no multiplication when multiple orders exist).
         $hotelBuckets = [];
-        // Store display/meta for each grouped hotel key
         $hotelBucketMeta = [];
-        
-        // Normalize booking date range to group same hotel orders together
-        $getHotelBookingRangeLabel = function (array $item) use ($tour): string {
+        $countryHotel = []; // key => single/double/triple (hotel stay, non-supplement)
+        $countryOther = []; // key => single/double (same per-pax for both)
+        $countryOtherChild = []; // key => child ticket/meal totals (absolute)
+        $countryGrossHotel = []; // raw hotel totals for % markup
+        $countryGrossOther = []; // raw other totals for % markup
+        $supplements = [];
+        $hotelSupplementBuckets = []; // merge same hotel_id into one supplement row
+        $servicePriceLines = [];
+        $sumBabyCot = 0.0;
+
+        $segregated = $empty['segregated'];
+
+        $ensureCountry = function (string $key, string $country, string $currency, string $city = '') use (&$countryHotel, &$countryOther, &$countryGrossHotel, &$countryGrossOther, &$countryOtherChild): void {
+            if (!isset($countryHotel[$key])) {
+                $countryHotel[$key] = [
+                    'country' => $country,
+                    'city' => $city,
+                    'currency' => $currency,
+                    'single' => 0.0,
+                    'double' => 0.0,
+                    'triple' => 0.0,
+                ];
+            } elseif ($city !== '' && empty($countryHotel[$key]['city'])) {
+                $countryHotel[$key]['city'] = $city;
+            }
+            if (!isset($countryOther[$key])) {
+                $countryOther[$key] = [
+                    'country' => $country,
+                    'city' => $city,
+                    'currency' => $currency,
+                    'single' => 0.0,
+                    'double' => 0.0,
+                ];
+            } elseif ($city !== '' && empty($countryOther[$key]['city'])) {
+                $countryOther[$key]['city'] = $city;
+            }
+            if (!isset($countryGrossHotel[$key])) {
+                $countryGrossHotel[$key] = 0.0;
+            }
+            if (!isset($countryGrossOther[$key])) {
+                $countryGrossOther[$key] = 0.0;
+            }
+            if (!isset($countryOtherChild[$key])) {
+                $countryOtherChild[$key] = 0.0;
+            }
+        };
+
+        $hotelRoomCount = function (array $item): int {
+            $rooms = $item['rooms'] ?? [];
+            if (!is_array($rooms) || $rooms === []) {
+                return max(1, (int) ($item['number_of_rooms'] ?? $item['no_of_room'] ?? 1));
+            }
+            $count = 0;
+            foreach ($rooms as $room) {
+                if (!is_array($room)) {
+                    continue;
+                }
+                $count += max(1, (int) ($room['number_of_rooms'] ?? $room['no_of_room'] ?? 1));
+            }
+
+            return max(1, $count);
+        };
+
+        // Resolve room selected_persons (1/2/3) for supplement occupancy display.
+        $hotelSelectedPersons = function (array $item): int {
+            $maxSp = 0;
+            $rooms = $item['rooms'] ?? [];
+            if (is_array($rooms)) {
+                foreach ($rooms as $room) {
+                    if (!is_array($room)) {
+                        continue;
+                    }
+                    $sp = (int) ($room['selected_persons'] ?? $room['selectedPersons'] ?? 0);
+                    if ($sp <= 0) {
+                        $beds = isset($room['beds']) && is_array($room['beds']) ? $room['beds'] : [];
+                        if (!empty($beds) && is_array($beds[0] ?? null)) {
+                            $sp = (int) ($beds[0]['head_count'] ?? $beds[0]['headCount'] ?? $beds[0]['occupancy'] ?? 0);
+                        }
+                    }
+                    if ($sp <= 0) {
+                        $occ = strtolower(trim((string) ($room['occupancy'] ?? '')));
+                        if (str_contains($occ, 'triple') || $occ === '3') {
+                            $sp = 3;
+                        } elseif (str_contains($occ, 'double') || $occ === '2') {
+                            $sp = 2;
+                        } elseif (str_contains($occ, 'single') || $occ === '1') {
+                            $sp = 1;
+                        }
+                    }
+                    $maxSp = max($maxSp, $sp);
+                }
+            }
+            if ($maxSp <= 0) {
+                $maxSp = (int) ($item['selected_persons'] ?? $item['selectedPersons'] ?? 0);
+            }
+            if ($maxSp <= 0) {
+                $maxSp = 2; // sensible default for hotel
+            }
+
+            return max(1, min(3, $maxSp));
+        };
+
+        // Child count + half-meal (rooms.children_price: 0=free, 1=half, 2=full) from stored hotel JSON.
+        $hotelChildMeta = function (array $item) use ($childTotal): array {
+            $cwb = (isset($item['child_with_bed']) && is_array($item['child_with_bed'])) ? $item['child_with_bed'] : null;
+            $cnb = (isset($item['child_without_bed']) && is_array($item['child_without_bed'])) ? $item['child_without_bed'] : null;
+
+            $children = (int) ($item['children'] ?? 0);
+            if ($children <= 0 && $cwb && !empty($cwb['enabled'])) {
+                $children = max(0, (int) ($cwb['children'] ?? 0));
+            }
+            if ($children <= 0 && $cnb && !empty($cnb['enabled'])) {
+                $children = max(0, (int) ($cnb['children'] ?? 0));
+            }
+            if ($children <= 0 && $childTotal > 0) {
+                // Fall back to tour child count when hotel row omitted children but CWB/CNB enabled
+                if (($cwb && !empty($cwb['enabled'])) || ($cnb && !empty($cnb['enabled']))) {
+                    $children = $childTotal;
+                }
+            }
+
+            $childrenPriceCode = $item['children_price'] ?? null;
+            if ($childrenPriceCode === null && isset($item['helperMeals']['children_price'])) {
+                $childrenPriceCode = $item['helperMeals']['children_price'];
+            }
+            if ($childrenPriceCode === null && isset($item['mealPrices']['children_price'])) {
+                $childrenPriceCode = $item['mealPrices']['children_price'];
+            }
+            $childrenPriceCode = (int) round(floatval($childrenPriceCode ?? 2));
+            if ($childrenPriceCode < 0 || $childrenPriceCode > 2) {
+                $childrenPriceCode = 2;
+            }
+
+            $childMealFactor = $item['child_meal_factor'] ?? null;
+            if ($childMealFactor === null && isset($item['helperMeals']['child_meal_factor'])) {
+                $childMealFactor = $item['helperMeals']['child_meal_factor'];
+            }
+            if ($childMealFactor === null) {
+                $childMealFactor = ($childrenPriceCode === 0) ? 0.0 : (($childrenPriceCode === 1) ? 0.5 : 1.0);
+            } else {
+                $childMealFactor = (float) $childMealFactor;
+            }
+
+            $nights = 1;
+            $dates = $item['bookingDate'] ?? $item['booking_date'] ?? [];
+            if (is_array($dates) && count($dates) >= 2) {
+                try {
+                    $nights = max(1, (int) \Carbon\Carbon::parse($dates[0])->diffInDays(\Carbon\Carbon::parse($dates[1])));
+                } catch (\Throwable $e) {
+                    $nights = max(1, count($dates) - 1);
+                }
+            } elseif (is_array($dates) && count($dates) === 1) {
+                $nights = 1;
+            }
+
+            $rooms = 1;
+            $roomList = $item['rooms'] ?? [];
+            if (is_array($roomList) && $roomList !== []) {
+                $rooms = 0;
+                foreach ($roomList as $room) {
+                    if (!is_array($room)) {
+                        continue;
+                    }
+                    $rooms += max(1, (int) ($room['number_of_rooms'] ?? $room['no_of_room'] ?? 1));
+                }
+                $rooms = max(1, $rooms);
+            } else {
+                $rooms = max(1, (int) ($item['number_of_rooms'] ?? $item['no_of_room'] ?? 1));
+            }
+
+            $resolveChildBedTotal = function (?array $block) use ($children, $nights, $rooms): float {
+                if (!$block || empty($block['enabled'])) {
+                    return 0.0;
+                }
+                if (isset($block['total_cost']) && (float) $block['total_cost'] > 0) {
+                    return (float) $block['total_cost'];
+                }
+                $unit = (float) ($block['price'] ?? $block['unit_price'] ?? 0);
+                $kids = max(1, (int) ($block['children'] ?? $children));
+                if ($unit <= 0 || $kids <= 0) {
+                    return 0.0;
+                }
+
+                return $unit * $kids * $nights * $rooms;
+            };
+
+            $cwbTotal = $resolveChildBedTotal($cwb);
+            $cnbTotal = $resolveChildBedTotal($cnb);
+
+            return [
+                'children' => $children,
+                'children_price' => $childrenPriceCode,
+                'child_meal_factor' => $childMealFactor,
+                'child_with_bed_total' => $cwbTotal,
+                'child_without_bed_total' => $cnbTotal,
+                'child_with_bed' => $cwb,
+                'child_without_bed' => $cnb,
+                'nights' => $nights,
+                'rooms' => $rooms,
+            ];
+        };
+
+        $lineAmount = function (array $item, string $type) use ($isProTour): float {
+            $amount = (float) ($item['totalPrice'] ?? $item['total_price'] ?? $item['price'] ?? 0);
+            if ($type === 'hotel') {
+                return max(0.0, $amount);
+            }
+            // Vehicles: use totalPrice only (already the booking sell total).
+            $vehicleTypes = [
+                'local_transport', 'local_transfer', 'local_transfer_vehicle',
+                'travel_hourly', 'travel_point', 'port_transport',
+            ];
+            if (in_array($type, $vehicleTypes, true)) {
+                return max(0.0, $amount);
+            }
+            $transfer = 0.0;
+            if (isset($item['transfer_options']) && is_array($item['transfer_options'])) {
+                if ($isProTour && isset($item['transfer_options']['totalPrice'])) {
+                    $transfer = (float) $item['transfer_options']['totalPrice'];
+                } elseif (!empty($item['transfer_options']['cost']) && (float) $item['transfer_options']['cost'] > 0) {
+                    $transfer = (float) $item['transfer_options']['cost'];
+                }
+            }
+            $guide = 0.0;
+            if (isset($item['guide_options']) && is_array($item['guide_options'])) {
+                $gv = $item['guide_options']['total_price']
+                    ?? $item['guide_options']['cost']
+                    ?? $item['guide_options']['Cost']
+                    ?? $item['guide_options']['sell']
+                    ?? $item['guide_options']['Sell']
+                    ?? 0;
+                if ((float) $gv > 0) {
+                    $guide = (float) $gv;
+                }
+            }
+
+            return max(0.0, $amount + $transfer + $guide);
+        };
+
+        $itemPax = function (array $item) use ($totalPax): int {
+            foreach (['pax', 'Pax', 'total_pax', 'totalPax', 'head_count', 'headCount'] as $k) {
+                if (isset($item[$k]) && (int) $item[$k] > 0) {
+                    return (int) $item[$k];
+                }
+            }
+            $adults = (int) ($item['adultCount'] ?? $item['adult'] ?? $item['Adults'] ?? $item['adults'] ?? 0);
+            $children = (int) ($item['childCount'] ?? $item['child'] ?? $item['Children'] ?? $item['children'] ?? 0);
+            $seniors = (int) ($item['seniorCount'] ?? $item['senior'] ?? $item['seniors'] ?? 0);
+            if (($adults + $children + $seniors) > 0) {
+                return $adults + $children + $seniors;
+            }
+
+            return $totalPax;
+        };
+
+        // Attraction ticket / restaurant meal adult+child unit prices and counts.
+        $resolveGuestServicePricing = function (array $item, string $type, float $amount): array {
+            $adultCount = max(0, (int) ($item['adultCount'] ?? $item['adult_count'] ?? $item['adults'] ?? $item['adult'] ?? 0));
+            $childCount = max(0, (int) ($item['childCount'] ?? $item['child_count'] ?? $item['children'] ?? $item['child'] ?? 0));
+            $seniorCount = max(0, (int) ($item['seniorCount'] ?? $item['senior_count'] ?? $item['seniors'] ?? $item['senior'] ?? 0));
+
+            $adultUnit = 0.0;
+            $childUnit = 0.0;
+            $seniorUnit = 0.0;
+
+            if ($type === 'attraction') {
+                $td = (isset($item['ticket_details']) && is_array($item['ticket_details'])) ? $item['ticket_details'] : [];
+                $adultUnit = (float) ($td['adult_price'] ?? $item['adult_price'] ?? 0);
+                $childUnit = (float) ($td['child_price'] ?? $item['child_price'] ?? 0);
+                $seniorUnit = (float) ($td['senior_price'] ?? $td['senior_adult_price'] ?? $item['senior_price'] ?? 0);
+            } elseif ($type === 'restaurant') {
+                $md = (isset($item['meal_details']) && is_array($item['meal_details'])) ? $item['meal_details'] : [];
+                $meal0 = (isset($item['MealDescription'][0]) && is_array($item['MealDescription'][0])) ? $item['MealDescription'][0] : [];
+                $adultUnit = (float) ($item['adult_price'] ?? $md['adult_price'] ?? $meal0['adult_price'] ?? 0);
+                $childUnit = (float) ($item['child_price'] ?? $md['child_price'] ?? $meal0['child_price'] ?? 0);
+            }
+
+            $adultTotal = $adultUnit * $adultCount;
+            $childTotal = $childUnit * $childCount;
+            $seniorTotal = $seniorUnit * $seniorCount;
+            $ticketMealTotal = $adultTotal + $childTotal + $seniorTotal;
+            // Transfer/guide (or rounding) beyond ticket/meal adult+child
+            $extras = max(0.0, $amount - $ticketMealTotal);
+            // If unit prices missing but counts exist, treat full amount as adult share
+            if ($ticketMealTotal <= 0 && ($adultCount + $childCount + $seniorCount) > 0) {
+                $adultTotal = $amount;
+                $childTotal = 0.0;
+                $seniorTotal = 0.0;
+                $extras = 0.0;
+                if ($adultCount > 0) {
+                    $adultUnit = $amount / $adultCount;
+                }
+            }
+
+            return [
+                'adult_count' => $adultCount,
+                'child_count' => $childCount,
+                'senior_count' => $seniorCount,
+                'adult_unit' => $adultUnit,
+                'child_unit' => $childUnit,
+                'senior_unit' => $seniorUnit,
+                'adult_total' => $adultTotal,
+                'child_total' => $childTotal,
+                'senior_total' => $seniorTotal,
+                'extras' => $extras,
+                'has_guest_split' => ($adultCount + $childCount + $seniorCount) > 0
+                    && ($adultUnit > 0 || $childUnit > 0 || $seniorUnit > 0 || $amount > 0),
+            ];
+        };
+
+        $bookingRangeLabel = function (array $item) use ($tour): string {
             $bookingDate = $item['bookingDate'] ?? null;
             try {
                 if (is_array($bookingDate) && count($bookingDate) === 2 && !empty($bookingDate[0]) && !empty($bookingDate[1])) {
-                    $start = Carbon::parse($bookingDate[0])->format('Y-m-d');
-                    $end = Carbon::parse($bookingDate[1])->format('Y-m-d');
-                    return $start . ' to ' . $end;
+                    return Carbon::parse($bookingDate[0])->format('Y-m-d') . ' to ' . Carbon::parse($bookingDate[1])->format('Y-m-d');
                 }
             } catch (\Throwable $e) {
-                // ignore
             }
-            
-            // Fallback to tour dates
             try {
                 if (!empty($tour->check_in_time) && !empty($tour->check_out_time)) {
-                    $start = Carbon::parse($tour->check_in_time)->format('Y-m-d');
-                    $end = Carbon::parse($tour->check_out_time)->format('Y-m-d');
-                    return $start . ' to ' . $end;
+                    return Carbon::parse($tour->check_in_time)->format('Y-m-d') . ' to ' . Carbon::parse($tour->check_out_time)->format('Y-m-d');
                 }
             } catch (\Throwable $e) {
-                // ignore
             }
-            
+
             return '';
         };
 
@@ -5372,8 +7851,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             if (is_string($rawData)) {
                 $rawData = json_decode($rawData, true);
             }
-
-            if (empty($rawData)) {
+            if (empty($rawData) || !is_array($rawData)) {
                 continue;
             }
 
@@ -5386,911 +7864,653 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 $orderCurrency = $fallbackCurrency;
             }
             $orderCurrency = strtoupper($orderCurrency);
-            $countryPriceKey = mb_strtolower($orderCountry) . '|' . $orderCurrency;
-            if (!isset($countryOtherBuckets[$countryPriceKey])) {
-                $countryOtherBuckets[$countryPriceKey] = [
-                    'country' => $orderCountry,
-                    'currency' => $orderCurrency,
-                    'single' => 0.0,
-                    'double' => 0.0,
-                ];
-            }
-            $trackCountryOther = function (float $single, float $double) use (&$countryOtherBuckets, $countryPriceKey): void {
-                if (!isset($countryOtherBuckets[$countryPriceKey])) {
-                    return;
-                }
-                $countryOtherBuckets[$countryPriceKey]['single'] += $single;
-                $countryOtherBuckets[$countryPriceKey]['double'] += $double;
-            };
+            $countryKey = mb_strtolower($orderCountry) . '|' . $orderCurrency;
+            // City for labels like "Kolkata (India) (INR)" — filled from first booking item below
+            $ensureCountry($countryKey, $orderCountry, $orderCurrency, '');
 
-            $items = isset($rawData[0]) ? $rawData : [$rawData];
-            $type = strtolower($order->type ?? '');
-            $babyCotPrice = null;
-            $manualSinglePrice = null;
-            // $manualDoublePrice = null; // not used (double always from room/hotel tables)
+            $type = strtolower((string) ($order->type ?? ''));
+            $items = (isset($rawData[0]) && is_array($rawData[0])) ? $rawData : [$rawData];
 
             foreach ($items as $item) {
+                if (!is_array($item)) {
+                    continue;
+                }
+
+                $geo = self::extractInvoiceItemGeo($order, $item);
+                $orderCity = trim((string) ($geo['city'] ?? ''));
+                if ($orderCity !== '') {
+                    $ensureCountry($countryKey, $orderCountry, $orderCurrency, $orderCity);
+                }
+
                 $isSupplement = !empty($item['supplement']);
+                $amount = $lineAmount($item, $type);
+                if ($amount <= 0) {
+                    continue;
+                }
 
                 if ($type === 'hotel') {
-                    $hotelCount++;
-                    $babyCotPrice = 0;
-                    
-                    // Fetch hotel details early to use name as key
-                    $hotelId = $item['hotelDetails']['hotel_id'] ?? $item['hotelDetails']['hotelId'] ?? $item['hotel_id'] ?? $item['hotelId'] ?? null;
-                    $hotelName = $item['hotelDetails']['hotel_name'] ?? $item['hotelName'] ?? $item['name'] ?? null;
-                    $hotel = null;
-                    $weekendDays = ['Saturday', 'Sunday']; // Default fallback only
+                    // 1) Store child count + half meal, then resolve child-with/without-bed totals
+                    $childMeta = $hotelChildMeta($item);
+                    $childrenCount = (int) ($childMeta['children'] ?? 0);
+                    $childrenPriceCode = (int) ($childMeta['children_price'] ?? 2);
+                    $childMealFactor = (float) ($childMeta['child_meal_factor'] ?? 1.0);
+                    $cwbTotal = (float) ($childMeta['child_with_bed_total'] ?? 0);
+                    $cnbTotal = (float) ($childMeta['child_without_bed_total'] ?? 0);
+                    $childBedTotal = $cwbTotal + $cnbTotal;
 
-                    if ($hotelId) {
-                        try {
-                            $hotel = Hotel::where('hotel_unique_id', $hotelId)->first();
-                            if ($hotel) {
-                                if ($hotel->weekend_days) {
-                                    $decodedWeekendDays = json_decode($hotel->weekend_days, true);
-                                    if (is_array($decodedWeekendDays) && !empty($decodedWeekendDays)) {
-                                        $weekendDays = $decodedWeekendDays;
-                                    }
-                                }
-                                if ($hotel->name) {
-                                    $hotelName = $hotel->name;
-                                }
-                            }
-                        } catch (\Exception $e) {
-                            Log::warning('Failed to fetch hotel details', [
-                                'hotel_id' => $hotelId,
-                                'error' => $e->getMessage()
-                            ]);
+                    // totalPrice usually already includes CWB/CNB — strip them before occupancy share
+                    $baseAmount = max(0.0, $amount - $childBedTotal);
+                    // If payload omitted CWB from totalPrice, still add calculated child bed into baby_cot
+                    if ($childBedTotal > 0 && $amount > 0 && abs($amount - $baseAmount - $childBedTotal) > 0.01) {
+                        // amount already included child bed (baseAmount = amount - childBed)
+                    }
+
+                    $rooms = $hotelRoomCount($item);
+                    $perRoom = $baseAmount / $rooms;
+
+                    $selectedPersonsRaw = $hotelSelectedPersons($item);
+                    // Adult occupancy for sharing columns (exclude children on CWB/CNB)
+                    $adultOccupancy = $selectedPersonsRaw;
+                    if ($childrenCount > 0 && (($childMeta['child_with_bed']['enabled'] ?? false) || ($childMeta['child_without_bed']['enabled'] ?? false))) {
+                        $adultOccupancy = max(1, $selectedPersonsRaw - $childrenCount);
+                    }
+                    $selectedPersons = max(1, min(3, $adultOccupancy));
+                    $bookedPerPax = $perRoom / max(1, $selectedPersons);
+
+                    // Child with/without bed → baby_cot bucket (not mixed into Single/Double/Triple share)
+                    if ($childBedTotal > 0) {
+                        $sumBabyCot += $childBedTotal;
+                        $segregated['hotel']['baby_cot'] = ($segregated['hotel']['baby_cot'] ?? 0) + $childBedTotal;
+                    }
+
+                    $hotelId = $item['hotelDetails']['hotel_id']
+                        ?? $item['hotelDetails']['hotelId']
+                        ?? $item['hotel_id']
+                        ?? $item['hotelId']
+                        ?? null;
+                    $hotelName = $item['hotelDetails']['hotel_name']
+                        ?? $item['hotelName']
+                        ?? $item['name']
+                        ?? 'Hotel';
+                    $dateRange = $bookingRangeLabel($item);
+                    // Merge same hotel into one quotation row (ignore date splits).
+                    $hotelKey = mb_strtolower(trim((string) $hotelName)) . '|' . $countryKey;
+
+                    // Add booked occupancy per-pax only into country totals (e.g. 100 / 100 / 117).
+                    $addBookedToCountry = function () use (
+                        &$countryHotel,
+                        &$countryGrossHotel,
+                        &$segregated,
+                        $countryKey,
+                        $selectedPersons,
+                        $bookedPerPax,
+                        $baseAmount
+                    ): void {
+                        if ($selectedPersons >= 3) {
+                            $countryHotel[$countryKey]['triple'] += $bookedPerPax;
+                            $segregated['hotel']['triple'] += $bookedPerPax;
+                        } elseif ($selectedPersons === 2) {
+                            $countryHotel[$countryKey]['double'] += $bookedPerPax;
+                            $segregated['hotel']['double'] += $bookedPerPax;
+                        } else {
+                            $countryHotel[$countryKey]['single'] += $bookedPerPax;
+                            $segregated['hotel']['single'] += $bookedPerPax;
                         }
+                        $countryGrossHotel[$countryKey] += $baseAmount;
+                    };
+
+                    // Hotel supplement: separate from country / overall package prices.
+                    // Only listed in supplements payload (booked occupancy per-pax, merge same hotel_id).
+                    if ($isSupplement) {
+                        $suppKey = trim((string) $hotelId) !== ''
+                            ? ('id:' . trim((string) $hotelId) . '|' . $countryKey)
+                            : ('name:' . mb_strtolower(trim((string) $hotelName)) . '|' . $countryKey);
+
+                        if (!isset($hotelSupplementBuckets[$suppKey])) {
+                            $hotelSupplementBuckets[$suppKey] = [
+                                'type' => 'hotel',
+                                'hotel_id' => $hotelId,
+                                'hotel_name' => $hotelName,
+                                'date_range' => $dateRange,
+                                'display_name' => $hotelName,
+                                'name' => $hotelName,
+                                'country' => $orderCountry,
+                                'currency' => $orderCurrency,
+                                'selected_persons' => $selectedPersons,
+                                'children' => $childrenCount,
+                                'children_price' => $childrenPriceCode,
+                                'child_meal_factor' => $childMealFactor,
+                                'child_with_bed_total' => 0.0,
+                                'child_without_bed_total' => 0.0,
+                                'show_single' => false,
+                                'show_double' => false,
+                                'show_triple' => false,
+                                'single' => 0.0,
+                                'double' => 0.0,
+                                'triple' => 0.0,
+                            ];
+                        }
+
+                        $hotelSupplementBuckets[$suppKey]['selected_persons'] = max(
+                            (int) $hotelSupplementBuckets[$suppKey]['selected_persons'],
+                            $selectedPersons
+                        );
+                        $hotelSupplementBuckets[$suppKey]['children'] = max(
+                            (int) ($hotelSupplementBuckets[$suppKey]['children'] ?? 0),
+                            $childrenCount
+                        );
+                        $hotelSupplementBuckets[$suppKey]['children_price'] = $childrenPriceCode;
+                        $hotelSupplementBuckets[$suppKey]['child_meal_factor'] = $childMealFactor;
+                        $hotelSupplementBuckets[$suppKey]['child_with_bed_total'] =
+                            (float) ($hotelSupplementBuckets[$suppKey]['child_with_bed_total'] ?? 0) + $cwbTotal;
+                        $hotelSupplementBuckets[$suppKey]['child_without_bed_total'] =
+                            (float) ($hotelSupplementBuckets[$suppKey]['child_without_bed_total'] ?? 0) + $cnbTotal;
+                        $scaled = $bookedPerPax * $focFactor;
+                        // Show only the booked occupancy column (no invented Single/Double for triple).
+                        if ($selectedPersons >= 3) {
+                            $hotelSupplementBuckets[$suppKey]['triple'] += $scaled;
+                            $hotelSupplementBuckets[$suppKey]['show_triple'] = true;
+                        } elseif ($selectedPersons === 2) {
+                            $hotelSupplementBuckets[$suppKey]['double'] += $scaled;
+                            $hotelSupplementBuckets[$suppKey]['show_double'] = true;
+                        } else {
+                            $hotelSupplementBuckets[$suppKey]['single'] += $scaled;
+                            $hotelSupplementBuckets[$suppKey]['show_single'] = true;
+                        }
+                        continue;
                     }
 
-                    if (empty($hotelName)) {
-                        $hotelName = 'Hotel ' . $hotelCount;
-                    }
-
-                    // Group key: same hotel_id + same date range => treat as one hotel
-                    // (hotel name can change/collide; hotel_id is stable)
-                    $rangeLabel = $getHotelBookingRangeLabel(is_array($item) ? $item : []);
-                    $stableHotelId = $hotelId ?: ($hotel ? ($hotel->hotel_unique_id ?? null) : null);
-                    $stableHotelId = $stableHotelId !== null ? (string)$stableHotelId : '';
-                    $groupKey = $stableHotelId !== '' ? ('hotel_' . $stableHotelId) : ('hotel_name_' . preg_replace('/\s+/', '_', strtolower((string)$hotelName)));
-                    $currentHotelKey = $rangeLabel ? ($groupKey . '__' . $rangeLabel) : $groupKey;
-
-                    if (!isset($hotelBucketMeta[$currentHotelKey])) {
-                        $hotelBucketMeta[$currentHotelKey] = [
-                            'hotel_id' => $stableHotelId,
+                    if (!isset($hotelBuckets[$hotelKey])) {
+                        $hotelBuckets[$hotelKey] = [
+                            'single' => 0.0,
+                            'double' => 0.0,
+                            'triple' => 0.0,
+                            'selected_persons' => 0,
+                            'children' => 0,
+                            'children_price' => $childrenPriceCode,
+                            'child_meal_factor' => $childMealFactor,
+                            'child_with_bed_total' => 0.0,
+                            'child_without_bed_total' => 0.0,
+                        ];
+                        $hotelBucketMeta[$hotelKey] = [
+                            'hotel_id' => $hotelId,
                             'hotel_name' => $hotelName,
-                            'date_range' => $rangeLabel,
-                            'display_name' => $rangeLabel ? ($hotelName . ' (' . $rangeLabel . ')') : $hotelName,
+                            'date_range' => $dateRange,
+                            'display_name' => $hotelName,
                             'country' => $orderCountry,
+                            'city' => $orderCity !== '' ? $orderCity : null,
                             'currency' => $orderCurrency,
                         ];
                     }
-                    
-                    if (!isset($segregatedPrices[$currentHotelKey])) {
-                        $segregatedPrices[$currentHotelKey] = [
-                            'single' => 0,
-                            'double' => 0,
-                            'triple' => 0,
-                            'baby_cot' => 0,
-                            'occupancy' => null,        // 'single'|'double'|'triple'
-                            'selected_persons' => null, // 1|2|3
-                        ];
-                    }
-
-                    // Read selected persons from hotel JSON (rooms[0].selected_persons) and derive occupancy label.
-                    $firstRoom = (!empty($item['rooms']) && is_array($item['rooms'])) ? ($item['rooms'][0] ?? null) : null;
-                    $selectedPersonsForHotel = is_array($firstRoom)
-                        ? ($firstRoom['selected_persons'] ?? $firstRoom['selectedPersons'] ?? null)
-                        : ($item['pax'] ?? null);
-                    $selectedPersonsForHotel = $selectedPersonsForHotel !== null ? (int)$selectedPersonsForHotel : null;
-                    $hotelOccupancy = match ($selectedPersonsForHotel) {
-                        1 => 'single',
-                        2 => 'double',
-                        3 => 'triple',
-                        default => null,
-                    };
-                    if (!empty($hotelOccupancy)) {
-                        $bookedHotelOccupancies[$hotelOccupancy] = true;
-                    }
-                    
-                    // Check for direct totalPrice and head_count in JSON (e.g. from enquiry)
-                    // We only use this to override SINGLE price when exactly 1 person;
-                    // double/triple prices always come from room/hotel tables so they stay consistent.
-                    $directTotalPrice = $item['totalPrice'] ?? $item['price'] ?? null;
-
-                    if ($directTotalPrice !== null) {
-                        $totalHeadCount = 0;
-                        if (!empty($item['rooms']) && is_array($item['rooms'])) {
-                            foreach ($item['rooms'] as $room) {
-                                if (!empty($room['beds']) && is_array($room['beds'])) {
-                                    foreach ($room['beds'] as $bed) {
-                                        $totalHeadCount += floatval($bed['head_count'] ?? $bed['headCount'] ?? 0);
-                                    }
-                                }
-                            }
-                        }
-                        
-                        // If no headcount from beds, try fallback to top-level fields
-                        if ($totalHeadCount == 0) {
-                            $totalHeadCount = floatval($item['pax'] ?? $item['adults'] ?? $item['adultCount'] ?? 0);
-                        }
-
-                        if ($totalHeadCount == 1) {
-                            // For exactly one person, use enquiry total as single price override
-                            $manualSinglePrice = floatval($directTotalPrice);
-                        }
-                    }
-                    
-                    // Hotel pricing calculation with date-based weekday/weekend check
-                    $singleWeekdayPrice = null;
-                    $singleWeekendPrice = null;
-                    $doubleWeekdayPrice = null;
-                    $doubleWeekendPrice = null;
-
-
-                    // Get prices from room data - first try to fetch from database using room_id (preferred) and hotel_id
-                    if (!empty($item['rooms']) && is_array($item['rooms'])) {
-                        foreach ($item['rooms'] as $roomData) {
-                            $roomtype = $roomData['room_type'] ?? $roomData['roomType'] ?? null;
-                            $roomIdFromJson = $roomData['room_id'] ?? $roomData['roomId'] ?? null;
-                            
-                            // Try to fetch room from database first - must match both room_id and hotel_id (more reliable than room_type)
-                            if ($roomIdFromJson && $hotelId) {
-                                try {
-                                    // First try to get hotel_id from hotel_unique_id
-                                    $hotel = Hotel::where('hotel_unique_id', $hotelId)->first();
-                                    $dbHotelId = $hotel ? $hotel->hotel_unique_id : $hotelId;
-                                    
-                                    $roomRecord = Room::where('room_id', $roomIdFromJson)
-                                        ->where('hotel_id', $dbHotelId)
-                                        ->where('status', 1)
-                                        ->first();
-                                    if ($roomRecord) {
-                                        if ($roomRecord->weekday_price !== null && $roomRecord->weekday_price !== '') {
-                                            $singleWeekdayPrice = floatval($roomRecord->weekday_price);
-                                        }
-                                        if ($roomRecord->weekend_price !== null && $roomRecord->weekend_price !== '') {
-                                            $singleWeekendPrice = floatval($roomRecord->weekend_price);
-                                        }
-                                        if ($roomRecord->double_weekday_price !== null && $roomRecord->double_weekday_price !== '') {
-                                            // Double prices in DB are room prices; convert to per-head by dividing by 2
-                                            $doubleWeekdayPrice = floatval($roomRecord->double_weekday_price) / 2;
-                                        }
-                                        if ($roomRecord->double_weekend_price !== null && $roomRecord->double_weekend_price !== '') {
-                                            $doubleWeekendPrice = floatval($roomRecord->double_weekend_price) / 2;
-                                        }
-                                        $bed = Bed::where('room_id', $roomRecord->room_id)->first();
-                                        if ($bed && $bed->baby_cot_price !== null) {
-                                            $babyCotPrice = floatval($bed->baby_cot_price);
-                                        }
-                                        // If we got prices from database, break
-                                        if ($singleWeekdayPrice !== null || $singleWeekendPrice !== null || $doubleWeekdayPrice !== null || $doubleWeekendPrice !== null) {
-                                            break;
-                                        }
-                                    }
-                                } catch (\Exception $e) {
-                                    Log::warning('Failed to fetch room prices from database', [
-                                        'room_type' => $roomtype,
-                                        'hotel_id' => $hotelId,
-                                        'error' => $e->getMessage()
-                                    ]);
-                                }
-                            }
-                            
-                            // Fallback: Get prices from room data in item
-                            $weekdayPrice = $roomData['weekday_price'] ?? $roomData['weekdayPrice'] ?? null;
-                            $weekendPrice = $roomData['weekend_price'] ?? $roomData['weekendPrice'] ?? null;
-                            $doubleWeekdayPriceVal = $roomData['double_weekday_price'] ?? $roomData['doubleWeekdayPrice'] ?? null;
-                            $doubleWeekendPriceVal = $roomData['double_weekend_price'] ?? $roomData['doubleWeekendPrice'] ?? null;
-
-                            if ($singleWeekdayPrice === null && $weekdayPrice !== null && $weekdayPrice !== '') {
-                                $singleWeekdayPrice = floatval($weekdayPrice);
-                            }
-                            if ($singleWeekendPrice === null && $weekendPrice !== null && $weekendPrice !== '') {
-                                $singleWeekendPrice = floatval($weekendPrice);
-                            }
-                            if ($doubleWeekdayPrice === null && $doubleWeekdayPriceVal !== null && $doubleWeekdayPriceVal !== '') {
-                                $doubleWeekdayPrice = floatval($doubleWeekdayPriceVal) / 2;
-                            }
-                            if ($doubleWeekendPrice === null && $doubleWeekendPriceVal !== null && $doubleWeekendPriceVal !== '') {
-                                $doubleWeekendPrice = floatval($doubleWeekendPriceVal) / 2;
-                            }
-
-                            if ($singleWeekdayPrice !== null || $singleWeekendPrice !== null || $doubleWeekdayPrice !== null || $doubleWeekendPrice !== null) {
-                                break;
-                            }
-                        }
-                    }
-
-                    // Check direct item fields if not found in rooms
-                    if ($singleWeekdayPrice === null) {
-                        $weekdayPrice = $item['weekday_price'] ?? $item['weekdayPrice'] ?? null;
-                        if ($weekdayPrice !== null && $weekdayPrice !== '') {
-                            $singleWeekdayPrice = floatval($weekdayPrice);
-                        }
-                    }
-                    if ($singleWeekendPrice === null) {
-                        $weekendPrice = $item['weekend_price'] ?? $item['weekendPrice'] ?? null;
-                        if ($weekendPrice !== null && $weekendPrice !== '') {
-                            $singleWeekendPrice = floatval($weekendPrice);
-                        }
-                    }
-                    if ($doubleWeekdayPrice === null) {
-                        $doubleWeekdayPriceVal = $item['double_weekday_price'] ?? $item['doubleWeekdayPrice'] ?? null;
-                        if ($doubleWeekdayPriceVal !== null && $doubleWeekdayPriceVal !== '') {
-                            $doubleWeekdayPrice = floatval($doubleWeekdayPriceVal) / 2;
-                        }
-                    }
-                    if ($doubleWeekendPrice === null) {
-                        $doubleWeekendPriceVal = $item['double_weekend_price'] ?? $item['doubleWeekendPrice'] ?? null;
-                        if ($doubleWeekendPriceVal !== null && $doubleWeekendPriceVal !== '') {
-                            $doubleWeekendPrice = floatval($doubleWeekendPriceVal) / 2;
-                        }
-                    }
-
-                    // Get booking dates
-                    $bookingDates = [];
-                    $bookingDate = $item['bookingDate'] ?? null;
-                    
-                    if ($bookingDate) {
-                        if (is_array($bookingDate) && count($bookingDate) === 2) {
-                            try {
-                                $start = Carbon::parse($bookingDate[0]);
-                                $end = Carbon::parse($bookingDate[1]);
-                                
-                                // Generate all dates in the booking period (excluding checkout day)
-                                while ($start->lt($end)) {
-                                    $bookingDates[] = $start->copy();
-                                    $start->addDay();
-                                }
-                            } catch (\Exception $e) {
-                                // If date parsing fails, use tour dates as fallback
-                                if ($tour->check_in_time && $tour->check_out_time) {
-                                    try {
-                                        $start = Carbon::parse($tour->check_in_time);
-                                        $end = Carbon::parse($tour->check_out_time);
-                                        while ($start->lt($end)) {
-                                            $bookingDates[] = $start->copy();
-                                            $start->addDay();
-                                        }
-                                    } catch (\Exception $e2) {
-                                        // If still fails, default to 1 night
-                                        $bookingDates[] = Carbon::today();
-                                    }
-                                }
-                            }
-                        } else {
-                            $singleDate = is_array($bookingDate) ? ($bookingDate[0] ?? null) : $bookingDate;
-                            if ($singleDate) {
-                                try {
-                                    $bookingDates[] = Carbon::parse($singleDate);
-                                } catch (\Exception $e) {
-                                    // Fallback to tour dates
-                                    if ($tour->check_in_time) {
-                                        try {
-                                            $bookingDates[] = Carbon::parse($tour->check_in_time);
-                                        } catch (\Exception $e2) {
-                                            $bookingDates[] = Carbon::today();
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    } elseif ($tour->check_in_time && $tour->check_out_time) {
-                        // Fallback to tour dates if bookingDate not available
-                        try {
-                            $start = Carbon::parse($tour->check_in_time);
-                            $end = Carbon::parse($tour->check_out_time);
-                            while ($start->lt($end)) {
-                                $bookingDates[] = $start->copy();
-                                $start->addDay();
-                            }
-                        } catch (\Exception $e) {
-                            $bookingDates[] = Carbon::today();
-                        }
-                    }
-
-                    // If no dates found, default to 1 night
-                    if (empty($bookingDates)) {
-                        $bookingDates[] = Carbon::today();
-                    }
-
-                    // Calculate price for each night based on weekday/weekend
-                    $hotelSingleTotal = 0;
-                    $hotelDoubleTotal = 0;
-                    $hotelTripleTotal = 0;
-                    $extraBedTotal = 0; // total extra bed cost across all nights
-                    
-                    // Get extra bed price from beds table if available
-                    $extraBedWeekdayPrice = null;
-                    $extraBedWeekendPrice = null;
-                    $roomIdForBed = null;
-                    
-                    // Try to get room_id from roomRecord to check for extra bed
-                    if (!empty($item['rooms']) && is_array($item['rooms'])) {
-                        foreach ($item['rooms'] as $roomData) {
-                            $roomId = $roomData['room_id'] ?? $roomData['roomId'] ?? null;
-                            
-                            if ($roomId && $hotelId) {
-                                try {
-                                    $hotel = Hotel::where('hotel_unique_id', $hotelId)->first();
-                                    $dbHotelId = $hotel ? $hotel->hotel_unique_id : $hotelId;
-                                    
-                                    $roomRecord = Room::where('room_id', $roomId)
-                                        ->where('hotel_id', $dbHotelId)
-                                        ->where('status', 1)
-                                        ->first();
-                                    if ($roomRecord && $roomRecord->room_id) {
-                                        $roomIdForBed = $roomRecord->room_id;
-                                        
-                                        // Check beds table for extra_bed
-                                        
-                                        $bedRecord = Bed::where('room_id', $roomIdForBed)
-                                            ->where('extra_bed', true)
-                                            ->where('is_active', 1)
-                                            ->first();
-                                        if ($bedRecord && $bedRecord->extra_bed_price !== null) {
-                                            // Extra bed price is per extra bed (per night)
-                                            $extraBedPrice = floatval($bedRecord->extra_bed_price);
-                                            $extraBedWeekdayPrice = $extraBedPrice;
-                                            $extraBedWeekendPrice = $extraBedPrice;
-                                            
-                                            Log::info('Extra bed found for room', [
-                                                'room_id' => $roomIdForBed,
-                                                'extra_bed_price' => $extraBedPrice
-                                            ]);
-                                        }
-                                        if ($bedRecord && $bedRecord->baby_cot_price !== null) {
-                                            $babyCotPrice = floatval($bedRecord->baby_cot_price);
-                                        }
-                                        
-                                        // If we found the room, break
-                                        if ($roomIdForBed) {
-                                            break;
-                                        }
-                                    }
-                                } catch (\Exception $e) {
-                                    Log::warning('Failed to fetch bed info for triple sharing', [
-                                        'room_type' => $roomtype,
-                                        'hotel_id' => $hotelId,
-                                        'error' => $e->getMessage()
-                                    ]);
-                                }
-                            }
-                        }
-                    }
-                    
-                    // Debug logging
-                    Log::info('Hotel price calculation', [
-                        'hotel_id' => $hotelId,
-                        'room_type' => $roomtype ?? 'N/A',
-                        'booking_dates_count' => count($bookingDates),
-                        'booking_dates' => array_map(function($d) { return $d->format('Y-m-d (l)'); }, $bookingDates),
-                        'weekend_days' => $weekendDays,
-                        'single_weekday_price' => $singleWeekdayPrice,
-                        'single_weekend_price' => $singleWeekendPrice,
-                        'double_weekday_price' => $doubleWeekdayPrice,
-                        'double_weekend_price' => $doubleWeekendPrice,
-                    ]);
-                    foreach ($bookingDates as $date) {
-                        $dayName = $date->format('l'); // Full day name (Monday, Tuesday, etc.)
-                        $isWeekend = in_array($dayName, $weekendDays);
-                        $dateString = $date->format('Y-m-d');
-                        
-                        // Priority-based pricing: Check rates table first
-                        $ratePrice = null;
-                        $rateSingleWeekdayPrice = null;
-                        $rateSingleWeekendPrice = null;
-                        $rateDoubleWeekdayPrice = null;
-                        $rateDoubleWeekendPrice = null;
-                        $rateEventType = null;
-                        
-                        if ($hotelId) {
-                            try {
-                                // Query rates for this hotel and date with priority order
-                                $rate = Rate::where('hotel_id', $hotelId)
-                                    ->whereDate('start_date', '<=', $dateString)
-                                    ->whereDate('end_date', '>=', $dateString)
-                                    ->orderByRaw("
-                                        CASE
-                                            WHEN event_type = 'Blackout Date' THEN 1
-                                            WHEN event_type = 'Season' THEN 2
-                                            WHEN event_type = 'Fair Date' THEN 3
-                                            ELSE 4
-                                        END
-                                    ")
-                                    ->first();
-                                
-                                if ($rate) {
-                                    $rateEventType = $rate->event_type;
-                                    
-                                    if ($rate->event_type == 'Blackout Date') {
-                                        // Blackout Date: Use rate->price (first priority)
-                                        $ratePrice = floatval($rate->price ?? 0);
-                                        // For blackout, single uses full price, double is per-head (price / 2)
-                                        $rateSingleWeekdayPrice = $ratePrice;
-                                        $rateSingleWeekendPrice = $ratePrice;
-                                        $rateDoubleWeekdayPrice = $ratePrice / 2;
-                                        $rateDoubleWeekendPrice = $ratePrice / 2;
-                                    } elseif ($rate->event_type == 'Season') {
-                                        // Season: Use rate weekday/weekend prices (second priority)
-                                        $rateSingleWeekdayPrice = $rate->weekday_price ? floatval($rate->weekday_price) : null;
-                                        $rateSingleWeekendPrice = $rate->weekend_price ? floatval($rate->weekend_price) : null;
-                                        // Check if double prices exist (they might not be in all migrations)
-                                        $rateDoubleWeekdayPrice = (isset($rate->double_weekday_price) && $rate->double_weekday_price !== null && $rate->double_weekday_price !== '') 
-                                            ? floatval($rate->double_weekday_price) / 2 
-                                            : null;
-                                        $rateDoubleWeekendPrice = (isset($rate->double_weekend_price) && $rate->double_weekend_price !== null && $rate->double_weekend_price !== '') 
-                                            ? floatval($rate->double_weekend_price) / 2 
-                                            : null;
-                                    }
-                                    // Fair Date is handled as additional price, skip for now as per priority
-                                }
-                            } catch (\Exception $e) {
-                                Log::warning('Failed to fetch rate for date', [
-                                    'hotel_id' => $hotelId,
-                                    'date' => $dateString,
-                                    'error' => $e->getMessage()
-                                ]);
-                            }
-                        }
-                        
-                        // Determine per-night price ONLY from room/hotel data (ignore rates)
-                        // Single: weekday/weekend single prices
-                        // Double: weekday/weekend double prices (already stored per-head: double_* / 2 above)
-                        $singlePriceToAdd = null;
-                        $doublePriceToAdd = null;
-
-                        if ($isWeekend) {
-                            $singlePriceToAdd = $singleWeekendPrice ?? $singleWeekdayPrice;
-                            $doublePriceToAdd = $doubleWeekendPrice ?? $doubleWeekdayPrice;
-                        } else {
-                            $singlePriceToAdd = $singleWeekdayPrice ?? $singleWeekendPrice;
-                            $doublePriceToAdd = $doubleWeekdayPrice ?? $doubleWeekendPrice;
-                        }
-
-                        // Add prices to totals (per night)
-                        if ($singlePriceToAdd !== null) {
-                            $hotelSingleTotal += $singlePriceToAdd;
-                        }
-                        if ($doublePriceToAdd !== null) {
-                            $hotelDoubleTotal += $doublePriceToAdd;
-                        }
-
-                        // Accumulate extra bed total per night (if available)
-                        if ($extraBedWeekdayPrice !== null) {
-                            $extraBedPriceToAdd = $isWeekend 
-                                ? ($extraBedWeekendPrice ?? $extraBedWeekdayPrice) 
-                                : ($extraBedWeekdayPrice ?? $extraBedWeekendPrice);
-
-                            if ($extraBedPriceToAdd !== null) {
-                                $extraBedTotal += $extraBedPriceToAdd;
-                            }
-                        }
-                    }
-
-                    // Simplified totals for hotel:
-                    // - single_sharing: sum of single prices across nights (with optional manual override for 1 pax)
-                    // - double_sharing: sum of per-head double prices across nights (always from room/hotel)
-                    // - triple_sharing (when extra bed present):
-                    //     (double_sharing_total * 2 + extra_bed_total) / 3
-                    //   where extra_bed_total = extra_bed_price_per_night * nights
-                    if ($extraBedTotal > 0) {
-                        $hotelTripleTotal = ($hotelDoubleTotal * 2 + $extraBedTotal) / 3;
+                    $hotelBuckets[$hotelKey]['selected_persons'] = max(
+                        (int) ($hotelBuckets[$hotelKey]['selected_persons'] ?? 0),
+                        $selectedPersons
+                    );
+                    $hotelBuckets[$hotelKey]['children'] = max(
+                        (int) ($hotelBuckets[$hotelKey]['children'] ?? 0),
+                        $childrenCount
+                    );
+                    $hotelBuckets[$hotelKey]['children_price'] = $childrenPriceCode;
+                    $hotelBuckets[$hotelKey]['child_meal_factor'] = $childMealFactor;
+                    $hotelBuckets[$hotelKey]['child_with_bed_total'] =
+                        (float) ($hotelBuckets[$hotelKey]['child_with_bed_total'] ?? 0) + $cwbTotal;
+                    $hotelBuckets[$hotelKey]['child_without_bed_total'] =
+                        (float) ($hotelBuckets[$hotelKey]['child_without_bed_total'] ?? 0) + $cnbTotal;
+                    // Only accumulate the booked occupancy — never invent Single/Double for triple stays.
+                    if ($selectedPersons >= 3) {
+                        $hotelBuckets[$hotelKey]['triple'] += $bookedPerPax;
+                    } elseif ($selectedPersons === 2) {
+                        $hotelBuckets[$hotelKey]['double'] += $bookedPerPax;
                     } else {
-                        $hotelTripleTotal = 0;
+                        $hotelBuckets[$hotelKey]['single'] += $bookedPerPax;
+                    }
+                    if (empty($hotelBucketMeta[$hotelKey]['date_range']) && $dateRange !== '') {
+                        $hotelBucketMeta[$hotelKey]['date_range'] = $dateRange;
                     }
 
-                    // Override with manual SINGLE price if available (from directTotalPrice for 1 pax)
-                    if ($manualSinglePrice !== null) {
-                        $hotelSingleTotal = $manualSinglePrice;
+                    $addBookedToCountry();
+                    continue;
+                }
+
+                // Other services: totalPrice (+ transfer/guide) ÷ Total Pax
+                // For vehicles/local transport always use tour total pax (not seat/head flags on the item).
+                $vehicleTypes = [
+                    'local_transport', 'local_transfer', 'local_transfer_vehicle',
+                    'travel_hourly', 'travel_point', 'port_transport',
+                ];
+                $isGuestPriced = in_array($type, ['attraction', 'restaurant'], true);
+                $guestPricing = $isGuestPriced
+                    ? $resolveGuestServicePricing($item, $type, $amount)
+                    : null;
+
+                $childPart = 0.0;
+                $adultPart = $amount;
+                if (is_array($guestPricing) && !empty($guestPricing['has_guest_split'])) {
+                    $childPart = (float) ($guestPricing['child_total'] ?? 0);
+                    // Adult share = adult tickets/meals + seniors + transfer/guide extras
+                    $adultPart = max(0.0, $amount - $childPart);
+                }
+
+                $paxDiv = in_array($type, $vehicleTypes, true)
+                    ? $totalPax
+                    : max(1, $itemPax($item));
+                // Adult portion ÷ tour pax for country (A); child kept absolute for (C)
+                $perPax = $adultPart / $totalPax;
+
+                // Other supplement: separate from country / overall — only in supplements list.
+                if ($isSupplement) {
+                    $suppRow = [
+                        'type' => $type !== '' ? $type : 'other',
+                        'name' => self::resolveOrderItemPriceLabel($type !== '' ? $type : 'other', $item),
+                        'AttractionName' => $item['AttractionName'] ?? null,
+                        'AttractionId' => $item['AttractionId'] ?? null,
+                        'ticketName' => $item['ticketName'] ?? null,
+                        'transfer_options' => $item['transfer_options'] ?? null,
+                        'guide_options' => $item['guide_options'] ?? null,
+                        'restaurantName' => $item['restaurantName'] ?? null,
+                        'restaurant_id' => $item['restaurant_id'] ?? $item['restaurantId'] ?? null,
+                        'mealType' => $item['mealType'] ?? null,
+                        'MealDescription' => $item['MealDescription'] ?? null,
+                        'entry_port_id' => $item['entry_port_id'] ?? null,
+                        'exit_port_id' => $item['exit_port_id'] ?? null,
+                        'country' => $orderCountry,
+                        'currency' => $orderCurrency,
+                        'selected_persons' => null,
+                        'show_single' => true,
+                        'show_double' => false,
+                        'show_triple' => false,
+                        'single' => $perPax * $focFactor,
+                        'double' => $perPax * $focFactor,
+                        'triple' => $perPax * $focFactor,
+                    ];
+                    if (is_array($guestPricing)) {
+                        $suppRow['adult_count'] = (int) ($guestPricing['adult_count'] ?? 0);
+                        $suppRow['child_count'] = (int) ($guestPricing['child_count'] ?? 0);
+                        $suppRow['adult_unit'] = (float) ($guestPricing['adult_unit'] ?? 0);
+                        $suppRow['child_unit'] = (float) ($guestPricing['child_unit'] ?? 0);
+                        $suppRow['adult_total'] = (float) ($guestPricing['adult_total'] ?? 0);
+                        $suppRow['child_total'] = (float) ($guestPricing['child_total'] ?? 0);
+                        $suppRow['extras'] = (float) ($guestPricing['extras'] ?? 0);
                     }
+                    $supplements[] = $suppRow;
+                    continue;
+                }
 
-                    if ($isSupplement) {
-                        if (!isset($hotelSupplementBuckets[$currentHotelKey])) {
-                            $meta = $hotelBucketMeta[$currentHotelKey] ?? [];
-                            $hotelSupplementBuckets[$currentHotelKey] = [
-                                'type' => 'hotel',
-                                // keep stable key internally but expose friendly names to API
-                                'key' => $currentHotelKey,
-                                'hotel_id' => $meta['hotel_id'] ?? null,
-                                'hotel_name' => $meta['hotel_name'] ?? null,
-                                'date_range' => $meta['date_range'] ?? null,
-                                'display_name' => $meta['display_name'] ?? ($meta['hotel_name'] ?? $currentHotelKey),
-                                'name' => $meta['display_name'] ?? ($meta['hotel_name'] ?? $currentHotelKey),
-                                'single' => null,
-                                'double' => null,
-                                'triple' => null,
-                                'baby_cot' => 0,
-                            ];
-                        }
+                $countryOther[$countryKey]['single'] += $perPax;
+                $countryOther[$countryKey]['double'] += $perPax;
+                $countryGrossOther[$countryKey] += $adultPart;
+                if ($childPart > 0) {
+                    $countryOtherChild[$countryKey] = ($countryOtherChild[$countryKey] ?? 0.0) + $childPart;
+                }
 
-                        // Prices come from room pricing data (independent of order occupancy).
-                        // Keep max value in case multiple orders exist for the same supplement hotel.
-                        if ($hotelSingleTotal > 0) {
-                            $prev = $hotelSupplementBuckets[$currentHotelKey]['single'];
-                            $hotelSupplementBuckets[$currentHotelKey]['single'] = $prev === null ? (float)$hotelSingleTotal : max((float)$prev, (float)$hotelSingleTotal);
-                        }
-                        if ($hotelDoubleTotal > 0) {
-                            $prev = $hotelSupplementBuckets[$currentHotelKey]['double'];
-                            $hotelSupplementBuckets[$currentHotelKey]['double'] = $prev === null ? (float)$hotelDoubleTotal : max((float)$prev, (float)$hotelDoubleTotal);
-                        }
-                        if ($hotelTripleTotal > 0) {
-                            $prev = $hotelSupplementBuckets[$currentHotelKey]['triple'];
-                            $hotelSupplementBuckets[$currentHotelKey]['triple'] = $prev === null ? (float)$hotelTripleTotal : max((float)$prev, (float)$hotelTripleTotal);
-                        }
-                        $hotelSupplementBuckets[$currentHotelKey]['baby_cot'] = max((float)($hotelSupplementBuckets[$currentHotelKey]['baby_cot'] ?? 0), (float)$babyCotPrice);
-                    } else {
-                        if (!isset($hotelBuckets[$currentHotelKey])) {
-                            $hotelBuckets[$currentHotelKey] = [
-                                'single' => null,
-                                'double' => null,
-                                'triple' => null,
-                            ];
-                        }
-                        // Single/double/triple prices come from the room's own pricing data
-                        // (weekday_price, double_weekday_price, extra_bed_price), not from the occupancy
-                        // of this specific order. So fill each slot from ANY order â€” first non-null wins.
-                        if ($hotelBuckets[$currentHotelKey]['single'] === null && $hotelSingleTotal > 0) {
-                            $hotelBuckets[$currentHotelKey]['single'] = (float)$hotelSingleTotal;
-                        }
-                        if ($hotelBuckets[$currentHotelKey]['double'] === null && $hotelDoubleTotal > 0) {
-                            $hotelBuckets[$currentHotelKey]['double'] = (float)$hotelDoubleTotal;
-                        }
-                        if ($hotelBuckets[$currentHotelKey]['triple'] === null && $hotelTripleTotal > 0) {
-                            $hotelBuckets[$currentHotelKey]['triple'] = (float)$hotelTripleTotal;
-                        }
+                $segKey = $type;
+                if (!isset($segregated[$segKey])) {
+                    $segKey = 'other';
+                }
+                if (isset($segregated[$segKey]['single'])) {
+                    $segregated[$segKey]['single'] += $perPax;
+                    $segregated[$segKey]['double'] += $perPax;
+                }
 
-                        // Add to segregated hotel prices
-                        $segregatedPrices['hotel']['single'] += $hotelSingleTotal;
-                        $segregatedPrices['hotel']['double'] += $hotelDoubleTotal;
-                        $segregatedPrices['hotel']['triple'] += $hotelTripleTotal;
-                        $segregatedPrices['hotel']['baby_cot'] += $babyCotPrice;
+                $serviceLine = [
+                    'label' => self::resolveOrderItemPriceLabel($type !== '' ? $type : 'other', $item),
+                    'type' => $type !== '' ? $type : 'other',
+                    'single' => $perPax,
+                    'double' => $perPax,
+                    'child_unit' => is_array($guestPricing) ? (float) ($guestPricing['child_unit'] ?? 0) : 0.0,
+                    'country' => $orderCountry,
+                    'currency' => $orderCurrency,
+                    'amount' => $amount,
+                    'adult_part' => $adultPart,
+                    'child_part' => $childPart,
+                ];
+                if (is_array($guestPricing)) {
+                    $serviceLine['adult_count'] = (int) ($guestPricing['adult_count'] ?? 0);
+                    $serviceLine['child_count'] = (int) ($guestPricing['child_count'] ?? 0);
+                    $serviceLine['senior_count'] = (int) ($guestPricing['senior_count'] ?? 0);
+                    $serviceLine['adult_unit'] = (float) ($guestPricing['adult_unit'] ?? 0);
+                    $serviceLine['senior_unit'] = (float) ($guestPricing['senior_unit'] ?? 0);
+                    $serviceLine['adult_total'] = (float) ($guestPricing['adult_total'] ?? 0);
+                    $serviceLine['child_total'] = (float) ($guestPricing['child_total'] ?? 0);
+                    $serviceLine['senior_total'] = (float) ($guestPricing['senior_total'] ?? 0);
+                    $serviceLine['extras'] = (float) ($guestPricing['extras'] ?? 0);
+                    $serviceLine['has_guest_split'] = !empty($guestPricing['has_guest_split']);
+                }
+                $servicePriceLines[] = $serviceLine;
+            }
+        }
 
-                        $totalBabyCot += $babyCotPrice;
+        // Flush merged hotel supplements (same hotel_id → one row)
+        foreach ($hotelSupplementBuckets as $bucket) {
+            $supplements[] = $bucket;
+        }
 
-                        // Add to individual hotel prices
-                        $segregatedPrices[$currentHotelKey]['single'] += $hotelSingleTotal;
-                        $segregatedPrices[$currentHotelKey]['double'] += $hotelDoubleTotal;
-                        $segregatedPrices[$currentHotelKey]['triple'] += $hotelTripleTotal;
-                        $segregatedPrices[$currentHotelKey]['baby_cot'] += $babyCotPrice;
+        // Currency markups / discounts (hotel vs other segregated), then ÷ Total Pax
+        $markupRows = [];
+        $rawMarkups = $tour->currency_markups ?? ($tour->getAttributes()['currency_markups'] ?? null);
+        if (is_string($rawMarkups)) {
+            $decoded = json_decode($rawMarkups, true);
+            $rawMarkups = (json_last_error() === JSON_ERROR_NONE) ? $decoded : null;
+        }
+        if (is_array($rawMarkups)) {
+            foreach ($rawMarkups as $key => $row) {
+                if (!is_array($row)) {
+                    continue;
+                }
+                $currency = is_string($key) && !is_numeric($key) && empty($row['currency'])
+                    ? strtoupper(trim($key))
+                    : strtoupper(trim((string) ($row['currency'] ?? '')));
+                $markupRows[] = [
+                    'city' => trim((string) ($row['city'] ?? '')),
+                    'currency' => $currency,
+                    'country' => trim((string) ($row['country'] ?? '')),
+                    'markup_type' => strtolower(trim((string) ($row['markup_type'] ?? 'flat'))) ?: 'flat',
+                    'hotel_markup' => (float) ($row['hotel_markup'] ?? $row['markup_value'] ?? 0),
+                    'other_markup' => (float) ($row['other_markup'] ?? 0),
+                    'discount_type' => strtolower(trim((string) ($row['discount_type'] ?? 'flat'))) ?: 'flat',
+                    'discount_value' => (float) ($row['discount_value'] ?? 0),
+                ];
+            }
+        }
+
+        $lookupMarkup = function (string $country, string $currency) use ($markupRows): ?array {
+            $country = trim($country);
+            $currency = strtoupper(trim($currency));
+            if ($country !== '') {
+                foreach ($markupRows as $row) {
+                    if (strcasecmp((string) ($row['country'] ?? ''), $country) === 0) {
+                        return $row;
                     }
-                } else {
-                    // Other services pricing calculation
-                    $totalPrice = $item['totalPrice'] ?? $item['total_price'] ?? $item['price'] ?? null;
-                    if ($totalPrice !== null) {
-                        $totalPriceFloat = floatval($totalPrice);
-                        $normalizedType = strtolower($type ?? '');
-                        
-                        // Handle attraction and restaurant
-                        //
-                        // Per-pax resolution priority (per-adult unit price):
-                        //   1. Explicit JSON per-pax fields (adultPrice / adult_price)  â† user override
-                        //   2. Derived from the booking's own totalPrice                â† what the user actually saved
-                        //   3. Catalog default (ticket_details for attraction, meals table for restaurant)
-                        //
-                        // The booking's totalPrice is authoritative because it represents what the user
-                        // actually entered/charged for this specific booking. The catalog (meal.adult_price,
-                        // ticket_details.adult_price) is just a default at the time of selection and may
-                        // differ from what was finally saved on the booking. Falling back to the catalog
-                        // when totalPrice already exists led to incorrect per-pax values
-                        // (e.g. catalog 28 used instead of booked 500/10 = 50).
-                        if ($normalizedType === 'attraction' || $normalizedType === 'restaurant') {
-                            $adultCount = floatval($item['adultCount'] ?? 0);
-                            $childCount = floatval($item['childCount'] ?? 0);
-
-                            // (1) Explicit JSON per-pax (user override) â€” highest priority
-                            $jsonAdultPrice = null;
-                            $jsonChildPrice = null;
-                            if (isset($item['adultPrice']) && $item['adultPrice'] !== '') {
-                                $jsonAdultPrice = floatval($item['adultPrice']);
-                            } elseif (isset($item['adult_price']) && $item['adult_price'] !== '') {
-                                $jsonAdultPrice = floatval($item['adult_price']);
-                            }
-                            if (isset($item['childPrice']) && $item['childPrice'] !== '') {
-                                $jsonChildPrice = floatval($item['childPrice']);
-                            } elseif (isset($item['child_price']) && $item['child_price'] !== '') {
-                                $jsonChildPrice = floatval($item['child_price']);
-                            }
-
-                            // (3) Catalog defaults â€” used only as a last resort
-                            $catalogAdultPrice = null;
-                            $catalogChildPrice = null;
-                            if (isset($item['ticket_details']['adult_price']) && $item['ticket_details']['adult_price'] !== '') {
-                                $catalogAdultPrice = floatval($item['ticket_details']['adult_price']);
-                            }
-                            if (isset($item['ticket_details']['child_price']) && $item['ticket_details']['child_price'] !== '') {
-                                $catalogChildPrice = floatval($item['ticket_details']['child_price']);
-                            }
-                            if ($normalizedType === 'restaurant'
-                                && ($catalogAdultPrice === null || $catalogChildPrice === null)
-                                && !empty($item['MealDescription'][0]['meal_id'])
-                            ) {
-                                try {
-                                    $mealId    = $item['MealDescription'][0]['meal_id'];
-                                    $mealQuery = \App\Models\Meal::where('meal_id', $mealId)->first();
-                                    if ($mealQuery) {
-                                        if ($catalogAdultPrice === null && $mealQuery->adult_price !== null) {
-                                            $catalogAdultPrice = (float) $mealQuery->adult_price;
-                                        }
-                                        if ($catalogChildPrice === null && $mealQuery->child_price !== null) {
-                                            $catalogChildPrice = (float) $mealQuery->child_price;
-                                        }
-                                    }
-                                } catch (\Throwable $e) {
-                                    \Log::warning('Failed to fetch meal unit prices for restaurant', [
-                                        'meal_id'       => $item['MealDescription'][0]['meal_id'] ?? null,
-                                        'restaurant_id' => $item['restaurantId'] ?? null,
-                                        'tour_id'       => $tour->tour_id ?? null,
-                                        'error'         => $e->getMessage(),
-                                    ]);
-                                }
-                            }
-
-                            // (2) Derived per-adult from the booking's totalPrice.
-                            // If children are present, subtract child cost (using best known child unit
-                            // price: JSON > catalog) so the remainder represents only adult cost.
-                            $derivedAdultPrice = null;
-                            if ($totalPriceFloat > 0 && $adultCount > 0) {
-                                $childUnitForSubtraction = $jsonChildPrice ?? $catalogChildPrice ?? 0;
-                                $childCost = ($childCount > 0) ? ($childUnitForSubtraction * $childCount) : 0;
-                                $derivedAdultPrice = max(0, $totalPriceFloat - $childCost) / $adultCount;
-                            }
-
-                            // Final per-adult unit price: JSON > derived (from booking total) > catalog
-                            if ($jsonAdultPrice !== null && $jsonAdultPrice > 0) {
-                                $adultUnitPrice = $jsonAdultPrice;
-                            } elseif ($derivedAdultPrice !== null && $derivedAdultPrice > 0) {
-                                $adultUnitPrice = $derivedAdultPrice;
-                            } elseif ($catalogAdultPrice !== null && $catalogAdultPrice > 0) {
-                                $adultUnitPrice = $catalogAdultPrice;
-                            } else {
-                                $adultUnitPrice = 0;
-                            }
-
-                            // Final per-child unit price: JSON > catalog (child cost stays in child_sharing only)
-                            if ($jsonChildPrice !== null && $jsonChildPrice > 0) {
-                                $childUnitPrice = $jsonChildPrice;
-                            } elseif ($catalogChildPrice !== null && $catalogChildPrice > 0) {
-                                $childUnitPrice = $catalogChildPrice;
-                            } else {
-                                $childUnitPrice = 0;
-                            }
-
-                            // Adult per pax â†’ main totals + segregated (with hotel and other services).
-                            // Child per pax â†’ child_sharing only (never mixed into single/double).
-                            $singleSharing = 0;
-                            if ($adultCount >= 1) {
-                                if ($adultUnitPrice > 0) {
-                                    $singleSharing = $adultUnitPrice;
-                                } else {
-                                    $pax = $adultCount + $childCount;
-                                    $singleSharing = $pax > 0 ? ($totalPriceFloat / $pax) : $totalPriceFloat;
-                                }
-                            }
-                            // When adultCount < 1 (only children): nothing added to main/segregated; child goes to child_sharing below
-
-                            // Guide and vehicle: add to adult section only (per adult)
-                            if (isset($item['guide_options']['total_price']) && $adultCount > 0) {
-                                $singleSharing += floatval($item['guide_options']['total_price']) / $adultCount;
-                            }
-                            if (isset($item['transfer_options']['cost']) && $adultCount > 0) {
-                                $singleSharing += floatval($item['transfer_options']['cost']) / $adultCount;
-                            }
-
-                            $doubleSharing = $singleSharing;
-
-                            // Child price: sum child unit prices only (e.g. attraction 20 + restaurant 12 = 32)
-                            if (!$isSupplement && $childUnitPrice > 0) {
-                                $totalChildComponent += $childUnitPrice;
-                            }
-
-                            // Add adult part to other-services total (unless supplement)
-                            if (!$isSupplement) {
-                                $otherServiceSingle += $singleSharing;
-                                $otherServiceDouble += $doubleSharing;
-                                $trackCountryOther((float)$singleSharing, (float)$doubleSharing);
-                            }
-                        }
-                        // Handle entry_port and exit_port
-                        elseif ($normalizedType === 'entry_port' || $normalizedType === 'exit_port') {
-                            // Calculate per adult price: totalPrice / Adults
-                            $adultCount = floatval($item['adult'] ?? $item['adults'] ?? $item['adultCount'] ?? 0);
-                            
-                            if ($adultCount > 0) {
-                                $singleSharing = $totalPriceFloat / $adultCount;
-                            } else {
-                                // Fallback if no adult count found, use total price as single sharing
-                                $singleSharing = $totalPriceFloat;
-                            }
-                            
-                            // Double sharing: same as single (per-person price)
-                            $doubleSharing = $singleSharing;
-
-                            if (!$isSupplement) {
-                                $otherServiceSingle += $singleSharing;
-                                $otherServiceDouble += $doubleSharing;
-                                $trackCountryOther((float)$singleSharing, (float)$doubleSharing);
-                            }
-                        }
-                        // Handle travel_point, travel_hourly, local_transport
-                        elseif (in_array($normalizedType, ['travel_point', 'travel_hourly', 'local_transport'])) {
-                            // Calculate per adult price: totalPrice / Adults
-                            $adultCount = floatval($item['adult'] ?? $item['adults'] ?? $item['adultCount'] ?? 0);
-                            
-                            if ($adultCount > 0) {
-                                $singleSharing = $totalPriceFloat / $adultCount;
-                            } else {
-                                // Fallback if no adult count found or 0, use total price as single sharing (divide by 1)
-                                $singleSharing = $totalPriceFloat;
-                            }
-                            
-                            // Double sharing: same as single (per-person price)
-                            $doubleSharing = $singleSharing;
-
-                            if (!$isSupplement) {
-                                $otherServiceSingle += $singleSharing;
-                                $otherServiceDouble += $doubleSharing;
-                                $trackCountryOther((float)$singleSharing, (float)$doubleSharing);
-                            }
-                        }
-                        // Handle guide: per adult price (totalPrice / Adults)
-                        elseif ($normalizedType === 'guide') {
-                            $adultCount = floatval($item['adult'] ?? $item['adults'] ?? $item['adultCount'] ?? 0);
-                            
-                            if ($adultCount > 0) {
-                                $singleSharing = $totalPriceFloat / $adultCount;
-                            } else {
-                                $singleSharing = $totalPriceFloat;
-                            }
-                            
-                            $doubleSharing = $singleSharing;
-
-                            if (!$isSupplement) {
-                                $otherServiceSingle += $singleSharing;
-                                $otherServiceDouble += $doubleSharing;
-                                $trackCountryOther((float)$singleSharing, (float)$doubleSharing);
-                            }
-                        }
-                        // Default calculation for other service types
-                        else {
-                            // Get pax count
-                            $pax = $item['pax'] 
-                                ?? (($item['adult'] ?? 0) + ($item['child'] ?? 0) + ($item['infant'] ?? 0))
-                                ?? (($item['adultCount'] ?? 0) + ($item['childCount'] ?? 0) + ($item['seniorCount'] ?? 0))
-                                ?? null;
-
-                            // Single sharing: per person price
-                            if ($pax && $pax > 0) {
-                                $singleSharing = $totalPriceFloat / floatval($pax);
-                            } else {
-                                $singleSharing = $totalPriceFloat;
-                            }
-
-                            // Double sharing: total / 2 (per person for 2 people)
-                            $doubleSharing = $totalPriceFloat;
-                            
-                            if (!$isSupplement) {
-                                $otherServiceSingle += $singleSharing;
-                                $otherServiceDouble += $doubleSharing;
-                                $trackCountryOther((float)$singleSharing, (float)$doubleSharing);
-                            }
-                        }
-
-                        if ($isSupplement) {
-                            // Keep supplement row as a standalone payload.
-                            // Supplements are shown as the full line booking total (not per pax).
-                            // single/double/triple use the same total so any existing UI column shows full price.
-                            $supplementFull = (float) $totalPriceFloat;
-                            $supplementRow = [
-                                'type'   => $normalizedType ?? $type,
-                                'single' => $supplementFull,
-                                'double' => $supplementFull,
-                                'triple' => $supplementFull,
-                            ];
-
-                            if (($normalizedType ?? '') === 'attraction') {
-                                $supplementRow['AttractionId'] = $item['AttractionId']
-                                    ?? $item['attractionId']
-                                    ?? $item['attraction_id']
-                                    ?? null;
-                                $supplementRow['ticketName'] = $item['ticketName']
-                                    ?? $item['ticket_name']
-                                    ?? $item['ticket']
-                                    ?? null;
-                                $supplementRow['transfer_options'] = $item['transfer_options']
-                                    ?? $item['transferOptions']
-                                    ?? [];
-                                $supplementRow['guide_options'] = $item['guide_options']
-                                    ?? $item['guideOptions']
-                                    ?? [];
-                                // Optional name fields (used by some UIs)
-                                $supplementRow['AttractionName'] = $item['AttractionName']
-                                    ?? $item['attractionName']
-                                    ?? $item['name']
-                                    ?? null;
-                            } elseif (($normalizedType ?? '') === 'restaurant') {
-                                $supplementRow['restaurant_id'] = $item['restaurant_id']
-                                    ?? $item['restaurantId']
-                                    ?? null;
-                                $supplementRow['mealType'] = $item['mealType']
-                                    ?? $item['meal_type']
-                                    ?? null;
-                                $supplementRow['MealDescription'] = $item['MealDescription']
-                                    ?? $item['mealDescription']
-                                    ?? ($item['MealDescription'] ?? [])
-                                    ?? [];
-                                $supplementRow['restaurantName'] = $item['restaurantName']
-                                    ?? $item['restaurant_name']
-                                    ?? $item['name']
-                                    ?? null;
-                            }
-
-                            $supplements[] = $supplementRow;
-                        } else {
-                            // (already added to $otherServiceSingle/Double above per service type)
-                        }
+                }
+            }
+            if ($currency !== '') {
+                foreach ($markupRows as $row) {
+                    if (strtoupper(trim((string) ($row['currency'] ?? ''))) === $currency) {
+                        return $row;
                     }
+                }
+            }
+
+            return null;
+        };
+
+        $moneyFromRaw = function (float $base, string $type, float $raw): float {
+            if ($raw <= 0) {
+                return 0.0;
+            }
+            if ($type === 'percentage') {
+                return $base * $raw / 100.0;
+            }
+
+            return $raw; // flat / foc amount
+        };
+
+        $allKeys = array_values(array_unique(array_merge(array_keys($countryHotel), array_keys($countryOther))));
+
+        // Preferred country order from tour destination
+        $preferred = [];
+        $destinationRaw = (string) ($tour->destination ?? '');
+        if ($destinationRaw !== '') {
+            foreach (preg_split('/\s*,\s*/', $destinationRaw) ?: [] as $part) {
+                $part = trim((string) preg_replace('/\s*\([^)]*\)\s*/', '', $part));
+                $part = trim((string) preg_replace('/\[[^\]]*\]/', '', $part));
+                if ($part !== '') {
+                    $preferred[mb_strtolower($part)] = $part;
+                }
+            }
+        }
+        usort($allKeys, function ($a, $b) use ($preferred, $countryHotel, $countryOther) {
+            $aCountry = $countryHotel[$a]['country'] ?? ($countryOther[$a]['country'] ?? $a);
+            $bCountry = $countryHotel[$b]['country'] ?? ($countryOther[$b]['country'] ?? $b);
+            $aPos = array_key_exists(mb_strtolower($aCountry), $preferred)
+                ? array_search(mb_strtolower($aCountry), array_keys($preferred), true)
+                : PHP_INT_MAX;
+            $bPos = array_key_exists(mb_strtolower($bCountry), $preferred)
+                ? array_search(mb_strtolower($bCountry), array_keys($preferred), true)
+                : PHP_INT_MAX;
+            if ($aPos === $bPos) {
+                return strcasecmp($a, $b);
+            }
+
+            return $aPos <=> $bPos;
+        });
+
+        $countrySharing = [];
+        $sumHotelSingle = 0.0;
+        $sumHotelDouble = 0.0;
+        $sumHotelTriple = 0.0;
+        $sumOtherSingle = 0.0;
+        $sumOtherDouble = 0.0;
+        $discountRows = [];
+        $sumDiscountFlat = 0.0;
+        $markupRowsOut = [];
+        $sumMarkupFlat = 0.0;
+
+        $tourMarkupOn = !empty($tour->markup) && (int) $tour->markup === 1;
+        $tourMarkupType = strtolower(trim((string) ($tour->markup_type ?? 'flat'))) ?: 'flat';
+        $tourMarkupRaw = (float) ($tour->markup_amount ?? 0);
+        $tourDiscountOn = !empty($tour->discount) && (int) $tour->discount === 1;
+        $tourDiscountType = strtolower(trim((string) ($tour->discount_type ?? 'flat'))) ?: 'flat';
+        $tourDiscountRaw = (float) ($tour->discount_amount ?? 0);
+
+        foreach ($allKeys as $ck) {
+            $hRow = $countryHotel[$ck] ?? [
+                'country' => $countryOther[$ck]['country'] ?? 'Other',
+                'currency' => $countryOther[$ck]['currency'] ?? $fallbackCurrency,
+                'single' => 0.0,
+                'double' => 0.0,
+                'triple' => 0.0,
+            ];
+            $oRow = $countryOther[$ck] ?? [
+                'single' => 0.0,
+                'double' => 0.0,
+            ];
+
+            $country = (string) ($hRow['country'] ?? 'Other');
+            $currency = strtoupper((string) ($hRow['currency'] ?? $fallbackCurrency));
+            $grossHotel = (float) ($countryGrossHotel[$ck] ?? 0);
+            $grossOther = (float) ($countryGrossOther[$ck] ?? 0);
+            $hasHotel = $grossHotel > 0
+                || (float) ($hRow['single'] ?? 0) > 0
+                || (float) ($hRow['double'] ?? 0) > 0
+                || (float) ($hRow['triple'] ?? 0) > 0;
+
+            $row = $lookupMarkup($country, $currency);
+            $mType = $row ? (string) ($row['markup_type'] ?? 'flat') : ($tourMarkupOn ? $tourMarkupType : '');
+            $dType = $row ? (string) ($row['discount_type'] ?? 'flat') : ($tourDiscountOn ? $tourDiscountType : '');
+
+            $hotelMarkupRaw = $row ? (float) ($row['hotel_markup'] ?? 0) : ($tourMarkupOn ? $tourMarkupRaw : 0.0);
+            $otherMarkupRaw = $row ? (float) ($row['other_markup'] ?? 0) : 0.0;
+            $discountRaw = $row ? (float) ($row['discount_value'] ?? 0) : ($tourDiscountOn ? $tourDiscountRaw : 0.0);
+
+            // TOTAL COST markups: always include hotel_markup + other_markup from currency_markups.
+            $hotelMarkupForTotal = $moneyFromRaw($grossHotel, $mType, $hotelMarkupRaw);
+            $otherMarkupForTotal = $moneyFromRaw($grossOther, $mType, $otherMarkupRaw);
+            $markupMoneyForTotal = $hotelMarkupForTotal + $otherMarkupForTotal;
+            if ($markupMoneyForTotal > 0) {
+                $markupRowsOut[] = [
+                    'country' => $country,
+                    'currency' => $currency,
+                    'markup_type' => $mType !== '' ? $mType : 'flat',
+                    'hotel_markup' => $hotelMarkupForTotal,
+                    'other_markup' => $otherMarkupForTotal,
+                    'amount' => $markupMoneyForTotal,
+                ];
+                $sumMarkupFlat += $markupMoneyForTotal;
+            }
+
+            // Per-pax hotel cells: no hotel booked → do not invent hotel prices.
+            $hotelMarkupForPaxRaw = $hotelMarkupRaw;
+            $otherMarkupForPaxRaw = $otherMarkupRaw;
+            if (! $hasHotel) {
+                if (! $row && $tourMarkupOn && $hotelMarkupForPaxRaw > 0 && $otherMarkupForPaxRaw <= 0) {
+                    $otherMarkupForPaxRaw += $hotelMarkupForPaxRaw;
+                }
+                $hotelMarkupForPaxRaw = 0.0;
+            }
+
+            $hotelMarkupMoney = $hasHotel ? $moneyFromRaw($grossHotel, $mType, $hotelMarkupForPaxRaw) : 0.0;
+            $otherMarkupMoney = $moneyFromRaw($grossOther, $mType, $otherMarkupForPaxRaw);
+
+            // Discount is NOT applied to hotel/other per-pax — only subtracted from TOTAL COST.
+            $countryGrossForDiscount = $grossHotel + $grossOther;
+            $discountMoney = $moneyFromRaw(
+                $countryGrossForDiscount,
+                $dType === 'foc' ? 'flat' : $dType,
+                $discountRaw
+            );
+            if ($discountMoney > 0) {
+                $discountRows[] = [
+                    'country' => $country,
+                    'currency' => $currency,
+                    'discount_type' => $dType !== '' ? $dType : 'flat',
+                    'discount_value' => $discountRaw,
+                    'amount' => $discountMoney,
+                ];
+                $sumDiscountFlat += $discountMoney;
+            }
+
+            $hotelMarkupPerPax = $hasHotel ? ($hotelMarkupMoney / $totalPax) : 0.0;
+            $otherMarkupPerPax = $otherMarkupMoney / $totalPax;
+
+            // Only booked occupancy columns get markup — never invent Single/Double from markup alone.
+            $baseHotelSingle = (float) ($hRow['single'] ?? 0);
+            $baseHotelDouble = (float) ($hRow['double'] ?? 0);
+            $baseHotelTriple = (float) ($hRow['triple'] ?? 0);
+            $cHotelSingle = ($hasHotel && $baseHotelSingle > 0)
+                ? max(0.0, ($baseHotelSingle + $hotelMarkupPerPax) * $focFactor)
+                : 0.0;
+            $cHotelDouble = ($hasHotel && $baseHotelDouble > 0)
+                ? max(0.0, ($baseHotelDouble + $hotelMarkupPerPax) * $focFactor)
+                : 0.0;
+            $cHotelTriple = ($hasHotel && $baseHotelTriple > 0)
+                ? max(0.0, ($baseHotelTriple + $hotelMarkupPerPax) * $focFactor)
+                : 0.0;
+            $cOtherSingle = max(0.0, ((float) $oRow['single'] + $otherMarkupPerPax) * $focFactor);
+            $cOtherDouble = max(0.0, ((float) $oRow['double'] + $otherMarkupPerPax) * $focFactor);
+
+            $sumHotelSingle += $cHotelSingle;
+            $sumHotelDouble += $cHotelDouble;
+            $sumHotelTriple += $cHotelTriple;
+            $sumOtherSingle += $cOtherSingle;
+            $sumOtherDouble += $cOtherDouble;
+
+            $countrySharing[] = [
+                'key' => $ck,
+                'country' => $country,
+                'city' => trim((string) (
+                    $hRow['city']
+                    ?? $oRow['city']
+                    ?? ''
+                )),
+                'currency' => $currency,
+                'hotel_single' => ceil($cHotelSingle),
+                'hotel_double' => ceil($cHotelDouble),
+                'hotel_triple' => ceil($cHotelTriple),
+                'other_services_single' => ceil($cOtherSingle),
+                'other_services_double' => ceil($cOtherDouble),
+                'other_services_child' => ceil((float) ($countryOtherChild[$ck] ?? 0) * $focFactor),
+                'single_sharing' => ceil($cHotelSingle + $cOtherSingle),
+                'double_sharing' => ceil($cHotelDouble + $cOtherDouble),
+                'triple_sharing' => ($cHotelTriple > 0) ? ceil($cHotelTriple + $cOtherSingle) : 0,
+                'markup' => ceil($markupMoneyForTotal),
+                'discount' => ceil($discountMoney),
+            ];
+        }
+
+        // No country rows but tour-level markup only — apply on other side (no hotel).
+        // Tour-level discount still collected for TOTAL COST only.
+        if ($allKeys === [] && ($tourMarkupOn || $tourDiscountOn)) {
+            if ($tourMarkupOn) {
+                $markupMoney = $moneyFromRaw(0, $tourMarkupType, $tourMarkupRaw);
+                $per = max(0.0, $markupMoney / $totalPax) * $focFactor;
+                $sumOtherSingle += $per;
+                $sumOtherDouble += $per;
+                if ($markupMoney > 0) {
+                    $markupRowsOut[] = [
+                        'country' => 'Overall',
+                        'currency' => strtoupper((string) $fallbackCurrency),
+                        'markup_type' => $tourMarkupType,
+                        'hotel_markup' => 0.0,
+                        'other_markup' => $markupMoney,
+                        'amount' => $markupMoney,
+                    ];
+                    $sumMarkupFlat += $markupMoney;
+                }
+            }
+            if ($tourDiscountOn && $tourDiscountRaw > 0) {
+                $discountMoney = $moneyFromRaw(0, $tourDiscountType === 'foc' ? 'flat' : $tourDiscountType, $tourDiscountRaw);
+                if ($discountMoney > 0) {
+                    $discountRows[] = [
+                        'country' => 'Overall',
+                        'currency' => strtoupper((string) $fallbackCurrency),
+                        'discount_type' => $tourDiscountType,
+                        'discount_value' => $tourDiscountRaw,
+                        'amount' => $discountMoney,
+                    ];
+                    $sumDiscountFlat += $discountMoney;
                 }
             }
         }
 
-        // Append merged hotel supplements (one per hotel/date-range)
-        if (!empty($hotelSupplementBuckets)) {
-            foreach ($hotelSupplementBuckets as $row) {
-                if (!is_array($row)) continue;
-                $supplements[] = $row;
+        // If countries existed but no currency_markups discount matched, still pick up
+        // any unused currency_markups discount rows.
+        if ($discountRows === [] && $markupRows !== []) {
+            foreach ($markupRows as $mRow) {
+                $dRaw = (float) ($mRow['discount_value'] ?? 0);
+                if ($dRaw <= 0) {
+                    continue;
+                }
+                $dType = (string) ($mRow['discount_type'] ?? 'flat');
+                $discountMoney = $moneyFromRaw(0, $dType === 'foc' ? 'flat' : $dType, $dRaw);
+                if ($discountMoney <= 0) {
+                    continue;
+                }
+                $discountRows[] = [
+                    'country' => (string) ($mRow['country'] ?? $mRow['city'] ?? 'Overall'),
+                    'currency' => strtoupper((string) ($mRow['currency'] ?? $fallbackCurrency)),
+                    'discount_type' => $dType,
+                    'discount_value' => $dRaw,
+                    'amount' => $discountMoney,
+                ];
+                $sumDiscountFlat += $discountMoney;
             }
         }
-        
-        // Add merged hotel buckets once (prevents 3Ã— multiplication when same hotel/date has multiple orders)
-        $hotelSingle = 0.0;
-        $hotelDouble = 0.0;
-        $hotelTriple = 0.0;
-        foreach ($hotelBuckets as $bucket) {
-            if (!is_array($bucket)) continue;
-            if ($bucket['single'] !== null) $hotelSingle += (float)$bucket['single'];
-            if ($bucket['double'] !== null) $hotelDouble += (float)$bucket['double'];
-            if ($bucket['triple'] !== null) $hotelTriple += (float)$bucket['triple'];
+
+        // Same for markup if country loop never ran / never matched.
+        if ($markupRowsOut === [] && $markupRows !== []) {
+            foreach ($markupRows as $mRow) {
+                $mType = (string) ($mRow['markup_type'] ?? 'flat');
+                $hRaw = (float) ($mRow['hotel_markup'] ?? 0);
+                $oRaw = (float) ($mRow['other_markup'] ?? 0);
+                $hMoney = $moneyFromRaw(0, $mType, $hRaw);
+                $oMoney = $moneyFromRaw(0, $mType, $oRaw);
+                $markupMoney = $hMoney + $oMoney;
+                if ($markupMoney <= 0) {
+                    continue;
+                }
+                $markupRowsOut[] = [
+                    'country' => (string) ($mRow['country'] ?? $mRow['city'] ?? 'Overall'),
+                    'currency' => strtoupper((string) ($mRow['currency'] ?? $fallbackCurrency)),
+                    'markup_type' => $mType,
+                    'hotel_markup' => $hMoney,
+                    'other_markup' => $oMoney,
+                    'amount' => $markupMoney,
+                ];
+                $sumMarkupFlat += $markupMoney;
+            }
         }
 
-        // Compute effective per-child sharing price (from attraction/restaurant components)
-        $childSharing = $totalChildComponent;
-
-        // FOC rules:
-        // - discount=0: ALL services are booked for total pax; distribute total cost over paying pax
-        // - discount=1: FOC hotel cost is free; hotels are charged only for paying pax (no distribution on hotel component)
-        //              other services still distribute over paying pax (can be refined per service rules later)
-        $hasFocDistribution = ($focDistributionFactor !== 1.0);
-        $discountFlag = !empty($tour->discount) && (int)$tour->discount === 1;
-        $distributionfactor=($hasFocDistribution && !$discountFlag) ? $focDistributionFactor : 1.0;
-        $hotelFactor = $distributionfactor;
-        $otherFactor = $distributionfactor;
-
-        // Apply factors
-        $otherServiceSingle *= $otherFactor;
-        $otherServiceDouble *= $otherFactor;
-        $childSharing *= $otherFactor;
-
-        $hotelSingle *= $hotelFactor;
-        $hotelDouble *= $hotelFactor;
-        $hotelTriple *= $hotelFactor;
-
-        // Final per-head totals (supplements excluded).
-        // Other-service prices (attraction, restaurant, transfers, etc.) are per-pax amounts
-        // that don't depend on room occupancy â€” a guest in a triple room still consumes the
-        // same attractions/meals as anyone else, so the same per-pax other-services cost
-        // applies to triple sharing too. (otherServiceSingle == otherServiceDouble for these.)
-        $totalSingleSharing = $hotelSingle + $otherServiceSingle;
-        $totalDoubleSharing = $hotelDouble + $otherServiceDouble;
-        $totalTripleSharing = ($hotelTriple > 0) ? ($hotelTriple + $otherServiceSingle) : 0;
-
-        // Hotel-wise per-head prices (apply hotel factor so discount=0 shows distributed cost, discount=1 shows paying-only)
         $hotelPriceOptions = [];
         foreach ($hotelBuckets as $hotelKey => $bucket) {
-            if (!is_array($bucket)) continue;
+            if (!is_array($bucket)) {
+                continue;
+            }
             $meta = $hotelBucketMeta[$hotelKey] ?? [];
+            $selectedPersons = max(1, min(3, (int) ($bucket['selected_persons'] ?? 2)));
+            $single = (float) ($bucket['single'] ?? 0);
+            $double = (float) ($bucket['double'] ?? 0);
+            $triple = (float) ($bucket['triple'] ?? 0);
             $hotelPriceOptions[] = [
                 'key' => $hotelKey,
                 'hotel_id' => $meta['hotel_id'] ?? null,
@@ -6298,142 +8518,65 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 'date_range' => $meta['date_range'] ?? null,
                 'display_name' => $meta['display_name'] ?? ($meta['hotel_name'] ?? $hotelKey),
                 'country' => $meta['country'] ?? null,
+                'city' => $meta['city'] ?? null,
                 'currency' => $meta['currency'] ?? null,
-                'single' => ceil((float)($bucket['single'] ?? 0) * $hotelFactor),
-                'double' => ceil((float)($bucket['double'] ?? 0) * $hotelFactor),
-                'triple' => ceil((float)($bucket['triple'] ?? 0) * $hotelFactor),
+                'selected_persons' => $selectedPersons,
+                'children' => (int) ($bucket['children'] ?? 0),
+                'children_price' => (int) ($bucket['children_price'] ?? 2),
+                'child_meal_factor' => (float) ($bucket['child_meal_factor'] ?? 1),
+                'child_with_bed_total' => ceil((float) ($bucket['child_with_bed_total'] ?? 0) * $focFactor),
+                'child_without_bed_total' => ceil((float) ($bucket['child_without_bed_total'] ?? 0) * $focFactor),
+                'show_single' => $single > 0,
+                'show_double' => $double > 0,
+                'show_triple' => $triple > 0,
+                'single' => ceil($single * $focFactor),
+                'double' => ceil($double * $focFactor),
+                'triple' => ceil($triple * $focFactor),
             ];
         }
 
-        // Country-wise single/double/triple (same formula as overall, native currency per country)
-        $countryHotelBuckets = [];
-        foreach ($hotelBuckets as $hotelKey => $bucket) {
-            if (!is_array($bucket)) continue;
-            $meta = $hotelBucketMeta[$hotelKey] ?? [];
-            $cName = trim((string) ($meta['country'] ?? ''));
-            $cCurr = strtoupper(trim((string) ($meta['currency'] ?? $fallbackCurrency)));
-            if ($cName === '') {
-                $cName = $cCurr !== '' ? $cCurr : 'Other';
-            }
-            if ($cCurr === '') {
-                $cCurr = $fallbackCurrency;
-            }
-            $ck = mb_strtolower($cName) . '|' . $cCurr;
-            if (!isset($countryHotelBuckets[$ck])) {
-                $countryHotelBuckets[$ck] = [
-                    'country' => $cName,
-                    'currency' => $cCurr,
-                    'single' => 0.0,
-                    'double' => 0.0,
-                    'triple' => 0.0,
-                ];
-            }
-            $countryHotelBuckets[$ck]['single'] += (float) ($bucket['single'] ?? 0);
-            $countryHotelBuckets[$ck]['double'] += (float) ($bucket['double'] ?? 0);
-            $countryHotelBuckets[$ck]['triple'] += (float) ($bucket['triple'] ?? 0);
-        }
-
-        $allCountryKeys = array_values(array_unique(array_merge(
-            array_keys($countryHotelBuckets),
-            array_keys($countryOtherBuckets)
-        )));
-
-        $preferredCountryOrder = [];
-        $destinationRaw = (string) ($tour->destination ?? '');
-        if ($destinationRaw !== '') {
-            foreach (preg_split('/\s*,\s*/', $destinationRaw) ?: [] as $part) {
-                $part = trim((string) preg_replace('/\s*\([^)]*\)\s*/', '', $part));
-                $part = trim((string) preg_replace('/\[[^\]]*\]/', '', $part));
-                if ($part !== '') {
-                    $preferredCountryOrder[mb_strtolower($part)] = $part;
-                }
-            }
-        }
-
-        usort($allCountryKeys, function ($a, $b) use ($preferredCountryOrder, $countryHotelBuckets, $countryOtherBuckets) {
-            $aCountry = $countryHotelBuckets[$a]['country'] ?? ($countryOtherBuckets[$a]['country'] ?? $a);
-            $bCountry = $countryHotelBuckets[$b]['country'] ?? ($countryOtherBuckets[$b]['country'] ?? $b);
-            $aPos = array_key_exists(mb_strtolower($aCountry), $preferredCountryOrder)
-                ? array_search(mb_strtolower($aCountry), array_keys($preferredCountryOrder), true)
-                : PHP_INT_MAX;
-            $bPos = array_key_exists(mb_strtolower($bCountry), $preferredCountryOrder)
-                ? array_search(mb_strtolower($bCountry), array_keys($preferredCountryOrder), true)
-                : PHP_INT_MAX;
-            if ($aPos === $bPos) {
-                return strcasecmp($a, $b);
-            }
-            return $aPos <=> $bPos;
-        });
-
-        $countrySharing = [];
-        foreach ($allCountryKeys as $ck) {
-            $hotelRow = $countryHotelBuckets[$ck] ?? [
-                'country' => $countryOtherBuckets[$ck]['country'] ?? 'Other',
-                'currency' => $countryOtherBuckets[$ck]['currency'] ?? $fallbackCurrency,
-                'single' => 0.0,
-                'double' => 0.0,
-                'triple' => 0.0,
-            ];
-            $otherRow = $countryOtherBuckets[$ck] ?? [
-                'single' => 0.0,
-                'double' => 0.0,
-            ];
-
-            $cHotelSingle = (float) $hotelRow['single'] * $hotelFactor;
-            $cHotelDouble = (float) $hotelRow['double'] * $hotelFactor;
-            $cHotelTriple = (float) $hotelRow['triple'] * $hotelFactor;
-            $cOtherSingle = (float) $otherRow['single'] * $otherFactor;
-            $cOtherDouble = (float) $otherRow['double'] * $otherFactor;
-
-            $countrySharing[] = [
-                'key' => $ck,
-                'country' => $hotelRow['country'],
-                'currency' => strtoupper((string) $hotelRow['currency']),
-                'hotel_single' => ceil($cHotelSingle),
-                'hotel_double' => ceil($cHotelDouble),
-                'hotel_triple' => ceil($cHotelTriple),
-                'other_services_single' => ceil($cOtherSingle),
-                'other_services_double' => ceil($cOtherDouble),
-                'single_sharing' => ceil($cHotelSingle + $cOtherSingle),
-                'double_sharing' => ceil($cHotelDouble + $cOtherDouble),
-                'triple_sharing' => ($cHotelTriple > 0) ? ceil($cHotelTriple + $cOtherSingle) : 0,
-            ];
-        }
-
-
-        // Format supplements (ceiled). Non-hotel rows use full line totalPrice on single/double/triple;
-        // hotel supplement rows keep per-rooming totals from the supplement stay. Hotel type carries full meta.
         $supplementsFormatted = array_map(function ($s) {
+            $selectedPersons = isset($s['selected_persons']) ? (int) $s['selected_persons'] : null;
             $row = [
-                'type'   => $s['type'],
-                'single' => ceil((float)($s['single'] ?? 0)),
-                'double' => ceil((float)($s['double'] ?? 0)),
-                'triple' => ceil((float)($s['triple'] ?? 0)),
+                'type' => $s['type'],
+                'country' => $s['country'] ?? null,
+                'currency' => isset($s['currency']) ? strtoupper((string) $s['currency']) : null,
+                'single' => ceil((float) ($s['single'] ?? 0)),
+                'double' => ceil((float) ($s['double'] ?? 0)),
+                'triple' => ceil((float) ($s['triple'] ?? 0)),
+                'selected_persons' => $selectedPersons,
+                'show_single' => array_key_exists('show_single', $s)
+                    ? (bool) $s['show_single']
+                    : ($selectedPersons === null || $selectedPersons >= 1),
+                'show_double' => array_key_exists('show_double', $s)
+                    ? (bool) $s['show_double']
+                    : ($selectedPersons !== null && $selectedPersons >= 2),
+                'show_triple' => array_key_exists('show_triple', $s)
+                    ? (bool) $s['show_triple']
+                    : ($selectedPersons !== null && $selectedPersons >= 3),
             ];
-
             if (($s['type'] ?? null) === 'hotel') {
-                // Hotel supplement: show hotel_name, date_range, display_name (same concept as hotel_price_options)
-                $row['hotel_id']     = $s['hotel_id'] ?? null;
-                $row['hotel_name']   = $s['hotel_name'] ?? ($s['name'] ?? null);
-                $row['date_range']   = $s['date_range'] ?? null;
+                $row['hotel_id'] = $s['hotel_id'] ?? null;
+                $row['hotel_name'] = $s['hotel_name'] ?? ($s['name'] ?? null);
+                $row['date_range'] = $s['date_range'] ?? null;
                 $row['display_name'] = $s['display_name'] ?? ($s['hotel_name'] ?? ($s['name'] ?? null));
-                $row['name']         = $row['display_name'];
+                $row['name'] = $row['display_name'];
             } elseif (($s['type'] ?? null) === 'attraction') {
-                $row['name']              = $s['AttractionName'] ?? ($s['name'] ?? null);
-                $row['attraction_id']     = $s['AttractionId'] ?? null;
-                $row['ticket']            = $s['ticketName'] ?? null;
+                $row['name'] = $s['AttractionName'] ?? ($s['name'] ?? null);
+                $row['attraction_id'] = $s['AttractionId'] ?? null;
+                $row['ticket'] = $s['ticketName'] ?? null;
                 $row['transfer_required'] = $s['transfer_options']['transfer_required'] ?? null;
-                $row['guide_required']    = $s['guide_options']['guide_required'] ?? null;
+                $row['guide_required'] = $s['guide_options']['guide_required'] ?? null;
             } elseif (($s['type'] ?? null) === 'restaurant') {
-                $row['name']          = $s['restaurantName'] ?? ($s['name'] ?? null);
+                $row['name'] = $s['restaurantName'] ?? ($s['name'] ?? null);
                 $row['restaurant_id'] = $s['restaurant_id'] ?? null;
-                $row['mealType']      = $s['mealType'] ?? null;
-                $row['quantity']      = $s['MealDescription'][0]['quantity'] ?? null;
+                $row['mealType'] = $s['mealType'] ?? null;
+                $row['quantity'] = $s['MealDescription'][0]['quantity'] ?? null;
             } elseif (($s['type'] ?? null) === 'entry_port') {
-                $row['name']          = $s['name'] ?? 'Entry Port';
+                $row['name'] = $s['name'] ?? 'Entry Port';
                 $row['entry_port_id'] = $s['entry_port_id'] ?? null;
             } elseif (($s['type'] ?? null) === 'exit_port') {
-                $row['name']         = $s['name'] ?? 'Exit Port';
+                $row['name'] = $s['name'] ?? 'Exit Port';
                 $row['exit_port_id'] = $s['exit_port_id'] ?? null;
             } else {
                 $row['name'] = $s['name'] ?? ($s['type'] ?? null);
@@ -6442,21 +8585,65 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             return $row;
         }, $supplements);
 
+        $servicePriceLinesFormatted = array_values(array_map(function (array $line) use ($focFactor) {
+            $row = [
+                'label' => $line['label'] ?? 'Service',
+                'type' => $line['type'] ?? 'other',
+                'single' => ceil((float) ($line['single'] ?? 0) * $focFactor),
+                'double' => ceil((float) ($line['double'] ?? 0) * $focFactor),
+                'child_unit' => ceil((float) ($line['child_unit'] ?? 0) * $focFactor),
+                'country' => $line['country'] ?? null,
+                'currency' => isset($line['currency']) ? strtoupper((string) $line['currency']) : null,
+                'adult_count' => (int) ($line['adult_count'] ?? 0),
+                'child_count' => (int) ($line['child_count'] ?? 0),
+                'senior_count' => (int) ($line['senior_count'] ?? 0),
+                'adult_unit' => ceil((float) ($line['adult_unit'] ?? 0) * $focFactor),
+                'senior_unit' => ceil((float) ($line['senior_unit'] ?? 0) * $focFactor),
+                'adult_total' => ceil((float) ($line['adult_total'] ?? 0) * $focFactor),
+                'child_total' => ceil((float) ($line['child_total'] ?? 0) * $focFactor),
+                'senior_total' => ceil((float) ($line['senior_total'] ?? 0) * $focFactor),
+                'extras' => ceil((float) ($line['extras'] ?? 0) * $focFactor),
+                'amount' => ceil((float) ($line['amount'] ?? 0) * $focFactor),
+                'has_guest_split' => !empty($line['has_guest_split']),
+            ];
+
+            return $row;
+        }, $servicePriceLines));
+
+        $sumOtherChild = 0.0;
+        foreach ($countryOtherChild as $v) {
+            $sumOtherChild += (float) $v;
+        }
+
+        foreach ($segregated as $k => $vals) {
+            foreach ($vals as $occ => $v) {
+                $segregated[$k][$occ] = ceil((float) $v * $focFactor);
+            }
+        }
+
+        $totalSingle = $sumHotelSingle + $sumOtherSingle;
+        $totalDouble = $sumHotelDouble + $sumOtherDouble;
+        $totalTriple = ($sumHotelTriple > 0) ? ($sumHotelTriple + $sumOtherSingle) : 0.0;
+
         return [
-            // Per-head totals (hotel + other services, supplements excluded)
-            'single_sharing'       => ceil($totalSingleSharing),
-            'double_sharing'       => ceil($totalDoubleSharing),
-            'triple_sharing'       => ceil($totalTripleSharing),
-            // Hotel-wise per-head prices (each hotel separately, for rooming scenarios)
-            'hotel_price_options'  => $hotelPriceOptions,
-            // Other services per-head total (non-hotel, non-supplement)
-            'other_services_single' => ceil($otherServiceSingle),
-            'other_services_double' => ceil($otherServiceDouble),
-            // Country + currency wise single/double/triple (native amounts)
-            'country_sharing'      => $countrySharing,
-            // Supplements (hotel + other services marked supplement=true)
-            'supplements'          => $supplementsFormatted,
-            'supplyments'          => $supplementsFormatted,
+            'single_sharing' => ceil($totalSingle),
+            'double_sharing' => ceil($totalDouble),
+            'triple_sharing' => ceil($totalTriple),
+            'baby_cot_sharing' => ceil($sumBabyCot * $focFactor),
+            'hotel_price_options' => $hotelPriceOptions,
+            'service_price_lines' => $servicePriceLinesFormatted,
+            'other_services_single' => ceil($sumOtherSingle),
+            'other_services_double' => ceil($sumOtherDouble),
+            'other_services_child' => ceil($sumOtherChild * $focFactor),
+            'country_sharing' => $countrySharing,
+            'segregated' => $segregated,
+            'supplements' => $supplementsFormatted,
+            'supplyments' => $supplementsFormatted,
+            // Flat markup/discount from currency_markups — TOTAL COST only (not mixed into Other formula beyond per-pax display).
+            'markups' => $markupRowsOut,
+            'markup_total' => ceil($sumMarkupFlat),
+            'discounts' => $discountRows,
+            'discount_total' => ceil($sumDiscountFlat),
         ];
     }
 
@@ -6554,11 +8741,11 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         uksort($grouped, function ($a, $b) use ($serviceOrder) {
             $orderA = $serviceOrder[strtolower($a)] ?? 999;
             $orderB = $serviceOrder[strtolower($b)] ?? 999;
-            
+           
             if ($orderA === $orderB) {
                 return strcmp($a, $b);
             }
-            
+           
             return $orderA <=> $orderB;
         });
 
@@ -6787,12 +8974,12 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                                 ]);
                             }
                         }
-                        
+                       
                         // Fallback to bed_type if bed_id lookup fails
                         if ($bedType === 'Bed' && !empty($bed['bed_type'])) {
                             $bedType = self::friendlyLabel($bed['bed_type'], 'Bed');
                         }
-                        
+                       
                         $bedSummary[] = [
                             'type' => $bedType,
                             'occupancy' => $bed['head_count'] ?? null,
@@ -6887,19 +9074,19 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                     $transferWay = ucwords(str_replace('-', ' ', $wayRaw));
                 }
             }
-            
+           
             // Get vehicle details (from transfer_options.vehicle_details or direct item)
             $vehicleDetailsFromOptions = $transferOptions['vehicle_details'] ?? null;
-            
+           
             $vehicleType = null;
             $seatingCapacity = null;
             $vehicleNumber = null;
             $vehicleBrand = null;
-            
+           
             // Try to fetch from Vehicle model - check jobsheet first, then fallback to vehicles_id
             $vehicleRecord = null;
             $vehicleId = null;
-            
+           
             // Check jobsheet first if order and tour are available
             if ($order && $tour && !empty($order->booking_id)) {
                 try {
@@ -6921,7 +9108,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                     ]);
                 }
             }
-            
+           
             // Fallback to vehicles_id from item if no jobsheet vehicle found
             if (!$vehicleRecord && !empty($item['vehicles_id'])) {
                 try {
@@ -6933,20 +9120,20 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                     // If Vehicle model not found, continue without it
                 }
             }
-            
+           
             if ($vehicleRecord) {
                 $vehicleType = $vehicleRecord->vehicle_type ?? null;
                 $seatingCapacity = $vehicleRecord->sitting_capacity ?? $vehicleRecord->seating_capacity ?? $vehicleRecord->max_passenger_capacity ?? null;
                 $vehicleNumber = $vehicleRecord->vehicle_plate_no ?? null;
                 $vehicleBrand = $vehicleRecord->vehicle_model ?? $vehicleRecord->vehicle_name ?? null;
             }
-            
+           
             // Get from transfer_options.vehicle_details if available
             if ($vehicleDetailsFromOptions && is_array($vehicleDetailsFromOptions)) {
                 $vehicleType = $vehicleType ?? $vehicleDetailsFromOptions['vehicle_type'] ?? null;
                 $seatingCapacity = $seatingCapacity ?? $vehicleDetailsFromOptions['seating_capacity'] ?? null;
             }
-            
+           
             // Parse vehicles_name if it contains type and seating info (e.g., "Jaguar F-Pace (SUV) - 7 seats")
             $vehiclesName = $item['vehicles_name'] ?? null;
             if ($vehiclesName && (!$vehicleType || !$seatingCapacity)) {
@@ -6958,13 +9145,13 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                     $seatingCapacity = $seatingCapacity ?? $seatMatch[1];
                 }
             }
-            
+           
             // Fallback to direct item fields
             $vehicleType = $vehicleType ?? $item['vehicle_type'] ?? null;
             $seatingCapacity = $seatingCapacity ?? $item['seating_capacity'] ?? null;
             $vehicleNumber = $vehicleNumber ?? $item['vehicle_number'] ?? $item['vehicleNumber'] ?? null;
             $vehicleBrand = $vehicleBrand ?? $item['vehicle_brand'] ?? $item['vehicleBrand'] ?? $item['vehicle_model'] ?? null;
-            
+           
             // Format Vehicle Type / Seater
             $vehicleTypeSeater = '';
             if ($vehicleType && $seatingCapacity) {
@@ -6976,7 +9163,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             } else {
                 $vehicleTypeSeater = 'N/A';
             }
-            
+           
             $vehicleDetails = [
                 'name' => $vehiclesName,
                 'type' => $item['type'] ?? null,
@@ -7001,12 +9188,12 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             $adultCount = $item['adultCount'] ?? $item['adult'] ?? 0;
             $childCount = $item['childCount'] ?? $item['child'] ?? 0;
             $seniorCount = $item['seniorCount'] ?? $item['senior'] ?? 0;
-            
+           
             // Extract transfer options - prioritize transfer_options over Selection
             $transferOptions = $item['transfer_options'] ?? null;
             $transferRequired = 'N/A';
             $transferType = 'N/A';
-            
+           
             if ($transferOptions) {
                 // Get transfer_required from transfer_options
                 if (isset($transferOptions['transfer_required'])) {
@@ -7017,7 +9204,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                     $transferType = $transferOptions['type'];
                 }
             }
-            
+           
             $transportNote = null;
             if ($transferRequired === 'No') {
                 $transportNote = 'Transport not included';
@@ -7059,6 +9246,9 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 'adult_count' => $adultCount > 0 ? $adultCount : null,
                 'child_count' => $childCount > 0 ? $childCount : null,
                 'senior_count' => $seniorCount > 0 ? $seniorCount : null,
+                'adult_price' => (float) ($item['ticket_details']['adult_price'] ?? $item['adult_price'] ?? 0) ?: null,
+                'child_price' => (float) ($item['ticket_details']['child_price'] ?? $item['child_price'] ?? 0) ?: null,
+                'ticket_details' => is_array($item['ticket_details'] ?? null) ? $item['ticket_details'] : null,
                 'visit_time' => $item['visitTime'] ?? null,
                 'transport_note' => $transportNote,
                 'transfer_required' => $transferRequired,
@@ -7076,7 +9266,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             // Restaurant uses "infants" in some payloads (older payloads may use seniorCount)
             $infantCount = $item['infants'] ?? $item['infantCount'] ?? $item['infant'] ?? 0;
             $seniorCount = $item['seniorCount'] ?? $item['senior'] ?? 0;
-            
+           
             $mealItems = [];
             if (!empty($item['MealDescription']) && is_array($item['MealDescription'])) {
                 foreach ($item['MealDescription'] as $mealItem) {
@@ -7090,12 +9280,12 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                     }
                 }
             }
-            
+           
             // Extract transfer options
             $transferOptions = $item['transfer_options'] ?? null;
             $transferRequired = 'N/A';
             $transferType = 'N/A';
-            
+           
             if ($transferOptions) {
                 // Get transfer_required from transfer_options
                 if (isset($transferOptions['transfer_required'])) {
@@ -7122,7 +9312,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                     'cost' => $transferOptions['cost'] ?? null,
                 ];
             }
-            
+           
             // Clean mealSpecificType to remove emojis and special characters
             $mealSpecificType = $item['mealSpecificType'] ?? null;
             if ($mealSpecificType) {
@@ -7131,13 +9321,16 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 $mealSpecificType = preg_replace('/[^\x20-\x7E]/u', '', $mealSpecificType);
                 $mealSpecificType = trim($mealSpecificType); // Remove leading/trailing whitespace
             }
-            
+           
             $restaurantDetails = [
                 'ticket_name' => $item['ticketName'] ?? null,
                 'adult_count' => $adultCount > 0 ? $adultCount : null,
                 'child_count' => $childCount > 0 ? $childCount : null,
                 'infant_count' => $infantCount > 0 ? $infantCount : null,
                 'senior_count' => $seniorCount > 0 ? $seniorCount : null, // kept for backward compatibility
+                'adult_price' => (float) ($item['adult_price'] ?? ($item['meal_details']['adult_price'] ?? ($item['MealDescription'][0]['adult_price'] ?? 0))) ?: null,
+                'child_price' => (float) ($item['child_price'] ?? ($item['meal_details']['child_price'] ?? ($item['MealDescription'][0]['child_price'] ?? 0))) ?: null,
+                'meal_details' => is_array($item['meal_details'] ?? null) ? $item['meal_details'] : null,
                 'visit_time' => $item['visitTime'] ?? null,
                 'meal_type' => $mealSpecificType ?: null,
                 'meal_plan' => $item['mealType'] ?? null,
@@ -7158,7 +9351,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             if (!is_array($languages)) {
                 $languages = [];
             }
-            
+           
             // Format languages as comma-separated string for Language Proficiency
             $languageProficiency = '';
             if (!empty($languages)) {
@@ -7184,7 +9377,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             if ($totalExperience !== null) {
                 $totalExperience = $totalExperience . ' years';
             }
-            
+           
             $guideDetails = [
                 'guide_name' => $guide->name ?? null,
                 'language_proficiency' => $languageProficiency ?: 'N/A',
@@ -7244,13 +9437,13 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
     protected static function serviceIcon($type)
     {
         $map = [
-            'hotel' => 'ðŸ¨',
+            'hotel' => 'ðŸ ¨',
             'guide' => 'ðŸ‘¤',
-            'restaurant' => 'ðŸ½ï¸',
+            'restaurant' => 'ðŸ ½ï¸ ',
             'attraction' => 'ðŸŽ¯',
-            'entry_port' => 'âœˆï¸',
+            'entry_port' => 'âœˆï¸ ',
             'exit_port' => 'ðŸ›«',
-            'travel_point' => 'ðŸš',
+            'travel_point' => 'ðŸš ',
             'travel_hourly' => 'ðŸš—',
             'local_transport' => 'ðŸš•',
         ];
@@ -7474,7 +9667,16 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                                     }
                                 }
                             } else {
-                                $totalSingleRooms += $noOfRooms;
+                                $selectedPersons = (int) ($room['selected_persons'] ?? $room['selectedPersons'] ?? 0);
+                                if ($selectedPersons === 3) {
+                                    $totalTripleRooms += $noOfRooms;
+                                } elseif ($selectedPersons === 2) {
+                                    $totalDoubleRooms += $noOfRooms;
+                                } elseif ($selectedPersons === 1) {
+                                    $totalSingleRooms += $noOfRooms;
+                                } else {
+                                    $totalSingleRooms += $noOfRooms;
+                                }
                             }
                         }
                     }
@@ -7540,7 +9742,16 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                                     }
                                 }
                             } else {
-                                $roomSingleCount = $noOfRooms;
+                                $selectedPersons = (int) ($firstRoom['selected_persons'] ?? $firstRoom['selectedPersons'] ?? 0);
+                                if ($selectedPersons === 3) {
+                                    $roomTripleCount += $noOfRooms;
+                                } elseif ($selectedPersons === 2) {
+                                    $roomDoubleCount += $noOfRooms;
+                                } elseif ($selectedPersons === 1) {
+                                    $roomSingleCount += $noOfRooms;
+                                } else {
+                                    $roomSingleCount += $noOfRooms;
+                                }
                             }
                             $totalSingleRooms += $roomSingleCount;
                             $totalDoubleRooms += $roomDoubleCount;
@@ -7586,6 +9797,14 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                             $country = trim($item['hotelDetails']['country']);
                         }
                         return $country !== '' ? $country : null;
+                    })(),
+                    'city' => (function () use ($order, $item) {
+                        $geo = self::extractInvoiceItemGeo($order, is_array($item) ? $item : []);
+                        $city = trim((string) ($geo['city'] ?? ''));
+                        if ($city === '' && !empty($item['hotelDetails']['city']) && is_string($item['hotelDetails']['city'])) {
+                            $city = trim(explode(',', $item['hotelDetails']['city'])[0]);
+                        }
+                        return $city !== '' ? $city : null;
                     })(),
                     'currency' => self::resolveOrderDisplayCurrency(
                         $order,
@@ -7667,7 +9886,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
     {
         $hotelId = $item['hotelDetails']['hotel_id'] ?? $item['hotelDetails']['hotelId'] ?? $item['hotel_id'] ?? $item['hotelId'] ?? null;
         $weekendDays = ['Saturday', 'Sunday']; // Default fallback
-        
+       
         // Get weekend days from hotel
         if ($hotelId) {
             try {
@@ -7691,19 +9910,19 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         $singleWeekendPrice = null;
         $doubleWeekdayPrice = null;
         $doubleWeekendPrice = null;
-        
+       
         $roomtype = $room['room_type'] ?? $room['roomType'] ?? null;
-        
+       
         if ($roomtype && $hotelId) {
             try {
                 $hotel = Hotel::where('hotel_unique_id', $hotelId)->first();
                 $dbHotelId = $hotel ? $hotel->hotel_unique_id : $hotelId;
-                
+               
                 $roomRecord = Room::where('room_type', $roomtype)
                     ->where('hotel_id', $dbHotelId)
                     ->where('status', 1)
                     ->first();
-                
+               
                 if ($roomRecord) {
                     if ($roomRecord->weekday_price !== null && $roomRecord->weekday_price !== '') {
                         $singleWeekdayPrice = floatval($roomRecord->weekday_price);
@@ -7756,13 +9975,13 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         // Get booking dates
         $bookingDates = [];
         $bookingDate = $item['bookingDate'] ?? null;
-        
+       
         if ($bookingDate) {
             if (is_array($bookingDate) && count($bookingDate) === 2) {
                 try {
                     $start = Carbon::parse($bookingDate[0]);
                     $end = Carbon::parse($bookingDate[1]);
-                    
+                   
                     while ($start->lt($end)) {
                         $bookingDates[] = $start->copy();
                         $start->addDay();
@@ -7818,22 +10037,22 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         $totalSinglePrice = 0;
         $totalDoublePrice = 0;
         $totalTriplePrice = 0;
-        
+       
         // Get extra bed price for triple sharing
         $extraBedWeekdayPrice = null;
         $extraBedWeekendPrice = null;
-        
+       
         $roomId = $room['room_id'] ?? $room['roomId'] ?? null;
         if ($roomId && $hotelId) {
             try {
                 $hotel = Hotel::where('hotel_unique_id', $hotelId)->first();
                 $dbHotelId = $hotel ? $hotel->hotel_unique_id : $hotelId;
-                
+               
                 $roomRecord = Room::where('room_id', $roomId)
                     ->where('hotel_id', $dbHotelId)
                     ->where('status', 1)
                     ->first();
-                    
+                   
                 if ($roomRecord && $roomRecord->room_id) {
                     $bedRecord = Bed::where('room_id', $roomRecord->room_id)
                         ->where('extra_bed', true)
@@ -7854,7 +10073,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             $dayName = $date->format('l');
             $isWeekend = in_array($dayName, $weekendDays);
             $dateString = $date->format('Y-m-d');
-            
+           
             // Check rates table
             $ratePrice = null;
             $rateSingleWeekdayPrice = null;
@@ -7862,7 +10081,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             $rateDoubleWeekdayPrice = null;
             $rateDoubleWeekendPrice = null;
             $rateEventType = null;
-            
+           
             if ($hotelId) {
                 try {
                     $rate = Rate::where('hotel_id', $hotelId)
@@ -7877,10 +10096,10 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                             END
                         ")
                         ->first();
-                    
+                   
                     if ($rate) {
                         $rateEventType = $rate->event_type;
-                        
+                       
                         if ($rate->event_type == 'Blackout Date') {
                             $ratePrice = floatval($rate->price ?? 0);
                             $rateSingleWeekdayPrice = $ratePrice;
@@ -7890,11 +10109,11 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                         } elseif ($rate->event_type == 'Season') {
                             $rateSingleWeekdayPrice = $rate->weekday_price ? floatval($rate->weekday_price) : null;
                             $rateSingleWeekendPrice = $rate->weekend_price ? floatval($rate->weekend_price) : null;
-                            $rateDoubleWeekdayPrice = (isset($rate->double_weekday_price) && $rate->double_weekday_price !== null && $rate->double_weekday_price !== '') 
-                                ? floatval($rate->double_weekday_price) / 2 
+                            $rateDoubleWeekdayPrice = (isset($rate->double_weekday_price) && $rate->double_weekday_price !== null && $rate->double_weekday_price !== '')
+                                ? floatval($rate->double_weekday_price) / 2
                                 : null;
-                            $rateDoubleWeekendPrice = (isset($rate->double_weekend_price) && $rate->double_weekend_price !== null && $rate->double_weekend_price !== '') 
-                                ? floatval($rate->double_weekend_price) / 2 
+                            $rateDoubleWeekendPrice = (isset($rate->double_weekend_price) && $rate->double_weekend_price !== null && $rate->double_weekend_price !== '')
+                                ? floatval($rate->double_weekend_price) / 2
                                 : null;
                         }
                     }
@@ -7902,11 +10121,11 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                     // Ignore errors
                 }
             }
-            
+           
             // Determine price to use
             $singlePriceToAdd = null;
             $doublePriceToAdd = null;
-            
+           
             if ($rateEventType == 'Blackout Date' && $ratePrice !== null) {
                 $singlePriceToAdd = $ratePrice;
                 $doublePriceToAdd = $ratePrice;
@@ -7925,25 +10144,25 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 $singlePriceToAdd = $singleWeekdayPrice ?? $singleWeekendPrice;
                 $doublePriceToAdd = $doubleWeekdayPrice ?? $doubleWeekendPrice;
             }
-            
+           
             if ($singlePriceToAdd !== null) {
                 $totalSinglePrice += $singlePriceToAdd;
             }
             if ($doublePriceToAdd !== null) {
                 $totalDoublePrice += $doublePriceToAdd;
             }
-            
+           
             // Triple = double + extra bed
             if ($doublePriceToAdd !== null && $extraBedWeekdayPrice !== null) {
-                $extraBedPriceToAdd = $isWeekend 
-                    ? ($extraBedWeekendPrice ?? $extraBedWeekdayPrice) 
+                $extraBedPriceToAdd = $isWeekend
+                    ? ($extraBedWeekendPrice ?? $extraBedWeekdayPrice)
                     : ($extraBedWeekdayPrice ?? $extraBedWeekendPrice);
                 $totalTriplePrice += $doublePriceToAdd + $extraBedPriceToAdd;
             }
         }
-        
+       
         $totalNights = count($bookingDates);
-        
+       
         return [
             'single_total' => $totalSinglePrice,
             'double_total' => $totalDoublePrice,
@@ -9528,8 +11747,8 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         switch ($user->role_id) {
 
             case 1: // Admin
-            case 20: 
-                return 'SGD'; 
+            case 20:
+                return 'SGD';
 
             case 11: // DMC
                 $dmc_id = $user->userId;
@@ -9591,7 +11810,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             case 114:
             case 117:
             case 120:
-            
+           
                 $sales_manager = User::where('userId', $user->created_by)->first();
                 $sales_head = User::where('userId', $sales_manager?->created_by)->first();
                 $dmc_id = $sales_head?->created_by;
@@ -9614,7 +11833,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
 
         // Get currency from countries table using country name
         $country = Country::where('name', $dmc->country)->first();
-        
+       
 
         return $country->currency ?? 'SGD';
     }
@@ -9724,47 +11943,302 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
 
         $total = 0.0;
         foreach ($bookings as $booking) {
-            if (!in_array((int) $booking->status, [1, 3], true)) {
-                continue;
-            }
-            $data = is_string($booking->data) ? json_decode($booking->data, true) : $booking->data;
-            if (!is_array($data)) {
-                continue;
-            }
-            $orderType = $booking->type ?? '';
-            foreach ($data as $item) {
-                if (!is_array($item)) {
-                    continue;
-                }
-                $itemPrice = (float) ($item['totalPrice'] ?? $item['price'] ?? 0);
-
-                // Hotel: pickup total only - do NOT add transfer (transport added automatically).
-                $transferPrice = 0.0;
-                if ($orderType !== 'hotel' && isset($item['transfer_options']['cost']) && $item['transfer_options']['cost'] > 0) {
-                    if ($isPro === 1 && isset($item['transfer_options']['totalPrice'])) {
-                        $transferPrice = (float) $item['transfer_options']['totalPrice'];
-                    } else {
-                        $transferPrice = (float) $item['transfer_options']['cost'];
-                    }
-                }
-
-                $guidePrice = 0.0;
-                if (isset($item['guide_options']) && is_array($item['guide_options'])) {
-                    $gv = $item['guide_options']['total_price']
-                        ?? $item['guide_options']['cost']
-                        ?? $item['guide_options']['Cost']
-                        ?? $item['guide_options']['sell']
-                        ?? $item['guide_options']['Sell']
-                        ?? 0;
-                    if ($gv > 0) {
-                        $guidePrice = (float) $gv;
-                    }
-                }
-
-                $total += $itemPrice + $transferPrice + $guidePrice;
-            }
+            $total += self::calculateOrderGrossAmount($booking, $isPro);
         }
 
         return (float) ceil($total);
+    }
+
+    /**
+     * Normalize negotiation offer rows (including hotel/other markup + discount).
+     *
+     * @param  array<int, array<string, mixed>>  $rawOffers
+     * @return array<int, array<string, mixed>>
+     */
+    public static function normalizeNegotiationOffers(array $rawOffers): array
+    {
+        $out = [];
+        foreach ($rawOffers as $offer) {
+            if (! is_array($offer)) {
+                continue;
+            }
+            $hotelMarkup = round((float) ($offer['hotel_markup'] ?? 0), 2);
+            $otherMarkup = round((float) ($offer['other_markup'] ?? 0), 2);
+            $discountValue = round((float) ($offer['discount_value'] ?? 0), 2);
+            $markupType = strtolower(trim((string) ($offer['markup_type'] ?? 'flat')));
+            if ($markupType === 'fixed') {
+                $markupType = 'flat';
+            }
+            if (! in_array($markupType, ['percentage', 'flat'], true)) {
+                $markupType = 'flat';
+            }
+            $discountType = strtolower(trim((string) ($offer['discount_type'] ?? 'flat')));
+            if ($discountType === 'fixed') {
+                $discountType = 'flat';
+            }
+            if (! in_array($discountType, ['percentage', 'flat', 'foc'], true)) {
+                $discountType = 'flat';
+            }
+
+            $cities = [];
+            $rawCities = $offer['cities'] ?? ($offer['city'] ?? '');
+            if (is_array($rawCities)) {
+                $cityList = $rawCities;
+            } else {
+                $cityList = preg_split('/\s*,\s*/', trim((string) $rawCities)) ?: [];
+            }
+            foreach ($cityList as $cityName) {
+                $cityName = trim((string) $cityName);
+                if ($cityName !== '') {
+                    $cities[] = $cityName;
+                }
+            }
+
+            $out[] = [
+                'country' => trim((string) ($offer['country'] ?? '')),
+                'currency' => strtoupper(trim((string) ($offer['currency'] ?? ''))),
+                'amount' => round((float) ($offer['amount'] ?? 0), 2),
+                'actual_amount' => round((float) ($offer['actual_amount'] ?? 0), 2),
+                'gross' => round((float) ($offer['gross'] ?? 0), 2),
+                'markup_type' => $markupType,
+                'hotel_markup' => $hotelMarkup,
+                'other_markup' => $otherMarkup,
+                'markup_value' => $hotelMarkup + $otherMarkup,
+                'discount_type' => $discountType,
+                'discount_value' => $discountValue,
+                'cities' => array_values(array_unique($cities)),
+            ];
+        }
+
+        return array_values($out);
+    }
+
+    /**
+     * Persist hotel/other markup + discount from negotiation offers onto tours.currency_markups
+     * (and tour-level markup/discount columns).
+     *
+     * @param  \App\Models\Tour  $tour
+     * @param  array<int, array<string, mixed>>  $offers
+     */
+    public static function applyNegotiationOffersToTourCurrencyMarkups($tour, array $offers): void
+    {
+        if (! $tour || $offers === []) {
+            return;
+        }
+
+        // DMC counter-only posts have amount/country but no markup fields. Do not wipe
+        // hotel_markup / other_markup / discount that agent negotiation already saved.
+        $hasMarkupPayload = false;
+        foreach ($offers as $offer) {
+            if (! is_array($offer)) {
+                continue;
+            }
+            if (array_key_exists('hotel_markup', $offer)
+                || array_key_exists('other_markup', $offer)
+                || array_key_exists('discount_value', $offer)
+                || array_key_exists('markup_type', $offer)
+                || array_key_exists('discount_type', $offer)
+            ) {
+                $hasMarkupPayload = true;
+                break;
+            }
+        }
+        if (! $hasMarkupPayload) {
+            return;
+        }
+
+        $offers = self::normalizeNegotiationOffers($offers);
+        if ($offers === []) {
+            return;
+        }
+
+        $raw = $tour->currency_markups ?? ($tour->getAttributes()['currency_markups'] ?? null);
+        if (is_string($raw)) {
+            $decoded = json_decode($raw, true);
+            $raw = (json_last_error() === JSON_ERROR_NONE) ? $decoded : null;
+        }
+        $existing = is_array($raw) ? $raw : [];
+
+        $buildMarkupRow = static function (array $offer, array $row = []): array {
+            $hotel = (float) ($offer['hotel_markup'] ?? ($row['hotel_markup'] ?? $row['markup_value'] ?? 0));
+            $other = (float) ($offer['other_markup'] ?? ($row['other_markup'] ?? 0));
+
+            return [
+                'city' => trim((string) ($row['city'] ?? '')),
+                'currency' => $offer['currency'] ?? ($row['currency'] ?? ''),
+                'country' => $offer['country'] ?? ($row['country'] ?? ''),
+                'markup_type' => $offer['markup_type'] ?? ($row['markup_type'] ?? 'flat'),
+                'markup_value' => $hotel + $other,
+                'hotel_markup' => $hotel,
+                'other_markup' => $other,
+                'discount_type' => $offer['discount_type'] ?? ($row['discount_type'] ?? 'flat'),
+                'discount_value' => (float) ($offer['discount_value'] ?? ($row['discount_value'] ?? 0)),
+            ];
+        };
+
+        $offerMatchesRow = static function (array $row, array $offer): bool {
+            $rowCity = trim((string) ($row['city'] ?? ''));
+            $offerCities = is_array($offer['cities'] ?? null) ? $offer['cities'] : [];
+            if ($rowCity !== '' && $offerCities !== []) {
+                foreach ($offerCities as $city) {
+                    if (strcasecmp($rowCity, trim((string) $city)) === 0) {
+                        return true;
+                    }
+                }
+            }
+            $rowCountry = trim((string) ($row['country'] ?? ''));
+            $offerCountry = trim((string) ($offer['country'] ?? ''));
+            if ($rowCountry !== '' && $offerCountry !== '' && strcasecmp($rowCountry, $offerCountry) === 0) {
+                return true;
+            }
+            $rowCurrency = strtoupper(trim((string) ($row['currency'] ?? '')));
+            $offerCurrency = strtoupper(trim((string) ($offer['currency'] ?? '')));
+
+            return $rowCurrency !== '' && $offerCurrency !== '' && $rowCurrency === $offerCurrency;
+        };
+
+        $updatedMarkups = [];
+        if ($existing !== []) {
+            foreach ($existing as $row) {
+                if (! is_array($row)) {
+                    continue;
+                }
+                $match = null;
+                foreach ($offers as $offer) {
+                    if ($offerMatchesRow($row, $offer)) {
+                        $match = $offer;
+                        break;
+                    }
+                }
+                if ($match) {
+                    $updatedMarkups[] = $buildMarkupRow($match, $row);
+                } else {
+                    $updatedMarkups[] = [
+                        'city' => trim((string) ($row['city'] ?? '')),
+                        'currency' => strtoupper(trim((string) ($row['currency'] ?? ''))),
+                        'country' => trim((string) ($row['country'] ?? '')),
+                        'markup_type' => $row['markup_type'] ?? null,
+                        'markup_value' => (float) ($row['markup_value'] ?? ((float) ($row['hotel_markup'] ?? 0) + (float) ($row['other_markup'] ?? 0))),
+                        'hotel_markup' => (float) ($row['hotel_markup'] ?? $row['markup_value'] ?? 0),
+                        'other_markup' => (float) ($row['other_markup'] ?? 0),
+                        'discount_type' => $row['discount_type'] ?? null,
+                        'discount_value' => (float) ($row['discount_value'] ?? 0),
+                    ];
+                }
+            }
+        }
+
+        $seenCities = [];
+        foreach ($updatedMarkups as $row) {
+            $cityKey = mb_strtolower(trim((string) ($row['city'] ?? '')));
+            if ($cityKey !== '') {
+                $seenCities[$cityKey] = true;
+            }
+        }
+
+        foreach ($offers as $offer) {
+            $cities = is_array($offer['cities'] ?? null) ? $offer['cities'] : [];
+            if ($cities === []) {
+                if ($existing === []) {
+                    $updatedMarkups[] = $buildMarkupRow($offer, ['city' => '']);
+                }
+                continue;
+            }
+            foreach ($cities as $city) {
+                $city = trim((string) $city);
+                if ($city === '') {
+                    continue;
+                }
+                $cityKey = mb_strtolower($city);
+                if (isset($seenCities[$cityKey])) {
+                    continue;
+                }
+                $seenCities[$cityKey] = true;
+                $updatedMarkups[] = $buildMarkupRow($offer, ['city' => $city]);
+            }
+        }
+
+        $tour->currency_markups = array_values($updatedMarkups);
+        $primaryOffer = $offers[0] ?? null;
+        if ($primaryOffer) {
+            $hotel = (float) ($primaryOffer['hotel_markup'] ?? 0);
+            $other = (float) ($primaryOffer['other_markup'] ?? 0);
+            $markupTotal = $hotel + $other;
+            $markupType = $primaryOffer['markup_type'] ?? 'flat';
+            $discountType = $primaryOffer['discount_type'] ?? null;
+            $discountValue = (float) ($primaryOffer['discount_value'] ?? 0);
+            $tour->markup = $markupTotal > 0 ? 1 : 0;
+            $tour->markup_type = $markupTotal > 0 ? $markupType : null;
+            $tour->markup_amount = $markupTotal > 0 ? $markupTotal : 0;
+            $tour->discount_type = ($discountValue > 0 && $discountType) ? $discountType : null;
+            $tour->discount_amount = $discountValue > 0 ? $discountValue : 0;
+        }
+        $tour->save();
+    }
+
+    /**
+     * One order's contribution to the tour gross, unrounded.
+     *
+     * Split out of calculateTourGrossAmount so anything that needs the value of a
+     * single service (such as topping up a negotiated enquiry) uses the identical
+     * formula and can never drift from the tour total.
+     *
+     * @param  \App\Models\Order|null  $order
+     * @param  int|null  $isPro  tours.is_pro; looked up from the order's tour when omitted
+     */
+    public static function calculateOrderGrossAmount($order, ?int $isPro = null): float
+    {
+        if (!$order) {
+            return 0.0;
+        }
+        if (!in_array((int) $order->status, [1, 3], true)) {
+            return 0.0;
+        }
+
+        $data = is_string($order->data) ? json_decode($order->data, true) : $order->data;
+        if (!is_array($data)) {
+            return 0.0;
+        }
+
+        if ($isPro === null) {
+            $tour = Tour::where('tour_id', $order->tour_id)->first();
+            $isPro = (int) ($tour->is_pro ?? 0);
+        }
+
+        $orderType = $order->type ?? '';
+        $total = 0.0;
+        foreach ($data as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+            $itemPrice = (float) ($item['totalPrice'] ?? $item['price'] ?? 0);
+
+            // Hotel: pickup total only - do NOT add transfer (transport added automatically).
+            $transferPrice = 0.0;
+            if ($orderType !== 'hotel' && isset($item['transfer_options']['cost']) && $item['transfer_options']['cost'] > 0) {
+                if ($isPro === 1 && isset($item['transfer_options']['totalPrice'])) {
+                    $transferPrice = (float) $item['transfer_options']['totalPrice'];
+                } else {
+                    $transferPrice = (float) $item['transfer_options']['cost'];
+                }
+            }
+
+            $guidePrice = 0.0;
+            if (isset($item['guide_options']) && is_array($item['guide_options'])) {
+                $gv = $item['guide_options']['total_price']
+                    ?? $item['guide_options']['cost']
+                    ?? $item['guide_options']['Cost']
+                    ?? $item['guide_options']['sell']
+                    ?? $item['guide_options']['Sell']
+                    ?? 0;
+                if ($gv > 0) {
+                    $guidePrice = (float) $gv;
+                }
+            }
+
+            $total += $itemPrice + $transferPrice + $guidePrice;
+        }
+
+        return $total;
     }
 }
