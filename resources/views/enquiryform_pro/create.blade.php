@@ -2180,7 +2180,7 @@
                                         <th style="padding: 4px 8px; min-width: 120px;">Room Type</th>
                                         <th style="padding: 4px 8px; min-width: 120px;">Bed Type</th>
                                         <th style="padding: 4px 8px; min-width: 100px;">Meal Plan</th>
-                                        <th style="width: 56px; padding: 4px 8px; text-align: center;" title="Guests counted for meal charges per room (2 standard, 3 with extra bed)">Meal Pax</th>
+                                        <th style="width: 56px; padding: 4px 8px; text-align: center;" title="Meal guests per room: min(2, max occ) without extra bed; full max occ when extra bed is on">Meal Pax</th>
                                         <th style="width: 60px; padding: 4px 8px; text-align: center;">Rooms</th>
                                         <th style="width: 80px; padding: 4px 8px; text-align: center;">Avg Cost</th>
                                         <th style="width: 80px; padding: 4px 8px; text-align: center;">Sell</th>
@@ -6980,9 +6980,17 @@
             if (day === 1) inner += `<span class="ep-cal-month-tag">${monthNamesShort[m]}</span>`;
             if (isStay) inner += `<span class="ep-cal-night-badge">N${nightNum}</span>`;
             inner += `<span class="ep-cal-day-num">${day}</span><span class="ep-cal-day-name">${dayName}</span>`;
-            if (isStay && typeof enquiryProStayNightPricePairHtml === 'function') {
+            if (typeof enquiryProStayNightPricePairHtml === 'function') {
                 const calCombo = typeof enquiryProCurrentCalendarCombo === 'function' ? enquiryProCurrentCalendarCombo() : null;
-                if (calCombo) inner += enquiryProStayNightPricePairHtml(calCombo, dateStr);
+                if (calCombo) {
+                    if (isStay) {
+                        inner += enquiryProStayNightPricePairHtml(calCombo, dateStr);
+                    } else if (applicable && (applicable.event_type === 'Season'
+                        || applicable.event_type === 'Fair Date'
+                        || applicable.event_type === 'Blackout Date')) {
+                        inner += enquiryProStayNightPricePairHtml(calCombo, dateStr, { roomOnly: true });
+                    }
+                }
             }
 
             currentWeek.push(`<div class="${cls}" title="${enquiryProEscapeHtml(tip)}">${inner}</div>`);
@@ -7215,12 +7223,19 @@
         return total;
     }
 
-    /** Meal guest count per room for Lite-style meal totals (matches room distribution capacity). */
+    /**
+     * Meal guests per room (business capacity).
+     * - Extra bed OFF / unavailable → standard double occupancy: min(2, maxOcc)
+     * - Extra bed ON + available → full bed max occupancy (e.g. maxOcc 3 → meal pax 3)
+     * - maxOcc 1 → meal pax 1 (matches single room rate)
+     */
     function enquiryProMealPaxPerRoomFromState(maxOccupancy, hasExtraBed, extraBedAvailable) {
-        const maxOcc = Math.max(1, parseInt(maxOccupancy, 10) || 99);
+        const parsed = parseInt(maxOccupancy, 10);
+        const maxOcc = Math.max(1, (Number.isFinite(parsed) && parsed > 0) ? parsed : 2);
         const ebAvail = extraBedAvailable === undefined || extraBedAvailable === null ? true : !!extraBedAvailable;
         const extraOn = !!hasExtraBed && ebAvail;
-        return extraOn ? Math.min(3, maxOcc) : Math.min(2, maxOcc);
+        if (extraOn) return maxOcc;
+        return Math.min(2, maxOcc);
     }
 
     function enquiryProMealPlanComponentFlags(mealPlan) {
@@ -11259,6 +11274,7 @@
                                 child_lunch_price: firstRoom.child_lunch_price,
                                 child_dinner_price: firstRoom.child_dinner_price,
                                 extra_bed_price: bed.extra_bed_price || firstRoom.extra_bed_price || 0,
+                                extra_bed_cost_price: bed.extra_bed_cost_price || firstRoom.extra_bed_cost_price || 0,
                                 breakfast_cost_price: firstRoom.breakfast_cost_price,
                                 lunch_cost_price: firstRoom.lunch_cost_price,
                                 dinner_cost_price: firstRoom.dinner_cost_price,
@@ -11290,6 +11306,7 @@
                                 maxOccupancy: bed.max_occupancy || firstRoom.max_occupancy || 2,
                                 price: 0,
                                 extraBedPrice: bed.extra_bed_price || firstRoom.extra_bed_price || 0,
+                                extraBedCostPrice: bed.extra_bed_cost_price || firstRoom.extra_bed_cost_price || 0,
                                 babyCotPrice: bed.baby_cot_price || 0,
                                 extraBedAvailable: !!(bed.extra_bed == 1 || bed.extra_bed === true),
                                 babyCotAvailable: bed.baby_cot || false,
@@ -11482,7 +11499,7 @@
                     <input type="number" class="form-control form-control-sm combo-meal-pax"
                            data-combo-id="${combo.id}" value="0" min="0" step="1"
                            style="font-size: 10px; padding: 2px 4px; text-align: center; width: 46px;"
-                           title="Meal guests per room (auto: 2 without extra bed, 3 with extra bed). You can edit this. Meal cost = Σ(meal rate × this × rooms × nights).">
+                           title="Meal guests per room. Auto: min(2, max occ) without extra bed; = max occ when extra bed is enabled. Toggle extra bed to increase/decrease.">
                 </td>
                 <td style="padding: 2px 8px;">
                     <input type="number" class="form-control form-control-sm combo-rooms" 
@@ -11593,17 +11610,13 @@
         // - 1 type selected: rooms = ceil(adults/maxCap) e.g. 4 adults, max 2 → 2 rooms.
         // - 2 types: 1 and 1. 3 types: 1,1,1. 4 types: 1,1,1,1.
         // - If user selects a 5th type: first 4 keep 1,1,1,1; 5th gets 0. When user unselects one of the four, the 5th gets 1 (redistribute among 4 selected).
-        // Per-row room capacity for distribution:
-        //  - extra-bed checkbox CHECKED (and available)  → base 2 + 1 extra bed = 3 (capped by maxOcc)
-        //  - extra-bed checkbox UNCHECKED / unavailable  → base 2                (capped by maxOcc)
-        // Example for 7 adults, 1 combo selected:
-        //   extra bed ON  → ceil(7/3) = 3 rooms (3+3+1)
-        //   extra bed OFF → ceil(7/2) = 4 rooms (2+2+2+1)
+        // Per-row room capacity for distribution (= meal pax business capacity):
+        //  - extra-bed OFF / unavailable → min(2, maxOcc)
+        //  - extra-bed ON + available    → maxOcc (e.g. 3 → 3 meal pax / sleepers)
         const getComboRoomCapacity = (combo, comboId) => {
-            const maxOcc = Math.max(1, parseInt(combo?.maxOccupancy || 99, 10) || 99);
             const extraBedCb = tbody.querySelector(`.combo-extra-bed-check[data-combo-id="${comboId}"]`);
-            const extraBedOn = extraBedCb && extraBedCb.checked && !extraBedCb.disabled && (combo?.extraBedAvailable !== false);
-            return extraBedOn ? Math.min(3, maxOcc) : Math.min(2, maxOcc);
+            const extraBedOn = !!(extraBedCb && extraBedCb.checked && !extraBedCb.disabled && (combo?.extraBedAvailable !== false));
+            return enquiryProMealPaxPerRoomFromState(combo?.maxOccupancy, extraBedOn, combo?.extraBedAvailable !== false);
         };
 
         const updateAllMealPaxCells = () => {
@@ -11625,9 +11638,16 @@
                 }
 
                 const cap = getComboRoomCapacity(combo, comboId);
+                const maxOccParsed = parseInt(combo.maxOccupancy, 10);
+                const maxOcc = Math.max(1, (Number.isFinite(maxOccParsed) && maxOccParsed > 0) ? maxOccParsed : 2);
+                inp.max = String(maxOcc);
                 const userEdited = inp.getAttribute('data-user-edited') === 'true';
                 if (!userEdited) {
                     inp.value = String(cap);
+                } else {
+                    // Keep manual value but never above bed max occupancy
+                    const cur = parseInt(inp.value, 10);
+                    if (Number.isFinite(cur) && cur > maxOcc) inp.value = String(maxOcc);
                 }
                 const v = parseInt(inp.value, 10);
                 combo.mealPax = Number.isFinite(v) ? v : cap;
@@ -11758,9 +11778,8 @@
             });
         });
 
-        // Extra Bed checkbox: enable/disable price input AND re-distribute rooms across selected
-        // combos. Capacity per row changes (2 ↔ 3), so the total rooms needed for the same
-        // adult count changes too (e.g. 7 pax → 3 rooms with extra bed, 4 rooms without).
+        // Extra Bed checkbox: enable/disable price input, sync Meal Pax up/down with capacity,
+        // and re-distribute rooms across selected combos.
         tbody.querySelectorAll('.combo-extra-bed-check').forEach(checkbox => {
             checkbox.addEventListener('change', function() {
                 const comboId = this.getAttribute('data-combo-id');
@@ -11768,12 +11787,16 @@
                 if (priceInput) {
                     priceInput.disabled = !this.checked;
                 }
+                // Extra bed drives meal pax — clear manual override so value follows capacity.
+                const mealPaxInp = tbody.querySelector(`.combo-meal-pax[data-combo-id="${comboId}"]`);
+                if (mealPaxInp) mealPaxInp.removeAttribute('data-user-edited');
                 const selectionCb = tbody.querySelector(`.room-combination-checkbox[data-combo-id="${comboId}"]`);
                 if (selectionCb && selectionCb.checked) {
                     distributePaxAcrossRooms();
                 } else {
                     updateAllMealPaxCells();
                 }
+                if (typeof syncAccommodationPreviewFromModal === 'function') syncAccommodationPreviewFromModal();
             });
         });
         
@@ -12338,10 +12361,15 @@
                 const mealPaxInput = document.querySelector(`.combo-meal-pax[data-combo-id="${comboId}"]`);
                 const mealPaxParsed = parseInt(mealPaxInput?.value, 10);
                 
-                // Get prices from room data
+                // Get sell + cost prices from room/bed data
                 const extraBedPrice = parseFloat(combo.extraBedPrice || combo.roomData?.extra_bed_price || 0);
+                const extraBedCostPrice = parseFloat(
+                    combo.extraBedCostPrice ?? combo.bedData?.extra_bed_cost_price ?? combo.roomData?.extra_bed_cost_price ?? 0
+                ) || 0;
                 const cwbPrice = parseFloat(combo.roomData?.child_with_bed || combo.roomData?.childWithBed || combo.roomData?.cwb_price || 0);
+                const cwbCostPrice = parseFloat(combo.cwbCostPrice ?? combo.roomData?.child_with_bed_cost ?? 0) || 0;
                 const cnbPrice = parseFloat(combo.roomData?.child_without_bed || combo.roomData?.childWithoutBed || combo.roomData?.cnb_price || 0);
+                const cnbCostPrice = parseFloat(combo.cnbCostPrice ?? combo.roomData?.child_without_bed_cost ?? 0) || 0;
                 const infantPrice = parseFloat(combo.babyCotPrice || combo.roomData?.baby_cot_price || combo.bedData?.baby_cot_price || 0);
 
                 const priceFromInput = parseFloat(priceInput?.value);
@@ -12371,10 +12399,13 @@
                     hasExtraBed: extraBedOn,
                     extraBed: extraBedOn ? roomsCount : 0,
                     extraBedPrice: extraBedPrice, // Always store price, checkbox controls usage
+                    extraBedCostPrice: extraBedCostPrice,
                     hasCwb: cwbOn,
                     cwbPrice: cwbPrice, // Always store price, checkbox controls usage
+                    cwbCostPrice: cwbCostPrice,
                     hasCnb: cnbOn,
                     cnbPrice: cnbPrice, // Always store price, checkbox controls usage
+                    cnbCostPrice: cnbCostPrice,
                     hasInfant: infantCheck?.checked || false,
                     infantPrice: infantPrice, // Always store price, checkbox controls usage
                     supplement: supplementCheck?.checked || false,
@@ -12481,8 +12512,14 @@
             cost: costNight,
             sell: sellNight,
             extraBedPrice: combo.extraBedPrice || 0,
+            extraBedCostPrice: combo.extraBedCostPrice
+                ?? combo.bedData?.extra_bed_cost_price
+                ?? combo.roomData?.extra_bed_cost_price
+                ?? 0,
             cwbPrice: combo.cwbPrice || 0,
+            cwbCostPrice: combo.cwbCostPrice ?? combo.roomData?.child_with_bed_cost ?? 0,
             cnbPrice: combo.cnbPrice || 0,
+            cnbCostPrice: combo.cnbCostPrice ?? combo.roomData?.child_without_bed_cost ?? 0,
             infantPrice: combo.infantPrice || 0,
             // Child with bed / without bed counts for JSON payload (= rooms when enabled)
             childWithBed: combo.hasCwb ? (Math.max(1, parseInt(combo.rooms, 10) || 1)) : (combo.childWithBed || 0),
@@ -15619,36 +15656,22 @@
                     mealPlanLabel: hotel.mealPlanLabel
                 });
                 
-                // Find the matching combination
-                // Try to match by roomType, bedTypeRaw (or bedType), and mealPlanLabel (or mealPlan)
-                let matchingCombo = window.currentRoomCombinations.find(combo => {
-                    const roomMatch = combo.roomType === hotel.roomType;
-                    const bedMatch = (combo.bedTypeRaw || combo.bedType) === (hotel.bedTypeRaw || hotel.bedType) || 
-                                    combo.bedType === hotel.bedType;
-                    const mealMatch = (combo.mealPlanLabel || combo.mealPlan) === (hotel.mealPlanLabel || hotel.mealPlan) ||
-                                    combo.mealPlan === hotel.mealPlan;
-                    
-                    console.log('Checking combo:', {
-                        comboRoomType: combo.roomType,
-                        comboBedTypeRaw: combo.bedTypeRaw,
-                        comboMealPlan: combo.mealPlan,
-                        roomMatch,
-                        bedMatch,
-                        mealMatch
-                    });
-                    
-                    return roomMatch && bedMatch && mealMatch;
-                });
-                
+                // Find the matching combination (bedId / full bedType / maxOccupancy — not bedTypeRaw alone)
+                let matchingCombo = typeof enquiryProFindMatchingRoomCombo === 'function'
+                    ? enquiryProFindMatchingRoomCombo(hotel, window.currentRoomCombinations)
+                    : null;
+
                 if (!matchingCombo) {
-                    matchingCombo =
-                        window.currentRoomCombinations.find(combo => {
-                            const roomMatch = combo.roomType === hotel.roomType;
-                            const bedMatch = (combo.bedTypeRaw || combo.bedType) === (hotel.bedTypeRaw || hotel.bedType) ||
-                                            combo.bedType === hotel.bedType;
-                            return roomMatch && bedMatch;
-                        }) ||
-                        window.currentRoomCombinations.find(combo => combo.roomType === hotel.roomType);
+                    // Legacy fallback only if helper missing
+                    matchingCombo = window.currentRoomCombinations.find(combo => {
+                        const roomMatch = combo.roomType === hotel.roomType;
+                        const bedMatch = combo.bedType === hotel.bedType
+                            || (Number.isFinite(parseInt(hotel.maxOccupancy, 10))
+                                && parseInt(combo.maxOccupancy, 10) === parseInt(hotel.maxOccupancy, 10));
+                        const mealMatch = (combo.mealPlanLabel || combo.mealPlan) === (hotel.mealPlanLabel || hotel.mealPlan)
+                            || combo.mealPlan === hotel.mealPlan;
+                        return roomMatch && bedMatch && mealMatch;
+                    }) || null;
                 }
 
                 if (matchingCombo) {
@@ -28050,6 +28073,9 @@
 
             const selectedMealsPayload = enquiryProBuildSelectedMealsPayload(hotel, numberOfRooms, nights);
             const totalPrice = enquiryProHotelPayloadTotalPrice(hotel, numberOfRooms, nights);
+            const lodgingCostSnapshot = (typeof enquiryProBuildLodgingCostSnapshot === 'function')
+                ? enquiryProBuildLodgingCostSnapshot(hotel, numberOfRooms)
+                : null;
 
             // Create bed object with clean structure
             const bedObject = {
@@ -28131,6 +28157,9 @@
                 
                 // Rooms array (using 'rooms' instead of 'roomsArray')
                 rooms: rooms,
+
+                // Extra: View-details cost cut for orders.cost_price (season/fair/blackout). Does not change sell fields.
+                lodging_cost_snapshot: lodgingCostSnapshot,
                 
                 // Pricing
                 totalPrice: totalPrice,

@@ -1673,6 +1673,7 @@ class EnquiryFormPro extends Controller
                             'bed_type' => $bed->room_type ?? 'Standard Bed',
                             'max_occupancy' => $bed->max_occupancy ?? 2,
                             'extra_bed_price' => $bed->extra_bed_price ?? 0,
+                            'extra_bed_cost_price' => $bed->extra_bed_cost_price ?? 0,
                             'has_extra_bed' => $bed->extra_bed ? true : false,
                         ];
                     })->toArray();

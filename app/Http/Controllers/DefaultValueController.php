@@ -46,46 +46,33 @@ class DefaultValueController extends Controller
     }
 
     /**
-     * Master-DMC / DMC country list (same idea as EnquiryFormPro).
+     * DMC base country names from users.country only (not master DMC countries).
+     */
+    private function getDmcBaseCountryNames(?int $dmcId): array
+    {
+        if (!$dmcId) {
+            return [];
+        }
+
+        $dmcUser = User::where('userId', $dmcId)->first();
+        if (!$dmcUser || empty($dmcUser->country)) {
+            return [];
+        }
+
+        return array_values(array_filter(array_map(
+            static fn ($c) => trim($c),
+            preg_split('/\s*,\s*/', (string) $dmcUser->country)
+        )));
+    }
+
+    /**
+     * Accessible countries for default-values forms: DMC base country from users.country.
      */
     private function getAccessibleCountryNames($dmcId, User $user): array
     {
-        $dmcUser = User::where('userId', $dmcId)->first();
-        if ($dmcUser) {
-            $masterDmcId = $dmcUser->master_dmc_id ?? null;
-            if (empty($masterDmcId)) {
-                $visited = [];
-                $candidateId = $dmcUser->created_by ?? null;
-                $safety = 0;
-                while (!empty($candidateId) && $safety < 8 && !in_array($candidateId, $visited, true)) {
-                    $visited[] = $candidateId;
-                    $candidate = User::where('userId', $candidateId)->first();
-                    if (!$candidate) {
-                        break;
-                    }
-                    if ((int) ($candidate->role_id ?? 0) === 3) {
-                        $masterDmcId = $candidate->userId;
-                        break;
-                    }
-                    $candidateId = $candidate->created_by ?? null;
-                    $safety++;
-                }
-            }
-
-            $masterDmc = User::where('userId', $masterDmcId ?: $dmcId)->first();
-            if ($masterDmc && !empty($masterDmc->country)) {
-                return array_values(array_filter(array_map(
-                    static fn ($c) => trim($c),
-                    preg_split('/\s*,\s*/', (string) $masterDmc->country)
-                )));
-            }
-
-            if (!empty($dmcUser->country)) {
-                return array_values(array_filter(array_map(
-                    static fn ($c) => trim($c),
-                    preg_split('/\s*,\s*/', (string) $dmcUser->country)
-                )));
-            }
+        $names = $this->getDmcBaseCountryNames($dmcId ? (int) $dmcId : null);
+        if (!empty($names)) {
+            return $names;
         }
 
         if (!empty($user->country)) {
@@ -98,22 +85,84 @@ class DefaultValueController extends Controller
         return [];
     }
 
+    private function getAccessibleCountriesCollection(array $countryNames)
+    {
+        if (empty($countryNames)) {
+            return collect();
+        }
+
+        $matched = Country::where(function ($q) use ($countryNames) {
+            foreach ($countryNames as $name) {
+                $q->orWhereRaw('LOWER(TRIM(name)) = ?', [mb_strtolower(trim($name))]);
+            }
+        })
+            ->orderBy('name')
+            ->get(['name', 'country_id']);
+
+        if ($matched->isNotEmpty()) {
+            return $matched;
+        }
+
+        return collect($countryNames)->map(static function ($name) {
+            return (object) ['country_id' => null, 'name' => $name];
+        });
+    }
+
     private function getCitiesGroupedByCountry(array $countryNames): array
     {
         if (empty($countryNames)) {
             return [];
         }
 
-        $cities = City::whereIn('country', $countryNames)
+        $cities = City::where(function ($q) use ($countryNames) {
+            foreach ($countryNames as $name) {
+                $q->orWhereRaw('LOWER(TRIM(country)) = ?', [mb_strtolower(trim($name))]);
+            }
+        })
             ->orderBy('name')
             ->get(['name', 'country', 'city_id']);
 
         $grouped = [];
-        foreach ($cities as $city) {
-            $grouped[$city->country][] = [
+        $addCity = static function (array &$grouped, string $key, $city): void {
+            if ($key === '') {
+                return;
+            }
+            if (!isset($grouped[$key])) {
+                $grouped[$key] = [];
+            }
+            foreach ($grouped[$key] as $existing) {
+                if ((string) ($existing['city_id'] ?? '') === (string) $city->city_id) {
+                    return;
+                }
+            }
+            $grouped[$key][] = [
                 'name' => $city->name,
                 'city_id' => $city->city_id,
             ];
+        };
+
+        foreach ($cities as $city) {
+            $addCity($grouped, (string) $city->country, $city);
+            foreach ($countryNames as $accessibleName) {
+                if (strcasecmp(trim((string) $city->country), trim((string) $accessibleName)) === 0) {
+                    $addCity($grouped, (string) $accessibleName, $city);
+                }
+            }
+        }
+
+        $official = Country::where(function ($q) use ($countryNames) {
+            foreach ($countryNames as $name) {
+                $q->orWhereRaw('LOWER(TRIM(name)) = ?', [mb_strtolower(trim($name))]);
+            }
+        })->get(['name']);
+
+        foreach ($official as $c) {
+            foreach ($countryNames as $accessibleName) {
+                if (strcasecmp(trim((string) $c->name), trim((string) $accessibleName)) === 0
+                    && !empty($grouped[$accessibleName])) {
+                    $grouped[$c->name] = $grouped[$accessibleName];
+                }
+            }
         }
 
         return $grouped;
@@ -316,10 +365,9 @@ class DefaultValueController extends Controller
 
         $availableTypes = $this->allTypes;
         $countryNames = $this->getAccessibleCountryNames($dmcId, $user);
-        $countries = !empty($countryNames)
-            ? Country::whereIn('name', $countryNames)->orderBy('name')->get(['name', 'country_id'])
-            : collect();
+        $countries = $this->getAccessibleCountriesCollection($countryNames);
         $citiesByCountry = $this->getCitiesGroupedByCountry($countryNames);
+        $selectedCountry = old('country', $countries->count() === 1 ? ($countries->first()->name ?? '') : '');
 
         $existingDefaults = DefaultValue::where('dmc_id', $dmcId)
             ->get(['name', 'country', 'city'])
@@ -336,7 +384,8 @@ class DefaultValueController extends Controller
             'countries',
             'citiesByCountry',
             'existingDefaults',
-            'dmcId'
+            'dmcId',
+            'selectedCountry'
         ));
     }
 
@@ -425,10 +474,21 @@ class DefaultValueController extends Controller
             ->firstOrFail();
 
         $countryNames = $this->getAccessibleCountryNames($dmcId, $user);
-        $countries = !empty($countryNames)
-            ? Country::whereIn('name', $countryNames)->orderBy('name')->get(['name', 'country_id'])
-            : collect();
-        $citiesByCountry = $this->getCitiesGroupedByCountry($countryNames);
+        $countries = $this->getAccessibleCountriesCollection($countryNames);
+        // Keep saved country visible even if outside current DMC base list
+        $editCountry = old('country', $defaultValue->country);
+        if (filled($editCountry) && !$countries->contains(fn ($c) => strcasecmp(trim((string) $c->name), trim((string) $editCountry)) === 0)) {
+            $missing = Country::whereRaw('LOWER(TRIM(name)) = ?', [mb_strtolower(trim((string) $editCountry))])->first(['name', 'country_id']);
+            if ($missing) {
+                $countries = $countries->prepend($missing)->unique('country_id')->values();
+            } else {
+                $countries = $countries->prepend((object) ['country_id' => null, 'name' => $editCountry])->values();
+            }
+        }
+        $citiesByCountry = $this->getCitiesGroupedByCountry(
+            array_values(array_unique(array_merge($countryNames, array_filter([(string) $editCountry]))))
+        );
+        $selectedCountry = $editCountry ?: ($countries->count() === 1 ? ($countries->first()->name ?? '') : '');
 
         $services = $this->fetchServicesForType(
             $dmcId,
@@ -442,7 +502,8 @@ class DefaultValueController extends Controller
             'countries',
             'citiesByCountry',
             'services',
-            'dmcId'
+            'dmcId',
+            'selectedCountry'
         ));
     }
 

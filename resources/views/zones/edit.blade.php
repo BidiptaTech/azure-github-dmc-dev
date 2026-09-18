@@ -6,6 +6,10 @@
 @section('content')
 @php
     $preselectedCountry = old('country', $selectedCountry ?? $zoneCountry ?? '');
+    $scopedCountries = collect($countries ?? []);
+    if ($preselectedCountry === '' && $scopedCountries->count() === 1) {
+        $preselectedCountry = $scopedCountries->first()->name ?? '';
+    }
     $listUrl = $listUrl ?? route('zones.index');
     $listQuery = $listQuery ?? [];
 @endphp
@@ -205,10 +209,10 @@
                                 <label for="country" class="form-label">Country <span class="text-danger">*</span></label>
                                 <input type="hidden" name="country" value="{{ $preselectedCountry }}">
                                 <select class="form-select @error('country') is-invalid @enderror" id="country" disabled title="Country cannot be changed">
-                                    @if(($countries ?? collect())->count() !== 1)
+                                    @if($scopedCountries->count() !== 1)
                                         <option value="">Select Country</option>
                                     @endif
-                                    @foreach(($countries ?? collect()) as $country)
+                                    @foreach($scopedCountries as $country)
                                         <option value="{{ $country->name }}" {{ ($preselectedCountry ?? '') === $country->name ? 'selected' : '' }}>{{ $country->name }}</option>
                                     @endforeach
                                 </select>
