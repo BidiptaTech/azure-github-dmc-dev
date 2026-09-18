@@ -377,10 +377,10 @@
                     <h6 class="mb-2 text-success">How to edit agency:</h6>
                     <ul class="mb-0 small">
                         <li><strong>Step 1:</strong> Update head office information below (marked with "Head Office" badge)</li>
-                        <li><strong>Step 2:</strong> Country selection will auto-populate cities and ID card types with search functionality</li>
-                        <li><strong>Step 3:</strong> Update Govt. ID card type and card number for verification</li>
-                        <li><strong>Step 4:</strong> Use "Add Branch" to add new branches or "Remove" to delete existing ones</li>
-                        <li><strong>Step 5:</strong> All changes will be saved when you click "Update Agency"</li>
+                        {{-- <li><strong>Step 2:</strong> Country selection will auto-populate cities and ID card types with search functionality</li> --}}
+                        <li><strong>Step 2:</strong> Enter License number for verification</li>
+                        <li><strong>Step 3:</strong> Use "Add Branch" to add new branches or "Remove" to delete existing ones</li>
+                        <li><strong>Step 4:</strong> All changes will be saved when you click "Update Agency"</li>
                     </ul>
                 </div>
             </div>
@@ -603,7 +603,7 @@
                         </div>
 
                         <!-- ID Card Type -->
-                        <div class="col-lg-6 col-md-6 mb-3">
+                        {{-- <div class="col-lg-6 col-md-6 mb-3">
                             <label for="id_card_type" class="form-label">
                                 <i class="ri-bank-card-line text-primary"></i>
                                 ID Card Type <span class="text-danger">*</span>
@@ -620,20 +620,20 @@
                             @error('id_card_type')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
-                        </div>
+                        </div> --}}
 
-                        <!-- Card Number -->
+                        <!-- License Number -->
                         <div class="col-lg-6 col-md-6 mb-3">
                             <label for="card_number" class="form-label">
                                 <i class="ri-hashtag text-primary"></i>
-                                Card Number <span class="text-danger">*</span>
+                                License Number <span class="text-danger">*</span>
                             </label>
                             <input type="text" 
                                    class="form-control @error('card_number') is-invalid @enderror" 
                                    id="card_number" 
                                    name="card_number" 
                                    value="{{ old('card_number', $agency->card_number) }}" 
-                                   placeholder="Enter ID card number">
+                                   placeholder="Enter License number">
                             @error('card_number')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
@@ -757,7 +757,7 @@
                                     </div>
 
                                     <!-- ID Card Type -->
-                                    <div class="col-lg-6 col-md-6 mb-3">
+                                    {{-- <div class="col-lg-6 col-md-6 mb-3">
                                         <label class="form-label">
                                             <i class="ri-bank-card-line text-primary"></i>
                                             ID Card Type <span class="text-danger">*</span>
@@ -771,19 +771,19 @@
                                                 <option value="{{ old('branches.'.$index.'.id_card_type', $branch['id_card_type'] ?? '') }}" selected>{{ old('branches.'.$index.'.id_card_type', $branch['id_card_type'] ?? '') }}</option>
                                             @endif
                                         </select>
-                                    </div>
+                                    </div> --}}
 
-                                    <!-- Card Number -->
+                                    <!-- License Number -->
                                     <div class="col-lg-6 col-md-6 mb-3">
                                         <label class="form-label">
                                             <i class="ri-hashtag text-primary"></i>
-                                            Card Number <span class="text-danger">*</span>
+                                            License Number <span class="text-danger">*</span>
                                         </label>
                                         <input type="text" 
                                                class="form-control" 
                                                name="branches[{{ $index }}][card_number]" 
                                                value="{{ old('branches.'.$index.'.card_number', $branch['card_number'] ?? '') }}"
-                                               placeholder="Enter ID card number"
+                                               placeholder="Enter License number"
                                                required>
                                     </div>
 
@@ -929,7 +929,7 @@
                 </div>
 
                 <!-- ID Card Type -->
-                <div class="col-lg-6 col-md-6 mb-3">
+                {{-- <div class="col-lg-6 col-md-6 mb-3">
                     <label class="form-label">
                         <i class="ri-bank-card-line text-primary"></i>
                         ID Card Type <span class="text-danger">*</span>
@@ -939,18 +939,18 @@
                             required>
                         <option value="">Select country first to load card types...</option>
                     </select>
-                </div>
+                </div> --}}
 
-                <!-- Card Number -->
+                <!-- License Number -->
                 <div class="col-lg-6 col-md-6 mb-3">
                     <label class="form-label">
                         <i class="ri-hashtag text-primary"></i>
-                        Card Number <span class="text-danger">*</span>
+                        License Number <span class="text-danger">*</span>
                     </label>
                     <input type="text" 
                            class="form-control" 
                            name="branches[INDEX][card_number]" 
-                           placeholder="Enter ID card number"
+                           placeholder="Enter License number"
                            required>
                 </div>
 

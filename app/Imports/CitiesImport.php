@@ -27,7 +27,7 @@ class CitiesImport implements ToModel
         return new City([
             'city_id' => self::$cityId,
             
-            'name'    => $row['city_name'], 
+             'name'    => $row['city_name'], 
             'country' => $row['country'] ?? 'India', // Default to India if not present 
         ]);
     }

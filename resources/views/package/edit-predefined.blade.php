@@ -220,7 +220,7 @@
                         <div class="card-body">
                             <div class="row">
                                 <div class="col-md-4 mb-3">
-                                    <label class="form-label">Adult Price (SGD) <span class="text-danger">*</span></label>
+                                    <label class="form-label">Adult Price ({{ $currency ?? 'SGD' }}) <span class="text-danger">*</span></label>
                                     <input type="number" class="form-control @error('price_adult') is-invalid @enderror" 
                                            name="price_adult" value="{{ old('price_adult', $package->price_adult) }}" 
                                            step="0.01" min="0" required>
@@ -229,7 +229,7 @@
                                     @enderror
                                 </div>
                                 <div class="col-md-4 mb-3">
-                                    <label class="form-label">Senior Price (SGD)</label>
+                                    <label class="form-label">Senior Price ({{ $currency ?? 'SGD' }})</label>
                                     <input type="number" class="form-control @error('price_senior') is-invalid @enderror" 
                                            name="price_senior" value="{{ old('price_senior', $package->price_senior) }}" 
                                            step="0.01" min="0">
@@ -238,7 +238,7 @@
                                     @enderror
                                 </div>
                                 <div class="col-md-4 mb-3">
-                                    <label class="form-label">Child Price (SGD)</label>
+                                    <label class="form-label">Child Price ({{ $currency ?? 'SGD' }})</label>
                                     <input type="number" class="form-control @error('price_child') is-invalid @enderror" 
                                            name="price_child" value="{{ old('price_child', $package->price_child) }}" 
                                            step="0.01" min="0">
