@@ -415,6 +415,7 @@ class SingleTourPackageController extends Controller
             
         $restaurantIds = $restaurants->pluck('restaurant_id')->toArray();
         $meals = Meal::whereIn('restaurant_id', $restaurantIds)
+            ->where('is_active', 1)
             ->select('meal_id', 'restaurant_id', 'name', 'type', 'price', 'adult_price', 'child_price', 'meal_period')
             ->get();
             
@@ -1572,9 +1573,9 @@ class SingleTourPackageController extends Controller
             });
             $guides = $guidesQuery->get();
 
-            // Load restaurants filtered by city-block DMC(s)
+            // Load restaurants filtered by city-block DMC(s) — active meals only
             $restaurantsQuery = Restaurant::with(['meals' => function ($query) use ($inventoryDmcIds) {
-                $query->whereIn('dmc_id', $inventoryDmcIds);
+                $query->whereIn('dmc_id', $inventoryDmcIds)->where('is_active', 1);
             }]);
             $restaurants = $applyJsonDmcScope($restaurantsQuery)
                 ->where(function ($q) use ($cityMatchValues, $tourDestinationNames) {
@@ -3911,14 +3912,16 @@ class SingleTourPackageController extends Controller
                 ], 403);
             }
             
-            // Fetch restaurants where dmc_id JSON contains current DMC ID AND have meals (active only)
+            // Fetch restaurants where dmc_id JSON contains current DMC ID AND have active meals
             $query = Restaurant::whereJsonContains('dmc_id', (int) $dmcId)
                 ->where('status', 1)
                 ->where('is_active', 1)
                 ->whereExists(function ($query) {
                     $query->select(DB::raw(1))
                           ->from('meals')
-                          ->whereRaw('meals.restaurant_id = restaurants.restaurant_id');
+                          ->whereRaw('meals.restaurant_id = restaurants.restaurant_id')
+                          ->where('meals.is_active', 1)
+                          ->whereNull('meals.deleted_at');
                 });
                 
             // Filter by city if provided
@@ -3996,7 +3999,9 @@ class SingleTourPackageController extends Controller
                 ->whereExists(function ($query) {
                     $query->select(DB::raw(1))
                           ->from('meals')
-                          ->whereRaw('meals.restaurant_id = restaurants.restaurant_id');
+                          ->whereRaw('meals.restaurant_id = restaurants.restaurant_id')
+                          ->where('meals.is_active', 1)
+                          ->whereNull('meals.deleted_at');
                 })
                 ->select('restaurant_id', 'name', 'city', 'breakfast_available', 'lunch_available', 'dinner_available',
                          'opening_time_bf', 'closing_time_bf', 'opening_time_lunch', 'closing_time_lunch',
@@ -4107,18 +4112,11 @@ class SingleTourPackageController extends Controller
 
             $mappedPeriod = $this->normalizeMealPeriodValue($mealPeriod);
             if ($mappedPeriod) {
-                $matched = $meals->filter(function ($meal) use ($mappedPeriod) {
+                // Only dishes for this meal type — never fall back to other/blank periods
+                // (that caused inactive Lunch to show Breakfast dishes, etc.)
+                $meals = $meals->filter(function ($meal) use ($mappedPeriod) {
                     return $this->normalizeMealPeriodValue($meal->meal_period) === $mappedPeriod;
                 })->values();
-
-                if ($matched->isNotEmpty()) {
-                    $meals = $matched;
-                } else {
-                    // Older meals often have a blank meal_period; keep those, never other periods
-                    $meals = $meals->filter(function ($meal) {
-                        return $this->normalizeMealPeriodValue($meal->meal_period) === null;
-                    })->values();
-                }
             }
 
             // Debug logging
@@ -4193,7 +4191,7 @@ class SingleTourPackageController extends Controller
     }
 
     /**
-     * Distinct meal_period values keyed by restaurant_id.
+     * Distinct meal_period values keyed by restaurant_id (active meals only).
      */
     private function mealPeriodsByRestaurantIds(array $restaurantIds, $dmcId = null): array
     {
@@ -4201,7 +4199,9 @@ class SingleTourPackageController extends Controller
             return [];
         }
 
-        $query = Meal::whereIn('restaurant_id', $restaurantIds)->select('restaurant_id', 'meal_period');
+        $query = Meal::whereIn('restaurant_id', $restaurantIds)
+            ->where('is_active', 1)
+            ->select('restaurant_id', 'meal_period');
         if ($dmcId) {
             $query->where('dmc_id', $dmcId);
         }
