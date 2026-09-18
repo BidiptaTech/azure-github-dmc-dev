@@ -930,14 +930,81 @@
     }
 
     function hourPriceFromGuide(g, hours) {
-        hours = parseInt(hours, 10) || 1;
+        hours = parseInt(hours, 10) || 0;
+        if (!g || hours < 1) return 0;
+        // Prefer named package tiers (same as guide.js / classic form) before hourly × hours
+        var named = {
+            1: 'hourly_price',
+            2: 'two_hour_price',
+            4: 'four_hour_price',
+            6: 'six_hour_price',
+            8: 'eight_hour_price',
+            10: 'ten_hour_price',
+            12: 'twelve_hour_price'
+        };
+        if (named[hours] && g[named[hours]] != null && g[named[hours]] !== '') {
+            var pkg = parseFloat(g[named[hours]]) || 0;
+            if (pkg > 0) return pkg;
+        }
         var key = hours + '_hour_price';
-        if (g && g[key] != null && g[key] !== '') return parseFloat(g[key]) || 0;
-        if (g && g.hourly_price) return (parseFloat(g.hourly_price) || 0) * hours;
-        // even-hour named keys used by some APIs
-        var named = { 2: 'two_hour_price', 4: 'four_hour_price', 6: 'six_hour_price', 8: 'eight_hour_price', 10: 'ten_hour_price', 12: 'twelve_hour_price' };
-        if (named[hours] && g && g[named[hours]] != null) return parseFloat(g[named[hours]]) || 0;
+        if (g[key] != null && g[key] !== '') {
+            var keyed = parseFloat(g[key]) || 0;
+            if (keyed > 0) return keyed;
+        }
+        if (hours === 1 && g.hourly_price) return parseFloat(g.hourly_price) || 0;
+        if (g.hourly_price && !named[hours]) return (parseFloat(g.hourly_price) || 0) * hours;
         return 0;
+    }
+
+    /**
+     * Ticket/meal base from a saved attraction/restaurant row (excludes guide + transfer).
+     */
+    function ticketOrMealBaseFromRow(row) {
+        if (!row || typeof row !== 'object') return 0;
+        var td = row.ticket_details || {};
+        var hasTicket = row.ticketId != null || row.ticket_details
+            || row.adultCount != null || row.AttractionId != null;
+        if (hasTicket && (td.adult_price != null || td.child_price != null
+            || td.senior_adult_price != null || td.senior_price != null)) {
+            return (Number(row.adultCount != null ? row.adultCount : (row.adults || 0)) * (Number(td.adult_price) || 0))
+                + (Number(row.childCount != null ? row.childCount : (row.children || 0)) * (Number(td.child_price) || 0))
+                + (Number(row.seniorCount || 0) * (Number(td.senior_adult_price != null ? td.senior_adult_price : td.senior_price) || 0));
+        }
+        var meal0 = (Array.isArray(row.MealDescription) && row.MealDescription[0]) ? row.MealDescription[0] : null;
+        var adultP = Number(row.adult_price != null ? row.adult_price : (meal0 && meal0.adult_price)) || 0;
+        var childP = Number(row.child_price != null ? row.child_price : (meal0 && meal0.child_price)) || 0;
+        if (adultP || childP || row.restaurantId != null || meal0) {
+            return (Number(row.adults || 0) * adultP) + (Number(row.children || 0) * childP);
+        }
+        return 0;
+    }
+
+    /**
+     * Display/header total for attraction/restaurant rows.
+     * Classic create often stores ticket/meal-only in totalPrice while guide/transfer
+     * live in nested options — compose them so the top grid matches Get Price.
+     * If totalPrice already includes extras (lite path), keep it (no double-add).
+     */
+    function serviceRowDisplayTotal(row) {
+        if (!row || typeof row !== 'object') return 0;
+        var stored = Number(row.totalPrice != null ? row.totalPrice
+            : (row.grand_total != null ? row.grand_total : (row.price != null ? row.price : 0))) || 0;
+        var xfer = (row.transfer_options && (row.transfer_options.transfer_required
+            || row.transfer_options.vehicle_id || row.transfer_options.cost))
+            ? (Number(row.transfer_options.cost) || 0) : 0;
+        var guide = (row.guide_options && (row.guide_options.guide_required
+            || row.guide_options.guide_id || row.guide_options.total_price))
+            ? (Number(row.guide_options.total_price) || 0) : 0;
+        if (xfer <= 0 && guide <= 0) return stored;
+        var base = ticketOrMealBaseFromRow(row);
+        var composed = (base > 0 ? base : 0) + xfer + guide;
+        if (composed <= 0) return stored;
+        // Stored already includes extras
+        if (stored + 0.009 >= composed) return stored;
+        // Stored is ticket/meal-only (or missing extras) — use composed for top grid
+        if (base > 0 && Math.abs(stored - base) < 0.02) return composed;
+        if (stored < composed) return composed;
+        return stored;
     }
 
     function isNightTime(timeStr, start, end) {
@@ -972,11 +1039,14 @@
         var guide = (root.__guides || []).find(function (g) {
             return String(g.guide_id || g.id) === String(select.value);
         }) || {};
-        var hours = hoursEl ? hoursEl.value : 1;
+        var hours = hoursEl ? hoursEl.value : '';
+        if (!hours) return { total: 0, base: 0, surcharge: 0, hours: 0 };
         var base = hourPriceFromGuide(guide, hours);
         var pickup = readAmPmValue(root, prefix + '-guide');
         var surcharge = 0;
-        if (isNightTime(pickup, guide.night_start, guide.night_end)) {
+        var nightStart = guide.night_start || guide.night_start_time || '';
+        var nightEnd = guide.night_end || guide.night_end_time || '';
+        if (isNightTime(pickup, nightStart, nightEnd)) {
             surcharge = parseFloat(guide.night_surcharge) || 0;
         }
         return { total: base + surcharge, base: base, surcharge: surcharge, hours: hours };
@@ -1290,7 +1360,7 @@
         try { rows = JSON.parse((chunk && chunk.value) || '[]') || []; } catch (e) { rows = []; }
         if (!Array.isArray(rows)) rows = [];
         var total = rows.reduce(function (sum, r) {
-            return sum + (Number(r.totalPrice != null ? r.totalPrice : (r.grand_total != null ? r.grand_total : 0)) || 0);
+            return sum + serviceRowDisplayTotal(r);
         }, 0);
         var curHost = root.closest ? root.closest('[data-currency], [data-service]') : null;
         var currency = root.getAttribute('data-currency') ||
@@ -1326,7 +1396,69 @@
                 detail: { service: key, total: total, count: rows.length, currency: currency, root: root }
             }));
         } catch (e) { /* ignore */ }
+        var section = root.closest ? root.closest('.stp-lite-country-section') : null;
+        if (section) updateStaySectionHeaderTotal(section);
         return total;
+    }
+
+    /**
+     * Sum all service chunks inside a city/stay section and show total on the city header.
+     */
+    function updateStaySectionHeaderTotal(section) {
+        if (!section || !section.querySelector) return 0;
+        var chunkSel = [
+            '.hotel_data_chunk',
+            '.entry_port_data_chunk',
+            '.exit_port_data_chunk',
+            '.transport_data_chunk',
+            '.attraction_data_chunk',
+            '.guide_data_chunk',
+            '.restaurant_data_chunk',
+            '.miscellaneous_data_chunk'
+        ].join(', ');
+        var total = 0;
+        var count = 0;
+        section.querySelectorAll(chunkSel).forEach(function (chunk) {
+            var rows = [];
+            try { rows = JSON.parse(chunk.value || '[]') || []; } catch (e) { rows = []; }
+            if (!Array.isArray(rows)) return;
+            rows.forEach(function (r) {
+                total += serviceRowDisplayTotal(r);
+                count += 1;
+            });
+        });
+        var currency = section.getAttribute('data-currency')
+            || (cfg().dmcCurrency || 'SGD');
+        var header = section.querySelector('.stp-lite-country-header');
+        if (!header) return total;
+        var el = header.querySelector('[data-city-header-total]');
+        if (!el) {
+            el = document.createElement('span');
+            el.className = 'stp-lite-city-header-total d-none';
+            el.setAttribute('data-city-header-total', '1');
+            var badge = header.querySelector('.stp-lite-currency-badge');
+            if (badge && badge.parentNode) {
+                badge.parentNode.insertBefore(el, badge);
+            } else {
+                header.appendChild(el);
+            }
+        }
+        if (count > 0) {
+            el.innerHTML = '<span class="stp-lite-city-header-total-count">' + count + '</span>' +
+                '<span class="stp-lite-city-header-total-amt">' + esc(currency) + ' ' + total.toFixed(2) + '</span>';
+            el.classList.remove('d-none');
+        } else {
+            el.innerHTML = '';
+            el.classList.add('d-none');
+        }
+        return total;
+    }
+
+    function refreshAllStaySectionTotals(scope) {
+        var root = scope || document;
+        root.querySelectorAll('.stp-lite-country-section').forEach(function (section) {
+            updateStaySectionHeaderTotal(section);
+        });
     }
 
     /** Reset a select/input; sync Select2 if present so UI clears after Add. */
@@ -1476,7 +1608,11 @@
         bindGuideExtras: bindGuideExtras,
         hydrateTransferExtras: hydrateTransferExtras,
         hydrateGuideExtras: hydrateGuideExtras,
+        ticketOrMealBaseFromRow: ticketOrMealBaseFromRow,
+        serviceRowDisplayTotal: serviceRowDisplayTotal,
         updateServiceHeaderTotal: updateServiceHeaderTotal,
+        updateStaySectionHeaderTotal: updateStaySectionHeaderTotal,
+        refreshAllStaySectionTotals: refreshAllStaySectionTotals,
         ampmTimeHtml: ampmTimeHtml,
         formatAmPmInput: formatAmPmInput,
         syncAmPmHidden: syncAmPmHidden,

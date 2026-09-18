@@ -47,7 +47,11 @@
     }
 
     function sumRows(rows) {
+        var T = window.StpLiteTransportShared || {};
         return (rows || []).reduce(function (sum, r) {
+            if (typeof T.serviceRowDisplayTotal === 'function') {
+                return sum + (T.serviceRowDisplayTotal(r) || 0);
+            }
             return sum + (Number(r.totalPrice != null ? r.totalPrice : (r.grand_total || r.price || 0)) || 0);
         }, 0);
     }
@@ -364,10 +368,17 @@
         return last;
     }
 
-    function redirectToThankYou(ordersResult, tour) {
-        var url = (ordersResult && ordersResult.redirect_url)
-            || (cfg().routes && cfg().routes.thankYou)
-            || '';
+    function redirectToThankYou(ordersResult, tour, opts) {
+        opts = opts || {};
+        var updated = !!opts.updated;
+        var url = updated
+            ? ((cfg().routes && cfg().routes.thankYouUpdated) || '')
+            : ((ordersResult && ordersResult.redirect_url)
+                || (cfg().routes && cfg().routes.thankYou)
+                || '');
+        if (updated && !url) {
+            url = (cfg().routes && cfg().routes.thankYou) || '';
+        }
         if (!url) {
             alert('Tour package saved (#' + ((tour && tour.display_id) || (ordersResult && ordersResult.tour_id) || '') + ').');
             return;
@@ -380,7 +391,8 @@
             check_in_date: val('start_date'),
             check_out_date: val('end_date'),
             total_guests: 0,
-            services_by_date: {}
+            services_by_date: {},
+            city_sections: []
         };
         if (!tourDetails.redirect_url) tourDetails.redirect_url = url;
         if (!tourDetails.destination) tourDetails.destination = resolveUserCountry() || '';
@@ -561,9 +573,11 @@
             if (hint) hint.textContent = 'Storing services…';
             syncServiceHiddensBeforeSave();
             var ordersResult = await postServiceOrders(tourId, val('agent_id') || val('agent'));
-            if (hint) hint.textContent = 'Updated — reloading…';
-            // Keep the same encrypted edit URL the system uses
-            window.location.href = window.location.pathname + (window.location.search || '');
+            if (hint) hint.textContent = 'Updated — redirecting…';
+            redirectToThankYou(ordersResult, {
+                tour_id: tourId,
+                display_id: (ordersResult && ordersResult.tour_details && ordersResult.tour_details.display_id) || ''
+            }, { updated: true });
             return ordersResult;
         } catch (err) {
             if (hint) hint.textContent = 'Update failed.';

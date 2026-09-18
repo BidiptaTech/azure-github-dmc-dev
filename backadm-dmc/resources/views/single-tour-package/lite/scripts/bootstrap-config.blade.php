@@ -74,6 +74,7 @@ window.STP_LITE_CONFIG = {
         fetchRestaurantTransferPricing: @json(route('fetch-restaurant-transfer-pricing')),
         storeOrders: @json(route('single-tour-package.store-orders')),
         thankYou: @json(route('single-tour-package.thank-you')),
+        thankYouUpdated: @json(route('single-tour-package.thank-you-updated')),
         editPackage: @json(url('/single-tour-package/tour/edit/__ID__')),
         // Edit routes use __ID__ placeholder — replaced at save time with tour_id
         updateInfo: @json(url('/single-tour-package/__ID__/info')),
