@@ -1,6 +1,6 @@
 /* === STP LITE: maps-autocomplete.js ===
- * Google Places autocomplete for zone_on = 0 (and transport PTP/hourly maps fields)
- * Biased to selected country/city when available
+ * Google Places autocomplete (create + edit)
+ * Pickup focus → pickup list only; dropoff focus → dropoff list only
  * === */
 (function (window, document) {
     'use strict';
@@ -15,6 +15,10 @@
     };
 
     var pendingRetry = null;
+    var activeMapsInput = null;
+    var pacGuardTimer = null;
+    var pacIdSeq = 0;
+    var initQueue = Promise.resolve();
 
     function mapsReady() {
         return typeof google !== 'undefined'
@@ -96,38 +100,163 @@
         } catch (e2) { /* ignore */ }
     }
 
-    function hidePacContainers() {
-        try {
-            var pac = document.querySelectorAll('.pac-container');
-            Array.prototype.forEach.call(pac, function (el) {
-                el.classList.add('stp-lite-pac-hidden');
-                el.style.display = 'none';
-            });
-        } catch (e) { /* ignore */ }
+    function hidePac(el) {
+        if (!el) return;
+        el.classList.remove('stp-lite-pac-active');
+        el.classList.add('stp-lite-pac-hidden');
+        el.style.setProperty('display', 'none', 'important');
+        el.style.setProperty('visibility', 'hidden', 'important');
+        el.style.setProperty('pointer-events', 'none', 'important');
+        el.style.setProperty('opacity', '0', 'important');
     }
 
-    function showPacContainers() {
-        try {
-            var pac = document.querySelectorAll('.pac-container');
-            Array.prototype.forEach.call(pac, function (el) {
-                el.classList.remove('stp-lite-pac-hidden');
-                if (el.style.display === 'none') el.style.display = '';
-                el.style.zIndex = '20000';
-            });
-        } catch (e) { /* ignore */ }
+    /** Let Google control display for the focused field's pac. */
+    function releasePac(el) {
+        if (!el) return;
+        el.classList.remove('stp-lite-pac-hidden');
+        el.classList.add('stp-lite-pac-active');
+        el.style.removeProperty('display');
+        el.style.removeProperty('visibility');
+        el.style.removeProperty('pointer-events');
+        el.style.removeProperty('opacity');
+        el.style.setProperty('z-index', '20000', 'important');
     }
 
-    function initOne(input, countryName, cityName) {
-        if (!input || input.disabled) return false;
-        if (input.getAttribute('data-autocomplete-initialized') === '1' && input._placesAutocomplete) {
-            return true;
+    function hideAllPacContainers() {
+        Array.prototype.forEach.call(document.querySelectorAll('.pac-container'), hidePac);
+    }
+
+    function hideOtherPacContainers(keepInput) {
+        Array.prototype.forEach.call(document.querySelectorAll('.pac-container'), function (pac) {
+            if (keepInput && (pac._stpLiteOwner === keepInput || keepInput._pacContainer === pac)) {
+                releasePac(pac);
+            } else {
+                hidePac(pac);
+            }
+        });
+    }
+
+    function claimNewPac(input, beforeList) {
+        var uid = input.getAttribute('data-stp-pac-id');
+        var found = null;
+        Array.prototype.forEach.call(document.querySelectorAll('.pac-container'), function (pac) {
+            if (beforeList.indexOf(pac) === -1 && !pac._stpLiteOwner) {
+                found = pac;
+            }
+        });
+        if (!found) {
+            Array.prototype.forEach.call(document.querySelectorAll('.pac-container'), function (pac) {
+                if (!pac._stpLiteOwner) found = pac;
+            });
         }
-        if (!mapsReady()) return false;
+        if (!found) return null;
+        found._stpLiteOwner = input;
+        if (uid) found.setAttribute('data-stp-for', uid);
+        input._pacContainer = found;
+        hidePac(found);
+        return found;
+    }
+
+    function waitForPac(input, beforeList, timeoutMs) {
+        return new Promise(function (resolve) {
+            var claimed = claimNewPac(input, beforeList);
+            if (claimed) {
+                resolve(claimed);
+                return;
+            }
+            var done = false;
+            var obs = null;
+            var timer = setTimeout(function () {
+                if (done) return;
+                done = true;
+                if (obs) obs.disconnect();
+                resolve(claimNewPac(input, beforeList));
+            }, timeoutMs || 500);
+
+            if (typeof MutationObserver !== 'undefined') {
+                obs = new MutationObserver(function () {
+                    if (done) return;
+                    var pac = claimNewPac(input, beforeList);
+                    if (pac) {
+                        done = true;
+                        clearTimeout(timer);
+                        obs.disconnect();
+                        resolve(pac);
+                    }
+                });
+                obs.observe(document.body, { childList: true, subtree: true });
+            }
+        });
+    }
+
+    function resolveOwnedPac(input) {
+        if (!input) return null;
+        if (input._pacContainer && input._pacContainer.isConnected) return input._pacContainer;
+        var uid = input.getAttribute('data-stp-pac-id');
+        if (uid) {
+            var byAttr = document.querySelector('.pac-container[data-stp-for="' + uid + '"]');
+            if (byAttr) {
+                byAttr._stpLiteOwner = input;
+                input._pacContainer = byAttr;
+                return byAttr;
+            }
+        }
+        return null;
+    }
+
+    function syncPacVisibility(input) {
+        if (!input) {
+            hideAllPacContainers();
+            return;
+        }
+        resolveOwnedPac(input);
+        hideOtherPacContainers(input);
+    }
+
+    function startPacGuard(input) {
+        stopPacGuard();
+        var ticks = 0;
+        pacGuardTimer = setInterval(function () {
+            ticks += 1;
+            if (!activeMapsInput || activeMapsInput !== input) {
+                stopPacGuard();
+                return;
+            }
+            Array.prototype.forEach.call(document.querySelectorAll('.pac-container'), function (pac) {
+                if (pac._stpLiteOwner === input || input._pacContainer === pac) {
+                    releasePac(pac);
+                } else {
+                    hidePac(pac);
+                }
+            });
+            if (ticks > 80) stopPacGuard();
+        }, 50);
+    }
+
+    function stopPacGuard() {
+        if (pacGuardTimer) {
+            clearInterval(pacGuardTimer);
+            pacGuardTimer = null;
+        }
+    }
+
+    function activateInput(input) {
+        if (!input) return;
+        activeMapsInput = input;
+        syncPacVisibility(input);
+        startPacGuard(input);
+    }
+
+    function initOneSync(input, countryName, cityName) {
+        if (!input || input.disabled) return Promise.resolve(false);
+        if (input.getAttribute('data-autocomplete-initialized') === '1' && input._placesAutocomplete) {
+            return Promise.resolve(true);
+        }
+        if (!mapsReady()) return Promise.resolve(false);
 
         var geo = resolveCountryCity(input);
         var country = countryName || geo.country;
         var city = cityName || geo.city;
-        // Do not mix type collections — empty types returns all predictions (most reliable)
         var opts = {
             fields: ['formatted_address', 'geometry', 'name', 'place_id'],
             strictBounds: false
@@ -136,49 +265,85 @@
         if (code) opts.componentRestrictions = { country: code };
 
         try {
+            if (!input.getAttribute('data-stp-pac-id')) {
+                pacIdSeq += 1;
+                input.setAttribute('data-stp-pac-id', 'stp-pac-' + pacIdSeq);
+            }
+
+            var beforePacs = Array.prototype.slice.call(document.querySelectorAll('.pac-container'));
             var autocomplete = new google.maps.places.Autocomplete(input, opts);
             input._placesAutocomplete = autocomplete;
             applyBounds(autocomplete, city, country);
-            autocomplete.addListener('place_changed', function () {
-                var place = autocomplete.getPlace();
-                if (place && place.formatted_address) {
-                    input.value = place.formatted_address;
-                } else if (place && place.name) {
-                    input.value = place.name;
-                }
-                // Close dropdown so "powered by Google" does not linger and break layout
-                hidePacContainers();
-                try { input.blur(); } catch (b) { /* ignore */ }
-                try {
-                    input.dispatchEvent(new Event('change', { bubbles: true }));
-                    input.dispatchEvent(new Event('input', { bubbles: true }));
-                } catch (e) { /* ignore */ }
-            });
-            input.addEventListener('focus', function () {
-                showPacContainers();
-            });
-            input.addEventListener('keydown', function () {
-                showPacContainers();
-            });
-            input.addEventListener('blur', function () {
-                setTimeout(hidePacContainers, 180);
-            });
-            input.setAttribute('data-autocomplete-initialized', '1');
-            try {
-                setTimeout(function () {
-                    var pac = document.querySelectorAll('.pac-container');
-                    Array.prototype.forEach.call(pac, function (el) {
-                        el.style.zIndex = '20000';
+
+            return waitForPac(input, beforePacs, 500).then(function () {
+                autocomplete.addListener('place_changed', function () {
+                    var place = autocomplete.getPlace();
+                    if (place && place.formatted_address) {
+                        input.value = place.formatted_address;
+                    } else if (place && place.name) {
+                        input.value = place.name;
+                    }
+                    hideAllPacContainers();
+                    stopPacGuard();
+                    try { input.blur(); } catch (b) { /* ignore */ }
+                    try {
+                        input.dispatchEvent(new Event('change', { bubbles: true }));
+                        input.dispatchEvent(new Event('input', { bubbles: true }));
+                    } catch (e) { /* ignore */ }
+                });
+
+                if (!input._stpLiteMapsBound) {
+                    input._stpLiteMapsBound = true;
+                    input.addEventListener('focus', function () { activateInput(input); });
+                    input.addEventListener('mousedown', function () { activateInput(input); });
+                    input.addEventListener('keydown', function () {
+                        activeMapsInput = input;
+                        syncPacVisibility(input);
+                        startPacGuard(input);
                     });
-                }, 0);
-            } catch (z) { /* ignore */ }
-            return true;
+                    input.addEventListener('input', function () {
+                        activeMapsInput = input;
+                        syncPacVisibility(input);
+                        startPacGuard(input);
+                    });
+                    input.addEventListener('blur', function () {
+                        setTimeout(function () {
+                            if (document.activeElement === input) return;
+                            if (activeMapsInput === input) {
+                                activeMapsInput = null;
+                                stopPacGuard();
+                                hideAllPacContainers();
+                            } else if (activeMapsInput) {
+                                syncPacVisibility(activeMapsInput);
+                            } else {
+                                hideAllPacContainers();
+                            }
+                        }, 200);
+                    });
+                }
+
+                input.setAttribute('data-autocomplete-initialized', '1');
+                return true;
+            });
         } catch (err) {
             console.warn('STP Lite Maps autocomplete failed', err);
             input.removeAttribute('data-autocomplete-initialized');
             input._placesAutocomplete = null;
-            return false;
+            input._pacContainer = null;
+            return Promise.resolve(false);
         }
+    }
+
+    /** Queue inits so pickup and dropoff each get their own .pac-container. */
+    function initOne(input, countryName, cityName) {
+        if (!input) return false;
+        if (input.getAttribute('data-autocomplete-initialized') === '1' && input._placesAutocomplete) {
+            return true;
+        }
+        initQueue = initQueue.then(function () {
+            return initOneSync(input, countryName, cityName);
+        }).catch(function () { return false; });
+        return false;
     }
 
     function visibleMapsInputs(root) {
@@ -188,7 +353,6 @@
         var out = [];
         Array.prototype.forEach.call(nodes, function (input) {
             if (!input || input.disabled) return;
-            // Skip inputs in hidden parents (d-none / display:none)
             var el = input;
             var hidden = false;
             while (el && el !== document.body) {
@@ -212,12 +376,11 @@
             return 0;
         }
         var nodes = visibleMapsInputs(root);
-        var ok = 0;
         nodes.forEach(function (input) {
-            if (initOne(input, countryName, cityName)) ok += 1;
+            initOne(input, countryName, cityName);
         });
-        if (ok < nodes.length) scheduleRetry(root, countryName, cityName);
-        return ok;
+        scheduleRetry(root, countryName, cityName);
+        return nodes.length;
     }
 
     function scheduleRetry(scope, countryName, cityName) {
@@ -225,15 +388,26 @@
         var attempts = 0;
         pendingRetry = setInterval(function () {
             attempts += 1;
-            if (mapsReady()) {
-                clearInterval(pendingRetry);
-                pendingRetry = null;
-                initIn(scope || document, countryName, cityName);
-            } else if (attempts >= 40) {
-                clearInterval(pendingRetry);
-                pendingRetry = null;
+            var root = scope || document;
+            if (!mapsReady()) {
+                if (attempts >= 40) {
+                    clearInterval(pendingRetry);
+                    pendingRetry = null;
+                }
+                return;
             }
-        }, 250);
+            var pending = visibleMapsInputs(root).filter(function (input) {
+                return input.getAttribute('data-autocomplete-initialized') !== '1';
+            });
+            if (!pending.length || attempts >= 40) {
+                clearInterval(pendingRetry);
+                pendingRetry = null;
+                return;
+            }
+            pending.forEach(function (input) {
+                initOne(input, countryName, cityName);
+            });
+        }, 300);
     }
 
     function reinitIn(scope, countryName, cityName) {
@@ -244,16 +418,27 @@
         Array.prototype.forEach.call(nodes, function (input) {
             input.removeAttribute('data-autocomplete-initialized');
             input._placesAutocomplete = null;
+            input._pacContainer = null;
+            input._stpLiteMapsBound = false;
         });
+        hideAllPacContainers();
+        initQueue = Promise.resolve();
         return initIn(root, countryName, cityName);
     }
+
+    document.addEventListener('focusin', function (ev) {
+        var t = ev.target;
+        if (!t || !t.classList || !t.classList.contains('google-maps-autocomplete')) return;
+        if (t._placesAutocomplete) activateInput(t);
+    }, true);
 
     window.StpLiteMaps = {
         getCountryCode: getCountryCode,
         mapsReady: mapsReady,
         initIn: initIn,
         initOne: initOne,
-        reinitIn: reinitIn
+        reinitIn: reinitIn,
+        hidePacContainers: hideAllPacContainers
     };
     window.getCountryCode = window.getCountryCode || getCountryCode;
     window.initializeGoogleMapsAutocomplete = function () {

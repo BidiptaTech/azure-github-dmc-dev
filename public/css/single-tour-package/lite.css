@@ -101,13 +101,24 @@
     box-sizing: border-box !important;
 }
 
-/* Hide leftover "powered by Google" shell after a place is chosen */
-.pac-container.stp-lite-pac-hidden,
-.pac-container:not(:has(.pac-item)) {
+/* Closed / non-focused field lists (JS toggles these classes) */
+.pac-container.stp-lite-pac-hidden {
     display: none !important;
     visibility: hidden !important;
     opacity: 0 !important;
     pointer-events: none !important;
+}
+
+/* Empty "powered by Google" shell */
+.pac-container.stp-lite-pac-active:not(:has(.pac-item)),
+.pac-container:not(.stp-lite-pac-active):not(.stp-lite-pac-hidden):not(:has(.pac-item)) {
+    display: none !important;
+}
+
+.pac-container.stp-lite-pac-active {
+    visibility: visible !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
 }
 
 .pac-item {
