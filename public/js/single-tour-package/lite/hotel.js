@@ -122,8 +122,8 @@
             '      <input type="number" min="1" class="form-control form-control-sm stp-lite-int hotel-rooms" value="1">' +
             '    </div>' +
             '  </div>' +
-            '  <div class="row g-2 mb-2">' +
-            '    <div class="col-12">' +
+            '  <div class="row g-2 mb-2 align-items-stretch hotel-occ-adhoc-row">' +
+            '    <div class="col-lg-8 col-md-7">' +
             '      <div class="stp-lite-occ-card">' +
             '        <div class="stp-lite-occ-card__head">' +
             '          <div class="stp-lite-occ-card__title"><i class="ri-group-line"></i> Room occupancy</div>' +
@@ -200,6 +200,33 @@
             '          <input type="hidden" class="hotel-selected-children-with-bed" value="0">' +
             '          <input type="hidden" class="hotel-selected-infants" value="0">' +
             '          <input type="hidden" class="hotel-selected-persons" value="1">' +
+            '        </div>' +
+            '      </div>' +
+            '    </div>' +
+            '    <div class="col-lg-4 col-md-5">' +
+            '      <div class="stp-lite-hotel-adhoc-card">' +
+            '        <div class="stp-lite-hotel-adhoc-card__head">' +
+            '          <div class="stp-lite-hotel-adhoc-card__title"><i class="ri-money-dollar-circle-line"></i> AdHoc</div>' +
+            '          <small class="text-muted">Manual Room rate</small>' +
+            '        </div>' +
+            '        <div class="stp-lite-hotel-adhoc-card__body">' +
+            '          <div class="stp-lite-hotel-adhoc-row">' +
+            '            <label class="stp-lite-child-chip hotel-adhoc-toggle-wrap">' +
+            '              <input class="hotel-chk-adhoc" type="checkbox">' +
+            '              <span class="stp-lite-child-chip__face">' +
+            '                <i class="ri-toggle-line"></i>' +
+            '                <span class="stp-lite-child-chip__text">' +
+            '                  <strong>Enable AdHoc</strong>' +
+            '                  <small>Room rate only</small>' +
+            '                </span>' +
+            '              </span>' +
+            '            </label>' +
+            '            <div class="hotel-adhoc-price-wrap d-none">' +
+            '              <input type="text" inputmode="decimal" autocomplete="off"' +
+            '                class="form-control form-control-sm hotel-adhoc-price"' +
+            '                placeholder="Room / night" value="" title="Manual Room rate (per night)">' +
+            '            </div>' +
+            '          </div>' +
             '        </div>' +
             '      </div>' +
             '    </div>' +
@@ -957,16 +984,242 @@
         invalidatePriceState(root);
     }
 
+    function isAdHocEnabled(root) {
+        var chk = root && root.querySelector('.hotel-chk-adhoc');
+        return !!(chk && chk.checked);
+    }
+
+    function sanitizeAdHocPriceValue(raw) {
+        var s = String(raw == null ? '' : raw).replace(/[eE]/g, '');
+        s = s.replace(/[^\d.]/g, '');
+        var parts = s.split('.');
+        if (parts.length > 2) {
+            s = parts[0] + '.' + parts.slice(1).join('');
+        }
+        return s;
+    }
+
+    function getAdHocPriceValue(root) {
+        var el = root && root.querySelector('.hotel-adhoc-price');
+        if (!el) return null;
+        var raw = sanitizeAdHocPriceValue(el.value);
+        if (!String(el.value || '').trim()) return null;
+        if (/[eE]/.test(String(el.value || ''))) return null;
+        if (!raw) return null;
+        var n = parseFloat(raw);
+        if (!isFinite(n) || n < 0) return null;
+        return n;
+    }
+
+    function isAdHocPriceReady(root) {
+        if (!isAdHocEnabled(root)) return true;
+        return getAdHocPriceValue(root) != null;
+    }
+
+    function isAdHocRow(row) {
+        if (!row) return false;
+        return !!(row.is_adhoc || row.priceMode === 'adhoc'
+            || (row.price_payload && row.price_payload.is_adhoc)
+            || (row.helperPriceResult && row.helperPriceResult.is_adhoc));
+    }
+
+    function nightCountFromRow(row) {
+        if (!row) return 0;
+        var payload = row.price_payload || row.helperPriceResult || null;
+        if (payload) {
+            var n = parseInt(payload.nights, 10) || 0;
+            if (n > 0) return n;
+            if (Array.isArray(payload.breakdown) && payload.breakdown.length) return payload.breakdown.length;
+        }
+        var s = row.stay_start || (Array.isArray(row.bookingDate) ? row.bookingDate[0] : '') || '';
+        var e = row.stay_end || (Array.isArray(row.bookingDate) ? row.bookingDate[1] : '') || '';
+        if (s && e && typeof moment !== 'undefined') {
+            var diff = moment(e, 'YYYY-MM-DD').diff(moment(s, 'YYYY-MM-DD'), 'days');
+            return diff > 0 ? diff : 0;
+        }
+        return 0;
+    }
+
+    function positiveAmount(v) {
+        if (v == null || v === '') return null;
+        var n = Number(v);
+        return (isFinite(n) && n > 0) ? n : null;
+    }
+
+    function resolveAdHocPriceFromRow(row) {
+        if (!row) return null;
+        // Treat 0 as missing — stored payloads often keep adhoc_price/room_total at 0
+        // while grand_total / bed.price still hold the real Manual Room rate.
+        var direct = positiveAmount(row.adhoc_price);
+        if (direct != null) return direct;
+        var payload = row.price_payload || row.helperPriceResult || null;
+        if (typeof payload === 'string') {
+            try { payload = JSON.parse(payload); } catch (e) { payload = null; }
+        }
+        var fromPayload = positiveAmount(payload && payload.adhoc_price);
+        if (fromPayload != null) return fromPayload;
+        if (!isAdHocRow(row)) return null;
+        var nights = nightCountFromRow(row) || 0;
+        if (nights < 1) nights = 1;
+        var roomTotal = positiveAmount(payload && payload.room_total) || positiveAmount(row.room_total);
+        if (roomTotal != null) return roomTotal / nights;
+        // Stored bed.price is room sell total for 1 room across the stay
+        var b0 = firstBed(row);
+        var bedPrice = positiveAmount(b0 && b0.price);
+        if (bedPrice != null) return bedPrice / nights;
+        var grand = positiveAmount(row.grand_total)
+            || positiveAmount(row.totalPrice)
+            || positiveAmount(row.price)
+            || positiveAmount(payload && payload.grand_total);
+        if (grand != null) {
+            var meal = Number(row.meal_total != null ? row.meal_total
+                : (payload && payload.meal_total != null ? payload.meal_total : 0)) || 0;
+            var roomOnly = Math.max(0, grand - meal);
+            if (roomOnly > 0) return roomOnly / nights;
+        }
+        return null;
+    }
+
+    function resolveRoomTotalFromRow(row) {
+        if (!row) return 0;
+        var payload = row.price_payload || row.helperPriceResult || null;
+        if (typeof payload === 'string') {
+            try { payload = JSON.parse(payload); } catch (e) { payload = null; }
+        }
+        var fromRow = positiveAmount(row.room_total);
+        if (fromRow != null) return fromRow;
+        var fromPayload = positiveAmount(payload && payload.room_total);
+        if (fromPayload != null) return fromPayload;
+        var nights = nightCountFromRow(row) || 1;
+        var adhoc = resolveAdHocPriceFromRow(row);
+        if (adhoc != null) return Number(adhoc) * nights;
+        var b0 = firstBed(row);
+        var bedPrice = positiveAmount(b0 && b0.price);
+        if (bedPrice != null) return bedPrice;
+        var grand = positiveAmount(row.grand_total)
+            || positiveAmount(row.totalPrice)
+            || positiveAmount(row.price);
+        if (grand != null) {
+            var meal = Number(row.meal_total != null ? row.meal_total
+                : (payload && payload.meal_total != null ? payload.meal_total : 0)) || 0;
+            return Math.max(0, grand - meal);
+        }
+        return 0;
+    }
+
+    function applyAdHocFromRow(root, row) {
+        if (!root || !row) return;
+        var adhocChk = root.querySelector('.hotel-chk-adhoc');
+        var on = isAdHocRow(row);
+        var price = resolveAdHocPriceFromRow(row);
+        if (adhocChk) adhocChk.checked = on;
+        syncAdHocUi(root);
+        var adhocInput = root.querySelector('.hotel-adhoc-price');
+        if (on && adhocInput && price != null && Number(price) > 0) {
+            adhocInput.value = sanitizeAdHocPriceValue(String(price));
+        }
+        syncGetPriceBtn(root);
+    }
+
+    function syncAdHocUi(root) {
+        if (!root) return;
+        var row = root.querySelector('.stp-lite-hotel-adhoc-row');
+        var wrap = root.querySelector('.hotel-adhoc-price-wrap');
+        var input = root.querySelector('.hotel-adhoc-price');
+        var on = isAdHocEnabled(root);
+        if (row) row.classList.toggle('is-on', on);
+        if (wrap) wrap.classList.toggle('d-none', !on);
+        if (input) {
+            input.disabled = !on;
+            if (!on) input.value = '';
+        }
+        syncGetPriceBtn(root);
+    }
+
+    function syncGetPriceBtn(root, opts) {
+        opts = opts || {};
+        var btn = root && root.querySelector('.hotel-get-price-btn');
+        if (!btn) return;
+        if (opts.loading) {
+            btn.disabled = true;
+            return;
+        }
+        btn.disabled = !isAdHocPriceReady(root);
+    }
+
+    /**
+     * Get Price result stays intact — only room_price / room_total are replaced
+     * with the AdHoc Manual Room rate. Breakfast / lunch / dinner from the API
+     * are never modified (complementary breakfast already has no meal charge).
+     */
+    function applyAdHocToPriceData(data, adhocPerNight) {
+        if (!data || adhocPerNight == null || !isFinite(adhocPerNight)) return data;
+        var nights = parseInt(data.nights, 10)
+            || (Array.isArray(data.breakdown) ? data.breakdown.length : 0)
+            || 1;
+        var roomTotal = Number(adhocPerNight) * nights;
+        var mealTotal = Number(data.meal_total || 0);
+        var cwb = data.child_with_bed || null;
+        var cnb = data.child_without_bed || null;
+        var cwbTotal = cwb ? Number(cwb.total || 0) : 0;
+        var cnbTotal = cnb ? Number(cnb.total || 0) : 0;
+        var out = Object.assign({}, data, {
+            is_adhoc: true,
+            adhoc_price: Number(adhocPerNight),
+            room_total: roomTotal,
+            // Fair surcharge is part of inventory room pricing; AdHoc is a flat room rate.
+            fair_charge_total: 0,
+            fair_nights: 0,
+            // Keep meal_total / breakfast_total / lunch_total / dinner_total from Get Price.
+            grand_total: roomTotal + mealTotal + cwbTotal + cnbTotal
+        });
+        if (Array.isArray(data.breakdown) && data.breakdown.length) {
+            out.breakdown = data.breakdown.map(function (n) {
+                var mealPrice = Number(n.meal_price || 0);
+                return Object.assign({}, n, {
+                    room_price: Number(adhocPerNight),
+                    room_base: Number(adhocPerNight),
+                    surcharge: 0,
+                    variant_price: 0,
+                    // Meals untouched from Get Price; night total = AdHoc room + API meals.
+                    night_total: Number(adhocPerNight) + mealPrice,
+                    source: 'AdHoc'
+                });
+            });
+        }
+        return out;
+    }
+
     function formatNightCutHtml(n, cur, rooms, mealPlanLabel, nightIndex) {
         rooms = parseInt(rooms, 10) || 1;
+        var isAdHoc = String(n.source || '') === 'AdHoc' || n.is_adhoc;
+        var roomAmt = Number(n.room_price != null ? n.room_price : (n.room_base || 0)) * rooms;
+        var mealAmt = Number(n.meal_price || 0) * rooms;
         var nightTotal = Number(n.night_total || 0) * rooms;
         var planLabel = String(mealPlanLabel || '').trim() || 'Room';
         var nightLabel = nightIndex != null ? ('Night ' + nightIndex) : '';
+        var bits;
+        if (isAdHoc) {
+            // Keep room vs meals visually separate (AdHoc never absorbs breakfast/lunch/dinner).
+            bits = 'Manual Room rate ' + cur + ' ' + roomAmt.toFixed(2);
+            if (mealAmt > 0) {
+                var mealBits = [];
+                if (Number(n.breakfast_meal || 0) > 0) mealBits.push('Breakfast');
+                if (Number(n.lunch_meal || 0) > 0) mealBits.push('Lunch');
+                if (Number(n.dinner_meal || 0) > 0) mealBits.push('Dinner');
+                bits += ' + ' + (mealBits.length ? mealBits.join('/') : 'Meals') +
+                    ' ' + cur + ' ' + mealAmt.toFixed(2);
+            } else if (n.breakfast_complementary) {
+                bits += ' · Breakfast Incl.';
+            }
+        } else {
+            bits = planLabel;
+        }
         return (
             '<div class="stp-lite-night-row">' +
             '  <div class="stp-lite-night-row__left">' +
             (nightLabel ? ('    <span class="stp-lite-night-row__date">' + esc(nightLabel) + '</span>') : '') +
-            '    <span class="stp-lite-night-row__bits">' + esc(planLabel) + '</span>' +
+            '    <span class="stp-lite-night-row__bits">' + esc(bits) + '</span>' +
             '  </div>' +
             '  <div class="stp-lite-night-row__amt">' + cur + ' ' + nightTotal.toFixed(2) + '</div>' +
             '</div>'
@@ -1006,6 +1259,7 @@
         var fairCharge = Number(data.fair_charge_total || 0) * rooms;
         var roomBase = Math.max(0, roomTotal - fairCharge);
         var mealPlanLabel = String(opts.mealPlan || data.meal_plan || '').trim();
+        var isAdHoc = !!(data.is_adhoc || opts.isAdHoc);
         var nights = parseInt(data.nights, 10) || (Array.isArray(data.breakdown) ? data.breakdown.length : 0) || 1;
         var cot = opts.babyCot || { enabled: false, total: 0, perNight: 0 };
         if (cot.enabled && cot.total > 0) grand += cot.total;
@@ -1022,12 +1276,17 @@
 
         html += '<div class="stp-lite-breakup-section-label">Summary</div>';
         html += '<div class="stp-lite-summary-list">';
-        html += '<div class="stp-lite-summary-row"><span>Room' + (rooms > 1 ? ' ×' + rooms : '') + '</span><strong>' + cur + ' ' + roomBase.toFixed(2) + '</strong></div>';
-        if (fairCharge > 0) {
+        // AdHoc replaces room only — never merge breakfast/lunch/dinner into this line.
+        var roomLabel = isAdHoc
+            ? ('Manual Room rate' + (rooms > 1 ? ' ×' + rooms : ''))
+            : ('Room' + (rooms > 1 ? ' ×' + rooms : ''));
+        html += '<div class="stp-lite-summary-row' + (isAdHoc ? ' is-adhoc' : '') + '"><span>' + roomLabel + '</span><strong>' + cur + ' ' + roomBase.toFixed(2) + '</strong></div>';
+        if (fairCharge > 0 && !isAdHoc) {
             html += '<div class="stp-lite-summary-row is-fair"><span>Fair</span><strong>' + cur + ' ' + fairCharge.toFixed(2) + '</strong></div>';
         }
         [['breakfast_total', 'Breakfast'], ['lunch_total', 'Lunch'], ['dinner_total', 'Dinner']].forEach(function (pair) {
             var amt = Number(data[pair[0]] || 0) * rooms;
+            // Complementary breakfast: no separate price (included in room rate from Get Price).
             if (pair[0] === 'breakfast_total' && data.breakfast_complementary && data.meals && data.meals.breakfast) {
                 html += '<div class="stp-lite-summary-row is-ok"><span>Breakfast</span><strong>Incl.</strong></div>';
                 return;
@@ -1093,7 +1352,11 @@
         var nights = parseInt(data.nights, 10) || (Array.isArray(data.breakdown) ? data.breakdown.length : 0) || 1;
         var rooms = parseInt(numberOfRooms, 10) || 1;
         var babyCot = resolveBabyCotCharge(root, nights, rooms);
-        var built = buildBreakdownHtml(data, rooms, cur, { mealPlan: mealPlan, babyCot: babyCot });
+        var built = buildBreakdownHtml(data, rooms, cur, {
+            mealPlan: mealPlan,
+            babyCot: babyCot,
+            isAdHoc: !!(data.is_adhoc)
+        });
         grid.innerHTML = built.html || '<div class="text-muted" style="font-size:0.72rem;">No breakdown returned.</div>';
         if (grandEl) grandEl.textContent = cur + ' ' + Number(built.grand || 0).toFixed(2);
 
@@ -1104,7 +1367,9 @@
             baby_cot: babyCot.enabled ? 1 : 0,
             baby_cot_price: babyCot.unit || 0,
             baby_cot_cost: babyCot.total || 0,
-            grand_total_with_cot: built.grand
+            grand_total_with_cot: built.grand,
+            is_adhoc: !!data.is_adhoc,
+            adhoc_price: data.adhoc_price != null ? Number(data.adhoc_price) : null
         });
         root.__lastHotelRooms = rooms;
         setAddEnabled(root, true);
@@ -1228,6 +1493,51 @@
         document.body.appendChild(wrap.firstChild);
     }
 
+    function buildFallbackPriceDataFromRow(row) {
+        var nights = nightCountFromRow(row) || 1;
+        var adhoc = resolveAdHocPriceFromRow(row);
+        var roomTotal = resolveRoomTotalFromRow(row);
+        if (!roomTotal && adhoc != null) roomTotal = Number(adhoc) * nights;
+        var mealTotal = Number(row.meal_total != null ? row.meal_total : 0) || 0;
+        var grand = Number(row.grand_total != null ? row.grand_total
+            : (row.totalPrice != null ? row.totalPrice : row.price)) || 0;
+        // If meals missing but grand > room, treat remainder as meals
+        if (!mealTotal && grand > roomTotal && roomTotal > 0) {
+            mealTotal = Math.max(0, grand - roomTotal);
+        }
+        if (!grand) grand = roomTotal + mealTotal;
+        var perNight = adhoc != null ? Number(adhoc) : (nights > 0 ? roomTotal / nights : roomTotal);
+        var mealPerNight = nights > 0 ? (mealTotal / nights) : 0;
+        var breakdown = [];
+        for (var i = 0; i < nights; i++) {
+            breakdown.push({
+                room_price: perNight,
+                room_base: perNight,
+                meal_price: mealPerNight,
+                breakfast_meal: mealPerNight,
+                night_total: perNight + mealPerNight,
+                source: isAdHocRow(row) ? 'AdHoc' : 'Stored'
+            });
+        }
+        return {
+            success: true,
+            is_adhoc: isAdHocRow(row),
+            adhoc_price: adhoc != null ? adhoc : perNight,
+            meal_plan: row.meal_plan || '',
+            nights: nights,
+            room_total: roomTotal,
+            meal_total: mealTotal,
+            breakfast_total: Number(row.breakfast_total || 0) || mealTotal,
+            lunch_total: Number(row.lunch_total || 0) || 0,
+            dinner_total: Number(row.dinner_total || 0) || 0,
+            fair_charge_total: 0,
+            grand_total: grand,
+            breakdown: breakdown,
+            child_with_bed: row.child_with_bed || null,
+            child_without_bed: row.child_without_bed || null
+        };
+    }
+
     function openHotelPricePopup(row) {
         ensurePriceModal();
         var modalEl = document.getElementById('stpLiteHotelPriceModal');
@@ -1235,14 +1545,48 @@
         var titleEl = document.getElementById('stpLiteHotelPriceModalLabel');
         if (!modalEl || !bodyEl || !row) return;
 
-        var cur = row.currency || cfg().dmcCurrency || 'SGD';
-        var rooms = parseInt(row.rooms, 10) || 1;
-        var name = String(row.hotel_name || 'Hotel').split('(')[0].trim();
-        if (titleEl) titleEl.textContent = name + ' — Price breakdown';
+        try {
+            var cur = row.currency || cfg().dmcCurrency || 'SGD';
+            var rooms = parseInt(row.number_of_rooms, 10)
+                || parseInt((Array.isArray(row.rooms) ? (row.rooms[0] || {}).number_of_rooms : row.rooms), 10)
+                || 1;
+            var name = String(row.hotel_name || 'Hotel').split('(')[0].trim();
+            if (titleEl) titleEl.textContent = name + ' — Price breakdown';
 
-        var helper = row.price_payload || row.helperPriceResult || null;
-        if (helper) {
-            var built = buildBreakdownHtml(helper, rooms, cur);
+            var helper = row.price_payload || row.helperPriceResult || null;
+            if (typeof helper === 'string') {
+                try { helper = JSON.parse(helper); } catch (e) { helper = null; }
+            }
+            function helperRoomLooksEmpty(h) {
+                if (!h || typeof h !== 'object') return true;
+                if (Number(h.room_total || 0) > 0) return false;
+                if (Array.isArray(h.breakdown)) {
+                    for (var i = 0; i < h.breakdown.length; i++) {
+                        var n = h.breakdown[i] || {};
+                        if (Number(n.room_price != null ? n.room_price : (n.room_base || 0)) > 0) {
+                            return false;
+                        }
+                    }
+                }
+                return true;
+            }
+            if (!helper || typeof helper !== 'object') {
+                helper = buildFallbackPriceDataFromRow(row);
+            } else if (isAdHocRow(row)) {
+                var adhocAmt = resolveAdHocPriceFromRow(row);
+                if (adhocAmt != null && (!helper.is_adhoc || helperRoomLooksEmpty(helper))) {
+                    helper = applyAdHocToPriceData(helper, adhocAmt);
+                } else if (helperRoomLooksEmpty(helper)) {
+                    helper = buildFallbackPriceDataFromRow(row);
+                }
+            } else if (helperRoomLooksEmpty(helper) && Number(row.grand_total || row.totalPrice || 0) > 0) {
+                helper = buildFallbackPriceDataFromRow(row);
+            }
+
+            var built = buildBreakdownHtml(helper, rooms, cur, {
+                mealPlan: row.meal_plan || helper.meal_plan || '',
+                isAdHoc: !!(helper.is_adhoc || isAdHocRow(row))
+            });
             bodyEl.innerHTML =
                 '<div class="stp-lite-hotel-breakup-card is-modal">' +
                 '  <div class="stp-lite-hotel-breakup-body p-2">' +
@@ -1252,18 +1596,25 @@
                 '    </div>' +
                 '  </div>' +
                 '</div>';
-        } else {
-            bodyEl.innerHTML = '<div class="text-muted text-center py-3" style="font-size:0.82rem;">Full price breakup is available when the hotel was added after <strong>Get Price</strong>.</div>';
-        }
 
-        try {
             if (window.bootstrap && bootstrap.Modal) {
                 bootstrap.Modal.getOrCreateInstance(modalEl).show();
                 return;
             }
-        } catch (e) { /* fall through */ }
-        modalEl.classList.add('show');
-        modalEl.style.display = 'block';
+            modalEl.classList.add('show');
+            modalEl.style.display = 'block';
+            modalEl.setAttribute('aria-hidden', 'false');
+        } catch (err) {
+            try {
+                bodyEl.innerHTML = '<div class="text-danger text-center py-3" style="font-size:0.82rem;">Unable to open price breakdown.</div>';
+                if (window.bootstrap && bootstrap.Modal) {
+                    bootstrap.Modal.getOrCreateInstance(modalEl).show();
+                } else {
+                    modalEl.classList.add('show');
+                    modalEl.style.display = 'block';
+                }
+            } catch (e2) { /* ignore */ }
+        }
     }
 
     function renderAddedHotels(root) {
@@ -1342,10 +1693,13 @@
             if (parseInt(childrenNoBedN, 10) > 0 || row.childWithoutBedEnabled || childBedFlagOn(row, 'without')) childBits.push('Child w/o bed');
             var bed0 = (Array.isArray(r0.beds) && r0.beds[0]) ? r0.beds[0] : {};
             if (bed0.baby_cot || row.baby_cot) childBits.push('Baby cot');
+            var isAdHocRowFlag = isAdHocRow(row);
             html +=
                 '<tr class="' + (editing ? 'is-editing' : '') + '" data-added-idx="' + idx + '">' +
                 '  <td>' +
-                '    <div class="fw-semibold">' + esc(hotelName) + '</div>' +
+                '    <div class="fw-semibold">' + esc(hotelName) +
+                (isAdHocRowFlag ? ' <span class="stp-lite-adhoc-badge" title="Manual Room rate">AdHoc</span>' : '') +
+                '</div>' +
                 (row.is_return ? ' <span class="stp-lite-return-badge">Return</span>' : '') +
                 (editing ? ' <span class="stp-lite-editing-label">Editing</span>' : '') +
                 '    <div class="stp-lite-hotel-added-rooms">' + esc(String(roomsCount)) + ' room(s)' +
@@ -1498,8 +1852,10 @@
                 child_age_limit: classified.childLimit,
                 extra_bed_age_limit: classified.extraBedMin
             },
-            priceMode: 'dmc',
+            priceMode: (priceData && priceData.is_adhoc) ? 'adhoc' : 'dmc',
             priceModeId: parseInt(cfgLocal.dmcId, 10) || 0,
+            is_adhoc: !!(priceData && priceData.is_adhoc),
+            adhoc_price: (priceData && priceData.adhoc_price != null) ? Number(priceData.adhoc_price) : null,
             rooms: [{
                 room_id: roomId,
                 room_type: roomType ? roomType.value : '',
@@ -1807,6 +2163,8 @@
         syncHotelDateLimits(root);
         if (cotChk) cotChk.checked = babyCotFlagOn(row);
 
+        applyAdHocFromRow(root, row);
+
         return Promise.resolve(loadHotelsForCity(root, cityName, country, { skipReset: true }))
             .then(function () {
                 if (!hotelSelect) return null;
@@ -1853,14 +2211,32 @@
                 }
                 if (cotChk) cotChk.checked = babyCotFlagOn(row);
                 updateHotelChildPricingVisibility(root);
-                if (row.price_payload || row.helperPriceResult) {
-                    renderBreakdown(root, row.price_payload || row.helperPriceResult, row.number_of_rooms || firstRoom(row).number_of_rooms || 1);
+
+                // Re-apply AdHoc after dependent selects load (edit form parity)
+                applyAdHocFromRow(root, row);
+
+                var payload = row.price_payload || row.helperPriceResult || null;
+                if (typeof payload === 'string') {
+                    try { payload = JSON.parse(payload); } catch (e) { payload = null; }
+                }
+                var rowAdHocPrice = resolveAdHocPriceFromRow(row);
+                if (payload) {
+                    var roomEmpty = !(Number(payload.room_total || 0) > 0);
+                    if (isAdHocRow(row) && rowAdHocPrice != null && (!payload.is_adhoc || roomEmpty)) {
+                        payload = applyAdHocToPriceData(payload, Number(rowAdHocPrice));
+                    }
+                    renderBreakdown(root, payload, row.number_of_rooms || firstRoom(row).number_of_rooms || 1);
+                } else if (isAdHocRow(row) || Number(row.grand_total || row.totalPrice || 0) > 0) {
+                    renderBreakdown(root, buildFallbackPriceDataFromRow(row),
+                        row.number_of_rooms || firstRoom(row).number_of_rooms || 1);
                 }
             })
             .catch(function () { /* ignore hydrate errors */ })
             .finally(function () {
                 root.__hydrating = false;
                 root.__hydrateHotelRow = null;
+                applyAdHocFromRow(root, row);
+                syncGetPriceBtn(root);
                 try {
                     root.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                 } catch (e) { /* ignore */ }
@@ -1874,7 +2250,6 @@
         var bedType = root.querySelector('.hotel-bed-type');
         var mealPlan = root.querySelector('.hotel-meal-plan');
         var roomsEl = root.querySelector('.hotel-rooms');
-        var getPriceBtn = root.querySelector('.hotel-get-price-btn');
         var addBtn = root.querySelector('.hotel-add-btn');
         var loader = root.querySelector('.hotel-price-loader');
 
@@ -1898,6 +2273,11 @@
         }
         if (!mealPlan || !mealPlan.value) {
             alert('Please select a meal plan.');
+            return;
+        }
+        if (isAdHocEnabled(root) && !isAdHocPriceReady(root)) {
+            alert('Please enter a valid Manual Room rate.');
+            syncGetPriceBtn(root);
             return;
         }
         var persons = selectedPersonsCount(root);
@@ -1942,7 +2322,9 @@
 
         if (addBtn) addBtn.disabled = true;
         if (loader) loader.classList.add('is-on');
-        if (getPriceBtn) getPriceBtn.disabled = true;
+        syncGetPriceBtn(root, { loading: true });
+
+        var adhocPerNight = isAdHocEnabled(root) ? getAdHocPriceValue(root) : null;
 
         fetch(cfg().routes.getHotelPrice || '', {
             method: 'POST',
@@ -1974,7 +2356,11 @@
             .then(function (r) { return r.json(); })
             .then(function (data) {
                 if (data && data.success) {
-                    renderBreakdown(root, data, numberOfRooms);
+                    // Always use Get Price result; AdHoc only swaps room rate.
+                    var priced = adhocPerNight != null
+                        ? applyAdHocToPriceData(data, adhocPerNight)
+                        : data;
+                    renderBreakdown(root, priced, numberOfRooms);
                 } else {
                     clearBreakdown(root, { disableAdd: true });
                     alert((data && data.message) ? data.message : 'Failed to calculate hotel price.');
@@ -1986,7 +2372,7 @@
             })
             .finally(function () {
                 if (loader) loader.classList.remove('is-on');
-                if (getPriceBtn) getPriceBtn.disabled = false;
+                syncGetPriceBtn(root);
             });
     }
 
@@ -2006,6 +2392,9 @@
             mealPlan.innerHTML = '<option value="">Select hotel first</option>';
             mealPlan.disabled = true;
         }
+        var adhocChk = root.querySelector('.hotel-chk-adhoc');
+        if (adhocChk) adhocChk.checked = false;
+        syncAdHocUi(root);
         var addBtn = root.querySelector('.hotel-add-btn');
         if (addBtn) addBtn.disabled = true;
         clearBreakdown(root, { disableAdd: true });
@@ -2436,6 +2825,40 @@
             el.addEventListener('input', function () { invalidatePriceState(root); });
         });
 
+        var adhocChk = root.querySelector('.hotel-chk-adhoc');
+        var adhocInput = root.querySelector('.hotel-adhoc-price');
+        if (adhocChk) {
+            adhocChk.addEventListener('change', function () {
+                syncAdHocUi(root);
+                invalidatePriceState(root);
+            });
+        }
+        if (adhocInput) {
+            adhocInput.addEventListener('keydown', function (e) {
+                if (e.key === 'e' || e.key === 'E' || e.key === '+' || e.key === '-') {
+                    e.preventDefault();
+                }
+            });
+            adhocInput.addEventListener('input', function () {
+                var cleaned = sanitizeAdHocPriceValue(adhocInput.value);
+                if (adhocInput.value !== cleaned) adhocInput.value = cleaned;
+                syncGetPriceBtn(root);
+                invalidatePriceState(root);
+            });
+            adhocInput.addEventListener('paste', function (e) {
+                try {
+                    var text = (e.clipboardData || window.clipboardData).getData('text');
+                    if (text != null) {
+                        e.preventDefault();
+                        adhocInput.value = sanitizeAdHocPriceValue(text);
+                        syncGetPriceBtn(root);
+                        invalidatePriceState(root);
+                    }
+                } catch (err) { /* ignore */ }
+            });
+        }
+        syncAdHocUi(root);
+
         var getPriceBtn = root.querySelector('.hotel-get-price-btn');
         var addBtn = root.querySelector('.hotel-add-btn');
         var closeBtn = root.querySelector('.hotel-breakup-close');
@@ -2443,6 +2866,7 @@
         setAddEnabled(root, false);
         setAddButtonMode(root, false);
         updateHotelChildPricingVisibility(root);
+        syncGetPriceBtn(root);
 
         if (getPriceBtn) {
             getPriceBtn.addEventListener('click', function () {
@@ -2485,20 +2909,28 @@
                 removeAddedHotel(root, parseInt(removeBtn.getAttribute('data-idx'), 10) || 0);
                 return;
             }
-            var viewBtn = e.target.closest('.hotel-view-breakup');
-            if (viewBtn && root.contains(viewBtn)) {
-                e.preventDefault();
-                var rows = readHotelChunk(root);
-                var row = rows[parseInt(viewBtn.getAttribute('data-idx'), 10) || 0];
-                if (row) openHotelPricePopup(row);
-                return;
-            }
             var editBtn = e.target.closest('.hotel-edit-added');
             if (editBtn && root.contains(editBtn)) {
                 e.preventDefault();
                 beginEditHotel(root, parseInt(editBtn.getAttribute('data-idx'), 10) || 0);
             }
         });
+
+        // Document-level so edit-form remounts still open the breakdown modal
+        if (!window.__stpLiteHotelBreakupBound) {
+            window.__stpLiteHotelBreakupBound = true;
+            document.addEventListener('click', function (e) {
+                var viewBtn = e.target.closest('.hotel-view-breakup');
+                if (!viewBtn) return;
+                var hotelRoot = viewBtn.closest('.stp-lite-hotel');
+                if (!hotelRoot) return;
+                e.preventDefault();
+                e.stopPropagation();
+                var rows = readHotelChunk(hotelRoot);
+                var row = rows[parseInt(viewBtn.getAttribute('data-idx'), 10) || 0];
+                if (row) openHotelPricePopup(row);
+            }, true);
+        }
 
         document.addEventListener('stp:guests-changed', function () {
             updateHotelChildPricingVisibility(root);

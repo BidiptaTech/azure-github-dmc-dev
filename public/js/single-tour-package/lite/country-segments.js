@@ -597,7 +597,10 @@
                 '      <h3 class="mb-0">' + esc(title) + retBadge + '</h3>' +
                 '      <small>' + sub + '</small>' +
                 '    </div>' +
-                '    <span class="stp-lite-currency-badge">' + esc(g.currency) + '</span>' +
+                '    <div class="stp-lite-country-header-right">' +
+                '      <span class="stp-lite-city-header-total d-none" data-city-header-total="1"></span>' +
+                '      <span class="stp-lite-currency-badge">' + esc(g.currency) + '</span>' +
+                '    </div>' +
                 '  </header>' +
                 '  <div class="stp-lite-country-body">' +
                 serviceAccordionHtml(g) +
@@ -616,6 +619,9 @@
 
         updateServicesGate();
         document.dispatchEvent(new CustomEvent('stp:country-sections-rendered', { detail: { groups: groups } }));
+        if (window.StpLiteTransportShared && typeof window.StpLiteTransportShared.refreshAllStaySectionTotals === 'function') {
+            window.StpLiteTransportShared.refreshAllStaySectionTotals(host);
+        }
     }
 
     var SERVICE_MOUNT_API = {

@@ -309,6 +309,41 @@
         var total = row.grand_total != null ? row.grand_total : (row.totalPrice != null ? row.totalPrice : row.price);
         row.grand_total = Number(total || 0);
         if (row.totalPrice == null) row.totalPrice = row.grand_total;
+        if (!row.is_adhoc) {
+            row.is_adhoc = !!(row.priceMode === 'adhoc'
+                || (row.price_payload && row.price_payload.is_adhoc)
+                || (row.helperPriceResult && row.helperPriceResult.is_adhoc));
+        }
+        var adhocNum = Number(row.adhoc_price);
+        if (row.adhoc_price == null || row.adhoc_price === '' || !isFinite(adhocNum) || adhocNum <= 0) {
+            var payload = row.price_payload || row.helperPriceResult || null;
+            var nights = 0;
+            if (payload) {
+                nights = parseInt(payload.nights, 10)
+                    || (Array.isArray(payload.breakdown) ? payload.breakdown.length : 0)
+                    || 0;
+            }
+            if (nights < 1 && row.stay_start && row.stay_end && typeof moment !== 'undefined') {
+                nights = moment(row.stay_end, 'YYYY-MM-DD').diff(moment(row.stay_start, 'YYYY-MM-DD'), 'days');
+            }
+            if (nights < 1 && Array.isArray(row.bookingDate) && row.bookingDate[0] && row.bookingDate[1]
+                && typeof moment !== 'undefined') {
+                nights = moment(row.bookingDate[1], 'YYYY-MM-DD').diff(moment(row.bookingDate[0], 'YYYY-MM-DD'), 'days');
+            }
+            if (nights < 1) nights = 1;
+            if (payload && Number(payload.adhoc_price) > 0) {
+                row.adhoc_price = Number(payload.adhoc_price);
+            } else if (row.is_adhoc && payload && Number(payload.room_total) > 0) {
+                row.adhoc_price = Number(payload.room_total) / nights;
+            } else if (row.is_adhoc && Number(row.room_total) > 0) {
+                row.adhoc_price = Number(row.room_total) / nights;
+            } else if (row.is_adhoc && Number(b0.price) > 0) {
+                row.adhoc_price = Number(b0.price) / nights;
+            } else if (row.is_adhoc && Number(row.grand_total || row.totalPrice || 0) > 0) {
+                var meal = Number(row.meal_total || (payload && payload.meal_total) || 0) || 0;
+                row.adhoc_price = Math.max(0, Number(row.grand_total || row.totalPrice) - meal) / nights;
+            }
+        }
         if (!row.stay_start && Array.isArray(row.bookingDate) && row.bookingDate[0]) {
             row.stay_start = String(row.bookingDate[0]).slice(0, 10);
         }
@@ -331,11 +366,25 @@
             if (row.adultCount == null && row.adults != null) row.adultCount = row.adults;
             if (row.childCount == null && row.children != null) row.childCount = row.children;
             if (Array.isArray(row.bookingDate)) row.bookingDate = row.bookingDate[0] || '';
+            if (window.StpLiteTransportShared && typeof window.StpLiteTransportShared.serviceRowDisplayTotal === 'function') {
+                var attrTotal = window.StpLiteTransportShared.serviceRowDisplayTotal(row);
+                if (attrTotal > Number(row.totalPrice || 0)) {
+                    row.totalPrice = attrTotal;
+                    row.grand_total = attrTotal;
+                }
+            }
         }
         if (kind === 'restaurant') {
             if (!row.restaurantName) row.restaurantName = row.restaurant_name || row.name || 'Restaurant';
             if (!row.mealTypeLabel && row.mealType) row.mealTypeLabel = row.mealType;
             if (Array.isArray(row.bookingDate)) row.bookingDate = row.bookingDate[0] || '';
+            if (window.StpLiteTransportShared && typeof window.StpLiteTransportShared.serviceRowDisplayTotal === 'function') {
+                var restTotal = window.StpLiteTransportShared.serviceRowDisplayTotal(row);
+                if (restTotal > Number(row.totalPrice || 0)) {
+                    row.totalPrice = restTotal;
+                    row.grand_total = restTotal;
+                }
+            }
         }
         if (kind === 'guide') {
             if (!row.guide_name) row.guide_name = row.guideName || row.name || 'Guide';
@@ -656,6 +705,9 @@
         document.querySelectorAll('.stp-lite-service-body').forEach(function (body) {
             body.classList.remove('show');
         });
+        if (window.StpLiteTransportShared && typeof window.StpLiteTransportShared.refreshAllStaySectionTotals === 'function') {
+            window.StpLiteTransportShared.refreshAllStaySectionTotals(document);
+        }
     }
 
     function bindEditSectionReseed() {
