@@ -675,18 +675,27 @@
         );
     }
 
-    /** Compact Guide Required expandable fields (attraction). */
+    /** Same package tiers as standalone guide.js — only show tiers with price > 0. */
+    var GUIDE_PACKAGE_TIERS = [
+        { hours: 1,  key: 'hourly_price',      label: '1 Hour' },
+        { hours: 2,  key: 'two_hour_price',    label: '2 Hours' },
+        { hours: 4,  key: 'four_hour_price',   label: '4 Hours' },
+        { hours: 6,  key: 'six_hour_price',    label: '6 Hours' },
+        { hours: 8,  key: 'eight_hour_price',  label: '8 Hours' },
+        { hours: 10, key: 'ten_hour_price',    label: '10 Hours' },
+        { hours: 12, key: 'twelve_hour_price', label: '12 Hours' }
+    ];
+
+    /** Compact Guide Required expandable fields (attraction / restaurant). */
     function guideExtrasHtml(prefix) {
-        var hourOpts = '';
-        for (var h = 1; h <= 12; h++) hourOpts += '<option value="' + h + '">' + h + 'h</option>';
         return (
             '<div class="stp-lite-extras-block">' +
             '  <div class="stp-lite-opt-card stp-lite-opt-card--compact d-none" data-' + prefix + '-guide-card>' +
             '    <div class="row g-1 align-items-end">' +
             '      <div class="col-6 col-md-5"><label class="stp-lite-label">Guide</label>' +
             '        <select class="form-select form-select-sm ' + prefix + '-guide-select" disabled><option value="">Loading…</option></select></div>' +
-            '      <div class="col-6 col-md-3"><label class="stp-lite-label">Hours</label>' +
-            '        <select class="form-select form-select-sm ' + prefix + '-guide-hours"><option value="">Select</option>' + hourOpts + '</select></div>' +
+            '      <div class="col-6 col-md-3"><label class="stp-lite-label">Package</label>' +
+            '        <select class="form-select form-select-sm ' + prefix + '-guide-hours" disabled><option value="">Select guide</option></select></div>' +
             '      <div class="col-6 col-md-4"><label class="stp-lite-label">Pickup time</label>' +
             ampmTimeHtml(prefix + '-guide', '') +
             '      </div>' +
@@ -702,6 +711,57 @@
             '<select class="form-select form-select-sm ' + prefix + '-guide-required" data-no-select2="true">' +
             '<option value="No">No</option><option value="Yes">Yes</option></select>'
         );
+    }
+
+    /** Packages with sell price > 0 for the selected guide (same as guide.js). */
+    function availableGuidePackages(guide) {
+        if (!guide) return [];
+        return GUIDE_PACKAGE_TIERS
+            .map(function (t) {
+                var price = parseFloat(guide[t.key]) || 0;
+                return { hours: t.hours, label: t.label, price: price };
+            })
+            .filter(function (p) { return p.price > 0; });
+    }
+
+    /** Fill attraction/restaurant guide hours with priced packages only. */
+    function fillInlineGuideHours(root, prefix, guide, preferredHours) {
+        var hoursEl = root.querySelector('.' + prefix + '-guide-hours');
+        if (!hoursEl) return;
+        var pkgs = availableGuidePackages(guide);
+        var keep = preferredHours != null && preferredHours !== ''
+            ? String(preferredHours)
+            : String(hoursEl.value || '');
+        hoursEl.innerHTML = '<option value="">Select package</option>';
+        pkgs.forEach(function (p) {
+            var opt = document.createElement('option');
+            opt.value = String(p.hours);
+            opt.textContent = p.label;
+            opt.dataset.price = String(p.price);
+            hoursEl.appendChild(opt);
+        });
+        if (!pkgs.length) {
+            var empty = document.createElement('option');
+            empty.value = '';
+            empty.textContent = guide ? 'No priced packages' : 'Select guide';
+            empty.disabled = true;
+            hoursEl.appendChild(empty);
+            hoursEl.disabled = true;
+            hoursEl.value = '';
+            return;
+        }
+        hoursEl.disabled = false;
+        if (keep && hoursEl.querySelector('option[value="' + keep.replace(/"/g, '\\"') + '"]')) {
+            hoursEl.value = keep;
+        } else {
+            hoursEl.value = '';
+        }
+    }
+
+    function findInlineGuide(root, guideId) {
+        return (root.__guides || []).find(function (g) {
+            return String(g.guide_id || g.id) === String(guideId);
+        }) || null;
     }
 
     function filterTransferVehiclesByType(select, type) {
@@ -1105,6 +1165,7 @@
         if (!select) return Promise.resolve();
         select.disabled = true;
         select.innerHTML = '<option value="">Loading guides…</option>';
+        fillInlineGuideHours(root, prefix, null);
         var q = inv(stay.cityName, stay.country);
         return fetchJsonCached((cfg().routes.fetchGuidesByDmc || '') + '?' + q.qs)
             .then(function (res) {
@@ -1119,10 +1180,16 @@
                     select.appendChild(opt);
                 });
                 select.disabled = false;
+                if (select.value) {
+                    fillInlineGuideHours(root, prefix, findInlineGuide(root, select.value));
+                } else {
+                    fillInlineGuideHours(root, prefix, null);
+                }
             })
             .catch(function () {
                 select.innerHTML = '<option value="">Error loading</option>';
                 select.disabled = false;
+                fillInlineGuideHours(root, prefix, null);
             });
     }
 
@@ -1224,6 +1291,12 @@
     function bindGuideExtras(root, stay, prefix, onChange) {
         var req = root.querySelector('.' + prefix + '-guide-required');
         var card = root.querySelector('[data-' + prefix + '-guide-card]');
+        var guideSelect = root.querySelector('.' + prefix + '-guide-select');
+        function onGuidePicked() {
+            var g = guideSelect && guideSelect.value ? findInlineGuide(root, guideSelect.value) : null;
+            fillInlineGuideHours(root, prefix, g);
+            if (typeof onChange === 'function') onChange();
+        }
         function toggle() {
             var yes = req && req.value === 'Yes';
             if (card) card.classList.toggle('d-none', !yes);
@@ -1235,12 +1308,16 @@
             } else if (typeof onChange === 'function') {
                 onChange();
             }
+            if (!yes) fillInlineGuideHours(root, prefix, null);
         }
         if (req) req.addEventListener('change', toggle);
-        ['.' + prefix + '-guide-select', '.' + prefix + '-guide-hours'].forEach(function (sel) {
-            var el = root.querySelector(sel);
-            if (el) el.addEventListener('change', function () { if (typeof onChange === 'function') onChange(); });
-        });
+        if (guideSelect) guideSelect.addEventListener('change', onGuidePicked);
+        var hoursEl = root.querySelector('.' + prefix + '-guide-hours');
+        if (hoursEl) {
+            hoursEl.addEventListener('change', function () {
+                if (typeof onChange === 'function') onChange();
+            });
+        }
         root.addEventListener('stp:time-changed', function (e) {
             var ampm = e.target && e.target.closest ? e.target.closest('[data-ampm-root="' + prefix + '-guide"]') : null;
             if (ampm && typeof onChange === 'function') onChange();
@@ -1314,16 +1391,18 @@
         if (!guideOptions || !guideOptions.guide_required) {
             if (req) req.value = 'No';
             if (card) card.classList.add('d-none');
+            fillInlineGuideHours(root, prefix, null);
             return Promise.resolve();
         }
         if (req) req.value = 'Yes';
         if (card) card.classList.remove('d-none');
-        var hoursEl = root.querySelector('.' + prefix + '-guide-hours');
-        if (hoursEl && guideOptions.package_hours) hoursEl.value = String(guideOptions.package_hours);
         setAmPmValue(root, prefix + '-guide', guideOptions.pickup_time || '');
+        var preferHours = guideOptions.package_hours || guideOptions.hours || '';
         function afterGuides() {
             var select = root.querySelector('.' + prefix + '-guide-select');
             if (select && guideOptions.guide_id) select.value = String(guideOptions.guide_id);
+            var guide = findInlineGuide(root, guideOptions.guide_id);
+            fillInlineGuideHours(root, prefix, guide, preferHours);
         }
         if (!root.__guidesLoaded) {
             root.__guidesLoaded = true;
@@ -1539,7 +1618,11 @@
         var guideSel = root.querySelector('.' + prefix + '-guide-select');
         if (guideSel) guideSel.selectedIndex = 0;
         var hours = root.querySelector('.' + prefix + '-guide-hours');
-        if (hours) hours.value = '';
+        if (hours) {
+            hours.innerHTML = '<option value="">Select guide</option>';
+            hours.disabled = true;
+            hours.value = '';
+        }
         root.__transferVehiclesLoaded = false;
         root.__transferPickupsLoaded = false;
     }
@@ -1598,6 +1681,8 @@
         refreshTransferCostDisplay: refreshTransferCostDisplay,
         collectTransferOptions: collectTransferOptions,
         hourPriceFromGuide: hourPriceFromGuide,
+        availableGuidePackages: availableGuidePackages,
+        fillInlineGuideHours: fillInlineGuideHours,
         confirmRemoveService: confirmRemoveService,
         isNightTime: isNightTime,
         calcInlineGuidePrice: calcInlineGuidePrice,
