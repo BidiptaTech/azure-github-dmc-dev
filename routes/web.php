@@ -253,6 +253,8 @@ Route::get('/clear', function () {
             Route::get('/single-tour-package/create/{enquiry_id?}', [SingleTourPackageController::class, 'create'])->name('single-tour-package.create');
             Route::get('/single-tour-package/thank-you', [SingleTourPackageController::class, 'thankYou'])->name('single-tour-package.thank-you');
             Route::post('/single-tour-package/thank-you', [SingleTourPackageController::class, 'thankYou']);
+            Route::get('/single-tour-package/tour-updated', [SingleTourPackageController::class, 'thankYouUpdated'])->name('single-tour-package.thank-you-updated');
+            Route::post('/single-tour-package/tour-updated', [SingleTourPackageController::class, 'thankYouUpdated']);
             Route::post('/single-tour-package', [SingleTourPackageController::class, 'store'])->name('single-tour-package.store');
             Route::post('/package-store-orders', [SingleTourPackageController::class, 'storeServiceOrders'])->name('single-tour-package.store-orders');
             Route::post('/single-tour-package/orders/{order}/update', [SingleTourPackageController::class, 'updateServiceOrder'])->name('single-tour-package.orders.update');

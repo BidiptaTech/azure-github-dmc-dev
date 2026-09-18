@@ -1,5 +1,5 @@
 /* === STP LITE: restaurant.js ===
- * Restaurants — meal cascade → Transfer extras → Get Price → Add → list
+ * Restaurants — meal cascade → Transfer/Guide extras → Get Price → Add → list
  * Payload: restaurant_data
  * === */
 (function (window, document) {
@@ -80,8 +80,10 @@
             '    <div class="col-md-2" data-guest-child-ui><label class="stp-lite-label">Children</label>' +
             '      <input type="number" min="0" class="form-control form-control-sm stp-lite-int restaurant-children" data-guest-cap="children" value="' + (g.children || 0) + '"></div>' +
             '    <div class="col-md-2">' + T.transferRequiredSelectHtml(PREFIX) + '</div>' +
+            '    <div class="col-md-2">' + T.guideRequiredSelectHtml(PREFIX) + '</div>' +
             '  </div>' +
             T.transferExtrasHtml(PREFIX) +
+            T.guideExtrasHtml(PREFIX) +
             '  <div class="row g-2 mb-2">' +
             '    <div class="col-md-12 d-flex align-items-end gap-2 flex-wrap">' +
             '      <button type="button" class="btn btn-sm stp-lite-get-price-btn restaurant-get-price-btn">' +
@@ -104,18 +106,31 @@
     }
 
     function writeChunk(root, rows) {
+        var T = S();
+        rows = (rows || []).map(function (r) {
+            if (!r || typeof r !== 'object') return r;
+            var display = typeof T.serviceRowDisplayTotal === 'function' ? T.serviceRowDisplayTotal(r) : Number(r.totalPrice || 0);
+            if (display > Number(r.totalPrice || 0)) {
+                r = Object.assign({}, r, { totalPrice: display, grand_total: display });
+            }
+            return r;
+        });
         var el = root.querySelector('.restaurant_data_chunk');
         if (el) el.value = JSON.stringify(rows || []);
-        S().syncHiddenJson('restaurant_data', '.restaurant_data_chunk');
-        if (typeof S().updateServiceHeaderTotal === 'function') {
-            S().updateServiceHeaderTotal(root, 'restaurant');
+        T.syncHiddenJson('restaurant_data', '.restaurant_data_chunk');
+        if (typeof T.updateServiceHeaderTotal === 'function') {
+            T.updateServiceHeaderTotal(root, 'restaurant');
         } else {
             try {
                 root.dispatchEvent(new CustomEvent('stp:service-chunk-changed', {
                     bubbles: true,
                     detail: {
                         service: 'restaurant',
-                        total: (rows || []).reduce(function (s, r) { return s + (Number(r.totalPrice) || 0); }, 0),
+                        total: (rows || []).reduce(function (s, r) {
+                            return s + (typeof T.serviceRowDisplayTotal === 'function'
+                                ? T.serviceRowDisplayTotal(r)
+                                : (Number(r.totalPrice) || 0));
+                        }, 0),
                         currency: root.getAttribute('data-currency') || 'SGD',
                         root: root
                     }
@@ -308,14 +323,17 @@
         var mealTotal = (adultP * g.adults) + (childP * g.children);
         var xfer = T.calcInlineTransferPrice(root, PREFIX, g.adults, g.children, g.infants);
         T.refreshTransferCostDisplay(root, PREFIX, g.adults, g.children, g.infants);
-        var total = mealTotal + xfer;
+        var guide = T.calcInlineGuidePrice(root, PREFIX);
+        var total = mealTotal + (Number(xfer) || 0) + (Number(guide.total) || 0);
         var parts = [g.adults + '×' + adultP.toFixed(2)];
         if (g.children) parts.push(g.children + '×' + childP.toFixed(2));
-        if (xfer) parts.push('xfer ' + xfer.toFixed(2));
+        if (xfer) parts.push('xfer ' + Number(xfer).toFixed(2));
+        if (guide.total) parts.push('guide ' + Number(guide.total).toFixed(2));
         root.__lastPrice = {
             total: total,
             mealTotal: mealTotal,
-            transferTotal: xfer,
+            transferTotal: Number(xfer) || 0,
+            guideTotal: Number(guide.total) || 0,
             adultPrice: adultP,
             childPrice: childP,
             breakdown: parts.join(' + ')
@@ -340,7 +358,17 @@
         var dOpt = dish && dish.options[dish.selectedIndex];
         var mOpt = mealType && mealType.options[mealType.selectedIndex];
         var g = guestCounts(root);
-        var total = root.__lastPrice ? Number(root.__lastPrice.total || 0) : 0;
+        var adultP = dOpt ? (parseFloat(dOpt.dataset.adultPrice) || 0) : 0;
+        var childP = dOpt ? (parseFloat(dOpt.dataset.childPrice) || 0) : 0;
+        var mealTotal = (adultP * g.adults) + (childP * g.children);
+        var transferOptions = T.collectTransferOptions(root, PREFIX, g.adults, g.children, g.infants);
+        var guideOptions = T.collectGuideOptions(root, PREFIX);
+        var xferCost = transferOptions ? (Number(transferOptions.cost) || 0) : 0;
+        var guideCost = guideOptions ? (Number(guideOptions.total_price) || 0) : 0;
+        var total = mealTotal + xferCost + guideCost;
+        if (root.__lastPrice && Number(root.__lastPrice.total) > total) {
+            total = Number(root.__lastPrice.total) || total;
+        }
         var supplement = T.autoSupplement(g.adults);
         var visitTime = T.readAmPmValue(root, 'restaurant');
 
@@ -353,11 +381,11 @@
             MealDescription: [{
                 meal_id: dish ? dish.value : '',
                 name: dOpt ? (dOpt.dataset.name || dOpt.textContent) : '',
-                adult_price: dOpt ? (parseFloat(dOpt.dataset.adultPrice) || 0) : 0,
-                child_price: dOpt ? (parseFloat(dOpt.dataset.childPrice) || 0) : 0
+                adult_price: adultP,
+                child_price: childP
             }],
-            adult_price: dOpt ? (parseFloat(dOpt.dataset.adultPrice) || 0) : 0,
-            child_price: dOpt ? (parseFloat(dOpt.dataset.childPrice) || 0) : 0,
+            adult_price: adultP,
+            child_price: childP,
             adults: g.adults,
             children: g.children,
             visitTime: visitTime,
@@ -366,7 +394,8 @@
             grand_total: total,
             supplement: !!supplement,
             is_supplement: !!supplement,
-            transfer_options: T.collectTransferOptions(root, PREFIX, g.adults, g.children, g.infants),
+            transfer_options: transferOptions,
+            guide_options: guideOptions,
             city: stay.cityName || '',
             country: stay.country || '',
             currency: stay.currency || '',
@@ -397,14 +426,21 @@
             var editing = root.__editingIdx === idx;
             var dishName = (row.MealDescription && row.MealDescription[0] && row.MealDescription[0].name) || '—';
             var mealLabel = row.mealTypeLabel || row.mealType || '';
-            var xferNote = (row.transfer_options && row.transfer_options.transfer_required) ? ' · Transfer' : '';
+            var xferNote = '';
+            var extras = [];
+            if (row.transfer_options && row.transfer_options.transfer_required) extras.push('Transfer');
+            if (row.guide_options && row.guide_options.guide_required) extras.push('Guide');
+            if (extras.length) xferNote = ' · ' + extras.join(' + ');
+            var rowTotal = typeof T.serviceRowDisplayTotal === 'function'
+                ? T.serviceRowDisplayTotal(row)
+                : (row.totalPrice || 0);
             html += '<tr class="' + (editing ? 'is-editing' : '') + '" data-idx="' + idx + '">' +
                 '<td><div class="fw-semibold">' + T.esc(row.restaurantName || 'Restaurant') + '</div>' +
                 '<small class="text-muted">' + T.esc(row.bookingDate || '') + T.esc(xferNote) + '</small>' +
                 T.editingMarkHtml(editing) + '</td>' +
                 '<td><small>' + T.esc(mealLabel) + ' · ' + T.esc(dishName) + '</small></td>' +
                 '<td><small>' + T.esc(row.adults || 0) + 'A / ' + T.esc(row.children || 0) + 'C</small></td>' +
-                '<td class="text-end fw-semibold text-nowrap">' + cur + ' ' + Number(row.totalPrice || 0).toFixed(2) + '</td>' +
+                '<td class="text-end fw-semibold text-nowrap">' + cur + ' ' + Number(rowTotal || 0).toFixed(2) + '</td>' +
                 '<td><div class="form-check mb-0"><input class="form-check-input restaurant-is-supplement" type="checkbox" data-idx="' + idx + '"' +
                 (row.supplement || row.is_supplement ? ' checked' : '') + '>' +
                 '<label class="form-check-label" style="font-size:0.72rem;">Supplement</label></div></td>' +
@@ -432,8 +468,15 @@
             var dish = root.querySelector('.restaurant-dish');
             var mealId = row.MealDescription && row.MealDescription[0] && row.MealDescription[0].meal_id;
             if (dish && mealId) dish.value = String(mealId);
+            var displayTotal = typeof T.serviceRowDisplayTotal === 'function'
+                ? T.serviceRowDisplayTotal(row)
+                : (row.totalPrice || 0);
+            if (displayTotal > Number(row.totalPrice || 0)) {
+                row.totalPrice = displayTotal;
+                row.grand_total = displayTotal;
+            }
             root.__lastPrice = {
-                total: row.totalPrice || 0,
+                total: displayTotal,
                 adultPrice: row.adult_price || 0,
                 childPrice: row.child_price || 0,
                 breakdown: ''
@@ -442,13 +485,16 @@
             var panel = root.querySelector('[data-restaurant-price-panel]');
             var totalEl = root.querySelector('.restaurant-price-total');
             if (panel) panel.classList.remove('d-none');
-            if (totalEl) totalEl.textContent = cur + ' ' + Number(row.totalPrice || 0).toFixed(2);
+            if (totalEl) totalEl.textContent = cur + ' ' + Number(displayTotal || 0).toFixed(2);
             var add = root.querySelector('.restaurant-add-btn');
             if (add) add.disabled = false;
             root.__hydrating = false;
         }
 
-        var xferP = T.hydrateTransferExtras(root, PREFIX, row.transfer_options, stay);
+        var extras = Promise.all([
+            T.hydrateTransferExtras(root, PREFIX, row.transfer_options, stay),
+            T.hydrateGuideExtras(root, PREFIX, row.guide_options, stay)
+        ]);
 
         if (rest && row.restaurantId) {
             rest.value = String(row.restaurantId);
@@ -458,10 +504,10 @@
             if (mealType && period) mealType.value = period;
             Promise.all([
                 loadMeals(root, stay, row.restaurantId, period || row.mealType || ''),
-                xferP
+                extras
             ]).then(finish);
         } else {
-            xferP.then(finish);
+            extras.then(finish);
         }
     }
 
@@ -516,6 +562,7 @@
         T.bindTransferExtras(root, stay, PREFIX, function () {
             return guestCounts(root);
         }, function () { if (!root.__hydrating) invalidate(root); });
+        T.bindGuideExtras(root, stay, PREFIX, function () { if (!root.__hydrating) invalidate(root); });
 
         var rest = root.querySelector('.restaurant-select');
         var mealType = root.querySelector('.restaurant-meal-type');
@@ -591,14 +638,16 @@
                 if (!r) return;
                 var dishName = (r.MealDescription && r.MealDescription[0] && r.MealDescription[0].name) || '';
                 var xfer = r.transfer_options || {};
+                var guide = r.guide_options || {};
                 T.showPriceBreakdownModal(
                     r.restaurantName || 'Restaurant',
                     r.currency || root.getAttribute('data-currency'),
-                    r.totalPrice,
+                    (typeof T.serviceRowDisplayTotal === 'function' ? T.serviceRowDisplayTotal(r) : r.totalPrice),
                     '<div class="small text-muted">' + T.esc(r.mealTypeLabel || r.mealType || '') + ' · ' + T.esc(dishName) +
                     '<br>' + T.esc(r.adults || 0) + 'A × ' + Number(r.adult_price || 0).toFixed(2) +
                     (r.children ? ' · ' + T.esc(r.children) + 'C × ' + Number(r.child_price || 0).toFixed(2) : '') +
                     (xfer.transfer_required ? '<br>Transfer (' + T.esc(xfer.type || '') + '): ' + Number(xfer.cost || 0).toFixed(2) : '') +
+                    (guide.guide_required ? '<br>Guide: ' + Number(guide.total_price || 0).toFixed(2) : '') +
                     (r.visitTime ? '<br>Time: ' + T.esc(r.visitTime) : '') + '</div>'
                 );
             }

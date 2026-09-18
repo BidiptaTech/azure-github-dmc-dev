@@ -72,18 +72,31 @@
     }
 
     function writeChunk(root, rows) {
+        var T = S();
+        rows = (rows || []).map(function (r) {
+            if (!r || typeof r !== 'object') return r;
+            var display = typeof T.serviceRowDisplayTotal === 'function' ? T.serviceRowDisplayTotal(r) : Number(r.totalPrice || 0);
+            if (display > Number(r.totalPrice || 0)) {
+                r = Object.assign({}, r, { totalPrice: display, grand_total: display });
+            }
+            return r;
+        });
         var el = root.querySelector('.attraction_data_chunk');
         if (el) el.value = JSON.stringify(rows || []);
-        S().syncHiddenJson('attraction_data', '.attraction_data_chunk');
-        if (typeof S().updateServiceHeaderTotal === 'function') {
-            S().updateServiceHeaderTotal(root, 'attraction');
+        T.syncHiddenJson('attraction_data', '.attraction_data_chunk');
+        if (typeof T.updateServiceHeaderTotal === 'function') {
+            T.updateServiceHeaderTotal(root, 'attraction');
         } else {
             try {
                 root.dispatchEvent(new CustomEvent('stp:service-chunk-changed', {
                     bubbles: true,
                     detail: {
                         service: 'attraction',
-                        total: (rows || []).reduce(function (s, r) { return s + (Number(r.totalPrice) || 0); }, 0),
+                        total: (rows || []).reduce(function (s, r) {
+                            return s + (typeof T.serviceRowDisplayTotal === 'function'
+                                ? T.serviceRowDisplayTotal(r)
+                                : (Number(r.totalPrice) || 0));
+                        }, 0),
                         currency: root.getAttribute('data-currency') || 'SGD',
                         root: root
                     }
@@ -184,17 +197,18 @@
         var xfer = T.calcInlineTransferPrice(root, PREFIX, g.adults + g.seniors, g.children, g.infants);
         T.refreshTransferCostDisplay(root, PREFIX, g.adults + g.seniors, g.children, g.infants);
         var guide = T.calcInlineGuidePrice(root, PREFIX);
-        var total = ticketTotal + xfer + (guide.total || 0);
+        // Always compose ticket + transfer + guide (top grid must include extras)
+        var total = ticketTotal + (Number(xfer) || 0) + (Number(guide.total) || 0);
         var parts = [g.adults + '×' + adultP.toFixed(2)];
         if (g.children) parts.push(g.children + '×' + childP.toFixed(2));
         if (g.seniors) parts.push(g.seniors + '×' + seniorP.toFixed(2));
-        if (xfer) parts.push('xfer ' + xfer.toFixed(2));
+        if (xfer) parts.push('xfer ' + Number(xfer).toFixed(2));
         if (guide.total) parts.push('guide ' + Number(guide.total).toFixed(2));
         root.__lastPrice = {
             total: total,
             ticketTotal: ticketTotal,
-            transferTotal: xfer,
-            guideTotal: guide.total || 0,
+            transferTotal: Number(xfer) || 0,
+            guideTotal: Number(guide.total) || 0,
             adultPrice: adultP,
             childPrice: childP,
             seniorPrice: seniorP,
@@ -218,10 +232,22 @@
         var aOpt = attr && attr.options[attr.selectedIndex];
         var tOpt = ticket && ticket.options[ticket.selectedIndex];
         var g = guestCounts(root);
-        var total = root.__lastPrice ? Number(root.__lastPrice.total || 0) : 0;
+        var adultP = tOpt ? (parseFloat(tOpt.dataset.adultPrice) || 0) : 0;
+        var childP = tOpt ? (parseFloat(tOpt.dataset.childPrice) || 0) : 0;
+        var seniorP = tOpt ? (parseFloat(tOpt.dataset.seniorPrice) || 0) : 0;
+        var ticketTotal = (adultP * g.adults) + (childP * g.children) + (seniorP * g.seniors);
+        var xferGuests = g.adults + g.seniors;
+        var transferOptions = T.collectTransferOptions(root, PREFIX, xferGuests, g.children, g.infants);
+        var guideOptions = T.collectGuideOptions(root, PREFIX);
+        var xferCost = transferOptions ? (Number(transferOptions.cost) || 0) : 0;
+        var guideCost = guideOptions ? (Number(guideOptions.total_price) || 0) : 0;
+        // Recompute on Add so total never stays ticket-only when guide/vehicle selected
+        var total = ticketTotal + xferCost + guideCost;
+        if (root.__lastPrice && Number(root.__lastPrice.total) > total) {
+            total = Number(root.__lastPrice.total) || total;
+        }
         var supplement = T.autoSupplement(g.adults + g.seniors);
         var visitTime = T.readAmPmValue(root, 'attraction');
-        var xferGuests = g.adults + g.seniors;
 
         return {
             AttractionId: attr ? attr.value : '',
@@ -229,9 +255,9 @@
             ticketId: ticket ? ticket.value : '',
             ticketName: tOpt ? (tOpt.dataset.name || tOpt.textContent) : '',
             ticket_details: {
-                adult_price: tOpt ? (parseFloat(tOpt.dataset.adultPrice) || 0) : 0,
-                child_price: tOpt ? (parseFloat(tOpt.dataset.childPrice) || 0) : 0,
-                senior_adult_price: tOpt ? (parseFloat(tOpt.dataset.seniorPrice) || 0) : 0
+                adult_price: adultP,
+                child_price: childP,
+                senior_adult_price: seniorP
             },
             adultCount: g.adults,
             childCount: g.children,
@@ -244,8 +270,8 @@
             grand_total: total,
             supplement: !!supplement,
             is_supplement: !!supplement,
-            transfer_options: T.collectTransferOptions(root, PREFIX, xferGuests, g.children, g.infants),
-            guide_options: T.collectGuideOptions(root, PREFIX),
+            transfer_options: transferOptions,
+            guide_options: guideOptions,
             city: stay.cityName || '',
             country: stay.country || '',
             currency: stay.currency || '',
@@ -285,7 +311,9 @@
                 '<td><small>' + T.esc(row.ticketName || '—') + '</small></td>' +
                 '<td><small>' + T.esc(row.adultCount || 0) + 'A / ' + T.esc(row.childCount || 0) + 'C' +
                 (row.seniorCount ? ' / ' + T.esc(row.seniorCount) + 'S' : '') + '</small></td>' +
-                '<td class="text-end fw-semibold text-nowrap">' + cur + ' ' + Number(row.totalPrice || 0).toFixed(2) + '</td>' +
+                '<td class="text-end fw-semibold text-nowrap">' + cur + ' ' + Number(
+                    (typeof T.serviceRowDisplayTotal === 'function' ? T.serviceRowDisplayTotal(row) : row.totalPrice) || 0
+                ).toFixed(2) + '</td>' +
                 '<td><div class="form-check mb-0"><input class="form-check-input attraction-is-supplement" type="checkbox" data-idx="' + idx + '"' +
                 (row.supplement || row.is_supplement ? ' checked' : '') + '>' +
                 '<label class="form-check-label" style="font-size:0.72rem;">Supplement</label></div></td>' +
@@ -314,8 +342,16 @@
         function afterTickets() {
             var ticket = root.querySelector('.attraction-ticket');
             if (ticket && row.ticketId) ticket.value = String(row.ticketId);
+            var displayTotal = typeof T.serviceRowDisplayTotal === 'function'
+                ? T.serviceRowDisplayTotal(row)
+                : (row.totalPrice || 0);
+            // Keep stored row total in sync when classic data was ticket-only
+            if (displayTotal > Number(row.totalPrice || 0)) {
+                row.totalPrice = displayTotal;
+                row.grand_total = displayTotal;
+            }
             root.__lastPrice = {
-                total: row.totalPrice || 0,
+                total: displayTotal,
                 breakdown: (row.ticket_details
                     ? ((row.adultCount || 0) + '×' + Number((row.ticket_details || {}).adult_price || 0).toFixed(2))
                     : '')
@@ -324,7 +360,7 @@
             var panel = root.querySelector('[data-attraction-price-panel]');
             var totalEl = root.querySelector('.attraction-price-total');
             if (panel) panel.classList.remove('d-none');
-            if (totalEl) totalEl.textContent = cur + ' ' + Number(row.totalPrice || 0).toFixed(2);
+            if (totalEl) totalEl.textContent = cur + ' ' + Number(displayTotal || 0).toFixed(2);
             var add = root.querySelector('.attraction-add-btn');
             if (add) add.disabled = false;
             root.__hydrating = false;
@@ -462,7 +498,7 @@
                 T.showPriceBreakdownModal(
                     r.AttractionName || 'Attraction',
                     r.currency || root.getAttribute('data-currency'),
-                    r.totalPrice,
+                    (typeof T.serviceRowDisplayTotal === 'function' ? T.serviceRowDisplayTotal(r) : r.totalPrice),
                     '<div class="small text-muted">' + T.esc(r.ticketName || '') +
                     '<br>' + T.esc(r.adultCount || 0) + 'A × ' + Number(td.adult_price || 0).toFixed(2) +
                     (r.childCount ? ' · ' + T.esc(r.childCount) + 'C × ' + Number(td.child_price || 0).toFixed(2) : '') +

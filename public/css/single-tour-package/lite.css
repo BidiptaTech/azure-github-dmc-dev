@@ -438,6 +438,45 @@
     border-bottom: 1px solid rgba(15, 23, 42, 0.06);
 }
 
+.stp-lite-country-header-right {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    flex-shrink: 0;
+}
+
+.stp-lite-city-header-total {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.22rem 0.6rem;
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.06);
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    white-space: nowrap;
+}
+
+.stp-lite-city-header-total-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.25rem;
+    height: 1.25rem;
+    padding: 0 0.35rem;
+    border-radius: 999px;
+    background: rgba(15, 118, 110, 0.12);
+    color: #0f766e;
+    font-size: 0.7rem;
+    font-weight: 800;
+}
+
+.stp-lite-city-header-total-amt {
+    font-size: 0.9rem;
+    font-weight: 800;
+    color: #0f172a;
+    letter-spacing: -0.01em;
+}
+
 .stp-lite-country-section[data-tint="0"] .stp-lite-country-header { background: var(--city-0-head); }
 .stp-lite-country-section[data-tint="1"] .stp-lite-country-header { background: var(--city-1-head); }
 .stp-lite-country-section[data-tint="2"] .stp-lite-country-header { background: var(--city-2-head); }
@@ -594,10 +633,16 @@
 
 .stp-lite-get-price-btn:hover,
 .stp-lite-get-price-btn:focus,
-.stp-lite-get-price-btn:active,
-.stp-lite-get-price-btn:disabled {
+.stp-lite-get-price-btn:active {
     color: #fff !important;
     filter: brightness(1.05);
+}
+
+.stp-lite-get-price-btn:disabled {
+    color: #fff !important;
+    opacity: 0.55;
+    filter: none;
+    cursor: not-allowed;
 }
 
 .stp-lite-get-price-btn i {
@@ -721,6 +766,7 @@
 
 .stp-lite-summary-row.is-fair { color: #b45309; }
 .stp-lite-summary-row.is-ok { color: #15803d; }
+.stp-lite-summary-row.is-adhoc { color: #0f766e; font-weight: 600; }
 
 .stp-lite-hotel-breakup-total {
     margin-top: 0.4rem;
@@ -974,6 +1020,22 @@
     vertical-align: middle;
 }
 
+.stp-lite-adhoc-badge {
+    display: inline-block;
+    margin-left: 0.3rem;
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: #0f766e;
+    background: rgba(15, 118, 110, 0.1);
+    border: 1px solid rgba(15, 118, 110, 0.28);
+    border-radius: 999px;
+    padding: 0.1rem 0.4rem;
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
 .stp-lite-plan-card .city-return-toggle {
     cursor: pointer;
 }
@@ -1055,13 +1117,13 @@
     gap: 0.35rem;
     flex-shrink: 0;
     margin-left: auto;
-    padding: 0.2rem 0.55rem;
+    padding: 0.28rem 0.7rem;
     border-radius: 999px;
     background: #ecfdf5;
     border: 1px solid #a7f3d0;
     color: #065f46;
-    font-size: 0.74rem;
-    font-weight: 700;
+    font-size: 0.86rem;
+    font-weight: 800;
     white-space: nowrap;
 }
 
@@ -1069,17 +1131,21 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-width: 1.15rem;
-    height: 1.15rem;
-    padding: 0 0.3rem;
+    min-width: 1.25rem;
+    height: 1.25rem;
+    padding: 0 0.35rem;
     border-radius: 999px;
     background: #059669;
     color: #fff;
-    font-size: 0.65rem;
+    font-size: 0.7rem;
+    font-weight: 800;
 }
 
 .stp-lite-svc-header-total-amt {
     font-variant-numeric: tabular-nums;
+    font-size: 0.92rem;
+    font-weight: 800;
+    letter-spacing: -0.01em;
 }
 
 .stp-lite-currency-pill { flex-shrink: 0; }
@@ -1276,6 +1342,91 @@
     padding: 0.45rem 0.7rem;
     background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
     border-bottom: 1px solid #e8eef5;
+}
+
+.stp-lite-hotel-adhoc-card {
+    height: 100%;
+    background: #fff;
+    border: 1px solid #bfdbfe;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    display: flex;
+    flex-direction: column;
+}
+
+.stp-lite-hotel-adhoc-card__head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.4rem;
+    padding: 0.45rem 0.65rem;
+    background: linear-gradient(180deg, #eff6ff 0%, #e0f2fe 100%);
+    border-bottom: 1px solid #dbeafe;
+}
+
+.stp-lite-hotel-adhoc-card__title {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #1e3a5f;
+}
+
+.stp-lite-hotel-adhoc-card__title i {
+    color: #0f766e;
+    font-size: 0.95rem;
+}
+
+.stp-lite-hotel-adhoc-card__head small {
+    font-size: 0.62rem;
+    font-weight: 600;
+}
+
+.stp-lite-hotel-adhoc-card__body {
+    padding: 0.55rem 0.65rem 0.65rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    flex: 1 1 auto;
+    justify-content: center;
+}
+
+.stp-lite-hotel-adhoc-row {
+    display: flex;
+    align-items: stretch;
+    gap: 0.4rem;
+    width: 100%;
+}
+
+.stp-lite-hotel-adhoc-row .hotel-adhoc-toggle-wrap {
+    flex: 1 1 50%;
+    max-width: 50%;
+    min-width: 0;
+}
+
+.stp-lite-hotel-adhoc-row.is-on .hotel-adhoc-toggle-wrap {
+    flex: 0 0 calc(50% - 0.2rem);
+    max-width: calc(50% - 0.2rem);
+}
+
+.stp-lite-hotel-adhoc-row .hotel-adhoc-price-wrap {
+    flex: 1 1 50%;
+    min-width: 0;
+    display: flex;
+    align-items: stretch;
+}
+
+.stp-lite-hotel-adhoc-card .hotel-adhoc-price {
+    height: 100%;
+    min-height: 2.35rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+}
+
+.stp-lite-hotel-adhoc-card .stp-lite-child-chip__face {
+    width: 100%;
 }
 
 .stp-lite-occ-card__title {
@@ -1594,6 +1745,10 @@
         border-left: 0;
         padding-top: 0.25rem;
         border-top: 1px dashed #cbd5e1;
+    }
+    .hotel-occ-adhoc-row > [class*="col-"] {
+        flex: 0 0 100%;
+        max-width: 100%;
     }
 }
 
