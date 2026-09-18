@@ -813,9 +813,10 @@
 
                         <!-- Status -->
                         <div class="form-check form-switch">
-                            <label for="guide_status" class="form-label"><strong>Status</strong><span style="color: red; font-weight: bold;">*</span></label>
+                            <label for="guide_status" class="form-label"><strong>Status</strong></label>
+                            {{-- Hidden 0 + optional checkbox: unchecked = inactive. Do NOT use required (blocks inactive save). --}}
                             <input type="hidden" name="guide_status" value="0">
-                            <input {{$guide->is_active == 1 ? 'checked' : ''}} class="form-check-input" name="guide_status" type="checkbox" id="guide_status" value="1" required>
+                            <input {{$guide->is_active == 1 ? 'checked' : ''}} class="form-check-input" name="guide_status" type="checkbox" id="guide_status" value="1">
                             <label class="form-check-label"></label>
                         </div>
                     </div>
