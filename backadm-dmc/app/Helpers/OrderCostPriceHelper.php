@@ -4,8 +4,10 @@ namespace App\Helpers;
 
 use App\Models\Bed;
 use App\Models\Guide;
+use App\Models\Hotel;
 use App\Models\Meal;
 use App\Models\Order;
+use App\Models\Rate;
 use App\Models\Room;
 use App\Models\Ticket;
 use Carbon\Carbon;
@@ -73,7 +75,9 @@ class OrderCostPriceHelper
         }
 
         $source = 'payload';
-        if (in_array('database', $sources, true) && in_array('payload', $sources, true)) {
+        if (in_array('view_details', $sources, true)) {
+            $source = 'view_details';
+        } elseif (in_array('database', $sources, true) && in_array('payload', $sources, true)) {
             $source = 'mixed';
         } elseif (in_array('database', $sources, true)) {
             $source = 'database';
@@ -140,9 +144,29 @@ class OrderCostPriceHelper
         $source = 'payload';
         $nights = self::resolveNights($item);
         $dates = self::resolveStayDates($item);
+        $hotelUniqueId = self::resolveHotelUniqueId($item);
+        $dmcId = $item['priceModeId'] ?? $item['dmc_id'] ?? $item['priceMode_id'] ?? null;
+        $weekendDays = self::resolveWeekendDays($hotelUniqueId);
 
         $rooms = is_array($item['rooms'] ?? null) ? $item['rooms'] : [];
-        foreach ($rooms as $roomRow) {
+
+        // Prefer View-details snapshot from Pro create/edit (exact season/fair/blackout costs).
+        $snapshot = is_array($item['lodging_cost_snapshot'] ?? null) ? $item['lodging_cost_snapshot'] : null;
+        if ($snapshot && ! empty($snapshot['components']) && is_array($snapshot['components'])) {
+            foreach ($snapshot['components'] as $component) {
+                if (! is_array($component)) {
+                    continue;
+                }
+                $components[] = $component;
+            }
+            $components = self::normalizeLodgingSnapshotComponents($components, $item, $nights);
+            $source = (string) ($snapshot['source'] ?? 'view_details');
+            if ($source === '' || $source === 'payload') {
+                $source = 'view_details';
+            }
+        } else {
+            // Fallback: rebuild from room + rates tables
+            foreach ($rooms as $roomRow) {
             if (! is_array($roomRow)) {
                 continue;
             }
@@ -152,38 +176,77 @@ class OrderCostPriceHelper
             $beds = is_array($roomRow['beds'] ?? null) ? $roomRow['beds'] : [];
             $headCount = 2;
             $bedId = null;
+            $maxOccupancy = 2;
             if (! empty($beds[0]) && is_array($beds[0])) {
                 $headCount = max(1, (int) ($beds[0]['head_count'] ?? $beds[0]['max_occupancy'] ?? 2));
+                $maxOccupancy = max(1, (int) ($beds[0]['max_occupancy'] ?? $headCount));
                 $bedId = $beds[0]['bed_id'] ?? null;
             }
 
-            $useDouble = $headCount >= 2;
+            // Same single/double rule as sell: max guests 1 → single, else double.
+            $useDouble = min(2, $maxOccupancy) > 1 || $headCount >= 2;
             $room = $roomId > 0 ? Room::query()->where('room_id', $roomId)->first() : null;
 
             $roomCostTotal = 0.0;
             $perNightCosts = [];
+            $mealNightUnits = [
+                'breakfast' => [],
+                'lunch' => [],
+                'dinner' => [],
+            ];
+
             if ($room) {
                 $source = 'database';
                 if (! empty($dates)) {
                     foreach ($dates as $date) {
-                        $nightCost = self::roomNightCost($room, $date, $useDouble);
+                        $night = self::roomNightCostDetail(
+                            $room,
+                            $date,
+                            $useDouble,
+                            $hotelUniqueId,
+                            $dmcId,
+                            $weekendDays
+                        );
                         $perNightCosts[] = [
                             'date' => $date->toDateString(),
-                            'cost' => $nightCost,
-                            'occupancy' => $useDouble ? 'double' : 'single',
-                            'day_type' => self::isWeekend($date) ? 'weekend' : 'weekday',
+                            'cost' => $night['cost'],
+                            'occupancy' => $night['occupancy'],
+                            'day_type' => $night['day_type'],
+                            'event_type' => $night['event_type'],
+                            'source' => $night['source'],
+                            'surcharge_cost' => $night['surcharge_cost'],
                         ];
-                        $roomCostTotal += $nightCost * $numberOfRooms;
+                        $roomCostTotal += $night['cost'] * $numberOfRooms;
+
+                        $rate = $night['rate'];
+                        foreach (['breakfast', 'lunch', 'dinner'] as $mealKey) {
+                            $mealNightUnits[$mealKey][] = self::mealUnitCostForNight($room, $rate, $mealKey);
+                        }
                     }
                 } else {
                     $fallbackDate = Carbon::today();
-                    $nightCost = self::roomNightCost($room, $fallbackDate, $useDouble);
-                    $roomCostTotal = $nightCost * $numberOfRooms * max(1, $nights);
+                    $night = self::roomNightCostDetail(
+                        $room,
+                        $fallbackDate,
+                        $useDouble,
+                        $hotelUniqueId,
+                        $dmcId,
+                        $weekendDays
+                    );
+                    $roomCostTotal = $night['cost'] * $numberOfRooms * max(1, $nights);
                     $perNightCosts[] = [
                         'nights' => max(1, $nights),
-                        'cost_per_night' => $nightCost,
-                        'occupancy' => $useDouble ? 'double' : 'single',
+                        'cost_per_night' => $night['cost'],
+                        'occupancy' => $night['occupancy'],
+                        'day_type' => $night['day_type'],
+                        'event_type' => $night['event_type'],
+                        'source' => $night['source'],
+                        'surcharge_cost' => $night['surcharge_cost'],
                     ];
+                    foreach (['breakfast', 'lunch', 'dinner'] as $mealKey) {
+                        $unit = self::mealUnitCostForNight($room, $night['rate'], $mealKey);
+                        $mealNightUnits[$mealKey] = array_fill(0, max(1, $nights), $unit);
+                    }
                 }
             } else {
                 // Fallback: payload room/bed sell is not cost — try explicit cost fields.
@@ -211,12 +274,13 @@ class OrderCostPriceHelper
                         'number_of_rooms' => $numberOfRooms,
                         'nights' => max(1, $nights),
                         'head_count' => $headCount,
+                        'max_occupancy' => $maxOccupancy,
                         'per_night' => $perNightCosts,
                     ],
                 ];
             }
 
-            // Meals from room catalog cost prices × head_count × nights × rooms
+            // Meals: rate-aware unit cost × head_count × rooms (same selection as sell meal plan)
             if ($room) {
                 $selectedMealLabels = [];
                 foreach ($beds as $bed) {
@@ -251,37 +315,62 @@ class OrderCostPriceHelper
                         }
                     }
                     if (! $matched && empty($selectedMealLabels) && (int) ($room->{$mealKey} ?? 0) === 1) {
-                        // included meal flags alone are not enough without selection
                         continue;
                     }
                     if (! $matched) {
                         continue;
                     }
 
-                    $unit = (float) ($room->{$mealKey . '_cost_price'} ?? 0);
-                    if ($unit <= 0) {
+                    $units = $mealNightUnits[$mealKey] ?? [];
+                    if (empty($units)) {
+                        $fallbackUnit = self::pickPositive(
+                            $room->{$mealKey . '_cost_price'} ?? null,
+                            $room->{$mealKey . '_price'} ?? 0
+                        );
+                        $units = array_fill(0, max(1, $nights), $fallbackUnit);
+                    }
+
+                    $mealTotal = 0.0;
+                    $unitSum = 0.0;
+                    foreach ($units as $unit) {
+                        $unitSum += (float) $unit;
+                        $mealTotal += (float) $unit * $headCount * $numberOfRooms;
+                    }
+                    $avgUnit = count($units) > 0 ? $unitSum / count($units) : 0.0;
+                    if ($mealTotal <= 0) {
                         continue;
                     }
-                    $mealTotal = $unit * $headCount * max(1, $nights) * $numberOfRooms;
                     $components[] = [
                         'key' => 'meal_' . $mealKey,
                         'label' => ucfirst($mealKey),
                         'cost' => round($mealTotal, 2),
                         'meta' => [
-                            'unit_cost' => $unit,
+                            'unit_cost' => round($avgUnit, 2),
                             'head_count' => $headCount,
                             'nights' => max(1, $nights),
                             'number_of_rooms' => $numberOfRooms,
+                            'per_night_unit_cost' => array_map(static fn ($u) => round((float) $u, 2), $units),
                         ],
                     ];
                     $source = 'database';
                 }
             }
         }
+        } // end snapshot else
 
-        // Extra bed
+        $hasComponentKey = static function (array $components, string $key): bool {
+            foreach ($components as $c) {
+                if (is_array($c) && ($c['key'] ?? null) === $key) {
+                    return true;
+                }
+            }
+
+            return false;
+        };
+
+        // Extra bed (skip if lodging_cost_snapshot already included it)
         $extraBed = is_array($item['extra_bed'] ?? null) ? $item['extra_bed'] : null;
-        if ($extraBed && ! empty($extraBed['enabled'])) {
+        if ($extraBed && ! empty($extraBed['enabled']) && ! $hasComponentKey($components, 'extra_bed')) {
             $qty = max(0, (int) ($extraBed['quantity'] ?? 0));
             $unitCost = 0.0;
             $bedCostSource = 'payload';
@@ -331,11 +420,14 @@ class OrderCostPriceHelper
 
         // Child with / without bed from room catalog costs when available
         foreach (['child_with_bed' => 'child_with_bed_cost', 'child_without_bed' => 'child_without_bed_cost'] as $payloadKey => $roomColumn) {
+            if ($hasComponentKey($components, $payloadKey)) {
+                continue;
+            }
             $block = is_array($item[$payloadKey] ?? null) ? $item[$payloadKey] : null;
             if (! $block || empty($block['enabled'])) {
                 continue;
             }
-            $children = max(0, (int) ($block['children'] ?? 0));
+            $children = max(0, (int) ($block['quantity'] ?? $block['children'] ?? 0));
             if ($children <= 0) {
                 continue;
             }
@@ -363,7 +455,7 @@ class OrderCostPriceHelper
                     'label' => $payloadKey === 'child_with_bed' ? 'Child With Bed' : 'Child Without Bed',
                     'cost' => round($total, 2),
                     'meta' => [
-                        'children' => $children,
+                        'quantity' => $children,
                         'unit_cost' => $unit,
                         'nights' => max(1, $nights),
                         'source' => $blockSource,
@@ -860,29 +952,187 @@ class OrderCostPriceHelper
         ];
     }
 
-    private static function roomNightCost(Room $room, Carbon $date, bool $useDouble): float
+    private static function pickPositive($preferred, $fallback): float
     {
-        $weekend = self::isWeekend($date);
-        if ($useDouble) {
-            $cost = $weekend
-                ? (float) ($room->double_weekend_cost_price ?? 0)
-                : (float) ($room->double_weekday_cost_price ?? 0);
-            if ($cost > 0) {
-                return $cost;
+        $preferred = floatval($preferred ?? 0);
+        if ($preferred > 0) {
+            return $preferred;
+        }
+
+        return floatval($fallback ?? 0);
+    }
+
+    private static function resolveHotelUniqueId(array $item): ?string
+    {
+        $id = $item['hotelDetails']['hotel_id']
+            ?? $item['hotelDetails']['hotel_unique_id']
+            ?? $item['hotel_unique_id']
+            ?? $item['hotelId']
+            ?? null;
+
+        if ($id === null || $id === '') {
+            return null;
+        }
+
+        return (string) $id;
+    }
+
+    private static function resolveWeekendDays(?string $hotelUniqueId): array
+    {
+        $default = ['Saturday', 'Sunday'];
+        if (! $hotelUniqueId) {
+            return $default;
+        }
+
+        $hotel = Hotel::query()->where('hotel_unique_id', $hotelUniqueId)->first();
+        if (! $hotel || empty($hotel->weekend_days)) {
+            return $default;
+        }
+
+        $decoded = is_string($hotel->weekend_days)
+            ? json_decode($hotel->weekend_days, true)
+            : $hotel->weekend_days;
+
+        return (is_array($decoded) && ! empty($decoded)) ? $decoded : $default;
+    }
+
+    private static function applicableRate(?string $hotelUniqueId, Carbon $date, $dmcId = null): ?Rate
+    {
+        if (! $hotelUniqueId) {
+            return null;
+        }
+
+        $dateString = $date->toDateString();
+        $query = Rate::query()
+            ->where('hotel_id', $hotelUniqueId)
+            ->where('is_active', 1)
+            ->whereDate('start_date', '<=', $dateString)
+            ->whereDate('end_date', '>=', $dateString);
+
+        if (! empty($dmcId)) {
+            // Pro calendar loads all hotel rates (no hard DMC-only filter). Prefer matching DMC when set.
+            $dmcId = (int) $dmcId;
+        }
+
+        // Match EnquiryFormPro getHotelsByDestination: all active rates for hotel (Blackout > Fair > Season).
+        return $query->orderByRaw("
+                CASE
+                    WHEN event_type = 'Blackout Date' THEN 1
+                    WHEN event_type = 'Fair Date' THEN 2
+                    WHEN event_type = 'Season' THEN 3
+                    ELSE 4
+                END
+            ")->first();
+    }
+
+    /**
+     * Room night cost with Season / Fair / Blackout awareness (mirrors sell logic on cost columns).
+     *
+     * @return array{cost: float, occupancy: string, day_type: string, event_type: ?string, source: string, surcharge_cost: float, rate: ?Rate}
+     */
+    private static function roomNightCostDetail(
+        Room $room,
+        Carbon $date,
+        bool $useDouble,
+        ?string $hotelUniqueId,
+        $dmcId,
+        array $weekendDays
+    ): array {
+        $weekend = self::isWeekend($date, $weekendDays);
+        $costSingle = self::pickPositive(
+            $weekend ? ($room->weekend_cost_price ?? null) : ($room->weekday_cost_price ?? null),
+            $weekend ? ($room->weekend_price ?? 0) : ($room->weekday_price ?? 0)
+        );
+        $costDouble = self::pickPositive(
+            $weekend ? ($room->double_weekend_cost_price ?? null) : ($room->double_weekday_cost_price ?? null),
+            $weekend ? ($room->double_weekend_price ?? 0) : ($room->double_weekday_price ?? 0)
+        );
+        $base = $useDouble ? ($costDouble > 0 ? $costDouble : $costSingle) : $costSingle;
+        $eventType = null;
+        $source = 'room';
+        $surchargeCost = 0.0;
+        $rate = self::applicableRate($hotelUniqueId, $date, $dmcId);
+
+        if ($rate) {
+            $eventType = $rate->event_type;
+            $source = 'rate';
+            if ($eventType === 'Blackout Date') {
+                $base = self::pickPositive($rate->price_cost ?? null, $base);
+            } elseif ($eventType === 'Fair Date') {
+                $surchargeCost = self::pickPositive($rate->price_cost ?? null, $rate->price ?? 0);
+                $base = $base + $surchargeCost;
+            } elseif ($eventType === 'Season') {
+                if ($useDouble) {
+                    $season = self::pickPositive(
+                        $weekend ? ($rate->double_weekend_cost_price ?? null) : ($rate->double_weekday_cost_price ?? null),
+                        $weekend ? ($rate->double_weekend_price ?? null) : ($rate->double_weekday_price ?? null)
+                    );
+                    if ($season <= 0) {
+                        $season = self::pickPositive(
+                            $weekend ? ($rate->weekend_cost_price ?? null) : ($rate->weekday_cost_price ?? null),
+                            $weekend ? ($rate->weekend_price ?? null) : ($rate->weekday_price ?? null)
+                        );
+                    }
+                } else {
+                    $season = self::pickPositive(
+                        $weekend ? ($rate->weekend_cost_price ?? null) : ($rate->weekday_cost_price ?? null),
+                        $weekend ? ($rate->weekend_price ?? null) : ($rate->weekday_price ?? null)
+                    );
+                }
+                if ($season > 0) {
+                    $base = $season;
+                }
             }
         }
 
-        $cost = $weekend
-            ? (float) ($room->weekend_cost_price ?? 0)
-            : (float) ($room->weekday_cost_price ?? 0);
-
-        return max(0, $cost);
+        return [
+            'cost' => round(max(0, $base), 2),
+            'occupancy' => $useDouble ? 'double' : 'single',
+            'day_type' => $weekend ? 'weekend' : 'weekday',
+            'event_type' => $eventType,
+            'source' => $source,
+            'surcharge_cost' => round($surchargeCost, 2),
+            'rate' => $rate,
+        ];
     }
 
-    private static function isWeekend(Carbon $date): bool
+    private static function mealUnitCostForNight(Room $room, ?Rate $rate, string $mealKey): float
     {
-        // Carbon: 6 = Saturday, 0 = Sunday
-        return in_array((int) $date->dayOfWeek, [0, 6], true);
+        $roomCost = $room->{$mealKey . '_cost_price'} ?? null;
+        $roomSell = $room->{$mealKey . '_price'} ?? 0;
+        $fallback = self::pickPositive($roomCost, $roomSell);
+        if (! $rate) {
+            return $fallback;
+        }
+
+        $rateCost = floatval($rate->{$mealKey . '_cost_price'} ?? 0);
+        $rateSell = floatval($rate->{$mealKey . '_price'} ?? 0);
+
+        // Prefer rate cost when set; else rate sell; else room cost/sell.
+        if ($rateCost > 0) {
+            return $rateCost;
+        }
+        if ($rateSell > 0) {
+            return $rateSell;
+        }
+
+        return $fallback;
+    }
+
+    private static function roomNightCost(Room $room, Carbon $date, bool $useDouble): float
+    {
+        $detail = self::roomNightCostDetail($room, $date, $useDouble, null, null, ['Saturday', 'Sunday']);
+
+        return (float) $detail['cost'];
+    }
+
+    private static function isWeekend(Carbon $date, array $weekendDays = ['Saturday', 'Sunday']): bool
+    {
+        if (empty($weekendDays)) {
+            $weekendDays = ['Saturday', 'Sunday'];
+        }
+
+        return in_array($date->format('l'), $weekendDays, true);
     }
 
     /**
@@ -939,5 +1189,127 @@ class OrderCostPriceHelper
         }
 
         return 0.0;
+    }
+
+    /**
+     * Fix snapshot quirks: room × number_of_rooms, addon COST (not sell), meta.quantity (not children).
+     */
+    private static function normalizeLodgingSnapshotComponents(array $components, array $item, int $nights): array
+    {
+        $rooms = is_array($item['rooms'] ?? null) ? $item['rooms'] : [];
+        $roomId = (int) (($rooms[0]['room_id'] ?? 0));
+        $numberOfRooms = max(1, (int) (($rooms[0]['number_of_rooms'] ?? 1)));
+        $bedId = null;
+        if (! empty($rooms[0]['beds'][0]['bed_id'])) {
+            $bedId = $rooms[0]['beds'][0]['bed_id'];
+        }
+
+        $roomModel = null;
+        if ($roomId > 0) {
+            $roomModel = Room::query()->where('room_id', $roomId)->first();
+        }
+
+        foreach ($components as &$component) {
+            if (! is_array($component)) {
+                continue;
+            }
+            $key = (string) ($component['key'] ?? '');
+            $meta = is_array($component['meta'] ?? null) ? $component['meta'] : [];
+
+            if ($key === 'room') {
+                $nr = max(1, (int) ($meta['number_of_rooms'] ?? $numberOfRooms));
+                $perNight = is_array($meta['per_night'] ?? null) ? $meta['per_night'] : [];
+                $alreadyScaled = ! empty($meta['rooms_applied']);
+                if ($nr > 1 && ! $alreadyScaled && ! empty($perNight)) {
+                    $sumUnit = 0.0;
+                    foreach ($perNight as $night) {
+                        $sumUnit += (float) ($night['cost'] ?? 0);
+                    }
+                    $roomCost = (float) ($component['cost'] ?? 0);
+                    // per_night still per-room unit while component.cost already × rooms
+                    $looksUnscaled = $sumUnit > 0 && abs($roomCost - ($sumUnit * $nr)) < max(1.0, $nr * 0.5);
+                    // or both still unscaled
+                    $bothUnscaled = $sumUnit > 0 && abs($roomCost - $sumUnit) < 0.02;
+                    if ($looksUnscaled || $bothUnscaled) {
+                        $scaledNights = [];
+                        $scaledTotal = 0.0;
+                        foreach ($perNight as $night) {
+                            if (! is_array($night)) {
+                                continue;
+                            }
+                            $row = $night;
+                            foreach (['cost', 'room_cost_with_surcharge', 'surcharge_cost'] as $field) {
+                                if (isset($row[$field]) && is_numeric($row[$field])) {
+                                    $row[$field] = round(((float) $row[$field]) * $nr, 2);
+                                }
+                            }
+                            $mealTotal = (float) ($row['meal_cost_total'] ?? 0);
+                            $extra = (float) ($row['extra_bed_cost'] ?? 0);
+                            $cwb = (float) ($row['child_with_bed_cost'] ?? 0);
+                            $cnb = (float) ($row['child_without_bed_cost'] ?? 0);
+                            $row['night_cost_total'] = round(
+                                (float) ($row['room_cost_with_surcharge'] ?? $row['cost'] ?? 0)
+                                + $mealTotal + $extra + $cwb + $cnb,
+                                2
+                            );
+                            $scaledNights[] = $row;
+                            $scaledTotal += (float) ($row['cost'] ?? 0);
+                        }
+                        $meta['per_night'] = $scaledNights;
+                        $meta['number_of_rooms'] = $nr;
+                        $meta['rooms_applied'] = true;
+                        $meta['note'] = 'per_night.cost / room_cost_with_surcharge already × number_of_rooms; night_cost_total = room + meals + add-ons';
+                        if ($bothUnscaled) {
+                            $component['cost'] = round($scaledTotal, 2);
+                        }
+                        $component['meta'] = $meta;
+                    }
+                } else {
+                    $meta['rooms_applied'] = true;
+                    $component['meta'] = $meta;
+                }
+                continue;
+            }
+
+            if ($key === 'extra_bed') {
+                $qty = max(0, (int) ($meta['quantity'] ?? $meta['children'] ?? 0));
+                $unit = 0.0;
+                if ($bedId && Schema::hasColumn('beds', 'extra_bed_cost_price')) {
+                    $bed = Bed::query()->where('bed_id', $bedId)->first();
+                    if ($bed && is_numeric($bed->extra_bed_cost_price ?? null)) {
+                        $unit = (float) $bed->extra_bed_cost_price;
+                    }
+                }
+                $nightCount = max(1, (int) ($meta['nights'] ?? $nights));
+                $component['cost'] = round($unit * $qty * $nightCount, 2);
+                $component['meta'] = [
+                    'quantity' => $qty,
+                    'unit_cost' => $unit,
+                    'nights' => $nightCount,
+                    'source' => $unit > 0 ? 'database' : 'view_details',
+                ];
+                continue;
+            }
+
+            if ($key === 'child_with_bed' || $key === 'child_without_bed') {
+                $qty = max(0, (int) ($meta['quantity'] ?? $meta['children'] ?? 0));
+                $column = $key === 'child_with_bed' ? 'child_with_bed_cost' : 'child_without_bed_cost';
+                $unit = 0.0;
+                if ($roomModel && Schema::hasColumn('rooms', $column) && is_numeric($roomModel->{$column} ?? null)) {
+                    $unit = (float) $roomModel->{$column};
+                }
+                $nightCount = max(1, (int) ($meta['nights'] ?? $nights));
+                $component['cost'] = round($unit * $qty * $nightCount, 2);
+                $component['meta'] = [
+                    'quantity' => $qty,
+                    'unit_cost' => $unit,
+                    'nights' => $nightCount,
+                    'source' => $unit > 0 ? 'database' : 'view_details',
+                ];
+            }
+        }
+        unset($component);
+
+        return $components;
     }
 }

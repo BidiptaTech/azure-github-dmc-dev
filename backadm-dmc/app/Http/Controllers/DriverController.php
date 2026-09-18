@@ -57,7 +57,52 @@ class DriverController extends Controller
     }
 
     /**
-     * Master DMC country list (comma-separated on users.country).
+     * DMC base country names from users.country (not master DMC countries).
+     */
+    private function getDmcBaseCountryNames(?int $dmcId): array
+    {
+        if (!$dmcId) {
+            return [];
+        }
+
+        $dmcUser = User::where('userId', $dmcId)->first();
+        if (!$dmcUser || empty($dmcUser->country)) {
+            return [];
+        }
+
+        return array_values(array_filter(array_map(
+            static fn ($c) => trim($c),
+            preg_split('/\s*,\s*/', (string) $dmcUser->country)
+        )));
+    }
+
+    private function getDmcBaseCountriesCollection(?int $dmcId)
+    {
+        $names = $this->getDmcBaseCountryNames($dmcId);
+        if (empty($names)) {
+            return collect();
+        }
+
+        $matched = Country::where('is_active', 1)
+            ->where(function ($q) use ($names) {
+                foreach ($names as $name) {
+                    $q->orWhereRaw('LOWER(TRIM(name)) = ?', [mb_strtolower(trim($name))]);
+                }
+            })
+            ->orderBy('name')
+            ->get();
+
+        if ($matched->isNotEmpty()) {
+            return $matched;
+        }
+
+        return collect($names)->map(static function ($name) {
+            return (object) ['id' => null, 'name' => $name];
+        });
+    }
+
+    /**
+     * Master DMC country list (comma-separated on users.country). Kept for other uses.
      */
     private function getMasterDmcCountryNamesForDmc(int $dmcId): array
     {
@@ -94,27 +139,20 @@ class DriverController extends Controller
             )));
         }
 
-        if (!empty($dmcUser->country)) {
-            return array_values(array_filter(array_map(
-                static fn ($c) => trim($c),
-                preg_split('/\s*,\s*/', (string) $dmcUser->country)
-            )));
-        }
-
-        return [];
+        return $this->getDmcBaseCountryNames($dmcId);
     }
 
     /**
-     * Countries available for driver forms: master-DMC scoped for DMC users, all active for admins.
+     * Countries available for driver forms: DMC base country from users.country.
      */
     private function getScopedCountriesForUser(User $user, ?int $dmcId = null)
     {
         $dmcId = $dmcId ?: $this->resolveDmcIdForUser($user);
-        $masterNames = $dmcId ? $this->getMasterDmcCountryNamesForDmc($dmcId) : [];
+        $baseNames = $this->getDmcBaseCountryNames($dmcId);
 
         $query = Country::where('is_active', 1)->orderBy('name');
-        if (!empty($masterNames) && !in_array((int) $user->role_id, [1, 2, 3, 20, 23], true)) {
-            $query->whereIn('name', $masterNames);
+        if (!empty($baseNames) && !in_array((int) $user->role_id, [1, 2, 3, 20, 23], true)) {
+            $query->whereIn('name', $baseNames);
         }
 
         return $query->get();
@@ -403,21 +441,22 @@ class DriverController extends Controller
             $dmcs = User::where('role_id', 11)->get();
         }
 
-        if (in_array($authuser->role_id, [11, 35, 76, 111, 130, 132, 133, 135, 136, 137, 138, 139, 140])) {
+        if (in_array($authuser->role_id, [11, 20, 35, 76, 111, 130, 132, 133, 135, 136, 137, 138, 139, 140])) {
             $dmcId = $this->resolveDmcIdForUser($authuser);
-            $masterNames = $dmcId ? $this->getMasterDmcCountryNamesForDmc($dmcId) : [];
-            $userCountry = $masterNames[0] ?? '';
+            $dmcBaseCountries = $this->getDmcBaseCountriesCollection($dmcId);
+            $userCountry = old('country', $dmcBaseCountries->count() === 1 ? ($dmcBaseCountries->first()->name ?? '') : '');
             $cities = $userCountry ? City::where('country', $userCountry)->orderBy('name')->get() : collect();
         } else {
-            $userCountry = '';
-            $cities = collect();
+            // Admin/agent: country list filled after DMC is selected (users.country of that DMC).
+            $dmcBaseCountries = collect();
+            $userCountry = old('country', '');
+            $cities = $userCountry ? City::where('country', $userCountry)->orderBy('name')->get() : collect();
         }
 
-        $masterDmcCountries = $this->getScopedCountriesForUser($authuser);
-        // Prefer master-scoped list for the country dropdown
-        $country = $masterDmcCountries->isNotEmpty() ? $masterDmcCountries : $country;
+        $masterDmcCountries = $dmcBaseCountries;
+        $country = $dmcBaseCountries->isNotEmpty() ? $dmcBaseCountries : collect();
 
-        return view('drivers.add-drivers', compact('countries', 'vehicles', 'driverUsers', 'dmcs', 'country', 'userCountry', 'cities', 'masterDmcCountries'));
+        return view('drivers.add-drivers', compact('countries', 'vehicles', 'driverUsers', 'dmcs', 'country', 'userCountry', 'cities', 'masterDmcCountries', 'dmcBaseCountries'));
     }
 
     public function getUserDetails($id)
@@ -667,18 +706,24 @@ class DriverController extends Controller
         $vehicles = Vehicle::all();
         $driver = Driver::where('driver_id',$driverId)->first();
         $countries = OperationalCountry::all();
-        $dmcId = $driver->dmc_id ? (int) $driver->dmc_id : $this->resolveDmcIdForUser($authuser = auth()->user());
-        $masterDmcCountries = $this->getScopedCountriesForUser(auth()->user(), $dmcId);
-        $country = $masterDmcCountries->isNotEmpty()
-            ? $masterDmcCountries
-            : Country::where('is_active', 1)->orderBy('name')->get();
+        $authuser = auth()->user();
+        $dmcId = $driver->dmc_id ? (int) $driver->dmc_id : $this->resolveDmcIdForUser($authuser);
+        $dmcBaseCountries = $this->getDmcBaseCountriesCollection($dmcId);
+        $masterDmcCountries = $dmcBaseCountries;
+        $country = $dmcBaseCountries;
         $selectedCountry = old('country', $driver->country);
+        if ($dmcBaseCountries->count() === 1 && !filled(old('country'))) {
+            $selectedCountry = $dmcBaseCountries->first()->name;
+        } elseif (filled($selectedCountry) && $dmcBaseCountries->isNotEmpty()
+            && !$dmcBaseCountries->contains(fn ($c) => strcasecmp(trim((string) $c->name), trim((string) $selectedCountry)) === 0)
+            && $dmcBaseCountries->count() === 1) {
+            $selectedCountry = $dmcBaseCountries->first()->name;
+        }
         $city = $selectedCountry
             ? City::where('country', $selectedCountry)->orderBy('name')->get()
             : collect();
         $dmc = User::where('userId', $driver->dmc_id)->first();
 
-        $authuser = auth()->user();
         if($authuser->role_id == 4){
             $dmcs = User::where('role_id', 11)->where('country', $authuser->country)->get();
         }elseif($authuser->role_id == 3){
@@ -687,7 +732,7 @@ class DriverController extends Controller
             $dmcs = User::where('role_id', 11)->get();
         }
 
-        return view('drivers.edit-drivers', compact('driver', 'countries', 'driverUsers', 'vehicles', 'country', 'city','dmcs', 'dmc', 'masterDmcCountries', 'selectedCountry'));
+        return view('drivers.edit-drivers', compact('driver', 'countries', 'driverUsers', 'vehicles', 'country', 'city','dmcs', 'dmc', 'masterDmcCountries', 'dmcBaseCountries', 'selectedCountry'));
     }
     /*
     * Update the specified role.

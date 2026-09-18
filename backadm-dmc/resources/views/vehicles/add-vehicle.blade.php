@@ -244,12 +244,15 @@
                                 <div class="text-danger mt-1">{{ $message }}</div>
                                 @enderror
                             </div> --}}
-                            <!-- Country (Master DMC countries) -->
+                            <!-- Country (DMC base country from users.country) -->
                             <div class="col-md-3 mb-3">
                                 <label for="country" class="form-label"><strong><i class="ri-map-pin-line"></i> Country</strong><span class="text-danger">*</span></label>
                                 @php
-                                    $scopedCountries = $countries ?? collect();
+                                    $scopedCountries = collect($dmcBaseCountries ?? $countries ?? []);
                                     $vehicleSelectedCountry = old('country', $selectedCountry ?? '');
+                                    if ($vehicleSelectedCountry === '' && $scopedCountries->count() === 1) {
+                                        $vehicleSelectedCountry = $scopedCountries->first()->name ?? '';
+                                    }
                                 @endphp
                                 <select name="country" id="country" class="form-control" required>
                                     @if($scopedCountries->count() !== 1)
@@ -1082,7 +1085,7 @@ function updateMoreBadge() {
 <script>
     $(document).ready(function () {
         const dmcId = "{{ $resolvedDmcId ?? '' }}";
-        const masterCountryNames = @json($masterDmcCountryNames ?? []);
+        const masterCountryNames = @json($dmcBaseCountryNames ?? $masterDmcCountryNames ?? []);
 
         function populateCountryOptions(countries, selectedCountry) {
             var $country = $('#country');
@@ -1091,10 +1094,16 @@ function updateMoreBadge() {
                 $country.append('<option value="">Select Country</option>');
             }
             $.each(countries || [], function (i, name) {
-                var selected = (name === selectedCountry) ? 'selected' : '';
+                var selected = (name === selectedCountry || (!selectedCountry && countries.length === 1)) ? 'selected' : '';
                 $country.append('<option value="' + name + '" ' + selected + '>' + name + '</option>');
             });
-            $country.trigger('change.select2');
+            if (countries && countries.length === 1) {
+                $country.val(countries[0]).trigger('change');
+            } else if (selectedCountry) {
+                $country.val(selectedCountry).trigger('change');
+            } else {
+                $country.val('').trigger('change.select2');
+            }
         }
 
         function loadCitiesByCountry(countryName) {
@@ -1151,7 +1160,6 @@ function updateMoreBadge() {
                     var countries = response.countries || (response.country ? [response.country] : []);
                     var selected = response.country || (countries[0] || '');
                     populateCountryOptions(countries, selected);
-                    loadCitiesByCountry(selected);
                 }
             });
         }
@@ -1174,11 +1182,7 @@ function updateMoreBadge() {
             } else {
                 $('#city_name').html('<option value="">Select Country First</option>').trigger('change');
                 $('#driver').html('<option value="">Select a DMC first</option>').trigger('change');
-                if (masterCountryNames.length) {
-                    populateCountryOptions(masterCountryNames, '');
-                } else {
-                    $('#country').val('').trigger('change');
-                }
+                $('#country').empty().append('<option value="">Select Country</option>').val('').trigger('change.select2');
             }
         });
 
