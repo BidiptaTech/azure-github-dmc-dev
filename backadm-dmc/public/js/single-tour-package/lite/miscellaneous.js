@@ -603,6 +603,9 @@
 
             var removeBtn = e.target.closest('.miscellaneous-remove');
             if (removeBtn) {
+                if (!(window.StpLiteTransportShared && window.StpLiteTransportShared.confirmRemoveService
+                    ? window.StpLiteTransportShared.confirmRemoveService()
+                    : window.confirm('Are you sure you want to remove this service?'))) return;
                 var rows = readChunk(root);
                 rows.splice(parseInt(removeBtn.getAttribute('data-idx'), 10) || 0, 1);
                 writeChunk(root, rows);

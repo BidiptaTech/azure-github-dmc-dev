@@ -232,7 +232,12 @@
 
     /* ---------- Input sanitize ---------- */
     function bindSanitize() {
+        if (window.StpLiteInputSanitize && typeof window.StpLiteInputSanitize.bind === 'function') {
+            window.StpLiteInputSanitize.bind(document);
+            return;
+        }
         var SPECIAL = /[<>"'`\\;$%^*=\[\]{}|~]/g;
+        var NAME_STRIP = /[^a-zA-Z\s'.-]/g;
         document.addEventListener('keydown', function (e) {
             var el = e.target;
             if (!el || el.tagName !== 'INPUT') return;
@@ -245,11 +250,30 @@
             if (!el) return;
             if (el.tagName === 'INPUT' && (el.type === 'number' || el.getAttribute('inputmode') === 'numeric')) {
                 var cleaned = String(el.value || '').replace(/[^\d.]/g, '');
-                // integers: no decimal if step is 1 or missing for guest counts
                 if (el.step === '1' || el.classList.contains('stp-lite-int')) {
                     cleaned = cleaned.replace(/\./g, '');
                 }
                 if (el.value !== cleaned) el.value = cleaned;
+                return;
+            }
+            var isName = el.dataset && el.dataset.sanitize === 'name'
+                || (el.classList && el.classList.contains('stp-lite-guest-name'))
+                || el.id === 'customerFullName';
+            if (isName && el.tagName === 'INPUT') {
+                var nameNext = String(el.value || '').replace(NAME_STRIP, '');
+                if (el.value !== nameNext) el.value = nameNext;
+                return;
+            }
+            var isPhone = el.dataset && el.dataset.sanitize === 'phone'
+                || (el.classList && el.classList.contains('stp-lite-guest-phone'))
+                || el.id === 'customerPhone'
+                || /additional_guests\[\d+]\[contact_no]$/.test(String(el.getAttribute('name') || ''));
+            if (isPhone && el.tagName === 'INPUT') {
+                var phoneNext = String(el.value || '').replace(/[^\d]/g, '');
+                if (el.value !== phoneNext) el.value = phoneNext;
+                return;
+            }
+            if (el.type === 'email' || (el.dataset && el.dataset.sanitize === 'email')) {
                 return;
             }
             if ((el.tagName === 'INPUT' && el.type === 'text') || el.tagName === 'TEXTAREA') {

@@ -1425,6 +1425,10 @@
         return { total: total, unit: car, mode: type, base: car };
     }
 
+    function confirmRemoveService() {
+        return window.confirm('Are you sure you want to remove this service?');
+    }
+
     window.StpLiteTransportShared = {
         cfg: cfg,
         esc: esc,
@@ -1462,6 +1466,7 @@
         refreshTransferCostDisplay: refreshTransferCostDisplay,
         collectTransferOptions: collectTransferOptions,
         hourPriceFromGuide: hourPriceFromGuide,
+        confirmRemoveService: confirmRemoveService,
         isNightTime: isNightTime,
         calcInlineGuidePrice: calcInlineGuidePrice,
         collectGuideOptions: collectGuideOptions,
