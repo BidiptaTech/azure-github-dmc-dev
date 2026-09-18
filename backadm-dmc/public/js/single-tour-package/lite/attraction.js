@@ -73,14 +73,7 @@
 
     function writeChunk(root, rows) {
         var T = S();
-        rows = (rows || []).map(function (r) {
-            if (!r || typeof r !== 'object') return r;
-            var display = typeof T.serviceRowDisplayTotal === 'function' ? T.serviceRowDisplayTotal(r) : Number(r.totalPrice || 0);
-            if (display > Number(r.totalPrice || 0)) {
-                r = Object.assign({}, r, { totalPrice: display, grand_total: display });
-            }
-            return r;
-        });
+        // Persist ticket-only totals; header/list compose ticket+xfer+guide via serviceRowDisplayTotal
         var el = root.querySelector('.attraction_data_chunk');
         if (el) el.value = JSON.stringify(rows || []);
         T.syncHiddenJson('attraction_data', '.attraction_data_chunk');
@@ -239,12 +232,10 @@
         var xferGuests = g.adults + g.seniors;
         var transferOptions = T.collectTransferOptions(root, PREFIX, xferGuests, g.children, g.infants);
         var guideOptions = T.collectGuideOptions(root, PREFIX);
-        var xferCost = transferOptions ? (Number(transferOptions.cost) || 0) : 0;
-        var guideCost = guideOptions ? (Number(guideOptions.total_price) || 0) : 0;
-        // Recompute on Add so total never stays ticket-only when guide/vehicle selected
-        var total = ticketTotal + xferCost + guideCost;
-        if (root.__lastPrice && Number(root.__lastPrice.total) > total) {
-            total = Number(root.__lastPrice.total) || total;
+        // Store ticket-only; transfer/guide costs live in nested options (classic parity)
+        var total = ticketTotal;
+        if (root.__lastPrice && root.__lastPrice.ticketTotal != null) {
+            total = Number(root.__lastPrice.ticketTotal) || total;
         }
         var supplement = T.autoSupplement(g.adults + g.seniors);
         var visitTime = T.readAmPmValue(root, 'attraction');
@@ -342,16 +333,15 @@
         function afterTickets() {
             var ticket = root.querySelector('.attraction-ticket');
             if (ticket && row.ticketId) ticket.value = String(row.ticketId);
+            var ticketOnly = Number(row.totalPrice != null ? row.totalPrice : (row.grand_total || 0)) || 0;
             var displayTotal = typeof T.serviceRowDisplayTotal === 'function'
                 ? T.serviceRowDisplayTotal(row)
-                : (row.totalPrice || 0);
-            // Keep stored row total in sync when classic data was ticket-only
-            if (displayTotal > Number(row.totalPrice || 0)) {
-                row.totalPrice = displayTotal;
-                row.grand_total = displayTotal;
-            }
+                : ticketOnly;
             root.__lastPrice = {
                 total: displayTotal,
+                ticketTotal: ticketOnly,
+                transferTotal: (row.transfer_options && Number(row.transfer_options.cost)) || 0,
+                guideTotal: (row.guide_options && Number(row.guide_options.total_price)) || 0,
                 breakdown: (row.ticket_details
                     ? ((row.adultCount || 0) + '×' + Number((row.ticket_details || {}).adult_price || 0).toFixed(2))
                     : '')

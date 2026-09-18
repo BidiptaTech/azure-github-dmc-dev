@@ -1041,9 +1041,9 @@
 
     /**
      * Display/header total for attraction/restaurant rows.
-     * Classic create often stores ticket/meal-only in totalPrice while guide/transfer
-     * live in nested options — compose them so the top grid matches Get Price.
-     * If totalPrice already includes extras (lite path), keep it (no double-add).
+     * Stored totalPrice is ticket/meal-only; guide + transfer live in nested options.
+     * Compose for UI / package header. Legacy rows that already stored the full
+     * composed total are returned as-is (no double-add).
      */
     function serviceRowDisplayTotal(row) {
         if (!row || typeof row !== 'object') return 0;
@@ -1059,9 +1059,9 @@
         var base = ticketOrMealBaseFromRow(row);
         var composed = (base > 0 ? base : 0) + xfer + guide;
         if (composed <= 0) return stored;
-        // Stored already includes extras
+        // Legacy: totalPrice already included extras
         if (stored + 0.009 >= composed) return stored;
-        // Stored is ticket/meal-only (or missing extras) — use composed for top grid
+        // Ticket/meal-only stored — compose for display / package total
         if (base > 0 && Math.abs(stored - base) < 0.02) return composed;
         if (stored < composed) return composed;
         return stored;
