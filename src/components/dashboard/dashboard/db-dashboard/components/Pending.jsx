@@ -3827,12 +3827,12 @@ export default function Pending({ filters = {} }) {
         )}
 
         {/* Show Update if not already in first 3 buttons and status doesn't start with "Cancel" */}
-        {/* {selectedListItem && !selectedListItem.tour_status?.toLowerCase().startsWith("cancel") && (
+        {selectedListItem && !selectedListItem.tour_status?.toLowerCase().startsWith("cancel") && (
           <MenuItem onClick={() => handleMenuAction('update')} sx={{ fontSize: "14px", py: 1 }}>
             <Update sx={{ fontSize: "10px", mr: 1, color: "#f57c00" }} />
             Update Tour Plan
           </MenuItem>
-        )} */}
+        )}
 
 
         {/* Always show Delete in menu */}
