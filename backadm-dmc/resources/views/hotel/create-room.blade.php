@@ -721,9 +721,7 @@
                                placeholder="{{ $defaultProfitType === 'percentage' ? 'Enter profit percentage' : 'Enter profit amount' }}">
                         <small class="text-muted js-room-profit-amount-hint">{{ $defaultProfitType === 'percentage' ? 'Sell = cost + (cost × percentage / 100)' : 'Sell = cost + flat profit amount' }}</small>
                     </div>
-                </div>
 
-                <div class="mb-3 row room-child-pricing-row g-2">
                     <!-- Children Price -->
                     <div class="col mb-3">
                         <label for="children_price" class="form-label"><strong>Meal Children
@@ -734,24 +732,6 @@
                             <option value="1">Half Price</option>
                             <option value="2">Full Price</option>
                         </select>
-                    </div>
-                    <!-- Child with bed: Cost then Sell -->
-                    <div class="col mb-3">
-                        <label for="child_with_bed_cost" class="form-label"><strong>Child with Bed Price(Cost)</strong></label>
-                        <input type="number" name="child_with_bed_cost" id="child_with_bed_cost" class="form-control js-room-cost" data-sell-target="child_with_bed" placeholder="Enter Cost Price" min="0" step="0.01">
-                    </div>
-                    <div class="col mb-3">
-                        <label for="child_with_bed" class="form-label"><strong>Child with Bed Price(Sell)</strong></label>
-                        <input type="number" name="child_with_bed" id="child_with_bed" class="form-control js-room-sell" placeholder="Enter Sell Price" min="0" step="0.01">
-                    </div>
-                    <!-- Child without bed: Cost then Sell -->
-                    <div class="col mb-3">
-                        <label for="child_without_bed_cost" class="form-label"><strong>Child without Bed Price(Cost)</strong></label>
-                        <input type="number" name="child_without_bed_cost" id="child_without_bed_cost" class="form-control js-room-cost" data-sell-target="child_without_bed" placeholder="Enter Cost Price" min="0" step="0.01">
-                    </div>
-                    <div class="col mb-3">
-                        <label for="child_without_bed" class="form-label"><strong>Child without Bed Price(Sell)</strong></label>
-                        <input type="number" name="child_without_bed" id="child_without_bed" class="form-control js-room-sell" placeholder="Enter Sell Price" min="0" step="0.01">
                     </div>
                 </div>
 
