@@ -452,9 +452,11 @@
     }
 
     function countryOptionsHtml(selected) {
-        let html = '<option value="">Select country</option>';
+        const onlyOne = MISC_COUNTRIES.length === 1;
+        const effective = selected || (onlyOne ? MISC_COUNTRIES[0] : '');
+        let html = onlyOne ? '' : '<option value="">Select country</option>';
         MISC_COUNTRIES.forEach(function (c) {
-            html += `<option value="${escapeHtml(c)}" ${c === selected ? 'selected' : ''}>${escapeHtml(c)}</option>`;
+            html += `<option value="${escapeHtml(c)}" ${c === effective ? 'selected' : ''}>${escapeHtml(c)}</option>`;
         });
         return html;
     }
@@ -474,7 +476,7 @@
 
     function buildLocationRowHtml(itemId, locIndex, loc, readonly) {
         const priceId = loc?.price_id || '';
-        const country = loc?.country || '';
+        const country = loc?.country || (MISC_COUNTRIES.length === 1 ? MISC_COUNTRIES[0] : '');
         const city = loc?.city || '';
         const adultCost = loc?.adult_cost ?? 0;
         const adult = loc?.adult_price ?? 0;

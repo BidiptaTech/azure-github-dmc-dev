@@ -668,7 +668,7 @@
                     <span class="menu-header-text" data-i18n="Product Settings">Product Settings</span>
                 </li>
 
-            <li class="menu-item @if(Request::is('category*') || Request::is('facility*') || Request::is('ports*') || Request::is('single-tour-package*') || Request::is('zones*') || Request::is('miscellaneous*') || Request::is('default-values*') || Request::is('services/*'))  open active @endif">
+            <li class="menu-item @if(Request::is('category*') || Request::is('facility*') || Request::is('ports*') || Request::is('single-tour-package*') || Request::is('zones*') || Request::is('miscellaneous*') || Request::is('default-values*') || Request::is('services/hotels') || Request::is('services/attractions') || Request::is('services/restaurants') || Request::is('services/miscellaneous'))  open active @endif">
                 <a href="#" class="menu-link menu-toggle">
                     <i class="menu-icon tf-icons ri-stack-line" style="color: #3565bd"></i>
                     <div data-i18n="Product Settings">Product Settings</div>
@@ -757,7 +757,7 @@
                         $allowedRoles = [11, 35, 74, 77, 78, 84, 93, 120, 130, 132, 133, 135, 136, 137, 138, 139, 140];
                     @endphp
                     @if(in_array(Auth::user()->role_id, $allowedRoles))
-                        <li class="menu-item @if(Request::is('services/*')) open @endif">
+                        <li class="menu-item @if(Request::is('services/hotels') || Request::is('services/attractions') || Request::is('services/restaurants') || Request::is('services/miscellaneous')) open @endif">
                             <a href="javascript:void(0);" class="menu-link menu-toggle" title="Select Products">
                                 <div data-i18n="Select Products">Select Products</div>
                             </a>

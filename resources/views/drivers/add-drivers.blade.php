@@ -184,16 +184,16 @@
                                     @enderror
                                 </div>
                                 
-                                <!-- Country (Master DMC countries) -->
+                                <!-- Country (DMC base country from users.country) -->
                                 <div class="mb-3 col-md-3">
                                     <label for="country" class="form-label"><strong><i class="ri-map-pin-line"></i> Country</strong>
                                         <span style="color: red; font-weight: bold;">*</span>
                                     </label>
                                     @php
-                                        $scopedCountries = $masterDmcCountries ?? $country ?? collect();
+                                        $scopedCountries = collect($dmcBaseCountries ?? $masterDmcCountries ?? $country ?? []);
                                         $preselectedCountry = old('country', $userCountry ?? '');
                                         if ($preselectedCountry === '' && $scopedCountries->count() === 1) {
-                                            $preselectedCountry = $scopedCountries->first()->name;
+                                            $preselectedCountry = $scopedCountries->first()->name ?? '';
                                         }
                                     @endphp
                                     <select name="country" id="country" class="form-control" required onchange="validateDriverAge(document.getElementById('driver_age'))">
@@ -1071,7 +1071,7 @@ $(document).ready(function() {
     var currentCity = @json(old('city', ''));
 
     @php
-        $hasPreloadedCitiesJs = isset($cities) && count($cities) > 0 && !empty($userCountry ?? old('country'));
+        $hasPreloadedCitiesJs = isset($cities) && count($cities) > 0 && filled($preselectedCountry ?? ($userCountry ?? ''));
     @endphp
     $('#citySelect').select2({
         placeholder: "Select Country First",
@@ -1093,10 +1093,18 @@ $(document).ready(function() {
             $country.append('<option value="">Select Country</option>');
         }
         $.each(countries || [], function(i, name) {
-            var selected = (name === selectedCountry) ? 'selected' : '';
+            var selected = (name === selectedCountry || (!selectedCountry && countries.length === 1)) ? 'selected' : '';
             $country.append('<option value="' + name + '" ' + selected + '>' + name + '</option>');
         });
-        $country.trigger('change.select2');
+        if (countries && countries.length === 1) {
+            $country.val(countries[0]).trigger('change');
+        } else if (selectedCountry) {
+            $country.val(selectedCountry).trigger('change');
+        } else {
+            $country.val('').trigger('change.select2');
+            $('#citySelect').prop('disabled', true).empty()
+                .append('<option value="">Select Country First</option>').trigger('change');
+        }
     }
 
     function loadCitiesByCountry(countryName, preserveCity) {
@@ -1148,9 +1156,9 @@ $(document).ready(function() {
                 var countries = response.countries || (response.country ? [response.country] : []);
                 var selected = response.country || (countries[0] || '');
                 populateCountryOptions(countries, selected);
-                loadCitiesByCountry(selected, false);
             },
             error: function() {
+                $('#country').empty().append('<option value="">Select Country</option>').trigger('change.select2');
                 $('#citySelect').prop('disabled', true).empty().append('<option value="">Error loading cities</option>').trigger('change');
             }
         });
@@ -1175,7 +1183,7 @@ $(document).ready(function() {
                 loadCountriesAndCitiesForDmc(selectedDmcId);
             } else {
                 $('#citySelect').prop('disabled', true).empty().append('<option value="">Select Country First</option>').trigger('change');
-                $('#country').val('').trigger('change');
+                $('#country').empty().append('<option value="">Select Country</option>').val('').trigger('change.select2');
             }
         });
     } else {
@@ -1184,8 +1192,11 @@ $(document).ready(function() {
     }
 
     // Initial city load for preselected country
-    var initialCountry = $('#country').val();
+    var initialCountry = $('#country').val() || userCountry;
     if (initialCountry) {
+        if (!$('#country').val()) {
+            $('#country').val(initialCountry).trigger('change.select2');
+        }
         @if(empty(old('city')) && empty($hasPreloadedCitiesJs))
             loadCitiesByCountry(initialCountry, true);
         @else

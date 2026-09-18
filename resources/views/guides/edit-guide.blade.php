@@ -308,14 +308,17 @@
                                 @enderror
                             </div>
                             
-                            <!-- Country (Master DMC countries) -->
+                            <!-- Country (DMC base country from users.country) -->
                             <div class="mb-3 col-md-3">
                                 <label for="country" class="form-label"><strong>Country</strong>
                                     <span style="color: red; font-weight: bold;">*</span>
                                 </label>
                                 @php
-                                    $scopedCountries = collect($masterDmcCountries ?? $country ?? []);
+                                    $scopedCountries = collect($dmcBaseCountries ?? $masterDmcCountries ?? $country ?? []);
                                     $editSelectedCountry = old('country', $selectedCountry ?? $guide->country ?? '');
+                                    if ($editSelectedCountry === '' && $scopedCountries->count() === 1) {
+                                        $editSelectedCountry = $scopedCountries->first()->name ?? '';
+                                    }
                                     // Ensure the guide's saved country is always available in the select.
                                     if (filled($editSelectedCountry) && !$scopedCountries->contains(function ($c) use ($editSelectedCountry) {
                                         return strcasecmp(trim((string) ($c->name ?? '')), trim((string) $editSelectedCountry)) === 0;
