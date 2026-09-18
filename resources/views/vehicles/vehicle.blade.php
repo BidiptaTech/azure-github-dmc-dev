@@ -423,6 +423,13 @@
                         <p class="page-subtitle">Manage vehicles, types, capacity, and availability</p>
                     </div>
                     <div class="toolbar-actions">
+                        
+                    @if(hasPermission('create vehicle'))
+                        <a href="{{ route('vehicle.create') }}" class="btn btn-primary btn-premium">
+                            <i class="fas fa-plus"></i> Add New Vehicle
+                        </a>
+                        @endif
+                        
                         @if(hasPermission('edit vehicle') || hasPermission('view vehicle'))
                         <a href="{{ route('vehicle.hourly_prices.export') }}" class="btn btn-success btn-premium">
                             <i class="fas fa-file-excel"></i> Excel Format
@@ -435,11 +442,6 @@
                         </button>
                         @endif
 
-                        @if(hasPermission('create vehicle'))
-                        <a href="{{ route('vehicle.create') }}" class="btn btn-primary btn-premium">
-                            <i class="fas fa-plus"></i> Add New Vehicle
-                        </a>
-                        @endif
 
                         <div class="dropdown">
                             <button class="btn btn-warning btn-premium dropdown-toggle" type="button" id="exportDropdown"

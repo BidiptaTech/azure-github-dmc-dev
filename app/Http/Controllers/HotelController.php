@@ -2362,8 +2362,8 @@ class HotelController extends Controller
 
         return [
             'max_occupancy' => (int) ($request->input('max_occupancy') ?: max(1, $meta['max_occupancy'])),
-            'adult_count' => $request->input('adult_count'),
-            'child_count' => $request->input('child_count'),
+            'adult_count' => (int) $request->input('adult_count', 0),
+            'child_count' => (int) $request->input('child_count', 0),
         ];
     }
 
