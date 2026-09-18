@@ -436,7 +436,6 @@ class SingleTourPackageController extends Controller
         $vehicleIds = $vehicleMappings->pluck('vehicle_id')->unique()->toArray();
         $vehicles = Vehicle::whereIn('vehicle_id', $vehicleIds)
             ->where('is_available', 1)
-            ->where('is_active', 1)
             ->select('vehicle_id', 'vehicle_name', 'vehicle_type', 'seating_capacity', 
                      'vehicle_model', 'image', 'base_price', 'sharable_base_price', 'service_type')
             ->get();
@@ -529,7 +528,6 @@ class SingleTourPackageController extends Controller
 
         $vehicles = Vehicle::where('dmc_id', $userDmcId)
             ->where('is_available', 1)
-            ->where('is_active', 1)
             ->get();
         $dmc_id = CommonHelper::getDmcId(Auth::user());
 
@@ -4625,7 +4623,6 @@ class SingleTourPackageController extends Controller
                 // and Postgres refuses that comparison without an explicit cast.
                 $dmcVehicleIds = Vehicle::where('dmc_id', $dmcId)
                     ->where('is_available', 1)
-                    ->where('is_active', 1)
                     ->pluck('vehicle_id')
                     ->map(fn ($id) => (string) $id)
                     ->all();
@@ -4739,7 +4736,6 @@ class SingleTourPackageController extends Controller
                     ->where('dmc_id', $dmcId)
                     ->where('city', $city)
                     ->where('is_available', 1)
-                    ->where('is_active', 1)
                     ->get();
                 $vehicles = $vehicles->map(function ($vehicle) {
                     return [
@@ -4909,10 +4905,9 @@ class SingleTourPackageController extends Controller
                 ], 400);
             }
 
-            // Build query for vehicles (available + active only)
+            // Vehicles use is_available as status (not is_active — column is often null)
             $query = Vehicle::where('dmc_id', $dmcId)
                 ->where('is_available', 1)
-                ->where('is_active', 1)
                 ->select('vehicle_id', 'vehicle_name', 'vehicle_type', 'seating_capacity', 'city_tour_seating_capacity', 'vehicle_model', 'image', 'base_price', 'sharable_base_price', 'service_type', 'cost_per_hour', 'sharable_cost_per_hour', 'sharable');
             
             // Only filter by city if not showing all vehicles
