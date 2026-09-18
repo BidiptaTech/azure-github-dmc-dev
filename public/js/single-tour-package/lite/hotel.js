@@ -2481,6 +2481,7 @@
             var removeBtn = e.target.closest('.hotel-remove-added');
             if (removeBtn && root.contains(removeBtn)) {
                 e.preventDefault();
+                if (!window.confirm('Are you sure you want to remove this service?')) return;
                 removeAddedHotel(root, parseInt(removeBtn.getAttribute('data-idx'), 10) || 0);
                 return;
             }

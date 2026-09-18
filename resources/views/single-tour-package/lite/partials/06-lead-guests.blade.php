@@ -25,11 +25,11 @@
                     </div>
                     <div class="col-md-3">
                         <label class="stp-lite-label">Full Name</label>
-                        <input type="text" class="form-control form-control-sm" id="customerFullName" name="customer_full_name" placeholder="Enter full name">
+                        <input type="text" class="form-control form-control-sm stp-lite-guest-name" id="customerFullName" name="customer_full_name" placeholder="Enter full name" data-sanitize="name" autocomplete="name" pattern="[A-Za-z]+([ '\-.][A-Za-z]+)*" title="Letters only (spaces, hyphen, apostrophe allowed)">
                     </div>
                     <div class="col-md-3">
                         <label class="stp-lite-label">Email</label>
-                        <input type="email" class="form-control form-control-sm" id="customerEmail" name="customer_email" placeholder="Enter email">
+                        <input type="email" class="form-control form-control-sm" id="customerEmail" name="customer_email" placeholder="name@example.com" data-sanitize="email" autocomplete="email" pattern="[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}" title="Enter a valid email address">
                     </div>
                     <div class="col-md-2">
                         <label class="stp-lite-label">Country Code</label>
@@ -51,7 +51,7 @@
                     </div>
                     <div class="col-md-2">
                         <label class="stp-lite-label">Phone Number</label>
-                        <input type="text" class="form-control form-control-sm" id="customerPhone" name="customer_phone" placeholder="Phone">
+                        <input type="text" class="form-control form-control-sm stp-lite-guest-phone" id="customerPhone" name="customer_phone" placeholder="Phone" data-sanitize="phone" inputmode="numeric" pattern="[0-9]{6,15}" title="Digits only" autocomplete="tel">
                     </div>
                     <div class="col-md-3">
                         <label class="stp-lite-label">Address Line 1</label>

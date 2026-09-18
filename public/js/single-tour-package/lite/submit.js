@@ -531,6 +531,12 @@
         if (!segmentsWithServices.length && !anyMerged) {
             throw new Error('Please add at least one service before saving.');
         }
+        if (window.StpLiteGuests && typeof window.StpLiteGuests.validateGuestFields === 'function') {
+            var guestCheck = window.StpLiteGuests.validateGuestFields();
+            if (guestCheck && guestCheck.ok === false) {
+                throw new Error(guestCheck.message || 'Please fix guest name / email.');
+            }
+        }
         return { country: country, cityCsv: cityCsv };
     }
 
