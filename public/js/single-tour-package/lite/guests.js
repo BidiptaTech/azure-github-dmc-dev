@@ -50,13 +50,13 @@
             '          <option value="">Select</option><option value="Mr">Mr</option><option value="Mrs">Mrs</option>' +
             '          <option value="Ms">Ms</option><option value="Miss">Miss</option><option value="Dr">Dr</option></select></div>' +
             '      <div class="col-md-3"><label class="stp-lite-label">Name</label>' +
-            '        <input type="text" class="form-control form-control-sm" name="additional_guests[' + guestIndex + '][name]" placeholder="Full name"></div>' +
+            '        <input type="text" class="form-control form-control-sm stp-lite-guest-name" name="additional_guests[' + guestIndex + '][name]" placeholder="Full name" data-sanitize="name" pattern="[A-Za-z]+([ \'\\-.][A-Za-z]+)*" title="Letters only"></div>' +
             '      <div class="col-md-3"><label class="stp-lite-label">Passport No.</label>' +
             '        <input type="text" class="form-control form-control-sm" name="additional_guests[' + guestIndex + '][passport_no]" placeholder="Passport"></div>' +
             '      <div class="col-md-2"><label class="stp-lite-label">Passport Expiry</label>' +
             '        <input type="date" class="form-control form-control-sm" name="additional_guests[' + guestIndex + '][passport_exp]"></div>' +
             '      <div class="col-md-2"><label class="stp-lite-label">Contact No.</label>' +
-            '        <input type="text" class="form-control form-control-sm" name="additional_guests[' + guestIndex + '][contact_no]" placeholder="Contact"></div>' +
+            '        <input type="text" class="form-control form-control-sm stp-lite-guest-phone" name="additional_guests[' + guestIndex + '][contact_no]" placeholder="Contact" data-sanitize="phone" inputmode="numeric" pattern="[0-9]{6,15}" title="Digits only"></div>' +
             '    </div>' +
             '  </div>' +
             '</div>'
@@ -236,6 +236,69 @@
         updateGuestLimitInfo();
     }
 
+    function validateGuestFields() {
+        var San = window.StpLiteInputSanitize || {};
+        var nameOk = typeof San.isValidName === 'function' ? San.isValidName : function () { return true; };
+        var emailOk = typeof San.isValidEmail === 'function' ? San.isValidEmail : function () { return true; };
+        var phoneOk = typeof San.isValidPhone === 'function' ? San.isValidPhone : function () { return true; };
+        var validateNameEl = typeof San.validateNameField === 'function' ? San.validateNameField : null;
+        var validateEmailEl = typeof San.validateEmailField === 'function' ? San.validateEmailField : null;
+        var validatePhoneEl = typeof San.validatePhoneField === 'function' ? San.validatePhoneField : null;
+
+        var nameEl = document.getElementById('customerFullName');
+        var emailEl = document.getElementById('customerEmail');
+        var phoneEl = document.getElementById('customerPhone');
+        var fullName = ((nameEl && nameEl.value) || '').trim();
+        var email = ((emailEl && emailEl.value) || '').trim();
+        var phone = ((phoneEl && phoneEl.value) || '').trim();
+
+        if (validateNameEl) validateNameEl(nameEl);
+        if (validateEmailEl) validateEmailEl(emailEl);
+        if (validatePhoneEl) validatePhoneEl(phoneEl);
+
+        if (fullName && !nameOk(fullName)) {
+            if (nameEl) {
+                try { nameEl.focus(); } catch (e) { /* ignore */ }
+            }
+            return { ok: false, message: 'Lead guest name: letters only (no numbers or special characters).' };
+        }
+        if (email && !emailOk(email)) {
+            if (emailEl) {
+                try { emailEl.focus(); } catch (e2) { /* ignore */ }
+            }
+            return { ok: false, message: 'Lead guest email must be valid (e.g. name@example.com).' };
+        }
+        if (phone && !phoneOk(phone)) {
+            if (phoneEl) {
+                try { phoneEl.focus(); } catch (ePhone) { /* ignore */ }
+            }
+            return { ok: false, message: 'Lead guest phone: digits only (6–15 numbers).' };
+        }
+
+        var guestCards = document.querySelectorAll('.guest-card');
+        for (var i = 0; i < guestCards.length; i += 1) {
+            var nameInput = guestCards[i].querySelector('input[name*="[name]"]');
+            var contactInput = guestCards[i].querySelector('input[name*="[contact_no]"]');
+            if (nameInput) {
+                if (validateNameEl) validateNameEl(nameInput);
+                var gName = String(nameInput.value || '').trim();
+                if (gName && !nameOk(gName)) {
+                    try { nameInput.focus(); } catch (e3) { /* ignore */ }
+                    return { ok: false, message: 'Additional guest name: letters only (no numbers or special characters).' };
+                }
+            }
+            if (contactInput) {
+                if (validatePhoneEl) validatePhoneEl(contactInput);
+                var gContact = String(contactInput.value || '').trim();
+                if (gContact && !phoneOk(gContact)) {
+                    try { contactInput.focus(); } catch (e4) { /* ignore */ }
+                    return { ok: false, message: 'Additional guest contact: digits only (6–15 numbers).' };
+                }
+            }
+        }
+        return { ok: true };
+    }
+
     window.StpLiteGuests = {
         init: init,
         hydrate: hydrate,
@@ -243,7 +306,8 @@
         collectAdditionalGuests: collectAdditionalGuests,
         getCustomerDataForServices: getCustomerDataForServices,
         updateGuestLimitInfo: updateGuestLimitInfo,
-        addAdditionalGuest: addAdditionalGuest
+        addAdditionalGuest: addAdditionalGuest,
+        validateGuestFields: validateGuestFields
     };
 
     // Backup global aliases used by inline handlers if any remain

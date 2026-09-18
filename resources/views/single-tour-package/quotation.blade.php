@@ -1903,8 +1903,12 @@
                 );
             }
 
+            // TOTAL COST = city line items + supplements (exclude city_total rows — those are display subtotals only)
             $overallLinesSubtotal = 0.0;
             foreach ($overallPackageRows as $r) {
+                if (($r['row_kind'] ?? 'normal') === 'city_total') {
+                    continue;
+                }
                 $overallLinesSubtotal += (float) ($r['total'] ?? 0);
             }
 
