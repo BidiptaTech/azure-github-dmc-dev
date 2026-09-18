@@ -3586,6 +3586,28 @@ class TourController extends Controller
             $formattedData[$type] = array_merge(...$orderData);
         }
 
+        $cityWiseDates = [];
+        if (!empty($tour->city) && is_string($tour->city)) {
+            // Supports:
+            // Singapore [2026-10-11→2026-10-16], Batam [2026-10-18→2026-10-22]
+            // Batam (Indonesia) [2026-09-19→2026-09-21], Singapore (Singapore) [2026-09-22→2026-09-28]
+            if (preg_match_all(
+                '/([^,\[]+?)\s*(?:\([^)]*\))?\s*\[(\d{4}-\d{2}-\d{2})\s*(?:→|->)\s*(\d{4}-\d{2}-\d{2})\]/u',
+                $tour->city,
+                $matches,
+                PREG_SET_ORDER
+            )) {
+                foreach ($matches as $match) {
+                    $cityName = trim(preg_replace('/\s*\([^)]*\)\s*$/', '', trim($match[1])));
+                    $cityWiseDates[] = [
+                        'city' => $cityName,
+                        'checkIn' => Carbon::parse($match[2])->format('d/m/Y'),
+                        'checkOut' => Carbon::parse($match[3])->format('d/m/Y'),
+                    ];
+                }
+            }
+        }
+
         // ✅ Add tour block at the top level, without affecting existing keys
         $formattedData['tour'] = [
             'tour_id' => $tour->tour_id,
@@ -3603,6 +3625,7 @@ class TourController extends Controller
             'total_pax' => $tour->adult + $tour->child,
             'checkin_date' => $tour->check_in_time,
             'checkout_date' => $tour->check_out_time,
+            'cityWiseDates' => $cityWiseDates,
             'price_hide' => $price_hide
         ];
 
