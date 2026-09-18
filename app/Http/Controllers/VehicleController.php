@@ -565,13 +565,13 @@ class VehicleController extends Controller
 
         // For DMC-scoped roles, always show the same driver set as the DMC.
         if ($effectiveDmcId && in_array($roleId, [11, 20, 35, 130, 132, 133, 135, 136, 137, 138, 76, 139, 111, 140], true)) {
-            $drivers = Driver::where('status', 1)
+            $drivers = Driver::where('is_active', 1)
                 ->where('dmc_id', $effectiveDmcId)
                 ->orderByDesc('updated_at')
                 ->get();
         } else {
             // Admins or other roles: keep existing behavior based on selected DMC
-            $drivers = Driver::where('status', 1)
+            $drivers = Driver::where('is_active', 1)
                 ->where('dmc_id', $dmc_id)
                 ->orderByDesc('updated_at')
                 ->get();
