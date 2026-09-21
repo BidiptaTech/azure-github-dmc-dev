@@ -148,7 +148,10 @@ use Illuminate\Support\Facades\Crypt;
     @php
         $previewMultiGeo = $invoiceMultiGeo ?? \App\Helpers\CommonHelper::detectInvoiceMultiGeo($invoice);
         $previewIsThirdParty = $isThirdPartyInvoice ?? \App\Helpers\CommonHelper::isInvoiceThirdPartyEnabled($invoice);
-        $showPreviewMultiGeoNotice = !empty($previewMultiGeo['is_multi']) && empty($previewIsThirdParty);
+        $previewRestricted = $restrictedTpScope ?? \App\Helpers\CommonHelper::applyRestrictedThirdPartyInvoiceItemFilter($invoice);
+        $showPreviewMultiGeoNotice = !empty($previewMultiGeo['is_multi'])
+            && empty($previewIsThirdParty)
+            && empty($previewRestricted['restricted']);
     @endphp
     @if($showPreviewMultiGeoNotice)
     <div class="row mb-3">

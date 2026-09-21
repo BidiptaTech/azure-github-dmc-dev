@@ -405,8 +405,29 @@
     background: #fff;
 }
 
-.stp-lite-country-section .stp-lite-country-body {
-    overflow: visible;
+.stp-lite-country-section.is-tp-blocked .stp-lite-country-body {
+    pointer-events: none;
+    opacity: 0.58;
+}
+
+.stp-lite-tp-lock-note {
+    width: 100%;
+    margin-top: 0.45rem;
+    font-size: 0.75rem;
+    color: #92400e;
+    background: #fff7ed;
+    border: 1px solid #fed7aa;
+    border-radius: 6px;
+    padding: 0.35rem 0.55rem;
+}
+
+#segmentsWrapper .segment.is-tp-blocked {
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+.stp-lite-toggle.country-mode.is-thirdparty-disabled {
+    opacity: 0.85;
 }
 
 .stp-lite-country-section[data-tint="0"] {
@@ -2170,3 +2191,196 @@
 }
 
 /* === END lite.css === */
+
+/* Pricing by city (hotel / other markup) */
+.stp-lite-pricing-by-city .enquiry-md-panel {
+    background: #ffffff;
+    border: 1px solid #d7dde5;
+    border-radius: 8px;
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+    overflow: hidden;
+    max-width: 100%;
+}
+.stp-lite-pricing-by-city .enquiry-md-panel__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 0.55rem 0.85rem;
+    background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+    border-bottom: 1px solid #e2e8f0;
+    cursor: pointer;
+    user-select: none;
+}
+.stp-lite-pricing-by-city .enquiry-md-panel.is-collapsed .enquiry-md-panel__head { border-bottom: none; }
+.stp-lite-pricing-by-city .enquiry-md-panel.is-collapsed .enquiry-md-panel__body { display: none; }
+.stp-lite-pricing-by-city .enquiry-md-panel.is-collapsed .enquiry-md-panel__chevron { transform: rotate(-90deg); }
+.stp-lite-pricing-by-city .enquiry-md-panel__head-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+.stp-lite-pricing-by-city .enquiry-md-panel__chevron {
+    color: #64748b;
+    font-size: 12px;
+    transition: transform 0.18s ease;
+}
+.stp-lite-pricing-by-city .enquiry-md-panel__title {
+    margin: 0;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: #1e293b;
+    text-transform: uppercase;
+}
+.stp-lite-pricing-by-city .enquiry-md-panel__hint {
+    margin: 0;
+    font-size: 0.7rem;
+    color: #64748b;
+}
+.stp-lite-pricing-by-city .enquiry-md-panel__count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 9px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: #334155;
+    background: #e2e8f0;
+}
+.stp-lite-pricing-by-city .enquiry-md-table-wrap { overflow-x: auto; }
+.stp-lite-pricing-by-city .enquiry-md-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.78rem;
+}
+.stp-lite-pricing-by-city .enquiry-md-table th,
+.stp-lite-pricing-by-city .enquiry-md-table td {
+    padding: 0.45rem 0.5rem;
+    border-bottom: 1px solid #eef2f7;
+    vertical-align: middle;
+}
+.stp-lite-pricing-by-city .enquiry-md-table th {
+    text-align: left;
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: #64748b;
+    background: #fafbfc;
+}
+.stp-lite-pricing-by-city .enquiry-md-th-markup { color: #15803d; }
+.stp-lite-pricing-by-city .enquiry-md-th-discount { color: #b91c1c; }
+.stp-lite-pricing-by-city .enquiry-md-city__name {
+    display: block;
+    font-weight: 650;
+    color: #0f172a;
+}
+.stp-lite-pricing-by-city .enquiry-md-city__meta {
+    display: block;
+    font-size: 0.68rem;
+    color: #94a3b8;
+}
+.stp-lite-pricing-by-city .enquiry-md-control {
+    width: 100%;
+    min-width: 0;
+    height: 32px;
+    padding: 0.2rem 0.4rem;
+    border: 1px solid #d7dee8;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    background: #fff;
+}
+.stp-lite-pricing-by-city .enquiry-md-control:disabled {
+    background: #f1f5f9;
+    color: #94a3b8;
+}
+.stp-lite-pricing-by-city .enquiry-md-control.is-service-locked,
+.stp-lite-pricing-by-city .enquiry-md-control[readonly] {
+    background: #f1f5f9;
+    color: #94a3b8;
+    cursor: not-allowed;
+}
+.stp-lite-pricing-by-city .enquiry-md-markup-input {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.stp-lite-pricing-by-city .enquiry-md-markup-input .enquiry-md-control { flex: 1; }
+.stp-lite-pricing-by-city .city-markup-suffix {
+    flex-shrink: 0;
+    font-size: 0.68rem;
+    font-weight: 650;
+    color: #64748b;
+    min-width: 1.6rem;
+}
+
+/* Full-page save / update loader */
+.stp-lite-save-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    align-items: center;
+    justify-content: center;
+    background: rgba(15, 23, 42, 0.45);
+    backdrop-filter: blur(2px);
+}
+.stp-lite-save-overlay.is-on {
+    display: flex;
+}
+.stp-lite-save-overlay__card {
+    min-width: 220px;
+    max-width: 360px;
+    padding: 1.25rem 1.5rem;
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: 0 12px 40px rgba(15, 23, 42, 0.22);
+    text-align: center;
+}
+.stp-lite-save-overlay__spinner {
+    width: 2.25rem;
+    height: 2.25rem;
+    margin-bottom: 0.75rem;
+}
+.stp-lite-save-overlay__title {
+    margin: 0 0 0.25rem;
+    font-size: 1rem;
+    font-weight: 650;
+    color: #0f172a;
+}
+.stp-lite-save-overlay__msg {
+    margin: 0;
+    font-size: 0.85rem;
+    color: #64748b;
+    line-height: 1.35;
+}
+body.stp-lite-saving {
+    overflow: hidden;
+}
+#stpLiteSaveBtnLoader.is-on {
+    display: inline-flex;
+}
+
+/* Bundle attraction option icon (Select2) */
+.stp-lite-bundle-opt {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.stp-lite-bundle-opt__icon {
+    width: 18px;
+    height: 18px;
+    vertical-align: middle;
+    flex-shrink: 0;
+}
+.select2-results__option .stp-lite-bundle-opt__icon,
+.select2-selection__rendered .stp-lite-bundle-opt__icon {
+    width: 18px;
+    height: 18px;
+    margin-right: 4px;
+}

@@ -7,11 +7,15 @@
     $liteThirdParty = !empty($isThirdPartyDmc)
         ? true
         : (strtolower(trim((string) (optional($UserDmc ?? null)->thirdparty ?? 'no'))) === 'yes');
+    $liteRestricted = !empty($isRestrictedThirdParty);
+    $liteOwnCountries = array_values($ownDmcCountries ?? []);
 @endphp
 <script>
 window.STP_LITE_CONFIG = Object.assign({}, window.STP_LITE_CONFIG || {}, {
     dmcGroupPax: @json($liteGroupPax),
     isThirdPartyDmc: @json($liteThirdParty),
+    isRestrictedThirdParty: @json($liteRestricted),
+    ownDmcCountries: @json($liteOwnCountries),
     dmcCurrency: @json($dmcCurrency ?? (optional($UserDmc ?? null)->currency ?? 'SGD')),
     zoneOn: @json((int) (optional($UserDmc ?? null)->zone_on ?? 0))
 });

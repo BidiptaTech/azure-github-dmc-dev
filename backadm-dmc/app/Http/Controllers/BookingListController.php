@@ -1702,6 +1702,35 @@ class BookingListController extends Controller
         });
         }])->where('tour_id', $tourId)->first();
 
+        $currentUser = auth()->user();
+        $tpScope = CommonHelper::resolveServiceCountryViewScope($currentUser);
+        if (empty($tpScope['restricted']) && $tourDetails) {
+            $tpScope = CommonHelper::resolveServiceCountryViewScopeForDmc((int) ($tourDetails->dmc_id ?? 0));
+        }
+        $tourCountriesForScope = CommonHelper::parseTourDestinationCountries($tourDetails->destination ?? null);
+        $cityCountryMapForScope = $this->buildCityCountryMap();
+
+        // Restricted 3rd-party DMC: hide other-country services (controller + relation used by the blade)
+        if (!empty($tpScope['restricted'])) {
+            $bookings = CommonHelper::filterOrdersByServiceCountryScope(
+                $bookings,
+                $tpScope,
+                $tourCountriesForScope,
+                $cityCountryMapForScope
+            );
+            if ($tourDetails && $tourDetails->relationLoaded('booking')) {
+                $tourDetails->setRelation(
+                    'booking',
+                    CommonHelper::filterOrdersByServiceCountryScope(
+                        $tourDetails->booking,
+                        $tpScope,
+                        $tourCountriesForScope,
+                        $cityCountryMapForScope
+                    )
+                );
+            }
+        }
+
         // Initialize itineraryByDate as empty array
         $itineraryByDate = [];
         
@@ -1861,6 +1890,7 @@ class BookingListController extends Controller
             'tourCountries' => $tourCountries,
             'isMultiCountry' => $isMultiCountry,
             'cityCountryMap' => $cityCountryMap,
+            'serviceCountryScope' => $tpScope ?? ['restricted' => false, 'countries' => []],
         ]);
     }
 
@@ -2271,6 +2301,22 @@ class BookingListController extends Controller
             ->where('status', 1)
             ->get();
 
+        // Restricted 3rd-party DMC: only this DMC's country hotels/services
+        $tpScope = CommonHelper::resolveServiceCountryViewScope(auth()->user());
+        if (empty($tpScope['restricted'])) {
+            $tpScope = CommonHelper::resolveServiceCountryViewScopeForDmc((int) ($tour->dmc_id ?? 0));
+        }
+        $tourCountriesForScope = CommonHelper::parseTourDestinationCountries($tour->destination ?? null);
+        $cityCountryMapForScope = !empty($tpScope['restricted']) ? $this->buildCityCountryMap() : [];
+        if (!empty($tpScope['restricted'])) {
+            $hotelOrders = CommonHelper::filterOrdersByServiceCountryScope(
+                $hotelOrders,
+                $tpScope,
+                $tourCountriesForScope,
+                $cityCountryMapForScope
+            );
+        }
+
         foreach ($hotelOrders as $order) {
             $data = is_string($order->data) ? json_decode($order->data, true) : $order->data;
             if (!is_array($data)) {
@@ -2448,6 +2494,15 @@ class BookingListController extends Controller
             ->whereNull('deleted_at')
             ->orderBy('booking_id')
             ->get();
+
+        if (!empty($tpScope['restricted'])) {
+            $serviceOrders = CommonHelper::filterOrdersByServiceCountryScope(
+                $serviceOrders,
+                $tpScope,
+                $tourCountriesForScope,
+                $cityCountryMapForScope
+            );
+        }
 
         foreach ($serviceOrders as $order) {
             $decodedData = is_string($order->data) ? json_decode($order->data, true) : $order->data;
@@ -2634,6 +2689,21 @@ class BookingListController extends Controller
             $isMultiCountry = false;
         } else {
             $bookings = $this->formatBookings($bookings);
+
+            // Restricted 3rd-party DMC: hide other-country services on itinerary PDF
+            $tpScope = CommonHelper::resolveServiceCountryViewScope(auth()->user());
+            if (empty($tpScope['restricted'])) {
+                $tpScope = CommonHelper::resolveServiceCountryViewScopeForDmc((int) ($tourDetails->dmc_id ?? 0));
+            }
+            if (!empty($tpScope['restricted'])) {
+                $bookings = CommonHelper::filterOrdersByServiceCountryScope(
+                    $bookings,
+                    $tpScope,
+                    CommonHelper::parseTourDestinationCountries($tourDetails->destination ?? null),
+                    $this->buildCityCountryMap()
+                );
+            }
+
             $itineraryByDate = [];
             foreach ($bookings as $booking) {
                 $data = $booking->data_decoded;
@@ -3006,6 +3076,13 @@ class BookingListController extends Controller
             $thirdPartyEnabled = strtolower((string) ($operatingDmcUser->thirdparty_enabled ?? 'no')) === 'yes';
             if ($isThirdParty && !$thirdPartyEnabled) {
                 $isMultiCountry = false;
+                // Also shrink destination country list to this DMC's own countries
+                $ownScope = CommonHelper::resolveServiceCountryViewScopeForDmc($operatingDmcUser);
+                if (!empty($ownScope['restricted']) && !empty($ownScope['countries'])) {
+                    $tourCountries = array_values(array_filter($tourCountries, function ($country) use ($ownScope) {
+                        return CommonHelper::isServiceCountryAllowed((string) $country, $ownScope);
+                    }));
+                }
             }
         }
 

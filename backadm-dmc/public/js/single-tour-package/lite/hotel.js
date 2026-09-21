@@ -224,7 +224,7 @@
             '            <div class="hotel-adhoc-price-wrap d-none">' +
             '              <input type="text" inputmode="decimal" autocomplete="off"' +
             '                class="form-control form-control-sm hotel-adhoc-price"' +
-            '                placeholder="Room / night" value="" title="Manual Room rate (per night)">' +
+            '                placeholder="Rate / night" value="" title="Manual Room rate (per night)">' +
             '            </div>' +
             '          </div>' +
             '        </div>' +
