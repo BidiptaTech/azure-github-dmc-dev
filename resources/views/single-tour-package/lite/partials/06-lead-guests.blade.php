@@ -110,6 +110,8 @@
         </div>
     </div>
 
+    @include('single-tour-package.lite.partials.07-pricing-by-city')
+
     <div class="d-flex justify-content-end align-items-center gap-2 mt-3 mb-4 flex-wrap">
         <small class="text-muted me-auto" id="stpLiteSaveHint">
             @if(!empty($tour) && !empty($tour->tour_id))
@@ -118,6 +120,10 @@
                 Save creates the tour then stores services (same JSON as backup).
             @endif
         </small>
+        <span class="stp-lite-loader" id="stpLiteSaveBtnLoader" aria-hidden="true">
+            <span class="spinner-border spinner-border-sm" role="status"></span>
+            Processing…
+        </span>
         <button type="button" class="btn btn-success" id="stpLiteSaveTourBtn">
             <i class="ri-save-3-line me-1"></i>
             @if(!empty($tour) && !empty($tour->tour_id))
@@ -126,6 +132,14 @@
                 Save Tour Package
             @endif
         </button>
+    </div>
+</div>
+
+<div id="stpLiteSaveOverlay" class="stp-lite-save-overlay" aria-hidden="true">
+    <div class="stp-lite-save-overlay__card" role="status" aria-live="polite">
+        <div class="spinner-border text-success stp-lite-save-overlay__spinner" role="presentation"></div>
+        <p class="stp-lite-save-overlay__title">Processing</p>
+        <p class="stp-lite-save-overlay__msg" id="stpLiteSaveOverlayMsg">Please wait…</p>
     </div>
 </div>
 {{-- === END 06-lead-guests === --}}

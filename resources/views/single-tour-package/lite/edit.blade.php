@@ -175,6 +175,7 @@ if (window.STP_LITE_CONFIG) {
 <script src="{{ asset('js/single-tour-package/lite/miscellaneous.js') }}?v={{ filemtime(public_path('js/single-tour-package/lite/miscellaneous.js')) }}"></script>
 <script src="{{ asset('js/single-tour-package/lite/country-segments.js') }}?v={{ filemtime(public_path('js/single-tour-package/lite/country-segments.js')) }}"></script>
 <script src="{{ asset('js/single-tour-package/lite/guests.js') }}?v={{ filemtime(public_path('js/single-tour-package/lite/guests.js')) }}"></script>
+<script src="{{ asset('js/single-tour-package/lite/city-markup.js') }}?v={{ filemtime(public_path('js/single-tour-package/lite/city-markup.js')) }}"></script>
 <script src="{{ asset('js/single-tour-package/lite/submit.js') }}?v={{ filemtime(public_path('js/single-tour-package/lite/submit.js')) }}"></script>
 <script src="{{ asset('js/single-tour-package/lite/hydrate-edit.js') }}?v={{ filemtime(public_path('js/single-tour-package/lite/hydrate-edit.js')) }}"></script>
 <script src="{{ asset('js/single-tour-package/lite/main.js') }}?v={{ filemtime(public_path('js/single-tour-package/lite/main.js')) }}"></script>

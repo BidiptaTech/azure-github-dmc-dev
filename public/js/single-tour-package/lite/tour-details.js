@@ -12,8 +12,12 @@
 
     function mdmcCountrySet() {
         var set = {};
-        (cfg().mdmcCountries || []).forEach(function (c) {
-            var n = String(c.name || c || '').trim().toLowerCase();
+        var source = cfg().mdmcCountries || [];
+        if (cfg().isRestrictedThirdParty && Array.isArray(cfg().ownDmcCountries) && cfg().ownDmcCountries.length) {
+            source = cfg().ownDmcCountries;
+        }
+        (source || []).forEach(function (c) {
+            var n = String((c && c.name) || c || '').trim().toLowerCase();
             if (n) set[n] = true;
         });
         return set;
@@ -239,6 +243,39 @@
             clearTourCitiesSearch($tc);
             // Ensure dropdown closes even if Select2 keeps it open after ajax select
             try { $tc.select2('close'); } catch (e) { /* ignore */ }
+        });
+
+        $tc.on('select2:selecting', function (e) {
+            if (!cfg().isRestrictedThirdParty) return;
+            var data = e.params && e.params.args && e.params.args.data ? e.params.args.data : {};
+            var country = String(data.country || '').trim();
+            if (!country && data.text) {
+                var mSel = String(data.text).match(/\(([^)]+)\)\s*$/);
+                if (mSel) country = String(mSel[1]).trim();
+            }
+            if (country && window.isForeignLockedCountry && window.isForeignLockedCountry(country)) {
+                e.preventDefault();
+                alert('Third party access is disabled: you can only add cities in this DMC country.');
+            }
+        });
+
+        $tc.on('select2:unselecting', function (e) {
+            if (!cfg().isRestrictedThirdParty) return;
+            if (cfg().mode !== 'edit') return;
+            var data = e.params && e.params.args && e.params.args.data ? e.params.args.data : {};
+            var country = String(data.country || '').trim();
+            if (!country) {
+                var el = e.params && e.params.args && e.params.args.element;
+                if (el) country = String(el.getAttribute('data-country') || '').trim();
+            }
+            if (!country && data.text) {
+                var mUn = String(data.text).match(/\(([^)]+)\)\s*$/);
+                if (mUn) country = String(mUn[1]).trim();
+            }
+            if (country && window.isForeignLockedCountry && window.isForeignLockedCountry(country)) {
+                e.preventDefault();
+                alert("You cannot remove another country's city on this tour.");
+            }
         });
 
         $tc.on('change select2:select select2:clear select2:unselect', function () {

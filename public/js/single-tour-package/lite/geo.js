@@ -67,6 +67,9 @@
     }
 
     function resolveSiblingDmcId(countryName) {
+        if (isRestrictedThirdParty()) {
+            return (window.STP_LITE_CONFIG && window.STP_LITE_CONFIG.dmcId) || 0;
+        }
         var map = (window.STP_LITE_CONFIG && window.STP_LITE_CONFIG.siblingDmcCountryMap) || {};
         var name = String(countryName || '').trim();
         if (!name) return (window.STP_LITE_CONFIG && window.STP_LITE_CONFIG.dmcId) || 0;
@@ -106,6 +109,26 @@
         return { qs: qs, dmc_id: dmcId, city: city, country: country };
     }
 
+    function isRestrictedThirdParty() {
+        return !!(window.STP_LITE_CONFIG && window.STP_LITE_CONFIG.isRestrictedThirdParty);
+    }
+
+    function isOwnDmcCountry(country) {
+        var n = String(country || '').trim().toLowerCase();
+        if (!n) return false;
+        var list = (window.STP_LITE_CONFIG && window.STP_LITE_CONFIG.ownDmcCountries) || [];
+        return list.some(function (x) {
+            return String(x || '').trim().toLowerCase() === n;
+        });
+    }
+
+    function isForeignLockedCountry(country) {
+        if (!isRestrictedThirdParty()) return false;
+        var list = (window.STP_LITE_CONFIG && window.STP_LITE_CONFIG.ownDmcCountries) || [];
+        if (!list.length) return false;
+        return !isOwnDmcCountry(country);
+    }
+
     window.getTourCurrency = getTourCurrency;
     window.getCurrencyForCountryName = getCurrencyForCountryName;
     window.resolveCurrencyForCountry = getCurrencyForCountryName;
@@ -119,6 +142,10 @@
     };
     window.buildInventoryDmcQuery = buildInventoryDmcQuery;
 
+    window.isRestrictedThirdParty = isRestrictedThirdParty;
+    window.isOwnDmcCountry = isOwnDmcCountry;
+    window.isForeignLockedCountry = isForeignLockedCountry;
+
     window.StpLiteGeo = {
         getTourCurrency: getTourCurrency,
         getCurrencyForCountryName: getCurrencyForCountryName,
@@ -127,7 +154,10 @@
         rememberLiteCityGeo: rememberLiteCityGeo,
         resolveSiblingDmcId: resolveSiblingDmcId,
         resolveDmcIdForCity: resolveDmcIdForCity,
-        buildInventoryDmcQuery: buildInventoryDmcQuery
+        buildInventoryDmcQuery: buildInventoryDmcQuery,
+        isRestrictedThirdParty: isRestrictedThirdParty,
+        isOwnDmcCountry: isOwnDmcCountry,
+        isForeignLockedCountry: isForeignLockedCountry
     };
 })(window);
 /* === END geo.js === */
