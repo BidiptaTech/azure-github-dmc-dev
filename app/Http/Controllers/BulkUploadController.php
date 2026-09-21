@@ -5551,11 +5551,7 @@ class BulkUploadController extends Controller
                                         ->get()
                                         ->map(function($bed) {
                                             // Calculate max occupancy
-                                            $bed->max_occupancy = ($bed->no_of_king_bed * 2)
-                                                                + ($bed->no_of_queen_bed * 2) 
-                                                                + ($bed->no_of_twin_bed * 2) 
-                                                                + ($bed->no_of_single_bed) 
-                                                                + ($bed->no_of_bunk_bed * 2);
+                                            $bed->max_occupancy = $bed->totalOccupancy();
                                             return $bed;
                                         });
         
@@ -5926,11 +5922,7 @@ class BulkUploadController extends Controller
                     }
 
                     // Calculate max occupancy from bed type
-                    $maxOccupancy = ($bedType->no_of_king_bed * 2)
-                                  + ($bedType->no_of_queen_bed * 2) 
-                                  + ($bedType->no_of_twin_bed * 2) 
-                                  + ($bedType->no_of_single_bed) 
-                                  + ($bedType->no_of_bunk_bed * 2);
+                    $maxOccupancy = $bedType->totalOccupancy();
                     
                     // Add extra bed to occupancy if selected
                     if ($extraBedNumeric == '1') {

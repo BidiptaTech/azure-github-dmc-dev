@@ -35,6 +35,7 @@
 <link rel="stylesheet" href="{{ $assetBase }}/assets/css/demo.css" />
 <!-- Custom local styles -->
 <link rel="stylesheet" href="{{ $assetBase }}/css/style.css" />
+<link rel="stylesheet" href="{{ $assetBase }}/css/create-tour-pro-modal.css" />
 
 <!-- Vendors CSS -->
 <link rel="stylesheet" href="{{ $assetBase }}/assets/vendor/libs/perfect-scrollbar/perfect-scrollbar.css" />

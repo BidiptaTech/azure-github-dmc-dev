@@ -295,6 +295,8 @@
                             <th>No</th>
                             <th>Ticket ID</th>
                             <th>Name</th>
+                            <th>DMC Company</th>
+                            <th>Created By</th>
                             <th>Adult Price</th>
                             <th>Child Price</th>
                             <th>Senior Adult Price</th>
@@ -309,6 +311,8 @@
                                 <td>{{ ++$key }}</td>
                                 <td>{{ $ticket->ticket_id }}</td>
                                 <td>{{ $ticket->name }}</td>
+                                <td>{{ $ticket->dmc->company_name ?? ($ticket->dmc->name ?? '—') }}</td>
+                                <td>{{ $ticket->createdByUser->name ?? '—' }}</td>
                                 <td>{{ $ticket->adult_price }}</td>
                                 <td>{{ $ticket->child_price ?? 'N/A' }}</td>
                                 <td>{{ $ticket->senior_adult_price ?? 'N/A' }}</td>

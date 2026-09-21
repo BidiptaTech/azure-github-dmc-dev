@@ -304,6 +304,72 @@
         border-radius: 0.55rem;
         text-align: center;
     }
+    .nego-split-bases .negotiation-value {
+        font-size: 0.92rem;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+        color: #0f172a;
+    }
+    .nego-add-amt {
+        font-size: 0.72rem;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+        color: #0f766e;
+        margin-top: 0.22rem;
+        min-height: 1rem;
+    }
+    .nego-add-amt.is-zero {
+        color: #94a3b8;
+        font-weight: 600;
+    }
+    .nego-split-note {
+        font-size: 0.66rem;
+        color: #94a3b8;
+        margin-top: 0.15rem;
+        line-height: 1.25;
+    }
+    .nego-markup-disabled,
+    .negotiation-pricing-summary input[type="number"]:disabled {
+        background: #f1f5f9 !important;
+        color: #94a3b8 !important;
+        cursor: not-allowed;
+        opacity: 1;
+    }
+    .nego-calc-summary {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.45rem 0.75rem;
+        background: #f8fafc;
+        border: 1px solid #e8edf5;
+        border-radius: 0.5rem;
+        padding: 0.55rem 0.7rem;
+        margin-bottom: 0.7rem;
+    }
+    .nego-calc-summary .nego-calc-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 0.5rem;
+    }
+    .nego-calc-summary .nego-calc-row span:first-child {
+        font-size: 0.66rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #7c879b;
+    }
+    .nego-calc-summary .nego-calc-row span:last-child {
+        font-size: 0.82rem;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+        color: #0f172a;
+    }
+    .nego-calc-summary .nego-calc-row.is-discount span:last-child {
+        color: #dc2626;
+    }
+    .nego-calc-summary .nego-calc-row.is-markup span:last-child {
+        color: #0f766e;
+    }
     @media (max-width: 991.98px) {
         #agentNegotiationModal .negotiation-split-body {
             flex-direction: column;
@@ -322,6 +388,141 @@
     }
 </style>
 <script>
+    /** Hotel sell vs other-service sell for split markup. */
+    window.negotiationHotelOtherGross = function (group) {
+        group = group || {};
+        let hotel = Number(group.hotel_gross);
+        let other = Number(group.other_gross);
+        if ((!Number.isFinite(hotel) || hotel < 0 || !Number.isFinite(other) || other < 0) && Array.isArray(group.services)) {
+            hotel = 0;
+            other = 0;
+            group.services.forEach(function (service) {
+                const sell = Number(service && service.sell ? service.sell : 0);
+                if (String(service && service.type ? service.type : '').toLowerCase() === 'hotel') {
+                    hotel += sell;
+                } else {
+                    other += sell;
+                }
+            });
+        }
+        hotel = Number.isFinite(hotel) && hotel > 0 ? hotel : 0;
+        other = Number.isFinite(other) && other > 0 ? other : 0;
+        return {
+            hotelGross: hotel,
+            otherGross: other,
+            hasHotel: hotel > 0.009,
+            hasOther: other > 0.009
+        };
+    };
+
+    /**
+     * Hotel markup on hotel services only; other markup on non-hotel services only.
+     * Discount on (hotel + other + both markups). Offer = ceil(gross + markup − discount).
+     */
+    window.computeSplitNegotiationPricing = function (opts) {
+        opts = opts || {};
+        const hotelGross = Math.max(0, parseFloat(opts.hotelGross) || 0);
+        const otherGross = Math.max(0, parseFloat(opts.otherGross) || 0);
+        const gross = hotelGross + otherGross;
+        const hasHotel = hotelGross > 0.009;
+        const hasOther = otherGross > 0.009;
+        const markupType = String(opts.markupType || 'flat').toLowerCase();
+        const discountType = String(opts.discountType || 'flat').toLowerCase();
+        const hotelRaw = hasHotel ? (parseFloat(opts.hotelRaw) || 0) : 0;
+        const otherRaw = hasOther ? (parseFloat(opts.otherRaw) || 0) : 0;
+        const discountRaw = parseFloat(opts.discountRaw) || 0;
+
+        let hotelMoney = 0;
+        let otherMoney = 0;
+        if (markupType === 'percentage') {
+            hotelMoney = hotelGross * hotelRaw / 100;
+            otherMoney = otherGross * otherRaw / 100;
+        } else {
+            hotelMoney = hasHotel ? hotelRaw : 0;
+            otherMoney = hasOther ? otherRaw : 0;
+        }
+        const markupMoney = hotelMoney + otherMoney;
+        let discountMoney = 0;
+        const discountBase = gross + markupMoney;
+        if (discountType === 'percentage') {
+            discountMoney = discountBase * discountRaw / 100;
+        } else if (discountType === 'flat' || discountType === 'foc') {
+            discountMoney = discountRaw;
+        }
+        const payable = Math.max(0, Math.ceil(gross + markupMoney - discountMoney));
+
+        return {
+            hotelGross: hotelGross,
+            otherGross: otherGross,
+            gross: gross,
+            hasHotel: hasHotel,
+            hasOther: hasOther,
+            hotelMoney: hotelMoney,
+            otherMoney: otherMoney,
+            markupMoney: markupMoney,
+            discountMoney: discountMoney,
+            payable: payable
+        };
+    };
+
+    window.applyNegotiationMarkupFieldState = function (card, prefix, hasHotel, hasOther) {
+        if (!card) return;
+        const hotelInput = card.querySelector('.' + prefix + '-hotel-markup');
+        const otherInput = card.querySelector('.' + prefix + '-other-markup');
+        if (hotelInput) {
+            hotelInput.disabled = !hasHotel;
+            hotelInput.classList.toggle('nego-markup-disabled', !hasHotel);
+            hotelInput.setAttribute('title', hasHotel ? '' : 'Disabled — no hotel services booked for this country');
+        }
+        if (otherInput) {
+            otherInput.disabled = !hasOther;
+            otherInput.classList.toggle('nego-markup-disabled', !hasOther);
+            otherInput.setAttribute('title', hasOther ? '' : 'Disabled — no other services booked for this country');
+        }
+        const hotelNote = card.querySelector('.' + prefix + '-hotel-note');
+        const otherNote = card.querySelector('.' + prefix + '-other-note');
+        if (hotelNote) hotelNote.textContent = hasHotel ? '' : 'No hotel booked';
+        if (otherNote) otherNote.textContent = hasOther ? '' : 'No other services booked';
+    };
+
+    window.updateNegotiationSplitBreakdown = function (card, prefix, currency, pricing) {
+        if (!card || !pricing) return;
+        const money = function (amount) {
+            return (typeof formatNegotiationAmount === 'function')
+                ? formatNegotiationAmount(amount)
+                : Number(amount || 0).toFixed(2);
+        };
+        const setText = function (sel, text) {
+            const el = card.querySelector(sel);
+            if (el) el.textContent = text;
+        };
+        const setAdd = function (sel, amount, enabled) {
+            const el = card.querySelector(sel);
+            if (!el) return;
+            if (!enabled) {
+                el.textContent = '—';
+                el.classList.add('is-zero');
+                return;
+            }
+            el.classList.toggle('is-zero', !(amount > 0));
+            el.textContent = (amount > 0 ? '+' : '') + currency + ' ' + money(amount);
+        };
+        setText('.' + prefix + '-hotel-base', currency + ' ' + money(pricing.hotelGross));
+        setText('.' + prefix + '-other-base', currency + ' ' + money(pricing.otherGross));
+        setText('.' + prefix + '-gross-display', currency + ' ' + money(pricing.gross));
+        setAdd('.' + prefix + '-hotel-add', pricing.hotelMoney, pricing.hasHotel);
+        setAdd('.' + prefix + '-other-add', pricing.otherMoney, pricing.hasOther);
+        const discountAdd = card.querySelector('.' + prefix + '-discount-add');
+        if (discountAdd) {
+            discountAdd.classList.toggle('is-zero', !(pricing.discountMoney > 0));
+            discountAdd.textContent = (pricing.discountMoney > 0 ? '−' : '') + currency + ' ' + money(pricing.discountMoney);
+        }
+        setText('.' + prefix + '-markup-total', (pricing.markupMoney > 0 ? '+' : '') + currency + ' ' + money(pricing.markupMoney));
+        setText('.' + prefix + '-after-markup', currency + ' ' + money(pricing.gross + pricing.markupMoney));
+        setText('.' + prefix + '-discount-total', (pricing.discountMoney > 0 ? '−' : '') + currency + ' ' + money(pricing.discountMoney));
+        window.applyNegotiationMarkupFieldState(card, prefix, pricing.hasHotel, pricing.hasOther);
+    };
+
     function escapeNegotiationHtml(value) {
         return String(value == null ? '' : value)
             .replace(/&/g, '&amp;')

@@ -244,12 +244,15 @@
                                 <div class="text-danger mt-1">{{ $message }}</div>
                                 @enderror
                             </div> --}}
-                            <!-- Country (Master DMC countries) -->
+                            <!-- Country (DMC base country from users.country) -->
                             <div class="col-md-3 mb-3">
                                 <label for="country" class="form-label"><strong><i class="ri-map-pin-line"></i> Country</strong><span class="text-danger">*</span></label>
                                 @php
-                                    $scopedCountries = $countries ?? collect();
+                                    $scopedCountries = collect($dmcBaseCountries ?? $countries ?? []);
                                     $vehicleSelectedCountry = old('country', $selectedCountry ?? '');
+                                    if ($vehicleSelectedCountry === '' && $scopedCountries->count() === 1) {
+                                        $vehicleSelectedCountry = $scopedCountries->first()->name ?? '';
+                                    }
                                 @endphp
                                 <select name="country" id="country" class="form-control" required>
                                     @if($scopedCountries->count() !== 1)
@@ -455,23 +458,32 @@
                                 </fieldset>
                             </fieldset>
 
-                            <!-- Sharable -->
-                            <!-- <div class="col-md-3 mb-3">
-                                <label for="price_type" class="form-label">
-                                    <strong>Base Price Type</strong>
-                                    <span class="text-danger">*</span>
-                                </label>
-                                <select name="price_type" id="price_type" class="form-control" required>
-                                    <option value="">-- Select Type --</option>
-                                    <option value="1">Shared</option>
-                                    <option value="2">Private</option>
-                                </select>
-                                @error('price_type')
-                                <div class="text-danger mt-1">{{ $message }}</div>
-                                @enderror
-                            </div> -->
+                            <fieldset id="hourlyPrices" class="border p-4 rounded mb-4">
+                                <h5 class="card-title mb-3">Hourly prices</h5>
+                                <div class="row">
+                                    @for($hour = 1; $hour <= 12; $hour++)
+                                        <div class="col-md-3 mb-3">
+                                            <label for="hourly_price_{{ $hour }}" class="form-label">
+                                                <strong>{{ $hour }} Hour{{ $hour > 1 ? 's' : '' }} Price</strong>
+                                            </label>
+                                            <input type="number"
+                                                   step="0.01"
+                                                   min="0"
+                                                   class="form-control hourly-price-input"
+                                                   id="hourly_price_{{ $hour }}"
+                                                   name="hourly_price_{{ $hour }}"
+                                                   data-hour="{{ $hour }}"
+                                                   placeholder="Enter {{ $hour }} hr price"
+                                                   value="{{ old('hourly_price_' . $hour) }}">
+                                            @error('hourly_price_' . $hour)
+                                                <div class="text-danger mt-1">{{ $message }}</div>
+                                            @enderror
+                                        </div>
+                                    @endfor
+                                </div>
+                            </fieldset>
 
-                            <!-- Sharable Toggle Switch -->
+                            <!-- Sharable -->
                             <div class="col-md-3 mb-3">
                                 <label for="sharable" class="form-label d-block">
                                     <strong>Vehicle Sharing Option</strong>
@@ -1073,7 +1085,7 @@ function updateMoreBadge() {
 <script>
     $(document).ready(function () {
         const dmcId = "{{ $resolvedDmcId ?? '' }}";
-        const masterCountryNames = @json($masterDmcCountryNames ?? []);
+        const masterCountryNames = @json($dmcBaseCountryNames ?? $masterDmcCountryNames ?? []);
 
         function populateCountryOptions(countries, selectedCountry) {
             var $country = $('#country');
@@ -1082,10 +1094,16 @@ function updateMoreBadge() {
                 $country.append('<option value="">Select Country</option>');
             }
             $.each(countries || [], function (i, name) {
-                var selected = (name === selectedCountry) ? 'selected' : '';
+                var selected = (name === selectedCountry || (!selectedCountry && countries.length === 1)) ? 'selected' : '';
                 $country.append('<option value="' + name + '" ' + selected + '>' + name + '</option>');
             });
-            $country.trigger('change.select2');
+            if (countries && countries.length === 1) {
+                $country.val(countries[0]).trigger('change');
+            } else if (selectedCountry) {
+                $country.val(selectedCountry).trigger('change');
+            } else {
+                $country.val('').trigger('change.select2');
+            }
         }
 
         function loadCitiesByCountry(countryName) {
@@ -1142,7 +1160,6 @@ function updateMoreBadge() {
                     var countries = response.countries || (response.country ? [response.country] : []);
                     var selected = response.country || (countries[0] || '');
                     populateCountryOptions(countries, selected);
-                    loadCitiesByCountry(selected);
                 }
             });
         }
@@ -1165,11 +1182,7 @@ function updateMoreBadge() {
             } else {
                 $('#city_name').html('<option value="">Select Country First</option>').trigger('change');
                 $('#driver').html('<option value="">Select a DMC first</option>').trigger('change');
-                if (masterCountryNames.length) {
-                    populateCountryOptions(masterCountryNames, '');
-                } else {
-                    $('#country').val('').trigger('change');
-                }
+                $('#country').empty().append('<option value="">Select Country</option>').val('').trigger('change.select2');
             }
         });
 
@@ -1902,4 +1915,46 @@ if (document.readyState === 'loading') {
 @endif
 
 @include('components.currency-price-note-dmc-script')
+
+<script>
+(function () {
+    function parseHourlyAmount(value) {
+        const n = parseFloat(String(value || '').replace(',', '.'));
+        return isNaN(n) ? null : n;
+    }
+
+    function fillHourlyPricesFromOneHour() {
+        const oneHourInput = document.getElementById('hourly_price_1');
+        if (!oneHourInput) return;
+
+        const raw = String(oneHourInput.value || '').trim();
+        const base = parseHourlyAmount(raw);
+
+        for (let hour = 2; hour <= 12; hour++) {
+            const input = document.getElementById('hourly_price_' + hour);
+            if (!input) continue;
+
+            if (raw === '' || base === null) {
+                input.value = '';
+            } else {
+                input.value = Number((base * hour).toFixed(2));
+            }
+        }
+    }
+
+    function initHourlyPricesAutoFill() {
+        const oneHourInput = document.getElementById('hourly_price_1');
+        if (!oneHourInput) return;
+
+        oneHourInput.addEventListener('change', fillHourlyPricesFromOneHour);
+        oneHourInput.addEventListener('input', fillHourlyPricesFromOneHour);
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initHourlyPricesAutoFill);
+    } else {
+        initHourlyPricesAutoFill();
+    }
+})();
+</script>
 @endsection

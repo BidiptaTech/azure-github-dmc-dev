@@ -639,7 +639,6 @@
         
 
         @php
-            // Helper: format raw "YYYY-MM-DD to YYYY-MM-DD" into "01 Jun 2026 to 03 Jun 2026"
             $formatDateRange = function ($raw) {
                 if (empty($raw)) return '';
                 $parts = array_map('trim', explode(' to ', (string)$raw));
@@ -653,7 +652,26 @@
                 return $raw;
             };
 
-            // Split supplements into hotel vs other-service buckets
+            $formatSupplementOccupancyCells = function ($single, $double, $triple, $selectedPersons, callable $moneyFormatter) {
+                $sp = max(1, min(3, (int) ($selectedPersons ?: 1)));
+                return [
+                    ($sp >= 1 && (float) $single > 0) ? $moneyFormatter($single) : '',
+                    ($sp >= 2 && (float) $double > 0) ? $moneyFormatter($double) : '',
+                    ($sp >= 3 && (float) $triple > 0) ? $moneyFormatter($triple) : '',
+                ];
+            };
+
+            $normalHotels = is_array($tourPrices['hotel_price_options'] ?? null)
+                ? $tourPrices['hotel_price_options']
+                : [];
+            $maxHotelSelectedPersons = 1;
+            foreach ($normalHotels as $nh) {
+                $maxHotelSelectedPersons = max($maxHotelSelectedPersons, (int) ($nh['selected_persons'] ?? 0));
+            }
+            if ($maxHotelSelectedPersons < 1) {
+                $maxHotelSelectedPersons = ($occupancyKey === 'triple') ? 3 : (($occupancyKey === 'double') ? 2 : 1);
+            }
+
             $suppHotels   = [];
             $suppServices = [];
             foreach ($supplements as $s) {
@@ -666,10 +684,57 @@
             }
         @endphp
 
-        {{-- â”€â”€ Hotel supplements box â”€â”€ --}}
+        @if(!empty($normalHotels))
+            <div style="margin-top: 10px;">
+                <div class="panel-title">Hotels</div>
+                <table style="width: 100%; border-collapse: collapse; border: 2px solid #000; table-layout: fixed;">
+                    <thead>
+                        <tr>
+                            <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: left; width: 52%;">Hotel</th>
+                            <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 16%;">Single</th>
+                            <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 16%;">Double</th>
+                            <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 16%;">Triple</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($normalHotels as $s)
+                            @php
+                                $hotelLabel = $s['hotel_name'] ?? ($s['display_name'] ?? ($s['name'] ?? 'Hotel'));
+                                $suppSingle = (float)($s['single'] ?? 0);
+                                $suppDouble = (float)($s['double'] ?? 0);
+                                $suppTriple = (float)($s['triple'] ?? 0);
+                                $selPersons = (int)($s['selected_persons'] ?? 0);
+                                if ($selPersons <= 0) {
+                                    if (!empty($s['show_triple'])) $selPersons = 3;
+                                    elseif (!empty($s['show_double'])) $selPersons = 2;
+                                    else $selPersons = 1;
+                                }
+                                if ($isProTour && $selPersons >= 2) {
+                                    $suppSingle = $suppDouble > 0 ? $suppDouble : $suppSingle;
+                                }
+                                [$suppCellSingle, $suppCellDouble, $suppCellTriple] = $formatSupplementOccupancyCells(
+                                    $suppSingle,
+                                    $suppDouble,
+                                    $suppTriple,
+                                    $selPersons,
+                                    fn ($amount) => $formatMoney($amount)
+                                );
+                            @endphp
+                            <tr>
+                                <td style="border: 1px solid #000; padding: 6px; vertical-align: top;">{{ $hotelLabel }}</td>
+                                <td style="border: 1px solid #000; padding: 6px; text-align: center;">{{ $suppCellSingle }}</td>
+                                <td style="border: 1px solid #000; padding: 6px; text-align: center;">{{ $suppCellDouble }}</td>
+                                <td style="border: 1px solid #000; padding: 6px; text-align: center;">{{ $suppCellTriple }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @endif
+
         @if(!empty($suppHotels))
             <div style="margin-top: 10px;">
-                <div class="panel-title">Supplements â€“ Hotels</div>
+                <div class="panel-title">Supplements – Hotels</div>
                 <table style="width: 100%; border-collapse: collapse; border: 2px solid #000; table-layout: fixed;">
                     <thead>
                         <tr>
@@ -682,15 +747,28 @@
                     <tbody>
                         @foreach($suppHotels as $s)
                             @php
-                                $hotelLabel     = $s['hotel_name'] ?? ($s['display_name'] ?? ($s['name'] ?? 'Hotel'));
-                                $rawDateRange   = $s['date_range'] ?? null;
-                                $niceDate       = $rawDateRange ? $formatDateRange($rawDateRange) : '';
-                                $suppSingle     = (float)($s['single'] ?? 0);
-                                $suppDouble     = (float)($s['double'] ?? 0);
-                                $suppTriple     = (float)($s['triple'] ?? 0);
-                                if ($isProTour) {
+                                $hotelLabel   = $s['hotel_name'] ?? ($s['display_name'] ?? ($s['name'] ?? 'Hotel'));
+                                $rawDateRange = $s['date_range'] ?? null;
+                                $niceDate     = $rawDateRange ? $formatDateRange($rawDateRange) : '';
+                                $suppSingle   = (float)($s['single'] ?? 0);
+                                $suppDouble   = (float)($s['double'] ?? 0);
+                                $suppTriple   = (float)($s['triple'] ?? 0);
+                                $selPersons   = (int)($s['selected_persons'] ?? 0);
+                                if ($selPersons <= 0) {
+                                    if (!empty($s['show_triple'])) $selPersons = 3;
+                                    elseif (!empty($s['show_double'])) $selPersons = 2;
+                                    else $selPersons = 1;
+                                }
+                                if ($isProTour && $selPersons >= 2) {
                                     $suppSingle = $suppDouble > 0 ? $suppDouble : $suppSingle;
                                 }
+                                [$suppCellSingle, $suppCellDouble, $suppCellTriple] = $formatSupplementOccupancyCells(
+                                    $suppSingle,
+                                    $suppDouble,
+                                    $suppTriple,
+                                    $selPersons,
+                                    fn ($amount) => $formatMoney($amount)
+                                );
                             @endphp
                             <tr>
                                 <td style="border: 1px solid #000; padding: 6px; vertical-align: top;">
@@ -699,9 +777,9 @@
                                         <span class="subtle"> ({{ $niceDate }})</span>
                                     @endif
                                 </td>
-                                <td style="border: 1px solid #000; padding: 6px; text-align: center;">{{ $formatMoney($suppSingle) }}</td>
-                                <td style="border: 1px solid #000; padding: 6px; text-align: center;">{{ $formatMoney($suppDouble) }}</td>
-                                <td style="border: 1px solid #000; padding: 6px; text-align: center;">{{ $suppTriple > 0 ? $formatMoney($suppTriple) : 'â€”' }}</td>
+                                <td style="border: 1px solid #000; padding: 6px; text-align: center;">{{ $suppCellSingle }}</td>
+                                <td style="border: 1px solid #000; padding: 6px; text-align: center;">{{ $suppCellDouble }}</td>
+                                <td style="border: 1px solid #000; padding: 6px; text-align: center;">{{ $suppCellTriple }}</td>
                             </tr>
                         @endforeach
                     </tbody>
@@ -709,10 +787,9 @@
             </div>
         @endif
 
-        {{-- â”€â”€ Other-service supplements box â”€â”€ --}}
         @if(!empty($suppServices))
             <div style="margin-top: 10px;">
-                <div class="panel-title">Supplements â€“ Other Services</div>
+                <div class="panel-title">Supplements – Other Services</div>
                 <table style="width: 100%; border-collapse: collapse; border: 2px solid #000; table-layout: fixed;">
                     <thead>
                         <tr>
@@ -753,6 +830,7 @@
                 </table>
             </div>
         @endif
+
         @if(!empty($quotationInformationHtml))
             <div class="quotation-information">
                 <div class="section-label">Quotation Information</div>

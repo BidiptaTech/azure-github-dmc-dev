@@ -308,14 +308,17 @@
                                 @enderror
                             </div>
                             
-                            <!-- Country (Master DMC countries) -->
+                            <!-- Country (DMC base country from users.country) -->
                             <div class="mb-3 col-md-3">
                                 <label for="country" class="form-label"><strong>Country</strong>
                                     <span style="color: red; font-weight: bold;">*</span>
                                 </label>
                                 @php
-                                    $scopedCountries = collect($masterDmcCountries ?? $country ?? []);
+                                    $scopedCountries = collect($dmcBaseCountries ?? $masterDmcCountries ?? $country ?? []);
                                     $editSelectedCountry = old('country', $selectedCountry ?? $guide->country ?? '');
+                                    if ($editSelectedCountry === '' && $scopedCountries->count() === 1) {
+                                        $editSelectedCountry = $scopedCountries->first()->name ?? '';
+                                    }
                                     // Ensure the guide's saved country is always available in the select.
                                     if (filled($editSelectedCountry) && !$scopedCountries->contains(function ($c) use ($editSelectedCountry) {
                                         return strcasecmp(trim((string) ($c->name ?? '')), trim((string) $editSelectedCountry)) === 0;
@@ -810,9 +813,10 @@
 
                         <!-- Status -->
                         <div class="form-check form-switch">
-                            <label for="guide_status" class="form-label"><strong>Status</strong><span style="color: red; font-weight: bold;">*</span></label>
+                            <label for="guide_status" class="form-label"><strong>Status</strong></label>
+                            {{-- Hidden 0 + optional checkbox: unchecked = inactive. Do NOT use required (blocks inactive save). --}}
                             <input type="hidden" name="guide_status" value="0">
-                            <input {{$guide->is_active == 1 ? 'checked' : ''}} class="form-check-input" name="guide_status" type="checkbox" id="guide_status" value="1" required>
+                            <input {{$guide->is_active == 1 ? 'checked' : ''}} class="form-check-input" name="guide_status" type="checkbox" id="guide_status" value="1">
                             <label class="form-check-label"></label>
                         </div>
                     </div>
