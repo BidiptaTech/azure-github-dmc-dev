@@ -589,14 +589,29 @@
             }
         }
 
-        // Preferred city per country from tour.city (e.g. "Singapore [...], Bali [...]")
+        // Preferred city + stay dates per country from tour.city
+        // e.g. "Batam (Indonesia) [2026-09-23→2026-09-26], Singapore (Singapore) [2026-09-26→2026-09-29]"
         $preferredCityByCountry = [];
+        $dateRangeByCountry = []; // country(lower) => 'd M Y to d M Y'
+        $dateRangeByCity = [];    // city(lower) => 'd M Y to d M Y'
+        $dateBoundsByCountry = []; // country(lower) => ['start' => Y-m-d, 'end' => Y-m-d]
+        $dateBoundsByCity = [];
         $tourCityRaw = trim((string) ($tour->city ?? ''));
         if ($tourCityRaw !== '') {
+            $planRe = '/^(.+?)\s*\[(\d{4}-\d{2}-\d{2})\s*(?:→|->)\s*(\d{4}-\d{2}-\d{2})\]\s*$/u';
             foreach (preg_split('/\s*,\s*/', $tourCityRaw) ?: [] as $part) {
-                $part = trim((string) preg_replace('/\s*\[[^\]]*\]\s*/', '', $part));
+                $part = trim((string) $part);
                 if ($part === '') {
                     continue;
+                }
+                $startYmd = '';
+                $endYmd = '';
+                if (preg_match($planRe, $part, $dm)) {
+                    $part = trim((string) $dm[1]);
+                    $startYmd = trim((string) $dm[2]);
+                    $endYmd = trim((string) $dm[3]);
+                } else {
+                    $part = trim((string) preg_replace('/\s*\[[^\]]*\]\s*/', '', $part));
                 }
                 $cityName = $part;
                 $countryName = '';
@@ -614,8 +629,60 @@
                     $countryName = $cityName; // city-state fallback
                 }
                 $preferredCityByCountry[mb_strtolower($countryName)] = $cityName;
+
+                if ($startYmd !== '' && $endYmd !== '') {
+                    $cKey = mb_strtolower($countryName);
+                    $cityKey = mb_strtolower($cityName);
+                    if (!isset($dateBoundsByCountry[$cKey])) {
+                        $dateBoundsByCountry[$cKey] = ['start' => $startYmd, 'end' => $endYmd];
+                    } else {
+                        if ($startYmd < $dateBoundsByCountry[$cKey]['start']) {
+                            $dateBoundsByCountry[$cKey]['start'] = $startYmd;
+                        }
+                        if ($endYmd > $dateBoundsByCountry[$cKey]['end']) {
+                            $dateBoundsByCountry[$cKey]['end'] = $endYmd;
+                        }
+                    }
+                    if (!isset($dateBoundsByCity[$cityKey])) {
+                        $dateBoundsByCity[$cityKey] = ['start' => $startYmd, 'end' => $endYmd];
+                    } else {
+                        if ($startYmd < $dateBoundsByCity[$cityKey]['start']) {
+                            $dateBoundsByCity[$cityKey]['start'] = $startYmd;
+                        }
+                        if ($endYmd > $dateBoundsByCity[$cityKey]['end']) {
+                            $dateBoundsByCity[$cityKey]['end'] = $endYmd;
+                        }
+                    }
+                }
+            }
+            $formatPlanRange = static function (string $startYmd, string $endYmd): string {
+                try {
+                    return \Carbon\Carbon::parse($startYmd)->format('d M Y')
+                        . ' to '
+                        . \Carbon\Carbon::parse($endYmd)->format('d M Y');
+                } catch (\Throwable $e) {
+                    return $startYmd . ' to ' . $endYmd;
+                }
+            };
+            foreach ($dateBoundsByCountry as $k => $bounds) {
+                $dateRangeByCountry[$k] = $formatPlanRange($bounds['start'], $bounds['end']);
+            }
+            foreach ($dateBoundsByCity as $k => $bounds) {
+                $dateRangeByCity[$k] = $formatPlanRange($bounds['start'], $bounds['end']);
             }
         }
+
+        $resolveCountryDateRange = function ($city, $country) use ($dateRangeByCity, $dateRangeByCountry, $inclusionDateRange) {
+            $cityKey = mb_strtolower(trim((string) $city));
+            $countryKey = mb_strtolower(trim((string) $country));
+            if ($cityKey !== '' && !empty($dateRangeByCity[$cityKey])) {
+                return $dateRangeByCity[$cityKey];
+            }
+            if ($countryKey !== '' && !empty($dateRangeByCountry[$countryKey])) {
+                return $dateRangeByCountry[$countryKey];
+            }
+            return $inclusionDateRange;
+        };
 
         // Title: City (Country) (CURRENCY) — e.g. Kolkata (India) (INR)
         $formatLocationTitle = function ($city, $country, $currency) use ($preferredCityByCountry) {
@@ -1119,20 +1186,40 @@
             $tourDmcCompanyCode = is_string($tourDmcCompanyCode) ? trim($tourDmcCompanyCode) : '';
             $tourDmcCompanyCode = $tourDmcCompanyCode !== '' ? $tourDmcCompanyCode : null;
 
-            // thirdparty_enabled=yes → show all country services + prices
-            // thirdparty_enabled=no  → DMC country full; other countries date-only (no services/prices)
-            $thirdPartyEnabled = strtolower((string) ($tourDmcUser?->thirdparty_enabled ?? 'no')) === 'yes';
-            $dmcOperatingCountry = $tourDmcUser
-                ? \App\Helpers\CommonHelper::resolveUserOperatingCountry($tourDmcUser)
-                : null;
-            $dmcCountryNorm = $dmcOperatingCountry !== null
-                ? mb_strtolower(trim((string) $dmcOperatingCountry))
-                : '';
-            $isPricedCountry = function ($countryName) use ($thirdPartyEnabled, $dmcCountryNorm) {
-                if ($thirdPartyEnabled || $dmcCountryNorm === '') {
+            // Restrict only when thirdparty=yes AND thirdparty_enabled=no
+            // (thirdparty=no, or thirdparty=yes + enabled=yes → all countries/services)
+            $isThirdPartyDmc = strtolower(trim((string) ($tourDmcUser?->thirdparty ?? 'no'))) === 'yes';
+            $thirdPartyEnabled = strtolower(trim((string) ($tourDmcUser?->thirdparty_enabled ?? 'no'))) === 'yes';
+            $isRestrictedThirdParty = $isThirdPartyDmc && !$thirdPartyEnabled;
+
+            $allowedDmcCountries = [];
+            if ($isRestrictedThirdParty && $tourDmcUser) {
+                foreach (preg_split('/\s*,\s*/', (string) ($tourDmcUser->country ?? '')) ?: [] as $part) {
+                    $name = trim((string) $part);
+                    if ($name !== '' && !\App\Helpers\CommonHelper::looksLikeCurrencyCode($name)) {
+                        $allowedDmcCountries[] = $name;
+                    }
+                }
+                $dmcOperatingCountry = \App\Helpers\CommonHelper::resolveUserOperatingCountry($tourDmcUser);
+                if ($dmcOperatingCountry !== null && trim((string) $dmcOperatingCountry) !== '') {
+                    $allowedDmcCountries[] = trim((string) $dmcOperatingCountry);
+                }
+                $allowedDmcCountries = array_values(array_unique($allowedDmcCountries));
+            }
+            $isPricedCountry = function ($countryName) use ($isRestrictedThirdParty, $allowedDmcCountries) {
+                if (!$isRestrictedThirdParty || empty($allowedDmcCountries)) {
                     return true;
                 }
-                return mb_strtolower(trim((string) $countryName)) === $dmcCountryNorm;
+                $countryName = trim((string) $countryName);
+                if ($countryName === '' || \App\Helpers\CommonHelper::looksLikeCurrencyCode($countryName)) {
+                    return false;
+                }
+                foreach ($allowedDmcCountries as $allowed) {
+                    if (\App\Helpers\CommonHelper::countriesMatch($countryName, $allowed)) {
+                        return true;
+                    }
+                }
+                return false;
             };
 
             $createByUser = null;
@@ -1190,6 +1277,7 @@
                     $countryCity = $countryMeta[$bucketKey]['city'] ?? '';
                     $countryCurrency = $countryMeta[$bucketKey]['currency'] ?? strtoupper((string)$baseCurrency);
                     $countryBoxTitle = $formatLocationTitle($countryCity, $countryName, $countryCurrency);
+                    $countryDateRange = $resolveCountryDateRange($countryCity, $countryName);
                     $showCountryPricing = $isPricedCountry($countryName);
                     $countryHotels = $showCountryPricing ? ($hotelsByCountry[$bucketKey] ?? []) : [];
                     $bucket = $showCountryPricing ? ($otherByCountry[$bucketKey] ?? []) : [];
@@ -1204,14 +1292,14 @@
                     <div class="country-box-title">{{ $countryBoxTitle }}</div>
                     @if(!$showCountryPricing)
                         <div style="padding: 8px;">
-                            <div class="inclusion"><span class="bold">Date:</span> {{ $inclusionDateRange }}</div>
+                            <div class="inclusion"><span class="bold">Date:</span> {{ $countryDateRange }}</div>
                         </div>
                     @else
                     <table class="country-box-inner">
                         <tr>
                             <td>
                                 <div class="money-line">
-                                    <div class="inclusion"><span class="bold">Date:</span> {{ $inclusionDateRange }}</div>
+                                    <div class="inclusion"><span class="bold">Date:</span> {{ $countryDateRange }}</div>
                                 </div>
                                 <div class="country-col-label">Hotels</div>
                                 @if(!empty($countryHotels))
@@ -1239,7 +1327,7 @@
                             </td>
                             <td>
                                 <div class="money-line">
-                                    <div class="inclusion"><span class="bold">Date:</span> {{ $inclusionDateRange }}</div>
+                                    <div class="inclusion"><span class="bold">Date:</span> {{ $countryDateRange }}</div>
                                 </div>
                                 <div class="country-col-label">Other Services</div>
                                 @if($hasOther)
@@ -1438,7 +1526,7 @@
             $countrySharingRows = is_array($tourPrices['country_sharing'] ?? null)
                 ? $tourPrices['country_sharing']
                 : [];
-            if (!$thirdPartyEnabled && $dmcCountryNorm !== '') {
+            if ($isRestrictedThirdParty && !empty($allowedDmcCountries)) {
                 $countrySharingRows = array_values(array_filter($countrySharingRows, function ($share) use ($isPricedCountry) {
                     return $isPricedCountry($share['country'] ?? '');
                 }));

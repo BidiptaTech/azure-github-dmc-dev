@@ -232,11 +232,34 @@ class SingleTourPackageController extends Controller
         $userDmcId = CommonHelper::getDmcId(Auth::user());
 
         // Include group_pax + currency for lite form FIT/GROUP auto-toggle and country currency display
-        $UserDmc = User::select('userId', 'zone_on', 'thirdparty', 'group_pax', 'currency')
+        $UserDmc = User::select('userId', 'zone_on', 'thirdparty', 'thirdparty_enabled', 'country', 'master_dmc_id', 'role_id', 'group_pax', 'currency')
             ->where('userId', $userDmcId)
             ->first();
         $dmcGroupPax = (int) ($UserDmc->group_pax ?? 0);
-        $isThirdPartyDmc = strtolower(trim((string) ($UserDmc->thirdparty ?? 'no'))) === 'yes';
+        $thirdPartyScope = $this->resolveThirdPartyDmcScope($UserDmc);
+        $isThirdPartyDmc = (bool) ($thirdPartyScope['is_third_party'] ?? false);
+        $isRestrictedThirdParty = (bool) ($thirdPartyScope['is_restricted'] ?? false);
+        $ownDmcCountries = $thirdPartyScope['own_country_names'] ?? [];
+
+        // Access-no third-party: create only this DMC's country (not sibling/master countries).
+        if ($isRestrictedThirdParty) {
+            if (!empty($ownDmcCountries)) {
+                $countries = Country::where('is_active', 1)
+                    ->where(function ($q) use ($ownDmcCountries) {
+                        foreach ($ownDmcCountries as $i => $name) {
+                            $method = $i === 0 ? 'where' : 'orWhere';
+                            $q->{$method}(function ($inner) use ($name) {
+                                $inner->where('name', $name)
+                                    ->orWhereRaw('LOWER(TRIM(name)) = ?', [strtolower((string) $name)]);
+                            });
+                        }
+                    })
+                    ->orderBy('name')
+                    ->get();
+            } else {
+                $countries = collect();
+            }
+        }
         $dmcCurrency = strtoupper(trim((string) (
             optional($UserDmc)->currency
             ?? Auth::user()->currency
@@ -302,6 +325,8 @@ class SingleTourPackageController extends Controller
             'exitPickupLocation',
             'dmcGroupPax',
             'isThirdPartyDmc',
+            'isRestrictedThirdParty',
+            'ownDmcCountries',
             'dmcCurrency',
             'siblingDmcCountryMap',
             'siblingDmcCityMap',
@@ -959,10 +984,21 @@ class SingleTourPackageController extends Controller
             // Persist new DB column `city_type` ("single" / "multi")
             $cityType = $request->city_type ?? ($request->city_mode ?? 'single');
             $operatingDmcId = (int) ($request->dmc_id ?: CommonHelper::getDmcId(Auth::user()));
-            if ($operatingDmcId > 0) {
-                $operatingDmc = User::select('thirdparty')->where('userId', $operatingDmcId)->first();
-                if ($operatingDmc && strtolower(trim((string) ($operatingDmc->thirdparty ?? 'no'))) === 'yes') {
-                    $cityType = 'single';
+            $operatingDmc = $operatingDmcId > 0
+                ? User::select('userId', 'thirdparty', 'thirdparty_enabled', 'country')->where('userId', $operatingDmcId)->first()
+                : null;
+            $operatingTpScope = $this->resolveThirdPartyDmcScope($operatingDmc);
+            if (!empty($operatingTpScope['is_restricted'])) {
+                $destinationError = $this->restrictedThirdPartyOutsideOwnCountryMessage(
+                    (string) $request->input('user_country', ''),
+                    (string) $request->input('city', ''),
+                    $operatingTpScope['own_country_names'] ?? []
+                );
+                if ($destinationError) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => $destinationError,
+                    ], 403);
                 }
             }
             $tour->city_type = $cityType;
@@ -979,9 +1015,20 @@ class SingleTourPackageController extends Controller
                 $tour->city = null;
             } elseif (ctype_digit($cityStr)) {
                 $tour->city = City::query()->where('city_id', (int) $cityStr)->value('name');
+            } elseif (preg_match('/\[\d{4}-\d{2}-\d{2}\s*(?:→|->)\s*\d{4}-\d{2}-\d{2}\]/u', $cityStr)) {
+                // Multi-city plan CSV from lite form — keep dates + country:
+                // "Batam (Indonesia) [2026-09-23→2026-09-26], Singapore (Singapore) [2026-09-26→2026-09-29]"
+                $tour->city = $cityStr;
             } else {
-                $stripped = preg_replace('/\s*\([^)]*\)\s*$/', '', $cityStr);
-                $tour->city = ($stripped !== '' ? $stripped : $cityStr);
+                // Plain city names / "City (Country)" without stay dates — keep labels intact.
+                $cityParts = [];
+                foreach (preg_split('/\s*,\s*/', $cityStr) ?: [] as $part) {
+                    $part = trim((string) $part);
+                    if ($part !== '') {
+                        $cityParts[] = $part;
+                    }
+                }
+                $tour->city = !empty($cityParts) ? implode(', ', array_unique($cityParts)) : $cityStr;
             }
             $tour->dmc_id = $dmcId;
             if (!empty($masterDmcId)) {
@@ -1875,6 +1922,7 @@ class SingleTourPackageController extends Controller
         $userDmcId = $userDmcIdInt;
         $dmcGroupPax = (int) ($UserDmc->group_pax ?? 0);
         $isThirdPartyDmc = strtolower(trim((string) ($UserDmc->thirdparty ?? 'no'))) === 'yes';
+        $ownDmcCountries = $ownDmcCountryNames;
         $dmcCurrency = strtoupper(trim((string) (
             optional($UserDmc)->currency
             ?? Auth::user()->currency
@@ -1916,6 +1964,8 @@ class SingleTourPackageController extends Controller
             'userDmcId',
             'dmcGroupPax',
             'isThirdPartyDmc',
+            'isRestrictedThirdParty',
+            'ownDmcCountries',
             'dmcCurrency',
             'siblingDmcCountryMap',
             'siblingDmcCityMap',
@@ -2590,6 +2640,90 @@ class SingleTourPackageController extends Controller
     }
 
     /**
+     * @param  list<string>  $ownCountryNames
+     */
+    private function restrictedThirdPartyOutsideOwnCountryMessage(string $userCountryCsv, string $cityRaw, array $ownCountryNames): ?string
+    {
+        if ($ownCountryNames === []) {
+            return 'Third party access is disabled: this DMC has no country assigned.';
+        }
+
+        $countries = [];
+        foreach (preg_split('/\s*,\s*/', $userCountryCsv) ?: [] as $part) {
+            $part = trim((string) $part);
+            if ($part !== '') {
+                $countries[] = $part;
+            }
+        }
+
+        $cityLabels = [];
+        if (trim($cityRaw) !== '') {
+            if (preg_match_all('/([^,\[]+?)\s*\[[^\]]+\]/', $cityRaw, $m)) {
+                foreach ($m[1] as $label) {
+                    $cityLabels[] = trim((string) $label);
+                }
+            } else {
+                foreach (preg_split('/\s*,\s*/', $cityRaw) ?: [] as $part) {
+                    $label = trim((string) preg_replace('/\s*\[[^\]]*\]\s*/', '', $part));
+                    if ($label !== '') {
+                        $cityLabels[] = $label;
+                    }
+                }
+            }
+        }
+
+        foreach ($cityLabels as $label) {
+            $country = '';
+            if (preg_match('/^(.*?)\s*\(([^)]+)\)\s*$/', $label, $cm)) {
+                $country = trim((string) $cm[2]);
+                $label = trim((string) $cm[1]);
+            }
+            if ($country === '') {
+                $country = (string) (City::where('name', $label)->value('country') ?? '');
+            }
+            if ($country !== '') {
+                $countries[] = $country;
+            }
+        }
+
+        foreach (array_unique($countries) as $country) {
+            if (!CommonHelper::countryNameInList((string) $country, $ownCountryNames)) {
+                return "Third party access is disabled: you can only create or edit tours for this DMC's country.";
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     * @param  list<string>  $ownCountryNames
+     */
+    private function serviceRowIsOutsideRestrictedOwnCountry(array $row, array $ownCountryNames): bool
+    {
+        if ($ownCountryNames === []) {
+            return true;
+        }
+
+        $country = trim((string) ($row['country'] ?? $row['_order_country'] ?? ''));
+        if ($country === '' && is_array($row['hotelDetails'] ?? null)) {
+            $country = trim((string) ($row['hotelDetails']['country'] ?? ''));
+        }
+        if ($country === '') {
+            $city = trim((string) ($row['city'] ?? $row['_order_city'] ?? $row['location'] ?? ''));
+            $city = trim((string) preg_replace('/\s*\([^)]*\)\s*$/', '', $city));
+            if ($city !== '') {
+                $country = (string) (City::where('name', $city)->value('country') ?? '');
+            }
+        }
+        if ($country === '') {
+            return false;
+        }
+
+        return !CommonHelper::countryNameInList($country, $ownCountryNames);
+    }
+
+    /**
      * Inventory DMC for a city block under the same Master DMC.
      * Singapore city → Singapore DMC products; India city → India DMC products.
      * Restricted third-party DMCs stay on their own id (no sibling remapping).
@@ -3222,16 +3356,20 @@ class SingleTourPackageController extends Controller
             ]);
 
             // Packaged attraction bundles for this DMC that contain at least one attraction in this city
-            $cityAttractionIds = $attractions->pluck('id')->map(fn($v) => (int) $v)->all();
-            $cityAttractionUniqueIds = $attractions->pluck('attraction_id')->map(fn($v) => (int) $v)->all();
+            $cityAttractionIds = $attractions->pluck('id')->map(fn ($v) => (int) $v)->filter()->all();
+            $cityAttractionUniqueIds = $attractions->pluck('attraction_id')->map(fn ($v) => (int) $v)->filter()->all();
+            // Some schemas use attraction_id as the only identifier
+            $cityKeys = array_values(array_unique(array_merge($cityAttractionIds, $cityAttractionUniqueIds)));
 
             $bundles = PackagedAttraction::where('status', 1)
                 ->where('dmc_id', $dmcId)
                 ->get()
-                ->filter(function ($package) use ($cityAttractionIds, $cityAttractionUniqueIds) {
+                ->filter(function ($package) use ($cityKeys) {
                     $bundledIds = array_map('intval', json_decode($package->attractions, true) ?? []);
-                    return count(array_intersect($bundledIds, $cityAttractionIds)) > 0
-                        || count(array_intersect($bundledIds, $cityAttractionUniqueIds)) > 0;
+                    if (empty($bundledIds) || empty($cityKeys)) {
+                        return false;
+                    }
+                    return count(array_intersect($bundledIds, $cityKeys)) > 0;
                 })
                 ->map(function ($package) {
                     return [
@@ -5338,7 +5476,7 @@ class SingleTourPackageController extends Controller
     // }
 
     /**
-     * True when a country string is unusable (blank, CSV, or actually a city name).
+     * True when a country string is unusable (blank or multi-country CSV).
      */
     private function isInvalidOrderCountry(?string $country): bool
     {
@@ -5350,7 +5488,43 @@ class SingleTourPackageController extends Controller
             return true;
         }
 
-        return City::where('name', $country)->exists() && !Country::where('name', $country)->exists();
+        return false;
+    }
+
+    /**
+     * Turn posted stay country (or a city name mistakenly sent as country) into a country name.
+     */
+    private function normalizePostedOrderCountry(?string $country, ?string $cityHint = null): string
+    {
+        $country = trim((string) $country);
+        $cityHint = trim((string) $cityHint);
+
+        if ($country !== '' && str_contains($country, ',')) {
+            foreach (preg_split('/\s*,\s*/', $country) ?: [] as $part) {
+                $normalized = $this->normalizePostedOrderCountry($part, $cityHint);
+                if ($normalized !== '') {
+                    return $normalized;
+                }
+            }
+            $country = '';
+        }
+
+        if ($country !== '' && Country::where('name', $country)->exists()) {
+            return $country;
+        }
+
+        foreach ([$country, $cityHint] as $maybeCity) {
+            $maybeCity = trim((string) $maybeCity);
+            if ($maybeCity === '') {
+                continue;
+            }
+            $fromCity = City::where('name', $maybeCity)->value('country');
+            if (is_string($fromCity) && trim($fromCity) !== '') {
+                return trim($fromCity);
+            }
+        }
+
+        return $country;
     }
 
     /**
@@ -5397,15 +5571,15 @@ class SingleTourPackageController extends Controller
             }
         }
 
-        $country = trim((string) ($payload['country'] ?? ''));
-        if ($this->isInvalidOrderCountry($country)) {
-            $country = '';
-        }
+        $country = $this->normalizePostedOrderCountry(
+            (string) ($payload['country'] ?? ''),
+            is_string($city) ? $city : null
+        );
         if ($country === '' && is_array($payload['hotelDetails'] ?? null)) {
-            $hotelCountry = trim((string) ($payload['hotelDetails']['country'] ?? ''));
-            if (!$this->isInvalidOrderCountry($hotelCountry)) {
-                $country = $hotelCountry;
-            }
+            $country = $this->normalizePostedOrderCountry(
+                (string) ($payload['hotelDetails']['country'] ?? ''),
+                is_string($city) ? $city : null
+            );
         }
         if ($country === '' && $city) {
             $country = trim((string) (City::where('name', $city)->value('country') ?? ''));
@@ -5433,6 +5607,20 @@ class SingleTourPackageController extends Controller
             $currency = strtoupper(trim((string) (Country::where('name', $country)->value('currency') ?? '')));
         }
 
+        // Inventory masters (hotel/attraction/restaurant) when payload/request geo is still empty.
+        if ($country === '' || $city === null || $city === '' || $currency === '') {
+            $fromInventory = CommonHelper::extractInvoiceItemGeo(null, $payload, $currency !== '' ? $currency : null);
+            if ($country === '' && !empty($fromInventory['country'])) {
+                $country = trim((string) $fromInventory['country']);
+            }
+            if (($city === null || $city === '') && !empty($fromInventory['city'])) {
+                $city = trim((string) $fromInventory['city']);
+            }
+            if ($currency === '' && !empty($fromInventory['currency'])) {
+                $currency = strtoupper(trim((string) $fromInventory['currency']));
+            }
+        }
+
         return [
             'country' => $country !== '' ? $country : null,
             'currency' => $currency !== '' ? $currency : null,
@@ -5456,27 +5644,35 @@ class SingleTourPackageController extends Controller
         $requestCurrency = strtoupper(trim((string) $request->input('currency', '')));
         $requestCity = trim((string) $request->input('city', ''));
         if ($requestCity !== '') {
-            // Strip display form "Bali (Indonesia)" → "Bali"
+            // Strip display form "Bali (Indonesia)" or "Bali [2026-10-11→2026-10-22]"
+            $requestCity = trim((string) preg_replace('/\s*\[[^\]]*\]\s*$/', '', $requestCity));
             $requestCity = trim((string) preg_replace('/\s*\([^)]*\)\s*$/', '', $requestCity));
         }
-        if ($this->isInvalidOrderCountry($requestCountry)) {
-            $requestCountry = '';
-        }
+        $requestCountry = $this->normalizePostedOrderCountry($requestCountry, $requestCity);
 
         $payload = is_array($servicePayload) ? $servicePayload : [];
-        // Multi-city posts one stay at a time. Request geo is the stay; payload often still
-        // has hardcoded Singapore city/country even when currency is INR/AUD.
+        // Lite posts one stay at a time — stay geo always wins over leftover payload defaults.
         if ($requestCountry !== '') {
             $payload['country'] = $requestCountry;
         }
         if ($requestCity !== '') {
             $payload['city'] = $requestCity;
         }
-        if ($requestCurrency !== '' && empty($payload['currency'])) {
+        if ($requestCurrency !== '') {
             $payload['currency'] = $requestCurrency;
         }
 
         $geo = $this->resolveOrderGeoFromServicePayload($payload, $fallbackDestination);
+
+        if (empty($geo['country']) && $requestCountry !== '') {
+            $geo['country'] = $requestCountry;
+        }
+        if (empty($geo['city']) && $requestCity !== '') {
+            $geo['city'] = $requestCity;
+        }
+        if (empty($geo['currency']) && $requestCurrency !== '') {
+            $geo['currency'] = $requestCurrency;
+        }
 
         if (empty($geo['currency']) && !empty($geo['country'])) {
             $currencyFromCountry = Country::where('name', $geo['country'])->value('currency');
@@ -5510,6 +5706,12 @@ class SingleTourPackageController extends Controller
         }
         if (!empty($geo['currency'])) {
             $serviceRow['currency'] = $geo['currency'];
+        } else {
+            $reqCurrency = strtoupper(trim((string) $request->input('currency', '')));
+            if ($reqCurrency !== '') {
+                $serviceRow['currency'] = $reqCurrency;
+                $geo['currency'] = $reqCurrency;
+            }
         }
         if (!empty($geo['country']) && is_array($serviceRow['hotelDetails'] ?? null)) {
             $serviceRow['hotelDetails']['country'] = $geo['country'];
@@ -5547,6 +5749,14 @@ class SingleTourPackageController extends Controller
             $orderCountry = $orderGeo['country'];
             $orderCity = $orderGeo['city'];
             $orderCurrency = $orderGeo['currency'];
+
+            $authDmcId = (int) (CommonHelper::getDmcId(Auth::user()) ?: 0);
+            $authDmc = $authDmcId > 0
+                ? User::select('userId', 'thirdparty', 'thirdparty_enabled', 'country')->where('userId', $authDmcId)->first()
+                : null;
+            $storeTpScope = $this->resolveThirdPartyDmcScope($authDmc);
+            $storeRestricted = !empty($storeTpScope['is_restricted']);
+            $storeOwnCountries = $storeTpScope['own_country_names'] ?? [];
                                     
             // This initial booking ID is not used since we generate unique IDs for each service
             // But we keep it for compatibility with existing logging
@@ -5649,6 +5859,14 @@ class SingleTourPackageController extends Controller
                     ]);
                     
                     if (is_array($decodedData) && count($decodedData) > 0) {
+                        if ($storeRestricted) {
+                            $decodedData = array_values(array_filter($decodedData, function ($row) use ($storeOwnCountries) {
+                                return is_array($row) && !$this->serviceRowIsOutsideRestrictedOwnCountry($row, $storeOwnCountries);
+                            }));
+                            if ($decodedData === []) {
+                                continue;
+                            }
+                        }
                         if ($type === 'hotel') {
                             // For hotels, store each hotel booking as a separate order
                             foreach ($decodedData as $hotelBooking) {

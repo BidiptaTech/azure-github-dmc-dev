@@ -2908,8 +2908,22 @@
                         if (!isset($itineraryByDate)) {
                             $itineraryByDate = [];
                         }
+                        $serviceCountryScope = $serviceCountryScope ?? ['restricted' => false, 'countries' => []];
+                        $bladeTourCountries = $tourCountries ?? \App\Helpers\CommonHelper::parseTourDestinationCountries($tourDetails->destination ?? null);
+                        $bladeCityMap = $cityCountryMap ?? [];
                         
                         foreach ($tourDetails->booking as $booking) {
+                            // Restricted 3rd-party: never re-add other-country services from the relation
+                            if (!empty($serviceCountryScope['restricted'])) {
+                                $resolvedCountry = \App\Helpers\CommonHelper::resolveBookingServiceCountry(
+                                    $booking,
+                                    $bladeTourCountries,
+                                    $bladeCityMap
+                                );
+                                if (!\App\Helpers\CommonHelper::isServiceCountryAllowed((string) $resolvedCountry, $serviceCountryScope)) {
+                                    continue;
+                                }
+                            }
                             // Extract data from the booking
                             $bookingData = null;
                             
@@ -3132,8 +3146,23 @@
                     
                     // Generate date range from tour details
                     $allDates = [];
+                    $serviceCountryScope = $serviceCountryScope ?? ['restricted' => false, 'countries' => []];
+                    $isRestrictedItinerary = !empty($serviceCountryScope['restricted']);
                     
-                    if (isset($tourDetails->check_in_time) && isset($tourDetails->check_out_time)) {
+                    if ($isRestrictedItinerary && count($itineraryByDate) > 0) {
+                        // Restricted 3rd-party: only days that have this DMC's country services
+                        // (do not pad empty days for other countries in the full tour window)
+                        $dateKeys = array_keys($itineraryByDate);
+                        sort($dateKeys);
+                        $startDate = \Carbon\Carbon::parse($dateKeys[0]);
+                        $endDate = \Carbon\Carbon::parse($dateKeys[count($dateKeys) - 1]);
+                        $currentDate = $startDate->copy();
+                        while ($currentDate->lte($endDate)) {
+                            $dateStr = $currentDate->format('Y-m-d');
+                            $allDates[$dateStr] = $itineraryByDate[$dateStr] ?? [];
+                            $currentDate->addDay();
+                        }
+                    } elseif (isset($tourDetails->check_in_time) && isset($tourDetails->check_out_time)) {
                         // Use tour start and end dates if available
                         $startDate = \Carbon\Carbon::parse($tourDetails->check_in_time);
                         $endDate = \Carbon\Carbon::parse($tourDetails->check_out_time);
@@ -3189,6 +3218,10 @@
                                     $tourCountries,
                                     $cityCountryMap
                                 );
+                                if (!empty($serviceCountryScope['restricted'])
+                                    && !\App\Helpers\CommonHelper::isServiceCountryAllowed((string) $resolvedCountry, $serviceCountryScope)) {
+                                    continue;
+                                }
                                 if (!isset($itineraryByCountry[$resolvedCountry])) {
                                     $itineraryByCountry[$resolvedCountry] = [];
                                 }

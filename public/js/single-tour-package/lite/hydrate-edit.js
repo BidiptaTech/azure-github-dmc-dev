@@ -696,6 +696,9 @@
         if (window.StpLiteTransportShared && typeof window.StpLiteTransportShared.refreshAllStaySectionTotals === 'function') {
             window.StpLiteTransportShared.refreshAllStaySectionTotals(document);
         }
+        if (window.StpLiteCityMarkup && typeof window.StpLiteCityMarkup.refreshServiceLocks === 'function') {
+            window.StpLiteCityMarkup.refreshServiceLocks();
+        }
     }
 
     function bindEditSectionReseed() {
