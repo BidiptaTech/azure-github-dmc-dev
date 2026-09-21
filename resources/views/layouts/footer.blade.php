@@ -103,15 +103,14 @@
         });
     }
 
-    setInterval(pollAccountStatus, 15000);
-
+    // Do not poll on an interval — that hit /user/account-status every 15s on every
+    // logged-in page and put constant load on the app. Check only when the user
+    // returns to this tab.
     document.addEventListener('visibilitychange', function () {
         if (document.visibilityState === 'visible') {
             pollAccountStatus();
         }
     });
-
-    window.addEventListener('focus', pollAccountStatus);
 })();
 </script>
 @endauth

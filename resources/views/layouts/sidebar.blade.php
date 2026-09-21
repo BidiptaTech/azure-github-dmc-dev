@@ -668,7 +668,7 @@
                     <span class="menu-header-text" data-i18n="Product Settings">Product Settings</span>
                 </li>
 
-            <li class="menu-item @if(Request::is('category*') || Request::is('facility*') || Request::is('ports*') || Request::is('single-tour-package*') || Request::is('zones*') || Request::is('miscellaneous*') || Request::is('default-values*') || Request::is('services/*'))  open active @endif">
+            <li class="menu-item @if(Request::is('category*') || Request::is('facility*') || Request::is('ports*') || Request::is('single-tour-package*') || Request::is('zones*') || Request::is('miscellaneous*') || Request::is('default-values*') || Request::is('services/hotels') || Request::is('services/attractions') || Request::is('services/restaurants') || Request::is('services/miscellaneous'))  open active @endif">
                 <a href="#" class="menu-link menu-toggle">
                     <i class="menu-icon tf-icons ri-stack-line" style="color: #3565bd"></i>
                     <div data-i18n="Product Settings">Product Settings</div>
@@ -757,7 +757,7 @@
                         $allowedRoles = [11, 35, 74, 77, 78, 84, 93, 120, 130, 132, 133, 135, 136, 137, 138, 139, 140];
                     @endphp
                     @if(in_array(Auth::user()->role_id, $allowedRoles))
-                        <li class="menu-item @if(Request::is('services/*')) open @endif">
+                        <li class="menu-item @if(Request::is('services/hotels') || Request::is('services/attractions') || Request::is('services/restaurants') || Request::is('services/miscellaneous')) open @endif">
                             <a href="javascript:void(0);" class="menu-link menu-toggle" title="Select Products">
                                 <div data-i18n="Select Products">Select Products</div>
                             </a>
@@ -1541,7 +1541,8 @@
                     @php
                         $sidebarRoleId = Auth::user()->role_id;
                         $sidebarIsAdmin = in_array($sidebarRoleId, [1]);
-                        $sidebarIsDmc = in_array($sidebarRoleId, [11]);
+                        // 11 = DMC, 138 = Multi-role (same General Settings as DMC; stores use parent dmc_id)
+                        $sidebarIsDmc = in_array($sidebarRoleId, [11, 138]);-
                         $sidebarIsOperational = in_array($sidebarRoleId, [34, 124,125]);
                         $sidebarIsFinance = in_array($sidebarRoleId, [36, 126,127]);
                         $sidebarIsLimitedGeneralSettings = $sidebarIsDmc || $sidebarIsOperational || $sidebarIsFinance;
@@ -1554,7 +1555,7 @@
                         <span class="menu-header-text" data-i18n="Setting">Setting</span>
                     </li>
                     
-                    <li class="menu-item @if(Request::is('master-setting*', 'country*', 'countries*', 'mail/settings*', 'guide-languages*', 'suppliers*', 'cities*', 'app-management*', 'dmc-func-app*', 'itinerary_settings.pdf', 'quotation_settings.pdf')) open @endif">
+                    <li class="menu-item @if(Request::is('master-setting*', 'country*', 'countries*', 'mail*', 'guide-languages*', 'suppliers*', 'cities*', 'app-management*', 'dmc-func-app*', 'itinerary_settings.pdf', 'quotation_settings.pdf')) open @endif">
                         <a href="#" class="menu-link menu-toggle">
                             <i class="menu-icon tf-icons ri-settings-3-line"></i>
                             <div data-i18n="General Settings">General Settings</div>
@@ -1601,6 +1602,12 @@
                             <li class="menu-item @if(Request::is('mail/settings')) active @endif">
                                 <a href="{{ route('mail.settings') }}" class="menu-link">
                                     <div data-i18n="Email Settings">Email Settings</div>
+                                </a>
+                            </li>
+                            <!-- Email Templates (same as DMC) -->
+                            <li class="menu-item @if(Request::is('mail') || Request::is('mail/index') || Request::is('mail/booking-*') || Request::is('mail/tour-*') || Request::is('mail/welcome-*') || Request::is('mail/enquiry-*') || Request::is('mail/job-*') || Request::is('mail/agent-*') || Request::is('mail/templates*')) active @endif">
+                                <a href="{{ route('mail.index') }}" class="menu-link">
+                                    <div data-i18n="Email Templates">Email Templates</div>
                                 </a>
                             </li>
                         @endif
@@ -1801,40 +1808,10 @@
                 </div>
             </div>
         </div>
-<style>
-    #createTourProModal .select2-container--default .select2-selection--single {
-        height: 31px;
-        min-height: 31px;
-        border: 1px solid #dee2e6;
-        border-radius: 0.25rem;
-        font-size: 10px;
-    }
-    #createTourProModal .select2-container--default .select2-selection--single .select2-selection__rendered {
-        line-height: 29px;
-        padding-left: 8px;
-        font-size: 10px;
-    }
-    #createTourProModal .select2-container--default .select2-selection--single .select2-selection__arrow {
-        height: 29px;
-    }
-    #createTourProModal .select2-container {
-        width: 100% !important;
-    }
-    .select2-container--open .select2-dropdown--below {
-        z-index: 1065;
-    }
-</style>
 <!-- Modal for Create Single Tour Pro Initial Information -->
 <div class="modal fade" id="createTourProModal" tabindex="-1" aria-labelledby="createTourProModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-lg" style="max-width: 860px;">
-        <div class="modal-content" style="border: none; border-radius: 10px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.15);">
-            <div class="modal-header text-white py-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none;">
-                <h6 class="modal-title mb-0 text-white d-flex align-items-center" id="createTourProModalLabel">
-                    <span class="d-inline-flex align-items-center justify-content-center me-2" style="width:28px;height:28px;background:rgba(255,255,255,0.2);border-radius:6px;"><i class="ri-file-list-3-line"></i></span>
-                    Create Single Tour Pro
-                </h6>
-                <button type="button" class="btn-close btn-close-white btn-sm" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
             <form id="createTourProForm" method="POST" action="{{ route('enquiry-form-pro.initialize') }}" novalidate>
                 @csrf
                 @php
@@ -1842,61 +1819,116 @@
                     $ctpMinStartDate = \Carbon\Carbon::now()->addDay()->format('Y-m-d');
                     $ctpMinEndDate = \Carbon\Carbon::now()->addDays(2)->format('Y-m-d');
                 @endphp
-                <div class="modal-body" style="padding: 10px 15px;">
-                    <!-- Row 1: Tour Type + dates -->
-                    <div class="row g-2 mb-1">
-                        <div class="col-md-3 col-6">
-                            <label class="form-label small mb-0" style="font-size: 10px;">Type <span class="text-danger">*</span></label>
-                            <div class="d-flex gap-2 mt-1">
-                                <div class="form-check form-check-inline">
-                                    <input class="form-check-input" type="radio" name="tour_type" id="tourTypeFIT" value="FIT" checked>
-                                    <label class="form-check-label small" for="tourTypeFIT" style="font-size: 10px;">FIT</label>
+                <div class="ctp-shell">
+                    <aside class="ctp-sidenav" aria-label="Tour setup steps">
+                        <button type="button" class="ctp-step is-active" data-ctp-step="basic">
+                            <i class="ri-map-2-line"></i>
+                            <span>
+                                <span class="ctp-step-title">Basic Details</span>
+                                <span class="ctp-step-sub">Type, dates, guests</span>
+                            </span>
+                        </button>
+                        <button type="button" class="ctp-step" data-ctp-step="guest">
+                            <i class="ri-user-line"></i>
+                            <span>
+                                <span class="ctp-step-title">Guest Information</span>
+                                <span class="ctp-step-sub">Lead guest details</span>
+                            </span>
+                        </button>
+                        <div class="ctp-sidenav-foot">
+                            Create memorable<br>experiences <i class="ri-plane-line"></i>
+                        </div>
+                    </aside>
+
+                    <div class="ctp-main">
+                        <div class="ctp-main-head">
+                            <div class="ctp-main-head-left">
+                                <span class="ctp-main-icon"><i class="ri-add-box-line"></i></span>
+                                <div>
+                                    <h6 id="createTourProModalLabel">Create Single Tour Pro</h6>
+                                    <p>Plan and configure a customized tour for your guests</p>
                                 </div>
-                                <div class="form-check form-check-inline">
-                                    <input class="form-check-input" type="radio" name="tour_type" id="tourTypeGroup" value="GROUP">
-                                    <label class="form-check-label small" for="tourTypeGroup" style="font-size: 10px;">Group</label>
+                            </div>
+                            <button type="button" class="ctp-close" data-bs-dismiss="modal" aria-label="Close"><i class="ri-close-line"></i></button>
+                        </div>
+
+                        <div class="modal-body ctp-main-body">
+                    <!-- Tour Details -->
+                    <section class="ctp-card" id="ctpSectionTour">
+                        <div class="ctp-card-head">
+                            <span class="ctp-card-head-icon"><i class="ri-calendar-event-line"></i></span>
+                            <div>
+                                <h6>Tour Details</h6>
+                                <p>Select tour type and travel dates</p>
+                            </div>
+                        </div>
+                        <div class="ctp-card-body">
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <span class="ctp-label">Type <span class="ctp-req">*</span></span>
+                                    <div class="ctp-radios">
+                                        <label class="ctp-radio" for="tourTypeFIT">
+                                            <input type="radio" name="tour_type" id="tourTypeFIT" value="FIT" checked>
+                                            <span>FIT</span>
+                                        </label>
+                                        <label class="ctp-radio" for="tourTypeGroup">
+                                            <input type="radio" name="tour_type" id="tourTypeGroup" value="GROUP">
+                                            <span>Group</span>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="ctp-label" for="tourStartDate">Start Date <span class="ctp-req">*</span></label>
+                                    <div class="ctp-icon-field">
+                                        <i class="ri-calendar-line ctp-field-ico"></i>
+                                        <input type="date" class="form-control" id="tourStartDate" name="tour_start_date" required min="{{ $ctpMinStartDate }}" value="{{ $ctpMinStartDate }}">
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="ctp-label" for="tourEndDate">End Date <span class="ctp-req">*</span></label>
+                                    <div class="ctp-icon-field">
+                                        <i class="ri-calendar-line ctp-field-ico"></i>
+                                        <input type="date" class="form-control" id="tourEndDate" name="tour_end_date" required min="{{ $ctpMinEndDate }}" value="{{ $ctpMinEndDate }}">
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-3 col-6">
-                            <label class="form-label small mb-0" style="font-size: 10px;">Start <span class="text-danger">*</span></label>
-                            <input type="date" class="form-control form-control-sm" id="tourStartDate" name="tour_start_date" required min="{{ $ctpMinStartDate }}" value="{{ $ctpMinStartDate }}" style="font-size: 10px;">
-                        </div>
-                        <div class="col-md-3 col-6">
-                            <label class="form-label small mb-0" style="font-size: 10px;">End <span class="text-danger">*</span></label>
-                            <input type="date" class="form-control form-control-sm" id="tourEndDate" name="tour_end_date" required min="{{ $ctpMinEndDate }}" value="{{ $ctpMinEndDate }}" style="font-size: 10px;">
-                        </div>
-                    </div>
+                    </section>
 
                     <!-- FIT: Adult / Child / Infant (unchanged behaviour) -->
-                    <div class="row g-2 mb-1 d-none" id="tourProFitPaxRow">
+                    <div class="row g-2 d-none" id="tourProFitPaxRow">
                         <div class="col-md-2 col-4">
-                            <label class="form-label small mb-0" style="font-size: 10px;">Adult <span class="text-danger">*</span></label>
-                            <input type="number" class="form-control form-control-sm" id="adultCount" min="1" value="1" style="font-size: 10px;">
+                            <label class="ctp-label">Adult <span class="ctp-req">*</span></label>
+                            <input type="number" class="form-control" id="adultCount" min="1" value="1">
                         </div>
                         <div class="col-md-2 col-4">
-                            <label class="form-label small mb-0" style="font-size: 10px;">Child</label>
-                            <input type="number" class="form-control form-control-sm" id="childCount" min="0" value="0" style="font-size: 10px;">
+                            <label class="ctp-label">Child</label>
+                            <input type="number" class="form-control" id="childCount" min="0" value="0">
                         </div>
                         <div class="col-md-2 col-4">
-                            <label class="form-label small mb-0" style="font-size: 10px;">Infant</label>
-                            <input type="number" class="form-control form-control-sm" id="infantCount" min="0" value="0" style="font-size: 10px;">
+                            <label class="ctp-label">Infant</label>
+                            <input type="number" class="form-control" id="infantCount" min="0" value="0">
                         </div>
                     </div>
 
-                    <!-- FIT & GROUP: guest modal (GROUP shows FOC section inside modal) -->
-                    <div class="row g-2 mb-1" id="tourProGuestsRow">
-                        <div class="col-12">
-                            <label class="form-label small mb-0" style="font-size: 10px;">Guests <span class="text-danger">*</span></label>
-                            <div class="d-flex align-items-center flex-wrap gap-2 p-2 border rounded" style="background:#f8f9fa;font-size:10px;">
-                                <span id="tourProGuestSummary" class="text-muted">Click “Select tour guests” to set passengers…</span>
-                                <button type="button" class="btn btn-sm text-white ms-auto" id="tourProOpenGuestModalBtn" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); font-size: 10px; padding: 4px 10px;">
-                                    <i class="ri-group-line me-1"></i>Select tour guests
+                    <!-- Guests -->
+                    <section class="ctp-card" id="tourProGuestsRow">
+                        <div class="ctp-card-head">
+                            <span class="ctp-card-head-icon"><i class="ri-group-line"></i></span>
+                            <div>
+                                <h6>Guests <span class="ctp-req">*</span></h6>
+                                <p id="tourProGuestsHelper">Select tour guests to set passengers. Set adults (male + female), children, and infants. Infants do not use a pax slot.</p>
+                            </div>
+                        </div>
+                        <div class="ctp-card-body">
+                            <div class="ctp-guest-strip">
+                                <span id="tourProGuestSummary" class="ctp-guest-strip-text">Click “Select tour guests” to set passengers...</span>
+                                <button type="button" class="btn" id="tourProOpenGuestModalBtn">
+                                    <i class="ri-group-line me-1"></i>Select Tour Guests
                                 </button>
                             </div>
-                            <small id="tourProGuestsHelper" class="text-muted" style="font-size:9px;">Set adults (male + female), children, and infants. Infants do not use a pax slot.</small>
                         </div>
-                    </div>
+                    </section>
 
                     <input type="hidden" name="adult_count" id="ctp_hidden_adult_count" value="1">
                     <input type="hidden" name="child_count" id="ctp_hidden_child_count" value="0">
@@ -1910,105 +1942,209 @@
                     <input type="hidden" name="auto_foc" id="ctp_hidden_auto_foc" value="0">
                     <input type="hidden" name="child_ages" id="ctp_hidden_child_ages" value="[]">
 
-                    <!-- Row 2: Destination (moved before Agency) -->
-                    <div class="row g-2 mb-1">
-                        <div class="col-12">
-                            <label class="form-label small mb-0 d-flex align-items-center" style="font-size: 10px;">
-                                Destination <span class="text-danger">*</span>
-                                <div class="form-check form-check-inline ms-3 mb-0">
-                                    <input class="form-check-input" type="checkbox" id="multipleDestination" name="multiple_destination" value="1" style="margin-top: 0;">
-                                    <label class="form-check-label" for="multipleDestination" style="font-size: 10px;">Multiple Cities</label>
+                    <!-- Destination + Agency -->
+                    <section class="ctp-card" id="ctpSectionDestination">
+                        <div class="ctp-card-body">
+                            <div class="ctp-dest-title">
+                                <span class="ctp-label"><i class="ri-map-pin-line"></i> Destination <span class="ctp-req">*</span></span>
+                                <label class="ctp-radio" for="ctpDestSingleCity">
+                                    <input type="radio" name="ctp_dest_mode" id="ctpDestSingleCity" value="single" checked>
+                                    <span>Single City</span>
+                                </label>
+                                <label class="ctp-radio" for="ctpDestMultipleCities">
+                                    <input type="radio" name="ctp_dest_mode" id="ctpDestMultipleCities" value="multiple">
+                                    <span>Multiple Cities</span>
+                                </label>
+                                <input type="checkbox" class="d-none" id="multipleDestination" name="multiple_destination" value="1" tabindex="-1" aria-hidden="true">
+                            </div>
+
+                            <div class="mb-3" id="singleDestinationDiv">
+                                <div class="position-relative ctp-icon-field">
+                                    <input type="text" class="form-control ctp-has-end-ico" id="destinationSingle" placeholder="Type to search city..." autocomplete="off" readonly onfocus="this.removeAttribute('readonly');">
+                                    <i class="ri-search-line ctp-field-ico-end"></i>
+                                    <div id="destinationSuggestionsSingle" class="list-group position-absolute w-100 ctp-suggestions"></div>
                                 </div>
-                            </label>
-                        </div>
-                    </div>
-
-                    <!-- Destination (Single) - Text Input with Autocomplete (Single Select) -->
-                    <div class="row g-2 mb-1" id="singleDestinationDiv">
-                        <div class="col-12">
-                            <div class="position-relative">
-                                <input type="text" class="form-control form-control-sm" id="destinationSingle" placeholder="Type to search city..." autocomplete="off" style="font-size: 10px;" readonly onfocus="this.removeAttribute('readonly');">
-                                <div id="destinationSuggestionsSingle" class="list-group position-absolute w-100" style="z-index: 1050; max-height: 120px; overflow-y: auto; display: none; box-shadow: 0 2px 8px rgba(0,0,0,0.15); font-size: 10px; background-color: white; border: 1px solid #dee2e6;"></div>
+                                <input type="hidden" id="destinationSingleValue" name="destination_single">
                             </div>
-                            <input type="hidden" id="destinationSingleValue" name="destination_single">
-                        </div>
-                    </div>
 
-                    <!-- Destination (Multiple) - Text Input with Autocomplete -->
-                    <div class="row g-2 mb-1" id="multipleDestinationDiv" style="display: none;">
-                        <div class="col-12">
-                            <div class="position-relative">
-                                <input type="text" class="form-control form-control-sm" id="destinationMultiple" placeholder="Type to search and select multiple cities..." autocomplete="off" style="font-size: 10px;" readonly onfocus="this.removeAttribute('readonly');">
-                                <div id="destinationSuggestions" class="list-group position-absolute w-100" style="z-index: 1050; max-height: 120px; overflow-y: auto; display: none; box-shadow: 0 2px 8px rgba(0,0,0,0.15); font-size: 10px; background-color: white; border: 1px solid #dee2e6;"></div>
+                            <div class="mb-3" id="multipleDestinationDiv" style="display: none;">
+                                <div class="position-relative ctp-icon-field">
+                                    <input type="text" class="form-control ctp-has-end-ico" id="destinationMultiple" placeholder="Type to search and select multiple cities..." autocomplete="off" readonly onfocus="this.removeAttribute('readonly');">
+                                    <i class="ri-search-line ctp-field-ico-end"></i>
+                                    <div id="destinationSuggestions" class="list-group position-absolute w-100 ctp-suggestions"></div>
+                                </div>
+                                <div id="selectedDestinations" class="mt-2"></div>
+                                <input type="hidden" id="destinationsArray" name="destinations">
                             </div>
-                            <div id="selectedDestinations" class="mt-1"></div>
-                            <input type="hidden" id="destinationsArray" name="destinations">
+
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="ctp-label" for="ctpAgencySelect"><i class="ri-building-2-line"></i> Agency <span class="ctp-req">*</span></label>
+                                    <div class="ctp-icon-field">
+                                        <i class="ri-phone-line ctp-field-ico"></i>
+                                        <select class="form-select" id="ctpAgencySelect">
+                                            <option value="">Type to search agency...</option>
+                                        </select>
+                                    </div>
+                                    <input type="hidden" id="agencyIdValue" name="agency_id">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="ctp-label" for="ctpAgentSelect"><i class="ri-user-line"></i> Agent <span class="ctp-req">*</span></label>
+                                    <div class="ctp-icon-field">
+                                        <i class="ri-phone-line ctp-field-ico"></i>
+                                        <select class="form-select" id="ctpAgentSelect" disabled>
+                                            <option value="">Choose agent...</option>
+                                        </select>
+                                    </div>
+                                    <input type="hidden" id="agentIdValue" name="agent_id">
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Lead Guest Information -->
+                    <section class="ctp-card" id="ctpLeadGuestAccordion">
+                        <div class="accordion-item border-0 bg-transparent">
+                            <button type="button"
+                                    class="ctp-lead-guest-toggle"
+                                    data-bs-toggle="collapse"
+                                    data-bs-target="#ctpLeadGuestBody"
+                                    aria-expanded="true"
+                                    aria-controls="ctpLeadGuestBody"
+                                    id="ctpLeadGuestToggle">
+                                <span class="d-flex align-items-center">
+                                    <span class="ctp-card-head-icon me-2"><i class="ri-user-line"></i></span>
+                                    <span class="ctp-lead-head-copy">
+                                        <span class="d-block fw-semibold" style="font-size: 13.5px; line-height: 1.2;">Lead Guest Information</span>
+                                        <span class="ctp-card-sub">Enter the primary customer's details</span>
+                                    </span>
+                                </span>
+                                <i class="ri-arrow-up-s-line ctp-lead-chevron"></i>
+                            </button>
+                            <div id="ctpLeadGuestBody" class="collapse show">
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-2 col-4">
+                                <label class="ctp-label" for="salutation">Salutation <span class="ctp-req">*</span></label>
+                                <select class="form-select" id="salutation" name="salutation" required>
+                                    <option value="Mr">Mr</option>
+                                    <option value="Mrs">Mrs</option>
+                                    <option value="Ms">Ms</option>
+                                    <option value="Miss">Miss</option>
+                                    <option value="Dr">Dr</option>
+                                    <option value="Prof">Prof</option>
+                                </select>
+                            </div>
+                            <div class="col-md-5 col-8">
+                                <label class="ctp-label" for="customerName">Full Name <span class="ctp-req">*</span></label>
+                                <div class="ctp-icon-field">
+                                    <i class="ri-user-line ctp-field-ico"></i>
+                                    <input type="text" class="form-control" id="customerName" name="customer_name" placeholder="Enter full name" required maxlength="100" autocomplete="name" data-ctp-filter="name">
+                                </div>
+                                <div class="ctp-lead-error" data-ctp-error-for="customerName"></div>
+                            </div>
+                            <div class="col-md-5">
+                                <label class="ctp-label" for="customerEmail">Email</label>
+                                <div class="ctp-icon-field">
+                                    <i class="ri-mail-line ctp-field-ico"></i>
+                                    <input type="text" class="form-control" id="customerEmail" name="email" placeholder="Enter email" inputmode="email" autocomplete="email" maxlength="255" data-ctp-filter="email">
+                                </div>
+                                <div class="ctp-lead-error" data-ctp-error-for="customerEmail"></div>
+                            </div>
+                        </div>
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label class="ctp-label" for="ctpCustomerCountryCode">Country Code</label>
+                                @php
+                                    $ctpCountriesForCode = \App\Models\Country::query()->orderBy('name')->get(['name', 'country_code']);
+                                    $ctpSingapore = $ctpCountriesForCode->firstWhere('name', 'Singapore');
+                                    $ctpDefaultCountryCode = $ctpSingapore->country_code ?? ($ctpCountriesForCode->first()->country_code ?? '');
+                                @endphp
+                                <div class="ctp-icon-field">
+                                    <i class="ri-phone-line ctp-field-ico"></i>
+                                    <select class="form-select" id="ctpCustomerCountryCode" name="customer_country_code">
+                                    <option value="">Select</option>
+                                    @foreach($ctpCountriesForCode as $ctpCountry)
+                                        @if(!empty($ctpCountry->country_code))
+                                            <option value="{{ $ctpCountry->country_code }}" {{ (string) $ctpDefaultCountryCode === (string) $ctpCountry->country_code ? 'selected' : '' }}>{{ $ctpCountry->name }} ({{ $ctpCountry->country_code }})</option>
+                                        @endif
+                                    @endforeach
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="ctp-label" for="contactNumber">Phone Number</label>
+                                <div class="ctp-icon-field">
+                                    <i class="ri-phone-line ctp-field-ico"></i>
+                                    <input type="tel" class="form-control" id="contactNumber" name="contact_number" placeholder="Enter phone number" inputmode="numeric" maxlength="15" autocomplete="tel" data-ctp-filter="phone">
+                                </div>
+                                <div class="ctp-lead-error" data-ctp-error-for="contactNumber"></div>
+                            </div>
+                        </div>
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label class="ctp-label" for="ctpCustomerAddress1">Address Line 1</label>
+                                <div class="ctp-icon-field">
+                                    <i class="ri-map-pin-line ctp-field-ico"></i>
+                                    <input type="text" class="form-control" id="ctpCustomerAddress1" name="customer_address1" placeholder="Enter address line 1" maxlength="255" data-ctp-filter="address">
+                                </div>
+                                <div class="ctp-lead-error" data-ctp-error-for="ctpCustomerAddress1"></div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="ctp-label" for="ctpCustomerAddress2">Address Line 2</label>
+                                <div class="ctp-icon-field">
+                                    <i class="ri-map-pin-line ctp-field-ico"></i>
+                                    <input type="text" class="form-control" id="ctpCustomerAddress2" name="customer_address2" placeholder="Enter address line 2" maxlength="255" data-ctp-filter="address">
+                                </div>
+                                <div class="ctp-lead-error" data-ctp-error-for="ctpCustomerAddress2"></div>
+                            </div>
+                        </div>
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label class="ctp-label" for="ctpCustomerState">State</label>
+                                <input type="text" class="form-control" id="ctpCustomerState" name="customer_state" placeholder="Enter state" maxlength="100" data-ctp-filter="name">
+                                <div class="ctp-lead-error" data-ctp-error-for="ctpCustomerState"></div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="ctp-label" for="ctpCustomerZip">ZIP Code</label>
+                                <input type="text" class="form-control" id="ctpCustomerZip" name="customer_zip" placeholder="Enter 5-digit ZIP" inputmode="numeric" maxlength="5" autocomplete="postal-code" data-ctp-filter="zip">
+                                <div class="ctp-lead-error" data-ctp-error-for="ctpCustomerZip"></div>
+                            </div>
+                        </div>
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label class="ctp-label" for="ctpCustomerPassport">Passport</label>
+                                <input type="text" class="form-control" id="ctpCustomerPassport" name="customer_passport" placeholder="Passport number" maxlength="20" autocomplete="off" data-ctp-filter="passport">
+                                <div class="ctp-lead-error" data-ctp-error-for="ctpCustomerPassport"></div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="ctp-label" for="ctpCustomerPassportExpiry">Passport Expiry Date</label>
+                                <div class="ctp-icon-field">
+                                    <i class="ri-calendar-line ctp-field-ico"></i>
+                                    <input type="date" class="form-control" id="ctpCustomerPassportExpiry" name="customer_passport_expiry">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row g-3 mb-0">
+                            <div class="col-12">
+                                <label class="ctp-label" for="ctpCustomerSpecialRequests">Special Requests</label>
+                                <textarea class="form-control" id="ctpCustomerSpecialRequests" name="customer_special_requests" rows="2" placeholder="Enter any special requests or notes" maxlength="2000" data-ctp-filter="notes"></textarea>
+                                <div class="ctp-lead-error" data-ctp-error-for="ctpCustomerSpecialRequests"></div>
+                            </div>
+                        </div>
+                            </div>
+                        </div>
+                    </section>
+
+                        </div>
+                        <div class="modal-footer ctp-main-foot">
+                            <button type="button" class="btn ctp-btn-cancel" data-bs-dismiss="modal">
+                                <i class="ri-close-line me-1"></i>Cancel
+                            </button>
+                            <button type="submit" class="btn" id="submitTourProBtn" disabled title="Fill all required fields (contact and email are optional).">
+                                Continue <i class="ri-arrow-right-line ms-1"></i>
+                            </button>
                         </div>
                     </div>
-
-                    <!-- Row 3: Agency, Agent -->
-                    <div class="row g-2 mb-1">
-                        <div class="col-6">
-                            <label class="form-label small mb-0" style="font-size: 10px;">Agency <span class="text-danger">*</span></label>
-                            <select class="form-select form-select-sm" id="ctpAgencySelect" style="font-size: 10px;">
-                                <option value="">Choose agency...</option>
-                            </select>
-                            <input type="hidden" id="agencyIdValue" name="agency_id">
-                        </div>
-                        <div class="col-6">
-                            <label class="form-label small mb-0" style="font-size: 10px;">Agent <span class="text-danger">*</span></label>
-                            <select class="form-select form-select-sm" id="ctpAgentSelect" style="font-size: 10px;" disabled>
-                                <option value="">Choose agent...</option>
-                            </select>
-                            <input type="hidden" id="agentIdValue" name="agent_id">
-                        </div>
-                    </div>
-
-                    <!-- Row 4: Customer Details -->
-                    <div class="row g-2 mb-1">
-                        <div class="col-2">   <!-- Increased from col-1 -->
-                            <label class="form-label small mb-0" style="font-size: 10px;">
-                                Sal. <span class="text-danger">*</span>
-                            </label>
-                            <select class="form-select form-select-sm" id="salutation" name="salutation" required>
-                                <option value="Mr">Mr</option>
-                                <option value="Mrs">Mrs</option>
-                                <option value="Ms">Ms</option>
-                                <option value="Dr">Dr</option>
-                            </select>
-                        </div>
-                    
-                        <div class="col-5">   <!-- Reduced from col-6 -->
-                            <label class="form-label small mb-0" style="font-size: 10px;">
-                                Customer Name <span class="text-danger">*</span>
-                            </label>
-                            <input type="text" class="form-control form-control-sm" id="customerName" name="customer_name" required>
-                        </div>
-                    
-                        <div class="col-5">
-                            <label class="form-label small mb-0" style="font-size: 10px;">
-                                Contact Number
-                            </label>
-                            <input type="text" class="form-control form-control-sm" id="contactNumber" name="contact_number">
-                        </div>
-                    </div>
-
-                    <!-- Row 5: Email (optional) -->
-                    <div class="row g-2 mb-1">
-                        <div class="col-12">
-                            <label class="form-label small mb-0" style="font-size: 10px;">Email</label>
-                            <input type="text" class="form-control form-control-sm" id="customerEmail" name="email" placeholder="Optional" inputmode="email" autocomplete="email" style="font-size: 10px;">
-                        </div>
-                    </div>                    
-
-                </div>
-                <div class="modal-footer py-1" style="padding: 8px 15px;">
-                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal" style="font-size: 11px; padding: 4px 12px;">
-                        <i class="ri-close-line me-1"></i>Cancel
-                    </button>
-                    <button type="submit" class="btn btn-success btn-sm" id="submitTourProBtn" disabled style="font-size: 11px; padding: 4px 12px; opacity: 0.55; cursor: not-allowed;" title="Fill all required fields (contact and email are optional).">
-                        <i class="ri-check-line me-1"></i>Continue
-                    </button>
                 </div>
             </form>
         </div>
@@ -2458,6 +2594,7 @@
                         ctpInitTourProSelect2();
                         if (typeof window.ctpApplyTourStartFloor === 'function') window.ctpApplyTourStartFloor();
                         if (typeof ctpUpdateSubmitButtonState === 'function') ctpUpdateSubmitButtonState();
+                        if (typeof ctpBindLeadGuestAccordion === 'function') ctpBindLeadGuestAccordion();
                     });
                 }
             });
@@ -2480,6 +2617,30 @@
         }
 
         /** Enable Continue when required fields are set. Contact number and email are optional. */
+        function ctpExpandLeadGuestAccordion() {
+            const body = document.getElementById('ctpLeadGuestBody');
+            if (!body) return;
+            if (typeof bootstrap !== 'undefined' && bootstrap.Collapse) {
+                bootstrap.Collapse.getOrCreateInstance(body, { toggle: false }).show();
+            } else {
+                body.classList.add('show');
+                document.getElementById('ctpLeadGuestToggle')?.classList.remove('collapsed');
+            }
+        }
+        function ctpBindLeadGuestAccordion() {
+            const body = document.getElementById('ctpLeadGuestBody');
+            const modalBody = document.querySelector('#createTourProModal .modal-body');
+            if (!body || body.dataset.ctpBound === '1') return;
+            body.dataset.ctpBound = '1';
+            body.addEventListener('shown.bs.collapse', function () {
+                if (!modalBody) return;
+                requestAnimationFrame(function () {
+                    const toggle = document.getElementById('ctpLeadGuestToggle');
+                    const top = (toggle ? toggle.offsetTop : body.offsetTop) - 6;
+                    modalBody.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+                });
+            });
+        }
         function ctpUpdateSubmitButtonState() {
             const btn = document.getElementById('submitTourProBtn');
             if (!btn) return;
@@ -2501,7 +2662,8 @@
             if (!(document.getElementById('agentIdValue')?.value || '').trim()) ok = false;
 
             const custName = (document.getElementById('customerName')?.value || '').trim();
-            if (!custName) ok = false;
+            if (!custName || !/^[\p{L}]+(?:[\p{L}\s\-]*[\p{L}])?$/u.test(custName)) ok = false;
+            if (typeof ctpLeadGuestHasInvalidFields === 'function' && ctpLeadGuestHasInvalidFields()) ok = false;
 
             if (!window.tourProGuestConfigured) ok = false;
 
@@ -2582,8 +2744,8 @@
             const g = ctpIsGroup();
             if (helper) {
                 helper.textContent = g
-                    ? 'Group size = paying pax; FOC adds to total pax. Adults + children must match total pax (male + female = adults). Infants are extra.'
-                    : 'Set adults (male + female), children, and infants. Infants do not use a pax slot.';
+                    ? 'Select tour guests to set passengers. Group size = paying pax; FOC adds to total pax. Adults + children must match total pax (male + female = adults). Infants are extra.'
+                    : 'Select tour guests to set passengers. Set adults (male + female), children, and infants. Infants do not use a pax slot.';
             }
             window.tourProGuestConfigured = false;
             if (g) ctpInitDefaultGroupHidden();
@@ -2596,10 +2758,160 @@
                 ctpRefreshTourTypeUI();
             });
         });
-        const ctpCustomerNameEl = document.getElementById('customerName');
-        if (ctpCustomerNameEl) {
-            ctpCustomerNameEl.addEventListener('input', ctpUpdateSubmitButtonState);
+        const ctpLeadGuestRules = {
+            name: {
+                strip: /[^\p{L}\s\-]/gu,
+                valid: /^[\p{L}\s\-]*$/u,
+                error: 'Only letters are allowed. Quotes and special characters are not permitted.',
+                blockKeys: ["'", '"', '`']
+            },
+            phone: {
+                strip: /[^0-9]/g,
+                valid: /^[0-9]*$/,
+                error: 'Phone number accepts digits 0-9 only. Letters such as e and special characters are not allowed.',
+                blockKeys: ['e', 'E', '+', '-', '.', ',', ' ']
+            },
+            zip: {
+                strip: /[^0-9]/g,
+                valid: /^[0-9]{0,5}$/,
+                complete: /^[0-9]{5}$/,
+                error: 'ZIP code accepts digits 0-9 only. Letters such as e and special characters are not allowed.',
+                incompleteError: 'ZIP code must be exactly 5 digits.',
+                blockKeys: ['e', 'E', '+', '-', '.', ',', ' ']
+            },
+            passport: {
+                strip: /[^A-Za-z0-9]/g,
+                valid: /^[A-Za-z0-9]*$/,
+                error: 'Passport number accepts letters and numbers only. Special characters are not allowed.'
+            },
+            notes: {
+                strip: /[<>{}[\]\\`$^*=~|]/g,
+                valid: /^[^<>{}[\]\\`$^*=~|]*$/,
+                error: 'Special requests cannot contain unsafe characters such as < > { } [ ] \\ ` $ * = ~ |'
+            },
+            email: {
+                strip: /[<>"'\\\s]/g,
+                valid: /^[A-Za-z0-9._%+\-@]*$/,
+                format: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+                error: 'Enter a valid email address without spaces or special characters, or leave it blank.'
+            },
+            address: {
+                strip: /[^\p{L}0-9\s.,#'\-\/]/gu,
+                valid: /^[\p{L}0-9\s.,#'\-\/]*$/u,
+                error: 'Address can only contain letters, numbers and common punctuation ( , . # - / ).'
+            }
+        };
+        function ctpLeadGuestShowError(id, msg) {
+            const field = document.getElementById(id);
+            const err = document.querySelector('#ctpLeadGuestBody [data-ctp-error-for="' + id + '"]');
+            if (field) field.classList.toggle('is-invalid', !!msg);
+            if (err) {
+                err.textContent = msg || '';
+                err.classList.toggle('is-visible', !!msg);
+            }
         }
+        function ctpLeadGuestSanitize(el, showError) {
+            const rule = ctpLeadGuestRules[el.getAttribute('data-ctp-filter')];
+            if (!rule) return true;
+            if (el.dataset.ctpComposing === '1') return true;
+            const original = el.value;
+            let next = original.replace(rule.strip, '');
+            if (el.maxLength > 0) next = next.slice(0, el.maxLength);
+            if (next !== original) {
+                const start = el.selectionStart;
+                const end = el.selectionEnd;
+                const removed = original.length - next.length;
+                el.value = next;
+                try {
+                    if (typeof start === 'number' && typeof end === 'number') {
+                        el.setSelectionRange(Math.max(0, start - removed), Math.max(0, end - removed));
+                    }
+                } catch (e) {}
+                if (showError !== false) ctpLeadGuestShowError(el.id, rule.error);
+            } else if (rule.format && next.trim() && !rule.format.test(next.trim())) {
+                if (showError !== false) ctpLeadGuestShowError(el.id, rule.error);
+            } else if (!rule.valid.test(next)) {
+                if (showError !== false) ctpLeadGuestShowError(el.id, rule.error);
+            } else if (showError !== false) {
+                ctpLeadGuestShowError(el.id, '');
+            }
+            if (rule.complete && el.value.trim() && !rule.complete.test(el.value.trim())) {
+                return false;
+            }
+            return rule.valid.test(el.value) && (!rule.format || !el.value.trim() || rule.format.test(el.value.trim()));
+        }
+        function ctpLeadGuestHasInvalidFields() {
+            const fields = document.querySelectorAll('#ctpLeadGuestBody [data-ctp-filter]');
+            for (let i = 0; i < fields.length; i++) {
+                const el = fields[i];
+                const rule = ctpLeadGuestRules[el.getAttribute('data-ctp-filter')];
+                if (!rule) continue;
+                const val = el.value || '';
+                if (!rule.valid.test(val)) return true;
+                if (rule.format && val.trim() && !rule.format.test(val.trim())) return true;
+                if (rule.complete && val.trim() && !rule.complete.test(val.trim())) return true;
+            }
+            return false;
+        }
+        function ctpValidateLeadGuestFields(showErrors) {
+            let ok = true;
+            document.querySelectorAll('#ctpLeadGuestBody [data-ctp-filter]').forEach(function(el) {
+                if (!ctpLeadGuestSanitize(el, showErrors)) ok = false;
+                const rule = ctpLeadGuestRules[el.getAttribute('data-ctp-filter')];
+                const val = (el.value || '').trim();
+                if (rule && rule.complete && val && !rule.complete.test(val)) {
+                    ok = false;
+                    if (showErrors) ctpLeadGuestShowError(el.id, rule.incompleteError || rule.error);
+                }
+            });
+            const nameEl = document.getElementById('customerName');
+            const nameVal = (nameEl?.value || '').trim();
+            if (!nameVal) {
+                ok = false;
+                if (showErrors) ctpLeadGuestShowError('customerName', 'Full name is required and can only contain letters.');
+            } else if (!/^[\p{L}]+(?:[\p{L}\s\-]*[\p{L}])?$/u.test(nameVal) || /['"`]/.test(nameVal)) {
+                ok = false;
+                if (showErrors) ctpLeadGuestShowError('customerName', 'Full name can only contain letters. Quotes and special characters are not allowed.');
+            }
+            return ok;
+        }
+        window.ctpLeadGuestHasInvalidFields = ctpLeadGuestHasInvalidFields;
+        document.querySelectorAll('#ctpLeadGuestBody [data-ctp-filter]').forEach(function(el) {
+            const rule = ctpLeadGuestRules[el.getAttribute('data-ctp-filter')];
+            el.addEventListener('compositionstart', function() { el.dataset.ctpComposing = '1'; });
+            el.addEventListener('compositionend', function() {
+                el.dataset.ctpComposing = '0';
+                ctpLeadGuestSanitize(el, true);
+                ctpUpdateSubmitButtonState();
+            });
+            el.addEventListener('input', function() {
+                ctpLeadGuestSanitize(el, true);
+                ctpUpdateSubmitButtonState();
+            });
+            el.addEventListener('paste', function() {
+                setTimeout(function() {
+                    ctpLeadGuestSanitize(el, true);
+                    ctpUpdateSubmitButtonState();
+                }, 0);
+            });
+            el.addEventListener('blur', function() {
+                ctpLeadGuestSanitize(el, true);
+                if (rule && rule.complete) {
+                    const val = (el.value || '').trim();
+                    if (val && !rule.complete.test(val)) {
+                        ctpLeadGuestShowError(el.id, rule.incompleteError || rule.error);
+                    }
+                }
+            });
+            if (rule && rule.blockKeys) {
+                el.addEventListener('keydown', function(ev) {
+                    if (rule.blockKeys.indexOf(ev.key) !== -1) {
+                        ev.preventDefault();
+                        ctpLeadGuestShowError(el.id, rule.error);
+                    }
+                });
+            }
+        });
         function ctpUpdateFOCFieldsInModal() {
             const gsd = document.getElementById('pro_group_size_display');
             const focEl = document.getElementById('pro_foc_size');
@@ -2971,10 +3283,12 @@
             const span = document.getElementById('tourProGuestSummary');
             if (!span) return;
             if (!window.tourProGuestConfigured) {
-                span.textContent = 'Click “Select tour guests” to set passengers…';
+                span.textContent = 'Click “Select tour guests” to set passengers...';
+                span.classList.remove('is-set');
                 ctpUpdateSubmitButtonState();
                 return;
             }
+            span.classList.add('is-set');
             const a = ctpSafeInt(document.getElementById('ctp_hidden_adult_count').value);
             const c = ctpSafeInt(document.getElementById('ctp_hidden_child_count').value);
             const i = ctpSafeInt(document.getElementById('ctp_hidden_infant_count').value);
@@ -3200,6 +3514,43 @@
             ctpUpdateSubmitButtonState();
         });
 
+        const destSingleRadio = document.getElementById('ctpDestSingleCity');
+        const destMultiRadio = document.getElementById('ctpDestMultipleCities');
+        if (destSingleRadio && destMultiRadio && multipleDestCheckbox) {
+            destSingleRadio.addEventListener('change', function() {
+                if (this.checked && multipleDestCheckbox.checked) {
+                    multipleDestCheckbox.checked = false;
+                    multipleDestCheckbox.dispatchEvent(new Event('change'));
+                }
+            });
+            destMultiRadio.addEventListener('change', function() {
+                if (this.checked && !multipleDestCheckbox.checked) {
+                    multipleDestCheckbox.checked = true;
+                    multipleDestCheckbox.dispatchEvent(new Event('change'));
+                }
+            });
+        }
+
+        document.querySelectorAll('#createTourProModal [data-ctp-step]').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                if (btn.disabled) return;
+                const step = btn.getAttribute('data-ctp-step');
+                const modalBody = document.querySelector('#createTourProModal .ctp-main-body');
+                const target = step === 'guest'
+                    ? document.getElementById('ctpLeadGuestAccordion')
+                    : document.getElementById('ctpSectionTour');
+                document.querySelectorAll('#createTourProModal [data-ctp-step]').forEach(function(el) {
+                    if (!el.disabled) el.classList.toggle('is-active', el === btn);
+                });
+                if (step === 'guest' && typeof ctpExpandLeadGuestAccordion === 'function') {
+                    ctpExpandLeadGuestAccordion();
+                }
+                if (modalBody && target) {
+                    modalBody.scrollTo({ top: Math.max(0, target.offsetTop - 8), behavior: 'smooth' });
+                }
+            });
+        });
+
         // Single destination autocomplete
         const destinationSingleInput = document.getElementById('destinationSingle');
         const suggestionBoxSingle = document.getElementById('destinationSuggestionsSingle');
@@ -3382,10 +3733,9 @@
         
         // Form validation (contact number and email are optional)
         document.getElementById('createTourProForm').addEventListener('submit', function(e) {
-            const emailVal = (document.getElementById('customerEmail')?.value || '').trim();
-            if (emailVal && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailVal)) {
+            if (!ctpValidateLeadGuestFields(true)) {
                 e.preventDefault();
-                alert('Please enter a valid email address or leave email blank.');
+                if (typeof ctpExpandLeadGuestAccordion === 'function') ctpExpandLeadGuestAccordion();
                 return false;
             }
 

@@ -336,18 +336,22 @@
                                 @enderror
                             </div>
 
-                            <!-- Country (Master DMC countries) -->
+                            <!-- Country (DMC base country from users.country) -->
                             <div class="mb-3 col-md-3">
                                 <label for="country" class="form-label"><strong><i class="ri-map-pin-line"></i> Country</strong>
                                     <span style="color: red; font-weight: bold;">*</span>
                                 </label>
                                 @php
-                                    $scopedCountries = $masterDmcCountries ?? $country ?? collect();
-                                    // Only restore what the user submitted themselves; never pick a country for them.
-                                    $preselectedCountry = old('country', '');
+                                    $scopedCountries = collect($dmcBaseCountries ?? $masterDmcCountries ?? $country ?? []);
+                                    $preselectedCountry = old('country', $userCountry ?? '');
+                                    if ($preselectedCountry === '' && $scopedCountries->count() === 1) {
+                                        $preselectedCountry = $scopedCountries->first()->name ?? '';
+                                    }
                                 @endphp
                                 <select class="form-control" id="country" name="country" required onchange="validateDriverAge(document.getElementById('driver_age'))">
-                                    <option value="">Select Country</option>
+                                    @if($scopedCountries->count() !== 1)
+                                        <option value="">Select Country</option>
+                                    @endif
                                     @foreach($scopedCountries as $countryOption)
                                         <option value="{{ $countryOption->name }}" {{ $preselectedCountry == $countryOption->name ? 'selected' : '' }}>
                                             {{ $countryOption->name }}
@@ -865,11 +869,11 @@
 
                     <!-- Status -->
                     <div class="form-check form-switch">
-                        <label for="guide_status" class="form-label"><strong>Status</strong><span
-                                style="color: red; font-weight: bold;">*</span></label>
+                        <label for="guide_status" class="form-label"><strong>Status</strong></label>
+                        {{-- Hidden 0 + optional checkbox: unchecked = inactive. Do NOT use required (blocks inactive save). --}}
                         <input type="hidden" name="guide_status" value="0">
                         <input class="form-check-input" name="guide_status" type="checkbox" id="guide_status" value="1"
-                            {{ old('guide_status', '1') == '1' ? 'checked' : '' }} required>
+                            {{ old('guide_status', '1') == '1' ? 'checked' : '' }}>
                         <label class="form-check-label"></label>
                     </div>
 
@@ -1125,7 +1129,7 @@ $(document).ready(function() {
     var currentCity = @json(old('city', ''));
 
     @php
-        $hasPreloadedCitiesJs = isset($cities) && count($cities) > 0 && filled(old('country'));
+        $hasPreloadedCitiesJs = isset($cities) && count($cities) > 0 && filled($preselectedCountry ?? ($userCountry ?? ''));
     @endphp
 
     $('#citySelect').select2({
@@ -1143,12 +1147,21 @@ $(document).ready(function() {
 
     function populateCountryOptions(countries) {
         var $country = $('#country');
-        $country.empty().append('<option value="">Select Country</option>');
+        $country.empty();
+        if (!countries || countries.length !== 1) {
+            $country.append('<option value="">Select Country</option>');
+        }
         $.each(countries || [], function(i, name) {
             $country.append('<option value="' + name + '">' + name + '</option>');
         });
-        // The agent picks the country; refresh Select2 only, so no city load is triggered.
-        $country.val('').trigger('change.select2');
+        // Auto-select when DMC has a single base country
+        if (countries && countries.length === 1) {
+            $country.val(countries[0]).trigger('change');
+        } else {
+            $country.val('').trigger('change.select2');
+            $('#citySelect').prop('disabled', true).empty()
+                .append('<option value="">Select Country First</option>').trigger('change');
+        }
     }
 
     function loadCitiesByCountry(countryName, preserveCity) {
@@ -1197,10 +1210,9 @@ $(document).ready(function() {
             success: function(response) {
                 var countries = response.countries || (response.country ? [response.country] : []);
                 populateCountryOptions(countries);
-                $('#citySelect').prop('disabled', true).empty()
-                    .append('<option value="">Select Country First</option>').trigger('change');
             },
             error: function() {
+                $('#country').empty().append('<option value="">Select Country</option>').trigger('change.select2');
                 $('#citySelect').prop('disabled', true).empty().append('<option value="">Error loading cities</option>').trigger('change');
             }
         });
@@ -1224,7 +1236,7 @@ $(document).ready(function() {
                 loadCountriesAndCitiesForDmc(selectedDmcId);
             } else {
                 $('#citySelect').prop('disabled', true).empty().append('<option value="">Select Country First</option>').trigger('change');
-                $('#country').val('').trigger('change');
+                $('#country').empty().append('<option value="">Select Country</option>').val('').trigger('change.select2');
             }
         });
     } else {
@@ -1232,8 +1244,11 @@ $(document).ready(function() {
         $('#dmc').prop('required', false);
     }
 
-    var initialCountry = $('#country').val();
+    var initialCountry = $('#country').val() || userCountry;
     if (initialCountry) {
+        if (!$('#country').val()) {
+            $('#country').val(initialCountry).trigger('change.select2');
+        }
         @if(empty(old('city')) && empty($hasPreloadedCitiesJs))
             loadCitiesByCountry(initialCountry, true);
         @else

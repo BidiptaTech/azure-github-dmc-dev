@@ -132,17 +132,15 @@
                                         $fromZoneName = 'N/A';
                                         $toZoneName = 'N/A';
                                         if (!empty($booking['from_zone_id'])) {
-                                            $fromZone = \DB::table('zones')->where('zone_id', $booking['from_zone_id'])->first();
-                                            $fromZoneName = $fromZone ? $fromZone->zone_type : ('Zone ' . $booking['from_zone_id']);
+                                            $fromZoneName = resolveBookingZoneLabel($booking['from_zone_id'], 'N/A');
                                         }
                                         if (!empty($booking['to_zone_id'])) {
-                                            $toZone = \DB::table('zones')->where('zone_id', $booking['to_zone_id'])->first();
-                                            $toZoneName = $toZone ? $toZone->zone_type : ('Zone ' . $booking['to_zone_id']);
+                                            $toZoneName = resolveBookingZoneLabel($booking['to_zone_id'], 'N/A');
                                         }
-                                        if (($pickup === 'N/A' || $pickup === '') && $fromZoneName) {
+                                        if (($pickup === 'N/A' || $pickup === '') && $fromZoneName && $fromZoneName !== 'N/A') {
                                             $pickup = $fromZoneName;
                                         }
-                                        if (($dropoff === 'N/A' || $dropoff === '') && $toZoneName) {
+                                        if (($dropoff === 'N/A' || $dropoff === '') && $toZoneName && $toZoneName !== 'N/A') {
                                             $dropoff = $toZoneName;
                                         }
                                     }

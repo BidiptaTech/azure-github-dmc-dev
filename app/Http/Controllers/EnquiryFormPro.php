@@ -23,11 +23,16 @@ use App\Models\Rate;
 use App\Models\VehicleZoneMapping;
 use App\Models\Zone;
 use App\Models\MiscellaneousItem;
+use App\Models\Guest;
+use App\Models\Setting;
 use App\Helpers\CommonHelper;
 use App\Helpers\HotelPriceHelper;
+use App\Mail\TravclicksMail;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 
 class EnquiryFormPro extends Controller
 {
@@ -87,6 +92,96 @@ class EnquiryFormPro extends Controller
         return $user->created_by ? (int) $user->created_by : null;
     }
 
+    private function resolveAuthDmcId(?User $user = null): int
+    {
+        $user = $user ?: auth()->user();
+        if (!$user) {
+            return 0;
+        }
+        $fromHelper = (int) (CommonHelper::getDmcId($user) ?: 0);
+        if ($fromHelper > 0) {
+            return $fromHelper;
+        }
+
+        return (int) ($this->resolveDmcIdForUser($user) ?: 0);
+    }
+
+    /**
+     * Inventory DMC for a selected booking city/country (sibling under same Master DMC).
+     */
+    private function resolveInventoryDmcId(?string $city = null, ?string $country = null, $requestedDmcId = null): int
+    {
+        $authDmcId = $this->resolveAuthDmcId();
+        if ($authDmcId <= 0) {
+            return (int) ($requestedDmcId ?: 0);
+        }
+
+        $city = trim((string) $city);
+        $country = trim((string) $country);
+        if ($city !== '' || $country !== '') {
+            $geoDmcId = (int) CommonHelper::resolveSiblingDmcIdForCity(
+                $authDmcId,
+                $city !== '' ? $city : null,
+                $country !== '' ? $country : null
+            );
+            if ($geoDmcId > 0) {
+                return $geoDmcId;
+            }
+        }
+
+        if ($requestedDmcId !== null && $requestedDmcId !== '') {
+            return CommonHelper::coerceSiblingDmcId($authDmcId, $requestedDmcId);
+        }
+
+        return $authDmcId;
+    }
+
+    /**
+     * Child DMC ids under the same Master DMC (includes the logged-in DMC).
+     */
+    private function getSiblingInventoryDmcIds(?int $dmcId): array
+    {
+        if (!$dmcId) {
+            return [];
+        }
+        $ids = CommonHelper::getSiblingDmcIds($dmcId);
+
+        return $ids !== [] ? array_values(array_unique(array_map('intval', $ids))) : [$dmcId];
+    }
+
+    /**
+     * Hotels/attractions/restaurants store dmc_id as JSON.
+     */
+    private function constrainJsonDmcIds($query, array $dmcIds)
+    {
+        $dmcIds = array_values(array_unique(array_filter(array_map('intval', $dmcIds))));
+        if ($dmcIds === []) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query->where(function ($q) use ($dmcIds) {
+            foreach ($dmcIds as $id) {
+                $q->orWhereJsonContains('dmc_id', $id)
+                    ->orWhereJsonContains('dmc_id', (string) $id);
+            }
+        });
+    }
+
+    /**
+     * Zone assignment belongs to the sibling DMC that owns the item's city.
+     */
+    private function attachInventoryZoneId($items, int $authDmcId, string $cityField = 'city'): void
+    {
+        $items->each(function ($item) use ($authDmcId, $cityField) {
+            $city = trim((string) ($item->{$cityField} ?? $item->location ?? ''));
+            $country = trim((string) ($item->country ?? ''));
+            $inv = $this->resolveInventoryDmcId($city, $country, $authDmcId);
+            $item->zone_id = ($inv && method_exists($item, 'getZoneForDmc'))
+                ? $item->getZoneForDmc($inv)
+                : null;
+        });
+    }
+
     /**
      * Country names from the operating DMC's master-DMC profile (comma-separated users.country).
      * Same business rule as Single Tour Lite (CityController::ajaxCities / ZoneController).
@@ -137,16 +232,17 @@ class EnquiryFormPro extends Controller
     }
 
     /**
-     * Countries available to sales/DMC for Pro destination pickers (master-DMC countries + cities).
+     * Countries available to sales/DMC for Pro destination pickers.
+     * Uses sibling DMC operating countries (users.country), not user_country/city.
      */
     private function getAccessibleCountryNames(User $user, ?int $dmcId = null): array
     {
-        $dmcId = $dmcId ?: $this->resolveDmcIdForUser($user);
+        $dmcId = $dmcId ?: $this->resolveAuthDmcId($user);
 
         if ($dmcId) {
-            $fromMaster = $this->getMasterDmcCountryNamesForDmc((int) $dmcId);
-            if (!empty($fromMaster)) {
-                return $fromMaster;
+            $fromSiblings = CommonHelper::getSiblingDmcCountryNames((int) $dmcId);
+            if (!empty($fromSiblings)) {
+                return $fromSiblings;
             }
         }
 
@@ -158,6 +254,42 @@ class EnquiryFormPro extends Controller
         }
 
         return [];
+    }
+
+    /**
+     * Cities for destination pickers: all cities table rows for sibling DMC operating countries.
+     */
+    private function getAccessibleCitiesForDmc(?int $dmcId, array $extraCityNames = [])
+    {
+        $options = $dmcId ? CommonHelper::getSiblingDmcCityOptions((int) $dmcId) : [];
+        $cities = collect($options)->map(function (array $row) {
+            return (object) [
+                'name' => $row['city'],
+                'country' => $row['country'],
+                'city_id' => is_numeric($row['id']) ? (int) $row['id'] : null,
+                'id' => is_numeric($row['id']) ? (int) $row['id'] : null,
+            ];
+        });
+
+        $have = $cities->map(fn ($c) => mb_strtolower(trim((string) $c->name)))->all();
+        $missing = [];
+        foreach ($extraCityNames as $name) {
+            $name = trim((string) $name);
+            if ($name === '') {
+                continue;
+            }
+            if (!in_array(mb_strtolower($name), $have, true)) {
+                $missing[] = $name;
+            }
+        }
+        if ($missing !== []) {
+            $extra = City::whereIn('name', $missing)->orderBy('name')->get(['name', 'country', 'city_id', 'id']);
+            $cities = $cities->concat($extra)->unique(function ($c) {
+                return mb_strtolower(trim((string) ($c->name ?? '')));
+            })->values();
+        }
+
+        return $cities;
     }
 
     /**
@@ -258,9 +390,14 @@ class EnquiryFormPro extends Controller
 
         // Per-currency / per-city markup/discount for multi-city (fallback to footer active values)
         $md = $this->lookupProCurrencyMarkup($geo['currency'] ?? null, $geo['city'] ?? null);
+        $orderType = strtolower(trim((string) ($attributes['type'] ?? '')));
+        $isHotelOrder = in_array($orderType, ['hotel', 'hotels', 'accommodation'], true);
+        $markupForOrder = $isHotelOrder
+            ? (float) ($md['hotel_markup'] ?? $md['markup_value'] ?? 0)
+            : (float) ($md['other_markup'] ?? $md['markup_value'] ?? 0);
         $attributes['discount'] = $md['discount_value'];
         $attributes['discount_type'] = $md['discount_type'] !== '' ? $md['discount_type'] : null;
-        $attributes['markup_percentage'] = $md['markup_value'];
+        $attributes['markup_percentage'] = $markupForOrder;
         $attributes['markup_type'] = $md['markup_type'] !== '' ? $md['markup_type'] : null;
 
         return Order::create($attributes);
@@ -304,12 +441,16 @@ class EnquiryFormPro extends Controller
                 if (!in_array($discountType, ['percentage', 'flat', 'foc', ''], true)) {
                     $discountType = '';
                 }
+                $hotelMarkup = (float) ($row['hotel_markup'] ?? $row['markup_value'] ?? 0);
+                $otherMarkup = (float) ($row['other_markup'] ?? 0);
                 $entry = [
                     'city' => $city,
                     'currency' => $currency,
                     'country' => trim((string) ($row['country'] ?? '')),
                     'markup_type' => $markupType !== '' ? $markupType : null,
-                    'markup_value' => (float) ($row['markup_value'] ?? 0),
+                    'markup_value' => $hotelMarkup + $otherMarkup,
+                    'hotel_markup' => $hotelMarkup,
+                    'other_markup' => $otherMarkup,
                     'discount_type' => $discountType !== '' ? $discountType : null,
                     'discount_value' => (float) ($row['discount_value'] ?? 0),
                 ];
@@ -342,6 +483,8 @@ class EnquiryFormPro extends Controller
                 return [
                     'markup_type' => (string) ($e['markup_type'] ?? ''),
                     'markup_value' => (float) ($e['markup_value'] ?? 0),
+                    'hotel_markup' => (float) ($e['hotel_markup'] ?? $e['markup_value'] ?? 0),
+                    'other_markup' => (float) ($e['other_markup'] ?? 0),
                     'discount_type' => (string) ($e['discount_type'] ?? ''),
                     'discount_value' => (float) ($e['discount_value'] ?? 0),
                 ];
@@ -351,6 +494,8 @@ class EnquiryFormPro extends Controller
                     return [
                         'markup_type' => (string) ($e['markup_type'] ?? ''),
                         'markup_value' => (float) ($e['markup_value'] ?? 0),
+                        'hotel_markup' => (float) ($e['hotel_markup'] ?? $e['markup_value'] ?? 0),
+                        'other_markup' => (float) ($e['other_markup'] ?? 0),
                         'discount_type' => (string) ($e['discount_type'] ?? ''),
                         'discount_value' => (float) ($e['discount_value'] ?? 0),
                     ];
@@ -365,6 +510,8 @@ class EnquiryFormPro extends Controller
             return [
                 'markup_type' => (string) ($e['markup_type'] ?? ''),
                 'markup_value' => (float) ($e['markup_value'] ?? 0),
+                'hotel_markup' => (float) ($e['hotel_markup'] ?? $e['markup_value'] ?? 0),
+                'other_markup' => (float) ($e['other_markup'] ?? 0),
                 'discount_type' => (string) ($e['discount_type'] ?? ''),
                 'discount_value' => (float) ($e['discount_value'] ?? 0),
             ];
@@ -373,6 +520,8 @@ class EnquiryFormPro extends Controller
         return [
             'markup_type' => $this->proFallbackMarkupType,
             'markup_value' => $this->proFallbackMarkupValue,
+            'hotel_markup' => $this->proFallbackMarkupValue,
+            'other_markup' => 0.0,
             'discount_type' => $this->proFallbackDiscountType,
             'discount_value' => $this->proFallbackDiscountValue,
         ];
@@ -437,7 +586,9 @@ class EnquiryFormPro extends Controller
                     'currency' => $currency,
                     'country' => trim((string) ($row['country'] ?? '')),
                     'markup_type' => in_array($markupType, ['percentage', 'flat'], true) ? $markupType : null,
-                    'markup_value' => (float) ($row['markup_value'] ?? 0),
+                    'markup_value' => (float) (($row['hotel_markup'] ?? $row['markup_value'] ?? 0) + ($row['other_markup'] ?? 0)),
+                    'hotel_markup' => (float) ($row['hotel_markup'] ?? $row['markup_value'] ?? 0),
+                    'other_markup' => (float) ($row['other_markup'] ?? 0),
                     'discount_type' => in_array($discountType, ['percentage', 'flat', 'foc'], true) ? $discountType : null,
                     'discount_value' => (float) ($row['discount_value'] ?? 0),
                 ];
@@ -469,6 +620,8 @@ class EnquiryFormPro extends Controller
                 'country' => trim((string) ($order->country ?? '')),
                 'markup_type' => in_array($markupType, ['percentage', 'flat'], true) ? $markupType : null,
                 'markup_value' => (float) ($order->markup_percentage ?? 0),
+                'hotel_markup' => (float) ($order->markup_percentage ?? 0),
+                'other_markup' => 0,
                 'discount_type' => in_array($discountType, ['percentage', 'flat', 'foc'], true) ? $discountType : null,
                 'discount_value' => (float) ($order->discount ?? 0),
             ];
@@ -526,7 +679,12 @@ class EnquiryFormPro extends Controller
             return [$defaultValues, $defaultValuesByCity];
         }
 
-        $defaults = \App\Models\DefaultValue::where('dmc_id', $dmcId)
+        $dmcIds = $this->getSiblingInventoryDmcIds((int) $dmcId);
+        if ($dmcIds === []) {
+            $dmcIds = [(int) $dmcId];
+        }
+
+        $defaults = \App\Models\DefaultValue::whereIn('dmc_id', $dmcIds)
             ->where('status', 1)
             ->get();
 
@@ -793,10 +951,18 @@ class EnquiryFormPro extends Controller
             'port_names' => $ports->pluck('port_name')->toArray()
         ]);
         
-        // Cities for DMC-accessible countries (destination picker = city, like Single Tour Lite)
+        // Cities for DMC-accessible countries (destination picker = mapped sibling DMC cities)
         $countryNamesList = $countries->pluck('name')->toArray();
-        $cities = $this->getCitiesForCountries($countryNamesList);
+        $extraCities = [];
+        if ($initialData && !empty($initialData['destinations_array']) && is_array($initialData['destinations_array'])) {
+            $extraCities = $initialData['destinations_array'];
+        } elseif ($initialData && !empty($initialData['destination_display'])) {
+            $extraCities = [$initialData['destination_display']];
+        }
+        $cities = $this->getAccessibleCitiesForDmc($dmc_id ? (int) $dmc_id : null, $extraCities);
         $destinations = $cities;
+        $siblingDmcCountryMap = $dmc_id ? CommonHelper::getSiblingDmcCountryMap((int) $dmc_id) : [];
+        $siblingDmcCityMap = $dmc_id ? CommonHelper::getSiblingDmcCityMap((int) $dmc_id) : [];
         
         // Get master DMC destinations for miscellaneous items
         // Master DMC is the created_by user (the parent DMC)
@@ -831,33 +997,14 @@ class EnquiryFormPro extends Controller
                 }
             }
             
-            // Get user's accessible countries based on master_dmc_id
-            $userCountries = [];
-            if ($master_dmc_id) {
-                $usersWithMasterDmc = User::where('master_dmc_id', $master_dmc_id)
-                    ->whereNotNull('country')
-                    ->get();
-                
-                foreach ($usersWithMasterDmc as $userItem) {
-                    if ($userItem->country) {
-                        $userCountries = array_merge($userCountries, array_map('trim', explode(',', $userItem->country)));
-                    }
-                }
-                $userCountries = array_unique($userCountries);
-            }
-
-            // Same country scope as ports (header cities) + master-DMC user countries
-            $serviceCountries = array_values(array_unique(array_filter(array_merge(
-                $userCountries ?? [],
-                $countryNames ?? []
-            ))));
+            // Countries that actually have a sibling DMC mapping (not Master DMC country list)
+            $serviceCountries = $accessibleCountryNames;
+            $siblingDmcIds = $this->getSiblingInventoryDmcIds($dmc_id ? (int) $dmc_id : null);
             
-            // Filter attractions by DMC ID and accessible countries
-            $attractionsQuery = Attraction::where(function ($q) use ($dmc_id) {
-                    $q->whereJsonContains('dmc_id', (int) $dmc_id)
-                      ->orWhereJsonContains('dmc_id', (string) $dmc_id);
-                })
-                ->where('status', 1)
+            // Filter attractions by sibling DMC IDs and mapped countries
+            $attractionsQuery = Attraction::query();
+            $this->constrainJsonDmcIds($attractionsQuery, $siblingDmcIds);
+            $attractionsQuery->where('status', 1)
                 ->where('is_active', 1);
             
             // Apply country filter if we have accessible countries
@@ -872,9 +1019,7 @@ class EnquiryFormPro extends Controller
                 ->get();
             
             // Add zone_id to each attraction
-            $attractions->each(function($attraction) use ($dmc_id) {
-                $attraction->zone_id = $dmc_id ? $attraction->getZoneForDmc($dmc_id) : null;
-            });
+            $this->attachInventoryZoneId($attractions, (int) $dmc_id, 'location');
             
             \Log::info('EnquiryFormPro create() - Attractions loaded', [
                 'dmc_id' => $dmc_id,
@@ -886,11 +1031,9 @@ class EnquiryFormPro extends Controller
             ]);
             
             // Get restaurants for this DMC with city info (restaurants have 'city' field)
-            $restaurantsQuery = Restaurant::where(function ($q) use ($dmc_id) {
-                    $q->whereJsonContains('dmc_id', (int) $dmc_id)
-                      ->orWhereJsonContains('dmc_id', (string) $dmc_id);
-                })
-                ->where('status', 1)
+            $restaurantsQuery = Restaurant::query();
+            $this->constrainJsonDmcIds($restaurantsQuery, $siblingDmcIds);
+            $restaurantsQuery->where('status', 1)
                 ->where('is_active', 1);
             
             // Apply country filter if we have accessible countries
@@ -906,9 +1049,7 @@ class EnquiryFormPro extends Controller
                 ->get();
             
             // Add zone_id to each restaurant
-            $restaurants->each(function($restaurant) use ($dmc_id) {
-                $restaurant->zone_id = $dmc_id ? $restaurant->getZoneForDmc($dmc_id) : null;
-            });
+            $this->attachInventoryZoneId($restaurants, (int) $dmc_id, 'city');
             
             \Log::info('EnquiryFormPro create() - Restaurants loaded', [
                 'dmc_id' => $dmc_id,
@@ -933,8 +1074,8 @@ class EnquiryFormPro extends Controller
             
             // Get guides for this DMC only (include pricing for linked guides)
             // Status 1 and 3 are both considered active guides
-            if ($dmc_id) {
-                $guides = Guide::where('dmc_id', $dmc_id)
+            if ($siblingDmcIds !== []) {
+                $guides = Guide::whereIn('dmc_id', $siblingDmcIds)
                     ->whereIn('status', [1, 3])
                     ->with('languages')
                     ->select('guide_id', 'name', 'city', 'twelve_hour_price', 'day_rate')
@@ -955,13 +1096,10 @@ class EnquiryFormPro extends Controller
             $hotelsQuery = Hotel::where('status', 1)
                 ->where('is_active', 1)
                 ->where('is_complete', 1)
-                ->where(function ($q) use ($dmc_id) {
-                    $q->whereJsonContains('dmc_id', (int) $dmc_id)
-                      ->orWhereJsonContains('dmc_id', (string) $dmc_id);
-                })
                 ->whereNotNull('hotel_unique_id')
                 ->where('hotel_unique_id', '!=', '')
                 ->where('hotel_unique_id', '!=', '0');
+            $this->constrainJsonDmcIds($hotelsQuery, $siblingDmcIds);
             
             // Apply country filter (same scope as ports)
             if (!empty($serviceCountries)) {
@@ -974,9 +1112,7 @@ class EnquiryFormPro extends Controller
                 ->get();
             
             // Add zone_id to each hotel
-            $hotels->each(function($hotel) use ($dmc_id) {
-                $hotel->zone_id = $dmc_id ? $hotel->getZoneForDmc($dmc_id) : null;
-            });
+            $this->attachInventoryZoneId($hotels, (int) $dmc_id, 'city');
             
             \Log::info('EnquiryFormPro create() - Hotels loaded', [
                 'dmc_id' => $dmc_id,
@@ -987,7 +1123,7 @@ class EnquiryFormPro extends Controller
             ]);
             
             // Get vehicles for this DMC
-            $vehicles = Vehicle::where('dmc_id', $dmc_id)
+            $vehicles = Vehicle::whereIn('dmc_id', $siblingDmcIds)
                 ->where('is_available', 1)
                 ->select('vehicle_id', 'vehicle_type', 'vehicle_name', 'seating_capacity', 'city_tour_seating_capacity', 'base_price', 'sharable_base_price', 'sharable', 'city')
                 ->orderBy('vehicle_type')
@@ -1071,8 +1207,15 @@ class EnquiryFormPro extends Controller
                 ->get();
         }
         
-        // City => country map for client-side filtering (scoped to DMC countries)
+        // City => country map for client-side filtering (sibling-mapped cities)
         $cityCountryMap = $this->buildCityCountryMap($countryNamesList);
+        foreach ($cities as $cityRow) {
+            $n = trim((string) ($cityRow->name ?? ''));
+            $co = trim((string) ($cityRow->country ?? ''));
+            if ($n !== '' && $co !== '') {
+                $cityCountryMap[$n] = $co;
+            }
+        }
         $countryCurrencyMap = $this->buildCountryCurrencyMap($countryNamesList);
         
         // Default values: city-scoped + legacy flat fallback (rows without city)
@@ -1083,7 +1226,7 @@ class EnquiryFormPro extends Controller
         $tourId = null;
         $existingOrders = collect(); // Empty collection for create mode
         
-        return view('enquiryform_pro.create', compact('destination', 'agents', 'agencies', 'user', 'countries', 'cities', 'ports', 'destinations', 'attractions', 'restaurants', 'initialData', 'meals', 'guides', 'dmc_id', 'hotels', 'vehicles', 'master_dmc_destinations', 'cityCountryMap', 'countryCurrencyMap', 'defaultValues', 'defaultValuesByCity', 'isEditMode', 'tourId', 'existingOrders'));
+        return view('enquiryform_pro.create', compact('destination', 'agents', 'agencies', 'user', 'countries', 'cities', 'ports', 'destinations', 'attractions', 'restaurants', 'initialData', 'meals', 'guides', 'dmc_id', 'hotels', 'vehicles', 'master_dmc_destinations', 'cityCountryMap', 'countryCurrencyMap', 'defaultValues', 'defaultValuesByCity', 'isEditMode', 'tourId', 'existingOrders', 'siblingDmcCountryMap', 'siblingDmcCityMap'));
     }
     
     /**
@@ -1108,13 +1251,30 @@ class EnquiryFormPro extends Controller
             'child_ages' => 'nullable|string|max:2000',
             'agency_id' => 'required|exists:agencies,agency_id',
             'agent_id' => 'required|exists:agents,agent_id',
-            'salutation' => 'required|in:Mr,Mrs,Ms,Dr',
-            'customer_name' => 'required|string|max:255',
-            'contact_number' => 'nullable|string|max:20',
+            'salutation' => 'required|in:Mr,Mrs,Ms,Miss,Dr,Prof',
+            'customer_name' => ['required', 'string', 'max:100', 'regex:/^[\p{L}]+(?:[\p{L}\s\-]*[\p{L}])?$/u'],
+            'contact_number' => ['nullable', 'string', 'max:15', 'regex:/^[0-9]*$/'],
             'email' => 'nullable|email|max:255',
+            'customer_country_code' => 'nullable|string|max:20',
+            'customer_address1' => ['nullable', 'string', 'max:255', 'regex:/^[\p{L}0-9\s.,#\'\-\/]*$/u'],
+            'customer_address2' => ['nullable', 'string', 'max:255', 'regex:/^[\p{L}0-9\s.,#\'\-\/]*$/u'],
+            'customer_state' => ['nullable', 'string', 'max:100', 'regex:/^[\p{L}\s\-]*$/u'],
+            'customer_zip' => ['nullable', 'digits:5'],
+            'customer_passport' => ['nullable', 'string', 'max:20', 'regex:/^[A-Za-z0-9]*$/'],
+            'customer_passport_expiry' => 'nullable|date',
+            'customer_special_requests' => ['nullable', 'string', 'max:2000', 'regex:/^[^<>{}\[\]\\\\`$^*=~|]*$/'],
             'multiple_destination' => 'nullable|boolean',
             'destination_single' => 'nullable|string',
             'destinations' => 'nullable|json',
+        ], [
+            'customer_name.regex' => 'Full name can only contain letters. Quotes and special characters are not allowed.',
+            'contact_number.regex' => 'Phone number can only contain digits 0-9.',
+            'customer_zip.digits' => 'ZIP code must be exactly 5 digits.',
+            'customer_passport.regex' => 'Passport number can only contain letters and numbers.',
+            'customer_special_requests.regex' => 'Special requests contain invalid or unsafe characters.',
+            'customer_address1.regex' => 'Address line 1 contains invalid characters.',
+            'customer_address2.regex' => 'Address line 2 contains invalid characters.',
+            'customer_state.regex' => 'State can only contain letters.',
         ]);
         
         // Get agency and agent details
@@ -1255,9 +1415,8 @@ class EnquiryFormPro extends Controller
     public function getDestinations(Request $request)
     {
         $user = auth()->user();
-        $dmcId = $this->resolveDmcIdForUser($user);
-        $countryNames = $this->getAccessibleCountryNames($user, $dmcId);
-        $cities = $this->getCitiesForCountries($countryNames);
+        $dmcId = $this->resolveAuthDmcId($user);
+        $cities = $this->getAccessibleCitiesForDmc($dmcId ?: null);
 
         $destinations = $cities->map(function ($city) {
             return [
@@ -1270,7 +1429,7 @@ class EnquiryFormPro extends Controller
         return response()->json([
             'success' => true,
             'destinations' => $destinations,
-            'countries' => $countryNames,
+            'countries' => $cities->pluck('country')->unique()->filter()->values(),
             'master_dmc_id' => $user->master_dmc_id,
         ]);
     }
@@ -1295,7 +1454,7 @@ class EnquiryFormPro extends Controller
         $countryLower = strtolower($country);
 
         $user = auth()->user();
-        $dmcId = $this->resolveDmcIdForUser($user);
+        $dmcId = $this->resolveInventoryDmcId($city, $country, $request->input('dmc_id'));
         if (!$dmcId) {
             return response()->json([
                 'success' => false,
@@ -1398,6 +1557,7 @@ class EnquiryFormPro extends Controller
     {
         $user = auth()->user();
         $destination = $request->input('destination');
+        $country = $request->input('country');
         
         if (!$destination) {
             return response()->json([
@@ -1406,22 +1566,7 @@ class EnquiryFormPro extends Controller
             ], 400);
         }
         
-        // Get DMC ID based on user role
-        $dmc_id = null;
-        if ($user->role_id == 11) {
-            $dmc_id = $user->userId;
-        } elseif (in_array($user->role_id, [33, 34, 35, 77, 78, 84, 120, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140])) {
-            $dmc_id = $user->created_by;
-        } elseif (in_array($user->role_id, [37, 64, 65, 66, 67, 68])) {
-            $sales_head = User::where('userId', $user->created_by)->first();
-            $dmc_id = $sales_head ? $sales_head->created_by : null;
-        } elseif (in_array($user->role_id, [38, 81, 90, 108, 117, 124, 125, 126, 127])) {
-            $sales_manager = User::where('userId', $user->created_by)->first();
-            if ($sales_manager) {
-                $sales_head = User::where('userId', $sales_manager->created_by)->first();
-                $dmc_id = $sales_head ? $sales_head->created_by : null;
-            }
-        }
+        $dmc_id = $this->resolveInventoryDmcId($destination, $country, $request->input('dmc_id'));
         
         \Log::info('getHotelsByDestination - DMC ID determined', [
             'dmc_id' => $dmc_id,
@@ -1499,13 +1644,21 @@ class EnquiryFormPro extends Controller
                     'event' => $rate->event,
                     'event_type' => $rate->event_type,
                     'price' => $rate->price ?? 0,
+                    'price_cost' => $rate->price_cost ?? 0,
                     'weekday_price' => $rate->weekday_price ?? 0,
                     'weekend_price' => $rate->weekend_price ?? 0,
                     'double_weekday_price' => $rate->double_weekday_price ?? 0,
                     'double_weekend_price' => $rate->double_weekend_price ?? 0,
+                    'weekday_cost_price' => $rate->weekday_cost_price ?? 0,
+                    'weekend_cost_price' => $rate->weekend_cost_price ?? 0,
+                    'double_weekday_cost_price' => $rate->double_weekday_cost_price ?? 0,
+                    'double_weekend_cost_price' => $rate->double_weekend_cost_price ?? 0,
                     'breakfast_price' => $rate->breakfast_price ?? 0,
                     'lunch_price' => $rate->lunch_price ?? 0,
                     'dinner_price' => $rate->dinner_price ?? 0,
+                    'breakfast_cost_price' => $rate->breakfast_cost_price ?? 0,
+                    'lunch_cost_price' => $rate->lunch_cost_price ?? 0,
+                    'dinner_cost_price' => $rate->dinner_cost_price ?? 0,
                     'start_date' => $rate->start_date,
                     'end_date' => $rate->end_date,
                 ];
@@ -1520,6 +1673,7 @@ class EnquiryFormPro extends Controller
                             'bed_type' => $bed->room_type ?? 'Standard Bed',
                             'max_occupancy' => $bed->max_occupancy ?? 2,
                             'extra_bed_price' => $bed->extra_bed_price ?? 0,
+                            'extra_bed_cost_price' => $bed->extra_bed_cost_price ?? 0,
                             'has_extra_bed' => $bed->extra_bed ? true : false,
                         ];
                     })->toArray();
@@ -1562,6 +1716,7 @@ class EnquiryFormPro extends Controller
     {
         $user = auth()->user();
         $destination = $request->input('destination');
+        $country = $request->input('country');
         
         if (!$destination) {
             return response()->json([
@@ -1571,22 +1726,7 @@ class EnquiryFormPro extends Controller
             ], 400);
         }
         
-        // Get DMC ID based on user role
-        $dmc_id = null;
-        if ($user->role_id == 11) {
-            $dmc_id = $user->userId;
-        } elseif (in_array($user->role_id, [33, 34, 35, 77, 78, 84, 120, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140])) {
-            $dmc_id = $user->created_by;
-        } elseif (in_array($user->role_id, [37, 64, 65, 66, 67, 68])) {
-            $sales_head = User::where('userId', $user->created_by)->first();
-            $dmc_id = $sales_head ? $sales_head->created_by : null;
-        } elseif (in_array($user->role_id, [38, 81, 90, 108, 117, 124, 125, 126, 127])) {
-            $sales_manager = User::where('userId', $user->created_by)->first();
-            if ($sales_manager) {
-                $sales_head = User::where('userId', $sales_manager->created_by)->first();
-                $dmc_id = $sales_head ? $sales_head->created_by : null;
-            }
-        }
+        $dmc_id = $this->resolveInventoryDmcId($destination, $country, $request->input('dmc_id'));
         
         \Log::info('getAttractionsByDestination - DMC ID determined', [
             'dmc_id' => $dmc_id,
@@ -1661,6 +1801,7 @@ class EnquiryFormPro extends Controller
         try {
             $user = auth()->user();
             $destination = $request->input('destination');
+            $country = $request->input('country');
             
             \Log::info('Guide request received', [
                 'destination' => $destination,
@@ -1676,22 +1817,7 @@ class EnquiryFormPro extends Controller
                 ], 400);
             }
             
-            // Get DMC ID based on user role
-            $dmc_id = null;
-            if ($user->role_id == 11) {
-                $dmc_id = $user->userId;
-            } elseif (in_array($user->role_id, [33, 34, 35, 77, 78, 84, 120, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140])) {
-                $dmc_id = $user->created_by;
-            } elseif (in_array($user->role_id, [37, 64, 65, 66, 67, 68])) {
-                $sales_head = User::where('userId', $user->created_by)->first();
-                $dmc_id = $sales_head ? $sales_head->created_by : null;
-            } elseif (in_array($user->role_id, [38, 81, 90, 108, 117, 124, 125, 126, 127])) {
-                $sales_manager = User::where('userId', $user->created_by)->first();
-                if ($sales_manager) {
-                    $sales_head = User::where('userId', $sales_manager->created_by)->first();
-                    $dmc_id = $sales_head ? $sales_head->created_by : null;
-                }
-            }
+            $dmc_id = $this->resolveInventoryDmcId($destination, $country, $request->input('dmc_id'));
             
             \Log::info('getGuidesByDestination - DMC ID determined', [
                 'dmc_id' => $dmc_id,
@@ -1951,58 +2077,7 @@ class EnquiryFormPro extends Controller
             // Store user currency for this tour based on DMC/user country
             $tour->user_currency = CommonHelper::getDmcCurrencyByCountry();
             // Note: salutation, customer_name, contact_number are stored in orders JSON, not in tours table
-            
-            // Store main guest data as JSON
-            if ($request->has('mainguest') && $request->mainguest) {
-                try {
-                    $mainGuestData = $request->mainguest;
-                    if (is_string($mainGuestData)) {
-                        $mainGuestData = json_decode($mainGuestData, true);
-                        if (json_last_error() !== JSON_ERROR_NONE) {
-                            \Log::warning('Invalid JSON in mainguest data', [
-                                'error' => json_last_error_msg(),
-                                'data' => $request->mainguest
-                            ]);
-                            $mainGuestData = null;
-                        }
-                    }
-                    $tour->mainguest = !empty($mainGuestData) ? json_encode($mainGuestData) : null;
-                } catch (\Exception $e) {
-                    \Log::error('Error processing main guest data', [
-                        'error' => $e->getMessage(),
-                        // 'tour_id' => $tourId
-                    ]);
-                    $tour->mainguest = null;
-                }
-            }
-            
-            // Store additional guests data as JSON
-            if ($request->has('additionalguest') && $request->additionalguest) {
-                try {
-                    $additionalGuestData = $request->additionalguest;
-                    if (is_string($additionalGuestData)) {
-                        $additionalGuestData = json_decode($additionalGuestData, true);
-                        if (json_last_error() !== JSON_ERROR_NONE) {
-                            \Log::warning('Invalid JSON in additionalguest data', [
-                                'error' => json_last_error_msg(),
-                                'data' => $request->additionalguest
-                            ]);
-                            $additionalGuestData = null;
-                        }
-                    }
-                    // Ensure it's an array
-                    if (!is_array($additionalGuestData)) {
-                        $additionalGuestData = [];
-                    }
-                    $tour->additionalguest = !empty($additionalGuestData) ? json_encode($additionalGuestData) : null;
-                } catch (\Exception $e) {
-                    \Log::error('Error processing additional guest data', [
-                        'error' => $e->getMessage(),
-                        // 'tour_id' => $tourId
-                    ]);
-                    $tour->additionalguest = null;
-                }
-            }
+            $this->applyGuestPayloadToTour($request, $tour);
             
             $tour->save();
             $tour->refresh();
@@ -2843,6 +2918,8 @@ class EnquiryFormPro extends Controller
                 }
             }
             
+            $this->syncProGuestsToGuestsTable($tour);
+
             DB::commit();
             
             // Send tour proposal email
@@ -2923,7 +3000,66 @@ class EnquiryFormPro extends Controller
             $dropId = $request->input('drop_id');
             $pickupType = $request->input('pickup_type'); // hotel, attraction, restaurant, port
             $dropType = $request->input('drop_type'); // hotel, attraction, restaurant, port
-            $dmcId = $request->input('dmc_id'); // DMC ID for zone_assignments lookup
+            $pickupZoneIdParam = trim((string) $request->input('pickup_zone_id', ''));
+            $dropZoneIdParam = trim((string) $request->input('drop_zone_id', ''));
+
+            $parseLocationToken = function ($id, $type) {
+                $id = trim((string) $id);
+                $type = strtolower(trim((string) $type));
+                $known = ['hotel', 'port', 'attraction', 'restaurant', 'zone'];
+                if (str_contains($id, ':')) {
+                    $pos = strpos($id, ':');
+                    $maybeType = strtolower(trim(substr($id, 0, $pos)));
+                    $maybeId = trim(substr($id, $pos + 1));
+                    if (in_array($maybeType, $known, true) && $maybeId !== '') {
+                        if ($type === '') {
+                            $type = $maybeType;
+                        }
+                        $id = $maybeId;
+                    }
+                }
+                return [$id, $type];
+            };
+            [$pickupId, $pickupType] = $parseLocationToken($pickupId, $pickupType);
+            [$dropId, $dropType] = $parseLocationToken($dropId, $dropType);
+
+            $city = trim((string) ($request->input('city') ?: $request->input('destination') ?: ''));
+            $country = trim((string) $request->input('country', ''));
+            if ($city === '' || $country === '') {
+                foreach ([[strtolower(trim((string) $pickupType)), $pickupId], [strtolower(trim((string) $dropType)), $dropId]] as [$inferType, $inferId]) {
+                    $inferId = trim((string) $inferId);
+                    if ($inferId === '') {
+                        continue;
+                    }
+                    $row = null;
+                    if ($inferType === 'hotel') {
+                        $row = Hotel::where('hotel_unique_id', $inferId)->first(['city', 'country']);
+                    } elseif ($inferType === 'attraction') {
+                        $row = Attraction::where('attraction_id', $inferId)->first(['location', 'country']);
+                        if ($row && $city === '') {
+                            $city = trim((string) ($row->location ?? ''));
+                        }
+                    } elseif ($inferType === 'restaurant') {
+                        $row = Restaurant::where('restaurant_id', $inferId)->first(['city', 'country']);
+                    }
+                    if ($row) {
+                        if ($city === '' && isset($row->city)) {
+                            $city = trim((string) ($row->city ?? ''));
+                        }
+                        if ($country === '') {
+                            $country = trim((string) ($row->country ?? ''));
+                        }
+                    }
+                    if ($city !== '' && $country !== '') {
+                        break;
+                    }
+                }
+            }
+            $dmcId = $this->resolveInventoryDmcId(
+                $city !== '' ? $city : null,
+                $country !== '' ? $country : null,
+                $request->input('dmc_id')
+            );
             
             if (!$vehicleId || !$pickupId || !$dropId) {
                 return response()->json([
@@ -3028,11 +3164,19 @@ class EnquiryFormPro extends Controller
                 $toZoneCandidates = [(string) $dropId];
             }
 
-            // Keep only numeric zone/port IDs for vehicle_zone_mappings lookup
+            if ($pickupZoneIdParam !== '') {
+                $fromZoneCandidates = array_values(array_unique(array_merge([$pickupZoneIdParam], $fromZoneCandidates)));
+            }
+            if ($dropZoneIdParam !== '') {
+                $toZoneCandidates = array_values(array_unique(array_merge([$dropZoneIdParam], $toZoneCandidates)));
+            }
+
+            // Keep usable zone/port IDs. Reject leftover "attraction:12" tokens.
+            // Allow alphanumeric zone_id values used by older createId() zones.
             $onlyZoneIds = function (array $ids) {
                 return array_values(array_filter(array_map('strval', $ids), function ($id) {
                     $id = trim($id);
-                    return $id !== '' && ctype_digit($id);
+                    return $id !== '' && !str_contains($id, ':');
                 }));
             };
             $fromZoneCandidates = $onlyZoneIds($fromZoneCandidates);
@@ -3175,8 +3319,8 @@ class EnquiryFormPro extends Controller
                         $mappedFrom = $fromCand;
                         $mappedTo = $toCand;
                     }
-                    $pp = (float) ($candidate->private_price ?? 0);
-                    $sp = (float) ($candidate->shared_price ?? 0);
+                    $pp = max((float) ($candidate->private_price ?? 0), (float) ($candidate->private_cost_price ?? 0));
+                    $sp = max((float) ($candidate->shared_price ?? 0), (float) ($candidate->shared_cost_price ?? 0));
                     if ($pp > 0 || $sp > 0) {
                         $pricedMapping = $candidate;
                         $pricedFrom = $fromCand;
@@ -3216,6 +3360,23 @@ class EnquiryFormPro extends Controller
                 ]);
             }
             
+            $privateSell = (float) ($mapping->private_price ?? 0);
+            $privateCost = (float) ($mapping->private_cost_price ?? 0);
+            $sharedSell = (float) ($mapping->shared_price ?? 0);
+            $sharedCost = (float) ($mapping->shared_cost_price ?? 0);
+            if ($privateSell <= 0 && $privateCost > 0) {
+                $privateSell = $privateCost;
+            }
+            if ($sharedSell <= 0 && $sharedCost > 0) {
+                $sharedSell = $sharedCost;
+            }
+            if ($privateCost <= 0 && $privateSell > 0) {
+                $privateCost = $privateSell;
+            }
+            if ($sharedCost <= 0 && $sharedSell > 0) {
+                $sharedCost = $sharedSell;
+            }
+
             \Log::info('Vehicle zone mapping found', [
                 'mapping_id' => $mapping->mapping_id,
                 'vehicle_id' => $vehicleId,
@@ -3223,8 +3384,10 @@ class EnquiryFormPro extends Controller
                 'to_zone_id' => $mapping->to_zone_id,
                 'from_zone_type' => $mapping->from_zone_type,
                 'to_zone_type' => $mapping->to_zone_type,
-                'private_price' => $mapping->private_price,
-                'shared_price' => $mapping->shared_price
+                'private_price' => $privateSell,
+                'shared_price' => $sharedSell,
+                'private_cost_price' => $privateCost,
+                'shared_cost_price' => $sharedCost,
             ]);
             
             return response()->json([
@@ -3238,8 +3401,10 @@ class EnquiryFormPro extends Controller
                     'to_zone_id' => $mapping->to_zone_id ?? $toZoneId,
                     'from_zone_type' => $mapping->from_zone_type ?? null,
                     'to_zone_type' => $mapping->to_zone_type ?? null,
-                    'private_price' => $mapping->private_price ?? 0,
-                    'shared_price' => $mapping->shared_price ?? 0
+                    'private_price' => $privateSell,
+                    'shared_price' => $sharedSell,
+                    'private_cost_price' => $privateCost,
+                    'shared_cost_price' => $sharedCost,
                 ]
             ]);
             
@@ -3342,69 +3507,50 @@ class EnquiryFormPro extends Controller
             $dmc_id = $user->created_by;
         }
         
-        // Get all required data (same as create method)
-        // Note: dmc_id is a JSON array column, so we use whereJsonContains
-        $hotels = Hotel::where(function ($q) use ($dmc_id) {
-                $q->whereJsonContains('dmc_id', (int) $dmc_id)
-                  ->orWhereJsonContains('dmc_id', (string) $dmc_id);
-            })
-            ->where('status', 1)
+        $siblingDmcIds = $this->getSiblingInventoryDmcIds($dmc_id ? (int) $dmc_id : null);
+
+        // Get all required data (same as create method) — sibling DMC inventory, not only logged-in DMC
+        $hotelsQuery = Hotel::where('status', 1)
             ->where('is_active', 1)
-            ->where('hotel_unique_id', '!=', '0')
+            ->where('hotel_unique_id', '!=', '0');
+        $this->constrainJsonDmcIds($hotelsQuery, $siblingDmcIds);
+        $hotels = $hotelsQuery
             ->select('id', 'hotel_unique_id', 'name', 'city', 'country', 'address', 'zone_assignments')
             ->orderBy('name')
             ->get();
-        
-        // Add zone_id to each hotel
-        $hotels->each(function($hotel) use ($dmc_id) {
-            $hotel->zone_id = $dmc_id ? $hotel->getZoneForDmc($dmc_id) : null;
-        });
-        
-        $attractions = Attraction::where(function ($q) use ($dmc_id) {
-                $q->whereJsonContains('dmc_id', (int) $dmc_id)
-                  ->orWhereJsonContains('dmc_id', (string) $dmc_id);
-            })
-            ->where('is_active', 1)
-            ->select('attraction_id', 'name', 'location', 'country', 'open_time', 'close_time', 
+        $this->attachInventoryZoneId($hotels, (int) $dmc_id, 'city');
+
+        $attractionsQuery = Attraction::where('is_active', 1);
+        $this->constrainJsonDmcIds($attractionsQuery, $siblingDmcIds);
+        $attractions = $attractionsQuery
+            ->select('attraction_id', 'name', 'location', 'country', 'open_time', 'close_time',
                      'adult_price', 'child_price', 'senior_adult_price', 'zone_assignments', 'attraction_type')
             ->orderBy('name')
             ->get();
-        
-        // Add zone_id to each attraction
-        $attractions->each(function($attraction) use ($dmc_id) {
-            $attraction->zone_id = $dmc_id ? $attraction->getZoneForDmc($dmc_id) : null;
-        });
-        
-        $restaurants = Restaurant::where(function ($q) use ($dmc_id) {
-                $q->whereJsonContains('dmc_id', (int) $dmc_id)
-                  ->orWhereJsonContains('dmc_id', (string) $dmc_id);
-            })
-            ->where('is_active', 1)
-            ->select('restaurant_id', 'name', 'city', 'country', 'breakfast_available', 'lunch_available', 
-                     'dinner_available', 'opening_time_bf', 'closing_time_bf', 'opening_time_lunch', 
+        $this->attachInventoryZoneId($attractions, (int) $dmc_id, 'location');
+
+        $restaurantsQuery = Restaurant::where('is_active', 1);
+        $this->constrainJsonDmcIds($restaurantsQuery, $siblingDmcIds);
+        $restaurants = $restaurantsQuery
+            ->select('restaurant_id', 'name', 'city', 'country', 'breakfast_available', 'lunch_available',
+                     'dinner_available', 'opening_time_bf', 'closing_time_bf', 'opening_time_lunch',
                      'closing_time_lunch', 'opening_time_dinner', 'closing_time_dinner', 'zone_assignments')
             ->orderBy('name')
             ->get();
-        
-        // Add zone_id to each restaurant
-        $restaurants->each(function($restaurant) use ($dmc_id) {
-            $restaurant->zone_id = $dmc_id ? $restaurant->getZoneForDmc($dmc_id) : null;
-        });
-        
-        // Get guides for this DMC only
-        // Status 1 and 3 are both considered active guides
-        if ($dmc_id) {
-            $guides = Guide::where('dmc_id', $dmc_id)
+        $this->attachInventoryZoneId($restaurants, (int) $dmc_id, 'city');
+
+        if ($siblingDmcIds !== []) {
+            $guides = Guide::whereIn('dmc_id', $siblingDmcIds)
                 ->whereIn('status', [1, 3])
                 ->with('languages')
                 ->select('guide_id', 'name', 'city', 'twelve_hour_price', 'day_rate')
                 ->orderBy('name')
                 ->get();
         } else {
-            $guides = collect([]); // Empty collection if no DMC ID
+            $guides = collect([]);
         }
-        
-        $vehicles = Vehicle::where('dmc_id', $dmc_id)
+
+        $vehicles = Vehicle::whereIn('dmc_id', $siblingDmcIds !== [] ? $siblingDmcIds : [0])
             ->where('is_available', 1)
             ->select('vehicle_id', 'vehicle_type', 'vehicle_name', 'seating_capacity', 'city_tour_seating_capacity', 'base_price', 'sharable_base_price', 'sharable', 'city')
             ->orderBy('vehicle_type')
@@ -3420,8 +3566,14 @@ class EnquiryFormPro extends Controller
                 ->get();
         }
         $countryNamesList = $countries->pluck('name')->toArray();
-        $cities = $this->getCitiesForCountries($countryNamesList);
+        $extraCities = [];
+        if (!empty($tour->destination)) {
+            $extraCities = array_values(array_filter(array_map('trim', explode(',', (string) $tour->destination))));
+        }
+        $cities = $this->getAccessibleCitiesForDmc($dmc_id ? (int) $dmc_id : null, $extraCities);
         $destinations = $cities;
+        $siblingDmcCountryMap = $dmc_id ? CommonHelper::getSiblingDmcCountryMap((int) $dmc_id) : [];
+        $siblingDmcCityMap = $dmc_id ? CommonHelper::getSiblingDmcCityMap((int) $dmc_id) : [];
 
         // Ports: only for DMC-accessible countries (and later client-side filtered by selected cities)
         $portsQuery = Port::where('status', 1)
@@ -3566,6 +3718,27 @@ class EnquiryFormPro extends Controller
             'foc_size' => (int) ($tour->foc_size ?? 0),
             'discount' => (int) ($tour->discount ?? 0),
         ];
+
+        $customer_info = $this->buildCustomerInfoForProEdit(
+            $mainGuestData,
+            $customerName,
+            $contactNumber,
+            $salutation,
+            $customerEmail
+        );
+        $additionalGuests = is_array($additionalGuestData) ? array_values($additionalGuestData) : [];
+        if (!empty($customer_info['fullName'])) {
+            $initialData['customer_name'] = $customer_info['fullName'];
+        }
+        if (!empty($customer_info['email'])) {
+            $initialData['email'] = $customer_info['email'];
+        }
+        if (!empty($customer_info['phone'])) {
+            $initialData['contact_number'] = $customer_info['phone'];
+        }
+        if (!empty($customer_info['salutation'])) {
+            $initialData['salutation'] = $customer_info['salutation'];
+        }
         
         // Load agencies filtered by DMC ID
         $agencyQuery = Agency::where('status', 1);
@@ -3613,6 +3786,13 @@ class EnquiryFormPro extends Controller
         
         $master_dmc_destinations = $countries;
         $cityCountryMap = $this->buildCityCountryMap($countryNamesList);
+        foreach ($cities as $cityRow) {
+            $n = trim((string) ($cityRow->name ?? ''));
+            $co = trim((string) ($cityRow->country ?? ''));
+            if ($n !== '' && $co !== '') {
+                $cityCountryMap[$n] = $co;
+            }
+        }
         $countryCurrencyMap = $this->buildCountryCurrencyMap($countryNamesList);
         
         [$defaultValues, $defaultValuesByCity] = $this->buildDefaultValuesMaps($dmc_id);
@@ -3647,6 +3827,8 @@ class EnquiryFormPro extends Controller
             'initialData',
             'mainGuestData',
             'additionalGuestData',
+            'customer_info',
+            'additionalGuests',
             'countries',
             'master_dmc_destinations',
             'cityCountryMap',
@@ -3654,7 +3836,9 @@ class EnquiryFormPro extends Controller
             'dmc_id',
             'user',
             'defaultValues',
-            'defaultValuesByCity'
+            'defaultValuesByCity',
+            'siblingDmcCountryMap',
+            'siblingDmcCityMap'
         ))->with([
             'markupValue' => $markupValue,
             'markupType' => $markupType,
@@ -3712,6 +3896,7 @@ class EnquiryFormPro extends Controller
             $this->hydrateProCurrencyMarkupsFromRequest($request);
             
             DB::beginTransaction();
+            $guestCredentialContext = [];
             
             // Get the tour (latest row if legacy duplicate tour_id exists)
             $tour = Tour::where('tour_id', $tour_id)->orderByDesc('id')->firstOrFail();
@@ -3786,68 +3971,7 @@ class EnquiryFormPro extends Controller
                 ? $this->currencyMarkupsListForStorage()
                 : null;
             // Note: salutation, customer_name, contact_number are stored in orders JSON, not in tours table
-            
-            // Update main guest data as JSON
-            if ($request->has('mainguest')) {
-                try {
-                    $mainGuestData = $request->mainguest;
-                    if (is_string($mainGuestData) && !empty(trim($mainGuestData))) {
-                        $decoded = json_decode($mainGuestData, true);
-                        if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
-                            $mainGuestData = $decoded;
-                        } else {
-                            \Log::warning('Invalid JSON in mainguest data during update', [
-                                'error' => json_last_error_msg(),
-                                'data' => $request->mainguest,
-                                'tour_id' => $tour_id,
-                            ]);
-                            $mainGuestData = [];
-                        }
-                    } elseif (is_string($mainGuestData) && empty(trim($mainGuestData))) {
-                        $mainGuestData = [];
-                    } elseif (!is_array($mainGuestData)) {
-                        $mainGuestData = [];
-                    }
-                    
-                    $tour->mainguest = !empty($mainGuestData) ? json_encode($mainGuestData) : null;
-                } catch (\Throwable $e) {
-                    \Log::error('Error processing main guest data during update', [
-                        'error' => $e->getMessage(),
-                        'tour_id' => $tour_id,
-                    ]);
-                }
-            }
-            
-            // Update additional guests data as JSON
-            if ($request->has('additionalguest')) {
-                try {
-                    $additionalGuestData = $request->additionalguest;
-                    if (is_string($additionalGuestData) && !empty(trim($additionalGuestData))) {
-                        $decoded = json_decode($additionalGuestData, true);
-                        if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
-                            $additionalGuestData = $decoded;
-                        } else {
-                            \Log::warning('Invalid JSON in additionalguest data during update', [
-                                'error' => json_last_error_msg(),
-                                'data' => $request->additionalguest,
-                                'tour_id' => $tour_id,
-                            ]);
-                            $additionalGuestData = [];
-                        }
-                    } elseif (is_string($additionalGuestData) && empty(trim($additionalGuestData))) {
-                        $additionalGuestData = [];
-                    } elseif (!is_array($additionalGuestData)) {
-                        $additionalGuestData = [];
-                    }
-                    
-                    $tour->additionalguest = !empty($additionalGuestData) ? json_encode($additionalGuestData) : null;
-                } catch (\Throwable $e) {
-                    \Log::error('Error processing additional guest data during update', [
-                        'error' => $e->getMessage(),
-                        'tour_id' => $tour_id,
-                    ]);
-                }
-            }
+            $guestCredentialContext = $this->applyGuestPayloadToTour($request, $tour);
             
             // Save tour with updated dates
             $saved = $tour->save();
@@ -4388,7 +4512,11 @@ class EnquiryFormPro extends Controller
                 $syncedOrders[] = ['type' => 'miscellaneous', 'booking_id' => $bookingId, 'action' => 'created'];
             }
 
+            $this->syncProGuestsToGuestsTable($tour);
+
             DB::commit();
+
+            $guestCredentialMessage = $this->handleDefiniteGuestPasswords($tour, $guestCredentialContext ?? []);
 
             // If any existing service was removed, revert a negotiated tour (Prospect/Tentative/Confirmed)
             // back to "New Enquiry" and clear payment/negotiation history - same rule as the
@@ -4405,10 +4533,15 @@ class EnquiryFormPro extends Controller
                 'updated' => $updatedCount,
                 'total_touched' => count($syncedOrders),
             ]);
+
+            $successMessage = 'Tour enquiry updated successfully';
+            if ($guestCredentialMessage !== '') {
+                $successMessage .= '. ' . $guestCredentialMessage;
+            }
             
             return response()->json([
                 'success' => true,
-                'message' => 'Tour enquiry updated successfully',
+                'message' => $successMessage,
                 'display_id' => $tour->display_id,
                 'tour_id' => $tour_id,
                 'total_orders' => count($syncedOrders),
@@ -4661,7 +4794,11 @@ class EnquiryFormPro extends Controller
         $md = $this->lookupProCurrencyMarkup($geoEarly['currency'] ?? null, $geoEarly['city'] ?? null);
         $discountValue = $md['discount_value'];
         $discountType = $md['discount_type'];
-        $markupValue = $md['markup_value'];
+        $orderType = strtolower(trim((string) $type));
+        $isHotelOrder = in_array($orderType, ['hotel', 'hotels', 'accommodation'], true);
+        $markupValue = $isHotelOrder
+            ? (float) ($md['hotel_markup'] ?? $md['markup_value'] ?? 0)
+            : (float) ($md['other_markup'] ?? $md['markup_value'] ?? 0);
         $markupType = $md['markup_type'];
 
         // Already-present active row unchanged → only bump updated_at (no duplicate insert elsewhere)
@@ -4947,7 +5084,11 @@ class EnquiryFormPro extends Controller
                 ], 401);
             }
 
-            $dmcId = $this->resolveDmcIdForUser($user);
+            $dmcId = $this->resolveInventoryDmcId(
+                $request->input('city'),
+                $request->input('country'),
+                $request->input('dmc_id')
+            );
 
             if (!$dmcId) {
                 return response()->json([
@@ -4970,6 +5111,17 @@ class EnquiryFormPro extends Controller
                     'success' => false,
                     'message' => 'Invalid restaurant ID format'
                 ], 400);
+            }
+
+            if (!$request->filled('city') && !$request->filled('country')) {
+                $restaurant = Restaurant::where('restaurant_id', $restaurantId)->first(['city', 'country']);
+                if ($restaurant) {
+                    $dmcId = $this->resolveInventoryDmcId(
+                        $restaurant->city,
+                        $restaurant->country,
+                        $dmcId
+                    );
+                }
             }
 
             $query = Meal::where('restaurant_id', $restaurantId)->where('dmc_id', $dmcId);
@@ -5157,6 +5309,7 @@ class EnquiryFormPro extends Controller
             $mealPlan = $request->input('meal_plan');
             $pax = (int) $request->input('pax', 1);
             $extraBed = (int) $request->input('extra_bed', 0);
+            $unitMeals = filter_var($request->input('unit_meals', false), FILTER_VALIDATE_BOOLEAN);
             $dates = $request->input('dates', []);
 
             if (is_string($dates)) {
@@ -5179,7 +5332,20 @@ class EnquiryFormPro extends Controller
                 ], 422);
             }
 
-            $result = HotelPriceHelper::calculatePrice($hotelUniqueId, $roomId, $bedId, $dates, $mealPlan, $pax, $extraBed);
+            $result = HotelPriceHelper::calculatePrice(
+                $hotelUniqueId,
+                $roomId,
+                $bedId,
+                $dates,
+                $mealPlan,
+                $pax,
+                $extraBed,
+                null,
+                0,
+                false,
+                false,
+                $unitMeals
+            );
 
             // Always 200 so the browser does not log failed HTTP requests for expected pricing misses.
             return response()->json($result);
@@ -5189,6 +5355,459 @@ class EnquiryFormPro extends Controller
                 'message' => 'Error calculating hotel price: ' . $e->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * Decode mainguest / additionalguest JSON or array payload.
+     */
+    private function decodeGuestPayload($value): array
+    {
+        if (is_array($value)) {
+            return $value;
+        }
+        if (is_string($value) && trim($value) !== '') {
+            $decoded = json_decode($value, true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                return $decoded;
+            }
+        }
+
+        return [];
+    }
+
+    /**
+     * Persist lead + additional guests onto the tour (Lite array storage, not double-encoded JSON).
+     */
+    private function applyGuestPayloadToTour(Request $request, Tour $tour): array
+    {
+        $context = [
+            'mainGuestPassword' => null,
+            'mainGuestEmail' => null,
+            'mainGuestName' => null,
+            'mainGuestCountryCode' => null,
+            'mainGuestPhone' => null,
+            'additionalGuestPasswords' => [],
+        ];
+
+        $mainGuestData = [];
+        if ($request->has('mainguest')) {
+            $mainGuestData = $this->decodeGuestPayload($request->mainguest);
+        }
+        if (empty($mainGuestData) && ($request->filled('customer_name') || $request->filled('email') || $request->filled('contact_number'))) {
+            $mainGuestData = [
+                'salutation' => $request->input('salutation'),
+                'full_name' => $request->input('customer_name'),
+                'email' => $request->input('email'),
+                'phone' => $request->input('contact_number'),
+                'country_code' => $request->input('customer_country_code'),
+            ];
+        }
+
+        $context['mainGuestEmail'] = trim((string) ($mainGuestData['email'] ?? $mainGuestData['Email'] ?? ''));
+        $context['mainGuestName'] = $mainGuestData['full_name'] ?? $mainGuestData['fullName'] ?? $request->input('customer_name');
+        $context['mainGuestCountryCode'] = $mainGuestData['country_code'] ?? $mainGuestData['countryCode'] ?? null;
+        $context['mainGuestPhone'] = $mainGuestData['phone'] ?? $request->input('contact_number');
+        if (!empty($mainGuestData['app_password'])) {
+            $context['mainGuestPassword'] = $mainGuestData['app_password'];
+        }
+        unset($mainGuestData['app_password']);
+
+        if (!empty($mainGuestData['salutation']) && is_string($mainGuestData['salutation'])) {
+            $mainGuestData['salutation'] = rtrim($mainGuestData['salutation'], '.');
+        }
+        if ($context['mainGuestEmail'] === '') {
+            $context['mainGuestEmail'] = null;
+        }
+
+        $mainGuestHasData = !empty($mainGuestData) && (
+            trim((string) ($mainGuestData['full_name'] ?? $mainGuestData['fullName'] ?? '')) !== ''
+            || trim((string) ($mainGuestData['email'] ?? '')) !== ''
+            || trim((string) ($mainGuestData['phone'] ?? '')) !== ''
+        );
+        $tour->mainguest = $mainGuestHasData ? $mainGuestData : null;
+
+        $additionalGuestData = [];
+        if ($request->has('additionalguest')) {
+            $additionalGuestData = $this->decodeGuestPayload($request->additionalguest);
+        }
+        if (!is_array($additionalGuestData)) {
+            $additionalGuestData = [];
+        }
+
+        $passwords = [];
+        foreach ($additionalGuestData as $idx => &$guestItem) {
+            if (!is_array($guestItem)) {
+                continue;
+            }
+            if (!empty($guestItem['app_password'])) {
+                $passwords[] = [
+                    'name' => $guestItem['name'] ?? '',
+                    'email' => $guestItem['email'] ?? '',
+                    'contact_no' => $guestItem['contact_no'] ?? '',
+                    'password' => $guestItem['app_password'],
+                ];
+            }
+            unset($guestItem['app_password']);
+            if (!empty($guestItem['salutation']) && is_string($guestItem['salutation'])) {
+                $guestItem['salutation'] = rtrim($guestItem['salutation'], '.');
+            }
+        }
+        unset($guestItem);
+        $context['additionalGuestPasswords'] = $passwords;
+        $tour->additionalguest = !empty($additionalGuestData) ? $additionalGuestData : null;
+
+        return $context;
+    }
+
+    /**
+     * Map stored mainguest JSON onto the Lite customer_info keys used by the accordion.
+     */
+    private function buildCustomerInfoForProEdit($mainGuestData, $customerName, $contactNumber, $salutation, $customerEmail): array
+    {
+        $info = [
+            'salutation' => $salutation ?? '',
+            'fullName' => $customerName ?? '',
+            'email' => $customerEmail ?? '',
+            'phone' => $contactNumber ?? '',
+            'countryCode' => '',
+            'address1' => '',
+            'address2' => '',
+            'state' => '',
+            'zip' => '',
+            'specialRequests' => '',
+            'passport' => '',
+            'passportExpiry' => '',
+        ];
+
+        if (is_array($mainGuestData) && !empty(array_filter($mainGuestData))) {
+            $info['salutation'] = $mainGuestData['salutation'] ?? $info['salutation'];
+            $info['fullName'] = $mainGuestData['full_name'] ?? $mainGuestData['fullName'] ?? $info['fullName'];
+            $info['email'] = $mainGuestData['email'] ?? $info['email'];
+            $info['phone'] = $mainGuestData['phone'] ?? $info['phone'];
+            $info['countryCode'] = $mainGuestData['country_code'] ?? $mainGuestData['countryCode'] ?? '';
+            $info['address1'] = $mainGuestData['address1'] ?? '';
+            $info['address2'] = $mainGuestData['address2'] ?? '';
+            $info['state'] = $mainGuestData['state'] ?? '';
+            $info['zip'] = $mainGuestData['zip'] ?? '';
+            $info['specialRequests'] = $mainGuestData['special_requests'] ?? $mainGuestData['specialRequests'] ?? '';
+            $info['passport'] = $mainGuestData['passport'] ?? '';
+            $exp = $mainGuestData['passport_exp'] ?? $mainGuestData['passportExpiry'] ?? '';
+            if ($exp instanceof \DateTimeInterface) {
+                $exp = $exp->format('Y-m-d');
+            }
+            $info['passportExpiry'] = $exp;
+        }
+
+        return $info;
+    }
+
+    /**
+     * Create or update Guest rows from the tour lead/additional guest JSON (Lite store/update flow).
+     */
+    private function syncProGuestsToGuestsTable(Tour $tour): void
+    {
+        $tourIdInt = is_numeric($tour->tour_id) ? (int) $tour->tour_id : $tour->tour_id;
+        $mainguest = $tour->mainguest;
+        if (is_string($mainguest)) {
+            $decoded = json_decode($mainguest, true);
+            $mainguest = json_last_error() === JSON_ERROR_NONE ? $decoded : null;
+        }
+
+        try {
+            if (is_array($mainguest) && (
+                trim((string) ($mainguest['full_name'] ?? $mainguest['fullName'] ?? '')) !== ''
+                || trim((string) ($mainguest['email'] ?? '')) !== ''
+                || trim((string) ($mainguest['phone'] ?? '')) !== ''
+            )) {
+                $salutation = $mainguest['salutation'] ?? null;
+                if (is_string($salutation)) {
+                    $salutation = rtrim($salutation, '.');
+                }
+                $this->createOrLinkProGuestByEmail([
+                    'guest_name' => $mainguest['full_name'] ?? $mainguest['fullName'] ?? 'Guest',
+                    'email' => $mainguest['email'] ?? null,
+                    'country_code' => $mainguest['country_code'] ?? $mainguest['countryCode'] ?? null,
+                    'contact' => filled($mainguest['phone'] ?? null) ? $mainguest['phone'] : null,
+                    'whatsapp_no' => filled($mainguest['phone'] ?? null) ? $mainguest['phone'] : null,
+                    'passport' => $mainguest['passport'] ?? null,
+                    'passport_exp' => !empty($mainguest['passport_exp']) ? $mainguest['passport_exp'] : null,
+                    'salutation' => $salutation,
+                ], $tourIdInt);
+            }
+
+            $additionalguest = $tour->additionalguest;
+            if (is_string($additionalguest)) {
+                $decoded = json_decode($additionalguest, true);
+                $additionalguest = json_last_error() === JSON_ERROR_NONE ? $decoded : null;
+            }
+            if (!is_array($additionalguest)) {
+                return;
+            }
+            foreach ($additionalguest as $row) {
+                if (!is_array($row)) {
+                    continue;
+                }
+                $name = trim((string) ($row['name'] ?? $row['guest_name'] ?? ''));
+                $contact = trim((string) ($row['contact_no'] ?? $row['contact'] ?? ''));
+                $email = trim((string) ($row['email'] ?? ''));
+                if ($name === '' && $contact === '' && $email === '') {
+                    continue;
+                }
+                $salutation = $row['salutation'] ?? null;
+                if (is_string($salutation)) {
+                    $salutation = rtrim($salutation, '.');
+                }
+                $countryCode = trim((string) ($row['country_code'] ?? $row['countryCode'] ?? ''));
+                $passport = trim((string) ($row['passport_no'] ?? $row['passport'] ?? ''));
+                $this->createOrLinkProGuestByEmail([
+                    'guest_name' => $name !== '' ? $name : 'Guest',
+                    'email' => $email !== '' ? $email : null,
+                    'country_code' => $countryCode !== '' ? $countryCode : null,
+                    'contact' => $contact !== '' ? $contact : null,
+                    'whatsapp_no' => $contact !== '' ? $contact : null,
+                    'passport' => $passport !== '' ? $passport : null,
+                    'passport_exp' => !empty($row['passport_exp']) ? $row['passport_exp'] : null,
+                    'salutation' => $salutation,
+                ], $tourIdInt);
+            }
+        } catch (\Exception $e) {
+            \Log::error('Error storing Pro guests in guests table', [
+                'tour_id' => $tour->tour_id ?? null,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    private function createOrLinkProGuestByEmail(array $guestData, $tourId): Guest
+    {
+        $email = trim((string) ($guestData['email'] ?? ''));
+        $tourId = is_numeric($tourId) ? (int) $tourId : $tourId;
+
+        $existing = null;
+        if ($email !== '') {
+            $existing = Guest::whereRaw('LOWER(TRIM(email)) = ?', [strtolower($email)])->first();
+        }
+
+        if ($existing) {
+            if (method_exists($existing, 'hasTourId') && !$existing->hasTourId($tourId)) {
+                $existing->addTourId($tourId);
+            }
+            $existing->guest_name = $guestData['guest_name'] ?? $existing->guest_name;
+            $existing->country_code = $guestData['country_code'] ?? $existing->country_code;
+            $existing->contact = $guestData['contact'] ?? $existing->contact;
+            $existing->whatsapp_no = $guestData['whatsapp_no'] ?? $existing->whatsapp_no;
+            $existing->passport = $guestData['passport'] ?? $existing->passport;
+            $existing->passport_exp = $guestData['passport_exp'] ?? $existing->passport_exp;
+            $existing->salutation = $guestData['salutation'] ?? $existing->salutation;
+            $existing->save();
+
+            return $existing;
+        }
+
+        $guestData['email'] = $email !== '' ? $email : null;
+        $guestData['tour_id'] = [$tourId];
+
+        return Guest::create($guestData);
+    }
+
+    /**
+     * Set app password and send credentials email when tour status is Definite/Actual (Lite edit flow).
+     */
+    private function handleDefiniteGuestPasswords(Tour $tour, array $context): string
+    {
+        $status = strtolower(trim((string) ($tour->tour_status ?? '')));
+        if (!in_array($status, ['definite', 'actual'], true)) {
+            return '';
+        }
+
+        $mainGuestPassword = $context['mainGuestPassword'] ?? null;
+        $additionalGuestPasswords = $context['additionalGuestPasswords'] ?? [];
+        if (empty($mainGuestPassword) && empty($additionalGuestPasswords)) {
+            return '';
+        }
+        $mainGuestEmail = $context['mainGuestEmail'] ?? null;
+        $mainGuestName = $context['mainGuestName'] ?? null;
+        $mainGuestCountryCode = $context['mainGuestCountryCode'] ?? null;
+        $mainGuestPhone = $context['mainGuestPhone'] ?? null;
+        $additionalGuestPasswords = $context['additionalGuestPasswords'] ?? [];
+        $emailResults = [];
+
+        if ($mainGuestPassword && $mainGuestEmail) {
+            try {
+                $guest = $this->findOrCreateProGuestForPassword(
+                    $mainGuestName,
+                    $mainGuestEmail,
+                    $mainGuestCountryCode,
+                    $mainGuestPhone,
+                    $tour->tour_id,
+                    $mainGuestPassword
+                );
+                $this->sendProGuestCredentialsEmail($guest, $mainGuestPassword, $tour->display_id ?? null);
+                $emailResults[] = ['email' => $mainGuestEmail, 'sent' => true];
+            } catch (\Exception $e) {
+                \Log::warning('Failed to process Pro lead guest credentials: ' . $e->getMessage());
+                $emailResults[] = ['email' => $mainGuestEmail, 'sent' => false, 'error' => $e->getMessage()];
+            }
+        }
+
+        foreach ($additionalGuestPasswords as $ag) {
+            if (empty($ag['password']) || empty($ag['name'])) {
+                continue;
+            }
+            try {
+                $guest = $this->findOrCreateProGuestForPassword(
+                    $ag['name'],
+                    $ag['email'] ?? null,
+                    null,
+                    $ag['contact_no'] ?? null,
+                    $tour->tour_id,
+                    $ag['password']
+                );
+                if ($guest->email) {
+                    $this->sendProGuestCredentialsEmail($guest, $ag['password'], $tour->display_id ?? null);
+                    $emailResults[] = ['name' => $ag['name'], 'sent' => true];
+                } else {
+                    $emailResults[] = ['name' => $ag['name'], 'sent' => false, 'error' => 'No email address'];
+                }
+            } catch (\Exception $e) {
+                \Log::warning('Failed to process Pro additional guest credentials: ' . $e->getMessage());
+                $emailResults[] = ['name' => $ag['name'], 'sent' => false, 'error' => $e->getMessage()];
+            }
+        }
+
+        if (!empty($emailResults)) {
+            $sentCount = count(array_filter($emailResults, fn ($r) => $r['sent'] ?? false));
+            if ($sentCount > 0) {
+                return "Credentials email sent to {$sentCount} guest(s).";
+            }
+            $failed = array_filter($emailResults, fn ($r) => !($r['sent'] ?? false));
+            $firstError = $failed[array_key_first($failed)]['error'] ?? null;
+
+            return 'Credentials email could not be sent.' . ($firstError ? ' ' . $firstError : '');
+        }
+
+        if (!$mainGuestEmail && !$mainGuestPassword) {
+            return 'Credentials email not sent: enter Lead Guest email and App Password to send login credentials.';
+        }
+        if (!$mainGuestEmail) {
+            return 'Credentials email not sent: Lead Guest email is required.';
+        }
+        if (!$mainGuestPassword) {
+            return 'Credentials email not sent: enter App Password for the lead guest to receive login credentials.';
+        }
+
+        return '';
+    }
+
+    private function findOrCreateProGuestForPassword($name, $email, $countryCode, $phone, $tourId, $plainPassword): Guest
+    {
+        $tourIdInt = is_numeric($tourId) ? (int) $tourId : $tourId;
+        $existingGuest = null;
+        if (!empty($email)) {
+            $existingGuest = Guest::where('email', $email)->first();
+        }
+        if (!$existingGuest && !empty($name)) {
+            $query = Guest::where('guest_name', $name);
+            if ($phone) {
+                $query->where('contact', $phone);
+            }
+            $existingGuest = $query->first();
+        }
+
+        if ($existingGuest) {
+            if (method_exists($existingGuest, 'hasTourId') && !$existingGuest->hasTourId($tourIdInt)) {
+                $existingGuest->addTourId($tourIdInt);
+            }
+            $existingGuest->app_password = Hash::make($plainPassword);
+            if (!empty($email) && empty($existingGuest->email)) {
+                $existingGuest->email = $email;
+            }
+            if (!empty($name)) {
+                $existingGuest->guest_name = $name;
+            }
+            if (!empty($countryCode)) {
+                $existingGuest->country_code = $countryCode;
+            }
+            if (!empty($phone)) {
+                $existingGuest->contact = $phone;
+            }
+            $existingGuest->save();
+            if (method_exists(CommonHelper::class, 'invalidateAccessTokens')) {
+                CommonHelper::invalidateAccessTokens(Guest::class, [
+                    $existingGuest->id,
+                    $existingGuest->guest_id,
+                ]);
+            }
+
+            return $existingGuest;
+        }
+
+        $guest = Guest::create([
+            'tour_id' => [$tourIdInt],
+            'guest_name' => $name ?: 'Guest',
+            'email' => $email ?: null,
+            'country_code' => $countryCode,
+            'contact' => $phone,
+            'app_password' => Hash::make($plainPassword),
+        ]);
+        $guest->refresh();
+
+        return $guest;
+    }
+
+    private function sendProGuestCredentialsEmail(Guest $guest, string $plainPassword, ?string $currentTourDisplayId = null): bool
+    {
+        if (empty($guest->email)) {
+            return false;
+        }
+
+        $logoSetting = Setting::where('name', 'logo')->where('status', 1)->first();
+        $nameSetting = Setting::where('name', 'name')->where('status', 1)->first();
+        $supportEmailSetting = Setting::where('name', 'support_email')->first();
+        $supportPhoneSetting = Setting::where('name', 'support_phone')->first();
+
+        $dmcId = CommonHelper::getDmcId(auth()->user());
+        $dmc = User::where('userId', $dmcId)->first();
+
+        $tourDisplayId = $currentTourDisplayId;
+        if ($tourDisplayId === null && !empty($guest->tour_id)) {
+            $tourIdValue = $guest->tour_id;
+            if (is_array($tourIdValue)) {
+                $tourIdValue = end($tourIdValue);
+            }
+            $tourDisplayId = Tour::where('tour_id', $tourIdValue)->value('display_id');
+        }
+
+        $emailData = [
+            'guest_name' => $guest->guest_name,
+            'email' => $guest->email,
+            'app_password' => $plainPassword,
+            'country_code' => $guest->country_code ?? '+91',
+            'contact' => $guest->contact,
+            'tour_id' => $tourDisplayId,
+            'company_name' => $nameSetting ? $nameSetting->value : config('app.name'),
+            'company_logo' => $logoSetting ? $logoSetting->value : null,
+            'support_email' => $supportEmailSetting ? $supportEmailSetting->value : null,
+            'support_phone' => $supportPhoneSetting ? $supportPhoneSetting->value : null,
+            'dmc_company_name' => $dmc->company_name ?? null,
+        ];
+
+        $html = view('mails.guest_credentials', $emailData)->render();
+        preg_match('/<style>(.*?)<\/style>/s', $html, $styleMatches);
+        $styles = !empty($styleMatches[0]) ? $styleMatches[0] : '';
+        preg_match('/<div class="email-container">(.*?)<\/div>\s*<\/body>/s', $html, $matches);
+
+        if (empty($matches[0])) {
+            \Log::error('Email container div not found in guest credentials template');
+
+            return false;
+        }
+
+        $subject = 'Welcome! Your Tour Tracking Credentials';
+        $emailHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>' . $subject . '</title>' . $styles . '</head><body>' . $matches[0] . '</body></html>';
+        Mail::to($guest->email)->send(new TravclicksMail($emailHtml, $subject));
+
+        return true;
     }
    
 }

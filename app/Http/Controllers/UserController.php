@@ -1167,7 +1167,7 @@ class UserController extends Controller
         $salesManager = User::where('role_id', 12)->get();
         $adminSalesManager = User::where('role_id',3)->get();
         if ($this->auth_user->role_id == 10) {
-            $assignedCountries = explode(',', $this->auth_user->country); 
+            $assignedCountries = array_values(array_filter(array_map('trim', explode(',', (string) $this->auth_user->country))));
             $country = Country::where('is_active', 1)->whereIn('name', $assignedCountries)->orderBy('name')->get(); 
         } else {
             $country = Country::where('is_active', 1)->orderBy('name')->get(); 
@@ -1744,6 +1744,13 @@ class UserController extends Controller
             }
         }
 
+        $occupiedMasterId = in_array((int) $this->auth_user->role_id, [10, 19], true)
+            ? (int) $this->auth_user->userId
+            : 0;
+        $occupiedDmcCountries = $occupiedMasterId > 0
+            ? $this->occupiedDmcCountriesForMaster($occupiedMasterId)
+            : [];
+
         return view('users.add-user', compact(
             'adminSalesManager',
             'countriesArray',
@@ -1756,7 +1763,8 @@ class UserController extends Controller
             'user_countryCode',
             'master_dmc',
             'dmcs',
-            'dmcLocationPrefill'
+            'dmcLocationPrefill',
+            'occupiedDmcCountries'
         ));
     }
 
@@ -1878,6 +1886,20 @@ class UserController extends Controller
             ? implode(',', $request->country_names)
             : ($get_country_name ?? null);
         $userCurrency = $this->resolveCurrencyForCountry($userCountry);
+
+        if (in_array((int) $role, [11, 20], true)) {
+            $checkMasterId = isset($masterDmcId) && (int) $masterDmcId > 0
+                ? (int) $masterDmcId
+                : (int) ($request->master_dmc ?? 0);
+            $taken = $this->findOccupiedDmcCountry($checkMasterId, $userCountry);
+            if ($taken) {
+                return redirect()->back()
+                    ->withInput()
+                    ->withErrors([
+                        'country_name' => 'A DMC is already present for ' . $taken['country'] . '.',
+                    ]);
+            }
+        }
 
         // Third party flag only applies to DMC roles; everyone else stays 'no'.
         // DB columns are enum('yes','no') — always store lowercase string values.
@@ -2398,7 +2420,7 @@ class UserController extends Controller
         
         // Handle country access based on role
         if ($this->auth_user->role_id == 10) {
-            $assignedCountries = explode(',', $this->auth_user->country);
+            $assignedCountries = array_values(array_filter(array_map('trim', explode(',', (string) $this->auth_user->country))));
             $country = Country::whereIn('name', $assignedCountries)->get();
         } else {
             $country = Country::where('is_active', 1)->get();
@@ -2422,6 +2444,14 @@ class UserController extends Controller
         
         $users->country_names = $countriesArray;
 
+        $occupiedMasterId = (int) ($users->master_dmc_id ?? 0);
+        if ($occupiedMasterId <= 0 && in_array((int) $this->auth_user->role_id, [10, 19], true)) {
+            $occupiedMasterId = (int) $this->auth_user->userId;
+        }
+        $occupiedDmcCountries = $occupiedMasterId > 0
+            ? $this->occupiedDmcCountriesForMaster($occupiedMasterId, (int) $users->userId)
+            : [];
+
         return view('users.edit-user', compact(
             'users',
             'countriesArray',
@@ -2434,7 +2464,8 @@ class UserController extends Controller
             'user_countryCode',
             'master_dmc',
             'dmcs',
-            'adminSalesManager'
+            'adminSalesManager',
+            'occupiedDmcCountries'
         ));
     }
 
@@ -2514,12 +2545,68 @@ class UserController extends Controller
         $get_country_name = $request->country_name;
         if ($role == 4) {
             $get_country_name = User::where('userId', $request->input('salemg_admin'))->value('country') ?? $get_country_name;
-        } else if ($role == 11) {
-            $country_name = Country::where('name', $request->country_name)->first();
-            $get_country_name = $country_name ? $country_name->name : $request->country_name;
+        } else if (in_array((int) $role, [11, 20], true)) {
+            $get_country_name = $user->country;
         } else if ($role >= 12 && $role <= 17) {
             $get_country_name = User::where('userId', $request->dmc)->value('country') ?? $get_country_name;
         }
+
+        // When an admin (role 1/2/3) edits a Master DMC (role 10) and removes countries,
+        // block removal if any DMC (role 11) under that Master DMC still has that country.
+        // DMC linkage: users.created_by = Master DMC userId (also check master_dmc_id).
+        $authRoleId = (int) ($this->auth_user->role_id ?? 0);
+        $isAdminEditing = in_array($authRoleId, [1, 2, 3], true);
+        $isEditingMasterDmc = in_array((int) $role, [10], true);
+
+        if ($isAdminEditing && $isEditingMasterDmc && $request->has('country_names')) {
+            $normalizeCountries = static function ($countries): array {
+                return collect(is_array($countries) ? $countries : explode(',', (string) $countries))
+                    ->map(static fn ($country) => trim((string) $country))
+                    ->filter()
+                    ->unique()
+                    ->values()
+                    ->all();
+            };
+
+            $masterDmcUserId = (int) $user->userId;
+            $oldCountries = $normalizeCountries($user->country);
+            $newCountries = $normalizeCountries($request->input('country_names', []));
+            $removedCountries = array_values(array_diff($oldCountries, $newCountries));
+
+            if ($removedCountries !== []) {
+                $blockedCountries = [];
+
+                foreach ($removedCountries as $removedCountry) {
+                    $dmcExists = User::query()
+                        ->where('role_id', 11)
+                        ->where(function ($query) use ($masterDmcUserId) {
+                            $query->where('created_by', $masterDmcUserId)
+                                ->orWhere('master_dmc_id', $masterDmcUserId);
+                        })
+                        ->where(function ($query) use ($removedCountry) {
+                            $query->where('country', $removedCountry)
+                                ->orWhereRaw('TRIM(country) = ?', [$removedCountry]);
+                        })
+                        ->exists();
+
+                    if ($dmcExists) {
+                        $blockedCountries[] = $removedCountry;
+                    }
+                }
+
+                if ($blockedCountries !== []) {
+                    $countryList = implode(', ', $blockedCountries);
+                    $message = count($blockedCountries) === 1
+                        ? "Cannot remove \"{$countryList}\" because a DMC under this Master DMC still exists for this country."
+                        : "Cannot remove these countries because DMCs under this Master DMC still exist for them: {$countryList}.";
+
+                    return redirect()->back()
+                        ->withInput()
+                        ->withErrors(['country_names' => $message])
+                        ->with('error', $message);
+                }
+            }
+        }           
 
         // Logic for masterDmcId
         if($this->auth_user->role_id == 10){
@@ -2556,6 +2643,20 @@ class UserController extends Controller
         $dmc_sales_manager = $user->dmc_sales_manager;
         if ($request->input('role') == 38) {
             $dmc_sales_manager = $this->auth_user->userId;
+        }
+
+        if (in_array((int) $role, [11, 20], true)) {
+            $countryToCheck = is_array($request->country_names)
+                ? implode(',', $request->country_names)
+                : ($get_country_name ?? $user->country);
+            $taken = $this->findOccupiedDmcCountry((int) $masterDmcId, $countryToCheck, (int) $user->userId);
+            if ($taken) {
+                return redirect()->back()
+                    ->withInput()
+                    ->withErrors([
+                        'country_name' => 'A DMC is already present for ' . $taken['country'] . '.',
+                    ]);
+            }
         }
 
         // Update user with all the properly determined values
@@ -2879,7 +2980,85 @@ class UserController extends Controller
         $countries = $masterDmc ? explode(',', $masterDmc->country) : []; // Assuming countries are stored as CSV
         $countries = array_values(array_filter(array_map('trim', $countries)));
         natcasesort($countries);
-        return response()->json(['countries' => array_values($countries)]);
+        $countries = array_values($countries);
+        $occupied = $this->occupiedDmcCountriesForMaster((int) $masterDmcId);
+
+        $countryOptions = [];
+        foreach ($countries as $name) {
+            $key = mb_strtolower(trim((string) $name));
+            $taken = $occupied[$key] ?? null;
+            $countryOptions[] = [
+                'name' => $name,
+                'occupied' => $taken !== null,
+                'message' => $taken ? ('already present DMC for this country' . (!empty($taken['dmc_name']) ? ' (' . $taken['dmc_name'] . ')' : '')) : null,
+            ];
+        }
+
+        return response()->json([
+            'countries' => $countries,
+            'country_options' => $countryOptions,
+        ]);
+    }
+
+    /**
+     * Map of lowercase country name => existing DMC under this Master DMC.
+     *
+     * @return array<string, array{country: string, dmc_name: string}>
+     */
+    private function occupiedDmcCountriesForMaster($masterDmcId, $exceptUserId = null): array
+    {
+        $masterDmcId = (int) $masterDmcId;
+        if ($masterDmcId <= 0) {
+            return [];
+        }
+
+        $query = User::query()
+            ->whereIn('role_id', [11, 20])
+            ->where(function ($q) use ($masterDmcId) {
+                $q->where('master_dmc_id', $masterDmcId)
+                    ->orWhere('created_by', $masterDmcId);
+            });
+
+        if ($exceptUserId) {
+            $query->where('userId', '!=', (int) $exceptUserId);
+        }
+
+        $occupied = [];
+        foreach ($query->get(['userId', 'name', 'company_name', 'country']) as $dmc) {
+            $parts = preg_split('/\s*,\s*/', trim((string) ($dmc->country ?? ''))) ?: [];
+            foreach ($parts as $part) {
+                $part = trim((string) $part);
+                if ($part === '') {
+                    continue;
+                }
+                $key = mb_strtolower($part);
+                if (isset($occupied[$key])) {
+                    continue;
+                }
+                $occupied[$key] = [
+                    'country' => $part,
+                    'dmc_name' => trim((string) ($dmc->company_name ?: $dmc->name)),
+                ];
+            }
+        }
+
+        return $occupied;
+    }
+
+    private function findOccupiedDmcCountry($masterDmcId, $countryName, $exceptUserId = null): ?array
+    {
+        $countryName = trim((string) $countryName);
+        if ($countryName === '' || str_contains($countryName, ',')) {
+            return null;
+        }
+
+        foreach ($this->occupiedDmcCountriesForMaster($masterDmcId, $exceptUserId) as $row) {
+            if (CommonHelper::countriesMatch($row['country'], $countryName)) {
+                return $row;
+            }
+        }
+
+        return null;
     }
 
     /*

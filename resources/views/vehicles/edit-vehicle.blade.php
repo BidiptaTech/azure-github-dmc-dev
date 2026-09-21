@@ -480,20 +480,37 @@
                                 </select>
                             </div>
 
-                            <!-- Country -->
+                            <!-- Country (DMC base country from users.country) -->
                             @php $locationLockedByMappings = !empty($hasZoneMappings); @endphp
                             <div class="col-md-3 mb-3">
                                 <label for="country" class="form-label"><strong>Country</strong><span class="text-danger">*</span></label>
                                 @if($locationLockedByMappings)
                                     <input type="hidden" name="country" value="{{ $selectedCountry ?? $vehicle->country }}">
                                 @endif
+                                @php
+                                    $scopedCountries = collect($dmcBaseCountries ?? $countries ?? []);
+                                    $editSelectedCountry = old('country', $selectedCountry ?? $vehicle->country ?? '');
+                                    if ($editSelectedCountry === '' && $scopedCountries->count() === 1) {
+                                        $editSelectedCountry = $scopedCountries->first()->name ?? '';
+                                    }
+                                    if (filled($editSelectedCountry) && !$scopedCountries->contains(function ($c) use ($editSelectedCountry) {
+                                        return strcasecmp(trim((string) ($c->name ?? '')), trim((string) $editSelectedCountry)) === 0;
+                                    })) {
+                                        $missingCountry = \App\Models\Country::whereRaw('LOWER(TRIM(name)) = ?', [strtolower(trim((string) $editSelectedCountry))])->first();
+                                        if ($missingCountry) {
+                                            $scopedCountries = $scopedCountries->prepend($missingCountry)->unique('id')->values();
+                                        }
+                                    }
+                                @endphp
                                 <select @if(!$locationLockedByMappings) name="country" required @endif id="country" class="form-select" @disabled($locationLockedByMappings)>
-                                    @php $scopedCountries = $countries ?? collect(); @endphp
                                     @if($scopedCountries->count() !== 1)
                                         <option value="">Select Country</option>
                                     @endif
                                     @foreach($scopedCountries as $c)
-                                        <option value="{{ $c->name }}" {{ ($selectedCountry ?? '') == $c->name ? 'selected' : '' }}>{{ $c->name }}</option>
+                                        <option value="{{ $c->name }}"
+                                            {{ strcasecmp(trim((string) $editSelectedCountry), trim((string) $c->name)) === 0 ? 'selected' : '' }}>
+                                            {{ $c->name }}
+                                        </option>
                                     @endforeach
                                 </select>
                                 @if($locationLockedByMappings)
@@ -826,6 +843,32 @@
                                     <input type="hidden" name="night_cancel_cost_price" id="night_cancel_cost_price" value="{{ old('night_cancel_cost_price', $vehicle->night_cancel_cost_price) }}">
                                     <input type="hidden" name="night_cancel_cost" id="night_cancel_cost" value="{{ old('night_cancel_cost', $vehicle->night_cancel_cost) }}">
                                 </fieldset>
+                            </fieldset>
+
+                            <fieldset id="hourlyPrices" class="border p-4 rounded mb-4">
+                                <h5 class="card-title mb-3">Hourly prices</h5>
+                                <div class="row">
+                                    @for($hour = 1; $hour <= 12; $hour++)
+                                        @php $hourlyField = 'hourly_price_' . $hour; @endphp
+                                        <div class="col-md-3 mb-3">
+                                            <label for="{{ $hourlyField }}" class="form-label">
+                                                <strong>{{ $hour }} Hour{{ $hour > 1 ? 's' : '' }} Price</strong>
+                                            </label>
+                                            <input type="number"
+                                                   step="0.01"
+                                                   min="0"
+                                                   class="form-control hourly-price-input"
+                                                   id="{{ $hourlyField }}"
+                                                   name="{{ $hourlyField }}"
+                                                   data-hour="{{ $hour }}"
+                                                   placeholder="Enter {{ $hour }} hr price"
+                                                   value="{{ old($hourlyField, $vehicle->{$hourlyField} ?? '') }}">
+                                            @error($hourlyField)
+                                                <div class="text-danger mt-1">{{ $message }}</div>
+                                            @enderror
+                                        </div>
+                                    @endfor
+                                </div>
                             </fieldset>
 
                             
@@ -1913,6 +1956,13 @@
                     <div class="col-md-6 d-flex flex-column justify-content-end">
                         <label class="form-label d-none d-md-block">&nbsp;</label>
                         <div class="d-flex justify-content-md-end align-items-center gap-2 flex-wrap">
+                            <button type="button"
+                                    id="zone_mapping_sync_btn"
+                                    class="btn btn-outline-primary px-3"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#syncFromVehicleModal">
+                                <i class="ri-refresh-line me-1"></i> Sync from Other Vehicle
+                            </button>
                             <a href="{{ route('vehicle.zone_mappings.export', ['vehicle' => Crypt::encrypt($vehicle->vehicle_id), 'mapping_type' => request()->get('mapping_type')]) }}"
                                id="zone_mapping_export_btn"
                                data-export-url="{{ route('vehicle.zone_mappings.export', ['vehicle' => Crypt::encrypt($vehicle->vehicle_id), 'mapping_type' => request()->get('mapping_type')]) }}"
@@ -2352,6 +2402,69 @@
             </style>
 
             @if(in_array(request()->get('mapping_type'), ['port_port','port_attraction','port_restaurant','port_hotel','hotel_attraction','hotel_restaurant','attraction_restaurant','hotel_hotel','attraction_attraction','restaurant_restaurant']))
+            @php
+                $zoneSyncSourceVehicles = $zoneSyncSourceVehicles ?? collect();
+                $syncVehicleCountry = $zoneMappingFilterCountry ?: ($selectedCountry ?? '');
+                $syncVehicleCity = $vehicle->city ?? '';
+            @endphp
+            <div class="modal fade" id="syncFromVehicleModal" tabindex="-1" aria-labelledby="syncFromVehicleModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-lg modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="syncFromVehicleModalLabel">
+                                <i class="ri-refresh-line me-1"></i> Sync from Other Vehicle
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="field-info-message mb-3">
+                                <i class="fas fa-info-circle"></i>
+                                Select a vehicle from the same Country and City to copy zone-to-zone pricing.
+                                You can add or reduce prices using Private and Shared Variant values.
+                            </div>
+                            <div class="mb-3">
+                                <label for="sync_source_vehicle" class="form-label"><strong>Select Source Vehicle</strong> <span class="text-danger">*</span></label>
+                                <select id="sync_source_vehicle" class="form-select">
+                                    <option value="">Select Source Vehicle</option>
+                                    @forelse($zoneSyncSourceVehicles as $sourceVehicle)
+                                        <option value="{{ $sourceVehicle->vehicle_id }}">
+                                            {{ $sourceVehicle->vehicle_name }} - {{ $syncVehicleCountry ?: 'N/A' }}, {{ $sourceVehicle->city ?: 'N/A' }}
+                                        </option>
+                                    @empty
+                                        <option value="" disabled>No other vehicle found in the same country and city</option>
+                                    @endforelse
+                                </select>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="sync_private_variant" class="form-label"><strong>Private Variant (₹)</strong></label>
+                                    <input type="number" id="sync_private_variant" class="form-control" value="0.00" step="0.01" disabled>
+                                    <small class="text-muted">This value will be added to private cost and sell price.</small>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="sync_shared_variant" class="form-label"><strong>Shared Variant (₹)</strong></label>
+                                    <input type="number" id="sync_shared_variant" class="form-control" value="0.00" step="0.01" disabled>
+                                    <small class="text-muted">This value will be added to shared cost and sell price.</small>
+                                </div>
+                            </div>
+                            <div class="field-info-message mb-0" style="align-items: flex-start;">
+                                <i class="fas fa-info-circle"></i>
+                                <div>
+                                    <strong>Example</strong><br>
+                                    If source vehicle price (Port → Hotel) is: Private: Cost ₹50, Sell ₹60 | Shared: Cost ₹45, Sell ₹55.
+                                    And you enter Private Variant = 5, Shared Variant = 10.
+                                    Then new price will be: Private: Cost ₹55, Sell ₹65 | Shared: Cost ₹55, Sell ₹65.
+                                </div>
+                            </div>
+                            <div id="syncFromVehicleError" class="alert alert-danger mt-3 d-none mb-0"></div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="button" class="btn btn-primary" id="syncFromVehicleSubmitBtn">Sync &amp; Update Price</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
             <form id="zoneMappingImportForm"
                   method="POST"
                   action="{{ route('vehicle.zone_mappings.import') }}"
@@ -2401,6 +2514,130 @@
                     uploadBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Uploading...';
 
                     importForm.submit();
+                });
+            });
+            </script>
+            <script>
+            document.addEventListener('DOMContentLoaded', function () {
+                const modalEl = document.getElementById('syncFromVehicleModal');
+                const sourceSelect = document.getElementById('sync_source_vehicle');
+                const privateInput = document.getElementById('sync_private_variant');
+                const sharedInput = document.getElementById('sync_shared_variant');
+                const submitBtn = document.getElementById('syncFromVehicleSubmitBtn');
+                const errorBox = document.getElementById('syncFromVehicleError');
+                const syncUrl = @json(route('vehicle.zone_mappings.sync', Crypt::encrypt($vehicle->vehicle_id)));
+                const mappingType = @json(request()->get('mapping_type'));
+
+                if (!modalEl || !sourceSelect || !submitBtn) {
+                    return;
+                }
+
+                function showSyncError(message) {
+                    if (!errorBox) return;
+                    errorBox.textContent = message || 'Unable to sync zone mappings.';
+                    errorBox.classList.remove('d-none');
+                }
+
+                function hideSyncError() {
+                    if (!errorBox) return;
+                    errorBox.classList.add('d-none');
+                    errorBox.textContent = '';
+                }
+
+                function setVariantEnabled(enabled) {
+                    if (privateInput) privateInput.disabled = !enabled;
+                    if (sharedInput) sharedInput.disabled = !enabled;
+                }
+
+                function initSourceSelect2() {
+                    if (!window.jQuery || !window.jQuery.fn || !window.jQuery.fn.select2) {
+                        return;
+                    }
+                    const $select = window.jQuery(sourceSelect);
+                    if ($select.hasClass('select2-hidden-accessible')) {
+                        $select.select2('destroy');
+                    }
+                    $select.select2({
+                        dropdownParent: window.jQuery(modalEl),
+                        placeholder: 'Select Source Vehicle',
+                        width: '100%',
+                        allowClear: true
+                    });
+                }
+
+                modalEl.addEventListener('shown.bs.modal', function () {
+                    hideSyncError();
+                    initSourceSelect2();
+                    setVariantEnabled(!!sourceSelect.value);
+                });
+
+                if (window.jQuery) {
+                    window.jQuery(sourceSelect).on('change select2:select select2:clear', function () {
+                        setVariantEnabled(!!this.value);
+                        hideSyncError();
+                    });
+                } else {
+                    sourceSelect.addEventListener('change', function () {
+                        setVariantEnabled(!!this.value);
+                        hideSyncError();
+                    });
+                }
+
+                submitBtn.addEventListener('click', function () {
+                    hideSyncError();
+                    const sourceVehicleId = sourceSelect.value;
+                    if (!sourceVehicleId) {
+                        showSyncError('Please select a source vehicle.');
+                        return;
+                    }
+
+                    const privateVariant = parseFloat(privateInput ? privateInput.value : '0');
+                    const sharedVariant = parseFloat(sharedInput ? sharedInput.value : '0');
+                    if (Number.isNaN(privateVariant) || Number.isNaN(sharedVariant)) {
+                        showSyncError('Private Variant and Shared Variant must be valid numbers.');
+                        return;
+                    }
+
+                    const csrf = document.querySelector('meta[name="csrf-token"]');
+                    submitBtn.disabled = true;
+                    const originalHtml = submitBtn.innerHTML;
+                    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Syncing...';
+
+                    fetch(syncUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': csrf ? csrf.content : '',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        body: JSON.stringify({
+                            source_vehicle_id: sourceVehicleId,
+                            private_variant: privateVariant,
+                            shared_variant: sharedVariant,
+                            mapping_type: mappingType
+                        })
+                    })
+                    .then(async function (response) {
+                        const data = await response.json().catch(function () { return {}; });
+                        if (!response.ok || !data.success) {
+                            throw new Error(data.message || 'Unable to sync zone mappings.');
+                        }
+                        return data;
+                    })
+                    .then(function (data) {
+                        submitBtn.innerHTML = originalHtml;
+                        if (data.redirect) {
+                            window.location.href = data.redirect;
+                            return;
+                        }
+                        window.location.reload();
+                    })
+                    .catch(function (error) {
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = originalHtml;
+                        showSyncError(error.message);
+                    });
                 });
             });
             </script>
@@ -6718,4 +6955,46 @@ $(document).ready(function() {
 @endif
 
 @include('components.currency-price-note-dmc-script')
+
+<script>
+(function () {
+    function parseHourlyAmount(value) {
+        const n = parseFloat(String(value || '').replace(',', '.'));
+        return isNaN(n) ? null : n;
+    }
+
+    function fillHourlyPricesFromOneHour() {
+        const oneHourInput = document.getElementById('hourly_price_1');
+        if (!oneHourInput) return;
+
+        const raw = String(oneHourInput.value || '').trim();
+        const base = parseHourlyAmount(raw);
+
+        for (let hour = 2; hour <= 12; hour++) {
+            const input = document.getElementById('hourly_price_' + hour);
+            if (!input) continue;
+
+            if (raw === '' || base === null) {
+                input.value = '';
+            } else {
+                input.value = Number((base * hour).toFixed(2));
+            }
+        }
+    }
+
+    function initHourlyPricesAutoFill() {
+        const oneHourInput = document.getElementById('hourly_price_1');
+        if (!oneHourInput) return;
+
+        oneHourInput.addEventListener('change', fillHourlyPricesFromOneHour);
+        oneHourInput.addEventListener('input', fillHourlyPricesFromOneHour);
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initHourlyPricesAutoFill);
+    } else {
+        initHourlyPricesAutoFill();
+    }
+})();
+</script>
 @endsection

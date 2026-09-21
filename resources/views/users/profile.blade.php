@@ -34,6 +34,30 @@
                             } else {
                                 $profileImg = $user->logo ?? asset('assets/img/avatars/1.png');
                             }
+                            $userLocationCountry = trim((string) ($user->user_country ?? ''));
+                            $userLocationCity = trim((string) ($user->city ?? ''));
+                            $operationalCountries = [];
+                            $operationalSeen = [];
+                            $operationalRaw = trim((string) ($user->country ?? ''));
+                            if ($operationalRaw !== '') {
+                                $decodedOperational = json_decode($operationalRaw, true);
+                                $operationalParts = (json_last_error() === JSON_ERROR_NONE && is_array($decodedOperational))
+                                    ? $decodedOperational
+                                    : preg_split('/[,|]/', $operationalRaw);
+                                foreach ((array) $operationalParts as $part) {
+                                    $name = trim((string) $part);
+                                    if ($name === '') {
+                                        continue;
+                                    }
+                                    $operationalKey = mb_strtolower($name);
+                                    if (isset($operationalSeen[$operationalKey])) {
+                                        continue;
+                                    }
+                                    $operationalSeen[$operationalKey] = true;
+                                    $operationalCountries[] = $name;
+                                }
+                            }
+                            $operationalDisplay = implode(', ', $operationalCountries);
                             @endphp
                             <img id="profile-image-preview" 
                                  src="{{ $profileImg }}" 
@@ -49,6 +73,18 @@
                         </div>
                         <h5 class="mb-1">{{ $user->name }}</h5>
                         <p class="text-muted mb-2">{{ $user->email }}</p>
+                        <div class="text-muted small mb-3">
+                            <div class="d-flex align-items-center justify-content-center gap-1 mb-1">
+                                <i class="ri-map-pin-line"></i>
+                                <span>{{ $userLocationCountry !== '' ? $userLocationCountry : 'N/A' }}{{ $userLocationCity !== '' ? ', ' . $userLocationCity : '' }}</span>
+                            </div>
+                            @if($operationalDisplay !== '')
+                                <div class="d-flex align-items-center justify-content-center gap-1">
+                                    <i class="ri-global-line"></i>
+                                    <span>Operational: {{ $operationalDisplay }}</span>
+                                </div>
+                            @endif
+                        </div>
                         <div class="d-grid gap-2">
                             <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-change-password" data-bs-toggle="modal" data-bs-target="#changePasswordModal">
                                 <i class="ri-lock-line me-1"></i> Change Password
@@ -72,28 +108,56 @@
                         </div>
                         <div class="card-body">
                             <div class="row g-3">
-                                @foreach([
-                                    ['name' => 'name', 'label' => 'Name', 'type' => 'text', 'value' => $user->name],
-                                    ['name' => 'phone', 'label' => 'Phone', 'type' => 'text', 'value' => $user->phone ?? ''],
-                                    ['name' => 'country', 'label' => 'Country', 'type' => 'text', 'value' => $user->country ?? ''],
-                                    ['name' => 'city', 'label' => 'City', 'type' => 'text', 'value' => $user->city ?? ''],
-                                    ['name' => 'address', 'label' => 'Address', 'type' => 'text', 'value' => $user->address ?? '', 'full' => true],
-                                ] as $field)
-                                <div class="{{ !empty($field['full']) ? 'col-12' : 'col-md-6' }}">
-                                    <label class="form-label">{{ $field['label'] }}</label>
+                                <div class="col-md-6">
+                                    <label class="form-label">Name</label>
                                     <div class="input-group input-group-merge">
-                                        <input type="{{ $field['type'] }}" 
-                                               name="{{ $field['name'] }}" 
-                                               class="form-control profile-field" 
-                                               value="{{ $field['value'] }}" 
-                                               readonly 
-                                               data-field="{{ $field['name'] }}">
-                                        <button type="button" class="btn btn-outline-secondary profile-edit-btn" data-target="{{ $field['name'] }}" title="Edit">
+                                        <input type="text" name="name" class="form-control profile-field" value="{{ $user->name }}" readonly data-field="name">
+                                        <button type="button" class="btn btn-outline-secondary profile-edit-btn" data-target="name" title="Edit">
                                             <i class="ri-pencil-line"></i>
                                         </button>
                                     </div>
                                 </div>
-                                @endforeach
+                                <div class="col-md-6">
+                                    <label class="form-label">Phone</label>
+                                    <div class="input-group input-group-merge">
+                                        <input type="text" name="phone" class="form-control profile-field" value="{{ $user->phone ?? '' }}" readonly data-field="phone">
+                                        <button type="button" class="btn btn-outline-secondary profile-edit-btn" data-target="phone" title="Edit">
+                                            <i class="ri-pencil-line"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Operational Country</label>
+                                    <input type="text" class="form-control" value="{{ $operationalDisplay !== '' ? $operationalDisplay : 'N/A' }}" readonly>
+                                    <small class="text-muted">From DMC country mapping. This cannot be changed here.</small>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">User Country</label>
+                                    <div class="input-group input-group-merge">
+                                        <input type="text" name="user_country" class="form-control profile-field" value="{{ $userLocationCountry }}" readonly data-field="user_country">
+                                        <button type="button" class="btn btn-outline-secondary profile-edit-btn" data-target="user_country" title="Edit">
+                                            <i class="ri-pencil-line"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">City</label>
+                                    <div class="input-group input-group-merge">
+                                        <input type="text" name="city" class="form-control profile-field" value="{{ $userLocationCity }}" readonly data-field="city">
+                                        <button type="button" class="btn btn-outline-secondary profile-edit-btn" data-target="city" title="Edit">
+                                            <i class="ri-pencil-line"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label">Address</label>
+                                    <div class="input-group input-group-merge">
+                                        <input type="text" name="address" class="form-control profile-field" value="{{ $user->address ?? '' }}" readonly data-field="address">
+                                        <button type="button" class="btn btn-outline-secondary profile-edit-btn" data-target="address" title="Edit">
+                                            <i class="ri-pencil-line"></i>
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>

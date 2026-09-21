@@ -35,6 +35,12 @@ return [
         'key' => env('FREECURRENCYAPI_KEY'),
     ],
 
+    'stripe' => [
+        'key' => env('STRIPE_PUBLIC_KEY'),
+        'secret' => env('STRIPE_SECRET_KEY'),
+        'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
+    ],
+
     'azure' => [
         'vault' => env('AZURE_KEYVAULT_NAME'),
         'client_id' => env('AZURE_CLIENT_ID'),

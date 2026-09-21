@@ -75,6 +75,20 @@ class JobSheetController extends Controller
         return 'N/A';
     }
 
+    /**
+     * Postgres time columns reject empty strings. Treat blank entrytime as null.
+     */
+    private function normalizeJourneyTime($entryTime)
+    {
+        if (!is_string($entryTime)) {
+            return $entryTime ?: null;
+        }
+
+        $entryTime = trim($entryTime);
+
+        return $entryTime === '' ? null : $entryTime;
+    }
+
     private function resolveDriverEmail($driverId): ?string
     {
         if (empty($driverId)) {
@@ -382,7 +396,7 @@ class JobSheetController extends Controller
                                 $jobsheet = Jobsheet::where('date', $tomorrow)
                                     ->where('type', $order->type)
                                     ->where('service_type', $dataItem['type'] ?? null)
-                                    ->where('journey_time', $dataItem['entrytime'] ?? null)
+                                    ->where('journey_time', $this->normalizeJourneyTime($dataItem['entrytime'] ?? null))
                                     ->where('order_id', $order->booking_id)
                                     ->first();
                                 
@@ -904,7 +918,6 @@ class JobSheetController extends Controller
     {
         $user = auth()->user();
         $dmcs = [];
-
         if ($user->role_id == 10) {
             $dmc_ids = User::where('master_dmc_id', $user->userId)->where('role_id', 11)->get()->pluck('userId')->toArray();
             $dmcs = User::wherein('userId', $dmc_ids)->get();
@@ -926,8 +939,6 @@ class JobSheetController extends Controller
             $dmc_ids = User::where('master_dmc_id', $master_dmc_id)->where('role_id', 11)->get()->pluck('userId')->toArray();
             $dmcs = User::wherein('userId', $dmc_ids)->get();
         }
-
-
         $dmcGuides = [];
         if(in_array($user->role_id, [11, 34, 66, 108, 128, 131, 132, 134, 135, 137, 138])){
             if($user->role_id == 11 || $user->role_id == 20){
@@ -952,7 +963,6 @@ class JobSheetController extends Controller
                 $dmcGuides = Guide::orderBy('updated_at', 'desc')->where('dmc_id', $resolvedDmcId)->with('languages')->get();
             }
         }
-
         return view('jobSheet.guide-jobs', compact('dmcs', 'dmcGuides'));
     }
 
@@ -978,8 +988,6 @@ class JobSheetController extends Controller
             ], 500);
         }
     }
-
-
     /**
      * Get Guide Schedule from orders
      */
@@ -1354,11 +1362,9 @@ class JobSheetController extends Controller
                     ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
                     ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
                     ->whereIn('orders.type', $orderTypes)
-                    ->whereRaw("data->0->>'pickupdate' = ?", [$tomorrow])
-                    ->where(function ($q) use ($dmcId) {
-                        $q->whereRaw("data->0->>'dmc_Id' = ?", [$dmcId])
-                          ->orWhereRaw("data->0->>'dmc_id' = ?", [$dmcId]);
-                    })
+                    // Own the order through its tour instead of the dmc_Id copy inside data[0],
+                    // which is missing on some orders and stale on others.
+                    ->where('tours.dmc_id', (int) $dmcId)
                     ->whereNotNull('orders.tour_id')
                     ->whereIn('tours.tour_status', ['Confirmed', 'Definite', 'Actual'])
                     ->get();
@@ -2600,7 +2606,9 @@ class JobSheetController extends Controller
                     ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
                     ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
                     ->whereIn('orders.type', $orderTypes)
-                    ->whereRaw("data->0->>'dmc_Id' = ?", [$dmcId])
+                    // Own the order through its tour instead of the dmc_Id copy inside data[0],
+                    // which is missing on some orders and stale on others.
+                    ->where('tours.dmc_id', (int) $dmcId)
                     ->whereRaw("data->0->>'pickupdate' = ?", [$date])
                     ->whereNotNull('orders.tour_id')
                     ->whereIn('tours.tour_status', ['Confirmed', 'Definite', 'Actual'])
@@ -2725,7 +2733,6 @@ class JobSheetController extends Controller
                     ->whereNotNull('orders.tour_id')
                     ->whereIn('tours.tour_status', ['Confirmed', 'Definite', 'Actual'])
                     ->get();
-                
                 // Filter to only include orders with transfer_required = true
                 $restaurantOrders = $allRestaurantOrders->filter(function($order) {
                     $orderData = is_string($order->data) ? json_decode($order->data, true) : $order->data;
@@ -2736,7 +2743,6 @@ class JobSheetController extends Controller
                     }
                     return false;
                 });
-                
                 $orders = $transportOrders->merge($attractionOrders)->merge($restaurantOrders);
             }
 
@@ -2763,7 +2769,7 @@ class JobSheetController extends Controller
                     $jobsheet = Jobsheet::where('date', $date)
                         ->where('type', $order->type)
                         ->where('service_type', $order->type) // For guides, service_type is same as type
-                        ->where('journey_time', $dataItem['entrytime'] ?? null)
+                        ->where('journey_time', $this->normalizeJourneyTime($dataItem['entrytime'] ?? null))
                         ->where('order_id', $order->booking_id)
                         ->first();
                     
@@ -2817,7 +2823,7 @@ class JobSheetController extends Controller
                         $jobsheet = Jobsheet::where('date', $date)
                             ->where('type', $order->type)
                             ->where('service_type', $dataItem['type'] ?? null)
-                            ->where('journey_time', $dataItem['entrytime'] ?? null)
+                            ->where('journey_time', $this->normalizeJourneyTime($dataItem['entrytime'] ?? null))
                             ->where('order_id', $order->booking_id)
                             ->first();
                             

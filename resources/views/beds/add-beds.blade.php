@@ -100,13 +100,24 @@
                         <div class="col-md-2 mb-3">
                             <label for="bunk_beds" class="form-label"><strong>No. of Bunk Beds</strong></label>
                             <select id="bunk_beds" name="bunk_beds" class="form-control" required>
-                                <option value="0">0</option>
-                                <option value="1">1</option>
-                                <option value="2">2</option>
-                                <option value="3">3</option>
-                                <option value="4">4</option>
+                                <option value="0" {{ (string) old('bunk_beds', '0') === '0' ? 'selected' : '' }}>0</option>
+                                <option value="1" {{ (string) old('bunk_beds') === '1' ? 'selected' : '' }}>1</option>
+                                <option value="2" {{ (string) old('bunk_beds') === '2' ? 'selected' : '' }}>2</option>
+                                <option value="3" {{ (string) old('bunk_beds') === '3' ? 'selected' : '' }}>3</option>
+                                <option value="4" {{ (string) old('bunk_beds') === '4' ? 'selected' : '' }}>4</option>
                             </select>
                             @error('bunk_beds')
+                                <div class="text-danger mt-1">{{ $message }}</div>
+                            @enderror
+                        </div>
+                        <!-- Child Without Bed -->
+                        <div class="col-md-2 mb-3">
+                            <label for="child_wo_bed" class="form-label"><strong>Child W/O Bed</strong></label>
+                            <select id="child_wo_bed" name="child_wo_bed" class="form-control" required>
+                                <option value="0" {{ (string) old('child_wo_bed', '0') === '0' ? 'selected' : '' }}>0</option>
+                                <option value="1" {{ (string) old('child_wo_bed') === '1' ? 'selected' : '' }}>1</option>
+                            </select>
+                            @error('child_wo_bed')
                                 <div class="text-danger mt-1">{{ $message }}</div>
                             @enderror
                         </div>
@@ -175,6 +186,7 @@
                             <th>Queen</th>
                             <th>Twin</th>
                             <th>Bunk</th>
+                            <th>Child W/O Bed</th>
                             <th>Status</th>
                             <th class="text-center">Actions</th>
                         </tr>
@@ -197,6 +209,7 @@
                                 <td>{{ $bed->no_of_queen_bed }}</td>
                                 <td>{{ $bed->no_of_twin_bed }}</td>
                                 <td>{{ $bed->no_of_bunk_bed }}</td>
+                                <td>{{ (int) ($bed->child_wo_bed ?? 0) }}</td>
                                 <td>
                                     <span class="badge bg-label-{{ $bed->is_active == 1 ? 'success' : 'danger' }}">
                                         {{ $bed->is_active == 1 ? 'Active' : 'Inactive' }}

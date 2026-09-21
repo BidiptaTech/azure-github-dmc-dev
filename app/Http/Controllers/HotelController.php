@@ -30,6 +30,7 @@ use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Schema;
 use App\Models\Tour;
 
 class HotelController extends Controller
@@ -1120,12 +1121,47 @@ class HotelController extends Controller
                 }
             }
         }
+
+        // Base room first; remaining rooms by variant price (lowest to highest).
+        $rooms = collect($rooms)->sort(function ($a, $b) {
+            $aIsBase = (float) ($a->base_room ?? 0) > 0 ? 0 : 1;
+            $bIsBase = (float) ($b->base_room ?? 0) > 0 ? 0 : 1;
+            if ($aIsBase !== $bIsBase) {
+                return $aIsBase <=> $bIsBase;
+            }
+
+            return (float) ($a->varient_price ?? 0) <=> (float) ($b->varient_price ?? 0);
+        })->values();
         
         $currentRooms = Room::where('room_type', 'Standard')->first();
         $restaurants = Restaurant::all();
         $mealTypes = Meal::whereIn('type', ['Breakfast', 'Lunch', 'Dinner'])
                         ->get()
                         ->groupBy('type');
+
+        // Base room occupancy prices for variant-room auto-fill.
+        // DB columns: weekday_price / weekend_price / double_* (sell)
+        //             weekday_cost_price / weekend_cost_price / double_*_cost_price (cost)
+        // Form names: singleWeekdayPrice / singleWeekdayCostPrice (and weekend/double equivalents)
+        $baseRoomForPricing = collect($rooms)->first(function ($room) {
+            return (float) ($room->base_room ?? 0) > 0;
+        });
+        $baseRoomPricing = [
+            'weekday_price' => (float) optional($baseRoomForPricing)->weekday_price,
+            'weekend_price' => (float) optional($baseRoomForPricing)->weekend_price,
+            'double_weekday_price' => (float) optional($baseRoomForPricing)->double_weekday_price,
+            'double_weekend_price' => (float) optional($baseRoomForPricing)->double_weekend_price,
+            'weekday_cost_price' => (float) optional($baseRoomForPricing)->weekday_cost_price,
+            'weekend_cost_price' => (float) optional($baseRoomForPricing)->weekend_cost_price,
+            'double_weekday_cost_price' => (float) optional($baseRoomForPricing)->double_weekday_cost_price,
+            'double_weekend_cost_price' => (float) optional($baseRoomForPricing)->double_weekend_cost_price,
+            'child_with_bed' => (float) optional($baseRoomForPricing)->child_with_bed,
+            'child_with_bed_cost' => (float) optional($baseRoomForPricing)->child_with_bed_cost,
+            'child_without_bed' => (float) optional($baseRoomForPricing)->child_without_bed,
+            'child_without_bed_cost' => (float) optional($baseRoomForPricing)->child_without_bed_cost,
+            'profit_type' => $this->normalizeRoomProfitType(optional($baseRoomForPricing)->profit_type ?? 'percentage'),
+            'profit_amount' => $this->normalizeRoomProfitAmount(optional($baseRoomForPricing)->profit_amount ?? 0),
+        ];
                         
         return view('hotel.create-room', compact(
             'hotel',
@@ -1140,7 +1176,9 @@ class HotelController extends Controller
             'auth_user',
             'dmcUsers',
             'effective_room_owner_id',
-            'show_dmc_room_pricing_hints'
+            'show_dmc_room_pricing_hints',
+            'baseRoomForPricing',
+            'baseRoomPricing'
         ));
     }
     /*
@@ -1346,6 +1384,15 @@ class HotelController extends Controller
                 $weekendPrice = $adminBaseRoom->weekend_price + $varientPrice;
                 $doubleWeekdayPrice = $adminBaseRoom->double_weekday_price + $varientPrice;
                 $doubleWeekendPrice = $adminBaseRoom->double_weekend_price + $varientPrice;
+
+                $baseWeekdayCost = (float) ($adminBaseRoom->weekday_cost_price ?: $adminBaseRoom->weekday_price);
+                $baseWeekendCost = (float) ($adminBaseRoom->weekend_cost_price ?: $adminBaseRoom->weekend_price);
+                $baseDoubleWeekdayCost = (float) ($adminBaseRoom->double_weekday_cost_price ?: $adminBaseRoom->double_weekday_price);
+                $baseDoubleWeekendCost = (float) ($adminBaseRoom->double_weekend_cost_price ?: $adminBaseRoom->double_weekend_price);
+                $weekdayCostPrice = $baseWeekdayCost + $varientPrice;
+                $weekendCostPrice = $baseWeekendCost + $varientPrice;
+                $doubleWeekdayCostPrice = $baseDoubleWeekdayCost + $varientPrice;
+                $doubleWeekendCostPrice = $baseDoubleWeekendCost + $varientPrice;
             }
         
             // Create and save the room
@@ -1389,6 +1436,17 @@ class HotelController extends Controller
             $room->child_without_bed = $request->child_without_bed;
             $room->child_with_bed_cost = $request->child_with_bed_cost;
             $room->child_without_bed_cost = $request->child_without_bed_cost;
+            if ($this->roomsTableHasProfitColumns()) {
+                $fallbackType = 'percentage';
+                $fallbackAmount = 0;
+                if (!$isBaseRoom && $adminBaseRoom) {
+                    $fallbackType = $this->normalizeRoomProfitType($adminBaseRoom->profit_type ?? 'percentage');
+                    $fallbackAmount = $this->normalizeRoomProfitAmount($adminBaseRoom->profit_amount ?? 0);
+                }
+                $profit = $this->roomProfitFromRequest($request, $fallbackType, $fallbackAmount);
+                $room->profit_type = $profit['profit_type'];
+                $room->profit_amount = $profit['profit_amount'];
+            }
             $is_save = $room->save();
             $room->refresh();
             // if($request->no_of_rooms){
@@ -1442,10 +1500,15 @@ class HotelController extends Controller
                 'hotel_id' => 'required',
                 'event_type' => 'required|string',
                 'price' => 'nullable|numeric',
+                'price_cost' => 'nullable|numeric|min:0',
                 'surcharge' => 'nullable|numeric',
+                'surcharge_cost' => 'nullable|numeric|min:0',
                 'breakfast_price' => 'nullable|numeric',
+                'breakfast_cost_price' => 'nullable|numeric|min:0',
                 'lunch_price' => 'nullable|numeric',
+                'lunch_cost_price' => 'nullable|numeric|min:0',
                 'dinner_price' => 'nullable|numeric',
+                'dinner_cost_price' => 'nullable|numeric|min:0',
                 'date_range' => 'required|string',
                 'rate_status' => 'nullable|integer',
             ];
@@ -1474,17 +1537,27 @@ class HotelController extends Controller
                 return redirect()->back()->with('error', 'Unable to determine DMC for this rate.');
             }
 
+            if ($request->event_type === 'Fair Date') {
+                $eventSell = $request->surcharge;
+                $eventCost = $request->surcharge_cost;
+            } else {
+                $eventSell = $request->price;
+                $eventCost = $request->price_cost;
+            }
+
             $rate = Rate::create([
                 'event' => $request->event,
                 'hotel_id' => $request->hotel_id,
                 // 'rate_id' => $rateId,
                 'event_type' => $request->event_type,
-                'price' => $request->price ? $request->price : $request->surcharge,
-                'weekday_price' => 0.00,
-                'weekend_price' => 0.00,
+                'price' => $eventSell,
+                'price_cost' => $eventCost,
                 'breakfast_price' => $request->breakfast_price ?? 0.00,
+                'breakfast_cost_price' => $request->breakfast_cost_price,
                 'lunch_price' => $request->lunch_price ?? 0.00,
+                'lunch_cost_price' => $request->lunch_cost_price,
                 'dinner_price' => $request->dinner_price ?? 0.00,
+                'dinner_cost_price' => $request->dinner_cost_price,
                 'start_date' => $firstDate,
                 'end_date' => $lastDate,
                 'dmc_id' => $dmcId, // Set DMC ID based on user role
@@ -1537,8 +1610,17 @@ class HotelController extends Controller
             ];
         
             // For admin and role_id 20, DMC selection is required
+            $dmcId = null;
             if ($auth_user->role_id == 1 || $auth_user->role_id == 20) {
                 $rules['dmc_id'] = 'required|exists:users,userId';
+                $selected = $request->input('dmc_id');
+                $dmcId = $selected ? (int) $selected : null;
+            }
+            else{
+                $dmcId = CommonHelper::getDmcId($auth_user);
+            }
+            if(!$dmcId){
+                return redirect()->back()->with('error', 'Unable to determine DMC for this rate.');
             }
         
             $request->validate($rules);
@@ -1560,6 +1642,7 @@ class HotelController extends Controller
             // Check for overlapping dates
             $overlappingRates = Rate::where('hotel_id', $request->hotel_id)
                 ->where('event_type', 'Season')
+                ->where('dmc_id', $dmcId)
                 ->where(function ($query) use ($firstDate, $lastDate) {
                     $query->whereBetween('start_date', [$firstDate, $lastDate])
                         ->orWhereBetween('end_date', [$firstDate, $lastDate])
@@ -1576,10 +1659,7 @@ class HotelController extends Controller
             }
 
             // Set DMC ID based on user role (DMC, product head, multi-role staff use parent DMC via created_by)
-            $dmcId = $this->resolveHotelRateDmcIdForStore($auth_user, $request);
-            if (!$dmcId) {
-                return redirect()->back()->with('error', 'Unable to determine DMC for this season.');
-            }
+            
 
             $rate = Rate::create([
                 'event' => $request->event, 
@@ -1697,14 +1777,26 @@ class HotelController extends Controller
             $firstDate = Carbon::createFromFormat('m/d/Y', $firstDate);
             $lastDate = Carbon::createFromFormat('m/d/Y', $lastDate);
         
+            if ($request->event_type === 'Fair Date') {
+                $eventSell = $request->surcharge;
+                $eventCost = $request->surcharge_cost;
+            } else {
+                $eventSell = $request->price;
+                $eventCost = $request->price_cost;
+            }
+
             $rate->event = $request->event;
             $rate->event_type = $request->event_type;
-            $rate->price = $request->price;
+            $rate->price = $eventSell;
+            $rate->price_cost = $eventCost;
             $rate->weekday_price = $request->weekday_price ? $request->weekday_price : 0.00;
             $rate->weekend_price = $request->weekend_price ? $request->weekend_price : 0.00;
             $rate->breakfast_price = $request->breakfast_price ?? 0.00;
+            $rate->breakfast_cost_price = $request->breakfast_cost_price;
             $rate->lunch_price = $request->lunch_price ?? 0.00;
+            $rate->lunch_cost_price = $request->lunch_cost_price;
             $rate->dinner_price = $request->dinner_price ?? 0.00;
+            $rate->dinner_cost_price = $request->dinner_cost_price;
             $rate->start_date = $firstDate;
             $rate->end_date = $lastDate;
             $rate->is_active = $request->rate_status == 1 ? 1 : 0;
@@ -1852,6 +1944,8 @@ class HotelController extends Controller
             $commission_type = null;
             $commission_price = null;
 
+            $dmcOwnerId = null;
+
             // Determine which room to edit based on user role
             if (in_array($auth_user->role_id, [1, 20])) {
                 // Admin: Edit the original room
@@ -1918,6 +2012,54 @@ class HotelController extends Controller
                 }
             }
 
+            $occupancyBaseQuery = Room::where('hotel_id', $room->hotel_id)
+                ->where('room_id', '!=', $room->room_id);
+            if (in_array((int) $auth_user->role_id, [1, 20], true)) {
+                $occupancyBaseQuery->where('dmc_base_room', 1);
+            } else {
+                $occupancyBaseQuery->where('created_by', $dmcOwnerId ?? $auth_user->userId)
+                    ->where('dmc_base_room', 0);
+            }
+            $occupancyBaseRoom = $occupancyBaseQuery->get()->first(function ($candidate) {
+                return (float) ($candidate->base_room ?? 0) > 0;
+            });
+            if ($occupancyBaseRoom) {
+                $baseRoom = $occupancyBaseRoom;
+            }
+
+            $costOrSellValue = function ($cost, $sell) {
+                $cost = (float) $cost;
+                return $cost > 0 ? $cost : (float) $sell;
+            };
+            $baseRoomPricing = [
+                'weekday_price' => (float) optional($baseRoom)->weekday_price,
+                'weekend_price' => (float) optional($baseRoom)->weekend_price,
+                'double_weekday_price' => (float) optional($baseRoom)->double_weekday_price,
+                'double_weekend_price' => (float) optional($baseRoom)->double_weekend_price,
+                'weekday_cost_price' => $costOrSellValue(optional($baseRoom)->weekday_cost_price, optional($baseRoom)->weekday_price),
+                'weekend_cost_price' => $costOrSellValue(optional($baseRoom)->weekend_cost_price, optional($baseRoom)->weekend_price),
+                'double_weekday_cost_price' => $costOrSellValue(optional($baseRoom)->double_weekday_cost_price, optional($baseRoom)->double_weekday_price),
+                'double_weekend_cost_price' => $costOrSellValue(optional($baseRoom)->double_weekend_cost_price, optional($baseRoom)->double_weekend_price),
+                'profit_type' => $this->normalizeRoomProfitType(optional($baseRoom)->profit_type ?? 'percentage'),
+                'profit_amount' => $this->normalizeRoomProfitAmount(optional($baseRoom)->profit_amount ?? 0),
+            ];
+
+            $isThisBaseRoom = (float) ($room->base_room ?? 0) > 0;
+            $isDmcEditor = !in_array((int) $auth_user->role_id, [1, 20], true);
+            $isDmcOwnedCopy = $isDmcEditor && (int) ($room->dmc_base_room ?? 1) === 0;
+            // Non-base rooms inherit DMC/admin base profit the first time (no own profit yet,
+            // or DMC is still editing the admin original before a DMC copy exists).
+            $inheritBaseProfit = !$isThisBaseRoom && (
+                ($isDmcEditor && !$isDmcOwnedCopy) || !$this->roomHasCustomProfit($room)
+            );
+            if ($inheritBaseProfit && $baseRoom) {
+                $defaultProfitType = $this->normalizeRoomProfitType($baseRoom->profit_type ?? 'percentage');
+                $defaultProfitAmount = $this->normalizeRoomProfitAmount($baseRoom->profit_amount ?? 0);
+            } else {
+                $defaultProfitType = $this->normalizeRoomProfitType($room->profit_type ?? 'percentage');
+                $defaultProfitAmount = $this->normalizeRoomProfitAmount($room->profit_amount ?? 0);
+            }
+
             return view('hotel.editroom', compact(
                 'hotel',
                 'single_weekday_price',
@@ -1926,9 +2068,13 @@ class HotelController extends Controller
                 'double_weekend_price',
                 'room',
                 'baseRoom',
+                'baseRoomPricing',
                 'auth_user',
                 'commission_type',
-                'commission_price'
+                'commission_price',
+                'inheritBaseProfit',
+                'defaultProfitType',
+                'defaultProfitAmount'
             ));
     
 
@@ -2143,6 +2289,111 @@ class HotelController extends Controller
         return $imagePaths;
     }
 
+    private function roomsTableHasProfitColumns(): bool
+    {
+        static $has = null;
+        if ($has === null) {
+            $has = Schema::hasColumn('rooms', 'profit_type') && Schema::hasColumn('rooms', 'profit_amount');
+        }
+
+        return $has;
+    }
+
+    private function normalizeRoomProfitType($type, string $fallback = 'percentage'): string
+    {
+        $type = strtolower(trim((string) $type));
+
+        return in_array($type, ['percentage', 'flat'], true) ? $type : $fallback;
+    }
+
+    private function normalizeRoomProfitAmount($amount, $fallback = 0): float
+    {
+        if ($amount === null || $amount === '') {
+            $amount = $fallback;
+        }
+        $value = is_numeric($amount) ? (float) $amount : (float) $fallback;
+
+        return $value < 0 ? 0.0 : $value;
+    }
+
+    /**
+     * @return array{profit_type: string, profit_amount: float}
+     */
+    private function roomProfitFromRequest(Request $request, $fallbackType = 'percentage', $fallbackAmount = 0): array
+    {
+        return [
+            'profit_type' => $this->normalizeRoomProfitType($request->input('profit_type', $fallbackType), (string) $fallbackType),
+            'profit_amount' => $this->normalizeRoomProfitAmount($request->input('profit_amount', $fallbackAmount), $fallbackAmount),
+        ];
+    }
+
+    private function roomHasCustomProfit($room): bool
+    {
+        if (!$room) {
+            return false;
+        }
+        $type = strtolower(trim((string) ($room->profit_type ?? '')));
+        $amount = $this->normalizeRoomProfitAmount($room->profit_amount ?? 0);
+        if ($type === 'flat') {
+            return true;
+        }
+
+        return $type === 'percentage' && $amount > 0;
+    }
+
+    /**
+     * Child W/O Bed counts in max occupancy only, never in Adults.
+     * Extra bed increases adult options and max occupancy.
+     *
+     * @return array{adult_capacity:int,max_adults:int,child_count:int,max_occupancy:int,default_adults:int,has_child_wo_bed:bool}
+     */
+    private function occupancyFromBedMaster(?BedMaster $bedMaster, $extraBed = 0): array
+    {
+        $adults = $bedMaster ? $bedMaster->adultOccupancy() : 0;
+        $children = $bedMaster ? $bedMaster->childWithoutBedOccupancy() : 0;
+        $extra = (int) $extraBed === 1 ? 1 : 0;
+        $maxAdults = $adults + $extra;
+
+        return [
+            'adult_capacity' => $adults,
+            'max_adults' => max(0, $maxAdults),
+            'child_count' => $children,
+            'max_occupancy' => $adults + $children + $extra,
+            'default_adults' => $extra ? max(0, $maxAdults) : $adults,
+            'has_child_wo_bed' => $children > 0,
+        ];
+    }
+
+    private function applyOccupancyFromBedType(Request $request, ?BedMaster $bedMaster): array
+    {
+        $meta = $this->occupancyFromBedMaster($bedMaster, $request->input('extra_bed'));
+        $adultPosted = (int) $request->input('adult_count');
+        if ($meta['has_child_wo_bed']) {
+            $maxAdults = max(1, $meta['max_adults']);
+            if ($adultPosted < 1 || $adultPosted > $maxAdults) {
+                $adultPosted = max(1, $meta['default_adults']);
+            }
+
+            $maxChild = max(0, (int) $meta['child_count']);
+            $childPosted = (int) $request->input('child_count', 0);
+            if ($childPosted < 0 || $childPosted > $maxChild) {
+                $childPosted = $maxChild > 0 ? 1 : 0;
+            }
+
+            return [
+                'max_occupancy' => max(1, $meta['max_occupancy']),
+                'adult_count' => $adultPosted,
+                'child_count' => $childPosted,
+            ];
+        }
+
+        return [
+            'max_occupancy' => (int) ($request->input('max_occupancy') ?: max(1, $meta['max_occupancy'])),
+            'adult_count' => (int) $request->input('adult_count', 0),
+            'child_count' => (int) $request->input('child_count', 0),
+        ];
+    }
+
     /**
      * Update existing room (for admin users or DMC updating their own room)
      */
@@ -2198,65 +2449,101 @@ class HotelController extends Controller
             $imagePaths = $this->storeUploadedRoomGallery($request);
             $img_path = array_values(array_filter(array_merge($existingImages, $imagePaths)));
 
-            // Calculate final prices based on user type and base room logic
-            $finalWeekdayPrice = $request->singleWeekdayPrice ?? $request->baseSingleWeekdayPrice ?? 0;
-            $finalWeekendPrice = $request->singleWeekendPrice ?? $request->baseSingleWeekendPrice ?? 0;
-            $finalDoubleWeekdayPrice = $request->doubleWeekdayPrice ?? $request->baseDoubleWeekdayPrice ?? 0;
-            $finalDoubleWeekendPrice = $request->doubleWeekendPrice ?? $request->baseDoubleWeekendPrice ?? 0;
-            $finalWeekdayCostPrice = $request->singleWeekdayCostPrice ?? $request->baseSingleWeekdayCostPrice ?? null;
-            $finalWeekendCostPrice = $request->singleWeekendCostPrice ?? $request->baseSingleWeekendCostPrice ?? null;
-            $finalDoubleWeekdayCostPrice = $request->doubleWeekdayCostPrice ?? $request->baseDoubleWeekdayCostPrice ?? null;
-            $finalDoubleWeekendCostPrice = $request->doubleWeekendCostPrice ?? $request->baseDoubleWeekendCostPrice ?? null;
-        
-            // If this is not a base room, calculate prices based on respective base room + variant
-            if (!$room->base_room && $room->varient_price > 0) {
-                if (in_array($auth_user->role_id, [1, 20])) {
-                    // Admin: Use admin's base room
-                    $adminBaseRoom = Room::where('hotel_id', $request->hotel_id)
-                                       ->where('dmc_base_room', 1)
-                                       ->where('base_room', true)
-                                       ->first();
-                
-                    if ($adminBaseRoom) {
-                        $finalWeekdayPrice = $adminBaseRoom->weekday_price + $room->varient_price;
-                        $finalWeekendPrice = $adminBaseRoom->weekend_price + $room->varient_price;
-                        $finalDoubleWeekdayPrice = $adminBaseRoom->double_weekday_price + $room->varient_price;
-                        $finalDoubleWeekendPrice = $adminBaseRoom->double_weekend_price + $room->varient_price;
+            // Prefer the visible form section: base rooms use base* fields, variants use single*/double*.
+            // filled() is required because the hidden section still posts empty strings.
+            $isBaseRoomEdit = (float) ($room->base_room ?? 0) > 0;
+            $pickPrice = function (array $preferredKeys, array $fallbackKeys = []) use ($request) {
+                foreach (array_merge($preferredKeys, $fallbackKeys) as $key) {
+                    if ($request->filled($key) && $request->input($key) !== '') {
+                        return $request->input($key);
                     }
-                } else {
-                    // DMC / delegated roles: use parent DMC base room
-                    $dmcBaseRoom = Room::where('hotel_id', $request->hotel_id)
-                                     ->where('created_by', $dmcPricingOwnerId)
-                                     ->where('base_room', true)
-                                     ->where('dmc_base_room', 0)
-                                     ->first();
-                
-                    if ($dmcBaseRoom) {
-                        $finalWeekdayPrice = $dmcBaseRoom->weekday_price + $room->varient_price;
-                        $finalWeekendPrice = $dmcBaseRoom->weekend_price + $room->varient_price;
-                        $finalDoubleWeekdayPrice = $dmcBaseRoom->double_weekday_price + $room->varient_price;
-                        $finalDoubleWeekendPrice = $dmcBaseRoom->double_weekend_price + $room->varient_price;
+                }
+                return null;
+            };
+
+            if ($isBaseRoomEdit) {
+                $finalWeekdayPrice = $pickPrice(['baseSingleWeekdayPrice'], ['singleWeekdayPrice']) ?? 0;
+                $finalWeekendPrice = $pickPrice(['baseSingleWeekendPrice'], ['singleWeekendPrice']) ?? 0;
+                $finalDoubleWeekdayPrice = $pickPrice(['baseDoubleWeekdayPrice'], ['doubleWeekdayPrice']) ?? 0;
+                $finalDoubleWeekendPrice = $pickPrice(['baseDoubleWeekendPrice'], ['doubleWeekendPrice']) ?? 0;
+                $finalWeekdayCostPrice = $pickPrice(['baseSingleWeekdayCostPrice'], ['singleWeekdayCostPrice']);
+                $finalWeekendCostPrice = $pickPrice(['baseSingleWeekendCostPrice'], ['singleWeekendCostPrice']);
+                $finalDoubleWeekdayCostPrice = $pickPrice(['baseDoubleWeekdayCostPrice'], ['doubleWeekdayCostPrice']);
+                $finalDoubleWeekendCostPrice = $pickPrice(['baseDoubleWeekendCostPrice'], ['doubleWeekendCostPrice']);
+                $varientPrice = 0;
+            } else {
+                $finalWeekdayPrice = $pickPrice(['singleWeekdayPrice'], ['baseSingleWeekdayPrice']) ?? 0;
+                $finalWeekendPrice = $pickPrice(['singleWeekendPrice'], ['baseSingleWeekendPrice']) ?? 0;
+                $finalDoubleWeekdayPrice = $pickPrice(['doubleWeekdayPrice'], ['baseDoubleWeekdayPrice']) ?? 0;
+                $finalDoubleWeekendPrice = $pickPrice(['doubleWeekendPrice'], ['baseDoubleWeekendPrice']) ?? 0;
+                $finalWeekdayCostPrice = $pickPrice(['singleWeekdayCostPrice'], ['baseSingleWeekdayCostPrice']);
+                $finalWeekendCostPrice = $pickPrice(['singleWeekendCostPrice'], ['baseSingleWeekendCostPrice']);
+                $finalDoubleWeekdayCostPrice = $pickPrice(['doubleWeekdayCostPrice'], ['baseDoubleWeekdayCostPrice']);
+                $finalDoubleWeekendCostPrice = $pickPrice(['doubleWeekendCostPrice'], ['baseDoubleWeekendCostPrice']);
+                $varientPrice = $request->filled('varient_price') ? (float) $request->varient_price : (float) ($room->varient_price ?? 0);
+            }
+
+            // Fill empty costs from hotel base + variant (variant rooms only).
+            if (!$isBaseRoomEdit && $varientPrice != 0) {
+                $lookupBase = null;
+                if (in_array($auth_user->role_id, [1, 20])) {
+                    $lookupBase = Room::where('hotel_id', $request->hotel_id)
+                        ->where('dmc_base_room', 1)
+                        ->where('base_room', true)
+                        ->first();
+                } elseif ($dmcPricingOwnerId) {
+                    $lookupBase = Room::where('hotel_id', $request->hotel_id)
+                        ->where('created_by', $dmcPricingOwnerId)
+                        ->where('base_room', true)
+                        ->where('dmc_base_room', 0)
+                        ->first();
+                }
+
+                if ($lookupBase) {
+                    $costOrSellValue = function ($cost, $sell) {
+                        $cost = (float) $cost;
+                        return $cost > 0 ? $cost : (float) $sell;
+                    };
+                    if ($finalWeekdayCostPrice === null || $finalWeekdayCostPrice === '') {
+                        $finalWeekdayCostPrice = $costOrSellValue($lookupBase->weekday_cost_price, $lookupBase->weekday_price) + $varientPrice;
+                    }
+                    if ($finalWeekendCostPrice === null || $finalWeekendCostPrice === '') {
+                        $finalWeekendCostPrice = $costOrSellValue($lookupBase->weekend_cost_price, $lookupBase->weekend_price) + $varientPrice;
+                    }
+                    if ($finalDoubleWeekdayCostPrice === null || $finalDoubleWeekdayCostPrice === '') {
+                        $finalDoubleWeekdayCostPrice = $costOrSellValue($lookupBase->double_weekday_cost_price, $lookupBase->double_weekday_price) + $varientPrice;
+                    }
+                    if ($finalDoubleWeekendCostPrice === null || $finalDoubleWeekendCostPrice === '') {
+                        $finalDoubleWeekendCostPrice = $costOrSellValue($lookupBase->double_weekend_cost_price, $lookupBase->double_weekend_price) + $varientPrice;
                     }
                 }
             }
 
-            // Debug the data being updated
+            $roomType = $request->filled('room_type')
+                ? $request->room_type
+                : ($request->filled('base_room_type') ? $request->base_room_type : $room->room_type);
+
             \Log::info("Updating room data", [
                 'room_id' => $room->room_id,
+                'is_base_room' => $isBaseRoomEdit,
+                'room_type' => $roomType,
                 'no_of_room' => $request->total_no_of_room,
+                'varient_price' => $varientPrice,
                 'weekday_price' => $finalWeekdayPrice,
                 'weekend_price' => $finalWeekendPrice,
                 'double_weekday_price' => $finalDoubleWeekdayPrice,
                 'double_weekend_price' => $finalDoubleWeekendPrice,
+                'weekday_cost_price' => $finalWeekdayCostPrice,
+                'weekend_cost_price' => $finalWeekendCostPrice,
                 'children_price' => $request->children_price,
                 'dimension' => $request->dimension,
             ]);
 
             // Update room data
-            $updateResult = $room->update([
-                'room_type' => $request->room_type,
+            $updateResultPayload = [
+                'room_type' => $roomType,
                 'no_of_room' => $request->total_no_of_room,
-                'varient_price' => $request->varient_price ?? 0,
+                'varient_price' => $varientPrice,
                 'weekday_price' => $finalWeekdayPrice,
                 'weekend_price' => $finalWeekendPrice,
                 'dimension' => $request->dimension,
@@ -2286,7 +2573,19 @@ class HotelController extends Controller
                 'child_without_bed' => $request->child_without_bed,
                 'child_with_bed_cost' => $request->child_with_bed_cost,
                 'child_without_bed_cost' => $request->child_without_bed_cost,
-            ]);
+                'status' => $request->has('room_status') ? 1 : 0,
+            ];
+            if ($this->roomsTableHasProfitColumns()) {
+                $profit = $this->roomProfitFromRequest(
+                    $request,
+                    $this->normalizeRoomProfitType($room->profit_type ?? 'percentage'),
+                    $this->normalizeRoomProfitAmount($room->profit_amount ?? 0)
+                );
+                $updateResultPayload['profit_type'] = $profit['profit_type'];
+                $updateResultPayload['profit_amount'] = $profit['profit_amount'];
+            }
+
+            $updateResult = $room->update($updateResultPayload);
         
             \Log::info("Room update result", ['success' => $updateResult]);
     
@@ -2368,7 +2667,7 @@ class HotelController extends Controller
             }
 
             // Create new room for DMC
-            $newRoom = Room::create([
+            $newRoomPayload = [
                 'hotel_id' => $request->hotel_id,
                 'room_type' => $originalRoom->room_type,
                 // 'room_id' => $roomId,
@@ -2409,7 +2708,24 @@ class HotelController extends Controller
                 'child_without_bed' => $request->child_without_bed,
                 'child_with_bed_cost' => $request->child_with_bed_cost,
                 'child_without_bed_cost' => $request->child_without_bed_cost,
-            ]);
+            ];
+            if ($this->roomsTableHasProfitColumns()) {
+                $fallbackType = $this->normalizeRoomProfitType(
+                    $originalRoom->profit_type ?? optional($dmcBaseRoom)->profit_type ?? 'percentage'
+                );
+                $fallbackAmount = $this->normalizeRoomProfitAmount(
+                    $originalRoom->profit_amount ?? optional($dmcBaseRoom)->profit_amount ?? 0
+                );
+                if (!$isBaseRoom && $dmcBaseRoom) {
+                    $fallbackType = $this->normalizeRoomProfitType($dmcBaseRoom->profit_type ?? $fallbackType);
+                    $fallbackAmount = $this->normalizeRoomProfitAmount($dmcBaseRoom->profit_amount ?? $fallbackAmount);
+                }
+                $profit = $this->roomProfitFromRequest($request, $fallbackType, $fallbackAmount);
+                $newRoomPayload['profit_type'] = $profit['profit_type'];
+                $newRoomPayload['profit_amount'] = $profit['profit_amount'];
+            }
+
+            $newRoom = Room::create($newRoomPayload);
             $is_save = $newRoom->save();
             $newRoom->refresh();
             if ($is_save) {
@@ -2498,30 +2814,62 @@ class HotelController extends Controller
         
             $hotel = Hotel::where('hotel_unique_id', $id)->first();
             $dmcId = CommonHelper::getDmcId($auth_user);
-            $rooms = Room::where('hotel_id', $id)->where('created_by', $dmcId)
-            ->get();
+            $isAdmin = (int) ($auth_user->role_id ?? 0) === 1;
+
+            $roomsQuery = Room::where('hotel_id', $id);
+            if (!$isAdmin && $dmcId) {
+                $roomsQuery->where('created_by', $dmcId);
+            }
+            $rooms = $roomsQuery->orderByDesc('room_id')->get()
+                ->unique(static function ($room) {
+                    return mb_strtolower(trim((string) ($room->room_type ?? '')));
+                })
+                ->sortBy('room_type')
+                ->values();
+            $roomIds = $rooms->pluck('room_id')
+                ->filter(static fn ($roomId) => $roomId !== null && $roomId !== '')
+                ->map(static fn ($roomId) => (int) $roomId)
+                ->unique()
+                ->values();
 
         
-            // Get DMC users for admin dropdown (only for admin users)
+            // Admin/manager DMC picker: only DMCs already mapped on hotels.dmc_id
             $dmcUsers = collect();
-            if ($auth_user->role_id == 1) {
-                $dmcUsers = User::where('role_id', 11)
-                ->where('user_type', 2)
-                ->select('userId', 'name', 'company_name', 'currency')
-                ->orderBy('company_name', 'asc')
-                ->get();
+            if (in_array((int) ($auth_user->role_id ?? 0), [1, 20], true) && $hotel) {
+                $mappedDmcIds = [];
+                foreach ($hotel->getSelectedDmcIds() as $mappedId) {
+                    $intId = (int) $mappedId;
+                    if ($intId > 0) {
+                        $mappedDmcIds[$intId] = true;
+                    }
+                }
+                $mappedDmcIds = array_keys($mappedDmcIds);
+                if ($mappedDmcIds !== []) {
+                    $dmcUsers = User::whereIn('userId', $mappedDmcIds)
+                        ->whereIn('role_id', [11, 20])
+                        ->select('userId', 'name', 'company_name', 'currency')
+                        ->orderBy('company_name', 'asc')
+                        ->get();
+                }
             }
-        
-            // Fetch beds data based on user role
-            if ($auth_user->role_id == 1) {
-                // Admin: Show all beds for this hotel
-                $bedsData = Bed::with(['room', 'user'])
-                ->whereHas('room', function ($query) use ($id) {
-                    $query->where('hotel_id', $id);
-                })
-                ->get();
-            
-                // Add DMC information to each bed
+
+            // Only list beds that actually exist for this hotel's current room_ids
+            // (and this DMC). Do not pull leftover beds from older duplicate rooms.
+            if ($roomIds->isEmpty()) {
+                $bedsData = collect();
+            } else {
+                $bedsQuery = Bed::with(['room', 'user'])
+                    ->whereIn('room_id', $roomIds->all())
+                    ->whereNotNull('bed_id');
+
+                if (!$isAdmin) {
+                    $bedsQuery->where('dmc_id', $dmcId);
+                }
+
+                $bedsData = $bedsQuery->get();
+            }
+
+            if ($isAdmin) {
                 $bedsData = $bedsData->map(function ($bed) {
                     if ($bed->dmc_id) {
                         $dmcUser = User::where('userId', $bed->dmc_id)->first();
@@ -2537,18 +2885,12 @@ class HotelController extends Controller
                     }
                     return $bed;
                 });
-            } else {
-                // DMC/Other users: Show only their own beds
-                $bedsData = Bed::with('room')->where('dmc_id', $dmcId)
-                              ->whereHas('room', function ($query) use ($id) {
-                                  $query->where('hotel_id', $id);
-                              })
-                              ->get();
             }
         
             $beds = BedMaster::where('hotel_id', $id)->get();
+            $canManageBedConfig = in_array((int) $auth_user->role_id, [1, 20], true);
         
-            return view('hotel.beds', compact('hotel','rooms','beds','bedsData','auth_user','dmcUsers'));
+            return view('hotel.beds', compact('hotel','rooms','beds','bedsData','auth_user','dmcUsers','canManageBedConfig'));
     
 
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -2565,21 +2907,16 @@ class HotelController extends Controller
             $bedType = $request->input('bed_type');
             $hotel_id = $request->input('hotel_id');
             $hotels_bed = BedMaster::where('bedId', $bedType)->where('hotel_id', $hotel_id)->first();
-            $max_occupancy = 0;
-            if ($hotels_bed) {
-                $kingBedCount = $hotels_bed->no_of_king_bed ?? 0;
-                $queenBedCount = $hotels_bed->no_of_queen_bed ?? 0;
-                $twinBedCount = $hotels_bed->no_of_twin_bed ?? 0;
-                $singleBedCount = $hotels_bed->no_of_single_bed ?? 0;
-                $bunkBedCount = $hotels_bed->no_of_bunk_bed ?? 0;
-                $max_occupancy = ($kingBedCount * 2)
-                            + ($queenBedCount * 2) 
-                            + ($twinBedCount * 2) 
-                            + ($singleBedCount) 
-                            + ($bunkBedCount * 2);
+            if (!$hotels_bed) {
+                $hotels_bed = BedMaster::where('bedId', $bedType)->first();
             }
+            $adultCount = $hotels_bed ? $hotels_bed->adultOccupancy() : 0;
+            $childCount = $hotels_bed ? $hotels_bed->childWithoutBedOccupancy() : 0;
             return response()->json([
-                'total_count' => $max_occupancy,
+                'total_count' => $adultCount + $childCount,
+                'adult_count' => $adultCount,
+                'child_count' => $childCount,
+                'has_child_wo_bed' => $childCount > 0,
             ]);
     
 
@@ -2594,6 +2931,9 @@ class HotelController extends Controller
     public function storebeds(Request $request){
         try {
             $auth_user = Auth::user();
+            if (!in_array((int) $auth_user->role_id, [1, 20], true)) {
+                return redirect()->back()->with('error', 'Bed configuration is managed by Travclicks. You can only update Extra Bed and Baby Cot prices.');
+            }
         
             // Base validation rules
             $rules = [
@@ -2616,6 +2956,13 @@ class HotelController extends Controller
             }
         
             $request->validate($rules);
+
+            if (in_array((int) $auth_user->role_id, [1, 20], true)) {
+                $hotelForDmc = Hotel::where('hotel_unique_id', $request->input('hotel_id'))->first();
+                if (!$hotelForDmc || !$hotelForDmc->hasSelectedByDmc($request->input('dmc_id'))) {
+                    return redirect()->back()->withInput()->with('error', 'Please select a DMC that is mapped to this hotel.');
+                }
+            }
             //If extra bed and baby cot is not available
             if ($request->extra_bed != 1) {
                 $request->merge([
@@ -2649,6 +2996,7 @@ class HotelController extends Controller
             // }
         
             $nameOfBedType = 'Unknown';
+            $bedmaster_det = null;
 
             if($request->input('bed_type')){
                 $bedmaster_det = BedMaster::where('bedId',$request->input('bed_type'))->first();
@@ -2656,13 +3004,14 @@ class HotelController extends Controller
                     $nameOfBedType = $bedmaster_det->name;
                 }
             }
+            $occupancy = $this->applyOccupancyFromBedType($request, $bedmaster_det ?? null);
             $bed = new Bed();
             $bed->room_type = $nameOfBedType;
             $bed->bed_master_id = $request->input('bed_type');
             $bed->no_of_rooms = $request->input('no_of_rooms');
-            $bed->max_occupancy = $request->input('max_occupancy');
-            $bed->adult_count = $request->input('adult_count');
-            $bed->child_count = $request->input('child_count');
+            $bed->max_occupancy = $occupancy['max_occupancy'];
+            $bed->adult_count = $occupancy['adult_count'];
+            $bed->child_count = $occupancy['child_count'];
             $bed->extra_bed = $request->input('extra_bed');
             $bed->extra_bed_type = $request->input('extra_bed_type');
             $bed->extra_bed_price = $request->input('extra_bed_price') ?? 0;
@@ -2720,8 +3069,16 @@ class HotelController extends Controller
             $rooms = Room::where('hotel_id',$hotelId)->where('created_by', $dmcId)->get();
             $hotelBed = Bed::with('room')->where('bed_id', $bedId)->first();
             $room = Room::where('room_id', $hotelBed->room_id)->first();
-            // dd($rooms->toArray());
-            return view('hotel.edit-beds', compact('hotel','rooms','beds','hotelBed','room'));
+            if ($hotelBed && $hotelBed->room && !$rooms->contains('room_id', $hotelBed->room_id)) {
+                $rooms->push($hotelBed->room);
+            }
+            $canManageBedConfig = in_array((int) $auth_user->role_id, [1, 20], true);
+            $bedMaster = $hotelBed ? BedMaster::where('bedId', $hotelBed->bed_master_id)->first() : null;
+            if (!$bedMaster && $hotelBed) {
+                $bedMaster = BedMaster::where('hotel_id', $hotelId)->where('name', $hotelBed->room_type)->first();
+            }
+            $bedOccupancy = $this->occupancyFromBedMaster($bedMaster, optional($hotelBed)->extra_bed);
+            return view('hotel.edit-beds', compact('hotel','rooms','beds','hotelBed','room','auth_user','canManageBedConfig','bedOccupancy'));
     
 
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -2736,6 +3093,47 @@ class HotelController extends Controller
 
     public function updatebed(Request $request){
         try {
+            $auth_user = Auth::user();
+            $bed = Bed::where('bed_id', $request->bed_id)->first();
+            if (!$bed) {
+                return redirect()->back()->with('error', 'Bed not found.');
+            }
+
+            if (!in_array((int) $auth_user->role_id, [1, 20], true)) {
+                $dmcId = CommonHelper::getDmcId($auth_user);
+                if ((string) $bed->dmc_id !== (string) $dmcId) {
+                    abort(403, 'You do not have permission to update this bed.');
+                }
+
+                $priceRules = [];
+                if ((int) $bed->extra_bed === 1) {
+                    $priceRules['extra_bed_price'] = 'required|numeric|min:0';
+                    $priceRules['extra_bed_cost_price'] = 'required|numeric|min:0';
+                }
+                if ((int) $bed->baby_cot === 1) {
+                    $priceRules['baby_cot_price'] = 'required|numeric|min:0';
+                    $priceRules['baby_cot_cost_price'] = 'required|numeric|min:0';
+                }
+                if ($priceRules !== []) {
+                    $request->validate($priceRules);
+                }
+
+                $pricePayload = [];
+                if ((int) $bed->extra_bed === 1) {
+                    $pricePayload['extra_bed_price'] = $request->input('extra_bed_price');
+                    $pricePayload['extra_bed_cost_price'] = $request->input('extra_bed_cost_price');
+                }
+                if ((int) $bed->baby_cot === 1) {
+                    $pricePayload['baby_cot_price'] = $request->input('baby_cot_price');
+                    $pricePayload['baby_cot_cost_price'] = $request->input('baby_cot_cost_price');
+                }
+                if ($pricePayload !== []) {
+                    $bed->update($pricePayload);
+                }
+
+                return redirect()->route('hotels.beds', $request->hotel_id)->with('success', 'Bed prices updated successfully.');
+            }
+
             $request->validate([
                 'no_of_rooms' => 'required|integer|min:1',
                 'max_occupancy' => 'required|integer|min:1',
@@ -2765,8 +3163,6 @@ class HotelController extends Controller
                 ]);
             }
 
-            // $bedId = Crypt::decrypt($request->bed_id);
-            $bed = Bed::where('bed_id', $request->bed_id)->first();
             $room_data = Room::where('room_id', $request->room_type)->first();
             $no_of_room = $room_data->no_of_room;
             $bedAvailable = Bed::where('room_id', $request->room_type)
@@ -2775,9 +3171,13 @@ class HotelController extends Controller
             if($no_of_room <= ($bedAvailable - $bed->no_of_rooms) + $request->input('no_of_rooms')){
                 return redirect()->route('hotels.beds', $request->hotel_id)->with('error', 'You have already filled.');
             }
+            $nameOfBedType = $bed->room_type;
+            $bedmaster_det = null;
             if($request->input('bed_type')){
                 $bedmaster_det = BedMaster::where('bedId',$request->input('bed_type'))->first();
-               $nameOfBedType =  $bedmaster_det->name;
+                if ($bedmaster_det) {
+                    $nameOfBedType = $bedmaster_det->name;
+                }
             }
             // $nameOfBedType = 'Unknown';
 
@@ -2787,12 +3187,13 @@ class HotelController extends Controller
             //         $nameOfBedType = $bedmaster_det->name;
             //     }
             // }
+            $occupancy = $this->applyOccupancyFromBedType($request, $bedmaster_det ?? null);
             $bed->room_type = $nameOfBedType;
             $bed->bed_master_id = $request->input('bed_type');
             $bed->no_of_rooms = $request->input('no_of_rooms');
-            $bed->max_occupancy = $request->input('max_occupancy');
-            $bed->adult_count = $request->input('adult_count');
-            $bed->child_count = $request->input('child_count');
+            $bed->max_occupancy = $occupancy['max_occupancy'];
+            $bed->adult_count = $occupancy['adult_count'];
+            $bed->child_count = $occupancy['child_count'];
             $bed->extra_bed = $request->input('extra_bed');
             $bed->extra_bed_type = $request->input('extra_bed_type');
             $bed->extra_bed_price = $request->input('extra_bed_price') ?? 0;
@@ -2822,6 +3223,10 @@ class HotelController extends Controller
             // if (!hasPermission('delete bed')) {
             //     abort(403, 'You do not have permission to access this page.');
             // }
+            $auth_user = Auth::user();
+            if (!in_array((int) $auth_user->role_id, [1, 20], true)) {
+                return redirect()->back()->with('error', 'Bed configuration is managed by Travclicks.');
+            }
             $bedId = Crypt::decrypt($bedId);
             $bed = Bed::where('bed_id', $bedId)->first();
             $delete = Bed::where('bed_id', $bedId)->delete();
@@ -3866,7 +4271,7 @@ class HotelController extends Controller
      */
     public function dmcHotelsSelection(Request $request)
     {
-        // Check if user is DMC (role_id = 11)
+        // Check if user is DMC (role_id = 11) or an employee under that DMC
         $user = auth()->user();
         $allowedRoles = [11, 35, 77, 84, 130, 132, 133, 135, 136, 137, 138, 139, 140];
 
@@ -3874,93 +4279,78 @@ class HotelController extends Controller
             abort(403, 'You do not have permission to access this page.');
         }
 
-        if($user->role_id == 11){
-            $dmc_id = $user->userId;
-        }else if($user->role_id == 35 || in_array($user->role_id, [130, 132, 133, 135, 136, 137, 138])){
-            $dmc_id = $user->created_by;
-        }else if($user->role_id == 77 || $user->role_id == 139){
-            $product_head = User::where('userId', $user->created_by)->first();
-            $dmc_id = $product_head->created_by;
-        }else if($user->role_id == 84 || $user->role_id == 140){
-            $product_manager = User::where('userId', $user->created_by)->first();
-            $product_head = User::where('userId', $product_manager->created_by)->first();
-            $dmc_id = $product_head->created_by;
-        }
-        else{
+        $dmc_id = $this->resolveServicesHotelsDmcId($user);
+        if (!$dmc_id) {
             return redirect()->back()->with('error', 'You do not have permission to access this page.');
         }
 
-        // We want Master DMC countries' hotels that are added from Travclicks.
-        // Important: for role_id=11 (DMC user), $dmc_id is the DMC id, not the Master DMC.
-        // Resolve the Master DMC via master_dmc_id, or by walking created_by chain until role_id=3.
-        $masterDmcId = $user->master_dmc_id ?? null;
-        if (empty($masterDmcId)) {
-            $dmcUser = User::where('userId', $dmc_id)->first();
-            $masterDmcId = $dmcUser->master_dmc_id ?? null;
-        }
-        if (empty($masterDmcId)) {
-            $visited = [];
-            $candidateId = $user->created_by ?? null;
-            $safety = 0;
-            while (!empty($candidateId) && $safety < 8 && !in_array($candidateId, $visited, true)) {
-                $visited[] = $candidateId;
-                $candidate = User::where('userId', $candidateId)->first();
-                if (! $candidate) {
-                    break;
-                }
-                if ((int) ($candidate->role_id ?? 0) === 3) {
-                    $masterDmcId = $candidate->userId;
-                    break;
-                }
-                $candidateId = $candidate->created_by ?? null;
-                $safety++;
-            }
-        }
+        $dmcUser = User::where('userId', $dmc_id)->first();
+        $dmcCountry = trim((string) ($dmcUser->country ?? ''));
 
-        // Fall back to current DMC id if we cannot resolve a master
-        $masterDmc = User::where('userId', $masterDmcId ?: $dmc_id)->first();
-        $masterDmcCountries = [];
-        if ($masterDmc && !empty($masterDmc->country)) {
-            $masterDmcCountries = array_values(array_filter(array_map(
-                static fn ($c) => trim($c),
-                preg_split('/\s*,\s*/', (string) $masterDmc->country)
-            )));
-        }
-
-        // Get all available hotels
+        // DMC may only select hotels from their own single country (not all Master DMC countries).
         $allHotelsQuery = Hotel::where('status', 1)
-            // Hotels added from Travclicks are treated as platform/admin hotels
             ->where('user_type', 1)
             ->with(['category'])
             ->orderBy('name', 'asc');
 
-        if (!empty($masterDmcCountries)) {
-            $allHotelsQuery->whereIn('country', $masterDmcCountries);
+        if ($dmcCountry !== '') {
+            $allHotelsQuery->where(function ($query) use ($dmcCountry) {
+                $query->where('country', $dmcCountry)
+                    ->orWhereRaw('LOWER(TRIM(country)) = ?', [strtolower($dmcCountry)]);
+            });
+        } else {
+            // No country on DMC profile — show nothing selectable until country is set.
+            $allHotelsQuery->whereRaw('1 = 0');
         }
 
         $allHotels = $allHotelsQuery->get();
 
-        // Country dropdown should show only countries that actually have Travclicks hotels
-        // within the Master DMC allowed countries.
-        $allowedCountries = $allHotels
-            ->pluck('country')
-            ->filter()
-            ->unique()
-            ->sort()
-            ->values()
-            ->all();
-        
-        // Filter hotels that are selected by the current DMC
-        $selectedHotels = $allHotels->filter(function($hotel) use ($dmc_id) {
+        // Selected list: only hotels this DMC (or its staff acting as this DMC) selected.
+        $selectedHotels = CommonHelper::whereJsonContainsDmcIds(
+            Hotel::where('status', 1)->with(['category'])->orderBy('name', 'asc'),
+            [(int) $dmc_id]
+        )->get()->filter(function ($hotel) use ($dmc_id) {
             return $hotel->hasSelectedByDmc($dmc_id);
-        });
+        })->values();
 
-        // Get hotels that are not selected by the current DMC
-        $availableHotels = $allHotels->filter(function($hotel) use ($dmc_id) {
+        $availableHotels = $allHotels->filter(function ($hotel) use ($dmc_id) {
             return !$hotel->hasSelectedByDmc($dmc_id);
         });
 
-        return view('services.hotels', compact('availableHotels', 'selectedHotels', 'allowedCountries'));
+        // City filter options: cities belonging to the DMC's country.
+        $allowedCities = collect();
+        if ($dmcCountry !== '') {
+            $allowedCities = City::query()
+                ->where(function ($query) use ($dmcCountry) {
+                    $query->where('country', $dmcCountry)
+                        ->orWhereRaw('LOWER(TRIM(country)) = ?', [strtolower($dmcCountry)]);
+                })
+                ->orderBy('name', 'asc')
+                ->pluck('name')
+                ->map(static fn ($name) => trim((string) $name))
+                ->filter()
+                ->unique(static fn ($name) => strtolower($name))
+                ->values();
+        }
+
+        // Fallback: if cities table has none, derive from hotels already loaded for this country.
+        if ($allowedCities->isEmpty()) {
+            $allowedCities = $allHotels
+                ->pluck('city')
+                ->map(static fn ($name) => trim((string) $name))
+                ->filter()
+                ->unique(static fn ($name) => strtolower($name))
+                ->sort()
+                ->values();
+        }
+
+        return view('services.hotels', compact(
+            'availableHotels',
+            'selectedHotels',
+            'dmcCountry',
+            'allowedCities',
+            'dmc_id'
+        ));
     }
 
     /**
@@ -3976,33 +4366,28 @@ class HotelController extends Controller
             abort(403, 'You do not have permission to access this page.');
         }
 
-        if($user->role_id == 11){
-            $dmc_id = $user->userId;
-        }else if($user->role_id == 35 || in_array($user->role_id, [130, 132, 133, 135, 136, 137, 138])){
-            $dmc_id = $user->created_by;
-        }else if($user->role_id == 77 || $user->role_id == 139){
-            $product_head = User::where('userId', $user->created_by)->first();
-            $dmc_id = $product_head->created_by;
-        }else if($user->role_id == 84 || $user->role_id == 140){
-            $product_manager = User::where('userId', $user->created_by)->first();
-            $product_head = User::where('userId', $product_manager->created_by)->first();
-            $dmc_id = $product_head->created_by;
-        }
-        else{
+        $dmc_id = $this->resolveServicesHotelsDmcId($user);
+        if (!$dmc_id) {
             return redirect()->back()->with('error', 'You do not have permission to access this page.');
         }
 
+        $dmcCountry = trim((string) (User::where('userId', $dmc_id)->value('country') ?? ''));
         $selectedHotels = $request->input('selected_hotels', []);
-        
+
         // Reset all hotels for this DMC (remove from dmc_ids)
         $allHotelsForUser = Hotel::whereJsonContains('dmc_id', $dmc_id)->get();
         foreach ($allHotelsForUser as $hotel) {
             $hotel->removeDmcId($dmc_id);
         }
-        
-        // Add dmc_id for selected hotels
-        if (!empty($selectedHotels)) {
-            $hotelsToSelect = Hotel::whereIn('hotel_unique_id', $selectedHotels)->get();
+
+        // Add dmc_id only for selected hotels that belong to the DMC's country
+        if (!empty($selectedHotels) && $dmcCountry !== '') {
+            $hotelsToSelect = Hotel::whereIn('hotel_unique_id', $selectedHotels)
+                ->where(function ($query) use ($dmcCountry) {
+                    $query->where('country', $dmcCountry)
+                        ->orWhereRaw('LOWER(TRIM(country)) = ?', [strtolower($dmcCountry)]);
+                })
+                ->get();
             foreach ($hotelsToSelect as $hotel) {
                 $hotel->addDmcId($dmc_id);
             }
@@ -4015,7 +4400,7 @@ class HotelController extends Controller
      * Select Individual Hotel for DMC
      * Handle individual hotel selection with AJAX
      */
-        public function selectHotel(Request $request)
+    public function selectHotel(Request $request)
     {
         try {
             $hotelId = $request->input('hotel_id');
@@ -4027,44 +4412,44 @@ class HotelController extends Controller
                 abort(403, 'You do not have permission to access this page.');
             }
 
-            if($user->role_id == 11){
-                $dmc_id = $user->userId;
-            }else if($user->role_id == 35 || in_array($user->role_id, [130, 132, 133, 135, 136, 137, 138])){
-                $dmc_id = $user->created_by;
-            }else if($user->role_id == 77 || $user->role_id == 139){
-                $product_head = User::where('userId', $user->created_by)->first();
-                $dmc_id = $product_head->created_by;
-            }else if($user->role_id == 84 || $user->role_id == 140){
-                $product_manager = User::where('userId', $user->created_by)->first();
-                $product_head = User::where('userId', $product_manager->created_by)->first();
-                $dmc_id = $product_head->created_by;
+            $dmc_id = $this->resolveServicesHotelsDmcId($user);
+            if (!$dmc_id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You do not have permission to select hotels.',
+                ], 403);
             }
-            else{
-                return redirect()->back()->with('error', 'You do not have permission to access this page.');
-            }
-            
+
+            $dmcCountry = trim((string) (User::where('userId', $dmc_id)->value('country') ?? ''));
+
             // Find the hotel
             $hotel = Hotel::find($hotelId);
             if (!$hotel) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Hotel not found.'
+                    'message' => 'Hotel not found.',
                 ], 404);
             }
-            
+
+            if ($dmcCountry === '' || strcasecmp(trim((string) $hotel->country), $dmcCountry) !== 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You can only select hotels from your own country (' . ($dmcCountry ?: 'not set') . ').',
+                ], 403);
+            }
+
             // Add the DMC ID to the hotel's dmc_id array
             $hotel->addDmcId($dmc_id);
-            
+
             return response()->json([
                 'success' => true,
-                'message' => 'Hotel selected successfully!'
+                'message' => 'Hotel selected successfully!',
             ]);
-            
         } catch (\Exception $e) {
             \Log::error('Hotel selection error: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'An error occurred while selecting the hotel.'
+                'message' => 'An error occurred while selecting the hotel.',
             ], 500);
         }
     }
@@ -4076,7 +4461,6 @@ class HotelController extends Controller
     public function removeHotel(Request $request)
     {
         try {
-            $hotelId = $request->input('hotel_id');
             $user = Auth::user();
 
             $allowedRoles = [11, 35, 77, 84, 130, 132, 133, 135, 136, 137, 138, 139, 140];
@@ -4085,54 +4469,135 @@ class HotelController extends Controller
                 abort(403, 'You do not have permission to access this page.');
             }
 
-            if($user->role_id == 11){
-                $dmc_id = $user->userId;
-            }else if($user->role_id == 35 || in_array($user->role_id, [130, 132, 133, 135, 136, 137, 138])){
-                $dmc_id = $user->created_by;
-            }else if($user->role_id == 77 || $user->role_id == 139){
-                $product_head = User::where('userId', $user->created_by)->first();
-                $dmc_id = $product_head->created_by;
-            }else if($user->role_id == 84 || $user->role_id == 140){
-                $product_manager = User::where('userId', $user->created_by)->first();
-                $product_head = User::where('userId', $product_manager->created_by)->first();
-                $dmc_id = $product_head->created_by;
-            }
-            else{
-                return redirect()->back()->with('error', 'You do not have permission to access this page.');
-            }
-            
-            // Find the hotel
-            $hotel = Hotel::find($hotelId);
-            if (!$hotel) {
+            $dmc_id = $this->resolveServicesHotelsDmcId($user);
+            if (!$dmc_id) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Hotel not found.'
-                ], 404);
+                    'message' => 'You do not have permission to remove hotels.',
+                ], 403);
             }
-            
-            // Check if this DMC has selected this hotel
-            if (!$hotel->hasSelectedByDmc($dmc_id)) {
+
+            $result = $this->unselectHotelForDmc($request->input('hotel_id'), $dmc_id);
+            if (!$result['success']) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Hotel not selected by you.'
-                ], 400);
+                    'message' => $result['message'],
+                ], $result['status']);
             }
-            
-            // Remove the DMC ID from the hotel's dmc_id array
-            $hotel->removeDmcId($dmc_id);
-            
+
             return response()->json([
                 'success' => true,
-                'message' => 'Hotel removed successfully!'
+                'message' => 'Hotel removed successfully!',
             ]);
-            
         } catch (\Exception $e) {
             \Log::error('Hotel removal error: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'An error occurred while removing the hotel.'
+                'message' => 'An error occurred while removing the hotel.',
             ], 500);
         }
+    }
+
+    /**
+     * Remove multiple hotels from DMC selection using the same unselect rules.
+     */
+    public function removeHotelsBulk(Request $request)
+    {
+        try {
+            $user = Auth::user();
+
+            $allowedRoles = [11, 35, 77, 84, 130, 132, 133, 135, 136, 137, 138, 139, 140];
+            if (!in_array($user->role_id, $allowedRoles)) {
+                abort(403, 'You do not have permission to access this page.');
+            }
+
+            $dmc_id = $this->resolveServicesHotelsDmcId($user);
+            if (!$dmc_id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You do not have permission to remove hotels.',
+                ], 403);
+            }
+
+            $hotelIds = $request->input('hotel_ids', []);
+            if (!is_array($hotelIds) || empty($hotelIds)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Please select at least one hotel to remove.',
+                ], 422);
+            }
+
+            $hotelIds = array_values(array_unique(array_filter($hotelIds, static function ($id) {
+                return $id !== null && $id !== '';
+            })));
+
+            if (count($hotelIds) > 200) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Too many hotels selected. Please remove fewer at a time.',
+                ], 422);
+            }
+
+            $removed = 0;
+            foreach ($hotelIds as $hotelId) {
+                $result = $this->unselectHotelForDmc($hotelId, $dmc_id);
+                if ($result['success']) {
+                    $removed++;
+                }
+            }
+
+            if ($removed === 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unable to remove the selected hotels. Please try again.',
+                ], 400);
+            }
+
+            $label = $removed === 1 ? 'hotel' : 'hotels';
+
+            return response()->json([
+                'success' => true,
+                'removed' => $removed,
+                'message' => $removed . ' ' . $label . ' removed successfully.',
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Hotel bulk removal error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Unable to remove the selected hotels. Please try again.',
+            ], 500);
+        }
+    }
+
+    /**
+     * Unselect a hotel for the owning DMC using the existing dmc_id removal rules.
+     */
+    private function unselectHotelForDmc($hotelId, $dmcId): array
+    {
+        $hotel = Hotel::find($hotelId);
+        if (!$hotel) {
+            return [
+                'success' => false,
+                'status' => 404,
+                'message' => 'Hotel not found.',
+            ];
+        }
+
+        if (!$hotel->hasSelectedByDmc($dmcId)) {
+            return [
+                'success' => false,
+                'status' => 400,
+                'message' => 'Hotel not selected by you.',
+            ];
+        }
+
+        $hotel->removeDmcId($dmcId);
+
+        return [
+            'success' => true,
+            'status' => 200,
+            'message' => 'Hotel removed successfully!',
+        ];
     }
 
     public function deleterate($id)
@@ -4287,6 +4752,15 @@ class HotelController extends Controller
     /**
      * DMC userId used for room ownership (created_by), hotel access, and imports (delegated staff use parent DMC).
      */
+    /**
+     * Resolve the owning DMC userId for the services hotels selection page.
+     * Supports DMC (11) and staff under that DMC (product head / manager / multi-role).
+     */
+    private function resolveServicesHotelsDmcId(?User $user): ?int
+    {
+        return CommonHelper::resolveNearestNormalDmcId($user);
+    }
+
     private function resolveRoomPricingDmcUserId(User $user): ?int
     {
         if ((int) $user->role_id === 11) {
