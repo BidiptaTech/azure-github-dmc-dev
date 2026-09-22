@@ -1354,7 +1354,103 @@ use Illuminate\Support\Facades\Crypt;
                             } else {
                                 $outstandingBalance = (float) $finalPrice - (float) $paymentReceived;
                             }
+
+                            $pricingMarkup = \App\Helpers\CommonHelper::buildInvoicePricingMarkupDisplay(
+                                $tour,
+                                (float) $actualAmount,
+                                (float) ($negotiatedAmount ?? $actualAmount),
+                                (string) ($selectedCurrency ?? $baseCurrency ?? 'SGD'),
+                                !empty($thirdPartyNegotiation) && is_array($thirdPartyNegotiation) ? $thirdPartyNegotiation : null
+                            );
+                            $payTrim = static function ($n) {
+                                return rtrim(rtrim(number_format((float) $n, 2, '.', ''), '0'), '.');
+                            };
+                            $payTypeLabel = static function ($type, $raw) use ($payTrim) {
+                                $type = strtolower(trim((string) $type));
+                                $raw = (float) $raw;
+                                if ($type === 'percentage') {
+                                    return $payTrim($raw) . '%';
+                                }
+                                if ($type === 'foc') {
+                                    return 'FOC';
+                                }
+                                if ($type === 'flat' || $type === 'fixed') {
+                                    return $raw > 0 ? ('Fixed ' . $payTrim($raw)) : 'Fixed';
+                                }
+                                return $raw > 0 ? $payTrim($raw) : '—';
+                            };
                         @endphp
+                        @if(!empty($pricingMarkup['has_markup_display']))
+                        <div class="summary-row" style="background: #eef2ff; padding: 12px 15px; border-radius: 6px; margin: 10px 0 6px;">
+                            <span class="summary-label" style="font-weight: 700; color: #312e81;">Pricing Breakdown (Before / After Negotiation)</span>
+                            <span class="summary-value"></span>
+                        </div>
+                        <div class="summary-row" style="background: #f8fafc; padding: 10px 15px; border-radius: 6px; margin: 4px 0;">
+                            <span class="summary-label">Gross (before markup)</span>
+                            <span class="summary-value">{{ $formatPrice($pricingMarkup['gross']) }}</span>
+                        </div>
+                        <div class="summary-row" style="background: #f0f9ff; padding: 10px 15px; border-radius: 6px; margin: 4px 0;">
+                            <span class="summary-label">Hotel Markup <small class="text-muted">({{ $payTypeLabel($pricingMarkup['markup_type'], $pricingMarkup['hotel_markup_raw']) }})</small></span>
+                            <span class="summary-value text-info">
+                                @if(($pricingMarkup['markup_type'] ?? '') === 'flat' || ($pricingMarkup['markup_type'] ?? '') === 'fixed')
+                                    +{{ $formatPrice($pricingMarkup['hotel_markup_money']) }}
+                                @else
+                                    {{ $payTypeLabel($pricingMarkup['markup_type'], $pricingMarkup['hotel_markup_raw']) }}
+                                @endif
+                            </span>
+                        </div>
+                        <div class="summary-row" style="background: #f0f9ff; padding: 10px 15px; border-radius: 6px; margin: 4px 0;">
+                            <span class="summary-label">Other Service Markup <small class="text-muted">({{ $payTypeLabel($pricingMarkup['markup_type'], $pricingMarkup['other_markup_raw']) }})</small></span>
+                            <span class="summary-value text-info">
+                                @if(($pricingMarkup['markup_type'] ?? '') === 'flat' || ($pricingMarkup['markup_type'] ?? '') === 'fixed')
+                                    +{{ $formatPrice($pricingMarkup['other_markup_money']) }}
+                                @else
+                                    {{ $payTypeLabel($pricingMarkup['markup_type'], $pricingMarkup['other_markup_raw']) }}
+                                @endif
+                            </span>
+                        </div>
+                        <div class="summary-row" style="background: #edf7ed; padding: 10px 15px; border-radius: 6px; margin: 4px 0;">
+                            <span class="summary-label">Discount <small class="text-muted">({{ $payTypeLabel($pricingMarkup['discount_type'], $pricingMarkup['discount_raw']) }})</small></span>
+                            <span class="summary-value text-success">−{{ $formatPrice($pricingMarkup['discount_money']) }}</span>
+                        </div>
+                        <div class="summary-row" style="background: #e7f3ff; padding: 12px 15px; border-radius: 6px; margin: 6px 0;">
+                            <span class="summary-label"><strong>Actual Price</strong> <small class="text-muted">(Gross + markup − discount)</small></span>
+                            <span class="summary-value" style="color: #0056b3;"><strong>{{ $formatPrice($pricingMarkup['actual_price']) }}</strong></span>
+                        </div>
+                        <div class="summary-row" style="background: #d4edda; padding: 12px 15px; border-radius: 6px; margin: 6px 0;">
+                            <span class="summary-label"><strong>Confirmed Price</strong> <small class="text-muted">(After negotiation)</small></span>
+                            <span class="summary-value" style="color: #155724;"><strong>{{ $formatPrice($pricingMarkup['confirmed_price']) }}</strong></span>
+                        </div>
+                        @if(!empty($pricingMarkup['markup_rows']))
+                        <div class="table-responsive" style="margin: 10px 0 14px;">
+                            <table class="table table-sm table-bordered mb-0" style="font-size: 0.85rem; background: #fff;">
+                                <thead>
+                                    <tr style="background: #f8fafc;">
+                                        <th style="font-size: 0.7rem; text-transform: uppercase; color: #64748b;">City / Country</th>
+                                        <th style="font-size: 0.7rem; text-transform: uppercase; color: #64748b;">Hotel</th>
+                                        <th style="font-size: 0.7rem; text-transform: uppercase; color: #64748b;">Other</th>
+                                        <th style="font-size: 0.7rem; text-transform: uppercase; color: #64748b;">Discount</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach($pricingMarkup['markup_rows'] as $mkRow)
+                                    <tr>
+                                        <td>
+                                            {{ $mkRow['place'] }}
+                                            @if(!empty($mkRow['currency']))
+                                                <span class="text-muted">({{ $mkRow['currency'] }})</span>
+                                            @endif
+                                        </td>
+                                        <td>{{ $payTypeLabel($mkRow['markup_type'], $mkRow['hotel_raw']) }}</td>
+                                        <td>{{ $payTypeLabel($mkRow['markup_type'], $mkRow['other_raw']) }}</td>
+                                        <td>{{ $payTypeLabel($mkRow['discount_type'], $mkRow['discount_raw']) }}</td>
+                                    </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                        @endif
+                        @endif
                         @if(!empty($isThirdPartyInvoice) && !empty($thirdPartyNegotiation['rows']))
                         <div class="summary-row" style="background: #f1f5f9; padding: 12px 15px; border-radius: 6px; margin: 10px 0 6px;">
                             <span class="summary-label" style="font-weight: 700; color: #1e293b;">Country-wise Negotiation</span>
@@ -1365,10 +1461,28 @@ use Illuminate\Support\Facades\Crypt;
                             $negCountry = trim((string) ($negRow['country'] ?? ''));
                             $negCurrency = strtoupper(trim((string) ($negRow['currency'] ?? $selectedCurrency)));
                             $negLabel = $negCountry !== '' ? $negCountry : $negCurrency;
+                            $rowGross = (float) ($negRow['gross_selected'] ?? $negRow['gross'] ?? 0);
                             $rowActual = (float) ($negRow['actual_selected'] ?? 0);
                             $rowNeg = (float) ($negRow['negotiated_selected'] ?? 0);
                             $rowDisc = (float) ($negRow['discount_selected'] ?? ($rowActual - $rowNeg));
+                            $rowHotel = (float) ($negRow['hotel_markup'] ?? 0);
+                            $rowOther = (float) ($negRow['other_markup'] ?? 0);
+                            $rowMkType = strtolower(trim((string) ($negRow['markup_type'] ?? 'flat')));
+                            $rowDiscType = strtolower(trim((string) ($negRow['discount_type'] ?? 'flat')));
+                            $rowDiscVal = (float) ($negRow['discount_value'] ?? 0);
                         @endphp
+                        @if($rowGross > 0 && abs($rowGross - $rowActual) > 0.009)
+                        <div class="summary-row" style="background: #f8fafc; padding: 10px 15px; border-radius: 6px; margin: 4px 0;">
+                            <span class="summary-label">{{ $negLabel }} ({{ $negCurrency }}) — Gross</span>
+                            <span class="summary-value">{{ $formatPrice($rowGross) }}</span>
+                        </div>
+                        @endif
+                        @if($rowHotel > 0 || $rowOther > 0 || $rowDiscVal > 0)
+                        <div class="summary-row" style="background: #f0f9ff; padding: 8px 15px; border-radius: 6px; margin: 4px 0; font-size: 0.9rem;">
+                            <span class="summary-label text-muted">{{ $negLabel }} — Markup: Hotel {{ $payTypeLabel($rowMkType, $rowHotel) }} · Other {{ $payTypeLabel($rowMkType, $rowOther) }} · Disc {{ $payTypeLabel($rowDiscType, $rowDiscVal) }}</span>
+                            <span class="summary-value"></span>
+                        </div>
+                        @endif
                         <div class="summary-row" style="background: #f8fafc; padding: 10px 15px; border-radius: 6px; margin: 4px 0;">
                             <span class="summary-label">{{ $negLabel }} ({{ $negCurrency }}) — Actual</span>
                             <span class="summary-value">{{ $formatPrice($rowActual) }}</span>

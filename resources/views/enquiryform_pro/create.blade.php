@@ -952,6 +952,26 @@
     window.isEditMode = {{ $isEditMode ? 'true' : 'false' }};
     window.tourId = {{ $tourId ?? 'null' }};
     window.existingOrders = @json($existingOrders);
+    @php
+        $enquiryProGuidePriceMap = [];
+        if (isset($guides) && $guides) {
+            foreach ($guides as $_g) {
+                $enquiryProGuidePriceMap[(string) $_g->guide_id] = [
+                    'name' => $_g->name,
+                    '2'  => ['sell' => (float) ($_g->two_hour_price ?? 0), 'cost' => (float) ($_g->two_hour_cost_price ?? 0)],
+                    '4'  => ['sell' => (float) ($_g->four_hour_price ?? 0), 'cost' => (float) ($_g->four_hour_cost_price ?? 0)],
+                    '6'  => ['sell' => (float) ($_g->six_hour_price ?? 0), 'cost' => (float) ($_g->six_hour_cost_price ?? 0)],
+                    '8'  => ['sell' => (float) ($_g->eight_hour_price ?? 0), 'cost' => (float) ($_g->eight_hour_cost_price ?? 0)],
+                    '10' => ['sell' => (float) ($_g->ten_hour_price ?? 0), 'cost' => (float) ($_g->ten_hour_cost_price ?? 0)],
+                    '12' => [
+                        'sell' => (float) ($_g->twelve_hour_price ?? $_g->day_rate ?? 0),
+                        'cost' => (float) ($_g->twelve_hour_cost_price ?? 0),
+                    ],
+                ];
+            }
+        }
+    @endphp
+    window.enquiryProGuidePriceMap = @json($enquiryProGuidePriceMap);
     
     console.log('=== CREATE MODE ===');
     console.log('Edit Mode:', window.isEditMode);
@@ -2381,7 +2401,18 @@
                                                     data-name="{{ $guide->name }}" 
                                                     data-languages="{{ $languages }}"
                                                     data-city="{{ $guide->city ?? '' }}"
-                                                    data-twelve-hour-price="{{ $defaultPrice }}">{{ $guide->name }} @if($languages)({{ $languages }})@endif</option>
+                                                    data-twelve-hour-price="{{ $defaultPrice }}"
+                                                    data-twelve-hour-cost-price="{{ $guide->twelve_hour_cost_price ?? 0 }}"
+                                                    data-two-hour-price="{{ $guide->two_hour_price ?? 0 }}"
+                                                    data-two-hour-cost-price="{{ $guide->two_hour_cost_price ?? 0 }}"
+                                                    data-four-hour-price="{{ $guide->four_hour_price ?? 0 }}"
+                                                    data-four-hour-cost-price="{{ $guide->four_hour_cost_price ?? 0 }}"
+                                                    data-six-hour-price="{{ $guide->six_hour_price ?? 0 }}"
+                                                    data-six-hour-cost-price="{{ $guide->six_hour_cost_price ?? 0 }}"
+                                                    data-eight-hour-price="{{ $guide->eight_hour_price ?? 0 }}"
+                                                    data-eight-hour-cost-price="{{ $guide->eight_hour_cost_price ?? 0 }}"
+                                                    data-ten-hour-price="{{ $guide->ten_hour_price ?? 0 }}"
+                                                    data-ten-hour-cost-price="{{ $guide->ten_hour_cost_price ?? 0 }}">{{ $guide->name }} @if($languages)({{ $languages }})@endif</option>
                                         @endforeach
                                     </select>
                                 </div>
@@ -2395,7 +2426,7 @@
                                 </div>
                             </div>
                             <div class="col-12 pt-1" id="arrivalGuidePriceRow" style="display: none;">
-                                <span class="small text-muted">Guide price (12h):</span>
+                                <span class="small text-muted">Guide price (12h Cost / Sell):</span>
                                 <strong class="text-primary ms-1" id="arrivalGuidePriceDisplay">—</strong>
                             </div>
                             <div class="row g-2 mt-1 group-foc-service-discount-ui">
@@ -2579,7 +2610,18 @@
                                                     data-name="{{ $guide->name }}" 
                                                     data-languages="{{ $languages }}"
                                                     data-city="{{ $guide->city ?? '' }}"
-                                                    data-twelve-hour-price="{{ $defaultPrice }}">{{ $guide->name }} @if($languages)({{ $languages }})@endif</option>
+                                                    data-twelve-hour-price="{{ $defaultPrice }}"
+                                                    data-twelve-hour-cost-price="{{ $guide->twelve_hour_cost_price ?? 0 }}"
+                                                    data-two-hour-price="{{ $guide->two_hour_price ?? 0 }}"
+                                                    data-two-hour-cost-price="{{ $guide->two_hour_cost_price ?? 0 }}"
+                                                    data-four-hour-price="{{ $guide->four_hour_price ?? 0 }}"
+                                                    data-four-hour-cost-price="{{ $guide->four_hour_cost_price ?? 0 }}"
+                                                    data-six-hour-price="{{ $guide->six_hour_price ?? 0 }}"
+                                                    data-six-hour-cost-price="{{ $guide->six_hour_cost_price ?? 0 }}"
+                                                    data-eight-hour-price="{{ $guide->eight_hour_price ?? 0 }}"
+                                                    data-eight-hour-cost-price="{{ $guide->eight_hour_cost_price ?? 0 }}"
+                                                    data-ten-hour-price="{{ $guide->ten_hour_price ?? 0 }}"
+                                                    data-ten-hour-cost-price="{{ $guide->ten_hour_cost_price ?? 0 }}">{{ $guide->name }} @if($languages)({{ $languages }})@endif</option>
                                         @endforeach
                                     </select>
                                 </div>
@@ -2593,7 +2635,7 @@
                                 </div>
                             </div>
                             <div class="col-12 pt-1" id="departureGuidePriceRow" style="display: none;">
-                                <span class="small text-muted">Guide price (12h):</span>
+                                <span class="small text-muted">Guide price (12h Cost / Sell):</span>
                                 <strong class="text-primary ms-1" id="departureGuidePriceDisplay">—</strong>
                             </div>
                             <div class="row g-2 mt-1 group-foc-service-discount-ui">
@@ -2839,7 +2881,18 @@
                                                         data-name="{{ $guide->name }}" 
                                                         data-languages="{{ $languages }}"
                                                         data-city="{{ $guide->city ?? '' }}"
-                                                        data-twelve-hour-price="{{ $defaultPrice }}">{{ $guide->name }} @if($languages)({{ $languages }})@endif</option>
+                                                        data-twelve-hour-price="{{ $defaultPrice }}"
+                                                        data-twelve-hour-cost-price="{{ $guide->twelve_hour_cost_price ?? 0 }}"
+                                                        data-two-hour-price="{{ $guide->two_hour_price ?? 0 }}"
+                                                        data-two-hour-cost-price="{{ $guide->two_hour_cost_price ?? 0 }}"
+                                                        data-four-hour-price="{{ $guide->four_hour_price ?? 0 }}"
+                                                        data-four-hour-cost-price="{{ $guide->four_hour_cost_price ?? 0 }}"
+                                                        data-six-hour-price="{{ $guide->six_hour_price ?? 0 }}"
+                                                        data-six-hour-cost-price="{{ $guide->six_hour_cost_price ?? 0 }}"
+                                                        data-eight-hour-price="{{ $guide->eight_hour_price ?? 0 }}"
+                                                        data-eight-hour-cost-price="{{ $guide->eight_hour_cost_price ?? 0 }}"
+                                                        data-ten-hour-price="{{ $guide->ten_hour_price ?? 0 }}"
+                                                        data-ten-hour-cost-price="{{ $guide->ten_hour_cost_price ?? 0 }}">{{ $guide->name }} @if($languages)({{ $languages }})@endif</option>
                                             @endforeach
                                         </select>
                                 </td>
@@ -3244,7 +3297,18 @@
                                                 data-name="{{ $guide->name }}" 
                                                 data-languages="{{ $languages }}"
                                                 data-city="{{ $guide->city ?? '' }}"
-                                                data-twelve-hour-price="{{ $twelveHourPrice }}">{{ $guide->name }} @if($languages)({{ $languages }})@endif</option>
+                                                data-twelve-hour-price="{{ $twelveHourPrice }}"
+                                                    data-twelve-hour-cost-price="{{ $guide->twelve_hour_cost_price ?? 0 }}"
+                                                    data-two-hour-price="{{ $guide->two_hour_price ?? 0 }}"
+                                                    data-two-hour-cost-price="{{ $guide->two_hour_cost_price ?? 0 }}"
+                                                    data-four-hour-price="{{ $guide->four_hour_price ?? 0 }}"
+                                                    data-four-hour-cost-price="{{ $guide->four_hour_cost_price ?? 0 }}"
+                                                    data-six-hour-price="{{ $guide->six_hour_price ?? 0 }}"
+                                                    data-six-hour-cost-price="{{ $guide->six_hour_cost_price ?? 0 }}"
+                                                    data-eight-hour-price="{{ $guide->eight_hour_price ?? 0 }}"
+                                                    data-eight-hour-cost-price="{{ $guide->eight_hour_cost_price ?? 0 }}"
+                                                    data-ten-hour-price="{{ $guide->ten_hour_price ?? 0 }}"
+                                                    data-ten-hour-cost-price="{{ $guide->ten_hour_cost_price ?? 0 }}">{{ $guide->name }} @if($languages)({{ $languages }})@endif</option>
                                     @endforeach
                                 </select>
                                 <input type="hidden" id="restaurantGuideHours" value="12">
@@ -3522,7 +3586,18 @@
                                                     data-name="{{ $guide->name }}" 
                                                     data-languages="{{ $languages }}"
                                                     data-city="{{ $guide->city ?? '' }}"
-                                                    data-twelve-hour-price="{{ $twelveHourPrice }}">{{ $guide->name }} @if($languages)({{ $languages }})@endif</option>
+                                                    data-twelve-hour-price="{{ $twelveHourPrice }}"
+                                                    data-twelve-hour-cost-price="{{ $guide->twelve_hour_cost_price ?? 0 }}"
+                                                    data-two-hour-price="{{ $guide->two_hour_price ?? 0 }}"
+                                                    data-two-hour-cost-price="{{ $guide->two_hour_cost_price ?? 0 }}"
+                                                    data-four-hour-price="{{ $guide->four_hour_price ?? 0 }}"
+                                                    data-four-hour-cost-price="{{ $guide->four_hour_cost_price ?? 0 }}"
+                                                    data-six-hour-price="{{ $guide->six_hour_price ?? 0 }}"
+                                                    data-six-hour-cost-price="{{ $guide->six_hour_cost_price ?? 0 }}"
+                                                    data-eight-hour-price="{{ $guide->eight_hour_price ?? 0 }}"
+                                                    data-eight-hour-cost-price="{{ $guide->eight_hour_cost_price ?? 0 }}"
+                                                    data-ten-hour-price="{{ $guide->ten_hour_price ?? 0 }}"
+                                                    data-ten-hour-cost-price="{{ $guide->ten_hour_cost_price ?? 0 }}">{{ $guide->name }} @if($languages)({{ $languages }})@endif</option>
                                         @endforeach
                                     </select>
                                     <input type="hidden" id="localTransportGuideHours" value="12">
@@ -13242,6 +13317,9 @@
                     // Use the 12-hour price directly without dividing or multiplying
                     const priceAttr = arrivalGuideOption?.getAttribute('data-twelve-hour-price') || '0';
                     const guidePrice = parseFloat(priceAttr) || 0;
+                    const guideCost = (typeof resolveGuideCostSellFromOption === 'function')
+                        ? resolveGuideCostSellFromOption(arrivalGuideOption, 12).cost
+                        : guidePrice;
                     
                     if (existingArrivalGuideIndex !== -1) {
                         // Update existing guide
@@ -13253,8 +13331,8 @@
                             guideName: arrivalGuideName,
                             guideId: arrivalGuideId,
                             hours: 12, // Default 12 hours (standard default)
-                            cost: guidePrice, // Fixed price for 12 hours
-                            sell: guidePrice, // Fixed price for 12 hours
+                            cost: guideCost, // DB twelve_hour_cost_price
+                            sell: guidePrice, // DB twelve_hour_price (sell)
                             adultsQty: arrivalGuideAdultQty,
                             childQty: arrivalGuideChildQty,
                             focServiceDiscount: arrivalGuideFocSvc
@@ -13271,8 +13349,8 @@
                             guideName: arrivalGuideName,
                             guideId: arrivalGuideId,
                             hours: 12, // Default 12 hours (standard default)
-                            cost: guidePrice, // Fixed price for 12 hours
-                            sell: guidePrice, // Fixed price for 12 hours
+                            cost: guideCost, // DB twelve_hour_cost_price
+                            sell: guidePrice, // DB twelve_hour_price (sell)
                             supplement: false,
                             isStandalone: false,
                             linkedTo: 'arrival',
@@ -13509,6 +13587,9 @@
                     // Use the 12-hour price directly without dividing or multiplying
                     const priceAttr = departureGuideOption?.getAttribute('data-twelve-hour-price') || '0';
                     const guidePrice = parseFloat(priceAttr) || 0;
+                    const guideCost = (typeof resolveGuideCostSellFromOption === 'function')
+                        ? resolveGuideCostSellFromOption(departureGuideOption, 12).cost
+                        : guidePrice;
                     
                     if (existingGuideIndex !== -1) {
                         // Update existing guide
@@ -13520,8 +13601,8 @@
                             guideName: departureGuideName,
                             guideId: departureGuideId,
                             hours: 12, // Default 12 hours (standard default)
-                            cost: guidePrice, // Fixed price for 12 hours
-                            sell: guidePrice, // Fixed price for 12 hours
+                            cost: guideCost, // DB twelve_hour_cost_price
+                            sell: guidePrice, // DB twelve_hour_price (sell)
                             adultsQty: departureGuideAdultQty,
                             childQty: departureGuideChildQty,
                             focServiceDiscount: departureGuideFocSvc
@@ -13538,8 +13619,8 @@
                             guideName: departureGuideName,
                             guideId: departureGuideId,
                             hours: 12, // Default 12 hours (standard default)
-                            cost: guidePrice, // Fixed price for 12 hours
-                            sell: guidePrice, // Fixed price for 12 hours
+                            cost: guideCost, // DB twelve_hour_cost_price
+                            sell: guidePrice, // DB twelve_hour_price (sell)
                             supplement: false,
                             isStandalone: false,
                             linkedTo: 'departure',
@@ -13784,6 +13865,9 @@
                     // Use the 12-hour price directly without dividing or multiplying
                     const priceAttr = arrivalGuideOption?.getAttribute('data-twelve-hour-price') || '0';
                     const guidePrice = parseFloat(priceAttr) || 0;
+                    const guideCost = (typeof resolveGuideCostSellFromOption === 'function')
+                        ? resolveGuideCostSellFromOption(arrivalGuideOption, 12).cost
+                        : guidePrice;
                     
                     // Check if guide already exists for this arrival
                     const existingGuideIndex = guideList.findIndex(g => g.linkedTo === 'arrival' && g.arrivalId === arrivalId);
@@ -13798,8 +13882,8 @@
                             guideName: arrivalGuideName,
                             guideId: arrivalGuideId,
                             hours: 12, // Default 12 hours (standard default)
-                            cost: guidePrice, // Fixed price for 12 hours
-                            sell: guidePrice, // Fixed price for 12 hours
+                            cost: guideCost, // DB twelve_hour_cost_price
+                            sell: guidePrice, // DB twelve_hour_price (sell)
                             adultsQty: arrivalGuideAdultQty,
                             childQty: arrivalGuideChildQty,
                             focServiceDiscount: arrivalGuideFocSvc
@@ -13816,8 +13900,8 @@
                             guideName: arrivalGuideName,
                             guideId: arrivalGuideId,
                             hours: 12, // Default 12 hours (standard default)
-                            cost: guidePrice, // Fixed price for 12 hours
-                            sell: guidePrice, // Fixed price for 12 hours
+                            cost: guideCost, // DB twelve_hour_cost_price
+                            sell: guidePrice, // DB twelve_hour_price (sell)
                             supplement: false,
                             isStandalone: false,
                             linkedTo: 'arrival',
@@ -14037,6 +14121,9 @@
                     // Use the 12-hour price directly without dividing or multiplying
                     const priceAttr = departureGuideOption?.getAttribute('data-twelve-hour-price') || '0';
                     const guidePrice = parseFloat(priceAttr) || 0;
+                    const guideCost = (typeof resolveGuideCostSellFromOption === 'function')
+                        ? resolveGuideCostSellFromOption(departureGuideOption, 12).cost
+                        : guidePrice;
                     
                     // Check if guide already exists for this departure
                     const existingGuideIndex = guideList.findIndex(g => g.linkedTo === 'departure' && g.departureId === departureId);
@@ -14051,8 +14138,8 @@
                             guideName: departureGuideName,
                             guideId: departureGuideId,
                             hours: 12, // Default 12 hours (standard default)
-                            cost: guidePrice, // Fixed price for 12 hours
-                            sell: guidePrice, // Fixed price for 12 hours
+                            cost: guideCost, // DB twelve_hour_cost_price
+                            sell: guidePrice, // DB twelve_hour_price (sell)
                             adultsQty: departureGuideAdultQty,
                             childQty: departureGuideChildQty,
                             focServiceDiscount: departureGuideFocSvc
@@ -14069,8 +14156,8 @@
                             guideName: departureGuideName,
                             guideId: departureGuideId,
                             hours: 12, // Default 12 hours (standard default)
-                            cost: guidePrice, // Fixed price for 12 hours
-                            sell: guidePrice, // Fixed price for 12 hours
+                            cost: guideCost, // DB twelve_hour_cost_price
+                            sell: guidePrice, // DB twelve_hour_price (sell)
                             supplement: false,
                             isStandalone: false,
                             linkedTo: 'departure',
@@ -15385,6 +15472,9 @@
                     const guideName = guideOpt?.getAttribute('data-name') || guideOpt?.text || '';
                     const guideLang = guideOpt?.getAttribute('data-languages') || '';
                     const guidePrice = parseFloat(guideOpt?.getAttribute('data-twelve-hour-price') || 0);
+                    const guideCost = (typeof resolveGuideCostSellFromOption === 'function')
+                        ? resolveGuideCostSellFromOption(guideOpt, 12).cost
+                        : guidePrice;
                     const linkedTo = travelLabel;
                     const linkedKey = String(linkedTo || '').toLowerCase();
 
@@ -15409,7 +15499,7 @@
                         dateTime: entry.dateTime,
                         tourActivity: `${travelLabel === 'arrival' ? 'Arrival' : 'Departure'} Guide`,
                         language: guideLang || 'N/A', guideName, guideId,
-                        hours: 12, cost: guidePrice, sell: guidePrice,
+                        hours: 12, cost: guideCost, sell: guidePrice,
                         supplement: false, isStandalone: false,
                         linkedTo, arrivalId: entry.id,
                         city: entry.city || '',
@@ -17506,9 +17596,11 @@
             setAccommodationPricingSide('arrivalGuide', 'ready');
             return;
         }
-        const price = parseFloat(sel.selectedOptions[0]?.getAttribute('data-twelve-hour-price') || 0);
+        const _agp = (typeof resolveGuideCostSellFromOption === 'function')
+            ? resolveGuideCostSellFromOption(sel.selectedOptions[0], 12)
+            : { cost: 0, sell: parseFloat(sel.selectedOptions[0]?.getAttribute('data-twelve-hour-price') || 0) || 0 };
         row.style.display = '';
-        disp.textContent = formatArrDepZonePrice(price);
+        disp.textContent = `${formatArrDepZonePrice(_agp.cost)} / ${formatArrDepZonePrice(_agp.sell)}`;
         setAccommodationPricingSide('arrivalGuide', 'ready');
     }
 
@@ -17528,9 +17620,11 @@
             setAccommodationPricingSide('departureGuide', 'ready');
             return;
         }
-        const price = parseFloat(sel.selectedOptions[0]?.getAttribute('data-twelve-hour-price') || 0);
+        const _dgp = (typeof resolveGuideCostSellFromOption === 'function')
+            ? resolveGuideCostSellFromOption(sel.selectedOptions[0], 12)
+            : { cost: 0, sell: parseFloat(sel.selectedOptions[0]?.getAttribute('data-twelve-hour-price') || 0) || 0 };
         row.style.display = '';
-        disp.textContent = formatArrDepZonePrice(price);
+        disp.textContent = `${formatArrDepZonePrice(_dgp.cost)} / ${formatArrDepZonePrice(_dgp.sell)}`;
         setAccommodationPricingSide('departureGuide', 'ready');
     }
 
@@ -17802,7 +17896,18 @@
                         data-name="{{ $guide->name }}" 
                         data-languages="{{ $languages }}"
                         data-city="{{ $guide->city ?? '' }}"
-                        data-twelve-hour-price="{{ $defaultPrice }}">{{ $guide->name }} @if($languages)({{ $languages }})@endif</option>
+                        data-twelve-hour-price="{{ $defaultPrice }}"
+                        data-twelve-hour-cost-price="{{ $guide->twelve_hour_cost_price ?? 0 }}"
+                        data-two-hour-price="{{ $guide->two_hour_price ?? 0 }}"
+                        data-two-hour-cost-price="{{ $guide->two_hour_cost_price ?? 0 }}"
+                        data-four-hour-price="{{ $guide->four_hour_price ?? 0 }}"
+                        data-four-hour-cost-price="{{ $guide->four_hour_cost_price ?? 0 }}"
+                        data-six-hour-price="{{ $guide->six_hour_price ?? 0 }}"
+                        data-six-hour-cost-price="{{ $guide->six_hour_cost_price ?? 0 }}"
+                        data-eight-hour-price="{{ $guide->eight_hour_price ?? 0 }}"
+                        data-eight-hour-cost-price="{{ $guide->eight_hour_cost_price ?? 0 }}"
+                        data-ten-hour-price="{{ $guide->ten_hour_price ?? 0 }}"
+                        data-ten-hour-cost-price="{{ $guide->ten_hour_cost_price ?? 0 }}">{{ $guide->name }} @if($languages)({{ $languages }})@endif</option>
             @endforeach
         `;
     }
@@ -18385,13 +18490,16 @@
                 const guideOption = guideSelect.options[guideSelect.selectedIndex];
                 guideName = guideOption.getAttribute('data-name') || guideOption.text;
                 guideLanguages = guideOption.getAttribute('data-languages') || '';
-                const priceAttr = guideOption.getAttribute('data-twelve-hour-price') || '0';
-                const defaultPrice = parseFloat(priceAttr) || 0;
+                const _gp = (typeof resolveGuideCostSellFromOption === 'function')
+                    ? resolveGuideCostSellFromOption(guideOption, 12)
+                    : { cost: parseFloat(guideOption.getAttribute('data-twelve-hour-price') || '0') || 0, sell: parseFloat(guideOption.getAttribute('data-twelve-hour-price') || '0') || 0 };
+                const defaultCost = _gp.cost;
+                const defaultPrice = _gp.sell;
                 
                 console.log('Editing linked guide:', {
                     guideId: guideId,
                     guideName: guideName,
-                    priceAttr: priceAttr,
+                    defaultCost: defaultCost,
                     defaultPrice: defaultPrice,
                     adultsQty: adultsQty,
                     childQty: childQty
@@ -18404,15 +18512,15 @@
                 };
                 
                 // Guide price is fixed for 12 hours, not dependent on pax
-                // Use the 12-hour price directly without multiplying by pax
-                const adultCost = defaultPrice;
+                // Use the 12-hour cost/sell directly without multiplying by pax
+                const adultCost = defaultCost;
                 const adultSell = defaultPrice;
-                const childCost = defaultPrice; // Same price for children
-                const childSell = defaultPrice; // Same price for children
+                const childCost = defaultCost;
+                const childSell = defaultPrice;
                 
                 // Total cost and sell - guide price is fixed, not per person
-                const totalCost = defaultPrice; // Fixed price for 12 hours, not multiplied by pax
-                const totalSell = defaultPrice; // Fixed price for 12 hours, not multiplied by pax
+                const totalCost = defaultCost;
+                const totalSell = defaultPrice;
                 
                 // Use existing guide ID or generate new one
                 if (!guideEntryId) {
@@ -18472,8 +18580,12 @@
                     child_qty: childQty,
                     childrenQty: childQty,
                     children_qty: childQty,
-                    cost: parseFloat(guideOptionForPrice?.getAttribute('data-twelve-hour-price') || '0') || 0,
-                    sell: parseFloat(guideOptionForPrice?.getAttribute('data-twelve-hour-price') || '0') || 0,
+                    cost: (typeof resolveGuideCostSellFromOption === 'function')
+                        ? resolveGuideCostSellFromOption(guideOptionForPrice, 12).cost
+                        : (parseFloat(guideOptionForPrice?.getAttribute('data-twelve-hour-cost-price') || '0') || 0),
+                    sell: (typeof resolveGuideCostSellFromOption === 'function')
+                        ? resolveGuideCostSellFromOption(guideOptionForPrice, 12).sell
+                        : (parseFloat(guideOptionForPrice?.getAttribute('data-twelve-hour-price') || '0') || 0),
                     serviceType: 'Full Day',
                     service_type: 'Full Day',
                     tourActivity: `${attractionName} - ${guideName}`,
@@ -18718,13 +18830,16 @@
                 const guideOption = guideSelect.options[guideSelect.selectedIndex];
                 guideName = guideOption.getAttribute('data-name') || guideOption.text;
                 guideLanguages = guideOption.getAttribute('data-languages') || '';
-                const priceAttr = guideOption.getAttribute('data-twelve-hour-price') || '0';
-                const defaultPrice = parseFloat(priceAttr) || 0;
+                const _gp = (typeof resolveGuideCostSellFromOption === 'function')
+                    ? resolveGuideCostSellFromOption(guideOption, 12)
+                    : { cost: parseFloat(guideOption.getAttribute('data-twelve-hour-price') || '0') || 0, sell: parseFloat(guideOption.getAttribute('data-twelve-hour-price') || '0') || 0 };
+                const defaultCost = _gp.cost;
+                const defaultPrice = _gp.sell;
                 
                 console.log('Creating linked guide:', {
                     guideId: guideId,
                     guideName: guideName,
-                    priceAttr: priceAttr,
+                    defaultCost: defaultCost,
                     defaultPrice: defaultPrice,
                     adultsQty: adultsQty,
                     childQty: childQty
@@ -18737,15 +18852,15 @@
                 };
                 
                 // Guide price is fixed for 12 hours, not dependent on pax
-                // Use the 12-hour price directly without multiplying by pax
-                const adultCost = defaultPrice;
+                // Use the 12-hour cost/sell directly without multiplying by pax
+                const adultCost = defaultCost;
                 const adultSell = defaultPrice;
-                const childCost = defaultPrice; // Same price for children
-                const childSell = defaultPrice; // Same price for children
+                const childCost = defaultCost;
+                const childSell = defaultPrice;
                 
                 // Total cost and sell - guide price is fixed, not per person
-                const totalCost = defaultPrice; // Fixed price for 12 hours, not multiplied by pax
-                const totalSell = defaultPrice; // Fixed price for 12 hours, not multiplied by pax
+                const totalCost = defaultCost;
+                const totalSell = defaultPrice;
                 
                 // Add guide(s) to guide list based on quantity
                 guideEntryId = generateId('guide');
@@ -18781,7 +18896,9 @@
             let guide_options = null;
             if (guideChecked && guideId && guideInfo) {
                 const guideOption = guideSelect.options[guideSelect.selectedIndex];
-                const guidePrice = parseFloat(guideOption.getAttribute('data-twelve-hour-price') || '0') || 0;
+                const _gpOpt = (typeof resolveGuideCostSellFromOption === 'function')
+                    ? resolveGuideCostSellFromOption(guideOption, 12)
+                    : { cost: parseFloat(guideOption.getAttribute('data-twelve-hour-price') || '0') || 0, sell: parseFloat(guideOption.getAttribute('data-twelve-hour-price') || '0') || 0 };
                 
                 guide_options = {
                     guideId: guideId,
@@ -18800,8 +18917,8 @@
                     child_qty: childQty,
                     childrenQty: childQty,
                     children_qty: childQty,
-                    cost: guidePrice,
-                    sell: guidePrice,
+                    cost: _gpOpt.cost,
+                    sell: _gpOpt.sell,
                     serviceType: 'Full Day',
                     service_type: 'Full Day',
                     tourActivity: `${attractionName} - ${guideName}`,
@@ -19828,8 +19945,102 @@
     }
     
     // Update guide table
+    /**
+     * Lookup guide cost/sell from server-rendered map (authoritative DB tiers).
+     */
+    function lookupGuidePriceFromMap(guideIdOrName, hours) {
+        hours = String(parseInt(hours, 10) || 12);
+        const map = window.enquiryProGuidePriceMap || {};
+        let entry = map[String(guideIdOrName || '')] || null;
+        if (!entry && guideIdOrName) {
+            const needle = String(guideIdOrName).trim().toLowerCase();
+            entry = Object.values(map).find(function (e) {
+                return String(e.name || '').trim().toLowerCase() === needle;
+            }) || null;
+        }
+        if (!entry) return { cost: 0, sell: 0 };
+        const tier = entry[hours] || entry['12'] || { cost: 0, sell: 0 };
+        return {
+            cost: parseFloat(tier.cost) || 0,
+            sell: parseFloat(tier.sell) || 0
+        };
+    }
+    window.lookupGuidePriceFromMap = lookupGuidePriceFromMap;
+
+    /** Fill missing guideList.cost from DB map (fixes COST=0 after prior saves / missing option attrs). */
+    function hydrateGuideListCostsFromMap() {
+        if (!Array.isArray(guideList)) return;
+        guideList.forEach(function (g) {
+            const hours = parseInt(g.hours || 12, 10) || 12;
+            const curCost = parseFloat(g.cost) || 0;
+            const curSell = parseFloat(g.sell) || 0;
+            if (curCost > 0 && curSell > 0) return;
+            const fromMap = lookupGuidePriceFromMap(
+                g.guideId || g.guide_id || g.guideName || g.name,
+                hours
+            );
+            if (curCost <= 0 && fromMap.cost > 0) {
+                g.cost = fromMap.cost;
+                if (!(parseFloat(g.adultCost) > 0)) g.adultCost = fromMap.cost;
+            }
+            if (curSell <= 0 && fromMap.sell > 0) {
+                g.sell = fromMap.sell;
+                if (!(parseFloat(g.adultSell) > 0)) g.adultSell = fromMap.sell;
+            }
+        });
+    }
+    window.hydrateGuideListCostsFromMap = hydrateGuideListCostsFromMap;
+
+    /**
+     * Resolve guide cost vs sell from <option> data attributes (hourly tiers).
+     * Pro arrival/departure always use 12h; restaurant/local may pass selected hours.
+     * Falls back to enquiryProGuidePriceMap when option attrs are missing/0.
+     */
+    function resolveGuideCostSellFromOption(option, hours) {
+        hours = parseInt(hours, 10) || 12;
+        const sellAttrs = {
+            2: 'data-two-hour-price',
+            4: 'data-four-hour-price',
+            6: 'data-six-hour-price',
+            8: 'data-eight-hour-price',
+            10: 'data-ten-hour-price',
+            12: 'data-twelve-hour-price'
+        };
+        const costAttrs = {
+            2: 'data-two-hour-cost-price',
+            4: 'data-four-hour-cost-price',
+            6: 'data-six-hour-cost-price',
+            8: 'data-eight-hour-cost-price',
+            10: 'data-ten-hour-cost-price',
+            12: 'data-twelve-hour-cost-price'
+        };
+        const sellAttr = sellAttrs[hours] || sellAttrs[12];
+        const costAttr = costAttrs[hours] || costAttrs[12];
+        let sell = parseFloat(option?.getAttribute(sellAttr) || option?.dataset?.twelveHourPrice || '0') || 0;
+        let cost = parseFloat(option?.getAttribute(costAttr) || option?.dataset?.twelveHourCostPrice || '0') || 0;
+        if (sell <= 0) {
+            sell = parseFloat(option?.getAttribute('data-twelve-hour-price') || option?.dataset?.twelveHourPrice || '0') || 0;
+        }
+        if (cost <= 0) {
+            cost = parseFloat(option?.getAttribute('data-twelve-hour-cost-price') || option?.dataset?.twelveHourCostPrice || '0') || 0;
+        }
+        if ((cost <= 0 || sell <= 0) && option) {
+            const fromMap = lookupGuidePriceFromMap(
+                option.value || option.getAttribute('data-name') || '',
+                hours
+            );
+            if (cost <= 0 && fromMap.cost > 0) cost = fromMap.cost;
+            if (sell <= 0 && fromMap.sell > 0) sell = fromMap.sell;
+        }
+        return { cost: cost, sell: sell };
+    }
+    window.resolveGuideCostSellFromOption = resolveGuideCostSellFromOption;
+
     function updateGuideTable() {
         try { window.updateEnquirySubmitButton && window.updateEnquirySubmitButton(); } catch (e) { /* ignore */ }
+        if (typeof hydrateGuideListCostsFromMap === 'function') {
+            hydrateGuideListCostsFromMap();
+        }
         const tbody = document.getElementById('guideTableBody');
         const table = document.getElementById('guideTable');
         const emptyMessage = document.getElementById('emptyGuideMessage');
@@ -20278,7 +20489,13 @@
                 
                 // Render items
                 itemsTableBody.innerHTML = items.map(item => `
-                    <tr class="misc-item-row" data-item-id="misc_${item.mis_id}" data-item-name="${item.item_name}" data-mis-id="${item.mis_id}">
+                    <tr class="misc-item-row" data-item-id="misc_${item.mis_id}" data-item-name="${item.item_name}" data-mis-id="${item.mis_id}"
+                        data-adult-cost="${parseFloat(item.adult_cost || 0)}"
+                        data-child-cost="${parseFloat(item.child_cost || 0)}"
+                        data-infant-cost="${parseFloat(item.infant_cost || 0)}"
+                        data-adult-sell="${parseFloat(item.adult_price || 0)}"
+                        data-child-sell="${parseFloat(item.child_price || 0)}"
+                        data-infant-sell="${parseFloat(item.infant_price || 0)}">
                         <td style="padding: 2px 8px; text-align: center;">
                             <input type="checkbox" class="misc-item-checkbox" data-item-id="misc_${item.mis_id}">
                         </td>
@@ -20291,19 +20508,19 @@
                             <input type="number" class="form-control form-control-sm misc-adult-qty" data-item-id="misc_${item.mis_id}" value="0" min="0" style="font-size: 10px; padding: 2px 4px; text-align: center;">
                         </td>
                         <td style="padding: 2px 8px;">
-                            <input type="text" class="form-control form-control-sm misc-adult-charge" data-item-id="misc_${item.mis_id}" value="${parseFloat(item.adult_price || 0).toFixed(2)}" style="font-size: 10px; padding: 2px 4px;">
+                            <input type="text" class="form-control form-control-sm misc-adult-charge" data-item-id="misc_${item.mis_id}" value="${parseFloat(item.adult_price || 0).toFixed(2)}" style="font-size: 10px; padding: 2px 4px;" title="Sell price (adult)">
                         </td>
                         <td style="padding: 2px 8px;">
                             <input type="number" class="form-control form-control-sm misc-child-qty" data-item-id="misc_${item.mis_id}" value="0" min="0" style="font-size: 10px; padding: 2px 4px; text-align: center;">
                         </td>
                         <td style="padding: 2px 8px;">
-                            <input type="text" class="form-control form-control-sm misc-child-charge" data-item-id="misc_${item.mis_id}" value="${parseFloat(item.child_price || 0).toFixed(2)}" style="font-size: 10px; padding: 2px 4px;">
+                            <input type="text" class="form-control form-control-sm misc-child-charge" data-item-id="misc_${item.mis_id}" value="${parseFloat(item.child_price || 0).toFixed(2)}" style="font-size: 10px; padding: 2px 4px;" title="Sell price (child)">
                         </td>
                         <td style="padding: 2px 8px;">
                             <input type="number" class="form-control form-control-sm misc-infant-qty" data-item-id="misc_${item.mis_id}" value="0" min="0" style="font-size: 10px; padding: 2px 4px; text-align: center;">
                         </td>
                         <td style="padding: 2px 8px;">
-                            <input type="text" class="form-control form-control-sm misc-infant-charge" data-item-id="misc_${item.mis_id}" value="${parseFloat(item.infant_price || 0).toFixed(2)}" style="font-size: 10px; padding: 2px 4px;">
+                            <input type="text" class="form-control form-control-sm misc-infant-charge" data-item-id="misc_${item.mis_id}" value="${parseFloat(item.infant_price || 0).toFixed(2)}" style="font-size: 10px; padding: 2px 4px;" title="Sell price (infant)">
                         </td>
                         <td style="padding: 2px 8px; text-align: center;" class="group-foc-service-discount-ui">
                             <input type="checkbox" class="form-check-input misc-foc-discount" data-item-id="misc_${item.mis_id}" title="FOC discount (this item)">
@@ -20389,19 +20606,21 @@
             const infantQty = parseInt(row.querySelector('.misc-infant-qty').value) || 0;
             const infantCharge = row.querySelector('.misc-infant-charge').value || '0.00';
             const focServiceDiscount = row.querySelector('.misc-foc-discount')?.checked === true;
+            const misId = parseInt(row.getAttribute('data-mis-id') || '0', 10) || 0;
             
-            // Parse charges
-            const adultCost = parseFloat(adultCharge.replace(/[^0-9.]/g, '')) || 0;
-            const adultSell = adultCost;
-            const childCost = parseFloat(childCharge.replace(/[^0-9.]/g, '')) || 0;
-            const childSell = childCost;
-            const infantCost = parseFloat(infantCharge.replace(/[^0-9.]/g, '')) || 0;
-            const infantSell = infantCost;
+            // Charge inputs = sell; unit cost from DB attrs on the row
+            const adultSell = parseFloat(String(adultCharge).replace(/[^0-9.]/g, '')) || 0;
+            const childSell = parseFloat(String(childCharge).replace(/[^0-9.]/g, '')) || 0;
+            const infantSell = parseFloat(String(infantCharge).replace(/[^0-9.]/g, '')) || 0;
+            const adultCost = parseFloat(row.getAttribute('data-adult-cost') || '0') || 0;
+            const childCost = parseFloat(row.getAttribute('data-child-cost') || '0') || 0;
+            const infantCost = parseFloat(row.getAttribute('data-infant-cost') || '0') || 0;
             
             // Update the existing item
             miscList[window.editingMiscIndex] = {
                 id: miscList[window.editingMiscIndex].id, // Keep existing ID
                 itemId: itemId,
+                mis_id: misId || miscList[window.editingMiscIndex].mis_id || null,
                 itemName: itemName,
                 destination: destination,
                 dateTime: dateTime,
@@ -20438,18 +20657,19 @@
                 const infantQty = parseInt(row.querySelector('.misc-infant-qty').value) || 0;
                 const infantCharge = row.querySelector('.misc-infant-charge').value || '0.00';
                 const focServiceDiscount = row.querySelector('.misc-foc-discount')?.checked === true;
+                const misId = parseInt(row.getAttribute('data-mis-id') || '0', 10) || 0;
                 
-                // Parse charges
-                const adultCost = parseFloat(adultCharge.replace(/[^0-9.]/g, '')) || 0;
-                const adultSell = adultCost;
-                const childCost = parseFloat(childCharge.replace(/[^0-9.]/g, '')) || 0;
-                const childSell = childCost;
-                const infantCost = parseFloat(infantCharge.replace(/[^0-9.]/g, '')) || 0;
-                const infantSell = infantCost;
+                const adultSell = parseFloat(String(adultCharge).replace(/[^0-9.]/g, '')) || 0;
+                const childSell = parseFloat(String(childCharge).replace(/[^0-9.]/g, '')) || 0;
+                const infantSell = parseFloat(String(infantCharge).replace(/[^0-9.]/g, '')) || 0;
+                const adultCost = parseFloat(row.getAttribute('data-adult-cost') || '0') || 0;
+                const childCost = parseFloat(row.getAttribute('data-child-cost') || '0') || 0;
+                const infantCost = parseFloat(row.getAttribute('data-infant-cost') || '0') || 0;
                 
                 const miscData = {
                     id: generateId('misc'),
                     itemId: itemId,
+                    mis_id: misId || null,
                     itemName: itemName,
                     destination: destination,
                     dateTime: dateTime,
@@ -20598,11 +20818,11 @@
                 };
                 
                 setVal('.misc-adult-qty', typeof clampTourSitePaxQty === 'function' ? clampTourSitePaxQty(item.adultsQty, 'adult') : item.adultsQty);
-                setVal('.misc-adult-charge', parseFloat(String(item.adultCost || 0).replace(/[^0-9.-]/g, '') || 0).toFixed(2));
+                setVal('.misc-adult-charge', parseFloat(String(item.adultSell || item.adultCost || 0).replace(/[^0-9.-]/g, '') || 0).toFixed(2));
                 setVal('.misc-child-qty', typeof clampTourSitePaxQty === 'function' ? clampTourSitePaxQty(item.childQty, 'child') : item.childQty);
-                setVal('.misc-child-charge', parseFloat(String(item.childCost || 0).replace(/[^0-9.-]/g, '') || 0).toFixed(2));
+                setVal('.misc-child-charge', parseFloat(String(item.childSell || item.childCost || 0).replace(/[^0-9.-]/g, '') || 0).toFixed(2));
                 setVal('.misc-infant-qty', item.infantQty);
-                setVal('.misc-infant-charge', parseFloat(String(item.infantCost || 0).replace(/[^0-9.-]/g, '') || 0).toFixed(2));
+                setVal('.misc-infant-charge', parseFloat(String(item.infantSell || item.infantCost || 0).replace(/[^0-9.-]/g, '') || 0).toFixed(2));
                 const mFoc = targetRow.querySelector(`.misc-foc-discount[data-item-id="${itemId}"]`);
                 if (mFoc) mFoc.checked = !!(item.focServiceDiscount || item.foc_service_discount);
                 
@@ -22096,37 +22316,18 @@
                 const guideOption = guideSelect.selectedOptions[0];
                 const hoursSelect = document.getElementById('restaurantGuideHours');
                 const hours = parseInt(hoursSelect?.value || '12') || 12;
-                
-                // Calculate price based on hours
-                let price = 0;
-                switch(hours) {
-                    case 2:
-                        price = parseFloat(guideOption?.getAttribute('data-two-hour-price') || '0') || 0;
-                        break;
-                    case 4:
-                        price = parseFloat(guideOption?.getAttribute('data-four-hour-price') || '0') || 0;
-                        break;
-                    case 6:
-                        price = parseFloat(guideOption?.getAttribute('data-six-hour-price') || '0') || 0;
-                        break;
-                    case 8:
-                        price = parseFloat(guideOption?.getAttribute('data-eight-hour-price') || '0') || 0;
-                        break;
-                    case 10:
-                        price = parseFloat(guideOption?.getAttribute('data-ten-hour-price') || '0') || 0;
-                        break;
-                    case 12:
-                    default:
-                        price = parseFloat(guideOption?.getAttribute('data-twelve-hour-price') || '0') || 0;
-                        break;
-                }
+                const _rgp = (typeof resolveGuideCostSellFromOption === 'function')
+                    ? resolveGuideCostSellFromOption(guideOption, hours)
+                    : { cost: 0, sell: 0 };
+                const price = _rgp.sell;
+                const guideCostPrice = _rgp.cost;
                 
                 guideInfo = {
                     guideId: guideId,
                     guideName: guideOption?.getAttribute('data-name') || guideOption?.text || '',
                     languages: guideOption?.getAttribute('data-languages') || ''
                 };
-                console.log('Guide selected:', guideInfo, 'Hours:', hours, 'Price:', price);
+                console.log('Guide selected:', guideInfo, 'Hours:', hours, 'Cost:', guideCostPrice, 'Sell:', price);
                 
                 // If guide changed or newly added, update guideList
                 if (oldMeal.guideId !== guideId) {
@@ -22148,7 +22349,7 @@
                             guideName: guideInfo.guideName,
                             guideId: guideInfo.guideId,
                             hours: hours,
-                            cost: price,
+                            cost: guideCostPrice,
                             sell: price,
                             supplement: false,
                             isStandalone: false,
@@ -22166,7 +22367,7 @@
                     const existingGuideIndex = guideList.findIndex(g => String(g.id) === String(oldMeal.guideId));
                     if (existingGuideIndex !== -1) {
                         guideList[existingGuideIndex].hours = hours;
-                        guideList[existingGuideIndex].cost = price;
+                        guideList[existingGuideIndex].cost = guideCostPrice;
                         guideList[existingGuideIndex].sell = price;
                         guideList[existingGuideIndex].adultsQty = restaurantGuideAdultQty;
                         guideList[existingGuideIndex].childQty = restaurantGuideChildQty;
@@ -22187,30 +22388,14 @@
                 const guideOptionForPrice = guideSelect.selectedOptions[0];
                 const hoursSelect = document.getElementById('restaurantGuideHours');
                 const hours = parseInt(hoursSelect?.value || '12') || 12;
-                let price = 0;
-                switch(hours) {
-                    case 2:
-                        price = parseFloat(guideOptionForPrice?.getAttribute('data-two-hour-price') || '0') || 0;
-                        break;
-                    case 4:
-                        price = parseFloat(guideOptionForPrice?.getAttribute('data-four-hour-price') || '0') || 0;
-                        break;
-                    case 6:
-                        price = parseFloat(guideOptionForPrice?.getAttribute('data-six-hour-price') || '0') || 0;
-                        break;
-                    case 8:
-                        price = parseFloat(guideOptionForPrice?.getAttribute('data-eight-hour-price') || '0') || 0;
-                        break;
-                    case 10:
-                        price = parseFloat(guideOptionForPrice?.getAttribute('data-ten-hour-price') || '0') || 0;
-                        break;
-                    case 12:
-                    default:
-                        price = parseFloat(guideOptionForPrice?.getAttribute('data-twelve-hour-price') || '0') || 0;
-                        break;
-                }
+                const _rgpOpt = (typeof resolveGuideCostSellFromOption === 'function')
+                    ? resolveGuideCostSellFromOption(guideOptionForPrice, hours)
+                    : { cost: 0, sell: 0 };
+                const price = _rgpOpt.sell;
+                const guideCostPriceOpt = _rgpOpt.cost;
                 
                 guide_options = {
+                    guide_required: true,
                     guideId: guideInfo.guideId,
                     guide_id: guideInfo.guideId,
                     guideName: guideInfo.guideName,
@@ -22227,7 +22412,7 @@
                     child_qty: restaurantGuideChildQty,
                     childrenQty: restaurantGuideChildQty,
                     children_qty: restaurantGuideChildQty,
-                    cost: price,
+                    cost: guideCostPriceOpt,
                     sell: price,
                     serviceType: hours >= 12 ? 'Full Day' : 'Half Day',
                     service_type: hours >= 12 ? 'Full Day' : 'Half Day',
@@ -22487,30 +22672,11 @@
                 const guideOption = guideSelect.selectedOptions[0];
                 const hoursSelect = document.getElementById('restaurantGuideHours');
                 const hours = parseInt(hoursSelect?.value || '12') || 12;
-                
-                // Calculate price based on hours
-                let price = 0;
-                switch(hours) {
-                    case 2:
-                        price = parseFloat(guideOption?.getAttribute('data-two-hour-price') || '0') || 0;
-                        break;
-                    case 4:
-                        price = parseFloat(guideOption?.getAttribute('data-four-hour-price') || '0') || 0;
-                        break;
-                    case 6:
-                        price = parseFloat(guideOption?.getAttribute('data-six-hour-price') || '0') || 0;
-                        break;
-                    case 8:
-                        price = parseFloat(guideOption?.getAttribute('data-eight-hour-price') || '0') || 0;
-                        break;
-                    case 10:
-                        price = parseFloat(guideOption?.getAttribute('data-ten-hour-price') || '0') || 0;
-                        break;
-                    case 12:
-                    default:
-                        price = parseFloat(guideOption?.getAttribute('data-twelve-hour-price') || '0') || 0;
-                        break;
-                }
+                const _rgpNew = (typeof resolveGuideCostSellFromOption === 'function')
+                    ? resolveGuideCostSellFromOption(guideOption, hours)
+                    : { cost: 0, sell: 0 };
+                const price = _rgpNew.sell;
+                const guideCostPrice = _rgpNew.cost;
                 
                 // Create guide entry for guide table (ONE guide entry for all meals at this restaurant)
                 // Generate guideEntryId FIRST so we can include it in guideInfo
@@ -22522,7 +22688,7 @@
                     guideName: guideOption?.getAttribute('data-name') || guideOption?.text || '',
                     languages: guideOption?.getAttribute('data-languages') || '',
                     hours: hours,
-                    cost: price,
+                    cost: guideCostPrice,
                     sell: price,
                     adultsQty: restaurantGuideAdultQty,
                     childQty: restaurantGuideChildQty
@@ -22578,17 +22744,14 @@
                     const hoursSelect = document.getElementById('restaurantGuideHours');
                     const hours = parseInt(hoursSelect?.value || '12') || 12;
                     const guideOption = guideSelect.selectedOptions[0];
-                    let price = 0;
-                    switch(hours) {
-                        case 2: price = parseFloat(guideOption?.getAttribute('data-two-hour-price') || '0') || 0; break;
-                        case 4: price = parseFloat(guideOption?.getAttribute('data-four-hour-price') || '0') || 0; break;
-                        case 6: price = parseFloat(guideOption?.getAttribute('data-six-hour-price') || '0') || 0; break;
-                        case 8: price = parseFloat(guideOption?.getAttribute('data-eight-hour-price') || '0') || 0; break;
-                        case 10: price = parseFloat(guideOption?.getAttribute('data-ten-hour-price') || '0') || 0; break;
-                        case 12: default: price = parseFloat(guideOption?.getAttribute('data-twelve-hour-price') || '0') || 0; break;
-                    }
+                    const _rgpMulti = (typeof resolveGuideCostSellFromOption === 'function')
+                        ? resolveGuideCostSellFromOption(guideOption, hours)
+                        : { cost: 0, sell: 0 };
+                    const price = _rgpMulti.sell;
+                    const guideCostPrice = _rgpMulti.cost;
                     
                     guide_options = {
+                        guide_required: true,
                         guideId: guideInfo.guideId, guide_id: guideInfo.guideId,
                         guideName: guideInfo.guideName, guide_name: guideInfo.guideName, name: guideInfo.guideName,
                         languages: guideInfo.languages, language: guideInfo.languages,
@@ -22597,7 +22760,7 @@
                         adultQty: restaurantGuideAdultQty, adult_qty: restaurantGuideAdultQty,
                         childQty: restaurantGuideChildQty, child_qty: restaurantGuideChildQty,
                         childrenQty: restaurantGuideChildQty, children_qty: restaurantGuideChildQty,
-                        cost: price, sell: price,
+                        cost: guideCostPrice, sell: price,
                         serviceType: hours >= 12 ? 'Full Day' : 'Half Day',
                         service_type: hours >= 12 ? 'Full Day' : 'Half Day',
                         tourActivity: `Restaurant Guide - ${restaurantName}`,
@@ -24967,30 +25130,11 @@
                 const guideOption = guideSelect.selectedOptions[0];
                 const hoursSelect = document.getElementById('localTransportGuideHours');
                 const hours = parseInt(hoursSelect?.value || '12') || 12;
-                
-                // Calculate price based on hours
-                let price = 0;
-                switch(hours) {
-                    case 2:
-                        price = parseFloat(guideOption?.getAttribute('data-two-hour-price') || '0') || 0;
-                        break;
-                    case 4:
-                        price = parseFloat(guideOption?.getAttribute('data-four-hour-price') || '0') || 0;
-                        break;
-                    case 6:
-                        price = parseFloat(guideOption?.getAttribute('data-six-hour-price') || '0') || 0;
-                        break;
-                    case 8:
-                        price = parseFloat(guideOption?.getAttribute('data-eight-hour-price') || '0') || 0;
-                        break;
-                    case 10:
-                        price = parseFloat(guideOption?.getAttribute('data-ten-hour-price') || '0') || 0;
-                        break;
-                    case 12:
-                    default:
-                        price = parseFloat(guideOption?.getAttribute('data-twelve-hour-price') || '0') || 0;
-                        break;
-                }
+                const _ltgp = (typeof resolveGuideCostSellFromOption === 'function')
+                    ? resolveGuideCostSellFromOption(guideOption, hours)
+                    : { cost: 0, sell: 0 };
+                const price = _ltgp.sell;
+                const guideCostPrice = _ltgp.cost;
                 
                 guideInfo = {
                     guideId: guideId,
@@ -25022,7 +25166,7 @@
                         guideName: guideInfo.guideName,
                         guideId: guideInfo.guideId,
                         hours: hours,
-                        cost: price,
+                        cost: guideCostPrice,
                         sell: price,
                         supplement: false,
                         isStandalone: false,
@@ -27390,6 +27534,26 @@
         }
         return fromInfo;
     }
+
+    /** Attraction transfer for order JSON — same fallback as meal (transferList + transferInfo). */
+    function getTourLinkedTransferForOrder(tour) {
+        if (!tour) return null;
+        const fromList = tour.transferId
+            ? (transferList.find(t => String(t.id) === String(tour.transferId)) || null)
+            : null;
+        const fromInfo = tour.transferInfo && Object.keys(tour.transferInfo).length > 0 ? tour.transferInfo : null;
+        if (fromList) {
+            return fromInfo ? Object.assign({}, fromInfo, fromList) : fromList;
+        }
+        return fromInfo;
+    }
+
+    function normalizeAttractionTransferTypeLabel(type) {
+        const t = String(type || '').toLowerCase().trim();
+        if (t === 's' || t === 'shared' || t === 'sic') return 'Shared';
+        if (t === 'p' || t === 'private') return 'Private';
+        return 'Private';
+    }
     
     // Transform arrival/departure data to required format
     async function transformArrivalDepartureData() {
@@ -27567,8 +27731,8 @@
                         const lastEntry = entryPortData[entryPortData.length - 1];
                         lastEntry.guide_options = {
                             guide_required: true,
-                            guideId: linkedGuide.guide_id || '',
-                            guide_id: linkedGuide.guide_id || '',
+                            guideId: linkedGuide.guideId || linkedGuide.guide_id || '',
+                            guide_id: linkedGuide.guideId || linkedGuide.guide_id || '',
                             guideName: linkedGuide.name || linkedGuide.guideName || '',
                             guide_name: linkedGuide.name || linkedGuide.guideName || '',
                             name: linkedGuide.name || linkedGuide.guideName || '',
@@ -27723,8 +27887,8 @@
                         const lastEntry = exitPortData[exitPortData.length - 1];
                         lastEntry.guide_options = {
                             guide_required: true,
-                            guideId: linkedGuide.guide_id || '',
-                            guide_id: linkedGuide.guide_id || '',
+                            guideId: linkedGuide.guideId || linkedGuide.guide_id || '',
+                            guide_id: linkedGuide.guideId || linkedGuide.guide_id || '',
                             guideName: linkedGuide.name || linkedGuide.guideName || '',
                             guide_name: linkedGuide.name || linkedGuide.guideName || '',
                             name: linkedGuide.name || linkedGuide.guideName || '',
@@ -28325,37 +28489,41 @@
             };
             
             // Add transfer_options if attraction has linked transfer
-            if (tour.transferId) {
-                const linkedTransfer = transferList.find(t => t.id === tour.transferId);
-                if (linkedTransfer) {
-                    // IMPORTANT: Use pickup and dropoff from transfer object (MUST respect "Is PickUp?" checkbox)
-                    const pickupName = linkedTransfer.pickup || '';
-                    const dropoffName = linkedTransfer.dropoff || '';
-                    const baseCost = parseFloat(linkedTransfer.cost) || 0;
-                    const baseSell = parseFloat(linkedTransfer.sell) || 0;
-                    const basePrice = baseSell || baseCost;
-                    const adults = parseInt(linkedTransfer.adults || linkedTransfer.adultsQty || 0) || 0;
-                    const child = parseInt(linkedTransfer.child || linkedTransfer.childQty || 0) || 0;
-                    const totalPax = Math.max(1, adults + child);
-                    const typeVal = String(linkedTransfer.type || '').toLowerCase();
-                    const isShared = (typeVal === 's' || typeVal === 'shared' || typeVal === 'sic');
-                    const transferTotalPrice = isShared ? (basePrice * totalPax) : basePrice;
-                    tourData.transfer_options = {
-                        transfer_required: true,
-                        type: linkedTransfer.type === 'P' ? 'Private' : (linkedTransfer.type === 'S' ? 'Shared' : 'Private'),
-                        way: linkedTransfer.way || 'one-way',
-                        vehicle_id: linkedTransfer.vehicleId || '',
-                        vehicle_details: {
-                            vehicle_name: linkedTransfer.vehicleName || '',
-                            vehicle_type: linkedTransfer.vehicleType || '',
-                            seating_capacity: linkedTransfer.capacity || 0
-                        },
+            const linkedTransfer = getTourLinkedTransferForOrder(tour);
+            if (linkedTransfer) {
+                // IMPORTANT: Use pickup and dropoff from transfer object (MUST respect "Is PickUp?" checkbox)
+                const pickupName = linkedTransfer.pickup || '';
+                const dropoffName = linkedTransfer.dropoff || '';
+                const baseCost = parseFloat(linkedTransfer.cost) || 0;
+                const baseSell = parseFloat(linkedTransfer.sell) || 0;
+                const basePrice = baseSell || baseCost;
+                let adults = parseInt(linkedTransfer.adults || linkedTransfer.adultsQty || 0) || 0;
+                let child = parseInt(linkedTransfer.child || linkedTransfer.childQty || 0) || 0;
+                if (adults <= 0 && child <= 0) {
+                    adults = parseInt(tour.adultsQty || tour.adultCount || 0) || 0;
+                    child = parseInt(tour.childQty || tour.childCount || 0) || 0;
+                }
+                const totalPax = Math.max(1, adults + child);
+                const typeLabel = normalizeAttractionTransferTypeLabel(linkedTransfer.type || linkedTransfer.transferType);
+                const isShared = typeLabel === 'Shared';
+                const transferTotalPrice = isShared ? (basePrice * totalPax) : basePrice;
+                tourData.Selection = 'withTransport';
+                tourData.transfer_options = {
+                    transfer_required: true,
+                    type: typeLabel,
+                    way: linkedTransfer.way || 'one-way',
+                    vehicle_id: linkedTransfer.vehicleId || linkedTransfer.vehicle_id || '',
+                    vehicle_details: {
+                        vehicle_name: linkedTransfer.vehicleName || '',
+                        vehicle_type: linkedTransfer.vehicleType || '',
+                        seating_capacity: linkedTransfer.capacity || 0
+                    },
                     cost: parseFloat(baseCost) || 0,
                     sell: parseFloat(baseSell) || parseFloat(baseCost) || 0,
                     totalPrice: transferTotalPrice,
-                    ...enquiryProOrderDiscountPayload(linkedTransfer, () => computeTransferOptionsDiscountAmount(linkedTransfer, true)),
                     adults: adults,
                     child: child,
+                    children: child,
                     pickup_location_name: pickupName,
                     destination_name: dropoffName,
                     zonePrivatePrice: parseFloat(linkedTransfer.zonePrivatePrice) || 0,
@@ -28365,40 +28533,42 @@
                     pickupId: linkedTransfer.pickupId || '',
                     dropId: linkedTransfer.dropId || linkedTransfer.dropoffId || '',
                     pickupType: linkedTransfer.pickupType || '',
-                    dropType: linkedTransfer.dropType || linkedTransfer.dropoffType || ''
-                    };
-                    tourData.transferInfo = {
-                        id: linkedTransfer.id,
-                        destination: linkedTransfer.destination || dropoffName,
-                        destinationId: linkedTransfer.destinationId || null,
-                        vehicleId: linkedTransfer.vehicleId,
-                        vehicleName: linkedTransfer.vehicleName,
-                        vehicleType: linkedTransfer.vehicleType,
-                        type: linkedTransfer.type,
-                        way: linkedTransfer.way,
-                        pickup: pickupName,
-                        dropoff: dropoffName,
-                        isDestinationPickup: linkedTransfer.isDestinationPickup || false,
-                        cost: parseFloat(baseCost) || 0,
-                        sell: parseFloat(baseSell) || parseFloat(baseCost) || 0,
-                        totalPrice: transferTotalPrice,
-                        adults: adults,
-                        child: child
-                    };
-                }
+                    dropType: linkedTransfer.dropType || linkedTransfer.dropoffType || '',
+                    ...enquiryProOrderDiscountPayload(linkedTransfer, () => computeTransferOptionsDiscountAmount(linkedTransfer, true))
+                };
+                tourData.transferInfo = {
+                    id: linkedTransfer.id || tour.transferId || null,
+                    destination: linkedTransfer.destination || dropoffName,
+                    destinationId: linkedTransfer.destinationId || null,
+                    vehicleId: linkedTransfer.vehicleId,
+                    vehicleName: linkedTransfer.vehicleName,
+                    vehicleType: linkedTransfer.vehicleType,
+                    type: linkedTransfer.type || (isShared ? 'S' : 'P'),
+                    way: linkedTransfer.way,
+                    pickup: pickupName,
+                    dropoff: dropoffName,
+                    isDestinationPickup: linkedTransfer.isDestinationPickup || false,
+                    cost: parseFloat(baseCost) || 0,
+                    sell: parseFloat(baseSell) || parseFloat(baseCost) || 0,
+                    totalPrice: transferTotalPrice,
+                    adults: adults,
+                    child: child,
+                    zonePrivateCostPrice: parseFloat(linkedTransfer.zonePrivateCostPrice) || 0,
+                    zoneSharedCostPrice: parseFloat(linkedTransfer.zoneSharedCostPrice) || 0
+                };
             }
             
             // Add guide_options if attraction has linked guide
             if (tour.guideId) {
-                const linkedGuide = guideList.find(g => g.id === tour.guideId);
+                const linkedGuide = guideList.find(g => String(g.id) === String(tour.guideId));
                 if (linkedGuide) {
                     tourData.guide_options = {
                         guide_required: true,
-                        guideId: linkedGuide.guide_id || '',
-                        guide_id: linkedGuide.guide_id || '',
-                        guideName: linkedGuide.name || '',
-                        guide_name: linkedGuide.name || '',
-                        name: linkedGuide.name || '',
+                        guideId: linkedGuide.guideId || linkedGuide.guide_id || '',
+                        guide_id: linkedGuide.guideId || linkedGuide.guide_id || '',
+                        guideName: linkedGuide.name || linkedGuide.guideName || '',
+                        guide_name: linkedGuide.name || linkedGuide.guideName || '',
+                        name: linkedGuide.name || linkedGuide.guideName || '',
                         hours: parseInt(linkedGuide.hours) || 12,
                         service_hours: parseInt(linkedGuide.hours) || 12,
                         serviceType: linkedGuide.serviceType || 'Full Day',
@@ -28423,8 +28593,8 @@
                     };
                     tourData.guideInfo = {
                         id: linkedGuide.id,
-                        guide_id: linkedGuide.guide_id,
-                        guideId: linkedGuide.guide_id,
+                        guide_id: linkedGuide.guideId || linkedGuide.guide_id,
+                        guideId: linkedGuide.guideId || linkedGuide.guide_id,
                         name: linkedGuide.name,
                         guideName: linkedGuide.name,
                         language: linkedGuide.language,
@@ -28594,10 +28764,22 @@
                 );
                 // Use guide_options if it exists, otherwise build from guideSource
                 if (meal.guide_options && Object.keys(meal.guide_options).length > 0) {
-                    mealData.guide_options = { ...meal.guide_options, ...guideDiscPayload };
+                    mealData.guide_options = {
+                        guide_required: true,
+                        guideId: meal.guide_options.guideId || meal.guide_options.guide_id || guideSource.guideId || guideSource.guide_id || '',
+                        guide_id: meal.guide_options.guide_id || meal.guide_options.guideId || guideSource.guideId || guideSource.guide_id || '',
+                        ...meal.guide_options,
+                        ...guideDiscPayload
+                    };
+                    // Ensure required keys survive spread overrides
+                    mealData.guide_options.guide_required = true;
+                    mealData.guide_options.guideId = mealData.guide_options.guideId || mealData.guide_options.guide_id || '';
+                    mealData.guide_options.guide_id = mealData.guide_options.guide_id || mealData.guide_options.guideId || '';
                 } else {
                     mealData.guide_options = {
+                        guide_required: true,
                         guideId: guideSource.guideId || guideSource.guide_id || '',
+                        guide_id: guideSource.guideId || guideSource.guide_id || '',
                         guideName: guideSource.guideName || guideSource.guide_name || guideSource.name || '',
                         guide_name: guideSource.guideName || guideSource.guide_name || guideSource.name || '',
                         name: guideSource.guideName || guideSource.guide_name || guideSource.name || '',
@@ -28984,6 +29166,7 @@
         return miscList.map(misc => ({
             id: misc.id || `misc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
             itemId: misc.itemId || '',
+            mis_id: misc.mis_id || (String(misc.itemId || '').match(/(\d+)\s*$/) || [])[1] || null,
             destination: misc.destination || '',
             bookingDate: normalizeDateToYYYYMMDD(misc.dateTime),
             itemName: misc.itemName || "",
@@ -29702,8 +29885,9 @@
                 } : null,
                 guide_options: linkedGuide ? {
                     guide_required: true,
-                    guide_id: linkedGuide.guide_id || "",
-                    guide_name: linkedGuide.name || "",
+                    guide_id: linkedGuide.guideId || linkedGuide.guide_id || "",
+                    guideId: linkedGuide.guideId || linkedGuide.guide_id || "",
+                    guide_name: linkedGuide.name || linkedGuide.guideName || "",
                     pickup_time: "",
                     package_hours: linkedGuide.hours || "12",
                     base_price: linkedGuide.cost || 0,
