@@ -463,9 +463,58 @@
         syncStayDatesWithTourWindow();
         collectPlans();
         updateServicesGate();
+        applyRestrictedStayLocks();
         if (!window.__stpLiteSkipCountrySections) {
             scheduleRenderCountrySections();
         }
+    }
+
+    function applyRestrictedStayLocks() {
+        if (!window.isRestrictedThirdParty || !window.isRestrictedThirdParty()) return;
+        document.querySelectorAll('#segmentsWrapper .segment').forEach(function (row) {
+            var country = String(row.getAttribute('data-country') || '').trim();
+            if (!country && window.resolveCountryForCity) {
+                country = String(window.resolveCountryForCity(row.getAttribute('data-city-name') || '') || '').trim();
+            }
+            var locked = window.isForeignLockedCountry && window.isForeignLockedCountry(country);
+            row.classList.toggle('is-tp-blocked', !!locked);
+            row.querySelectorAll('.start-date, .end-date, .city-return-toggle').forEach(function (el) {
+                el.disabled = !!locked;
+                if (locked) {
+                    el.title = 'Cannot change another country stay';
+                }
+            });
+        });
+    }
+
+    function applyRestrictedCountrySectionLocks() {
+        if (!window.isRestrictedThirdParty || !window.isRestrictedThirdParty()) return;
+        document.querySelectorAll('.stp-lite-country-section').forEach(function (section) {
+            var country = String(section.getAttribute('data-country') || '').trim();
+            if (!country && window.resolveCountryForCity) {
+                country = String(window.resolveCountryForCity(section.getAttribute('data-city-name') || '') || '').trim();
+            }
+            var locked = window.isForeignLockedCountry && window.isForeignLockedCountry(country);
+            section.classList.toggle('is-tp-blocked', !!locked);
+            section.querySelectorAll('.stp-lite-country-body input, .stp-lite-country-body select, .stp-lite-country-body textarea, .stp-lite-country-body button, .stp-lite-country-body a').forEach(function (el) {
+                if (el.type === 'hidden') return;
+                if (locked) {
+                    el.disabled = true;
+                    el.setAttribute('tabindex', '-1');
+                }
+            });
+            var header = section.querySelector('.stp-lite-country-header');
+            if (!header) return;
+            var note = header.querySelector('.stp-lite-tp-lock-note');
+            if (locked && !note) {
+                note = document.createElement('div');
+                note.className = 'stp-lite-tp-lock-note';
+                note.textContent = 'Other country — view only. You cannot change these services.';
+                header.appendChild(note);
+            } else if (!locked && note) {
+                note.remove();
+            }
+        });
     }
 
     function formatStayRange(start, end) {
@@ -612,6 +661,7 @@
 
         // Lazy-mount each service when its accordion opens (hotels/rooms load only then)
         wireLazyServiceMounts(host);
+        applyRestrictedCountrySectionLocks();
 
         if (window.StpLiteGuestCaps && typeof window.StpLiteGuestCaps.refreshGuestDependentUI === 'function') {
             window.StpLiteGuestCaps.refreshGuestDependentUI();

@@ -198,7 +198,27 @@ class EditTourController extends Controller
 
             $orders = Order::where('tour_id', $tour->tour_id)->get();
             $deletedCount = 0;
+            $tpScope = $this->resolveRestrictedThirdPartyScope();
             foreach ($orders as $order) {
+                if (!empty($tpScope['is_restricted'])) {
+                    $orderCountry = trim((string) ($order->country ?? ''));
+                    if ($orderCountry === '') {
+                        $payload = $order->data ?? null;
+                        if (is_string($payload)) {
+                            $decoded = json_decode($payload, true);
+                            $payload = (json_last_error() === JSON_ERROR_NONE) ? $decoded : [];
+                        }
+                        if (is_array($payload)) {
+                            $orderCountry = trim((string) ($payload['country'] ?? ''));
+                            if ($orderCountry === '' && is_array($payload['hotelDetails'] ?? null)) {
+                                $orderCountry = trim((string) ($payload['hotelDetails']['country'] ?? ''));
+                            }
+                        }
+                    }
+                    if ($orderCountry !== '' && !$this->isCountryAllowedForRestricted($orderCountry, $tpScope['own_country_names'])) {
+                        continue;
+                    }
+                }
                 // Soft delete whole order (services are stored in order->data)
                 $order->delete();
                 $deletedCount++;
@@ -976,7 +996,64 @@ class EditTourController extends Controller
                 $tour->discount = 0.0;
             }
 
-            // Discount amount / currency markups are locked on edit — keep stored values.
+            // Persist city-wise hotel/other markup + discount (lite Pricing by city)
+            $rawMarkups = $request->input('currency_markups');
+            if (is_string($rawMarkups)) {
+                $decoded = json_decode($rawMarkups, true);
+                $rawMarkups = (json_last_error() === JSON_ERROR_NONE) ? $decoded : null;
+            }
+            if (is_array($rawMarkups)) {
+                $normalizedMarkups = [];
+                foreach ($rawMarkups as $row) {
+                    if (!is_array($row)) {
+                        continue;
+                    }
+                    $city = trim((string) ($row['city'] ?? ''));
+                    if ($city === '' || str_starts_with($city, '__lite_markup_pad__')) {
+                        continue;
+                    }
+                    $markupType = strtolower(trim((string) ($row['markup_type'] ?? '')));
+                    $discountType = strtolower(trim((string) ($row['discount_type'] ?? '')));
+                    if ($markupType === 'fixed') {
+                        $markupType = 'flat';
+                    }
+                    if ($discountType === 'fixed') {
+                        $discountType = 'flat';
+                    }
+                    if (!in_array($markupType, ['percentage', 'flat'], true)) {
+                        $markupType = '';
+                    }
+                    if (!in_array($discountType, ['percentage', 'flat', 'foc'], true)) {
+                        $discountType = '';
+                    }
+                    $hotelMarkup = (float) ($row['hotel_markup'] ?? $row['markup_value'] ?? 0);
+                    $otherMarkup = (float) ($row['other_markup'] ?? 0);
+                    $normalizedMarkups[] = [
+                        'city' => $city,
+                        'currency' => strtoupper(trim((string) ($row['currency'] ?? ''))),
+                        'country' => trim((string) ($row['country'] ?? '')),
+                        'markup_type' => $markupType !== '' ? $markupType : null,
+                        'markup_value' => $hotelMarkup + $otherMarkup,
+                        'hotel_markup' => $hotelMarkup,
+                        'other_markup' => $otherMarkup,
+                        'discount_type' => $discountType !== '' ? $discountType : null,
+                        'discount_value' => (float) ($row['discount_value'] ?? 0),
+                    ];
+                }
+                $tour->currency_markups = !empty($normalizedMarkups) ? array_values($normalizedMarkups) : [];
+                $primaryMarkup = $normalizedMarkups[0] ?? null;
+                if ($primaryMarkup) {
+                    $reqMarkupType = strtolower(trim((string) ($primaryMarkup['markup_type'] ?? '')));
+                    $reqMarkupValue = (float) ($primaryMarkup['hotel_markup'] ?? 0) + (float) ($primaryMarkup['other_markup'] ?? 0);
+                    $markupSelected = ($reqMarkupValue > 0 && $reqMarkupType !== '') ? 1 : 0;
+                    $tour->markup = $markupSelected;
+                    $tour->markup_type = $markupSelected ? $reqMarkupType : null;
+                    $tour->markup_amount = $markupSelected ? $reqMarkupValue : 0;
+                }
+                if ($request->has('discount_price')) {
+                    $tour->discount_amount = (float) $request->input('discount_price', 0);
+                }
+            }
 
             // If tour date range changed, ensure multi-city plans still fit within the new tour range.
             // Any city plan that is not fully contained in [checkIn, checkOut] is removed from tours.city,
