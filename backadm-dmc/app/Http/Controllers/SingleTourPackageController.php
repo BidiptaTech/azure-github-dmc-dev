@@ -5046,7 +5046,33 @@ class SingleTourPackageController extends Controller
             // Vehicles use is_available as status (not is_active — column is often null)
             $query = Vehicle::where('dmc_id', $dmcId)
                 ->where('is_available', 1)
-                ->select('vehicle_id', 'vehicle_name', 'vehicle_type', 'seating_capacity', 'city_tour_seating_capacity', 'vehicle_model', 'image', 'base_price', 'sharable_base_price', 'service_type', 'cost_per_hour', 'sharable_cost_per_hour', 'sharable');
+                ->select(
+                    'vehicle_id',
+                    'vehicle_name',
+                    'vehicle_type',
+                    'seating_capacity',
+                    'city_tour_seating_capacity',
+                    'vehicle_model',
+                    'image',
+                    'base_price',
+                    'sharable_base_price',
+                    'service_type',
+                    'cost_per_hour',
+                    'sharable_cost_per_hour',
+                    'sharable',
+                    'hourly_price_1',
+                    'hourly_price_2',
+                    'hourly_price_3',
+                    'hourly_price_4',
+                    'hourly_price_5',
+                    'hourly_price_6',
+                    'hourly_price_7',
+                    'hourly_price_8',
+                    'hourly_price_9',
+                    'hourly_price_10',
+                    'hourly_price_11',
+                    'hourly_price_12'
+                );
             
             // Only filter by city if not showing all vehicles
             if (!$showAllVehicles && $city) {
@@ -5056,7 +5082,7 @@ class SingleTourPackageController extends Controller
             $vehicles = $query->orderBy('vehicle_name')->get();
 
             $vehiclesData = $vehicles->map(function ($vehicle) {
-                return [
+                $row = [
                     'vehicle_id' => $vehicle->vehicle_id,
                     'vehicle_name' => $vehicle->vehicle_name,
                     'vehicle_type' => $vehicle->vehicle_type,
@@ -5071,8 +5097,14 @@ class SingleTourPackageController extends Controller
                     'sharable_cost_per_hour' => $vehicle->sharable_cost_per_hour,
                     'private_price' => $vehicle->base_price,
                     'shared_price' => $vehicle->sharable_base_price,
-                    'sharable' => $vehicle->sharable
+                    'sharable' => $vehicle->sharable,
                 ];
+                for ($h = 1; $h <= 12; $h++) {
+                    $key = 'hourly_price_' . $h;
+                    $row[$key] = $vehicle->{$key} ?? null;
+                }
+
+                return $row;
             });
 
             return response()->json([
