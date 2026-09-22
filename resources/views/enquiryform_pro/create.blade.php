@@ -20488,21 +20488,26 @@
                 }
                 
                 // Render items
+                const escAttr = (typeof window.escapeHtmlAttr === 'function')
+                    ? window.escapeHtmlAttr
+                    : (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;');
                 itemsTableBody.innerHTML = items.map(item => `
-                    <tr class="misc-item-row" data-item-id="misc_${item.mis_id}" data-item-name="${item.item_name}" data-mis-id="${item.mis_id}"
+                    <tr class="misc-item-row" data-item-id="misc_${item.mis_id}" data-item-name="${escAttr(item.item_name)}" data-mis-id="${item.mis_id}"
                         data-adult-cost="${parseFloat(item.adult_cost || 0)}"
                         data-child-cost="${parseFloat(item.child_cost || 0)}"
                         data-infant-cost="${parseFloat(item.infant_cost || 0)}"
                         data-adult-sell="${parseFloat(item.adult_price || 0)}"
                         data-child-sell="${parseFloat(item.child_price || 0)}"
-                        data-infant-sell="${parseFloat(item.infant_price || 0)}">
+                        data-infant-sell="${parseFloat(item.infant_price || 0)}"
+                        data-city="${escAttr(item.city || city)}"
+                        data-country="${escAttr(item.country || country)}">
                         <td style="padding: 2px 8px; text-align: center;">
                             <input type="checkbox" class="misc-item-checkbox" data-item-id="misc_${item.mis_id}">
                         </td>
                         <td style="padding: 2px 8px;">
-                            ${item.image ? `<img src="${item.image}" alt="${item.item_name}" style="width: 20px; height: 20px; object-fit: cover; border-radius: 3px; margin-right: 5px;">` : ''}
-                            <strong>${item.item_name}</strong>
-                            ${item.description ? `<br><small class="text-muted">${item.description}</small>` : ''}
+                            ${item.image ? `<img src="${escAttr(item.image)}" alt="${escAttr(item.item_name)}" style="width: 20px; height: 20px; object-fit: cover; border-radius: 3px; margin-right: 5px;">` : ''}
+                            <strong>${escAttr(item.item_name)}</strong>
+                            ${item.description ? `<br><small class="text-muted">${escAttr(item.description)}</small>` : ''}
                         </td>
                         <td style="padding: 2px 8px;">
                             <input type="number" class="form-control form-control-sm misc-adult-qty" data-item-id="misc_${item.mis_id}" value="0" min="0" style="font-size: 10px; padding: 2px 4px; text-align: center;">
@@ -20623,6 +20628,7 @@
                 mis_id: misId || miscList[window.editingMiscIndex].mis_id || null,
                 itemName: itemName,
                 destination: destination,
+                city: destination,
                 dateTime: dateTime,
                 adultsQty: adultsQty,
                 adultCost: adultCost,
@@ -20633,6 +20639,7 @@
                 infantQty: infantQty,
                 infantCost: infantCost,
                 infantSell: infantSell,
+                cost: (adultCost * adultsQty) + (childCost * childQty) + (infantCost * infantQty),
                 supplement: !!miscList[window.editingMiscIndex].supplement,
                 focServiceDiscount: focServiceDiscount
             };
@@ -20665,13 +20672,15 @@
                 const adultCost = parseFloat(row.getAttribute('data-adult-cost') || '0') || 0;
                 const childCost = parseFloat(row.getAttribute('data-child-cost') || '0') || 0;
                 const infantCost = parseFloat(row.getAttribute('data-infant-cost') || '0') || 0;
+                const rowCity = (row.getAttribute('data-city') || destination || '').trim() || destination;
                 
                 const miscData = {
                     id: generateId('misc'),
                     itemId: itemId,
                     mis_id: misId || null,
                     itemName: itemName,
-                    destination: destination,
+                    destination: rowCity,
+                    city: rowCity,
                     dateTime: dateTime,
                     adultsQty: adultsQty,
                     adultCost: adultCost,
@@ -20682,6 +20691,7 @@
                     infantQty: infantQty,
                     infantCost: infantCost,
                     infantSell: infantSell,
+                    cost: (adultCost * adultsQty) + (childCost * childQty) + (infantCost * infantQty),
                     supplement: false,
                     focServiceDiscount: focServiceDiscount
                 };
@@ -29160,45 +29170,68 @@
     // Transform miscellaneous data (new format - keep flexible)
     function transformMiscellaneousData() {
         const customerInfo = getCustomerInfo();
-        const dmcId = '{{ $dmc_id ?? "" }}';
-        const destination = document.getElementById('destinationSelect')?.value || 'Singapore';
+        const fallbackDmcId = '{{ $dmc_id ?? "" }}';
+        const headerDestination = document.getElementById('destinationSelect')?.value || 'Singapore';
         
-        return miscList.map(misc => ({
-            id: misc.id || `misc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            itemId: misc.itemId || '',
-            mis_id: misc.mis_id || (String(misc.itemId || '').match(/(\d+)\s*$/) || [])[1] || null,
-            destination: misc.destination || '',
-            bookingDate: normalizeDateToYYYYMMDD(misc.dateTime),
-            itemName: misc.itemName || "",
-            adultsQty: parseInt(misc.adultsQty) || 0,
-            adultCost: parseFloat(misc.adultCost) || 0,
-            adultSell: parseFloat(misc.adultSell) || 0,
-            childQty: parseInt(misc.childQty) || 0,
-            childCost: parseFloat(misc.childCost) || 0,
-            childSell: parseFloat(misc.childSell) || 0,
-            infantQty: parseInt(misc.infantQty) || 0,
-            infantCost: parseFloat(misc.infantCost) || 0,
-            infantSell: parseFloat(misc.infantSell) || 0,
-            supplement: !!misc.supplement,
-            focServiceDiscount: !!(misc.focServiceDiscount || misc.foc_service_discount),
-            foc_service_discount: !!(misc.focServiceDiscount || misc.foc_service_discount),
-            totalPrice: (parseFloat(misc.adultSell || 0) * parseInt(misc.adultsQty || 0)) + 
-                       (parseFloat(misc.childSell || 0) * parseInt(misc.childQty || 0)) +
-                       (parseFloat(misc.infantSell || 0) * parseInt(misc.infantQty || 0)),
-            ...enquiryProOrderDiscountPayload(misc, () => computeMiscDiscountAmount(misc)),
-            dmc_id: dmcId,
-            ...serviceOrderGeo(misc, destination),
-            fullName: customerInfo.fullName,
-            email: customerInfo.email,
-            phone: customerInfo.phone,
-            countryCode: customerInfo.countryCode,
-            address1: customerInfo.address1,
-            address2: customerInfo.address2,
-            state: customerInfo.state,
-            zip: customerInfo.zip,
-            specialRequests: customerInfo.specialRequests,
-            bookingType: "enquiry"
-        }));
+        return miscList.map(misc => {
+            const miscCity = String(misc.destination || misc.city || '').split(',')[0].trim()
+                || String(headerDestination || '').split(',')[0].trim();
+            const siblingDmc = (typeof window.getActiveServiceDmcId === 'function')
+                ? (window.getActiveServiceDmcId(miscCity) || fallbackDmcId)
+                : fallbackDmcId;
+            const adultsQty = parseInt(misc.adultsQty) || 0;
+            const childQty = parseInt(misc.childQty) || 0;
+            const infantQty = parseInt(misc.infantQty) || 0;
+            const adultCost = parseFloat(misc.adultCost) || 0;
+            const childCost = parseFloat(misc.childCost) || 0;
+            const infantCost = parseFloat(misc.infantCost) || 0;
+            const adultSell = parseFloat(misc.adultSell) || 0;
+            const childSell = parseFloat(misc.childSell) || 0;
+            const infantSell = parseFloat(misc.infantSell) || 0;
+            const lineCost = (adultCost * adultsQty) + (childCost * childQty) + (infantCost * infantQty);
+            const lineSell = (adultSell * adultsQty) + (childSell * childQty) + (infantSell * infantQty);
+            const misId = misc.mis_id || (String(misc.itemId || '').match(/(\d+)\s*$/) || [])[1] || null;
+
+            return {
+                id: misc.id || `misc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                itemId: misc.itemId || (misId ? (`misc_${misId}`) : ''),
+                mis_id: misId ? parseInt(misId, 10) : null,
+                destination: miscCity,
+                city: miscCity,
+                dateTime: misc.dateTime || '',
+                bookingDate: normalizeDateToYYYYMMDD(misc.dateTime),
+                itemName: misc.itemName || "",
+                adultsQty: adultsQty,
+                adultCost: adultCost,
+                adultSell: adultSell,
+                childQty: childQty,
+                childCost: childCost,
+                childSell: childSell,
+                infantQty: infantQty,
+                infantCost: infantCost,
+                infantSell: infantSell,
+                cost: lineCost,
+                total_cost: lineCost,
+                supplement: !!misc.supplement,
+                focServiceDiscount: !!(misc.focServiceDiscount || misc.foc_service_discount),
+                foc_service_discount: !!(misc.focServiceDiscount || misc.foc_service_discount),
+                totalPrice: lineSell,
+                ...enquiryProOrderDiscountPayload(misc, () => computeMiscDiscountAmount(misc)),
+                dmc_id: siblingDmc,
+                dmcId: siblingDmc,
+                ...serviceOrderGeo(Object.assign({}, misc, { destination: miscCity, city: miscCity }), miscCity),
+                fullName: customerInfo.fullName,
+                email: customerInfo.email,
+                phone: customerInfo.phone,
+                countryCode: customerInfo.countryCode,
+                address1: customerInfo.address1,
+                address2: customerInfo.address2,
+                state: customerInfo.state,
+                zip: customerInfo.zip,
+                specialRequests: customerInfo.specialRequests,
+                bookingType: "enquiry"
+            };
+        });
     }
     
     async function saveEnquiryData() {
