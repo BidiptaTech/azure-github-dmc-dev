@@ -1,0 +1,646 @@
+/* Hotel list v1 — hero + lite chrome */
+
+.hotel-list-top {
+  background: #f3f4f8;
+  padding: 36px 0 0;
+  overflow: visible;
+  position: relative;
+  z-index: 5;
+}
+
+.hotel-list-hero {
+  position: relative;
+  overflow: visible;
+  padding: 36px 28px 0;
+  min-height: 268px;
+  /* Room for search to hang below the rounded bg */
+  padding-bottom: 0;
+}
+
+.hotel-list-hero__bg {
+  position: absolute;
+  top: 14px;
+  left: 0;
+  right: 0;
+  bottom: 36px;
+  z-index: 0;
+  border-radius: 28px;
+  background-color: #e8eef8;
+  background-size: cover;
+  background-position: center right;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
+}
+
+.hotel-list-hero__inner {
+  position: relative;
+  z-index: 2;
+  padding-bottom: 0;
+  overflow: visible;
+}
+
+.hotel-list-hero__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 22px;
+}
+
+.hotel-list-hero__eyebrow {
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #3554d1;
+}
+
+.hotel-list-hero__title {
+  margin: 0 0 6px;
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: #0d1b4c;
+}
+
+.hotel-list-hero__subtitle {
+  margin: 0;
+  font-size: 15px;
+  color: #5c6b8a;
+}
+
+.hotel-list-hero__search-wrap {
+  position: relative;
+  z-index: 30;
+  margin-top: 18px;
+  margin-bottom: -28px;
+  overflow: visible;
+}
+
+.hotel-list-hero__pills {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.hotel-list-city-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #e4e7f1;
+  border-radius: 999px;
+  padding: 8px 14px;
+  background: #fff;
+  color: #697488;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+  transition: all 0.2s ease;
+}
+
+.hotel-list-city-pill.is-active {
+  background: #3554d1;
+  border-color: #3554d1;
+  color: #fff;
+  box-shadow: 0 8px 20px rgba(53, 84, 209, 0.28);
+}
+
+.hotel-list-city-pill.is-booked:not(.is-active) {
+  background: #e8f5e9;
+  border-color: #a5d6a7;
+  color: #2e7d32;
+}
+
+.hotel-list-city-pill__dates {
+  font-weight: 500;
+  opacity: 0.85;
+}
+
+.hotel-list-search-card {
+  background: #fff;
+  border-radius: 18px;
+  padding: 4px 4px 4px 2px;
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.12);
+  width: 100%;
+  position: relative;
+  z-index: 30;
+  overflow: visible;
+}
+
+.hotel-list-search-card .hotel-list-main-search {
+  margin-top: 0 !important;
+  box-shadow: none;
+  background: transparent !important;
+  padding: 0 !important;
+  width: 100%;
+}
+
+/* Compact horizontal bar */
+.hotel-list-search-card .hotel-list-main-search .button-grid {
+  display: grid !important;
+  grid-template-columns: minmax(140px, 1fr) minmax(200px, 1.15fr) minmax(160px, 0.95fr) auto !important;
+  align-items: center;
+  gap: 0;
+}
+
+.hotel-list-search-card .hotel-list-main-search .button-grid > * + * {
+  border-left: 1px solid #eef0f6;
+  border-top: 0 !important;
+}
+
+.hotel-list-search-card .searchMenu-loc,
+.hotel-list-search-card .searchMenu-date,
+.hotel-list-search-card .searchMenu-guests {
+  padding-top: 8px !important;
+  padding-bottom: 8px !important;
+  padding-left: 14px !important;
+  padding-right: 14px !important;
+  min-height: 0 !important;
+  position: relative;
+  overflow: visible;
+}
+
+.hotel-list-search-card .dropdown-menu,
+.hotel-list-search-card .rmdp-wrapper,
+.hotel-list-search-card .custom_container-picker {
+  z-index: 50 !important;
+}
+
+.hotel-list-search-card .searchMenu-loc .text-20,
+.hotel-list-search-card .searchMenu-date .text-20,
+.hotel-list-search-card .searchMenu-guests .text-20 {
+  font-size: 16px !important;
+  margin-top: 2px !important;
+}
+
+.hotel-list-search-card .searchMenu-loc h4,
+.hotel-list-search-card .searchMenu-date h4,
+.hotel-list-search-card .searchMenu-guests h4 {
+  font-size: 12px !important;
+  margin-bottom: 2px;
+  line-height: 1.2 !important;
+}
+
+.hotel-list-search-card .searchMenu-loc .text-15,
+.hotel-list-search-card .searchMenu-date .text-15,
+.hotel-list-search-card .searchMenu-guests .text-15 {
+  font-size: 13px !important;
+  line-height: 1.25 !important;
+}
+
+.hotel-list-search-card .searchMenu-loc input.js-search {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  width: 100%;
+  color: #051036;
+  font-weight: 600;
+  font-size: 13px;
+  height: auto;
+  line-height: 1.25;
+}
+
+.hotel-list-search-card .custom_input-picker {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  color: #051036 !important;
+  font-weight: 600;
+  font-size: 13px !important;
+  height: auto !important;
+  width: 100%;
+  line-height: 1.25;
+}
+
+.hotel-list-search-card .button-item {
+  display: flex;
+  align-items: center;
+  padding: 4px;
+  min-width: 148px;
+}
+
+.hotel-list-search-card .button-item .button {
+  border-radius: 12px !important;
+  min-height: 48px !important;
+  height: 48px !important;
+  white-space: nowrap;
+  padding: 0 20px !important;
+  font-size: 14px !important;
+}
+
+.hotel-list-dates-locked {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 3px;
+  font-size: 11px;
+  color: #697488;
+  line-height: 1.2;
+}
+
+.hotel-list-dates-locked i {
+  color: #3554d1;
+  font-size: 13px;
+}
+
+.hotel-list-lite-stack {
+  margin-top: 12px;
+  position: relative;
+  z-index: 1;
+  padding-bottom: 0;
+}
+
+.hotel-list-lite-panel {
+  background: #ffffff;
+  border-radius: 18px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow:
+    0 4px 6px rgba(15, 23, 42, 0.04),
+    0 12px 28px rgba(15, 23, 42, 0.1);
+  padding: 18px 20px 16px;
+}
+
+.hotel-list-lite-panel .stepper-lite {
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 4px 8px 16px;
+}
+
+.hotel-list-lite-panel .tour-status-container.tour-status--lite {
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+  margin: 0;
+  padding: 14px 0 0;
+  border: none;
+  border-top: 1px solid rgba(15, 23, 42, 0.18);
+}
+
+.hotel-list-results {
+  padding-top: 16px;
+}
+
+/* CustomStepper lite */
+.stepper-lite {
+  width: 100%;
+  background: #fff;
+  border-radius: 18px;
+  padding: 22px 28px 18px;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06);
+}
+
+.stepper-lite__track {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  position: relative;
+  gap: 8px;
+}
+
+.stepper-lite__track::before {
+  content: "";
+  position: absolute;
+  top: 28px;
+  left: 6%;
+  right: 6%;
+  height: 2px;
+  background: #e4e7f1;
+  z-index: 0;
+}
+
+.stepper-lite__step {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  min-width: 0;
+}
+
+.stepper-lite__icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f5f7fb;
+  border: 2px solid #e8ecf4;
+  transition: all 0.2s ease;
+}
+
+.stepper-lite__icon img {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  filter: grayscale(1);
+  opacity: 0.55;
+}
+
+.stepper-lite__label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #8c96a8;
+  text-align: center;
+  line-height: 1.25;
+}
+
+.stepper-lite__step.is-active .stepper-lite__icon {
+  background: rgba(53, 84, 209, 0.12);
+  border-color: #3554d1;
+  box-shadow: 0 0 0 8px rgba(53, 84, 209, 0.12);
+}
+
+.stepper-lite__step.is-active .stepper-lite__icon img {
+  filter: none;
+  opacity: 1;
+}
+
+.stepper-lite__step.is-active .stepper-lite__label {
+  color: #3554d1;
+}
+
+.stepper-lite__step.is-completed .stepper-lite__icon {
+  background: rgba(53, 84, 209, 0.08);
+  border-color: #9bb0f0;
+}
+
+.stepper-lite__step.is-completed .stepper-lite__icon img {
+  filter: none;
+  opacity: 0.85;
+}
+
+/* TourStatus lite */
+.tour-status-container.tour-status--lite {
+  background: #fff;
+  border-radius: 18px;
+  padding: 18px 20px;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06);
+  margin: 0 auto;
+}
+
+.tour-status--lite .range-box {
+  margin-top: 0;
+  padding: 0;
+  text-align: left;
+}
+
+.tour-status-lite__row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.tour-status-lite__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #0d1b4c;
+  white-space: nowrap;
+}
+
+.tour-status-lite__label i {
+  color: #3554d1;
+  font-size: 16px;
+}
+
+.tour-status-lite__scroller {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  max-width: 100%;
+}
+
+.tour-status-lite__boxes {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  gap: 12px;
+  padding: 8px 4px;
+  scroll-behavior: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  justify-content: center;
+  flex: 0 1 auto;
+  max-width: min(100%, 860px);
+  overflow-anchor: none;
+}
+
+.tour-status-lite__boxes::-webkit-scrollbar {
+  display: none;
+}
+
+.tour-status-lite__nav {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid #e4e7f1;
+  background: #fff;
+  color: #3554d1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+  transition: background 0.15s ease;
+}
+
+.tour-status-lite__nav:hover {
+  background: #f5f7fb;
+}
+
+.tour-status-container.tour-status--lite .tour-status-lite__card {
+  flex: 0 0 148px;
+  width: 148px;
+  height: 88px;
+  min-height: 88px;
+  max-height: 88px;
+  box-sizing: border-box;
+  border-radius: 14px;
+  padding: 12px 10px;
+  background: #f3f5f9;
+  border: 1.5px solid #e8ecf4;
+  box-shadow: none;
+  cursor: default;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transform: none !important;
+  outline: none;
+}
+
+.tour-status-lite__date {
+  font-weight: 700;
+  font-size: 13px;
+  color: #1a1a1a;
+  text-align: center;
+  margin-bottom: 10px;
+  white-space: nowrap;
+}
+
+.tour-status-lite__icons {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.tour-status-lite__icon-wrap {
+  position: relative;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tour-status-lite__icon-wrap img {
+  width: 15px;
+  height: 15px;
+  object-fit: contain;
+}
+
+.tour-status-lite__icon-wrap.is-empty {
+  opacity: 0.35;
+  filter: grayscale(1);
+}
+
+.tour-status-lite__icon-wrap.is-empty::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1.5px;
+  background: #8c96a8;
+  transform: rotate(-35deg);
+}
+
+.tour-status-lite__badge {
+  position: absolute;
+  top: -4px;
+  right: -8px;
+  min-width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #3554d1;
+  color: #fff;
+  font-size: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+@media (max-width: 991px) {
+  .hotel-list-hero {
+    padding: 28px 18px 0;
+    min-height: 240px;
+  }
+
+  .hotel-list-hero__bg {
+    border-radius: 22px;
+    bottom: 28px;
+  }
+
+  .hotel-list-hero__top {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .hotel-list-hero__pills {
+    justify-content: flex-start;
+  }
+
+  .hotel-list-hero__title {
+    font-size: 26px;
+  }
+
+  .hotel-list-hero__search-wrap {
+    margin-top: 16px;
+    margin-bottom: -20px;
+  }
+
+  .hotel-list-search-card .hotel-list-main-search .button-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .hotel-list-search-card .hotel-list-main-search .button-grid > * + * {
+    border-left: 0 !important;
+    border-top: 1px solid #eef0f6 !important;
+  }
+
+  .hotel-list-search-card .button-item {
+    min-width: 0;
+  }
+
+  .hotel-list-search-card .button-item .button {
+    min-height: 48px !important;
+    width: 100%;
+  }
+
+  .stepper-lite {
+    padding: 18px 12px 14px;
+    overflow-x: auto;
+  }
+
+  .stepper-lite__track {
+    min-width: 640px;
+  }
+
+  .tour-status-lite__row {
+    flex-wrap: wrap;
+  }
+
+  .tour-status-lite__label {
+    width: 100%;
+  }
+}
+
+@media (max-width: 575px) {
+  .hotel-list-top {
+    padding: 24px 0 0;
+  }
+
+  .hotel-list-hero {
+    padding: 22px 14px 0;
+    min-height: 220px;
+  }
+
+  .hotel-list-hero__bg {
+    border-radius: 18px;
+  }
+
+  .hotel-list-hero__title {
+    font-size: 22px;
+  }
+
+  .hotel-list-city-pill {
+    padding: 7px 11px;
+    font-size: 11px;
+  }
+
+  .tour-status-lite__card {
+    width: 132px;
+  }
+}

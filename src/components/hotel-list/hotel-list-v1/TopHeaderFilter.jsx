@@ -1,6 +1,4 @@
-const TopHeaderFilter = ({hotelsdata,location,hotel}) => {
-
-  
+const TopHeaderFilter = ({ hotelsdata, location, hotel }) => {
   return (
     <>
       <div className="row y-gap-10 items-center justify-between">
@@ -9,18 +7,9 @@ const TopHeaderFilter = ({hotelsdata,location,hotel}) => {
             {/* <span className="fw-500">{hotelsdata?.hotels.length} properties</span> in {hotel?.location} */}
           </div>
         </div>
-        {/* End .col */}
 
         <div className="col-auto">
           <div className="row x-gap-20 y-gap-20">
-            <div className="col-auto">
-              <button className="button -blue-1 h-40 px-20 rounded-100 bg-blue-1-05 text-15 text-blue-1">
-                <i className="icon-up-down text-14 mr-10" />
-                Top picks for your search
-              </button>
-            </div>
-            {/* End .col */}
-
             <div className="col-auto d-none xl:d-block">
               <button
                 data-bs-toggle="offcanvas"
@@ -31,13 +20,9 @@ const TopHeaderFilter = ({hotelsdata,location,hotel}) => {
                 Filter
               </button>
             </div>
-            {/* End .col */}
           </div>
-          {/* End .row */}
         </div>
-        {/* End .col */}
       </div>
-      {/* End .row */}
     </>
   );
 };

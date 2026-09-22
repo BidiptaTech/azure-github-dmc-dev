@@ -10,7 +10,13 @@ import { useDispatch, useSelector } from "react-redux";
 import { useLocation, useNavigate } from "react-router-dom";
 // import { useSelector } from "react-redux";
 
-const SearchBar = ({ onLocationSelect, hasError, setError, controlledCity = null }) => {
+const SearchBar = ({
+  onLocationSelect,
+  hasError,
+  setError,
+  controlledCity = null,
+  label = "City",
+}) => {
   const selectedCityFromSlice = useSelector((state)=> state.common.selectedCity);
   const initialSelectionRef = useRef(false); // Track if initial selection has been applied
   const lastControlledNameRef = useRef(null);
@@ -208,7 +214,7 @@ const SearchBar = ({ onLocationSelect, hasError, setError, controlledCity = null
         <div className="d-flex">
           <i className="icon-location-2 text-20 text-light-1 mt-5"></i>
           <div className="ml-10 flex-grow-1">
-            <h4 className="text-15 fw-500 ls-2 lh-16">City</h4>
+            <h4 className="text-15 fw-500 ls-2 lh-16">{label}</h4>
             <div className="text-15 text-light-1 ls-2 lh-16">
               <input
                 autoComplete="off"

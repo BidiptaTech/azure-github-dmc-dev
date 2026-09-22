@@ -107,8 +107,9 @@ const formatChipDates = (entry) => {
   return `${start.format("MMM DD")} – ${end.format("MMM DD")}`;
 };
 
-const MainFilterSearchBox = () => {
+const MainFilterSearchBox = ({ layout = "default" }) => {
   const dispatch = useDispatch();
+  const isHeroLayout = layout === "hero";
 
   const tourDetails = useSelector((state) => state.hotels.tourdetails);
   const hotelService = useSelector((state) => state.hotels.hotelService || []);
@@ -434,70 +435,101 @@ const MainFilterSearchBox = () => {
     }));
   }, [hasCityWiseDates, cityWiseDates, hotelService, activeCityName]);
 
-  return (
-    <>
-      {cityChipItems.length > 0 && (
-        <div className="d-flex flex-wrap items-center gap-2 mt-20 mb-10">
+  const cityPills =
+    cityChipItems.length > 0 ? (
+      <div
+        className={
+          isHeroLayout
+            ? "hotel-list-hero__pills"
+            : "d-flex flex-wrap items-center gap-2 mt-20 mb-10"
+        }
+      >
+        {!isHeroLayout && (
           <span className="text-14 text-light-1 mr-5">Cities:</span>
-          {cityChipItems.map((entry) => (
-            <button
-              key={entry.city}
-              type="button"
-              onClick={() => handleCityChipClick(entry)}
-              className="d-inline-flex align-items-center border-0 rounded-100 px-15 py-8 cursor-pointer"
-              style={{
-                background: entry.active
-                  ? "#3554d1"
-                  : entry.booked
-                    ? "#e8f5e9"
-                    : "#f7f8fc",
-                color: entry.active
-                  ? "#fff"
-                  : entry.booked
-                    ? "#2e7d32"
-                    : "#1a1a1a",
-                border: entry.active
-                  ? "1px solid #3554d1"
-                  : entry.booked
-                    ? "1px solid #a5d6a7"
-                    : "1px solid #e4e7f1",
-                fontWeight: 600,
-                fontSize: "12px",
-                transition: "all 0.2s ease",
-              }}
-            >
-              {entry.booked && (
+        )}
+        {cityChipItems.map((entry) => (
+          <button
+            key={entry.city}
+            type="button"
+            onClick={() => handleCityChipClick(entry)}
+            className={
+              isHeroLayout
+                ? `hotel-list-city-pill${entry.active ? " is-active" : ""}${
+                    entry.booked ? " is-booked" : ""
+                  }`
+                : "d-inline-flex align-items-center border-0 rounded-100 px-15 py-8 cursor-pointer"
+            }
+            style={
+              isHeroLayout
+                ? undefined
+                : {
+                    background: entry.active
+                      ? "#3554d1"
+                      : entry.booked
+                        ? "#e8f5e9"
+                        : "#f7f8fc",
+                    color: entry.active
+                      ? "#fff"
+                      : entry.booked
+                        ? "#2e7d32"
+                        : "#1a1a1a",
+                    border: entry.active
+                      ? "1px solid #3554d1"
+                      : entry.booked
+                        ? "1px solid #a5d6a7"
+                        : "1px solid #e4e7f1",
+                    fontWeight: 600,
+                    fontSize: "12px",
+                    transition: "all 0.2s ease",
+                  }
+            }
+          >
+            {isHeroLayout ? (
+              <i className="icon-location-2 text-14" />
+            ) : (
+              entry.booked && (
                 <i
                   className="icon-check text-12 mr-5"
                   style={{ color: entry.active ? "#fff" : "#2e7d32" }}
                 />
-              )}
-              <span>{toCityOnly(entry.city)}</span>
-              <span
-                className="ml-8"
-                style={{
-                  opacity: entry.active ? 0.9 : 0.65,
-                  fontWeight: 500,
-                }}
-              >
-                {formatChipDates(entry)}
-              </span>
-            </button>
-          ))}
-        </div>
-      )}
+              )
+            )}
+            <span>{toCityOnly(entry.city)}</span>
+            <span
+              className={isHeroLayout ? "hotel-list-city-pill__dates" : "ml-8"}
+              style={
+                isHeroLayout
+                  ? undefined
+                  : {
+                      opacity: entry.active ? 0.9 : 0.65,
+                      fontWeight: 500,
+                    }
+              }
+            >
+              {formatChipDates(entry)}
+            </span>
+          </button>
+        ))}
+      </div>
+    ) : null;
 
-      <div className="mainSearch -col-3-big bg-white px-10 py-10 lg:px-20 lg:pt-5 lg:pb-20 rounded-4 mt-30">
-        <div className="button-grid items-center">
-          <LocationSearch
-            onLocationSelect={handleLocationSelect}
-            hasError={locationError}
-            setError={setLocationError}
-            controlledCity={selectedLocation}
-          />
+  const searchFields = (
+    <div className="button-grid items-center">
+      <LocationSearch
+        onLocationSelect={handleLocationSelect}
+        hasError={locationError}
+        setError={setLocationError}
+        controlledCity={selectedLocation}
+        label={isHeroLayout ? "Destination" : "City"}
+      />
 
-          <div className="searchMenu-date px-30 lg:py-20  sm:px-20 js-form-dd js-calendar">
-            <div>
+      <div className="searchMenu-date px-30 lg:py-20 sm:px-20 js-form-dd js-calendar">
+        <div>
+          <div className="d-flex">
+            {isHeroLayout && (
+              <i className="icon-calendar text-20 text-light-1 mt-5 mr-10" />
+            )}
+            <div className="flex-grow-1">
               <h4 className="text-15 fw-500 ls-2 lh-16">
                 Check in - Check out
               </h4>
@@ -509,35 +541,104 @@ const MainFilterSearchBox = () => {
                 formattedDateRange={formattedDateRange}
                 initialMinDate={initialMinDate}
                 initialMaxDate={initialMaxDate}
+                displayFormat={isHeroLayout ? "MMM DD, YYYY" : "YYYY-MM-DD"}
               />
               {hasCityWiseDates && selectedLocation && (
-                <div className="text-12 text-light-1 mt-5">
+                <div
+                  className={
+                    isHeroLayout
+                      ? "hotel-list-dates-locked"
+                      : "text-12 text-light-1 mt-5"
+                  }
+                >
+                  {isHeroLayout && (
+                    <span
+                      aria-hidden="true"
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        width: 14,
+                        height: 14,
+                        borderRadius: "50%",
+                        background: "#3554d1",
+                        color: "#fff",
+                        fontSize: 10,
+                        fontWeight: 700,
+                        lineHeight: 1,
+                        flexShrink: 0,
+                      }}
+                    >
+                      i
+                    </span>
+                  )}
                   Dates locked to {toCityOnly(selectedLocation)} stay
                 </div>
               )}
             </div>
           </div>
-
-          <GuestSearch
-            guests={guestsState}
-            setGuests={setGuests}
-            maxValues={maxValues}
-            showDropdown={showDropdown}
-            setShowDropdown={setShowDropdown}
-            dropdownRef={dropdownRef}
-          />
-
-          <div className="button-item h-full">
-            <button
-              onClick={handleSearch}
-              className="button -dark-1 py-15 px-40 h-full col-12 rounded-0 bg-blue-1 text-white"
-            >
-              <i className="icon-search text-20 mr-10" />
-              Search
-            </button>
-          </div>
         </div>
       </div>
+
+      <GuestSearch
+        guests={guestsState}
+        setGuests={setGuests}
+        maxValues={maxValues}
+        showDropdown={showDropdown}
+        setShowDropdown={setShowDropdown}
+        dropdownRef={dropdownRef}
+        heroStyle={isHeroLayout}
+      />
+
+      <div className="button-item h-full">
+        <button
+          onClick={handleSearch}
+          className={`button -dark-1 py-15 px-40 h-full col-12 bg-blue-1 text-white ${
+            isHeroLayout ? "" : "rounded-0"
+          }`}
+          style={isHeroLayout ? { borderRadius: 14 } : undefined}
+        >
+          <i className="icon-search text-20 mr-10" />
+          {isHeroLayout ? "Search Hotels" : "Search"}
+        </button>
+      </div>
+    </div>
+  );
+
+  const searchCard = isHeroLayout ? (
+    <div className="hotel-list-search-card">
+      <div className="mainSearch -col-3-big hotel-list-main-search">
+        {searchFields}
+      </div>
+    </div>
+  ) : (
+    <div className="mainSearch -col-3-big bg-white px-10 py-10 lg:px-20 lg:pt-5 lg:pb-20 rounded-4 mt-30">
+      {searchFields}
+    </div>
+  );
+
+  if (isHeroLayout) {
+    return (
+      <>
+        <div className="hotel-list-hero__top">
+          <div>
+            <p className="hotel-list-hero__eyebrow">Agent portal</p>
+            <h1 className="hotel-list-hero__title">Search Hotels</h1>
+            <p className="hotel-list-hero__subtitle">
+              Compare stays, lock city dates, and build the itinerary faster.
+            </p>
+          </div>
+          {cityPills}
+        </div>
+        {searchCard}
+      </>
+    );
+  }
+
+  return (
+    <>
+      {cityPills}
+      {searchCard}
     </>
   );
 };

@@ -73,7 +73,15 @@ const Counter = ({ name, label, value, minValue, maxValue, initialValue, onCount
   );
 };
 
-const GuestSearch = ({ guests, setGuests, maxValues, showDropdown, setShowDropdown, dropdownRef }) => {
+const GuestSearch = ({
+  guests,
+  setGuests,
+  maxValues,
+  showDropdown,
+  setShowDropdown,
+  dropdownRef,
+  heroStyle = false,
+}) => {
   const tourDetails = useSelector((state) => state.hotels.tourdetails);
 
   // Get default values from tourDetails
@@ -107,13 +115,31 @@ const GuestSearch = ({ guests, setGuests, maxValues, showDropdown, setShowDropdo
     <div className="searchMenu-guests px-30 lg:py-20 sm:px-20 js-form-dd js-form-counters position-relative" ref={dropdownRef}>
       <div onClick={handleDropdownClick} className="cursor-pointer">
         <div className="d-flex">
-          <i className="icon-compass text-20 text-light-1 mt-5"></i>
+          <i
+            className={`${
+              heroStyle ? "icon-user-2" : "icon-compass"
+            } text-20 text-light-1 mt-5`}
+          ></i>
           <div className="ml-10">
             <h4 className="text-15 fw-500 ls-2 lh-16">Guests</h4>
             <div className="text-15 text-light-1 ls-2 lh-16">
-              <span className="js-count-adult">{guests.adults}</span> adults -{" "}
-              <span className="js-count-child">{guests.children}</span> children -{" "}
-              <span className="js-count-infant">{guests.infant}</span> infant
+              {heroStyle ? (
+                <>
+                  <span className="js-count-adult">{guests.adults}</span> adults
+                  {" · "}
+                  <span className="js-count-child">{guests.children}</span>{" "}
+                  children
+                  {" · "}
+                  <span className="js-count-infant">{guests.infant}</span> infant
+                </>
+              ) : (
+                <>
+                  <span className="js-count-adult">{guests.adults}</span> adults
+                  - <span className="js-count-child">{guests.children}</span>{" "}
+                  children -{" "}
+                  <span className="js-count-infant">{guests.infant}</span> infant
+                </>
+              )}
             </div>
           </div>
         </div>
