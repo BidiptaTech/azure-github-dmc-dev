@@ -6,6 +6,8 @@ use App\Models\Bed;
 use App\Models\Guide;
 use App\Models\Hotel;
 use App\Models\Meal;
+use App\Models\MiscellaneousItem;
+use App\Models\MiscellaneousPrice;
 use App\Models\Order;
 use App\Models\Rate;
 use App\Models\Room;
@@ -53,7 +55,7 @@ class OrderCostPriceHelper
                 'restaurant' => self::buildRestaurantCost($item),
                 'guide' => self::buildGuideCost($item),
                 'entry_port', 'exit_port', 'travel_hourly', 'travel_point', 'local_transport' => self::buildTransportCost($item, $type),
-                'miscellaneous' => self::buildGenericItemCost($item, 'miscellaneous'),
+                'miscellaneous' => self::buildMiscellaneousCost($item),
                 default => self::buildGenericItemCost($item, $type ?: 'service'),
             };
 
@@ -708,34 +710,69 @@ class OrderCostPriceHelper
         $components = [];
         $source = 'payload';
 
+        $guideOptions = is_array($item['guide_options'] ?? null) ? $item['guide_options'] : null;
+
         $guideId = $item['guide_id'] ?? $item['guideId'] ?? null;
         $hours = (int) ($item['hours'] ?? $item['entrytime'] ?? $item['service_hours'] ?? 0);
-        if ($hours <= 0 && isset($item['guide_options']) && is_array($item['guide_options'])) {
-            $hours = (int) ($item['guide_options']['hours'] ?? $item['guide_options']['package_hours'] ?? 0);
-            $guideId = $guideId ?: ($item['guide_options']['guide_id'] ?? $item['guide_options']['guideId'] ?? null);
+        $guideName = trim((string) ($item['guide_name'] ?? $item['guideName'] ?? $item['name'] ?? ''));
+
+        if ($guideOptions) {
+            if ($hours <= 0) {
+                $hours = (int) ($guideOptions['hours'] ?? $guideOptions['service_hours'] ?? $guideOptions['package_hours'] ?? 0);
+            }
+            $guideId = $guideId
+                ?: ($guideOptions['guide_id'] ?? $guideOptions['guideId'] ?? null);
+            if ($guideName === '') {
+                $guideName = trim((string) (
+                    $guideOptions['guide_name']
+                    ?? $guideOptions['guideName']
+                    ?? $guideOptions['name']
+                    ?? ''
+                ));
+            }
+        }
+
+        // Empty string / "0" are not valid guide_ids (arrival/exit used to send "").
+        if ($guideId === '' || $guideId === '0' || $guideId === 0) {
+            $guideId = null;
+        }
+
+        // Pro entry/exit always book 12h; default when hours missing.
+        if ($hours <= 0) {
+            $hours = 12;
         }
 
         $guideCost = 0.0;
         $matchedTier = null;
+        $guide = null;
         if (! empty($guideId)) {
             $guide = Guide::query()->where('guide_id', $guideId)->first();
+        }
+        // Fallback: resolve by name when id was missing from payload (legacy arrival/exit).
+        if (! $guide && $guideName !== '') {
+            $guide = Guide::query()->where('name', $guideName)->first();
             if ($guide) {
-                $resolved = self::resolveGuideHourlyCost($guide, max(1, $hours ?: 12));
-                $guideCost = (float) ($resolved['cost'] ?? 0);
-                $matchedTier = $resolved['tier'] ?? null;
-                if ($guideCost > 0) {
-                    $source = 'database';
-                }
+                $guideId = $guide->guide_id;
             }
         }
 
+        if ($guide) {
+            $resolved = self::resolveGuideHourlyCost($guide, max(1, $hours));
+            $guideCost = (float) ($resolved['cost'] ?? 0);
+            $matchedTier = $resolved['tier'] ?? null;
+            if ($guideCost > 0) {
+                $source = 'database';
+            }
+        }
+
+        // Last resort only — prefer never using sell figures for cost_price.
         if ($guideCost <= 0) {
             $guideCost = self::firstNumeric($item, [
-                'total_cost', 'cost', 'Cost', 'adultCost', 'adult_cost', 'basePrice', 'base_price',
+                'total_cost', 'cost_price', 'adult_cost_price', 'base_cost', 'baseCost',
             ]);
-            if ($guideCost <= 0 && isset($item['guide_options']) && is_array($item['guide_options'])) {
-                $guideCost = self::firstNumeric($item['guide_options'], [
-                    'total_cost', 'total_price', 'cost', 'Cost', 'base_price', 'adult_cost', 'adultCost',
+            if ($guideCost <= 0 && $guideOptions) {
+                $guideCost = self::firstNumeric($guideOptions, [
+                    'total_cost', 'cost_price', 'adult_cost_price', 'base_cost', 'baseCost',
                 ]);
             }
         }
@@ -743,11 +780,11 @@ class OrderCostPriceHelper
         if ($guideCost > 0) {
             $components[] = [
                 'key' => 'guide',
-                'label' => trim((string) ($item['guide_name'] ?? $item['guideName'] ?? 'Guide')),
+                'label' => $guideName !== '' ? $guideName : 'Guide',
                 'cost' => round($guideCost, 2),
                 'meta' => [
                     'guide_id' => $guideId,
-                    'hours' => $hours ?: null,
+                    'hours' => $hours,
                     'tier' => $matchedTier,
                 ],
             ];
@@ -814,32 +851,140 @@ class OrderCostPriceHelper
         ];
     }
 
+    /**
+     * Shared = per-pax unit × (adults + children); Private = flat vehicle cost.
+     * Payload `cost` is already way-applied (one-way or both-way). Zone unit costs are per way.
+     *
+     * @return array{cost: float, meta: array}|null
+     */
+    private static function resolveTransferOptionsCost(array $item, array $transfer): ?array
+    {
+        $transferTypeRaw = strtolower(trim((string) (
+            $transfer['type']
+            ?? $transfer['transferType']
+            ?? $transfer['transfer_type']
+            ?? ''
+        )));
+        $isShared = in_array($transferTypeRaw, ['s', 'shared', 'sic'], true);
+
+        $wayRaw = strtolower(trim((string) ($transfer['way'] ?? $transfer['transferWay'] ?? '')));
+        $isBothWay = in_array($wayRaw, ['both-way', 'both way', 'both', 'two-way', 'return', '2way'], true);
+        $wayMultiplier = $isBothWay ? 2 : 1;
+
+        $adults = self::qtyFromItem($transfer, ['adults', 'adultsQty', 'adult_qty', 'Adults']);
+        if ($adults <= 0) {
+            $adults = self::qtyFromItem($item, ['adults', 'adultsQty', 'adultCount', 'adult']);
+        }
+        $children = self::qtyFromItem($transfer, ['children', 'child', 'childQty', 'child_qty', 'Children']);
+        if ($children <= 0) {
+            $children = self::qtyFromItem($item, ['children', 'child', 'childQty', 'childCount']);
+        }
+        $pax = max(0, $adults + $children);
+
+        $payloadCost = self::firstNumeric($transfer, [
+            'cost', 'Cost', 'adult_cost', 'adultCost', 'base_cost', 'baseCost', 'cost_price', 'total_cost',
+        ]);
+
+        $zoneSharedUnit = self::firstNumeric($transfer, [
+            'zoneSharedCostPrice', 'shared_cost_price', 'sharedCostPrice',
+        ]);
+        $zonePrivateUnit = self::firstNumeric($transfer, [
+            'zonePrivateCostPrice', 'private_cost_price', 'privateCostPrice',
+        ]);
+
+        $unitCost = 0.0;
+        $transferCost = 0.0;
+
+        if ($isShared) {
+            if ($zoneSharedUnit > 0) {
+                $unitCost = $zoneSharedUnit * $wayMultiplier;
+            } elseif ($payloadCost > 0) {
+                // Payload cost is already way-applied upstream.
+                $unitCost = $payloadCost;
+            } else {
+                // Last resort: sell is often way-applied unit for shared.
+                $unitCost = self::firstNumeric($transfer, ['sell', 'Sell', 'basePrice', 'base_price']);
+            }
+            if ($unitCost > 0) {
+                $transferCost = $unitCost * max(1, $pax);
+            }
+        } else {
+            if ($zonePrivateUnit > 0) {
+                $unitCost = $zonePrivateUnit * $wayMultiplier;
+            } elseif ($payloadCost > 0) {
+                $unitCost = $payloadCost;
+            } else {
+                $unitCost = self::firstNumeric($transfer, ['sell', 'Sell', 'basePrice', 'base_price', 'totalPrice']);
+            }
+            $transferCost = $unitCost;
+        }
+
+        if ($transferCost <= 0) {
+            return null;
+        }
+
+        return [
+            'cost' => round($transferCost, 2),
+            'meta' => [
+                'type' => $isShared ? 'Shared' : 'Private',
+                'way' => $transfer['way'] ?? null,
+                'transfer_type' => $isShared ? 'shared' : 'private',
+                'adults' => $adults,
+                'children' => $children,
+                'unit_cost' => round($unitCost, 2),
+            ],
+        ];
+    }
+
     private static function appendTransferAndGuideComponents(array $item, array &$components, string &$source): void
     {
         $transfer = is_array($item['transfer_options'] ?? null) ? $item['transfer_options'] : null;
-        if ($transfer && (! empty($transfer['transfer_required']) || self::firstNumeric($transfer, ['cost', 'total_cost', 'cost_price']) > 0)) {
-            $transferCost = self::firstNumeric($transfer, [
-                'total_cost', 'cost_price', 'cost', 'Cost', 'adult_cost', 'adultCost', 'base_cost', 'baseCost',
-            ]);
-            if ($transferCost > 0) {
+        if (! $transfer && is_array($item['transferInfo'] ?? null)) {
+            $transfer = $item['transferInfo'];
+        }
+
+        $hasTransfer = $transfer && (
+            ! empty($transfer['transfer_required'])
+            || ! empty($transfer['vehicle_id'])
+            || ! empty($transfer['vehicleId'])
+            || self::firstNumeric($transfer, [
+                'cost', 'total_cost', 'cost_price', 'sell', 'totalPrice',
+                'zoneSharedCostPrice', 'zonePrivateCostPrice', 'shared_cost_price', 'private_cost_price',
+            ]) > 0
+        );
+
+        if ($hasTransfer) {
+            $resolved = self::resolveTransferOptionsCost($item, $transfer);
+            if ($resolved) {
                 $components[] = [
                     'key' => 'transfer',
                     'label' => 'Transfer',
-                    'cost' => round($transferCost, 2),
-                    'meta' => [
-                        'type' => $transfer['type'] ?? null,
-                        'way' => $transfer['way'] ?? null,
-                    ],
+                    'cost' => $resolved['cost'],
+                    'meta' => $resolved['meta'],
                 ];
             }
         }
 
         $guideOptions = is_array($item['guide_options'] ?? null) ? $item['guide_options'] : null;
-        if ($guideOptions && (! empty($guideOptions['guide_required']) || ! empty($guideOptions['guide_id']))) {
+        $hasGuide = $guideOptions && (
+            ! empty($guideOptions['guide_required'])
+            || ! empty($guideOptions['guide_id'])
+            || ! empty($guideOptions['guideId'])
+            || ! empty($guideOptions['guide_name'])
+            || ! empty($guideOptions['guideName'])
+            || ! empty($guideOptions['name'])
+        );
+        if ($hasGuide) {
             $guideBuilt = self::buildGuideCost(array_merge($item, [
                 'guide_id' => $guideOptions['guide_id'] ?? $guideOptions['guideId'] ?? null,
-                'guide_name' => $guideOptions['guide_name'] ?? $guideOptions['guideName'] ?? 'Guide',
-                'hours' => $guideOptions['hours'] ?? $guideOptions['package_hours'] ?? ($item['hours'] ?? 0),
+                'guide_name' => $guideOptions['guide_name']
+                    ?? $guideOptions['guideName']
+                    ?? $guideOptions['name']
+                    ?? 'Guide',
+                'hours' => $guideOptions['hours']
+                    ?? $guideOptions['service_hours']
+                    ?? $guideOptions['package_hours']
+                    ?? ($item['hours'] ?? 0),
                 'guide_options' => $guideOptions,
             ]));
             foreach ($guideBuilt['components'] as $component) {
@@ -872,43 +1017,203 @@ class OrderCostPriceHelper
     private static function buildTransportCost(array $item, string $type): array
     {
         $components = [];
-        $cost = self::firstNumeric($item, [
-            'total_cost', 'cost_price', 'cost', 'Cost', 'adult_cost', 'adultCost', 'base_cost', 'baseCost',
-        ]);
-        if ($cost <= 0) {
-            // Many transport payloads store supplier cost under cost and sell separately.
-            $cost = self::firstNumeric($item, ['sell', 'Sell', 'totalPrice', 'price']);
+        $source = 'payload';
+
+        // Transfer type: Shared unit cost × pax; Private = flat vehicle cost (no × pax).
+        $transferTypeRaw = strtolower(trim((string) (
+            $item['transferType']
+            ?? $item['transfer_type']
+            ?? $item['type']
+            ?? ''
+        )));
+        $isShared = in_array($transferTypeRaw, ['s', 'shared', 'sic'], true);
+
+        $adults = self::qtyFromItem($item, ['adults', 'adultsQty', 'adult_qty', 'Adults']);
+        $children = self::qtyFromItem($item, ['children', 'child', 'childQty', 'child_qty', 'Children']);
+
+        // Prefer explicit zone cost columns when present; otherwise unit cost from payload.
+        // Frontend stores shared/private zone cost as adultCost/cost (unit, not yet × pax).
+        $adultUnitCost = 0.0;
+        $childUnitCost = 0.0;
+        if ($isShared) {
+            $adultUnitCost = self::firstNumeric($item, [
+                'zoneSharedCostPrice', 'shared_cost_price', 'sharedCostPrice',
+                'adult_cost', 'adultCost', 'cost_price', 'cost', 'Cost', 'base_cost', 'baseCost',
+            ]);
+            $childUnitCost = self::firstNumeric($item, [
+                'zoneSharedCostPrice', 'shared_cost_price', 'sharedCostPrice',
+                'child_cost', 'childCost', 'adult_cost', 'adultCost', 'cost_price', 'cost', 'Cost',
+            ]);
+        } else {
+            $adultUnitCost = self::firstNumeric($item, [
+                'zonePrivateCostPrice', 'private_cost_price', 'privateCostPrice',
+                'adult_cost', 'adultCost', 'cost_price', 'cost', 'Cost', 'base_cost', 'baseCost',
+            ]);
+            $childUnitCost = $adultUnitCost;
         }
-        if ($cost > 0) {
+
+        // Do not fall back to sell/totalPrice for cost_price — those are customer sell figures.
+        $vehicleCost = 0.0;
+        if ($isShared) {
+            if ($adultUnitCost > 0 || $childUnitCost > 0) {
+                $vehicleCost = ($adultUnitCost * $adults) + ($childUnitCost * $children);
+            }
+        } elseif ($adultUnitCost > 0) {
+            // Private / unknown: flat per-vehicle cost (already includes both-way if applied upstream).
+            $vehicleCost = $adultUnitCost;
+        }
+
+        if ($vehicleCost > 0) {
             $components[] = [
                 'key' => $type,
                 'label' => ucfirst(str_replace('_', ' ', $type)),
-                'cost' => round($cost, 2),
+                'cost' => round($vehicleCost, 2),
                 'meta' => [
-                    'vehicle' => $item['vehicles_name'] ?? $item['vehicle_name'] ?? null,
+                    'vehicle' => $item['vehicles_name'] ?? $item['vehicle_name'] ?? $item['vehicleName'] ?? null,
+                    'transfer_type' => $isShared ? 'shared' : 'private',
+                    'adults' => $adults,
+                    'children' => $children,
+                    'unit_cost' => round($adultUnitCost, 2),
                 ],
             ];
         }
 
-        if (isset($item['guide_options']) && is_array($item['guide_options'])) {
-            $guideCost = self::firstNumeric($item['guide_options'], [
-                'total_cost', 'cost_price', 'cost', 'Cost', 'adult_cost', 'adultCost',
-            ]);
-            if ($guideCost > 0) {
-                $components[] = [
-                    'key' => 'guide',
-                    'label' => 'Guide',
-                    'cost' => round($guideCost, 2),
-                    'meta' => [
-                        'guide_name' => $item['guide_options']['guide_name'] ?? $item['guide_options']['guideName'] ?? null,
-                    ],
-                ];
+        // Guide: always resolve from guides.*_cost_price tiers (never guide_options sell).
+        $guideOptions = is_array($item['guide_options'] ?? null) ? $item['guide_options'] : null;
+        if ($guideOptions && (
+            ! empty($guideOptions['guide_required'])
+            || ! empty($guideOptions['guide_id'])
+            || ! empty($guideOptions['guideId'])
+        )) {
+            $guideBuilt = self::buildGuideCost(array_merge($item, [
+                'guide_id' => $guideOptions['guide_id'] ?? $guideOptions['guideId'] ?? null,
+                'guide_name' => $guideOptions['guide_name'] ?? $guideOptions['guideName'] ?? $guideOptions['name'] ?? 'Guide',
+                'hours' => $guideOptions['hours']
+                    ?? $guideOptions['service_hours']
+                    ?? $guideOptions['package_hours']
+                    ?? ($item['hours'] ?? 12),
+                'guide_options' => $guideOptions,
+            ]));
+            foreach ($guideBuilt['components'] as $component) {
+                $components[] = $component;
+            }
+            if (($guideBuilt['source'] ?? '') === 'database') {
+                $source = $vehicleCost > 0 ? 'mixed' : 'database';
             }
         }
 
         return [
             'components' => $components,
-            'source' => 'payload',
+            'source' => $source,
+        ];
+    }
+
+    /**
+     * Miscellaneous: unit cost × pax (adult / child / infant), prefer DB miscellaneous_prices.
+     */
+    private static function buildMiscellaneousCost(array $item): array
+    {
+        $components = [];
+        $source = 'payload';
+
+        $adults = self::qtyFromItem($item, ['adultsQty', 'adults', 'adult', 'adultCount']);
+        $children = self::qtyFromItem($item, ['childQty', 'children', 'child', 'childCount']);
+        $infants = self::qtyFromItem($item, ['infantQty', 'infants', 'infant', 'infantCount']);
+
+        $misId = $item['mis_id'] ?? $item['misId'] ?? null;
+        if ($misId === null || $misId === '') {
+            $rawItemId = (string) ($item['itemId'] ?? $item['item_id'] ?? '');
+            if (preg_match('/(\d+)\s*$/', $rawItemId, $m)) {
+                $misId = (int) $m[1];
+            }
+        } else {
+            $misId = (int) $misId;
+        }
+
+        $dmcId = $item['dmc_id'] ?? $item['dmcId'] ?? null;
+        $city = trim((string) ($item['city'] ?? $item['destination'] ?? ''));
+
+        $adultUnit = 0.0;
+        $childUnit = 0.0;
+        $infantUnit = 0.0;
+
+        if ($misId > 0) {
+            $priceQuery = MiscellaneousPrice::query()
+                ->where('mis_id', $misId)
+                ->where('status', 1);
+            if ($dmcId !== null && $dmcId !== '') {
+                $priceQuery->where('dmc_id', $dmcId);
+            }
+            $prices = $priceQuery->get();
+            $price = null;
+            if ($city !== '' && $prices->isNotEmpty()) {
+                $price = $prices->first(function ($p) use ($city) {
+                    return strcasecmp(trim((string) ($p->city ?? '')), $city) === 0;
+                });
+            }
+            if (! $price) {
+                $price = $prices->first(function ($p) {
+                    return trim((string) ($p->city ?? '')) === '';
+                }) ?: $prices->first();
+            }
+            if ($price) {
+                $adultUnit = (float) ($price->adult_cost ?? 0);
+                $childUnit = (float) ($price->child_cost ?? 0);
+                $infantUnit = (float) ($price->infant_cost ?? 0);
+                $source = 'database';
+            }
+        }
+
+        if ($adultUnit <= 0) {
+            $adultUnit = self::firstNumeric($item, ['adultCost', 'adult_cost', 'adult_cost_price']);
+        }
+        if ($childUnit <= 0) {
+            $childUnit = self::firstNumeric($item, ['childCost', 'child_cost', 'child_cost_price']);
+        }
+        if ($infantUnit <= 0) {
+            $infantUnit = self::firstNumeric($item, ['infantCost', 'infant_cost', 'infant_cost_price']);
+        }
+
+        $total = ($adultUnit * max(0, $adults))
+            + ($childUnit * max(0, $children))
+            + ($infantUnit * max(0, $infants));
+
+        if ($total <= 0) {
+            // Legacy single total (avoid treating sell as cost)
+            $total = self::firstNumeric($item, ['total_cost', 'cost_price', 'cost', 'Cost']);
+        }
+
+        if ($total > 0) {
+            $label = trim((string) (
+                $item['itemName']
+                ?? $item['item_name']
+                ?? $item['name']
+                ?? 'Miscellaneous'
+            ));
+            if ($label === '' && $misId > 0) {
+                $dbItem = MiscellaneousItem::query()->where('mis_id', $misId)->first();
+                $label = $dbItem->item_name ?? 'Miscellaneous';
+            }
+
+            $components[] = [
+                'key' => 'miscellaneous',
+                'label' => $label !== '' ? $label : 'Miscellaneous',
+                'cost' => round($total, 2),
+                'meta' => [
+                    'mis_id' => $misId ?: null,
+                    'adults' => $adults,
+                    'children' => $children,
+                    'infants' => $infants,
+                    'adult_unit_cost' => $adultUnit,
+                    'child_unit_cost' => $childUnit,
+                    'infant_unit_cost' => $infantUnit,
+                ],
+            ];
+        }
+
+        return [
+            'components' => $components,
+            'source' => $source,
         ];
     }
 
