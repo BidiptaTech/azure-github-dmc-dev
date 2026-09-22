@@ -1078,7 +1078,16 @@ class EnquiryFormPro extends Controller
                 $guides = Guide::whereIn('dmc_id', $siblingDmcIds)
                     ->whereIn('status', [1, 3])
                     ->with('languages')
-                    ->select('guide_id', 'name', 'city', 'twelve_hour_price', 'day_rate')
+                    ->select(
+                        'guide_id', 'name', 'city', 'day_rate',
+                        'twelve_hour_price', 'twelve_hour_cost_price',
+                        'two_hour_price', 'two_hour_cost_price',
+                        'four_hour_price', 'four_hour_cost_price',
+                        'six_hour_price', 'six_hour_cost_price',
+                        'eight_hour_price', 'eight_hour_cost_price',
+                        'ten_hour_price', 'ten_hour_cost_price',
+                        'hourly_price', 'hourly_cost_price'
+                    )
                     ->orderBy('name')
                     ->get();
                 
@@ -1182,7 +1191,16 @@ class EnquiryFormPro extends Controller
                 $guides = Guide::where('dmc_id', $dmc_id)
                     ->whereIn('status', [1, 3])
                     ->with('languages')
-                    ->select('guide_id', 'name', 'city')
+                    ->select(
+                        'guide_id', 'name', 'city', 'day_rate',
+                        'twelve_hour_price', 'twelve_hour_cost_price',
+                        'two_hour_price', 'two_hour_cost_price',
+                        'four_hour_price', 'four_hour_cost_price',
+                        'six_hour_price', 'six_hour_cost_price',
+                        'eight_hour_price', 'eight_hour_cost_price',
+                        'ten_hour_price', 'ten_hour_cost_price',
+                        'hourly_price', 'hourly_cost_price'
+                    )
                     ->orderBy('name')
                     ->get();
             } else {
@@ -1519,6 +1537,9 @@ class EnquiryFormPro extends Controller
                     'adult_price' => $price->adult_price ?? 0,
                     'child_price' => $price->child_price ?? 0,
                     'infant_price' => $price->infant_price ?? 0,
+                    'adult_cost' => $price->adult_cost ?? 0,
+                    'child_cost' => $price->child_cost ?? 0,
+                    'infant_cost' => $price->infant_cost ?? 0,
                 ];
             })
             ->filter()
@@ -1842,9 +1863,14 @@ class EnquiryFormPro extends Controller
                 ->whereIn('status', [1, 3])
                 ->where('city', $destination)
                 ->with('languages')
-                ->select('guide_id', 'name', 'city', 'country', 'day_rate', 
-                         'hourly_price', 'two_hour_price', 'four_hour_price', 
-                         'six_hour_price', 'eight_hour_price', 'ten_hour_price', 'twelve_hour_price')
+                ->select('guide_id', 'name', 'city', 'country', 'day_rate',
+                         'hourly_price', 'hourly_cost_price',
+                         'two_hour_price', 'two_hour_cost_price',
+                         'four_hour_price', 'four_hour_cost_price',
+                         'six_hour_price', 'six_hour_cost_price',
+                         'eight_hour_price', 'eight_hour_cost_price',
+                         'ten_hour_price', 'ten_hour_cost_price',
+                         'twelve_hour_price', 'twelve_hour_cost_price')
                 ->orderBy('name')
                 ->get();
             
@@ -1859,12 +1885,19 @@ class EnquiryFormPro extends Controller
                     'country' => $guide->country,
                     'day_rate' => $guide->day_rate ?? $guide->twelve_hour_price ?? 0,
                     'hourly_price' => $guide->hourly_price ?? 0,
+                    'hourly_cost_price' => $guide->hourly_cost_price ?? 0,
                     'two_hour_price' => $guide->two_hour_price ?? 0,
+                    'two_hour_cost_price' => $guide->two_hour_cost_price ?? 0,
                     'four_hour_price' => $guide->four_hour_price ?? 0,
+                    'four_hour_cost_price' => $guide->four_hour_cost_price ?? 0,
                     'six_hour_price' => $guide->six_hour_price ?? 0,
+                    'six_hour_cost_price' => $guide->six_hour_cost_price ?? 0,
                     'eight_hour_price' => $guide->eight_hour_price ?? 0,
+                    'eight_hour_cost_price' => $guide->eight_hour_cost_price ?? 0,
                     'ten_hour_price' => $guide->ten_hour_price ?? 0,
+                    'ten_hour_cost_price' => $guide->ten_hour_cost_price ?? 0,
                     'twelve_hour_price' => $guide->twelve_hour_price ?? 0,
+                    'twelve_hour_cost_price' => $guide->twelve_hour_cost_price ?? 0,
                     'languages' => $guide->languages->map(function($lang) {
                         return [
                             'language' => $lang->language,
@@ -3543,7 +3576,16 @@ class EnquiryFormPro extends Controller
             $guides = Guide::whereIn('dmc_id', $siblingDmcIds)
                 ->whereIn('status', [1, 3])
                 ->with('languages')
-                ->select('guide_id', 'name', 'city', 'twelve_hour_price', 'day_rate')
+                ->select(
+                    'guide_id', 'name', 'city', 'day_rate',
+                    'twelve_hour_price', 'twelve_hour_cost_price',
+                    'two_hour_price', 'two_hour_cost_price',
+                    'four_hour_price', 'four_hour_cost_price',
+                    'six_hour_price', 'six_hour_cost_price',
+                    'eight_hour_price', 'eight_hour_cost_price',
+                    'ten_hour_price', 'ten_hour_cost_price',
+                    'hourly_price', 'hourly_cost_price'
+                )
                 ->orderBy('name')
                 ->get();
         } else {
