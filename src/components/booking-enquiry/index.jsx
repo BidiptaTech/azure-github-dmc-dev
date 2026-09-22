@@ -85,8 +85,8 @@ const Index = () => {
     hotel: false,
     entryExitPort: false,
     attraction: false,
-    localTour: false,
-    tourGuide: false,
+    // localTour: false,
+    // tourGuide: false,
     restaurant: false,
   });
   
@@ -156,8 +156,8 @@ const Index = () => {
       hotel: false,
       entryExitPort: false,
       attraction: false,
-      localTour: false,
-      tourGuide: false,
+      // localTour: false,
+      // tourGuide: false,
       restaurant: false
     });
   };

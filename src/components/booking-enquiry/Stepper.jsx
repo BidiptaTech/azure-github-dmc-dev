@@ -9,8 +9,8 @@ const Stepper = () => {
     hotel: false,
     entryExitPort: false,
     attraction: false,
-    localTour: false,
-    tourGuide: false,
+    // localTour: false,
+    // tourGuide: false,
     restaurant: false,
   });
 

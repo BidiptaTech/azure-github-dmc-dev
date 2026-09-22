@@ -573,8 +573,8 @@ const BookingEnquiries = ({
     hotel: false,
     entryExitPort: false,
     attraction: false,
-    localTour: false,
-    tourGuide: false,
+    // localTour: false,
+    // tourGuide: false,
     restaurant: false,
   });
 
@@ -585,8 +585,8 @@ const BookingEnquiries = ({
       "hotel",
       "entryExitPort",
       "attraction",
-      "localTour",
-      "tourGuide",
+      // "localTour",
+      // "tourGuide",
       "restaurant",
     ].every((key) => typeof bookingOptions[key] === "boolean");
 
@@ -596,8 +596,8 @@ const BookingEnquiries = ({
         hotel: false,
         entryExitPort: false,
         attraction: false,
-        localTour: false,
-        tourGuide: false,
+        // localTour: false,
+        // tourGuide: false,
         restaurant: false,
         // Don't spread prev to avoid retaining any true values from previous state
       }));
@@ -1533,8 +1533,8 @@ const BookingEnquiries = ({
       hotel: false,
       entryExitPort: false,
       attraction: false,
-      localTour: false,
-      tourGuide: false,
+      // localTour: false,
+      // tourGuide: false,
       restaurant: false
     });
     
@@ -1871,7 +1871,10 @@ const BookingEnquiries = ({
           )}
 
           <Grid container spacing={{ xs: 1, sm: 2, md: 3 }} alignItems="flex-start">
-            {Object.keys(bookingOptions).map((option) => (
+            {Object.keys(bookingOptions)
+              // Local Tour & Tour Guide temporarily hidden (commented out of bookingOptions)
+              .filter((option) => option !== "localTour" && option !== "tourGuide")
+              .map((option) => (
               <Grid item xs={12} sm={12} md={6} lg={6} key={option}>
               <StyledCard
                 selected={bookingOptions[option]}
