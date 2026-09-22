@@ -47,6 +47,8 @@ import {
   setPicktype,
   setSelectbooking,
 } from "@/slice/localtour/Localslice";
+import { formatChipDates, normalizeYmd } from "@/utils/cityWiseDates";
+import { toCityOnly } from "@/utils/locationFormat";
 // Import Material UI icons
 import {
   MdHotel,
@@ -332,6 +334,8 @@ console.log("zone_on5", zone_on);
   const [showBookingTable, setShowBookingTable] = useState(hasBookings);
   const [lastBookingCount, setLastBookingCount] = useState(bookingCount);
   const [selectedBooking, setSelectedBooking] = useState(null);
+  // Exclusive accordion: only one city section open at a time
+  const [openCityAccordionKey, setOpenCityAccordionKey] = useState(null);
   const zoneType = useSelector((state) => state.localtour.zonetype);
 
   useEffect(() => {
@@ -549,6 +553,393 @@ console.log("zone_on5", zone_on);
     });
   };
 
+  /** Flatten a cart booking into one display row (hotels shown once, not per night). */
+  const normalizeCartBookingRow = (item) => {
+    if (!item) return null;
+    const type = String(item.type || "").toLowerCase();
+    const cityHint = toCityOnly(
+      item.city ||
+        item.location ||
+        item.hotel_city ||
+        item.hotelDetails?.city ||
+        ""
+    );
+    const dateKey = normalizeBookingDateKey(
+      type === "hotel"
+        ? item.check_in || item.bookingDate
+        : item.bookingDate ||
+            item.pickupdate ||
+            item.entrypickupdate ||
+            item.exitpickupdate ||
+            item.check_in
+    );
+
+    const base = { ...item, source: "cart", cityHint, dateKey };
+
+    if (type === "hotel") {
+      const checkIn = item.check_in || item.bookingDate || "";
+      const checkOut = item.check_out || "";
+      return {
+        ...base,
+        serviceType: "Hotel",
+        serviceName: item.hotel_name || "Unknown Hotel",
+        serviceImage: item.image || "",
+        price: item.totalPrice,
+        bookingDate: [checkIn, checkOut].filter(Boolean),
+        hotelDetails: {
+          hotel_id: item.hotel_id || item.hotelId || "",
+          hotel_name: item.hotel_name,
+          image: item.image,
+          checkInTime: item.checkInTime || item.hotelDetails?.checkInTime,
+          checkOutTime: item.checkOutTime || item.hotelDetails?.checkOutTime,
+        },
+      };
+    }
+    if (type === "attraction") {
+      return {
+        ...base,
+        serviceType: "Attraction",
+        serviceName: item.AttractionName || "Unknown Attraction",
+        serviceImage: item.image || "",
+        price: item.totalPrice,
+        adultCount: item.adultCount ?? item.adults ?? 0,
+        childCount: item.childCount ?? item.children ?? 0,
+      };
+    }
+    if (type === "restaurant") {
+      return {
+        ...base,
+        serviceType: "Restaurant",
+        serviceName: item.restaurantName || "Unknown Restaurant",
+        serviceImage: item.image || "",
+        price: item.totalPrice,
+        adultCount: item.adultCount ?? item.adults ?? 0,
+        childCount: item.childCount ?? item.children ?? 0,
+      };
+    }
+    if (type === "entryport") {
+      return {
+        ...base,
+        serviceType: "Entry Port",
+        serviceName: item.vehicles_name || "Unknown Entry Port",
+        serviceImage: item.image || "",
+        price: item.totalPrice,
+      };
+    }
+    if (type === "exitport") {
+      return {
+        ...base,
+        serviceType: "Exit Port",
+        serviceName: item.vehicles_name || "Unknown Exit Port",
+        serviceImage: item.image || "",
+        price: item.totalPrice,
+      };
+    }
+    if (type === "guide") {
+      return {
+        ...base,
+        serviceType: "Guide",
+        serviceName: item.guide_name || "Unknown Guide",
+        serviceImage: item.image || "",
+        price: item.totalPrice,
+      };
+    }
+    if (type === "travel_point" || type === "travelpoint") {
+      return {
+        ...base,
+        serviceType: "Travel Point",
+        serviceName: item.vehicles_name || "Unknown Travel Point",
+        serviceImage: item.image || "",
+        price: item.totalPrice,
+      };
+    }
+    if (type === "travel_hourly" || type === "travelhourly") {
+      return {
+        ...base,
+        serviceType: "Travel Hourly",
+        serviceName: item.vehicles_name || "Unknown Travel Hourly",
+        serviceImage: item.image || "",
+        price: item.totalPrice,
+      };
+    }
+    if (
+      type === "local_transport" ||
+      type === "travel_zone" ||
+      type === "zone" ||
+      type === "travelpointzone"
+    ) {
+      return {
+        ...base,
+        serviceType: "Travel Zone",
+        serviceName: item.vehicles_name || "Unknown Travel Zone",
+        serviceImage: item.image || "",
+        price: item.totalPrice,
+      };
+    }
+    return {
+      ...base,
+      serviceType: item.type || "Booking",
+      serviceName:
+        item.hotel_name ||
+        item.AttractionName ||
+        item.restaurantName ||
+        item.guide_name ||
+        item.vehicles_name ||
+        "Booking",
+      serviceImage: item.image || "",
+      price: item.totalPrice,
+    };
+  };
+
+  /** Flatten viewDetails bookings into display rows (hotels once, not per night). */
+  const normalizeViewDetailsBookingRows = () => {
+    if (!viewDetails || Array.isArray(viewDetails)) return [];
+    const rows = [];
+
+    const pushHotel = (hotel) => {
+      const checkIn = Array.isArray(hotel.bookingDate)
+        ? hotel.bookingDate[0]
+        : hotel.check_in || hotel.bookingDate || "";
+      const checkOut = Array.isArray(hotel.bookingDate)
+        ? hotel.bookingDate[1]
+        : hotel.check_out || "";
+      const cityHint = toCityOnly(
+        hotel.city ||
+          hotel.location ||
+          hotel.hotelDetails?.city ||
+          hotel.hotelDetails?.location ||
+          hotel.service_details?.city ||
+          ""
+      );
+      rows.push({
+        ...hotel,
+        source: "viewDetails",
+        cityHint,
+        dateKey: normalizeBookingDateKey(checkIn),
+        serviceType: "Hotel",
+        serviceName: hotel.hotelDetails?.hotel_name || hotel.hotel_name || "Unknown Hotel",
+        serviceImage: hotel.hotelDetails?.image || hotel.image || "",
+        price: hotel.totalPrice,
+        bookingDate: [checkIn, checkOut].filter(Boolean),
+      });
+    };
+
+    const pushSimple = (item, serviceType, serviceName, serviceImage) => {
+      const cityHint = toCityOnly(
+        item.city ||
+          item.location ||
+          item.service_details?.city ||
+          item.attractionDetails?.location ||
+          item.restaurantDetails?.city ||
+          ""
+      );
+      const dateKey = normalizeBookingDateKey(
+        item.bookingDate ||
+          item.pickupdate ||
+          item.entrypickupdate ||
+          item.exitpickupdate ||
+          item.check_in
+      );
+      rows.push({
+        ...item,
+        source: "viewDetails",
+        cityHint,
+        dateKey,
+        serviceType,
+        serviceName,
+        serviceImage,
+        price: item.totalPrice,
+      });
+    };
+
+    (viewDetails.hotel || []).forEach(pushHotel);
+
+    (viewDetails.entry_port || []).forEach((item) =>
+      pushSimple(
+        item,
+        "Entry Port",
+        item.vehicles_name || "Unknown Entry Port",
+        item.image || ""
+      )
+    );
+    (viewDetails.exit_port || []).forEach((item) =>
+      pushSimple(
+        item,
+        "Exit Port",
+        item.vehicles_name || "Unknown Exit Port",
+        item.image || ""
+      )
+    );
+    (viewDetails.attraction || []).forEach((item) =>
+      pushSimple(
+        item,
+        "Attraction",
+        item.AttractionName || "Unknown Attraction",
+        item.service_details?.master_image || item.image || ""
+      )
+    );
+    (viewDetails.attraction_package || []).forEach((item) =>
+      pushSimple(
+        item,
+        "Attraction Package",
+        item.AttractionName || "Unknown Attraction Package",
+        item.service_details?.master_image || item.image || ""
+      )
+    );
+    (viewDetails.restaurant || []).forEach((item) =>
+      pushSimple(
+        item,
+        "Restaurant",
+        item.restaurantName || "Unknown Restaurant",
+        item.service_details?.master_image || item.image || ""
+      )
+    );
+    (viewDetails.guide || []).forEach((item) =>
+      pushSimple(
+        item,
+        "Guide",
+        item.guide_name || "Unknown Guide",
+        item.image || ""
+      )
+    );
+    (viewDetails.travel_point || []).forEach((item) =>
+      pushSimple(
+        item,
+        "Travel Point",
+        item.vehicles_name || "Unknown Travel Point",
+        item.image || ""
+      )
+    );
+    (viewDetails.travel_hourly || []).forEach((item) =>
+      pushSimple(
+        item,
+        "Travel Hourly",
+        item.vehicles_name || "Unknown Travel Hourly",
+        item.image || ""
+      )
+    );
+    (viewDetails.local_transport || []).forEach((item) =>
+      pushSimple(
+        item,
+        "Travel Zone",
+        item.vehicles_name || "Unknown Travel Zone",
+        item.image || ""
+      )
+    );
+
+    return rows;
+  };
+
+  const resolveCityWiseDates = () => {
+    const trip = Array.isArray(cart) && cart.length ? cart[0] : null;
+    const fromCart = Array.isArray(trip?.cityWiseDates) ? trip.cityWiseDates : [];
+    const fromTour = Array.isArray(viewDetails?.tour?.cityWiseDates)
+      ? viewDetails.tour.cityWiseDates
+      : [];
+    if (fromCart.length) return fromCart;
+    if (fromTour.length) return fromTour;
+    return [];
+  };
+
+  /**
+   * Split cart + viewDetails bookings into city sections using cityWiseDates.
+   * Match by booking.city first, then by bookingDate within city checkIn–checkOut.
+   */
+  const getBookingsByCity = () => {
+    const cityWiseDates = resolveCityWiseDates();
+    if (!cityWiseDates.length) return [];
+
+    const rows = [
+      ...cartBookings.map(normalizeCartBookingRow).filter(Boolean),
+      ...normalizeViewDetailsBookingRows(),
+    ];
+
+    const assignedIds = new Set();
+    const resolveRowId = (row, index) =>
+      row.cartItemId ||
+      row.booking_id ||
+      row.id ||
+      `${row.source || "row"}-${row.serviceType}-${row.serviceName}-${row.dateKey || index}`;
+
+    const sectionMap = cityWiseDates.map((entry) => {
+      const cityName = entry.city || "";
+      const cityNeedle = toCityOnly(cityName).toLowerCase();
+      const checkIn =
+        normalizeYmd(entry.checkIn) || normalizeBookingDateKey(entry.checkIn);
+      const checkOut =
+        normalizeYmd(entry.checkOut) || normalizeBookingDateKey(entry.checkOut);
+
+      return {
+        key: `city-${cityNeedle || "unknown"}-${checkIn || ""}`,
+        city: cityName,
+        cityNeedle,
+        checkIn: entry.checkIn,
+        checkOut: entry.checkOut,
+        checkInKey: checkIn,
+        checkOutKey: checkOut,
+        dateLabel: formatChipDates(entry),
+        bookings: [],
+      };
+    });
+
+    // Pass 1: match explicit booking.city to cityWiseDates city
+    rows.forEach((row, index) => {
+      const rowId = resolveRowId(row, index);
+      if (assignedIds.has(rowId)) return;
+      const rowCity = toCityOnly(row.cityHint).toLowerCase();
+      if (!rowCity) return;
+      const section = sectionMap.find((s) => s.cityNeedle === rowCity);
+      if (!section) return;
+      section.bookings.push(row);
+      assignedIds.add(rowId);
+    });
+
+    // Pass 2: remaining bookings by bookingDate within city checkIn–checkOut
+    rows.forEach((row, index) => {
+      const rowId = resolveRowId(row, index);
+      if (assignedIds.has(rowId)) return;
+      if (!row.dateKey) return;
+      const section = sectionMap.find(
+        (s) =>
+          s.checkInKey &&
+          s.checkOutKey &&
+          row.dateKey >= s.checkInKey &&
+          row.dateKey <= s.checkOutKey
+      );
+      if (!section) return;
+      section.bookings.push(row);
+      assignedIds.add(rowId);
+    });
+
+    sectionMap.forEach((section) => {
+      section.bookings.sort((a, b) =>
+        String(a.dateKey || "").localeCompare(String(b.dateKey || ""))
+      );
+    });
+
+    const sections = sectionMap.map(
+      ({ checkInKey, checkOutKey, cityNeedle, ...rest }) => rest
+    );
+
+    // Any leftover bookings that didn't match a city range
+    const unassigned = rows.filter((row, index) => {
+      const rowId = resolveRowId(row, index);
+      return !assignedIds.has(rowId);
+    });
+    if (unassigned.length) {
+      sections.push({
+        key: "city-other",
+        city: "Other",
+        checkIn: "",
+        checkOut: "",
+        dateLabel: "",
+        bookings: unassigned,
+      });
+    }
+
+    return sections.filter((section) => section.bookings.length > 0);
+  };
+
   // Organize bookings by date from view details and/or cart
   const getBookingsByDate = () => {
     const bookingsByDate = {};
@@ -752,6 +1143,55 @@ console.log("zone_on5", zone_on);
 
     return bookingsByDate;
   };
+
+  const getBookingTableSections = () => {
+    const cityWiseDates = resolveCityWiseDates();
+
+    // City-wise layout when cityWiseDates exist (cart and/or viewDetails)
+    if (
+      cityWiseDates.length > 0 &&
+      (hasCartBookings || hasViewDetailsBookings)
+    ) {
+      return getBookingsByCity().map((section) => ({
+        key: section.key,
+        title: section.city,
+        subtitle: section.dateLabel
+          ? section.dateLabel
+          : [section.checkIn, section.checkOut].filter(Boolean).join(" – "),
+        isCitySection: true,
+        bookings: section.bookings,
+      }));
+    }
+
+    return Object.entries(getBookingsByDate())
+      .sort(([a], [b]) => String(a).localeCompare(String(b)))
+      .map(([date, bookings]) => ({
+        key: date,
+        title: `Bookings for ${new Date(date).toLocaleDateString("en-US", {
+          weekday: "long",
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        })}`,
+        subtitle: null,
+        isCitySection: false,
+        bookings,
+      }));
+  };
+
+
+  useEffect(() => {
+    if (!showBookingTable) return;
+    const sections = getBookingTableSections().filter((s) => s.isCitySection);
+    if (!sections.length) {
+      setOpenCityAccordionKey(null);
+      return;
+    }
+    const stillOpen = sections.some((s) => s.key === openCityAccordionKey);
+    if (!stillOpen) {
+      setOpenCityAccordionKey(sections[0].key);
+    }
+  }, [showBookingTable, cart, cartBookings.length, hasCartBookings, hasViewDetailsBookings, viewDetails]);
 
   const handleBookTransfer = (booking, id, type) => {
     if(zone_on === 1){
@@ -1128,20 +1568,81 @@ console.log("zone_on5", zone_on);
                   )}
                 </div>
 
-                {Object.entries(getBookingsByDate())
-                  .sort(([a], [b]) => String(a).localeCompare(String(b)))
-                  .map(([date, bookings]) => (
-                  <div key={date} className="mb-40">
-                    <h3 className="text-22 fw-500 mb-20">
-                      Bookings for{" "}
-                      {new Date(date).toLocaleDateString("en-US", {
-                        weekday: "long",
-                        year: "numeric",
-                        month: "long",
-                        day: "numeric",
-                      })}
-                    </h3>
-                    <div className="overflow-auto">
+                {getBookingTableSections().map((section) => {
+                  const isCityOpen =
+                    !section.isCitySection ||
+                    openCityAccordionKey === section.key;
+                  return (
+                  <div key={section.key} className="mb-40">
+                    {section.isCitySection ? (
+                      <button
+                        type="button"
+                        className="d-flex items-center justify-between flex-wrap w-100 mb-0 px-20 py-15 rounded-8 border-0 text-left"
+                        onClick={() =>
+                          setOpenCityAccordionKey((prev) =>
+                            prev === section.key ? null : section.key
+                          )
+                        }
+                        aria-expanded={isCityOpen}
+                        style={{
+                          background:
+                            "linear-gradient(90deg, #3554d1 0%, #4c6fff 100%)",
+                          color: "#fff",
+                          boxShadow: "0 8px 20px rgba(53, 84, 209, 0.18)",
+                          cursor: "pointer",
+                        }}
+                      >
+                        <div className="d-flex items-center">
+                          <LocationOnIcon
+                            style={{ fontSize: 22, marginRight: 8 }}
+                          />
+                          <div>
+                            <div className="text-20 fw-600 lh-15">
+                              {section.title}
+                            </div>
+                            {section.subtitle ? (
+                              <div
+                                className="text-13 mt-5"
+                                style={{ opacity: 0.9 }}
+                              >
+                                {section.subtitle}
+                              </div>
+                            ) : null}
+                          </div>
+                        </div>
+                        <div className="d-flex items-center gap-2">
+                          <div
+                            className="text-13 fw-500 px-12 py-5 rounded-100"
+                            style={{
+                              background: "rgba(255,255,255,0.18)",
+                            }}
+                          >
+                            {section.bookings.length} booking
+                            {section.bookings.length === 1 ? "" : "s"}
+                          </div>
+                          <span
+                            className="d-flex items-center justify-center"
+                            style={{
+                              width: 28,
+                              height: 28,
+                              borderRadius: "50%",
+                              background: "rgba(255,255,255,0.2)",
+                              marginLeft: 10,
+                            }}
+                          >
+                            {isCityOpen ? (
+                              <FaAngleUp style={{ fontSize: 14 }} />
+                            ) : (
+                              <FaAngleDown style={{ fontSize: 14 }} />
+                            )}
+                          </span>
+                        </div>
+                      </button>
+                    ) : (
+                      <h3 className="text-22 fw-500 mb-20">{section.title}</h3>
+                    )}
+                    {isCityOpen ? (
+                    <div className="overflow-auto mt-15">
                       <table className="table1 table-bordered table-hover shadow-sm">
                         <thead className="bg-blue-1 text-white">
                           <tr>
@@ -1196,7 +1697,7 @@ console.log("zone_on5", zone_on);
                           </tr>
                         </thead>
                         <tbody>
-                          {bookings.map((booking, index) => (
+                          {section.bookings.map((booking, index) => (
                             <tr
                               key={index}
                               className="border-bottom-light booking-row"
@@ -1213,8 +1714,28 @@ console.log("zone_on5", zone_on);
                               <td className="px-20 py-15">
                                 <div className="d-flex items-center">
                                   {getServiceTypeIcon(booking.serviceType)}
-                                  <div className="ml-10 fw-500">
-                                    {booking.serviceType}
+                                  <div className="ml-10">
+                                    <div className="fw-500">
+                                      {booking.serviceType}
+                                    </div>
+                                    {booking.source === "cart" && (
+                                      <span
+                                        className="d-inline-flex items-center mt-5"
+                                        style={{
+                                          fontSize: "11px",
+                                          fontWeight: 600,
+                                          lineHeight: 1,
+                                          padding: "4px 8px",
+                                          borderRadius: "4px",
+                                          background: "#eef2ff",
+                                          color: "#3554d1",
+                                          border: "1px solid #c7d2fe",
+                                          whiteSpace: "nowrap",
+                                        }}
+                                      >
+                                        From Cart
+                                      </span>
+                                    )}
                                   </div>
                                 </div>
                               </td>
@@ -1825,8 +2346,10 @@ console.log("zone_on5", zone_on);
                         </tbody>
                       </table>
                     </div>
+                    ) : null}
                   </div>
-                ))}
+                  );
+                })}
               </div>
               <div className="d-flex justify-center mt-20">
                 {/* Always render this for debugging */}
