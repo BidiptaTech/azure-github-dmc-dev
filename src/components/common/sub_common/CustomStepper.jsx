@@ -104,7 +104,8 @@ const LoadingDots = () => {
   );
 };
 
-export default function CustomStepper() {
+export default function CustomStepper({ variant = "default" }) {
+  const isLite = variant === "lite";
   const id = useSelector((state) => state.hotels.id);
   const tourId = useSelector((state) => state.steps.id);
   const authTourId = useSelector((state) => state.auth?.tourId);
@@ -477,6 +478,55 @@ export default function CustomStepper() {
   const shouldShowNext =
     showNext ||
     (isLastStep && (currentStepStatus >= 2 || !showSkip));
+
+  if (isLite) {
+    const handleLiteStepClick = (index, path, key) => {
+      const status = getDerivedStatus(key, index);
+
+      // Keep step tracking in sync so the destination page highlights correctly
+      if (tourId && tourId > 0) {
+        if (status < 2) {
+          dispatch(updateStepStatus({ key, status: 2 }));
+          dispatch(setType(null));
+          dispatch(statusUpdate());
+        }
+      } else {
+        dispatch(setLocalCurrentStep(index));
+        if (status < 2) {
+          dispatch(updateLocalStepStatus({ key, status: 2 }));
+        }
+      }
+
+      navigate(path);
+    };
+
+    return (
+      <div className="stepper-lite">
+        <div className="stepper-lite__track">
+          {steps.map(({ label, path, key }, index) => {
+            const status = getDerivedStatus(key, index);
+            const isActive = index === effectiveCurrentStep;
+            const isCompleted = status === 3;
+            return (
+              <button
+                key={path}
+                type="button"
+                className={`stepper-lite__step${isActive ? " is-active" : ""}${
+                  isCompleted ? " is-completed" : ""
+                }`}
+                onClick={() => handleLiteStepClick(index, path, key)}
+              >
+                <span className="stepper-lite__icon">
+                  <img src={stepIcons[index + 1]} alt={label} />
+                </span>
+                <span className="stepper-lite__label">{label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>

@@ -78,7 +78,7 @@ import PreferredGuidesSearch from "./PreferredGuidesSearch";
 import AttractionDropOffSearch from "./AttractionDropOffSearch";
 import RestaurantDropOffSearch from "./RestaurantDropOffSearch";
 import DMCSelectionComponent from "./DMCSelectionComponent";
-import TripDetailsComponent from "./TripDetailsComponent";
+import EnquirySearchSummaryBar from "./EnquirySearchSummaryBar";
 import PricingSummaryComponent from "./PricingSummaryComponent";
 
 // Service category colors
@@ -232,14 +232,6 @@ const DetailsToggleButton = styled(Button)(({ theme, serviceType }) => {
     },
   };
 });
-
-const HeadingLine = styled(Box)(({ theme }) => ({
-  height: "4px",
-  width: "60px",
-  background: `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.primary.light})`,
-  margin: "15px auto 0",
-  borderRadius: "10px",
-}));
 
 const SummaryCard = styled(Box)(({ theme, serviceType }) => {
   const colorScheme = serviceColors[serviceType] || serviceColors.hotel;
@@ -1790,45 +1782,17 @@ const BookingEnquiries = ({
   };
 
   return (
-    <Box sx={{ 
-      maxWidth: "1400px", 
-      margin: "0 auto", 
-      px: { xs: 1, sm: 2, md: 3 },
-      py: { xs: 1, sm: 2, md: 3 }
-    }}>
-      {/* Page Header */}
-      <Box sx={{ 
-        textAlign: "center", 
-        mb: { xs: 2, sm: 3, md: 4 }
-      }}>
-        <Typography 
-          variant="h4" 
-          component="h1" 
-          sx={{ 
-            fontWeight: 600,
-            fontSize: { xs: '1.5rem', sm: '2rem', md: '2.5rem' },
-            color: '#ffffff',
-            mb: 1
-          }}
-        >
-         Choose what you want
-        </Typography>
-        {/* <Typography 
-          variant="body1" 
-          color="text.secondary" 
-          sx={{ 
-            fontSize: { xs: '0.875rem', sm: '1rem', md: '1.1rem' },
-            mb: 2
-          }}
-        >
-          Select your preferred services and customize your travel experience
-        </Typography> */}
-        <HeadingLine />
-      </Box>
+    <Box sx={{ width: "100%" }}>
+      <EnquirySearchSummaryBar />
 
-      {/* Trip Details Section */}
-      <TripDetailsComponent mode="view" />
-
+      <Box
+        sx={{
+          maxWidth: "1400px",
+          margin: "0 auto",
+          px: { xs: 1, sm: 2, md: 3 },
+          pb: { xs: 1, sm: 2, md: 3 },
+        }}
+      >
       {/* Main Grid Layout */}
       <Grid container spacing={{ xs: 2, sm: 3, md: 4 }}>
         {/* Left Column - DMC Selection */}
@@ -2973,6 +2937,7 @@ const BookingEnquiries = ({
           Your previous selections have been cleared due to DMC change. Please reselect services from the new DMC.
         </Alert>
       </Snackbar>
+      </Box>
     </Box>
   );
 };

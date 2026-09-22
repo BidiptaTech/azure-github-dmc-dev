@@ -38,6 +38,7 @@ export const fetchBookingid = createAsyncThunk(
       // console.log("Selected DMC IDs before request:", selectedDmcIds);
 
       // Prepare request body with explicit country and city
+      // Multi-city enquiries send comma-separated city/country strings
       const requestBody = {
         country: searchLocation?.country || '',
         city: searchLocation?.city || '',
@@ -52,6 +53,13 @@ export const fetchBookingid = createAsyncThunk(
         // Add selected DMC IDs to the request
         dmc_ids: selectedDmcIds.length > 0 ? selectedDmcIds : [selectedDmcId],
       };
+
+      if (searchLocation?.cityWiseDates?.length) {
+        requestBody.city_wise_dates = searchLocation.cityWiseDates;
+      }
+      if (searchLocation?.cities?.length) {
+        requestBody.cities = searchLocation.cities;
+      }
 
       // Log the final request body for debugging
       console.log("Final API request payload with DMC IDs:", requestBody);
@@ -695,7 +703,10 @@ const EnquirySlice = createSlice({
       if (action.payload && typeof action.payload === 'object') {
         state.searchLocation = {
           country: action.payload.country || '',
-          city: action.payload.city || ''
+          city: action.payload.city || '',
+          // Multi-city support (optional extras; create-enquiry still uses country/city strings)
+          cities: action.payload.cities || null,
+          cityWiseDates: action.payload.cityWiseDates || null,
         };
       } else {
         state.searchLocation = action.payload;

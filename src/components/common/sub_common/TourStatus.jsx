@@ -60,8 +60,10 @@ import {
   resolveCountryName,
 } from "@/utils/locationFormat";
 
-export default function TourStatus() {
+export default function TourStatus({ variant = "default" }) {
+  const isLite = variant === "lite";
   const [selectedDate, setSelectedDate] = useState(null); // Track selected date
+  const boxesScrollRef = useRef(null);
   const [modalOpen, setModalOpen] = useState(false); // Modal open state
   const [restaurantModalOpen, setRestaurantModalOpen] = useState(false); // Restaurant modal state
   const [localtourModalOpen, setlocaltourModalOpen] = useState(false); // Restaurant modal state
@@ -866,6 +868,222 @@ export default function TourStatus() {
     // Format as "Mon, 24 Jan'25"
     return `${dayName}, ${day} ${monthName}'${year}`;
   };
+
+  const scrollBoxes = (direction) => {
+    const el = boxesScrollRef.current;
+    if (!el) return;
+    el.scrollBy({ left: direction * 180, behavior: "smooth" });
+  };
+
+  if (isLite) {
+    return (
+      <div className="tour-status-container tour-status--lite">
+        <div className="range-box">
+          {range.length > 0 ? (
+            <div className="tour-status-lite__row">
+              <div className="tour-status-lite__scroller">
+                <div className="tour-status-lite__boxes" ref={boxesScrollRef}>
+                  {range.map((date, index) => {
+                    const formattedDate = formatDate(date);
+                    const services = dateService[formattedDate]?.services || {};
+                    const attractionCount =
+                      (services.attraction?.count || 0) +
+                      (services.attraction_package?.count || 0);
+                    const restaurantCount = services.restaurant?.count || 0;
+                    const localtravelPointCount =
+                      services.travel_point?.count || 0;
+                    const localtravelHourCount =
+                      services.travel_hourly?.count || 0;
+                    const localtravelZoneCount =
+                      services.local_transport?.count || 0;
+                    const localtravelCount =
+                      localtravelPointCount +
+                      localtravelHourCount +
+                      localtravelZoneCount;
+                    const entrycount = services.entry_port?.count || 0;
+                    const exitcount = services.exit_port?.count || 0;
+                    const guidecount = services.guide?.count || 0;
+                    const hotelCount = services.hotel?.count || 0;
+
+                    // Same visibility rules as default TourStatus (entry on first day, exit on last)
+                    const visibleIcons = subBoxIcons.filter((icon) => {
+                      if (icon.name === "Pickup/Drop(Entry Port)") {
+                        return index === 0;
+                      }
+                      if (icon.name === "Pickup/Drop(Exit Port)") {
+                        return index === range.length - 1;
+                      }
+                      return true;
+                    });
+
+                    return (
+                      <div key={index} className="tour-status-lite__card">
+                        <div className="tour-status-lite__date">
+                          {formatDateForDisplay(date)}
+                        </div>
+                        <div className="tour-status-lite__icons">
+                          {visibleIcons.map((icon, subIndex) => {
+                            let count = 0;
+                            if (icon.name === "Hotel") count = hotelCount;
+                            else if (icon.name === "Pickup/Drop(Entry Port)")
+                              count = entrycount;
+                            else if (icon.name === "Pickup/Drop(Exit Port)")
+                              count = exitcount;
+                            else if (icon.name === "Attraction & Experiences")
+                              count = attractionCount;
+                            else if (icon.name === "Tour Guide")
+                              count = guidecount;
+                            else if (icon.name === "Restaurant")
+                              count = restaurantCount;
+                            else if (icon.name === "Travellers")
+                              count = localtravelCount;
+
+                            const isActive = count > 0;
+
+                            return (
+                              <div
+                                key={subIndex}
+                                className={`tour-status-lite__icon-wrap${
+                                  isActive ? "" : " is-empty"
+                                }`}
+                                style={{
+                                  cursor: isActive ? "pointer" : "default",
+                                }}
+                                onClick={() => {
+                                  if (!isActive) return;
+                                  const iconName = icon.name;
+                                  if (iconName === "Hotel")
+                                    handleHotelClick(date);
+                                  else if (
+                                    iconName === "Attraction & Experiences"
+                                  )
+                                    handleAttractionClick(date);
+                                  else if (
+                                    iconName === "Pickup/Drop(Entry Port)"
+                                  )
+                                    handleEntryPortClick(date);
+                                  else if (
+                                    iconName === "Pickup/Drop(Exit Port)"
+                                  )
+                                    handleExitPortClick(date);
+                                  else if (iconName === "Travellers")
+                                    handleLocaltourClick(date);
+                                  else if (iconName === "Tour Guide")
+                                    handleGuideClick(date);
+                                  else if (iconName === "Restaurant")
+                                    handleRestaurantClick(date);
+                                }}
+                              >
+                                <img
+                                  src={icon.icon}
+                                  alt={icon.name}
+                                  data-tooltip-content={icon.name}
+                                  data-tooltip-id={`tooltip-${subIndex}-${index}`}
+                                />
+                                {count > 0 && (
+                                  <span className="tour-status-lite__badge">
+                                    {count}
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <button
+                  type="button"
+                  className="tour-status-lite__nav"
+                  aria-label="Scroll dates left"
+                  onClick={() => scrollBoxes(-1)}
+                >
+                  ‹
+                </button>
+                <button
+                  type="button"
+                  className="tour-status-lite__nav"
+                  aria-label="Scroll dates right"
+                  onClick={() => scrollBoxes(1)}
+                >
+                  ›
+                </button>
+              </div>
+            </div>
+          ) : (
+            <Box
+              style={{
+                textAlign: "center",
+                padding: "20px",
+                color: "#666",
+                fontStyle: "italic",
+                backgroundColor: "rgba(0,0,0,0.02)",
+                borderRadius: "8px",
+              }}
+            >
+              No date range selected
+            </Box>
+          )}
+        </div>
+
+        {subBoxIcons.map((icon, iconIndex) =>
+          range.map((_, dateIndex) => (
+            <Tooltip
+              key={`tooltip-${iconIndex}-${dateIndex}`}
+              id={`tooltip-${iconIndex}-${dateIndex}`}
+              effect="solid"
+              place="top"
+              style={{
+                borderRadius: "4px",
+                fontSize: "12px",
+                padding: "4px 8px",
+                boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
+              }}
+            />
+          ))
+        )}
+
+        <PortModal
+          open={entryexitModalOpen}
+          onClose={() => setentryexitModalOpen(false)}
+          bookings={portType === "entry" ? formData : formData1}
+          date={selectedDate}
+          portType={portType}
+        />
+        <AttractionModal
+          open={modalOpen}
+          onClose={() => setModalOpen(false)}
+          bookings={bookings}
+          date={selectedDate}
+        />
+        <LocalTourModal
+          open={localtourModalOpen}
+          onClose={() => setlocaltourModalOpen(false)}
+          bookings={travel}
+          date={selectedDate}
+        />
+        <TourguideModal
+          open={guideModalOpen}
+          onClose={() => setguideModalOpen(false)}
+          bookings={bookedguide}
+          date={selectedDate}
+        />
+        <RestaurantModal
+          open={restaurantModalOpen}
+          onClose={() => setRestaurantModalOpen(false)}
+          bookings={restaurantBooking}
+          date={selectedDate}
+        />
+        <HotelModal
+          open={hotelModalOpen}
+          onClose={() => setHotelModalOpen(false)}
+          bookings={hotelBookings}
+          date={selectedDate}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="tour-status-container">

@@ -538,10 +538,15 @@ const GuestSearch = ({ onGuestChange, guestCounts, disabled = false }) => {
     }
   };
 
+  const totalPax =
+    (guestCounts.Adults || 0) +
+    (guestCounts.Children || 0) +
+    (guestCounts.Infants || 0);
+
   return (
     <Box 
       ref={dropdownRef}
-      className="searchMenu-guests px-30 lg:py-20 lg:px-0 js-form-dd js-form-counters position-relative" 
+      className="searchMenu-guests px-20 lg:py-15 lg:px-0 js-form-dd js-form-counters position-relative" 
       sx={{ zIndex: 1000 }}
     >
       <Box
@@ -550,57 +555,51 @@ const GuestSearch = ({ onGuestChange, guestCounts, disabled = false }) => {
         aria-expanded="false"
         data-bs-offset="0,22"
         onClick={handleDropdownClick}
+        className="cursor-pointer"
         sx={{
           opacity: disabled ? 0.6 : 1,
           cursor: disabled ? 'not-allowed' : 'pointer',
           pointerEvents: disabled ? 'none' : 'auto',
-          maxWidth: { xs: '120px', sm: '160px' },
-          width: { xs: '120px', sm: '160px' }
         }}
       >
-        
-        <Typography 
-          variant="body2" 
-          color={disabled ? "text.disabled" : "text.secondary"}
-          sx={{
-            fontSize: { xs: '0.75rem', sm: '0.875rem' },
-            lineHeight: { xs: 1.2, sm: 1.4 },
-            maxWidth: { xs: '120px', sm: '160px' },
-            width: { xs: '120px', sm: '160px' },
-            minWidth: { xs: '120px', sm: '160px' }
+        <div
+          style={{
+            fontSize: "11px",
+            fontWeight: 600,
+            letterSpacing: "0.04em",
+            textTransform: "uppercase",
+            color: "#64748b",
+            marginBottom: 4,
           }}
         >
-          <Box component="span" sx={{ display: { xs: 'none', sm: 'block' } }}>
-            <Box component="span" sx={{ display: 'block' }}>
-              {guestCounts.Adults} adults
-              {((guestCounts.maleCount || 0) > 0 || (guestCounts.femaleCount || 0) > 0) && (
-                <> ({guestCounts.maleCount || 0}M, {guestCounts.femaleCount || 0}F)</>
-              )}
-            </Box>
-            {((guestCounts.Children || 0) > 0 || (guestCounts.Infants || 0) > 0) && (
-              <Box component="span" sx={{ display: 'block' }}>
-                {(guestCounts.Children || 0) > 0 && <>{guestCounts.Children}Children</>}
-                {(guestCounts.Children || 0) > 0 && (guestCounts.Infants || 0) > 0 && <> - </>}
-                {(guestCounts.Infants || 0) > 0 && <>{guestCounts.Infants}Infants</>}
-              </Box>
-            )}
-          </Box>
-          <Box component="span" sx={{ display: { xs: 'block', sm: 'none' } }}>
-            <Box component="span" sx={{ display: 'block' }}>
-              {guestCounts.Adults}A
-              {((guestCounts.maleCount || 0) > 0 || (guestCounts.femaleCount || 0) > 0) && (
-                <> ({guestCounts.maleCount || 0}M, {guestCounts.femaleCount || 0}F)</>
-              )}
-            </Box>
-            {((guestCounts.Children || 0) > 0 || (guestCounts.Infants || 0) > 0) && (
-              <Box component="span" sx={{ display: 'block' }}>
-                {(guestCounts.Children || 0) > 0 && <>{guestCounts.Children}Children</>}
-                {(guestCounts.Children || 0) > 0 && (guestCounts.Infants || 0) > 0 && <> - </>}
-                {(guestCounts.Infants || 0) > 0 && <>{guestCounts.Infants}Infants</>}
-              </Box>
-            )}
-          </Box>
-        </Typography>
+          Travellers
+        </div>
+        <div
+          style={{
+            fontSize: "22px",
+            fontWeight: 700,
+            color: disabled ? "#94a3b8" : "#0f172a",
+            lineHeight: 1.2,
+          }}
+        >
+          {totalPax} Traveller{totalPax === 1 ? "" : "s"}
+        </div>
+        <div style={{ fontSize: "12px", color: "#64748b", marginTop: 2 }}>
+          <span className="js-count-adult">{guestCounts.Adults}</span> Adult
+          {guestCounts.Adults === 1 ? "" : "s"}
+          {guestCounts.Children > 0 && (
+            <>
+              {" · "}
+              <span className="js-count-child">{guestCounts.Children}</span> Child
+            </>
+          )}
+          {guestCounts.Infants > 0 && (
+            <>
+              {" · "}
+              <span className="js-count-room">{guestCounts.Infants}</span> Infant
+            </>
+          )}
+        </div>
       </Box>
 
       <Box
