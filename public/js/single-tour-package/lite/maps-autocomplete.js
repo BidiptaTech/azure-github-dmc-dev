@@ -1,6 +1,7 @@
 /* === STP LITE: maps-autocomplete.js ===
  * Google Places autocomplete (create + edit)
  * Pickup focus → pickup list only; dropoff focus → dropoff list only
+ * Handles Google reusing one .pac-container across PTP / hourly fields
  * === */
 (function (window, document) {
     'use strict';
@@ -126,18 +127,16 @@
         Array.prototype.forEach.call(document.querySelectorAll('.pac-container'), hidePac);
     }
 
-    function hideOtherPacContainers(keepInput) {
-        Array.prototype.forEach.call(document.querySelectorAll('.pac-container'), function (pac) {
-            if (keepInput && (pac._stpLiteOwner === keepInput || keepInput._pacContainer === pac)) {
-                releasePac(pac);
-            } else {
-                hidePac(pac);
-            }
-        });
+    function claimPacForInput(input, pac) {
+        if (!input || !pac) return null;
+        pac._stpLiteOwner = input;
+        var uid = input.getAttribute('data-stp-pac-id');
+        if (uid) pac.setAttribute('data-stp-for', uid);
+        input._pacContainer = pac;
+        return pac;
     }
 
     function claimNewPac(input, beforeList) {
-        var uid = input.getAttribute('data-stp-pac-id');
         var found = null;
         Array.prototype.forEach.call(document.querySelectorAll('.pac-container'), function (pac) {
             if (beforeList.indexOf(pac) === -1 && !pac._stpLiteOwner) {
@@ -150,9 +149,7 @@
             });
         }
         if (!found) return null;
-        found._stpLiteOwner = input;
-        if (uid) found.setAttribute('data-stp-for', uid);
-        input._pacContainer = found;
+        claimPacForInput(input, found);
         hidePac(found);
         return found;
     }
@@ -171,7 +168,7 @@
                 done = true;
                 if (obs) obs.disconnect();
                 resolve(claimNewPac(input, beforeList));
-            }, timeoutMs || 500);
+            }, timeoutMs || 600);
 
             if (typeof MutationObserver !== 'undefined') {
                 obs = new MutationObserver(function () {
@@ -196,12 +193,49 @@
         if (uid) {
             var byAttr = document.querySelector('.pac-container[data-stp-for="' + uid + '"]');
             if (byAttr) {
-                byAttr._stpLiteOwner = input;
-                input._pacContainer = byAttr;
+                claimPacForInput(input, byAttr);
                 return byAttr;
             }
         }
         return null;
+    }
+
+    /**
+     * Google often reuses one .pac-container for multiple Autocomplete inputs.
+     * While this input is focused, bind whatever list Google is filling to it.
+     */
+    function adoptLivePac(input) {
+        if (!input) return null;
+        var owned = resolveOwnedPac(input);
+        if (owned && owned.querySelector('.pac-item')) return owned;
+
+        var live = null;
+        var orphan = null;
+        Array.prototype.forEach.call(document.querySelectorAll('.pac-container'), function (pac) {
+            if (!pac || !pac.isConnected) return;
+            if (!pac._stpLiteOwner && !orphan) orphan = pac;
+            if (pac.querySelector('.pac-item')) live = pac;
+        });
+
+        var target = live || orphan;
+        if (!target) return owned;
+
+        // Steal display ownership for the focused field (shared pac case)
+        claimPacForInput(input, target);
+        return target;
+    }
+
+    function hideOtherPacContainers(keepInput) {
+        var keepPac = keepInput ? (keepInput._pacContainer || resolveOwnedPac(keepInput)) : null;
+        Array.prototype.forEach.call(document.querySelectorAll('.pac-container'), function (pac) {
+            if (keepInput && keepPac && pac === keepPac) {
+                releasePac(pac);
+            } else if (keepInput && pac._stpLiteOwner === keepInput) {
+                releasePac(pac);
+            } else {
+                hidePac(pac);
+            }
+        });
     }
 
     function syncPacVisibility(input) {
@@ -209,7 +243,7 @@
             hideAllPacContainers();
             return;
         }
-        resolveOwnedPac(input);
+        adoptLivePac(input);
         hideOtherPacContainers(input);
     }
 
@@ -222,14 +256,10 @@
                 stopPacGuard();
                 return;
             }
-            Array.prototype.forEach.call(document.querySelectorAll('.pac-container'), function (pac) {
-                if (pac._stpLiteOwner === input || input._pacContainer === pac) {
-                    releasePac(pac);
-                } else {
-                    hidePac(pac);
-                }
-            });
-            if (ticks > 80) stopPacGuard();
+            // Re-adopt in case Google attached suggestions to a shared/unowned pac
+            adoptLivePac(input);
+            hideOtherPacContainers(input);
+            if (ticks > 100) stopPacGuard();
         }, 50);
     }
 
@@ -247,9 +277,48 @@
         startPacGuard(input);
     }
 
+    function bindInputEvents(input) {
+        if (!input || input._stpLiteMapsBound) return;
+        input._stpLiteMapsBound = true;
+        input.addEventListener('focus', function () { activateInput(input); });
+        input.addEventListener('mousedown', function () { activateInput(input); });
+        input.addEventListener('keydown', function () {
+            activeMapsInput = input;
+            syncPacVisibility(input);
+            startPacGuard(input);
+        });
+        input.addEventListener('input', function () {
+            activeMapsInput = input;
+            // Pac may appear only after first keystroke — adopt then
+            adoptLivePac(input);
+            syncPacVisibility(input);
+            startPacGuard(input);
+        });
+        input.addEventListener('blur', function () {
+            setTimeout(function () {
+                if (document.activeElement === input) return;
+                if (activeMapsInput === input) {
+                    activeMapsInput = null;
+                    stopPacGuard();
+                    hideAllPacContainers();
+                } else if (activeMapsInput) {
+                    syncPacVisibility(activeMapsInput);
+                } else {
+                    hideAllPacContainers();
+                }
+            }, 200);
+        });
+    }
+
     function initOneSync(input, countryName, cityName) {
         if (!input || input.disabled) return Promise.resolve(false);
+
+        // Already wired — still adopt pac if missing (shared-container recovery)
         if (input.getAttribute('data-autocomplete-initialized') === '1' && input._placesAutocomplete) {
+            bindInputEvents(input);
+            if (!resolveOwnedPac(input)) {
+                claimNewPac(input, []);
+            }
             return Promise.resolve(true);
         }
         if (!mapsReady()) return Promise.resolve(false);
@@ -275,7 +344,7 @@
             input._placesAutocomplete = autocomplete;
             applyBounds(autocomplete, city, country);
 
-            return waitForPac(input, beforePacs, 500).then(function () {
+            return waitForPac(input, beforePacs, 600).then(function () {
                 autocomplete.addListener('place_changed', function () {
                     var place = autocomplete.getPlace();
                     if (place && place.formatted_address) {
@@ -292,36 +361,7 @@
                     } catch (e) { /* ignore */ }
                 });
 
-                if (!input._stpLiteMapsBound) {
-                    input._stpLiteMapsBound = true;
-                    input.addEventListener('focus', function () { activateInput(input); });
-                    input.addEventListener('mousedown', function () { activateInput(input); });
-                    input.addEventListener('keydown', function () {
-                        activeMapsInput = input;
-                        syncPacVisibility(input);
-                        startPacGuard(input);
-                    });
-                    input.addEventListener('input', function () {
-                        activeMapsInput = input;
-                        syncPacVisibility(input);
-                        startPacGuard(input);
-                    });
-                    input.addEventListener('blur', function () {
-                        setTimeout(function () {
-                            if (document.activeElement === input) return;
-                            if (activeMapsInput === input) {
-                                activeMapsInput = null;
-                                stopPacGuard();
-                                hideAllPacContainers();
-                            } else if (activeMapsInput) {
-                                syncPacVisibility(activeMapsInput);
-                            } else {
-                                hideAllPacContainers();
-                            }
-                        }, 200);
-                    });
-                }
-
+                bindInputEvents(input);
                 input.setAttribute('data-autocomplete-initialized', '1');
                 return true;
             });
@@ -334,10 +374,12 @@
         }
     }
 
-    /** Queue inits so pickup and dropoff each get their own .pac-container. */
+    /** Queue inits so pickup and dropoff each get a chance at their own .pac-container. */
     function initOne(input, countryName, cityName) {
         if (!input) return false;
         if (input.getAttribute('data-autocomplete-initialized') === '1' && input._placesAutocomplete) {
+            bindInputEvents(input);
+            if (!resolveOwnedPac(input)) claimNewPac(input, []);
             return true;
         }
         initQueue = initQueue.then(function () {
@@ -397,7 +439,8 @@
                 return;
             }
             var pending = visibleMapsInputs(root).filter(function (input) {
-                return input.getAttribute('data-autocomplete-initialized') !== '1';
+                return input.getAttribute('data-autocomplete-initialized') !== '1'
+                    || !input._placesAutocomplete;
             });
             if (!pending.length || attempts >= 40) {
                 clearInterval(pendingRetry);
@@ -429,7 +472,14 @@
     document.addEventListener('focusin', function (ev) {
         var t = ev.target;
         if (!t || !t.classList || !t.classList.contains('google-maps-autocomplete')) return;
-        if (t._placesAutocomplete) activateInput(t);
+        if (t._placesAutocomplete) {
+            activateInput(t);
+        } else if (window.StpLiteMaps && typeof window.StpLiteMaps.initOne === 'function') {
+            // Late bind when Places loaded after mount (common on PTP / hourly)
+            var geo = resolveCountryCity(t);
+            initOne(t, geo.country, geo.city);
+            activateInput(t);
+        }
     }, true);
 
     window.StpLiteMaps = {

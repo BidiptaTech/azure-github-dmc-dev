@@ -565,11 +565,22 @@
         if (addBtn) addBtn.disabled = true;
     }
 
-    function ensureMapsAutocomplete(root, stay) {
-        if (!window.StpLiteMaps || typeof window.StpLiteMaps.initIn !== 'function') return;
+    function ensureMapsAutocomplete(root, stay, forceReinit) {
+        if (!window.StpLiteMaps) return;
         var mapsRow = root.querySelector('.transport-maps-row');
         if (!mapsRow || mapsRow.classList.contains('d-none')) return;
-        window.StpLiteMaps.initIn(root, stay && stay.country, stay && stay.cityName);
+        var country = stay && stay.country;
+        var city = stay && stay.cityName;
+        var run = function () {
+            if (forceReinit && typeof window.StpLiteMaps.reinitIn === 'function') {
+                window.StpLiteMaps.reinitIn(root, country, city);
+            } else if (typeof window.StpLiteMaps.initIn === 'function') {
+                window.StpLiteMaps.initIn(root, country, city);
+            }
+        };
+        // Defer so accordion paint / mode toggle completes (hidden fields skip init)
+        if (root.__mapsInitTimer) clearTimeout(root.__mapsInitTimer);
+        root.__mapsInitTimer = setTimeout(run, 80);
     }
 
     function bindShell(root, stay) {
@@ -594,7 +605,8 @@
             el.addEventListener('change', function () {
                 if (!root.__hydrating) {
                     syncModeUi(root);
-                    ensureMapsAutocomplete(root, stay);
+                    // Mode swap (Local ↔ PTP/Hourly) shows/hides maps row — rebind Places
+                    ensureMapsAutocomplete(root, stay, true);
                     invalidate(root);
                 }
             });
