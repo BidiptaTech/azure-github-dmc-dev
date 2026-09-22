@@ -10,6 +10,14 @@ const Alert = React.forwardRef(function Alert(props, ref) {
   return <MuiAlert elevation={6} ref={ref} variant="filled" {...props} />;
 });
 
+const parseDefaultDate = (value) => {
+  if (!value) return null;
+  if (typeof value === "string" && /^\d{1,2}\/\d{1,2}\/\d{4}$/.test(value.trim())) {
+    return new DateObject({ date: value.trim(), format: "DD/MM/YYYY" });
+  }
+  return new DateObject(value);
+};
+
 const DateRangePicker = ({ onDateChange, defaultCheckIn, defaultCheckOut ,isDataFromEnquiryDetail}) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
@@ -25,9 +33,9 @@ const DateRangePicker = ({ onDateChange, defaultCheckIn, defaultCheckOut ,isData
   const getInitialDates = () => {
     if (defaultCheckIn && defaultCheckOut) {
       try {
-        // Convert date strings to DateObject
-        const checkInDate = new DateObject(defaultCheckIn);
-        const checkOutDate = new DateObject(defaultCheckOut);
+        // Convert date strings to DateObject (supports DD/MM/YYYY)
+        const checkInDate = parseDefaultDate(defaultCheckIn);
+        const checkOutDate = parseDefaultDate(defaultCheckOut);
         console.log('Auto-setting dates from packageData:', { checkInDate, checkOutDate });
         return [checkInDate, checkOutDate];
       } catch (error) {
@@ -47,8 +55,8 @@ const DateRangePicker = ({ onDateChange, defaultCheckIn, defaultCheckOut ,isData
   React.useEffect(() => {
     if (defaultCheckIn && defaultCheckOut) {
       try {
-        const checkInDate = new DateObject(defaultCheckIn);
-        const checkOutDate = new DateObject(defaultCheckOut);
+        const checkInDate = parseDefaultDate(defaultCheckIn);
+        const checkOutDate = parseDefaultDate(defaultCheckOut);
         setDates([checkInDate, checkOutDate]);
         prevDatesRef.current = [checkInDate, checkOutDate];
       } catch (error) {
