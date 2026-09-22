@@ -100,9 +100,11 @@
         if (zoneRow) zoneRow.classList.toggle('d-none', !isLocal);
         if (mapsRow) mapsRow.classList.toggle('d-none', isLocal);
         if (hoursWrap) hoursWrap.classList.toggle('d-none', !isHourly);
-        // Zone OFF: always show car cost for PTP / hourly. Zone ON: only hide for non-PTP (local uses zone price).
+        // Hourly: package prices from vehicle hourly_price_1..12 (no manual car cost).
+        // Zone OFF: car cost for PTP. Zone ON: car cost only for PTP.
         if (customWrap) {
-            if (mapsMode) customWrap.classList.remove('d-none');
+            if (isHourly) customWrap.classList.add('d-none');
+            else if (mapsMode) customWrap.classList.remove('d-none');
             else customWrap.classList.toggle('d-none', mode !== 'point_to_point');
         }
         if (dropoffWrap) dropoffWrap.classList.toggle('d-none', isHourly);
@@ -110,11 +112,17 @@
             dropoff.disabled = isHourly;
             if (isHourly) dropoff.value = '';
         }
-        if (serviceType && mode === 'point_to_point' && !mapsMode) {
-            serviceType.value = 'private';
-            serviceType.disabled = true;
-        } else if (serviceType) {
-            serviceType.disabled = false;
+        // Hourly = Private only. PTP with zone ON = Private only.
+        if (serviceType) {
+            var sharedOpt = serviceType.querySelector('option[value="shared"]');
+            var privateOnly = isHourly || (mode === 'point_to_point' && !mapsMode);
+            if (sharedOpt) sharedOpt.hidden = !!privateOnly;
+            if (privateOnly) {
+                serviceType.value = 'private';
+                serviceType.disabled = true;
+            } else {
+                serviceType.disabled = false;
+            }
         }
     }
 
@@ -339,7 +347,28 @@
 
         var priced;
         var mapsMode = !T.zoneOn || !T.zoneOn();
-        if (mapsMode || mode === 'point_to_point') {
+        var svc = typeEl ? typeEl.value : 'private';
+
+        // Hourly: always Private + vehicle hourly_price_1..12 package (not base / not car cost)
+        if (mode === 'hourly') {
+            if (typeEl) {
+                typeEl.value = 'private';
+                typeEl.disabled = true;
+            }
+            priced = T.calcHourlyPrice(
+                opt,
+                'private',
+                adultsEl ? adultsEl.value : 1,
+                childrenEl ? childrenEl.value : 0,
+                0,
+                hoursEl ? hoursEl.value : 1
+            );
+            priced.mode = 'hourly';
+            if (!(priced && priced.total > 0)) {
+                alert('No hourly package price for this vehicle/hours. Set Hourly prices on the vehicle (1–12 hours).');
+                return;
+            }
+        } else if (mapsMode || mode === 'point_to_point') {
             var custom = parseFloat((customEl && customEl.value) || '0') || 0;
             if (custom <= 0) {
                 alert(mapsMode
@@ -350,7 +379,7 @@
             if (mapsMode) {
                 priced = T.calcManualCarTotal(
                     custom,
-                    typeEl ? typeEl.value : 'private',
+                    svc,
                     adultsEl ? adultsEl.value : 1,
                     childrenEl ? childrenEl.value : 0,
                     0
@@ -359,25 +388,22 @@
             } else {
                 priced = { total: custom, mode: 'point_to_point', base: custom };
             }
-        } else if (mode === 'hourly') {
-            priced = T.calcHourlyPrice(
-                opt,
-                typeEl ? typeEl.value : 'private',
-                adultsEl ? adultsEl.value : 1,
-                childrenEl ? childrenEl.value : 0,
-                0,
-                hoursEl ? hoursEl.value : 1
-            );
-            priced.mode = 'hourly';
         } else {
+            // Local Transfer + zone ON: zone mapping prices only
             priced = T.calcVehiclePrice(
                 opt,
-                typeEl ? typeEl.value : 'private',
+                svc,
                 adultsEl ? adultsEl.value : 1,
                 childrenEl ? childrenEl.value : 0,
                 0,
                 0
             );
+            if (!(priced && priced.total > 0)) {
+                alert(svc === 'shared'
+                    ? 'No zone shared price for this route/vehicle. Check vehicle zone mapping.'
+                    : 'No zone private price for this route/vehicle. Check vehicle zone mapping.');
+                return;
+            }
         }
 
         root.__lastPrice = priced;
@@ -387,7 +413,16 @@
         var detail = root.querySelector('.transport-price-detail');
         if (panel) panel.classList.remove('d-none');
         if (totalEl) totalEl.textContent = cur + ' ' + Number(priced.total || 0).toFixed(2);
-        if (detail) detail.textContent = (priced.mode || mode) + ' · ' + (opt.dataset.vehicleName || opt.textContent);
+        if (detail) {
+            var srcLabel = '';
+            if (priced.source === 'hourly_package') srcLabel = ' · Hourly package';
+            else if (priced.source === 'zone') srcLabel = ' · Zone price';
+            else if (priced.source === 'base') srcLabel = ' · Base price';
+            var hoursLabel = (mode === 'hourly' && (priced.hours || (hoursEl && hoursEl.value)))
+                ? (' · ' + (priced.hours || hoursEl.value) + 'h')
+                : '';
+            detail.textContent = (priced.mode || mode) + hoursLabel + srcLabel + ' · ' + (opt.dataset.vehicleName || opt.textContent);
+        }
         var add = root.querySelector('.transport-add-btn');
         if (add) add.disabled = false;
     }
@@ -410,12 +445,16 @@
         var total = root.__lastPrice ? Number(root.__lastPrice.total || 0) : 0;
         var travelType = mode === 'local' ? 'local_transport' : (mode === 'hourly' ? 'travel_hourly' : 'travel_point');
         var supplement = T.autoSupplement(adults);
+        var serviceType = mode === 'hourly' ? 'private' : (typeEl ? typeEl.value : 'private');
+        var hourlyPkg = (mode === 'hourly' && opt && T.packageHourlySellPrice)
+            ? T.packageHourlySellPrice(opt, hours)
+            : 0;
 
         return {
             travel_type: travelType,
             vehicles_id: opt ? opt.value : '',
             vehicles_name: opt ? (opt.dataset.vehicleName || opt.textContent) : '',
-            type: typeEl ? typeEl.value : 'private',
+            type: serviceType,
             entrypickup: pickupText,
             entrydropoff: dropoffText,
             from_zone_id: fOpt ? (fOpt.dataset.zoneId || from.value) : '',
@@ -428,6 +467,7 @@
             totalPrice: total,
             grand_total: total,
             price_detail: root.__lastPrice ? (root.__lastPrice.mode || '') : '',
+            price_source: root.__lastPrice ? (root.__lastPrice.source || '') : '',
             supplement: !!supplement,
             is_supplement: !!supplement,
             city: stay.cityName || '',
@@ -436,6 +476,7 @@
             plan_index: stay.planIndex || '',
             private_price: opt ? (opt.dataset.privatePrice || '') : '',
             shared_price: opt ? (opt.dataset.sharedPrice || '') : '',
+            hourly_package_price: hourlyPkg || '',
             remarks: ''
         };
     }
