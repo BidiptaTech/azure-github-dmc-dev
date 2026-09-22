@@ -893,7 +893,7 @@
                                     <i class="ri-map-pin-line fs-5 text-white" style="color: #ffffff !important;"></i>
                                 </div> -->
                                 <div>
-                                    <h6 class="mb-0 fw-bold text-white" style="font-size: 1.1rem; letter-spacing: -0.01em; color: #ffffff !important;">
+                                    <h6 class="mb-0 fw-bold text-white" style="font-size: 1.1rem; letter-spacing: -0.01em; color:rgb(255, 255, 255) !important;">
                                         Create Single Tour Package
                                     </h6>
                                     <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.85rem;">Design personalized tour experiences for your clients</small>
