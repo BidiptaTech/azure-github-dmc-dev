@@ -945,25 +945,25 @@ console.log("zone_on5", zone_on);
     const bookingsByDate = {};
 
     if (viewDetails && !Array.isArray(viewDetails)) {
-      if (viewDetails.entry_port) {
-        viewDetails.entry_port.forEach((entryport) => {
+    if (viewDetails.entry_port) {
+      viewDetails.entry_port.forEach((entryport) => {
           appendBookingByDate(
             bookingsByDate,
             normalizeBookingDateKey(entryport.bookingDate),
             {
-              ...entryport,
-              serviceType: "Entry Port",
+          ...entryport,
+          serviceType: "Entry Port",
               serviceName: entryport.vehicles_name || "Unknown Entry Port",
-              serviceImage: entryport.image || "",
+          serviceImage: entryport.image || "",
               price: entryport.totalPrice,
               source: "viewDetails",
             }
           );
-        });
-      }
+      });
+    }
 
-      if (viewDetails.hotel) {
-        viewDetails.hotel.forEach((hotel) => {
+    if (viewDetails.hotel) {
+      viewDetails.hotel.forEach((hotel) => {
           if (
             Array.isArray(hotel.bookingDate) &&
             hotel.bookingDate.length >= 2
@@ -972,72 +972,72 @@ console.log("zone_on5", zone_on);
             const checkOutDate = parseFlexibleDate(hotel.bookingDate[1]);
 
             if (checkInDate && checkOutDate) {
-              const currentDate = new Date(checkInDate);
-              while (currentDate < checkOutDate) {
+          const currentDate = new Date(checkInDate);
+          while (currentDate < checkOutDate) {
                 const dateString = currentDate.toISOString().split("T")[0];
                 appendBookingByDate(bookingsByDate, dateString, {
-                  ...hotel,
-                  serviceType: "Hotel",
+              ...hotel,
+              serviceType: "Hotel",
                   serviceName:
                     hotel.hotelDetails?.hotel_name || "Unknown Hotel",
-                  serviceImage: hotel.hotelDetails?.image || "",
-                  price: hotel.totalPrice,
+              serviceImage: hotel.hotelDetails?.image || "",
+              price: hotel.totalPrice,
                   source: "viewDetails",
-                });
-                currentDate.setDate(currentDate.getDate() + 1);
+            });
+            currentDate.setDate(currentDate.getDate() + 1);
               }
-            }
           }
-        });
-      }
+        }
+      });
+    }
 
-      if (viewDetails.attraction) {
-        viewDetails.attraction.forEach((attraction) => {
+    if (viewDetails.attraction) {
+      viewDetails.attraction.forEach((attraction) => {
           appendBookingByDate(
             bookingsByDate,
             normalizeBookingDateKey(attraction.bookingDate),
             {
-              ...attraction,
-              serviceType: "Attraction",
-              serviceName: attraction.AttractionName || "Unknown Attraction",
-              serviceImage: attraction.service_details?.master_image || "",
-              price: attraction.totalPrice,
+          ...attraction,
+          serviceType: "Attraction",
+          serviceName: attraction.AttractionName || "Unknown Attraction",
+          serviceImage: attraction.service_details?.master_image || "",
+          price: attraction.totalPrice,
               source: "viewDetails",
             }
           );
-        });
-      }
+      });
+    }
 
-      if (viewDetails.attraction_package) {
-        viewDetails.attraction_package.forEach((attraction_package) => {
+    if (viewDetails.attraction_package) {
+      viewDetails.attraction_package.forEach((attraction_package) => {
           appendBookingByDate(
             bookingsByDate,
             normalizeBookingDateKey(attraction_package.bookingDate),
             {
-              ...attraction_package,
-              serviceType: "Attraction Package",
+          ...attraction_package,
+          serviceType: "Attraction Package",
               serviceName:
                 attraction_package.AttractionName ||
                 "Unknown Attraction Package",
               serviceImage:
                 attraction_package.service_details?.master_image || "",
-              price: attraction_package.totalPrice,
+          price: attraction_package.totalPrice,
               source: "viewDetails",
             }
           );
-        });
-      }
+      });
+    }
 
-      if (viewDetails.restaurant) {
-        viewDetails.restaurant.forEach((restaurant) => {
+    if (viewDetails.restaurant) {
+      viewDetails.restaurant.forEach((restaurant) => {
           appendBookingByDate(
             bookingsByDate,
             normalizeBookingDateKey(restaurant.bookingDate),
             {
-              ...restaurant,
-              serviceType: "Restaurant",
-              serviceName: restaurant.restaurantName || "Unknown Restaurant",
-              serviceImage: restaurant.service_details?.master_image || "",
+          ...restaurant,
+          serviceType: "Restaurant",
+          serviceName: restaurant.restaurantName || "Unknown Restaurant",
+          serviceImage: restaurant.service_details?.master_image || "",
               price: restaurant.totalPrice,
               source: "viewDetails",
             }
@@ -1045,34 +1045,34 @@ console.log("zone_on5", zone_on);
         });
       }
 
-      if (viewDetails.guide) {
-        viewDetails.guide.forEach((guide) => {
+    if (viewDetails.guide) {
+      viewDetails.guide.forEach((guide) => {
           appendBookingByDate(
             bookingsByDate,
             normalizeBookingDateKey(guide.bookingDate),
             {
-              ...guide,
-              serviceType: "Guide",
+          ...guide,
+          serviceType: "Guide",
               serviceName: guide.guide_name || "Unknown Guide",
-              serviceImage: guide.image || "",
+          serviceImage: guide.image || "",
               price: guide.totalPrice,
               source: "viewDetails",
             }
           );
-        });
-      }
+      });
+    }
 
-      if (viewDetails.travel_point) {
-        viewDetails.travel_point.forEach((travel_point) => {
+    if (viewDetails.travel_point) {
+      viewDetails.travel_point.forEach((travel_point) => {
           appendBookingByDate(
             bookingsByDate,
             normalizeBookingDateKey(travel_point.bookingDate),
             {
-              ...travel_point,
+          ...travel_point,
               serviceType: "Travel Point",
               serviceName:
                 travel_point.vehicles_name || "Unknown Travel Point",
-              serviceImage: travel_point.image || "",
+          serviceImage: travel_point.image || "",
               price: travel_point.totalPrice,
               source: "viewDetails",
             }
@@ -1080,17 +1080,17 @@ console.log("zone_on5", zone_on);
         });
       }
 
-      if (viewDetails.travel_hourly) {
-        viewDetails.travel_hourly.forEach((travel_hourly) => {
+    if (viewDetails.travel_hourly) {
+      viewDetails.travel_hourly.forEach((travel_hourly) => {
           appendBookingByDate(
             bookingsByDate,
             normalizeBookingDateKey(travel_hourly.bookingDate),
             {
-              ...travel_hourly,
+          ...travel_hourly,
               serviceType: "Travel Hourly",
               serviceName:
                 travel_hourly.vehicles_name || "Unknown Travel Hourly",
-              serviceImage: travel_hourly.image || "",
+          serviceImage: travel_hourly.image || "",
               price: travel_hourly.totalPrice,
               source: "viewDetails",
             }
@@ -1102,16 +1102,16 @@ console.log("zone_on5", zone_on);
         viewDetails.local_transport &&
         viewDetails.local_transport.length > 0
       ) {
-        viewDetails.local_transport.forEach((local_transport) => {
+      viewDetails.local_transport.forEach((local_transport) => {
           appendBookingByDate(
             bookingsByDate,
             normalizeBookingDateKey(local_transport.bookingDate),
             {
-              ...local_transport,
+          ...local_transport,
               serviceType: "Travel Zone",
               serviceName:
                 local_transport.vehicles_name || "Unknown Travel Zone",
-              serviceImage: local_transport.image || "",
+          serviceImage: local_transport.image || "",
               price: local_transport.totalPrice,
               source: "viewDetails",
             }
@@ -1119,16 +1119,16 @@ console.log("zone_on5", zone_on);
         });
       }
 
-      if (viewDetails.exit_port) {
-        viewDetails.exit_port.forEach((exitport) => {
+    if (viewDetails.exit_port) {
+      viewDetails.exit_port.forEach((exitport) => {
           appendBookingByDate(
             bookingsByDate,
             normalizeBookingDateKey(exitport.bookingDate),
             {
-              ...exitport,
-              serviceType: "Exit Port",
+          ...exitport,
+          serviceType: "Exit Port",
               serviceName: exitport.vehicles_name || "Unknown Exit Port",
-              serviceImage: exitport.image || "",
+          serviceImage: exitport.image || "",
               price: exitport.totalPrice,
               source: "viewDetails",
             }
@@ -1415,7 +1415,7 @@ console.log("zone_on5", zone_on);
     const handleScroll = () => {
       if (
         window.innerHeight + document.documentElement.scrollTop >=
-          document.documentElement.offsetHeight - 1000 && // Load more when 1000px from bottom
+        document.documentElement.offsetHeight - 1000 && // Load more when 1000px from bottom
         !isLoadingMore &&
         hasMore &&
         status !== "loading" &&
@@ -1437,13 +1437,13 @@ console.log("zone_on5", zone_on);
 
     // Short first page — do not request next page (avoids 404 "No vehicles found")
     if (vehicles.length < itemsPerPage) {
-      setHasMore(false);
+              setHasMore(false);
       return;
-    }
+            }
 
     const start = (currentPage - 1) * itemsPerPage;
     if (vehicles.length < start) {
-      setHasMore(false);
+            setHasMore(false);
       return;
     }
 
@@ -1458,7 +1458,7 @@ console.log("zone_on5", zone_on);
     request
       .then((result) => {
         if (cancelled) return;
-        setIsLoadingMore(false);
+          setIsLoadingMore(false);
 
         if (result?.meta?.requestStatus === "rejected") {
           setHasMore(false);
@@ -1468,17 +1468,17 @@ console.log("zone_on5", zone_on);
         const payload = result?.payload;
         if (Array.isArray(payload)) {
           if (payload.length < itemsPerPage) {
+              setHasMore(false);
+            }
+          } else {
             setHasMore(false);
           }
-        } else {
-          setHasMore(false);
-        }
       })
       .catch(() => {
         if (cancelled) return;
-        setIsLoadingMore(false);
-        setHasMore(false);
-      });
+          setIsLoadingMore(false);
+          setHasMore(false);
+        });
 
     return () => {
       cancelled = true;
@@ -1716,7 +1716,7 @@ console.log("zone_on5", zone_on);
                                   {getServiceTypeIcon(booking.serviceType)}
                                   <div className="ml-10">
                                     <div className="fw-500">
-                                      {booking.serviceType}
+                                    {booking.serviceType}
                                     </div>
                                     {booking.source === "cart" && (
                                       <span
@@ -2322,8 +2322,8 @@ console.log("zone_on5", zone_on);
                                         );
                                         return;
                                       }
-                                      handleBookTransfer(
-                                        booking,
+                                        handleBookTransfer(
+                                          booking,
                                         serviceId,
                                         serviceType
                                       );
