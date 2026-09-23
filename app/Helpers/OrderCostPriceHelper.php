@@ -1109,7 +1109,9 @@ class OrderCostPriceHelper
     }
 
     /**
-     * Miscellaneous: unit cost × pax (adult / child / infant), prefer DB miscellaneous_prices.
+     * Miscellaneous: unit cost × pax (adult / child / infant).
+     * Prefer payload unit costs (what the Pro form showed) so multi-item saves
+     * stay correct; fall back to miscellaneous_prices only when payload units are absent.
      */
     private static function buildMiscellaneousCost(array $item): array
     {
@@ -1132,12 +1134,36 @@ class OrderCostPriceHelper
 
         $dmcId = $item['dmc_id'] ?? $item['dmcId'] ?? null;
         $city = trim((string) ($item['city'] ?? $item['destination'] ?? ''));
+        if (str_contains($city, ',')) {
+            $city = trim(explode(',', $city)[0]);
+        }
+
+        $payloadAdult = self::firstNumericIfPresent($item, ['adultCost', 'adult_cost', 'adult_cost_price']);
+        $payloadChild = self::firstNumericIfPresent($item, ['childCost', 'child_cost', 'child_cost_price']);
+        $payloadInfant = self::firstNumericIfPresent($item, ['infantCost', 'infant_cost', 'infant_cost_price']);
+        $hasPayloadUnits = $payloadAdult !== null || $payloadChild !== null || $payloadInfant !== null;
 
         $adultUnit = 0.0;
         $childUnit = 0.0;
         $infantUnit = 0.0;
 
-        if ($misId > 0) {
+        // Form payload wins whenever unit cost keys were sent (including legitimate 0).
+        if ($hasPayloadUnits) {
+            $adultUnit = (float) ($payloadAdult ?? 0);
+            $childUnit = (float) ($payloadChild ?? 0);
+            $infantUnit = (float) ($payloadInfant ?? 0);
+            $source = 'payload';
+        }
+
+        // Fill any missing unit from DB (or all units when payload had none).
+        $needDb = ! $hasPayloadUnits
+            || ($payloadAdult === null && $payloadChild === null && $payloadInfant === null);
+        // Also fill individual nulls when only some payload keys existed.
+        $fillAdultFromDb = ! $hasPayloadUnits || $payloadAdult === null;
+        $fillChildFromDb = ! $hasPayloadUnits || $payloadChild === null;
+        $fillInfantFromDb = ! $hasPayloadUnits || $payloadInfant === null;
+
+        if ($misId > 0 && ($fillAdultFromDb || $fillChildFromDb || $fillInfantFromDb || $needDb)) {
             $priceQuery = MiscellaneousPrice::query()
                 ->where('mis_id', $misId)
                 ->where('status', 1);
@@ -1145,33 +1171,29 @@ class OrderCostPriceHelper
                 $priceQuery->where('dmc_id', $dmcId);
             }
             $prices = $priceQuery->get();
-            $price = null;
-            if ($city !== '' && $prices->isNotEmpty()) {
-                $price = $prices->first(function ($p) use ($city) {
-                    return strcasecmp(trim((string) ($p->city ?? '')), $city) === 0;
-                });
-            }
-            if (! $price) {
-                $price = $prices->first(function ($p) {
-                    return trim((string) ($p->city ?? '')) === '';
-                }) ?: $prices->first();
-            }
-            if ($price) {
-                $adultUnit = (float) ($price->adult_cost ?? 0);
-                $childUnit = (float) ($price->child_cost ?? 0);
-                $infantUnit = (float) ($price->infant_cost ?? 0);
-                $source = 'database';
-            }
-        }
 
-        if ($adultUnit <= 0) {
-            $adultUnit = self::firstNumeric($item, ['adultCost', 'adult_cost', 'adult_cost_price']);
-        }
-        if ($childUnit <= 0) {
-            $childUnit = self::firstNumeric($item, ['childCost', 'child_cost', 'child_cost_price']);
-        }
-        if ($infantUnit <= 0) {
-            $infantUnit = self::firstNumeric($item, ['infantCost', 'infant_cost', 'infant_cost_price']);
+            // If DMC filter yielded nothing useful for this city, retry city match without DMC.
+            $price = self::pickMiscellaneousPriceRow($prices, $city);
+            if (! $price && $dmcId !== null && $dmcId !== '' && $city !== '') {
+                $pricesAny = MiscellaneousPrice::query()
+                    ->where('mis_id', $misId)
+                    ->where('status', 1)
+                    ->get();
+                $price = self::pickMiscellaneousPriceRow($pricesAny, $city, true);
+            }
+
+            if ($price) {
+                if ($fillAdultFromDb) {
+                    $adultUnit = (float) ($price->adult_cost ?? 0);
+                }
+                if ($fillChildFromDb) {
+                    $childUnit = (float) ($price->child_cost ?? 0);
+                }
+                if ($fillInfantFromDb) {
+                    $infantUnit = (float) ($price->infant_cost ?? 0);
+                }
+                $source = $hasPayloadUnits ? 'mixed' : 'database';
+            }
         }
 
         $total = ($adultUnit * max(0, $adults))
@@ -1179,7 +1201,7 @@ class OrderCostPriceHelper
             + ($infantUnit * max(0, $infants));
 
         if ($total <= 0) {
-            // Legacy single total (avoid treating sell as cost)
+            // Explicit line total cost if provided (never use sell/totalPrice).
             $total = self::firstNumeric($item, ['total_cost', 'cost_price', 'cost', 'Cost']);
         }
 
@@ -1215,6 +1237,56 @@ class OrderCostPriceHelper
             'components' => $components,
             'source' => $source,
         ];
+    }
+
+    /**
+     * Pick best miscellaneous_prices row for a city (exact city first; optional blank-city fallback).
+     *
+     * @param  \Illuminate\Support\Collection<int, mixed>  $prices
+     */
+    private static function pickMiscellaneousPriceRow($prices, string $city, bool $exactCityOnly = false)
+    {
+        if ($prices === null || $prices->isEmpty()) {
+            return null;
+        }
+        if ($city !== '') {
+            $exact = $prices->first(function ($p) use ($city) {
+                return strcasecmp(trim((string) ($p->city ?? '')), $city) === 0;
+            });
+            if ($exact) {
+                return $exact;
+            }
+            if ($exactCityOnly) {
+                return null;
+            }
+        }
+        if ($exactCityOnly) {
+            return null;
+        }
+
+        return $prices->first(function ($p) {
+            return trim((string) ($p->city ?? '')) === '';
+        }) ?: $prices->first();
+    }
+
+    /**
+     * Like firstNumeric, but returns null when none of the keys are present (so 0 can still win).
+     *
+     * @param  array<string, mixed>  $source
+     * @param  list<string>  $keys
+     */
+    private static function firstNumericIfPresent(array $source, array $keys): ?float
+    {
+        foreach ($keys as $key) {
+            if (! array_key_exists($key, $source)) {
+                continue;
+            }
+            if (is_numeric($source[$key])) {
+                return (float) $source[$key];
+            }
+        }
+
+        return null;
     }
 
     private static function buildGenericItemCost(array $item, string $type): array
