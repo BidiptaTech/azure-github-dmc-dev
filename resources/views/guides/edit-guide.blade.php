@@ -188,14 +188,14 @@
                 </a>
             </h5>
             @if ($errors->any())
-                <div class="alert alert-danger border-0 border-start border-5 border-danger-subtle shadow-sm px-4 py-3 rounded-3">
+                <div id="guide-validation-summary" class="alert alert-danger border-0 border-start border-5 border-danger-subtle shadow-sm px-4 py-3 rounded-3">
                     <div class="d-flex align-items-start gap-2">
                         <i class="bi bi-exclamation-triangle-fill fs-4 text-danger"></i>
                         <div>
                             <h6 class="mb-2 fw-semibold text-danger">Please fix the following errors:</h6>
                             <ul class="mb-0 ps-3">
                                 @foreach ($errors->all() as $error)
-                                    <li class="small">{{ $error }}</li>
+                                    <li class="small" data-server-error-text="{{ $error }}">{{ $error }}</li>
                                 @endforeach
                             </ul>
                         </div>
@@ -329,7 +329,7 @@
                                         }
                                     }
                                 @endphp
-                                <select class="form-control" id="country" name="country" required onchange="validateDriverAge(document.getElementById('driver_age'))">
+                                <select class="form-control" id="country" name="country" required onchange="validateDriverAge(document.getElementById('guide_age'))">
                                     @if($scopedCountries->count() !== 1)
                                         <option value="">Select Country</option>
                                     @endif
@@ -498,7 +498,7 @@
                                                 </div>
                                             </div>
                                         </div>
-                                    </fieldset>                                    
+                                    </fieldset>
 
 
                             <!-- License -->
@@ -1611,9 +1611,13 @@
 
 
     function validateDriverAge(input) {
-        const value = parseInt(input.value);
-        const country = document.getElementById('country').value;
-        const messageElement = document.getElementById(`${input.id}-validation-message`);
+        if (!input) {
+            return;
+        }
+
+        const value = parseInt(input.value, 10);
+        const countryEl = document.getElementById('country');
+        const country = countryEl ? countryEl.value : '';
 
         if (isNaN(value)) {
             showValidationMessage(input, false, 'Please enter a valid age');
@@ -1924,5 +1928,84 @@
         el.addEventListener('change', function () { applyGuideProfitToSells(true); });
     });
     </script>
+
+{{-- Clear Laravel / server field errors as soon as the user edits that field --}}
+<script>
+(function () {
+    const form = document.getElementById('guideForm');
+    if (!form) return;
+
+    function markServerFieldErrors() {
+        form.querySelectorAll('div.text-danger.mt-1, div.text-danger.small.mt-1').forEach(function (el) {
+            if (el.closest('label')) return;
+            if (el.classList.contains('validation-message')) return;
+            el.classList.add('js-server-field-error');
+        });
+    }
+
+    function refreshSummaryAlert() {
+        const summary = document.getElementById('guide-validation-summary');
+        if (!summary) return;
+
+        const remainingFieldErrors = form.querySelectorAll('.js-server-field-error');
+        const list = summary.querySelector('ul');
+
+        if (remainingFieldErrors.length === 0) {
+            summary.remove();
+            return;
+        }
+
+        if (!list) return;
+
+        const remainingTexts = Array.from(remainingFieldErrors).map(function (el) {
+            return (el.textContent || '').trim().toLowerCase();
+        });
+
+        list.querySelectorAll('li').forEach(function (li) {
+            const text = (li.getAttribute('data-server-error-text') || li.textContent || '').trim().toLowerCase();
+            if (text && !remainingTexts.includes(text)) {
+                li.remove();
+            }
+        });
+
+        if (!list.querySelector('li')) {
+            summary.remove();
+        }
+    }
+
+    function clearServerErrorForField(field) {
+        if (!field || !field.name) return;
+
+        const wrap = field.closest('.mb-3, .mb-4, [class*="col-"]') || field.parentElement;
+        if (!wrap) return;
+
+        wrap.querySelectorAll('.js-server-field-error').forEach(function (el) {
+            el.remove();
+        });
+
+        wrap.querySelectorAll(':scope > div.text-danger.mt-1, :scope > div.text-danger.small').forEach(function (el) {
+            if (el.closest('label')) return;
+            el.remove();
+        });
+
+        field.classList.remove('is-invalid');
+        refreshSummaryAlert();
+    }
+
+    markServerFieldErrors();
+
+    form.addEventListener('input', function (e) {
+        const t = e.target;
+        if (!t || !['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName)) return;
+        clearServerErrorForField(t);
+    });
+
+    form.addEventListener('change', function (e) {
+        const t = e.target;
+        if (!t || !['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName)) return;
+        clearServerErrorForField(t);
+    });
+})();
+</script>
     
 @endsection

@@ -16,6 +16,8 @@ class MultiRestaurant extends Model
 
     protected $casts = [
         'restaurants' => 'array',
+        'vehicle' => 'boolean',
+        'guide' => 'boolean',
     ];
 
     /**
