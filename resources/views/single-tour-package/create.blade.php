@@ -893,7 +893,7 @@
                                     <i class="ri-map-pin-line fs-5 text-white" style="color: #ffffff !important;"></i>
                                 </div> -->
                                 <div>
-                                    <h6 class="mb-0 fw-bold text-white" style="font-size: 1.1rem; letter-spacing: -0.01em; color: #ffffff !important;">
+                                    <h6 class="mb-0 fw-bold text-white" style="font-size: 1.1rem; letter-spacing: -0.01em; color:rgb(255, 255, 255) !important;">
                                         Create Single Tour Package
                                     </h6>
                                     <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.85rem;">Design personalized tour experiences for your clients</small>
@@ -1962,7 +1962,7 @@
                                                         <th scope="col">City</th>
                                                         <th scope="col" class="enquiry-md-th-markup">Markup type</th>
                                                         <th scope="col" class="enquiry-md-th-markup">Hotel markup</th>
-                                                        <th scope="col" class="enquiry-md-th-markup">Other markup</th>
+                                                        <th scope="col" class="enquiry-md-th-markup">Other service(s) markup</th>
                                                         <th scope="col" class="enquiry-md-th-discount">Disc type</th>
                                                         <th scope="col" class="enquiry-md-th-discount">Disc value</th>
                                                     </tr>
@@ -19153,7 +19153,7 @@
             let html = '';
 
             if (Array.isArray(data.breakdown) && data.breakdown.length) {
-                html += `<div class="mb-2" style="font-size:0.7rem; color:#64748b; font-weight:600; text-transform:uppercase; letter-spacing:0.03em;">Per-night price cut</div>`;
+                html += `<div class="mb-2" style="font-size:0.7rem; color:#64748b; font-weight:600; text-transform:uppercase; letter-spacing:0.03em;">Room Rate/Night</div>`;
                 data.breakdown.forEach(function (n) {
                     if (typeof window.formatHotelNightPriceCutHtml === 'function') {
                         html += window.formatHotelNightPriceCutHtml(n, cur, rooms);

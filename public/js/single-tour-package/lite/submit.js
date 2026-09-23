@@ -108,13 +108,34 @@
     /** Backup multi city CSV: "City (Country) [YYYY-MM-DD→YYYY-MM-DD], …" */
     function buildCityCsv() {
         var labels = [];
-        collectStaySegments().forEach(function (seg) {
-            if (!seg.cityName && !seg.country) return;
-            var label = seg.cityName
-                ? (seg.country ? seg.cityName + ' (' + seg.country + ')' : seg.cityName)
-                : seg.country;
-            if (seg.start && seg.end) {
-                label += ' [' + seg.start + '→' + seg.end + ']';
+
+        // Prefer planner stay rows (source of truth for per-city dates)
+        var plans = [];
+        if (window.StpLiteCountrySegments && typeof window.StpLiteCountrySegments.getActivePlans === 'function') {
+            plans = (window.StpLiteCountrySegments.getActivePlans() || []).filter(function (p) {
+                return p && (p.cityName || p.country);
+            });
+        }
+        if (!plans.length) {
+            plans = collectStaySegments().filter(function (seg) {
+                return seg.cityName || seg.country;
+            });
+        }
+
+        plans.forEach(function (seg) {
+            var cityName = String(seg.cityName || '').trim();
+            var country = String(seg.country || '').trim();
+            if (!country && cityName && typeof window.resolveCountryForCity === 'function') {
+                country = String(window.resolveCountryForCity(cityName) || '').trim();
+            }
+            var start = String(seg.start || '').trim();
+            var end = String(seg.end || '').trim();
+            var label = cityName
+                ? (country ? cityName + ' (' + country + ')' : cityName)
+                : country;
+            if (!label) return;
+            if (start && end) {
+                label += ' [' + start + '→' + end + ']';
             }
             labels.push(label);
         });
@@ -134,9 +155,16 @@
         document.querySelectorAll('.stp-lite-country-section').forEach(function (section, idx) {
             var cityName = String(section.getAttribute('data-city-name') || '').trim();
             var country = String(section.getAttribute('data-country') || '').trim();
+            if (!country && cityName && typeof window.resolveCountryForCity === 'function') {
+                country = String(window.resolveCountryForCity(cityName) || '').trim();
+            }
             var start = String(section.getAttribute('data-stay-start') || '').trim();
             var end = String(section.getAttribute('data-stay-end') || '').trim();
-            var currency = String(section.getAttribute('data-currency') || cfg().dmcCurrency || 'SGD').trim().toUpperCase();
+            var currency = String(section.getAttribute('data-currency') || '').trim().toUpperCase();
+            if (!currency && typeof window.resolveCurrencyForCityName === 'function') {
+                currency = String(window.resolveCurrencyForCityName(cityName, country) || '').trim().toUpperCase();
+            }
+            currency = currency || String(cfg().dmcCurrency || 'SGD').trim().toUpperCase();
             var cityId = '';
             var panel = section.querySelector('.stp-lite-service-panel[data-city-id]');
             if (panel) cityId = String(panel.getAttribute('data-city-id') || '').trim();
@@ -218,6 +246,23 @@
         fd.append('user_country', userCountry);
         fd.append('city', cityCsv);
         fd.append('discount_price', val('discount_price') || '0');
+        if (window.StpLiteCityMarkup && typeof window.StpLiteCityMarkup.syncHidden === 'function') {
+            window.StpLiteCityMarkup.syncHidden();
+        }
+        var markupsRaw = val('currency_markups') || '[]';
+        fd.append('currency_markups', markupsRaw);
+        try {
+            var markupsList = JSON.parse(markupsRaw);
+            if (Array.isArray(markupsList) && markupsList[0]) {
+                var primary = markupsList[0];
+                if (primary.markup_type) fd.append('markup_type', String(primary.markup_type));
+                if (primary.discount_type) fd.append('discount_type', String(primary.discount_type));
+                fd.append('markup_value', String(
+                    (Number(primary.hotel_markup) || 0) + (Number(primary.other_markup) || 0)
+                ));
+                fd.append('discount_value', String(Number(primary.discount_value) || 0));
+            }
+        } catch (e) { /* ignore */ }
         if (String(tourType).toUpperCase() === 'GROUP') {
             fd.append('foc_size', val('foc_size') || '0');
             fd.append('group_size', val('group_size') || '0');
@@ -227,13 +272,49 @@
         return fd;
     }
 
-    function enrichServiceRowsWithCustomer(jsonStr) {
+    function stayGeoFromSegment(seg) {
+        var city = String((seg && seg.cityName) || '').trim();
+        var country = String((seg && seg.country) || '').trim();
+        if (!country && city && typeof window.resolveCountryForCity === 'function') {
+            country = String(window.resolveCountryForCity(city) || '').trim();
+        }
+        var currency = String((seg && seg.currency) || '').trim().toUpperCase();
+        if (!currency && typeof window.resolveCurrencyForCityName === 'function') {
+            currency = String(window.resolveCurrencyForCityName(city, country) || '').trim().toUpperCase();
+        }
+        if (!currency) currency = String(cfg().dmcCurrency || 'SGD').toUpperCase();
+        return { city: city, country: country, currency: currency };
+    }
+
+    function stampStayGeoOnRows(rows, geo) {
+        geo = geo || {};
+        return (rows || []).map(function (row) {
+            var r = Object.assign({}, row);
+            if (geo.city) {
+                r.city = geo.city;
+                r.destination = r.destination || geo.city;
+                r.AttractionCity = r.AttractionCity || geo.city;
+                r.restaurantCity = r.restaurantCity || geo.city;
+            }
+            if (geo.country) r.country = geo.country;
+            if (geo.currency) r.currency = geo.currency;
+            if (r.hotelDetails && typeof r.hotelDetails === 'object') {
+                r.hotelDetails = Object.assign({}, r.hotelDetails);
+                if (geo.city) r.hotelDetails.city = geo.city;
+                if (geo.country) r.hotelDetails.country = geo.country;
+            }
+            return r;
+        });
+    }
+
+    function enrichServiceRowsWithCustomer(jsonStr, geo) {
         var customer = window.StpLiteGuests
             ? window.StpLiteGuests.getCustomerDataForServices()
             : {};
         try {
             var rows = JSON.parse(jsonStr || '[]');
             if (!Array.isArray(rows)) return jsonStr || '[]';
+            rows = stampStayGeoOnRows(rows, geo);
             rows = rows.map(function (row) {
                 var r = Object.assign({}, row);
                 if (!r.fullName && customer.fullName) r.fullName = customer.fullName;
@@ -291,17 +372,18 @@
         fd.append('_token', cfg().csrfToken || '');
         fd.append('tour_id', String(tourId));
         fd.append('agent_id', String(agentId || 0));
+        var geo = stayGeoFromSegment(seg);
         var total = 0;
         SERVICE_CHUNK_FIELDS.forEach(function (spec) {
             var rows = (seg.services && seg.services[spec.field]) || [];
             total += sumRows(rows);
-            fd.append(spec.field, enrichServiceRowsWithCustomer(JSON.stringify(rows)));
+            fd.append(spec.field, enrichServiceRowsWithCustomer(JSON.stringify(rows), geo));
         });
         fd.append('total_price', String(total));
         // Backup: one country/city/currency per stay segment (never full destination CSV)
-        fd.append('country', seg.country || '');
-        fd.append('city', seg.cityName || '');
-        fd.append('currency', seg.currency || cfg().dmcCurrency || 'SGD');
+        fd.append('country', geo.country || seg.country || '');
+        fd.append('city', geo.city || seg.cityName || '');
+        fd.append('currency', geo.currency || cfg().dmcCurrency || 'SGD');
         var resp = await fetch(url, {
             method: 'POST',
             headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
@@ -324,11 +406,20 @@
             fd.append('_token', cfg().csrfToken || '');
             fd.append('tour_id', String(tourId));
             fd.append('agent_id', String(agentId || 0));
+            var countries = uniqueCountries((resolveUserCountry() || '').split(','));
+            var cityCsv = buildCityCsv();
+            var firstCity = cityCsv.split(',')[0] || '';
+            firstCity = firstCity.replace(/\s*\[[^\]]*\]\s*$/, '').replace(/\s*\([^)]*\)\s*$/, '').trim();
+            var fallbackGeo = stayGeoFromSegment({
+                cityName: firstCity,
+                country: countries[0] || '',
+                currency: cfg().dmcCurrency || 'SGD'
+            });
             var total = 0;
             SERVICE_CHUNK_FIELDS.forEach(function (spec) {
                 var rows = parseChunkJson(readHiddenJson(spec.field));
                 total += sumRows(rows);
-                fd.append(spec.field, enrichServiceRowsWithCustomer(JSON.stringify(rows)));
+                fd.append(spec.field, enrichServiceRowsWithCustomer(JSON.stringify(rows), fallbackGeo));
             });
             if (!total && SERVICE_CHUNK_FIELDS.every(function (spec) {
                 return !parseChunkJson(readHiddenJson(spec.field)).length;
@@ -336,13 +427,9 @@
                 throw new Error('Please add at least one service before saving.');
             }
             fd.append('total_price', String(total));
-            var countries = uniqueCountries((resolveUserCountry() || '').split(','));
-            fd.append('country', countries[0] || '');
-            var cityCsv = buildCityCsv();
-            var firstCity = cityCsv.split(',')[0] || '';
-            firstCity = firstCity.replace(/\s*\[[^\]]*\]\s*$/, '').replace(/\s*\([^)]*\)\s*$/, '').trim();
-            fd.append('city', firstCity);
-            fd.append('currency', cfg().dmcCurrency || 'SGD');
+            fd.append('country', fallbackGeo.country || countries[0] || '');
+            fd.append('city', fallbackGeo.city || firstCity);
+            fd.append('currency', fallbackGeo.currency || cfg().dmcCurrency || 'SGD');
             var resp = await fetch(url, {
                 method: 'POST',
                 headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
@@ -488,6 +575,11 @@
             fd.append('discount', val('discount') || '0');
             fd.append('discount_price', val('discount_price') || '0');
         }
+        if (window.StpLiteCityMarkup && typeof window.StpLiteCityMarkup.syncHidden === 'function') {
+            window.StpLiteCityMarkup.syncHidden();
+        }
+        fd.append('currency_markups', val('currency_markups') || '[]');
+        fd.append('discount_price', val('discount_price') || '0');
         return postJsonForm(url, fd);
     }
 
@@ -552,11 +644,58 @@
         return { country: country, cityCsv: cityCsv };
     }
 
-    async function updateTourPackage() {
+    function ensureSaveOverlay() {
+        var el = document.getElementById('stpLiteSaveOverlay');
+        if (el) return el;
+        el = document.createElement('div');
+        el.id = 'stpLiteSaveOverlay';
+        el.className = 'stp-lite-save-overlay';
+        el.setAttribute('aria-hidden', 'true');
+        el.innerHTML = ''
+            + '<div class="stp-lite-save-overlay__card" role="status" aria-live="polite">'
+            + '<div class="spinner-border text-success stp-lite-save-overlay__spinner" role="presentation"></div>'
+            + '<p class="stp-lite-save-overlay__title">Processing</p>'
+            + '<p class="stp-lite-save-overlay__msg" id="stpLiteSaveOverlayMsg">Please wait…</p>'
+            + '</div>';
+        document.body.appendChild(el);
+        return el;
+    }
+
+    function setSavingState(on, message) {
         var btn = document.getElementById('stpLiteSaveTourBtn');
         var hint = document.getElementById('stpLiteSaveHint');
-        if (btn) btn.disabled = true;
-        if (hint) hint.textContent = 'Updating tour…';
+        var overlay = ensureSaveOverlay();
+        var msgEl = document.getElementById('stpLiteSaveOverlayMsg');
+        var text = message || (on ? 'Processing…' : '');
+
+        if (btn) {
+            btn.disabled = !!on;
+            if (on) {
+                if (!btn.getAttribute('data-label')) {
+                    btn.setAttribute('data-label', btn.innerHTML);
+                }
+                btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>Saving…';
+            } else if (btn.getAttribute('data-label')) {
+                btn.innerHTML = btn.getAttribute('data-label');
+                btn.removeAttribute('data-label');
+            }
+        }
+        var btnLoader = document.getElementById('stpLiteSaveBtnLoader');
+        if (btnLoader) {
+            btnLoader.classList.toggle('is-on', !!on);
+            btnLoader.setAttribute('aria-hidden', on ? 'false' : 'true');
+        }
+        if (hint && text) hint.textContent = text;
+        if (msgEl && text) msgEl.textContent = text;
+        if (overlay) {
+            overlay.classList.toggle('is-on', !!on);
+            overlay.setAttribute('aria-hidden', on ? 'false' : 'true');
+        }
+        document.body.classList.toggle('stp-lite-saving', !!on);
+    }
+
+    async function updateTourPackage() {
+        setSavingState(true, 'Updating tour…');
         try {
             var tourId = resolveTourId();
             if (!tourId) throw new Error('Missing tour id for edit.');
@@ -564,36 +703,33 @@
             var v = validateBeforeSave();
 
             await updateTourHeader(tourId, v.country, v.cityCsv);
-            if (hint) hint.textContent = 'Saving city plans…';
+            setSavingState(true, 'Saving city plans…');
             await updateCityPlans(tourId, v.cityCsv);
-            if (hint) hint.textContent = 'Saving guests…';
+            setSavingState(true, 'Saving guests…');
             await updateGuests(tourId);
-            if (hint) hint.textContent = 'Replacing services…';
+            setSavingState(true, 'Replacing services…');
             await clearAllServices(tourId);
-            if (hint) hint.textContent = 'Storing services…';
+            setSavingState(true, 'Storing services…');
             syncServiceHiddensBeforeSave();
             var ordersResult = await postServiceOrders(tourId, val('agent_id') || val('agent'));
-            if (hint) hint.textContent = 'Updated — redirecting…';
+            setSavingState(true, 'Updated — redirecting…');
             redirectToThankYou(ordersResult, {
                 tour_id: tourId,
                 display_id: (ordersResult && ordersResult.tour_details && ordersResult.tour_details.display_id) || ''
             }, { updated: true });
             return ordersResult;
         } catch (err) {
-            if (hint) hint.textContent = 'Update failed.';
+            setSavingState(false, 'Update failed.');
             alert(err && err.message ? err.message : 'Update failed.');
-            if (btn) btn.disabled = false;
         }
     }
 
     async function saveTourPackage() {
+        if (document.body.classList.contains('stp-lite-saving')) return;
         if (isEditMode()) {
             return updateTourPackage();
         }
-        var btn = document.getElementById('stpLiteSaveTourBtn');
-        var hint = document.getElementById('stpLiteSaveHint');
-        if (btn) btn.disabled = true;
-        if (hint) hint.textContent = 'Saving tour…';
+        setSavingState(true, 'Saving tour…');
         try {
             var v = validateBeforeSave();
             var fd = collectTourFormData();
@@ -602,14 +738,13 @@
             fd.set('city_type', resolveCityType());
 
             var tour = await createTour(fd);
-            if (hint) hint.textContent = 'Tour #' + (tour.display_id || tour.tour_id) + ' created — storing services…';
+            setSavingState(true, 'Tour #' + (tour.display_id || tour.tour_id) + ' created — storing services…');
             var ordersResult = await postServiceOrders(tour.tour_id, val('agent_id') || val('agent'));
-            if (hint) hint.textContent = 'Saved — redirecting…';
+            setSavingState(true, 'Saved — redirecting…');
             redirectToThankYou(ordersResult, tour);
         } catch (err) {
-            if (hint) hint.textContent = 'Save failed.';
+            setSavingState(false, 'Save failed.');
             alert(err && err.message ? err.message : 'Save failed.');
-            if (btn) btn.disabled = false;
         }
     }
 

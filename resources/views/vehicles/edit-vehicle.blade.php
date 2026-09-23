@@ -480,20 +480,37 @@
                                 </select>
                             </div>
 
-                            <!-- Country -->
+                            <!-- Country (DMC base country from users.country) -->
                             @php $locationLockedByMappings = !empty($hasZoneMappings); @endphp
                             <div class="col-md-3 mb-3">
                                 <label for="country" class="form-label"><strong>Country</strong><span class="text-danger">*</span></label>
                                 @if($locationLockedByMappings)
                                     <input type="hidden" name="country" value="{{ $selectedCountry ?? $vehicle->country }}">
                                 @endif
+                                @php
+                                    $scopedCountries = collect($dmcBaseCountries ?? $countries ?? []);
+                                    $editSelectedCountry = old('country', $selectedCountry ?? $vehicle->country ?? '');
+                                    if ($editSelectedCountry === '' && $scopedCountries->count() === 1) {
+                                        $editSelectedCountry = $scopedCountries->first()->name ?? '';
+                                    }
+                                    if (filled($editSelectedCountry) && !$scopedCountries->contains(function ($c) use ($editSelectedCountry) {
+                                        return strcasecmp(trim((string) ($c->name ?? '')), trim((string) $editSelectedCountry)) === 0;
+                                    })) {
+                                        $missingCountry = \App\Models\Country::whereRaw('LOWER(TRIM(name)) = ?', [strtolower(trim((string) $editSelectedCountry))])->first();
+                                        if ($missingCountry) {
+                                            $scopedCountries = $scopedCountries->prepend($missingCountry)->unique('id')->values();
+                                        }
+                                    }
+                                @endphp
                                 <select @if(!$locationLockedByMappings) name="country" required @endif id="country" class="form-select" @disabled($locationLockedByMappings)>
-                                    @php $scopedCountries = $countries ?? collect(); @endphp
                                     @if($scopedCountries->count() !== 1)
                                         <option value="">Select Country</option>
                                     @endif
                                     @foreach($scopedCountries as $c)
-                                        <option value="{{ $c->name }}" {{ ($selectedCountry ?? '') == $c->name ? 'selected' : '' }}>{{ $c->name }}</option>
+                                        <option value="{{ $c->name }}"
+                                            {{ strcasecmp(trim((string) $editSelectedCountry), trim((string) $c->name)) === 0 ? 'selected' : '' }}>
+                                            {{ $c->name }}
+                                        </option>
                                     @endforeach
                                 </select>
                                 @if($locationLockedByMappings)

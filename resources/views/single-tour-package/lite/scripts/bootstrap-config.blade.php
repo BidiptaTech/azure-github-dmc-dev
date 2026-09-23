@@ -32,6 +32,18 @@
             return [trim((string) $c->name) => trim((string) $c->country)];
         })
         ->all();
+
+    $liteCurrencyMarkups = [];
+    if (!empty($tour)) {
+        $rawMarkups = $tour->currency_markups ?? null;
+        if (is_string($rawMarkups)) {
+            $decodedMarkups = json_decode($rawMarkups, true);
+            $rawMarkups = (json_last_error() === JSON_ERROR_NONE) ? $decodedMarkups : [];
+        }
+        if (is_array($rawMarkups)) {
+            $liteCurrencyMarkups = array_values($rawMarkups);
+        }
+    }
 @endphp
 <script>
 window.TOUR_PACKAGE_CURRENCY = @json($dmcCurrency ?? 'SGD');
@@ -46,6 +58,8 @@ window.STP_LITE_CONFIG = {
     dmcGroupPax: @json((int) ($dmcGroupPax ?? 0)),
     dmcCurrency: @json($dmcCurrency ?? 'SGD'),
     isThirdPartyDmc: @json(!empty($isThirdPartyDmc)),
+    isRestrictedThirdParty: @json(!empty($isRestrictedThirdParty)),
+    ownDmcCountries: @json(array_values($ownDmcCountries ?? [])),
     zoneOn: @json((int) (optional($UserDmc)->zone_on ?? 0)),
     mdmcCountries: @json($mdmcCountries),
     countryIdByName: @json($countryIdByName),
@@ -87,7 +101,9 @@ window.STP_LITE_CONFIG = {
         display: 'MMM D, YYYY',
         store: 'YYYY-MM-DD'
     },
-    serviceOrder: ['hotel', 'arrival', 'attraction', 'guide', 'restaurant', 'transport', 'departure', 'miscellaneous']
+    serviceOrder: ['hotel', 'arrival', 'attraction', 'guide', 'restaurant', 'transport', 'departure', 'miscellaneous'],
+    currencyMarkups: @json($liteCurrencyMarkups),
+    bundleAttractionIcon: @json(asset('assets/images/bundle-attraction-icon.png'))
 };
 </script>
 {{-- === END bootstrap-config === --}}

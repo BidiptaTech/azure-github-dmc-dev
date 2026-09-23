@@ -66,7 +66,10 @@ class MealController extends Controller
                 'meal_type' => 'required|string',
                 'restaurant_id' => 'required|integer',
                 'item_description' => 'required|string',
-                'meal_status' => 'nullable|integer',
+                'meal_status' => 'required|in:1',
+            ], [
+                'meal_status.required' => 'Please turn on Status before submitting.',
+                'meal_status.in' => 'Please turn on Status before submitting.',
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             // Catch Validation Errors

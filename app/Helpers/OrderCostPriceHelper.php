@@ -4,8 +4,12 @@ namespace App\Helpers;
 
 use App\Models\Bed;
 use App\Models\Guide;
+use App\Models\Hotel;
 use App\Models\Meal;
+use App\Models\MiscellaneousItem;
+use App\Models\MiscellaneousPrice;
 use App\Models\Order;
+use App\Models\Rate;
 use App\Models\Room;
 use App\Models\Ticket;
 use Carbon\Carbon;
@@ -51,7 +55,7 @@ class OrderCostPriceHelper
                 'restaurant' => self::buildRestaurantCost($item),
                 'guide' => self::buildGuideCost($item),
                 'entry_port', 'exit_port', 'travel_hourly', 'travel_point', 'local_transport' => self::buildTransportCost($item, $type),
-                'miscellaneous' => self::buildGenericItemCost($item, 'miscellaneous'),
+                'miscellaneous' => self::buildMiscellaneousCost($item),
                 default => self::buildGenericItemCost($item, $type ?: 'service'),
             };
 
@@ -73,7 +77,9 @@ class OrderCostPriceHelper
         }
 
         $source = 'payload';
-        if (in_array('database', $sources, true) && in_array('payload', $sources, true)) {
+        if (in_array('view_details', $sources, true)) {
+            $source = 'view_details';
+        } elseif (in_array('database', $sources, true) && in_array('payload', $sources, true)) {
             $source = 'mixed';
         } elseif (in_array('database', $sources, true)) {
             $source = 'database';
@@ -140,9 +146,29 @@ class OrderCostPriceHelper
         $source = 'payload';
         $nights = self::resolveNights($item);
         $dates = self::resolveStayDates($item);
+        $hotelUniqueId = self::resolveHotelUniqueId($item);
+        $dmcId = $item['priceModeId'] ?? $item['dmc_id'] ?? $item['priceMode_id'] ?? null;
+        $weekendDays = self::resolveWeekendDays($hotelUniqueId);
 
         $rooms = is_array($item['rooms'] ?? null) ? $item['rooms'] : [];
-        foreach ($rooms as $roomRow) {
+
+        // Prefer View-details snapshot from Pro create/edit (exact season/fair/blackout costs).
+        $snapshot = is_array($item['lodging_cost_snapshot'] ?? null) ? $item['lodging_cost_snapshot'] : null;
+        if ($snapshot && ! empty($snapshot['components']) && is_array($snapshot['components'])) {
+            foreach ($snapshot['components'] as $component) {
+                if (! is_array($component)) {
+                    continue;
+                }
+                $components[] = $component;
+            }
+            $components = self::normalizeLodgingSnapshotComponents($components, $item, $nights);
+            $source = (string) ($snapshot['source'] ?? 'view_details');
+            if ($source === '' || $source === 'payload') {
+                $source = 'view_details';
+            }
+        } else {
+            // Fallback: rebuild from room + rates tables
+            foreach ($rooms as $roomRow) {
             if (! is_array($roomRow)) {
                 continue;
             }
@@ -152,38 +178,77 @@ class OrderCostPriceHelper
             $beds = is_array($roomRow['beds'] ?? null) ? $roomRow['beds'] : [];
             $headCount = 2;
             $bedId = null;
+            $maxOccupancy = 2;
             if (! empty($beds[0]) && is_array($beds[0])) {
                 $headCount = max(1, (int) ($beds[0]['head_count'] ?? $beds[0]['max_occupancy'] ?? 2));
+                $maxOccupancy = max(1, (int) ($beds[0]['max_occupancy'] ?? $headCount));
                 $bedId = $beds[0]['bed_id'] ?? null;
             }
 
-            $useDouble = $headCount >= 2;
+            // Same single/double rule as sell: max guests 1 → single, else double.
+            $useDouble = min(2, $maxOccupancy) > 1 || $headCount >= 2;
             $room = $roomId > 0 ? Room::query()->where('room_id', $roomId)->first() : null;
 
             $roomCostTotal = 0.0;
             $perNightCosts = [];
+            $mealNightUnits = [
+                'breakfast' => [],
+                'lunch' => [],
+                'dinner' => [],
+            ];
+
             if ($room) {
                 $source = 'database';
                 if (! empty($dates)) {
                     foreach ($dates as $date) {
-                        $nightCost = self::roomNightCost($room, $date, $useDouble);
+                        $night = self::roomNightCostDetail(
+                            $room,
+                            $date,
+                            $useDouble,
+                            $hotelUniqueId,
+                            $dmcId,
+                            $weekendDays
+                        );
                         $perNightCosts[] = [
                             'date' => $date->toDateString(),
-                            'cost' => $nightCost,
-                            'occupancy' => $useDouble ? 'double' : 'single',
-                            'day_type' => self::isWeekend($date) ? 'weekend' : 'weekday',
+                            'cost' => $night['cost'],
+                            'occupancy' => $night['occupancy'],
+                            'day_type' => $night['day_type'],
+                            'event_type' => $night['event_type'],
+                            'source' => $night['source'],
+                            'surcharge_cost' => $night['surcharge_cost'],
                         ];
-                        $roomCostTotal += $nightCost * $numberOfRooms;
+                        $roomCostTotal += $night['cost'] * $numberOfRooms;
+
+                        $rate = $night['rate'];
+                        foreach (['breakfast', 'lunch', 'dinner'] as $mealKey) {
+                            $mealNightUnits[$mealKey][] = self::mealUnitCostForNight($room, $rate, $mealKey);
+                        }
                     }
                 } else {
                     $fallbackDate = Carbon::today();
-                    $nightCost = self::roomNightCost($room, $fallbackDate, $useDouble);
-                    $roomCostTotal = $nightCost * $numberOfRooms * max(1, $nights);
+                    $night = self::roomNightCostDetail(
+                        $room,
+                        $fallbackDate,
+                        $useDouble,
+                        $hotelUniqueId,
+                        $dmcId,
+                        $weekendDays
+                    );
+                    $roomCostTotal = $night['cost'] * $numberOfRooms * max(1, $nights);
                     $perNightCosts[] = [
                         'nights' => max(1, $nights),
-                        'cost_per_night' => $nightCost,
-                        'occupancy' => $useDouble ? 'double' : 'single',
+                        'cost_per_night' => $night['cost'],
+                        'occupancy' => $night['occupancy'],
+                        'day_type' => $night['day_type'],
+                        'event_type' => $night['event_type'],
+                        'source' => $night['source'],
+                        'surcharge_cost' => $night['surcharge_cost'],
                     ];
+                    foreach (['breakfast', 'lunch', 'dinner'] as $mealKey) {
+                        $unit = self::mealUnitCostForNight($room, $night['rate'], $mealKey);
+                        $mealNightUnits[$mealKey] = array_fill(0, max(1, $nights), $unit);
+                    }
                 }
             } else {
                 // Fallback: payload room/bed sell is not cost — try explicit cost fields.
@@ -211,12 +276,13 @@ class OrderCostPriceHelper
                         'number_of_rooms' => $numberOfRooms,
                         'nights' => max(1, $nights),
                         'head_count' => $headCount,
+                        'max_occupancy' => $maxOccupancy,
                         'per_night' => $perNightCosts,
                     ],
                 ];
             }
 
-            // Meals from room catalog cost prices × head_count × nights × rooms
+            // Meals: rate-aware unit cost × head_count × rooms (same selection as sell meal plan)
             if ($room) {
                 $selectedMealLabels = [];
                 foreach ($beds as $bed) {
@@ -251,37 +317,62 @@ class OrderCostPriceHelper
                         }
                     }
                     if (! $matched && empty($selectedMealLabels) && (int) ($room->{$mealKey} ?? 0) === 1) {
-                        // included meal flags alone are not enough without selection
                         continue;
                     }
                     if (! $matched) {
                         continue;
                     }
 
-                    $unit = (float) ($room->{$mealKey . '_cost_price'} ?? 0);
-                    if ($unit <= 0) {
+                    $units = $mealNightUnits[$mealKey] ?? [];
+                    if (empty($units)) {
+                        $fallbackUnit = self::pickPositive(
+                            $room->{$mealKey . '_cost_price'} ?? null,
+                            $room->{$mealKey . '_price'} ?? 0
+                        );
+                        $units = array_fill(0, max(1, $nights), $fallbackUnit);
+                    }
+
+                    $mealTotal = 0.0;
+                    $unitSum = 0.0;
+                    foreach ($units as $unit) {
+                        $unitSum += (float) $unit;
+                        $mealTotal += (float) $unit * $headCount * $numberOfRooms;
+                    }
+                    $avgUnit = count($units) > 0 ? $unitSum / count($units) : 0.0;
+                    if ($mealTotal <= 0) {
                         continue;
                     }
-                    $mealTotal = $unit * $headCount * max(1, $nights) * $numberOfRooms;
                     $components[] = [
                         'key' => 'meal_' . $mealKey,
                         'label' => ucfirst($mealKey),
                         'cost' => round($mealTotal, 2),
                         'meta' => [
-                            'unit_cost' => $unit,
+                            'unit_cost' => round($avgUnit, 2),
                             'head_count' => $headCount,
                             'nights' => max(1, $nights),
                             'number_of_rooms' => $numberOfRooms,
+                            'per_night_unit_cost' => array_map(static fn ($u) => round((float) $u, 2), $units),
                         ],
                     ];
                     $source = 'database';
                 }
             }
         }
+        } // end snapshot else
 
-        // Extra bed
+        $hasComponentKey = static function (array $components, string $key): bool {
+            foreach ($components as $c) {
+                if (is_array($c) && ($c['key'] ?? null) === $key) {
+                    return true;
+                }
+            }
+
+            return false;
+        };
+
+        // Extra bed (skip if lodging_cost_snapshot already included it)
         $extraBed = is_array($item['extra_bed'] ?? null) ? $item['extra_bed'] : null;
-        if ($extraBed && ! empty($extraBed['enabled'])) {
+        if ($extraBed && ! empty($extraBed['enabled']) && ! $hasComponentKey($components, 'extra_bed')) {
             $qty = max(0, (int) ($extraBed['quantity'] ?? 0));
             $unitCost = 0.0;
             $bedCostSource = 'payload';
@@ -331,11 +422,14 @@ class OrderCostPriceHelper
 
         // Child with / without bed from room catalog costs when available
         foreach (['child_with_bed' => 'child_with_bed_cost', 'child_without_bed' => 'child_without_bed_cost'] as $payloadKey => $roomColumn) {
+            if ($hasComponentKey($components, $payloadKey)) {
+                continue;
+            }
             $block = is_array($item[$payloadKey] ?? null) ? $item[$payloadKey] : null;
             if (! $block || empty($block['enabled'])) {
                 continue;
             }
-            $children = max(0, (int) ($block['children'] ?? 0));
+            $children = max(0, (int) ($block['quantity'] ?? $block['children'] ?? 0));
             if ($children <= 0) {
                 continue;
             }
@@ -363,7 +457,7 @@ class OrderCostPriceHelper
                     'label' => $payloadKey === 'child_with_bed' ? 'Child With Bed' : 'Child Without Bed',
                     'cost' => round($total, 2),
                     'meta' => [
-                        'children' => $children,
+                        'quantity' => $children,
                         'unit_cost' => $unit,
                         'nights' => max(1, $nights),
                         'source' => $blockSource,
@@ -616,34 +710,69 @@ class OrderCostPriceHelper
         $components = [];
         $source = 'payload';
 
+        $guideOptions = is_array($item['guide_options'] ?? null) ? $item['guide_options'] : null;
+
         $guideId = $item['guide_id'] ?? $item['guideId'] ?? null;
         $hours = (int) ($item['hours'] ?? $item['entrytime'] ?? $item['service_hours'] ?? 0);
-        if ($hours <= 0 && isset($item['guide_options']) && is_array($item['guide_options'])) {
-            $hours = (int) ($item['guide_options']['hours'] ?? $item['guide_options']['package_hours'] ?? 0);
-            $guideId = $guideId ?: ($item['guide_options']['guide_id'] ?? $item['guide_options']['guideId'] ?? null);
+        $guideName = trim((string) ($item['guide_name'] ?? $item['guideName'] ?? $item['name'] ?? ''));
+
+        if ($guideOptions) {
+            if ($hours <= 0) {
+                $hours = (int) ($guideOptions['hours'] ?? $guideOptions['service_hours'] ?? $guideOptions['package_hours'] ?? 0);
+            }
+            $guideId = $guideId
+                ?: ($guideOptions['guide_id'] ?? $guideOptions['guideId'] ?? null);
+            if ($guideName === '') {
+                $guideName = trim((string) (
+                    $guideOptions['guide_name']
+                    ?? $guideOptions['guideName']
+                    ?? $guideOptions['name']
+                    ?? ''
+                ));
+            }
+        }
+
+        // Empty string / "0" are not valid guide_ids (arrival/exit used to send "").
+        if ($guideId === '' || $guideId === '0' || $guideId === 0) {
+            $guideId = null;
+        }
+
+        // Pro entry/exit always book 12h; default when hours missing.
+        if ($hours <= 0) {
+            $hours = 12;
         }
 
         $guideCost = 0.0;
         $matchedTier = null;
+        $guide = null;
         if (! empty($guideId)) {
             $guide = Guide::query()->where('guide_id', $guideId)->first();
+        }
+        // Fallback: resolve by name when id was missing from payload (legacy arrival/exit).
+        if (! $guide && $guideName !== '') {
+            $guide = Guide::query()->where('name', $guideName)->first();
             if ($guide) {
-                $resolved = self::resolveGuideHourlyCost($guide, max(1, $hours ?: 12));
-                $guideCost = (float) ($resolved['cost'] ?? 0);
-                $matchedTier = $resolved['tier'] ?? null;
-                if ($guideCost > 0) {
-                    $source = 'database';
-                }
+                $guideId = $guide->guide_id;
             }
         }
 
+        if ($guide) {
+            $resolved = self::resolveGuideHourlyCost($guide, max(1, $hours));
+            $guideCost = (float) ($resolved['cost'] ?? 0);
+            $matchedTier = $resolved['tier'] ?? null;
+            if ($guideCost > 0) {
+                $source = 'database';
+            }
+        }
+
+        // Last resort only — prefer never using sell figures for cost_price.
         if ($guideCost <= 0) {
             $guideCost = self::firstNumeric($item, [
-                'total_cost', 'cost', 'Cost', 'adultCost', 'adult_cost', 'basePrice', 'base_price',
+                'total_cost', 'cost_price', 'adult_cost_price', 'base_cost', 'baseCost',
             ]);
-            if ($guideCost <= 0 && isset($item['guide_options']) && is_array($item['guide_options'])) {
-                $guideCost = self::firstNumeric($item['guide_options'], [
-                    'total_cost', 'total_price', 'cost', 'Cost', 'base_price', 'adult_cost', 'adultCost',
+            if ($guideCost <= 0 && $guideOptions) {
+                $guideCost = self::firstNumeric($guideOptions, [
+                    'total_cost', 'cost_price', 'adult_cost_price', 'base_cost', 'baseCost',
                 ]);
             }
         }
@@ -651,11 +780,11 @@ class OrderCostPriceHelper
         if ($guideCost > 0) {
             $components[] = [
                 'key' => 'guide',
-                'label' => trim((string) ($item['guide_name'] ?? $item['guideName'] ?? 'Guide')),
+                'label' => $guideName !== '' ? $guideName : 'Guide',
                 'cost' => round($guideCost, 2),
                 'meta' => [
                     'guide_id' => $guideId,
-                    'hours' => $hours ?: null,
+                    'hours' => $hours,
                     'tier' => $matchedTier,
                 ],
             ];
@@ -722,32 +851,140 @@ class OrderCostPriceHelper
         ];
     }
 
+    /**
+     * Shared = per-pax unit × (adults + children); Private = flat vehicle cost.
+     * Payload `cost` is already way-applied (one-way or both-way). Zone unit costs are per way.
+     *
+     * @return array{cost: float, meta: array}|null
+     */
+    private static function resolveTransferOptionsCost(array $item, array $transfer): ?array
+    {
+        $transferTypeRaw = strtolower(trim((string) (
+            $transfer['type']
+            ?? $transfer['transferType']
+            ?? $transfer['transfer_type']
+            ?? ''
+        )));
+        $isShared = in_array($transferTypeRaw, ['s', 'shared', 'sic'], true);
+
+        $wayRaw = strtolower(trim((string) ($transfer['way'] ?? $transfer['transferWay'] ?? '')));
+        $isBothWay = in_array($wayRaw, ['both-way', 'both way', 'both', 'two-way', 'return', '2way'], true);
+        $wayMultiplier = $isBothWay ? 2 : 1;
+
+        $adults = self::qtyFromItem($transfer, ['adults', 'adultsQty', 'adult_qty', 'Adults']);
+        if ($adults <= 0) {
+            $adults = self::qtyFromItem($item, ['adults', 'adultsQty', 'adultCount', 'adult']);
+        }
+        $children = self::qtyFromItem($transfer, ['children', 'child', 'childQty', 'child_qty', 'Children']);
+        if ($children <= 0) {
+            $children = self::qtyFromItem($item, ['children', 'child', 'childQty', 'childCount']);
+        }
+        $pax = max(0, $adults + $children);
+
+        $payloadCost = self::firstNumeric($transfer, [
+            'cost', 'Cost', 'adult_cost', 'adultCost', 'base_cost', 'baseCost', 'cost_price', 'total_cost',
+        ]);
+
+        $zoneSharedUnit = self::firstNumeric($transfer, [
+            'zoneSharedCostPrice', 'shared_cost_price', 'sharedCostPrice',
+        ]);
+        $zonePrivateUnit = self::firstNumeric($transfer, [
+            'zonePrivateCostPrice', 'private_cost_price', 'privateCostPrice',
+        ]);
+
+        $unitCost = 0.0;
+        $transferCost = 0.0;
+
+        if ($isShared) {
+            if ($zoneSharedUnit > 0) {
+                $unitCost = $zoneSharedUnit * $wayMultiplier;
+            } elseif ($payloadCost > 0) {
+                // Payload cost is already way-applied upstream.
+                $unitCost = $payloadCost;
+            } else {
+                // Last resort: sell is often way-applied unit for shared.
+                $unitCost = self::firstNumeric($transfer, ['sell', 'Sell', 'basePrice', 'base_price']);
+            }
+            if ($unitCost > 0) {
+                $transferCost = $unitCost * max(1, $pax);
+            }
+        } else {
+            if ($zonePrivateUnit > 0) {
+                $unitCost = $zonePrivateUnit * $wayMultiplier;
+            } elseif ($payloadCost > 0) {
+                $unitCost = $payloadCost;
+            } else {
+                $unitCost = self::firstNumeric($transfer, ['sell', 'Sell', 'basePrice', 'base_price', 'totalPrice']);
+            }
+            $transferCost = $unitCost;
+        }
+
+        if ($transferCost <= 0) {
+            return null;
+        }
+
+        return [
+            'cost' => round($transferCost, 2),
+            'meta' => [
+                'type' => $isShared ? 'Shared' : 'Private',
+                'way' => $transfer['way'] ?? null,
+                'transfer_type' => $isShared ? 'shared' : 'private',
+                'adults' => $adults,
+                'children' => $children,
+                'unit_cost' => round($unitCost, 2),
+            ],
+        ];
+    }
+
     private static function appendTransferAndGuideComponents(array $item, array &$components, string &$source): void
     {
         $transfer = is_array($item['transfer_options'] ?? null) ? $item['transfer_options'] : null;
-        if ($transfer && (! empty($transfer['transfer_required']) || self::firstNumeric($transfer, ['cost', 'total_cost', 'cost_price']) > 0)) {
-            $transferCost = self::firstNumeric($transfer, [
-                'total_cost', 'cost_price', 'cost', 'Cost', 'adult_cost', 'adultCost', 'base_cost', 'baseCost',
-            ]);
-            if ($transferCost > 0) {
+        if (! $transfer && is_array($item['transferInfo'] ?? null)) {
+            $transfer = $item['transferInfo'];
+        }
+
+        $hasTransfer = $transfer && (
+            ! empty($transfer['transfer_required'])
+            || ! empty($transfer['vehicle_id'])
+            || ! empty($transfer['vehicleId'])
+            || self::firstNumeric($transfer, [
+                'cost', 'total_cost', 'cost_price', 'sell', 'totalPrice',
+                'zoneSharedCostPrice', 'zonePrivateCostPrice', 'shared_cost_price', 'private_cost_price',
+            ]) > 0
+        );
+
+        if ($hasTransfer) {
+            $resolved = self::resolveTransferOptionsCost($item, $transfer);
+            if ($resolved) {
                 $components[] = [
                     'key' => 'transfer',
                     'label' => 'Transfer',
-                    'cost' => round($transferCost, 2),
-                    'meta' => [
-                        'type' => $transfer['type'] ?? null,
-                        'way' => $transfer['way'] ?? null,
-                    ],
+                    'cost' => $resolved['cost'],
+                    'meta' => $resolved['meta'],
                 ];
             }
         }
 
         $guideOptions = is_array($item['guide_options'] ?? null) ? $item['guide_options'] : null;
-        if ($guideOptions && (! empty($guideOptions['guide_required']) || ! empty($guideOptions['guide_id']))) {
+        $hasGuide = $guideOptions && (
+            ! empty($guideOptions['guide_required'])
+            || ! empty($guideOptions['guide_id'])
+            || ! empty($guideOptions['guideId'])
+            || ! empty($guideOptions['guide_name'])
+            || ! empty($guideOptions['guideName'])
+            || ! empty($guideOptions['name'])
+        );
+        if ($hasGuide) {
             $guideBuilt = self::buildGuideCost(array_merge($item, [
                 'guide_id' => $guideOptions['guide_id'] ?? $guideOptions['guideId'] ?? null,
-                'guide_name' => $guideOptions['guide_name'] ?? $guideOptions['guideName'] ?? 'Guide',
-                'hours' => $guideOptions['hours'] ?? $guideOptions['package_hours'] ?? ($item['hours'] ?? 0),
+                'guide_name' => $guideOptions['guide_name']
+                    ?? $guideOptions['guideName']
+                    ?? $guideOptions['name']
+                    ?? 'Guide',
+                'hours' => $guideOptions['hours']
+                    ?? $guideOptions['service_hours']
+                    ?? $guideOptions['package_hours']
+                    ?? ($item['hours'] ?? 0),
                 'guide_options' => $guideOptions,
             ]));
             foreach ($guideBuilt['components'] as $component) {
@@ -780,44 +1017,276 @@ class OrderCostPriceHelper
     private static function buildTransportCost(array $item, string $type): array
     {
         $components = [];
-        $cost = self::firstNumeric($item, [
-            'total_cost', 'cost_price', 'cost', 'Cost', 'adult_cost', 'adultCost', 'base_cost', 'baseCost',
-        ]);
-        if ($cost <= 0) {
-            // Many transport payloads store supplier cost under cost and sell separately.
-            $cost = self::firstNumeric($item, ['sell', 'Sell', 'totalPrice', 'price']);
+        $source = 'payload';
+
+        // Transfer type: Shared unit cost × pax; Private = flat vehicle cost (no × pax).
+        $transferTypeRaw = strtolower(trim((string) (
+            $item['transferType']
+            ?? $item['transfer_type']
+            ?? $item['type']
+            ?? ''
+        )));
+        $isShared = in_array($transferTypeRaw, ['s', 'shared', 'sic'], true);
+
+        $adults = self::qtyFromItem($item, ['adults', 'adultsQty', 'adult_qty', 'Adults']);
+        $children = self::qtyFromItem($item, ['children', 'child', 'childQty', 'child_qty', 'Children']);
+
+        // Prefer explicit zone cost columns when present; otherwise unit cost from payload.
+        // Frontend stores shared/private zone cost as adultCost/cost (unit, not yet × pax).
+        $adultUnitCost = 0.0;
+        $childUnitCost = 0.0;
+        if ($isShared) {
+            $adultUnitCost = self::firstNumeric($item, [
+                'zoneSharedCostPrice', 'shared_cost_price', 'sharedCostPrice',
+                'adult_cost', 'adultCost', 'cost_price', 'cost', 'Cost', 'base_cost', 'baseCost',
+            ]);
+            $childUnitCost = self::firstNumeric($item, [
+                'zoneSharedCostPrice', 'shared_cost_price', 'sharedCostPrice',
+                'child_cost', 'childCost', 'adult_cost', 'adultCost', 'cost_price', 'cost', 'Cost',
+            ]);
+        } else {
+            $adultUnitCost = self::firstNumeric($item, [
+                'zonePrivateCostPrice', 'private_cost_price', 'privateCostPrice',
+                'adult_cost', 'adultCost', 'cost_price', 'cost', 'Cost', 'base_cost', 'baseCost',
+            ]);
+            $childUnitCost = $adultUnitCost;
         }
-        if ($cost > 0) {
+
+        // Do not fall back to sell/totalPrice for cost_price — those are customer sell figures.
+        $vehicleCost = 0.0;
+        if ($isShared) {
+            if ($adultUnitCost > 0 || $childUnitCost > 0) {
+                $vehicleCost = ($adultUnitCost * $adults) + ($childUnitCost * $children);
+            }
+        } elseif ($adultUnitCost > 0) {
+            // Private / unknown: flat per-vehicle cost (already includes both-way if applied upstream).
+            $vehicleCost = $adultUnitCost;
+        }
+
+        if ($vehicleCost > 0) {
             $components[] = [
                 'key' => $type,
                 'label' => ucfirst(str_replace('_', ' ', $type)),
-                'cost' => round($cost, 2),
+                'cost' => round($vehicleCost, 2),
                 'meta' => [
-                    'vehicle' => $item['vehicles_name'] ?? $item['vehicle_name'] ?? null,
+                    'vehicle' => $item['vehicles_name'] ?? $item['vehicle_name'] ?? $item['vehicleName'] ?? null,
+                    'transfer_type' => $isShared ? 'shared' : 'private',
+                    'adults' => $adults,
+                    'children' => $children,
+                    'unit_cost' => round($adultUnitCost, 2),
                 ],
             ];
         }
 
-        if (isset($item['guide_options']) && is_array($item['guide_options'])) {
-            $guideCost = self::firstNumeric($item['guide_options'], [
-                'total_cost', 'cost_price', 'cost', 'Cost', 'adult_cost', 'adultCost',
-            ]);
-            if ($guideCost > 0) {
-                $components[] = [
-                    'key' => 'guide',
-                    'label' => 'Guide',
-                    'cost' => round($guideCost, 2),
-                    'meta' => [
-                        'guide_name' => $item['guide_options']['guide_name'] ?? $item['guide_options']['guideName'] ?? null,
-                    ],
-                ];
+        // Guide: always resolve from guides.*_cost_price tiers (never guide_options sell).
+        $guideOptions = is_array($item['guide_options'] ?? null) ? $item['guide_options'] : null;
+        if ($guideOptions && (
+            ! empty($guideOptions['guide_required'])
+            || ! empty($guideOptions['guide_id'])
+            || ! empty($guideOptions['guideId'])
+        )) {
+            $guideBuilt = self::buildGuideCost(array_merge($item, [
+                'guide_id' => $guideOptions['guide_id'] ?? $guideOptions['guideId'] ?? null,
+                'guide_name' => $guideOptions['guide_name'] ?? $guideOptions['guideName'] ?? $guideOptions['name'] ?? 'Guide',
+                'hours' => $guideOptions['hours']
+                    ?? $guideOptions['service_hours']
+                    ?? $guideOptions['package_hours']
+                    ?? ($item['hours'] ?? 12),
+                'guide_options' => $guideOptions,
+            ]));
+            foreach ($guideBuilt['components'] as $component) {
+                $components[] = $component;
+            }
+            if (($guideBuilt['source'] ?? '') === 'database') {
+                $source = $vehicleCost > 0 ? 'mixed' : 'database';
             }
         }
 
         return [
             'components' => $components,
-            'source' => 'payload',
+            'source' => $source,
         ];
+    }
+
+    /**
+     * Miscellaneous: unit cost × pax (adult / child / infant).
+     * Prefer payload unit costs (what the Pro form showed) so multi-item saves
+     * stay correct; fall back to miscellaneous_prices only when payload units are absent.
+     */
+    private static function buildMiscellaneousCost(array $item): array
+    {
+        $components = [];
+        $source = 'payload';
+
+        $adults = self::qtyFromItem($item, ['adultsQty', 'adults', 'adult', 'adultCount']);
+        $children = self::qtyFromItem($item, ['childQty', 'children', 'child', 'childCount']);
+        $infants = self::qtyFromItem($item, ['infantQty', 'infants', 'infant', 'infantCount']);
+
+        $misId = $item['mis_id'] ?? $item['misId'] ?? null;
+        if ($misId === null || $misId === '') {
+            $rawItemId = (string) ($item['itemId'] ?? $item['item_id'] ?? '');
+            if (preg_match('/(\d+)\s*$/', $rawItemId, $m)) {
+                $misId = (int) $m[1];
+            }
+        } else {
+            $misId = (int) $misId;
+        }
+
+        $dmcId = $item['dmc_id'] ?? $item['dmcId'] ?? null;
+        $city = trim((string) ($item['city'] ?? $item['destination'] ?? ''));
+        if (str_contains($city, ',')) {
+            $city = trim(explode(',', $city)[0]);
+        }
+
+        $payloadAdult = self::firstNumericIfPresent($item, ['adultCost', 'adult_cost', 'adult_cost_price']);
+        $payloadChild = self::firstNumericIfPresent($item, ['childCost', 'child_cost', 'child_cost_price']);
+        $payloadInfant = self::firstNumericIfPresent($item, ['infantCost', 'infant_cost', 'infant_cost_price']);
+        $hasPayloadUnits = $payloadAdult !== null || $payloadChild !== null || $payloadInfant !== null;
+
+        $adultUnit = 0.0;
+        $childUnit = 0.0;
+        $infantUnit = 0.0;
+
+        // Form payload wins whenever unit cost keys were sent (including legitimate 0).
+        if ($hasPayloadUnits) {
+            $adultUnit = (float) ($payloadAdult ?? 0);
+            $childUnit = (float) ($payloadChild ?? 0);
+            $infantUnit = (float) ($payloadInfant ?? 0);
+            $source = 'payload';
+        }
+
+        // Fill any missing unit from DB (or all units when payload had none).
+        $needDb = ! $hasPayloadUnits
+            || ($payloadAdult === null && $payloadChild === null && $payloadInfant === null);
+        // Also fill individual nulls when only some payload keys existed.
+        $fillAdultFromDb = ! $hasPayloadUnits || $payloadAdult === null;
+        $fillChildFromDb = ! $hasPayloadUnits || $payloadChild === null;
+        $fillInfantFromDb = ! $hasPayloadUnits || $payloadInfant === null;
+
+        if ($misId > 0 && ($fillAdultFromDb || $fillChildFromDb || $fillInfantFromDb || $needDb)) {
+            $priceQuery = MiscellaneousPrice::query()
+                ->where('mis_id', $misId)
+                ->where('status', 1);
+            if ($dmcId !== null && $dmcId !== '') {
+                $priceQuery->where('dmc_id', $dmcId);
+            }
+            $prices = $priceQuery->get();
+
+            // If DMC filter yielded nothing useful for this city, retry city match without DMC.
+            $price = self::pickMiscellaneousPriceRow($prices, $city);
+            if (! $price && $dmcId !== null && $dmcId !== '' && $city !== '') {
+                $pricesAny = MiscellaneousPrice::query()
+                    ->where('mis_id', $misId)
+                    ->where('status', 1)
+                    ->get();
+                $price = self::pickMiscellaneousPriceRow($pricesAny, $city, true);
+            }
+
+            if ($price) {
+                if ($fillAdultFromDb) {
+                    $adultUnit = (float) ($price->adult_cost ?? 0);
+                }
+                if ($fillChildFromDb) {
+                    $childUnit = (float) ($price->child_cost ?? 0);
+                }
+                if ($fillInfantFromDb) {
+                    $infantUnit = (float) ($price->infant_cost ?? 0);
+                }
+                $source = $hasPayloadUnits ? 'mixed' : 'database';
+            }
+        }
+
+        $total = ($adultUnit * max(0, $adults))
+            + ($childUnit * max(0, $children))
+            + ($infantUnit * max(0, $infants));
+
+        if ($total <= 0) {
+            // Explicit line total cost if provided (never use sell/totalPrice).
+            $total = self::firstNumeric($item, ['total_cost', 'cost_price', 'cost', 'Cost']);
+        }
+
+        if ($total > 0) {
+            $label = trim((string) (
+                $item['itemName']
+                ?? $item['item_name']
+                ?? $item['name']
+                ?? 'Miscellaneous'
+            ));
+            if ($label === '' && $misId > 0) {
+                $dbItem = MiscellaneousItem::query()->where('mis_id', $misId)->first();
+                $label = $dbItem->item_name ?? 'Miscellaneous';
+            }
+
+            $components[] = [
+                'key' => 'miscellaneous',
+                'label' => $label !== '' ? $label : 'Miscellaneous',
+                'cost' => round($total, 2),
+                'meta' => [
+                    'mis_id' => $misId ?: null,
+                    'adults' => $adults,
+                    'children' => $children,
+                    'infants' => $infants,
+                    'adult_unit_cost' => $adultUnit,
+                    'child_unit_cost' => $childUnit,
+                    'infant_unit_cost' => $infantUnit,
+                ],
+            ];
+        }
+
+        return [
+            'components' => $components,
+            'source' => $source,
+        ];
+    }
+
+    /**
+     * Pick best miscellaneous_prices row for a city (exact city first; optional blank-city fallback).
+     *
+     * @param  \Illuminate\Support\Collection<int, mixed>  $prices
+     */
+    private static function pickMiscellaneousPriceRow($prices, string $city, bool $exactCityOnly = false)
+    {
+        if ($prices === null || $prices->isEmpty()) {
+            return null;
+        }
+        if ($city !== '') {
+            $exact = $prices->first(function ($p) use ($city) {
+                return strcasecmp(trim((string) ($p->city ?? '')), $city) === 0;
+            });
+            if ($exact) {
+                return $exact;
+            }
+            if ($exactCityOnly) {
+                return null;
+            }
+        }
+        if ($exactCityOnly) {
+            return null;
+        }
+
+        return $prices->first(function ($p) {
+            return trim((string) ($p->city ?? '')) === '';
+        }) ?: $prices->first();
+    }
+
+    /**
+     * Like firstNumeric, but returns null when none of the keys are present (so 0 can still win).
+     *
+     * @param  array<string, mixed>  $source
+     * @param  list<string>  $keys
+     */
+    private static function firstNumericIfPresent(array $source, array $keys): ?float
+    {
+        foreach ($keys as $key) {
+            if (! array_key_exists($key, $source)) {
+                continue;
+            }
+            if (is_numeric($source[$key])) {
+                return (float) $source[$key];
+            }
+        }
+
+        return null;
     }
 
     private static function buildGenericItemCost(array $item, string $type): array
@@ -860,29 +1329,187 @@ class OrderCostPriceHelper
         ];
     }
 
-    private static function roomNightCost(Room $room, Carbon $date, bool $useDouble): float
+    private static function pickPositive($preferred, $fallback): float
     {
-        $weekend = self::isWeekend($date);
-        if ($useDouble) {
-            $cost = $weekend
-                ? (float) ($room->double_weekend_cost_price ?? 0)
-                : (float) ($room->double_weekday_cost_price ?? 0);
-            if ($cost > 0) {
-                return $cost;
+        $preferred = floatval($preferred ?? 0);
+        if ($preferred > 0) {
+            return $preferred;
+        }
+
+        return floatval($fallback ?? 0);
+    }
+
+    private static function resolveHotelUniqueId(array $item): ?string
+    {
+        $id = $item['hotelDetails']['hotel_id']
+            ?? $item['hotelDetails']['hotel_unique_id']
+            ?? $item['hotel_unique_id']
+            ?? $item['hotelId']
+            ?? null;
+
+        if ($id === null || $id === '') {
+            return null;
+        }
+
+        return (string) $id;
+    }
+
+    private static function resolveWeekendDays(?string $hotelUniqueId): array
+    {
+        $default = ['Saturday', 'Sunday'];
+        if (! $hotelUniqueId) {
+            return $default;
+        }
+
+        $hotel = Hotel::query()->where('hotel_unique_id', $hotelUniqueId)->first();
+        if (! $hotel || empty($hotel->weekend_days)) {
+            return $default;
+        }
+
+        $decoded = is_string($hotel->weekend_days)
+            ? json_decode($hotel->weekend_days, true)
+            : $hotel->weekend_days;
+
+        return (is_array($decoded) && ! empty($decoded)) ? $decoded : $default;
+    }
+
+    private static function applicableRate(?string $hotelUniqueId, Carbon $date, $dmcId = null): ?Rate
+    {
+        if (! $hotelUniqueId) {
+            return null;
+        }
+
+        $dateString = $date->toDateString();
+        $query = Rate::query()
+            ->where('hotel_id', $hotelUniqueId)
+            ->where('is_active', 1)
+            ->whereDate('start_date', '<=', $dateString)
+            ->whereDate('end_date', '>=', $dateString);
+
+        if (! empty($dmcId)) {
+            // Pro calendar loads all hotel rates (no hard DMC-only filter). Prefer matching DMC when set.
+            $dmcId = (int) $dmcId;
+        }
+
+        // Match EnquiryFormPro getHotelsByDestination: all active rates for hotel (Blackout > Fair > Season).
+        return $query->orderByRaw("
+                CASE
+                    WHEN event_type = 'Blackout Date' THEN 1
+                    WHEN event_type = 'Fair Date' THEN 2
+                    WHEN event_type = 'Season' THEN 3
+                    ELSE 4
+                END
+            ")->first();
+    }
+
+    /**
+     * Room night cost with Season / Fair / Blackout awareness (mirrors sell logic on cost columns).
+     *
+     * @return array{cost: float, occupancy: string, day_type: string, event_type: ?string, source: string, surcharge_cost: float, rate: ?Rate}
+     */
+    private static function roomNightCostDetail(
+        Room $room,
+        Carbon $date,
+        bool $useDouble,
+        ?string $hotelUniqueId,
+        $dmcId,
+        array $weekendDays
+    ): array {
+        $weekend = self::isWeekend($date, $weekendDays);
+        $costSingle = self::pickPositive(
+            $weekend ? ($room->weekend_cost_price ?? null) : ($room->weekday_cost_price ?? null),
+            $weekend ? ($room->weekend_price ?? 0) : ($room->weekday_price ?? 0)
+        );
+        $costDouble = self::pickPositive(
+            $weekend ? ($room->double_weekend_cost_price ?? null) : ($room->double_weekday_cost_price ?? null),
+            $weekend ? ($room->double_weekend_price ?? 0) : ($room->double_weekday_price ?? 0)
+        );
+        $base = $useDouble ? ($costDouble > 0 ? $costDouble : $costSingle) : $costSingle;
+        $eventType = null;
+        $source = 'room';
+        $surchargeCost = 0.0;
+        $rate = self::applicableRate($hotelUniqueId, $date, $dmcId);
+
+        if ($rate) {
+            $eventType = $rate->event_type;
+            $source = 'rate';
+            if ($eventType === 'Blackout Date') {
+                $base = self::pickPositive($rate->price_cost ?? null, $base);
+            } elseif ($eventType === 'Fair Date') {
+                $surchargeCost = self::pickPositive($rate->price_cost ?? null, $rate->price ?? 0);
+                $base = $base + $surchargeCost;
+            } elseif ($eventType === 'Season') {
+                if ($useDouble) {
+                    $season = self::pickPositive(
+                        $weekend ? ($rate->double_weekend_cost_price ?? null) : ($rate->double_weekday_cost_price ?? null),
+                        $weekend ? ($rate->double_weekend_price ?? null) : ($rate->double_weekday_price ?? null)
+                    );
+                    if ($season <= 0) {
+                        $season = self::pickPositive(
+                            $weekend ? ($rate->weekend_cost_price ?? null) : ($rate->weekday_cost_price ?? null),
+                            $weekend ? ($rate->weekend_price ?? null) : ($rate->weekday_price ?? null)
+                        );
+                    }
+                } else {
+                    $season = self::pickPositive(
+                        $weekend ? ($rate->weekend_cost_price ?? null) : ($rate->weekday_cost_price ?? null),
+                        $weekend ? ($rate->weekend_price ?? null) : ($rate->weekday_price ?? null)
+                    );
+                }
+                if ($season > 0) {
+                    $base = $season;
+                }
             }
         }
 
-        $cost = $weekend
-            ? (float) ($room->weekend_cost_price ?? 0)
-            : (float) ($room->weekday_cost_price ?? 0);
-
-        return max(0, $cost);
+        return [
+            'cost' => round(max(0, $base), 2),
+            'occupancy' => $useDouble ? 'double' : 'single',
+            'day_type' => $weekend ? 'weekend' : 'weekday',
+            'event_type' => $eventType,
+            'source' => $source,
+            'surcharge_cost' => round($surchargeCost, 2),
+            'rate' => $rate,
+        ];
     }
 
-    private static function isWeekend(Carbon $date): bool
+    private static function mealUnitCostForNight(Room $room, ?Rate $rate, string $mealKey): float
     {
-        // Carbon: 6 = Saturday, 0 = Sunday
-        return in_array((int) $date->dayOfWeek, [0, 6], true);
+        $roomCost = $room->{$mealKey . '_cost_price'} ?? null;
+        $roomSell = $room->{$mealKey . '_price'} ?? 0;
+        $fallback = self::pickPositive($roomCost, $roomSell);
+        if (! $rate) {
+            return $fallback;
+        }
+
+        $rateCost = floatval($rate->{$mealKey . '_cost_price'} ?? 0);
+        $rateSell = floatval($rate->{$mealKey . '_price'} ?? 0);
+
+        // Prefer rate cost when set; else rate sell; else room cost/sell.
+        if ($rateCost > 0) {
+            return $rateCost;
+        }
+        if ($rateSell > 0) {
+            return $rateSell;
+        }
+
+        return $fallback;
+    }
+
+    private static function roomNightCost(Room $room, Carbon $date, bool $useDouble): float
+    {
+        $detail = self::roomNightCostDetail($room, $date, $useDouble, null, null, ['Saturday', 'Sunday']);
+
+        return (float) $detail['cost'];
+    }
+
+    private static function isWeekend(Carbon $date, array $weekendDays = ['Saturday', 'Sunday']): bool
+    {
+        if (empty($weekendDays)) {
+            $weekendDays = ['Saturday', 'Sunday'];
+        }
+
+        return in_array($date->format('l'), $weekendDays, true);
     }
 
     /**
@@ -939,5 +1566,127 @@ class OrderCostPriceHelper
         }
 
         return 0.0;
+    }
+
+    /**
+     * Fix snapshot quirks: room × number_of_rooms, addon COST (not sell), meta.quantity (not children).
+     */
+    private static function normalizeLodgingSnapshotComponents(array $components, array $item, int $nights): array
+    {
+        $rooms = is_array($item['rooms'] ?? null) ? $item['rooms'] : [];
+        $roomId = (int) (($rooms[0]['room_id'] ?? 0));
+        $numberOfRooms = max(1, (int) (($rooms[0]['number_of_rooms'] ?? 1)));
+        $bedId = null;
+        if (! empty($rooms[0]['beds'][0]['bed_id'])) {
+            $bedId = $rooms[0]['beds'][0]['bed_id'];
+        }
+
+        $roomModel = null;
+        if ($roomId > 0) {
+            $roomModel = Room::query()->where('room_id', $roomId)->first();
+        }
+
+        foreach ($components as &$component) {
+            if (! is_array($component)) {
+                continue;
+            }
+            $key = (string) ($component['key'] ?? '');
+            $meta = is_array($component['meta'] ?? null) ? $component['meta'] : [];
+
+            if ($key === 'room') {
+                $nr = max(1, (int) ($meta['number_of_rooms'] ?? $numberOfRooms));
+                $perNight = is_array($meta['per_night'] ?? null) ? $meta['per_night'] : [];
+                $alreadyScaled = ! empty($meta['rooms_applied']);
+                if ($nr > 1 && ! $alreadyScaled && ! empty($perNight)) {
+                    $sumUnit = 0.0;
+                    foreach ($perNight as $night) {
+                        $sumUnit += (float) ($night['cost'] ?? 0);
+                    }
+                    $roomCost = (float) ($component['cost'] ?? 0);
+                    // per_night still per-room unit while component.cost already × rooms
+                    $looksUnscaled = $sumUnit > 0 && abs($roomCost - ($sumUnit * $nr)) < max(1.0, $nr * 0.5);
+                    // or both still unscaled
+                    $bothUnscaled = $sumUnit > 0 && abs($roomCost - $sumUnit) < 0.02;
+                    if ($looksUnscaled || $bothUnscaled) {
+                        $scaledNights = [];
+                        $scaledTotal = 0.0;
+                        foreach ($perNight as $night) {
+                            if (! is_array($night)) {
+                                continue;
+                            }
+                            $row = $night;
+                            foreach (['cost', 'room_cost_with_surcharge', 'surcharge_cost'] as $field) {
+                                if (isset($row[$field]) && is_numeric($row[$field])) {
+                                    $row[$field] = round(((float) $row[$field]) * $nr, 2);
+                                }
+                            }
+                            $mealTotal = (float) ($row['meal_cost_total'] ?? 0);
+                            $extra = (float) ($row['extra_bed_cost'] ?? 0);
+                            $cwb = (float) ($row['child_with_bed_cost'] ?? 0);
+                            $cnb = (float) ($row['child_without_bed_cost'] ?? 0);
+                            $row['night_cost_total'] = round(
+                                (float) ($row['room_cost_with_surcharge'] ?? $row['cost'] ?? 0)
+                                + $mealTotal + $extra + $cwb + $cnb,
+                                2
+                            );
+                            $scaledNights[] = $row;
+                            $scaledTotal += (float) ($row['cost'] ?? 0);
+                        }
+                        $meta['per_night'] = $scaledNights;
+                        $meta['number_of_rooms'] = $nr;
+                        $meta['rooms_applied'] = true;
+                        $meta['note'] = 'per_night.cost / room_cost_with_surcharge already × number_of_rooms; night_cost_total = room + meals + add-ons';
+                        if ($bothUnscaled) {
+                            $component['cost'] = round($scaledTotal, 2);
+                        }
+                        $component['meta'] = $meta;
+                    }
+                } else {
+                    $meta['rooms_applied'] = true;
+                    $component['meta'] = $meta;
+                }
+                continue;
+            }
+
+            if ($key === 'extra_bed') {
+                $qty = max(0, (int) ($meta['quantity'] ?? $meta['children'] ?? 0));
+                $unit = 0.0;
+                if ($bedId && Schema::hasColumn('beds', 'extra_bed_cost_price')) {
+                    $bed = Bed::query()->where('bed_id', $bedId)->first();
+                    if ($bed && is_numeric($bed->extra_bed_cost_price ?? null)) {
+                        $unit = (float) $bed->extra_bed_cost_price;
+                    }
+                }
+                $nightCount = max(1, (int) ($meta['nights'] ?? $nights));
+                $component['cost'] = round($unit * $qty * $nightCount, 2);
+                $component['meta'] = [
+                    'quantity' => $qty,
+                    'unit_cost' => $unit,
+                    'nights' => $nightCount,
+                    'source' => $unit > 0 ? 'database' : 'view_details',
+                ];
+                continue;
+            }
+
+            if ($key === 'child_with_bed' || $key === 'child_without_bed') {
+                $qty = max(0, (int) ($meta['quantity'] ?? $meta['children'] ?? 0));
+                $column = $key === 'child_with_bed' ? 'child_with_bed_cost' : 'child_without_bed_cost';
+                $unit = 0.0;
+                if ($roomModel && Schema::hasColumn('rooms', $column) && is_numeric($roomModel->{$column} ?? null)) {
+                    $unit = (float) $roomModel->{$column};
+                }
+                $nightCount = max(1, (int) ($meta['nights'] ?? $nights));
+                $component['cost'] = round($unit * $qty * $nightCount, 2);
+                $component['meta'] = [
+                    'quantity' => $qty,
+                    'unit_cost' => $unit,
+                    'nights' => $nightCount,
+                    'source' => $unit > 0 ? 'database' : 'view_details',
+                ];
+            }
+        }
+        unset($component);
+
+        return $components;
     }
 }

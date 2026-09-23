@@ -29,9 +29,9 @@
             '    <div class="col-md-3"><label class="stp-lite-label">City</label>' +
             '      <div class="stp-lite-city-static">' + T.esc(T.cityLabel(stay)) + '</div></div>' +
             '    <div class="col-md-3"><label class="stp-lite-label">Attraction</label>' +
-            '      <select class="form-select form-select-sm attraction-select" disabled><option value="">Loading…</option></select></div>' +
+            '      <select class="form-select form-select-sm attraction-select" disabled data-no-select2="true"><option value="">Loading…</option></select></div>' +
             '    <div class="col-md-3"><label class="stp-lite-label">Ticket</label>' +
-            '      <select class="form-select form-select-sm attraction-ticket" disabled><option value="">Select attraction</option></select></div>' +
+            '      <select class="form-select form-select-sm attraction-ticket" disabled data-no-select2="true"><option value="">Select attraction</option></select></div>' +
             '    <div class="col-md-3"><label class="stp-lite-label">Visit time</label>' +
             T.ampmTimeHtml('attraction', '') +
             '</div>' +
@@ -73,14 +73,7 @@
 
     function writeChunk(root, rows) {
         var T = S();
-        rows = (rows || []).map(function (r) {
-            if (!r || typeof r !== 'object') return r;
-            var display = typeof T.serviceRowDisplayTotal === 'function' ? T.serviceRowDisplayTotal(r) : Number(r.totalPrice || 0);
-            if (display > Number(r.totalPrice || 0)) {
-                r = Object.assign({}, r, { totalPrice: display, grand_total: display });
-            }
-            return r;
-        });
+        // Persist ticket-only totals; header/list compose ticket+xfer+guide via serviceRowDisplayTotal
         var el = root.querySelector('.attraction_data_chunk');
         if (el) el.value = JSON.stringify(rows || []);
         T.syncHiddenJson('attraction_data', '.attraction_data_chunk');
@@ -113,31 +106,128 @@
         if (add) add.disabled = true;
     }
 
+    function bundleIconUrl() {
+        return (cfg().bundleAttractionIcon)
+            || ((window.location && window.location.origin) ? (window.location.origin + '/assets/images/bundle-attraction-icon.png') : '');
+    }
+
+    function formatAttractionOption(option) {
+        if (!option.id) return option.text;
+        var el = option.element;
+        if (el && el.dataset && el.dataset.isBundle === '1') {
+            var icon = bundleIconUrl();
+            if (window.jQuery && icon) {
+                var $wrap = window.jQuery('<span class="stp-lite-bundle-opt"></span>');
+                $wrap.append(window.jQuery('<img>', {
+                    src: icon,
+                    alt: 'Bundle',
+                    class: 'stp-lite-bundle-opt__icon'
+                }));
+                $wrap.append(document.createTextNode(option.text || el.dataset.name || 'Bundle'));
+                return $wrap;
+            }
+            return '📦 ' + (option.text || 'Bundle');
+        }
+        return option.text;
+    }
+
+    function destroyAttractionSelect2(select) {
+        if (!select || typeof window.jQuery === 'undefined' || !window.jQuery.fn || !window.jQuery.fn.select2) return;
+        var $sel = window.jQuery(select);
+        if ($sel.hasClass('select2-hidden-accessible')) {
+            try { $sel.select2('destroy'); } catch (e) { /* ignore */ }
+        }
+    }
+
+    function initAttractionSelect2(select) {
+        if (!select || typeof window.jQuery === 'undefined' || !window.jQuery.fn || !window.jQuery.fn.select2) return;
+        var $sel = window.jQuery(select);
+        destroyAttractionSelect2(select);
+        $sel.select2({
+            placeholder: 'Select attraction',
+            allowClear: true,
+            width: '100%',
+            templateResult: formatAttractionOption,
+            templateSelection: formatAttractionOption
+        });
+    }
+
     function loadAttractions(root, stay) {
         var T = S();
         var select = root.querySelector('.attraction-select');
         if (!select) return Promise.resolve();
         var q = T.inv(stay.cityName, stay.country);
+        destroyAttractionSelect2(select);
         select.disabled = true;
         select.innerHTML = '<option value="">Loading attractions…</option>';
         return T.fetchJson((cfg().routes.fetchAttractionsByDmc || '') + '?' + q.qs)
             .then(function (res) {
                 var list = (res && res.attractions) || [];
+                var bundles = (res && res.bundles) || [];
                 root.__attractions = list;
+                root.__bundles = bundles;
                 select.innerHTML = '<option value="">Select attraction</option>';
                 list.forEach(function (a) {
                     var opt = document.createElement('option');
                     opt.value = a.attraction_id || a.id;
                     opt.textContent = a.name || a.attraction_name || 'Attraction';
                     opt.dataset.name = a.name || a.attraction_name || '';
+                    opt.dataset.isBundle = '0';
+                    select.appendChild(opt);
+                });
+                // Packaged attraction bundles — shown with bundle icon (classic parity)
+                bundles.forEach(function (b) {
+                    var opt = document.createElement('option');
+                    var pid = b.package_attraction_id || b.id;
+                    opt.value = 'bundle_' + pid;
+                    opt.textContent = b.name || 'Bundle';
+                    opt.dataset.name = b.name || 'Bundle';
+                    opt.dataset.isBundle = '1';
+                    opt.dataset.packageAttractionId = String(pid || '');
+                    opt.dataset.vehicleIncluded = b.vehicle_included ? '1' : '0';
+                    opt.dataset.guideIncluded = b.guide_included ? '1' : '0';
+                    opt.dataset.adultPrice = b.adult_price || 0;
+                    opt.dataset.childPrice = b.child_price || 0;
+                    opt.dataset.seniorPrice = b.senior_adult_price || b.senior_citizen_price || 0;
                     select.appendChild(opt);
                 });
                 select.disabled = false;
+                initAttractionSelect2(select);
             })
             .catch(function () {
                 select.innerHTML = '<option value="">Error loading</option>';
                 select.disabled = false;
+                initAttractionSelect2(select);
             });
+    }
+
+    function applyBundleSelection(root, stay, aOpt) {
+        var T = S();
+        var ticket = root.querySelector('.attraction-ticket');
+        if (!ticket || !aOpt) return;
+        ticket.innerHTML = '<option value="">Select ticket</option>';
+        var opt = document.createElement('option');
+        opt.value = aOpt.value;
+        opt.textContent = (aOpt.dataset.name || aOpt.textContent || 'Bundle') + ' (Bundle)';
+        opt.dataset.name = aOpt.dataset.name || '';
+        opt.dataset.adultPrice = aOpt.dataset.adultPrice || 0;
+        opt.dataset.childPrice = aOpt.dataset.childPrice || 0;
+        opt.dataset.seniorPrice = aOpt.dataset.seniorPrice || 0;
+        ticket.appendChild(opt);
+        ticket.value = opt.value;
+        ticket.disabled = false;
+
+        // Auto-enable transfer / guide when the bundle includes them
+        var xferReq = root.querySelector('.' + PREFIX + '-transfer-required');
+        var guideReq = root.querySelector('.' + PREFIX + '-guide-required');
+        if (xferReq && aOpt.dataset.vehicleIncluded === '1') {
+            xferReq.value = '1';
+            xferReq.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        if (guideReq && aOpt.dataset.guideIncluded === '1') {
+            guideReq.value = '1';
+            guideReq.dispatchEvent(new Event('change', { bubbles: true }));
+        }
     }
 
     function loadTickets(root, stay, attractionId) {
@@ -147,6 +237,13 @@
         if (!attractionId) {
             ticket.innerHTML = '<option value="">Select attraction</option>';
             ticket.disabled = true;
+            return Promise.resolve();
+        }
+        // Bundle: no ticket API — use package prices as a single ticket option
+        var attr = root.querySelector('.attraction-select');
+        var aOpt = attr && attr.options[attr.selectedIndex];
+        if (aOpt && aOpt.dataset.isBundle === '1') {
+            applyBundleSelection(root, stay, aOpt);
             return Promise.resolve();
         }
         var q = T.inv(stay.cityName, stay.country);
@@ -239,12 +336,10 @@
         var xferGuests = g.adults + g.seniors;
         var transferOptions = T.collectTransferOptions(root, PREFIX, xferGuests, g.children, g.infants);
         var guideOptions = T.collectGuideOptions(root, PREFIX);
-        var xferCost = transferOptions ? (Number(transferOptions.cost) || 0) : 0;
-        var guideCost = guideOptions ? (Number(guideOptions.total_price) || 0) : 0;
-        // Recompute on Add so total never stays ticket-only when guide/vehicle selected
-        var total = ticketTotal + xferCost + guideCost;
-        if (root.__lastPrice && Number(root.__lastPrice.total) > total) {
-            total = Number(root.__lastPrice.total) || total;
+        // Store ticket-only; transfer/guide costs live in nested options (classic parity)
+        var total = ticketTotal;
+        if (root.__lastPrice && root.__lastPrice.ticketTotal != null) {
+            total = Number(root.__lastPrice.ticketTotal) || total;
         }
         var supplement = T.autoSupplement(g.adults + g.seniors);
         var visitTime = T.readAmPmValue(root, 'attraction');
@@ -272,6 +367,10 @@
             is_supplement: !!supplement,
             transfer_options: transferOptions,
             guide_options: guideOptions,
+            is_bundle: !!(aOpt && aOpt.dataset.isBundle === '1'),
+            package_attraction_id: (aOpt && aOpt.dataset.isBundle === '1')
+                ? (aOpt.dataset.packageAttractionId || String(attr.value || '').replace(/^bundle_/, ''))
+                : null,
             city: stay.cityName || '',
             country: stay.country || '',
             currency: stay.currency || '',
@@ -342,16 +441,15 @@
         function afterTickets() {
             var ticket = root.querySelector('.attraction-ticket');
             if (ticket && row.ticketId) ticket.value = String(row.ticketId);
+            var ticketOnly = Number(row.totalPrice != null ? row.totalPrice : (row.grand_total || 0)) || 0;
             var displayTotal = typeof T.serviceRowDisplayTotal === 'function'
                 ? T.serviceRowDisplayTotal(row)
-                : (row.totalPrice || 0);
-            // Keep stored row total in sync when classic data was ticket-only
-            if (displayTotal > Number(row.totalPrice || 0)) {
-                row.totalPrice = displayTotal;
-                row.grand_total = displayTotal;
-            }
+                : ticketOnly;
             root.__lastPrice = {
                 total: displayTotal,
+                ticketTotal: ticketOnly,
+                transferTotal: (row.transfer_options && Number(row.transfer_options.cost)) || 0,
+                guideTotal: (row.guide_options && Number(row.guide_options.total_price)) || 0,
                 breakdown: (row.ticket_details
                     ? ((row.adultCount || 0) + '×' + Number((row.ticket_details || {}).adult_price || 0).toFixed(2))
                     : '')
@@ -372,8 +470,15 @@
         ]);
 
         if (attr && row.AttractionId) {
-            attr.value = String(row.AttractionId);
-            Promise.all([loadTickets(root, stay, row.AttractionId), extras]).then(afterTickets);
+            var attrVal = String(row.AttractionId);
+            if ((row.is_bundle || row.package_attraction_id) && attrVal.indexOf('bundle_') !== 0) {
+                attrVal = 'bundle_' + (row.package_attraction_id || attrVal);
+            }
+            attr.value = attrVal;
+            if (window.jQuery && window.jQuery(attr).data('select2')) {
+                window.jQuery(attr).val(attrVal).trigger('change.select2');
+            }
+            Promise.all([loadTickets(root, stay, attrVal), extras]).then(afterTickets);
         } else {
             extras.then(afterTickets);
         }
@@ -429,10 +534,16 @@
 
         var attr = root.querySelector('.attraction-select');
         if (attr) {
-            attr.addEventListener('change', function () {
+            // Native + Select2 both fire change
+            var onAttrChange = function () {
                 if (!root.__hydrating) invalidate(root);
                 loadTickets(root, stay, attr.value);
-            });
+            };
+            attr.addEventListener('change', onAttrChange);
+            if (window.jQuery) {
+                window.jQuery(attr).off('select2:select.stpBundle select2:clear.stpBundle')
+                    .on('select2:select.stpBundle select2:clear.stpBundle', onAttrChange);
+            }
         }
 
         root.querySelector('.attraction-get-price-btn').addEventListener('click', function () { getPrice(root); });

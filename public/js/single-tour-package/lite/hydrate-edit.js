@@ -366,25 +366,13 @@
             if (row.adultCount == null && row.adults != null) row.adultCount = row.adults;
             if (row.childCount == null && row.children != null) row.childCount = row.children;
             if (Array.isArray(row.bookingDate)) row.bookingDate = row.bookingDate[0] || '';
-            if (window.StpLiteTransportShared && typeof window.StpLiteTransportShared.serviceRowDisplayTotal === 'function') {
-                var attrTotal = window.StpLiteTransportShared.serviceRowDisplayTotal(row);
-                if (attrTotal > Number(row.totalPrice || 0)) {
-                    row.totalPrice = attrTotal;
-                    row.grand_total = attrTotal;
-                }
-            }
+            // Keep totalPrice as ticket-only; UI composes via serviceRowDisplayTotal
         }
         if (kind === 'restaurant') {
             if (!row.restaurantName) row.restaurantName = row.restaurant_name || row.name || 'Restaurant';
             if (!row.mealTypeLabel && row.mealType) row.mealTypeLabel = row.mealType;
             if (Array.isArray(row.bookingDate)) row.bookingDate = row.bookingDate[0] || '';
-            if (window.StpLiteTransportShared && typeof window.StpLiteTransportShared.serviceRowDisplayTotal === 'function') {
-                var restTotal = window.StpLiteTransportShared.serviceRowDisplayTotal(row);
-                if (restTotal > Number(row.totalPrice || 0)) {
-                    row.totalPrice = restTotal;
-                    row.grand_total = restTotal;
-                }
-            }
+            // Keep totalPrice as meal-only; UI composes via serviceRowDisplayTotal
         }
         if (kind === 'guide') {
             if (!row.guide_name) row.guide_name = row.guideName || row.name || 'Guide';
@@ -707,6 +695,9 @@
         });
         if (window.StpLiteTransportShared && typeof window.StpLiteTransportShared.refreshAllStaySectionTotals === 'function') {
             window.StpLiteTransportShared.refreshAllStaySectionTotals(document);
+        }
+        if (window.StpLiteCityMarkup && typeof window.StpLiteCityMarkup.refreshServiceLocks === 'function') {
+            window.StpLiteCityMarkup.refreshServiceLocks();
         }
     }
 

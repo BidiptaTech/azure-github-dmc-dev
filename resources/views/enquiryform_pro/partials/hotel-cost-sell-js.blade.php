@@ -219,8 +219,14 @@
 
     window.enquiryProLodgingPriceForNight = function (combo, dateStr, rates, useCost) {
         const room = combo?.roomData || {};
-        const weekendDays = combo?.weekendDays || [];
+        let weekendDays = combo?.weekendDays || [];
+        if (!weekendDays.length && typeof enquiryProResolveCalendarWeekendDays === 'function') {
+            weekendDays = enquiryProResolveCalendarWeekendDays(combo) || [];
+        } else if (!weekendDays.length && typeof enquiryProWeekendDaysFromHotel === 'function') {
+            weekendDays = enquiryProWeekendDaysFromHotel() || [];
+        }
         const set = enquiryProLodgingPriceSet(room, !!useCost);
+        // Single when max guests is 1; otherwise double weekday/weekend.
         const maxOcc = Math.max(1, parseInt(combo?.maxOccupancy || room.max_occupancy || 99, 10) || 99);
         const occupantsWithBed = Math.min(2, maxOcc);
         const isSingleOccupancy = occupantsWithBed <= 1;
@@ -315,7 +321,7 @@
         if (!data.nights.length) {
             const room = combo.roomData || {};
             const set = enquiryProLodgingPriceSet(room, !!useCost);
-            const maxOcc = Math.max(1, parseInt(combo.maxOccupancy || 99, 10) || 99);
+            const maxOcc = Math.max(1, parseInt(combo.maxOccupancy || room.max_occupancy || 99, 10) || 99);
             let val = maxOcc <= 1 ? set.weekdaySingle : (set.doubleWeekday || set.weekdaySingle);
             const meal = enquiryProLodgingMealForNight(combo, '1970-01-01', [], !!useCost);
             val += meal.total;
@@ -399,6 +405,231 @@
             mealSellTotal: nights.reduce((s, n) => s + n.mealSell, 0),
             fairSellTotal: nights.reduce((s, n) => s + (n.surcharge || 0), 0),
             fairCostTotal: nights.reduce((s, n) => s + (n.costSurcharge || 0), 0)
+        };
+    };
+
+    /**
+     * Same C/S night cut as View details — attached to hotel order JSON so orders.cost_price
+     * stores season / fair / blackout costs correctly (extra field only; does not change sell fields).
+     */
+    window.enquiryProBuildLodgingCostSnapshot = function (hotel, numberOfRooms) {
+        if (!hotel || typeof enquiryProBuildHotelPriceBreakdown !== 'function') return null;
+        const nr = Math.max(1, parseInt(numberOfRooms != null ? numberOfRooms : hotel.rooms, 10) || 1);
+        const weekendDays = (hotel.weekendDays && hotel.weekendDays.length)
+            ? hotel.weekendDays
+            : (typeof enquiryProWeekendDaysFromHotel === 'function' ? enquiryProWeekendDaysFromHotel(hotel) : []);
+        const data = enquiryProBuildHotelPriceBreakdown({
+            ...hotel,
+            rooms: nr,
+            weekendDays,
+            hotelRates: hotel.hotelRates || hotel.rates || [],
+            mealPlan: hotel.mealPlan,
+            mealPlanLabel: hotel.mealPlanLabel || hotel.mealPlan,
+            maxOccupancy: hotel.maxOccupancy,
+            roomData: hotel.roomData || hotel.bedData || {},
+            checkIn: hotel.checkIn,
+            checkOut: hotel.checkOut
+        });
+        if (!data.nights.length) return null;
+
+        const round2 = (v) => Math.round((Number(v) || 0) * 100) / 100;
+        const mpp = Math.max(0, parseInt(
+            hotel.mealPax != null
+                ? hotel.mealPax
+                : (typeof enquiryProMealPaxPerRoomForHotel === 'function'
+                    ? enquiryProMealPaxPerRoomForHotel(hotel) : 1),
+            10
+        ) || 0) || 1;
+
+        // Per-night add-on COST units (not sell) — from room/bed cost columns
+        const nightCount = data.nights.length;
+        const roomData = hotel.roomData || hotel.bedData || {};
+        const bedData = hotel.bedData || {};
+
+        // Cost-only (never sell). Accept 0 when the cost column is present.
+        const pickCost = (...candidates) => {
+            for (let i = 0; i < candidates.length; i++) {
+                const raw = candidates[i];
+                if (raw === null || raw === undefined || raw === '') continue;
+                const c = parseFloat(raw);
+                if (Number.isFinite(c) && c >= 0) return c;
+            }
+            return 0;
+        };
+
+        const extraBedOn = !!hotel.hasExtraBed;
+        const extraBedQty = extraBedOn
+            ? (typeof enquiryProHotelAddonQuantity === 'function'
+                ? enquiryProHotelAddonQuantity(hotel, 'extra_bed')
+                : Math.max(1, nr))
+            : 0;
+        const extraBedUnit = extraBedOn ? pickCost(
+            hotel.extraBedCostPrice,
+            bedData.extra_bed_cost_price,
+            bedData.extraBedCostPrice,
+            roomData.extra_bed_cost_price,
+            roomData.extraBedCostPrice
+        ) : 0;
+        const extraBedPerNight = round2(extraBedUnit * Math.max(0, extraBedQty));
+
+        const cwbOn = !!hotel.hasCwb;
+        const cwbQty = cwbOn
+            ? (typeof enquiryProHotelAddonQuantity === 'function'
+                ? enquiryProHotelAddonQuantity(hotel, 'cwb')
+                : Math.max(1, nr))
+            : 0;
+        const cwbUnit = cwbOn ? pickCost(
+            hotel.cwbCostPrice,
+            roomData.child_with_bed_cost,
+            roomData.childWithBedCost
+        ) : 0;
+        const cwbPerNight = round2(cwbUnit * Math.max(0, cwbQty));
+
+        const cnbOn = !!hotel.hasCnb;
+        const cnbQty = cnbOn
+            ? (typeof enquiryProHotelAddonQuantity === 'function'
+                ? enquiryProHotelAddonQuantity(hotel, 'cnb')
+                : Math.max(1, nr))
+            : 0;
+        const cnbUnit = cnbOn ? pickCost(
+            hotel.cnbCostPrice,
+            roomData.child_without_bed_cost,
+            roomData.childWithoutBedCost
+        ) : 0;
+        const cnbPerNight = round2(cnbUnit * Math.max(0, cnbQty));
+
+        const perNight = data.nights.map(n => {
+            const breakfastUnit = round2(n.breakfastCost);
+            const lunchUnit = round2(n.lunchCost);
+            const dinnerUnit = round2(n.dinnerCost);
+            const breakfastTotal = round2(breakfastUnit * mpp * nr);
+            const lunchTotal = round2(lunchUnit * mpp * nr);
+            const dinnerTotal = round2(dinnerUnit * mpp * nr);
+            const mealCostTotal = round2(breakfastTotal + lunchTotal + dinnerTotal);
+            // Room costs × number_of_rooms (e.g. 2110 × 2 rooms)
+            const roomBase = round2((Number(n.roomCostBase) || 0) * nr);
+            const roomWithSurcharge = round2((Number(n.roomCost) || 0) * nr);
+            const surchargeTotal = round2((Number(n.costSurcharge) || 0) * nr);
+            const row = {
+                date: n.date,
+                cost: roomBase,
+                room_cost_with_surcharge: roomWithSurcharge,
+                occupancy: (Math.min(2, Math.max(1, parseInt(hotel.maxOccupancy || roomData.max_occupancy || 99, 10) || 99)) <= 1)
+                    ? 'single' : 'double',
+                day_type: (n.day === 'Weekend') ? 'weekend' : 'weekday',
+                event_type: n.eventType || null,
+                event_name: n.eventName || null,
+                source: n.eventType ? 'rate' : 'room',
+                surcharge_cost: surchargeTotal,
+                breakfast_cost: breakfastUnit,
+                lunch_cost: lunchUnit,
+                dinner_cost: dinnerUnit,
+                breakfast_cost_total: breakfastTotal,
+                lunch_cost_total: lunchTotal,
+                dinner_cost_total: dinnerTotal,
+                meal_cost: round2(breakfastUnit + lunchUnit + dinnerUnit),
+                meal_cost_total: mealCostTotal,
+                extra_bed_cost: extraBedPerNight,
+                child_with_bed_cost: cwbPerNight,
+                child_without_bed_cost: cnbPerNight,
+                night_cost_total: round2(
+                    roomWithSurcharge + mealCostTotal + extraBedPerNight + cwbPerNight + cnbPerNight
+                )
+            };
+            return row;
+        });
+
+        const components = [];
+        const roomTotal = round2(data.roomCostTotal * nr);
+        if (roomTotal > 0 || perNight.length) {
+            components.push({
+                key: 'room',
+                label: hotel.roomType || 'Room',
+                cost: roomTotal,
+                meta: {
+                    room_id: hotel.databaseRoomId || roomData.room_id || null,
+                    bed_id: hotel.bedId || hotel.roomId || null,
+                    number_of_rooms: nr,
+                    nights: nightCount,
+                    head_count: mpp,
+                    max_occupancy: parseInt(hotel.maxOccupancy || roomData.max_occupancy || 0, 10) || null,
+                    rooms_applied: true,
+                    per_night: perNight,
+                    note: 'per_night.cost / room_cost_with_surcharge already × number_of_rooms; night_cost_total = room + meals + add-ons'
+                }
+            });
+        }
+
+        // Meals: same as sell JSON — unit × meal_pax × rooms × nights
+        ['breakfast', 'lunch', 'dinner'].forEach(mealKey => {
+            const costKey = mealKey + 'Cost';
+            const units = data.nights.map(n => round2(n[costKey]));
+            const mealTotal = round2(units.reduce((s, u) => s + (Number(u) || 0) * mpp * nr, 0));
+            if (mealTotal <= 0) return;
+            const avgUnit = units.length ? round2(units.reduce((a, b) => a + b, 0) / units.length) : 0;
+            components.push({
+                key: 'meal_' + mealKey,
+                label: mealKey.charAt(0).toUpperCase() + mealKey.slice(1),
+                cost: mealTotal,
+                meta: {
+                    unit_cost: avgUnit,
+                    head_count: mpp,
+                    meal_pax: mpp,
+                    nights: nightCount,
+                    number_of_rooms: nr,
+                    per_night_unit_cost: units,
+                    per_night_total_cost: units.map(u => round2((Number(u) || 0) * mpp * nr)),
+                    note: 'Meal cost = unit × meal_pax × rooms × nights (same as sell in orders.data)'
+                }
+            });
+        });
+
+        // Include add-ons in snapshot when enabled (COST unit prices)
+        if (extraBedPerNight > 0 && nightCount > 0) {
+            components.push({
+                key: 'extra_bed',
+                label: 'Extra Bed',
+                cost: round2(extraBedPerNight * nightCount),
+                meta: {
+                    quantity: extraBedQty,
+                    unit_cost: extraBedUnit,
+                    nights: nightCount,
+                    source: 'view_details'
+                }
+            });
+        }
+        if (cwbPerNight > 0 && nightCount > 0) {
+            components.push({
+                key: 'child_with_bed',
+                label: 'Child With Bed',
+                cost: round2(cwbPerNight * nightCount),
+                meta: {
+                    quantity: cwbQty,
+                    unit_cost: cwbUnit,
+                    nights: nightCount,
+                    source: 'view_details'
+                }
+            });
+        }
+        if (cnbPerNight > 0 && nightCount > 0) {
+            components.push({
+                key: 'child_without_bed',
+                label: 'Child Without Bed',
+                cost: round2(cnbPerNight * nightCount),
+                meta: {
+                    quantity: cnbQty,
+                    unit_cost: cnbUnit,
+                    nights: nightCount,
+                    source: 'view_details'
+                }
+            });
+        }
+
+        return {
+            total_cost: round2(components.reduce((s, c) => s + (Number(c.cost) || 0), 0)),
+            source: 'view_details',
+            components,
+            built_at: new Date().toISOString().slice(0, 19).replace('T', ' ')
         };
     };
 
@@ -690,24 +921,155 @@
         enquiryProShowPriceDetailsModal();
     };
 
-    window.enquiryProStayNightPricePairHtml = function (combo, dateStr) {
+    /**
+     * Calendar C/S pair. roomOnly=true → room (+ fair surcharge / season / blackout) only — matches View details room line.
+     * Default includes meals (stay nights).
+     */
+    window.enquiryProStayNightPricePairHtml = function (combo, dateStr, opts) {
         if (!combo) return '';
+        const roomOnly = !!(opts && opts.roomOnly);
         const rates = epRatesForSource(combo);
-        const cost = enquiryProLodgingPriceForNight(combo, dateStr, rates, true).price;
-        const sell = enquiryProLodgingPriceForNight(combo, dateStr, rates, false).price;
-        return `<span class="ep-cal-price-pair" title="Cost ${epFmt(cost)} / Sell ${epFmt(sell)} (room + meals)"><span class="ep-cal-c">C ${epFmt(cost)}</span><span class="ep-cal-s">S ${epFmt(sell)}</span></span>`;
+        const costN = enquiryProLodgingPriceForNight(combo, dateStr, rates, true);
+        const sellN = enquiryProLodgingPriceForNight(combo, dateStr, rates, false);
+        const cost = roomOnly ? costN.room : costN.price;
+        const sell = roomOnly ? sellN.room : sellN.price;
+        const tip = roomOnly
+            ? `Cost ${epFmt(cost)} / Sell ${epFmt(sell)} (room${sellN.surcharge ? ' + fair' : ''})`
+            : `Cost ${epFmt(cost)} / Sell ${epFmt(sell)} (room + meals)`;
+        return `<span class="ep-cal-price-pair" title="${tip}"><span class="ep-cal-c">C ${epFmt(cost)}</span><span class="ep-cal-s">S ${epFmt(sell)}</span></span>`;
     };
 
-    window.enquiryProCurrentCalendarCombo = function () {
-        let found = null;
-        const checked = document.querySelector('.room-combination-checkbox:checked');
-        if (checked && window.currentRoomCombinations) {
-            const id = checked.getAttribute('data-combo-id');
-            found = window.currentRoomCombinations.find(c => String(c.id) === String(id)) || null;
+    /**
+     * Re-open accommodation modal: pick the exact saved bed + meal combo.
+     * Do NOT match on bedTypeRaw alone ("Double Bed") — Max 1 and Max 3 share that name.
+     * Prefer bedId → full bedType → maxOccupancy + meal.
+     */
+    window.enquiryProFindMatchingRoomCombo = function (hotel, combos) {
+        combos = combos || window.currentRoomCombinations || [];
+        if (!hotel || !combos.length) return null;
+
+        const hotelBedId = hotel.bedId || hotel.bedData?.bed_id || hotel.bedData?.id || null;
+        const hotelMaxOcc = parseInt(hotel.maxOccupancy ?? hotel.bedData?.max_occupancy, 10);
+
+        const mealKey = (v) => String(v || '').trim().toLowerCase().replace(/\s+/g, '_');
+        const hotelMealKeys = [hotel.mealPlan, hotel.mealPlanLabel].map(mealKey).filter(Boolean);
+        const mealMatch = (c) => {
+            const keys = [c.mealPlan, c.mealPlanLabel].map(mealKey).filter(Boolean);
+            return keys.some(k => hotelMealKeys.includes(k));
+        };
+        const roomMatch = (c) => !hotel.roomType || c.roomType === hotel.roomType;
+
+        // 1) bedId + meal (Max 1 vs Max 3 are different bed rows)
+        if (hotelBedId != null && hotelBedId !== '') {
+            const byBedId = combos.find(c =>
+                roomMatch(c)
+                && String(c.bedId || c.roomId) === String(hotelBedId)
+                && mealMatch(c)
+            );
+            if (byBedId) return byBedId;
         }
-        if (!found) found = window.currentRoomCombinations?.[0] || null;
-        if (found && !found.hotelRates?.length && typeof enquiryProGetHotelRates === 'function') {
-            found.hotelRates = enquiryProGetHotelRates();
+
+        // 2) Full display bed string + meal (includes "Max N guests")
+        if (hotel.bedType) {
+            const byFull = combos.find(c =>
+                roomMatch(c) && c.bedType === hotel.bedType && mealMatch(c)
+            );
+            if (byFull) return byFull;
+        }
+
+        // 3) roomType + maxOccupancy + meal (+ optional raw bed name)
+        if (Number.isFinite(hotelMaxOcc) && hotelMaxOcc > 0) {
+            const byOcc = combos.find(c => {
+                if (!roomMatch(c) || !mealMatch(c)) return false;
+                if (parseInt(c.maxOccupancy, 10) !== hotelMaxOcc) return false;
+                if (hotel.bedTypeRaw && c.bedTypeRaw && hotel.bedTypeRaw !== c.bedTypeRaw) return false;
+                return true;
+            });
+            if (byOcc) return byOcc;
+        }
+
+        // 4) Full bedType without meal (first meal of that bed)
+        if (hotel.bedType) {
+            const byBedOnly = combos.find(c => roomMatch(c) && c.bedType === hotel.bedType);
+            if (byBedOnly) return byBedOnly;
+        }
+
+        // 5) maxOccupancy + room only + meal
+        if (Number.isFinite(hotelMaxOcc) && hotelMaxOcc > 0) {
+            const byOccMeal = combos.find(c =>
+                roomMatch(c)
+                && parseInt(c.maxOccupancy, 10) === hotelMaxOcc
+                && mealMatch(c)
+            );
+            if (byOccMeal) return byOccMeal;
+        }
+
+        return null;
+    };
+
+    window.enquiryProIsDmcBaseRoomCombo = function (combo) {
+        const r = combo?.roomData || combo || {};
+        // Hotel "base room" used for DMC pricing (base_room flag on rooms table).
+        return parseFloat(r.base_room) > 0
+            || r.base_room === true
+            || r.base_room === '1'
+            || parseFloat(r.baseRoom) > 0
+            || r.baseRoom === true
+            || r.baseRoom === '1';
+    };
+
+    window.enquiryProResolveCalendarWeekendDays = function (combo) {
+        if (combo?.weekendDays?.length) return combo.weekendDays;
+        if (typeof enquiryProWeekendDaysFromHotel === 'function') {
+            const w = enquiryProWeekendDaysFromHotel();
+            if (w && w.length) return w;
+        }
+        if (typeof enquiryProGetHotelData === 'function' && typeof parseWeekendDays === 'function') {
+            const h = enquiryProGetHotelData();
+            const parsed = parseWeekendDays(h?.weekend_days || h?.weekend || h?.weekendDays || []);
+            if (parsed.length) return parsed;
+        }
+        return ['Saturday', 'Sunday'];
+    };
+
+    /**
+     * Combo used for calendar cell prices.
+     * When the hotel has multiple rooms, prefer the DMC base room (rooms.base_room)
+     * so calendar matches base pricing; keep the checked meal plan on that room when possible.
+     */
+    window.enquiryProCurrentCalendarCombo = function () {
+        const combos = window.currentRoomCombinations || [];
+        let checked = null;
+        const checkedEl = document.querySelector('.room-combination-checkbox:checked');
+        if (checkedEl) {
+            const id = checkedEl.getAttribute('data-combo-id');
+            checked = combos.find(c => String(c.id) === String(id)) || null;
+        }
+
+        const baseCombos = combos.filter(c => enquiryProIsDmcBaseRoomCombo(c));
+        let found = null;
+
+        if (baseCombos.length && combos.length > 1) {
+            if (checked && enquiryProIsDmcBaseRoomCombo(checked)) {
+                found = checked;
+            } else if (checked) {
+                found = baseCombos.find(c => String(c.mealPlan) === String(checked.mealPlan))
+                    || baseCombos.find(c => String(c.bedId || c.roomId) === String(checked.bedId || checked.roomId))
+                    || baseCombos[0];
+            } else {
+                found = baseCombos[0];
+            }
+        } else {
+            found = checked || baseCombos[0] || combos[0] || null;
+        }
+
+        if (found) {
+            if (!found.hotelRates?.length && typeof enquiryProGetHotelRates === 'function') {
+                found.hotelRates = enquiryProGetHotelRates();
+            }
+            if (!found.weekendDays?.length) {
+                found.weekendDays = enquiryProResolveCalendarWeekendDays(found);
+            }
         }
         return found;
     };

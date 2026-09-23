@@ -226,6 +226,7 @@
             return;
         }
         var priced;
+        var svc = typeEl ? typeEl.value : 'private';
         if (!T.zoneOn || !T.zoneOn()) {
             var customEl = root.querySelector('.departure-custom-price');
             var car = parseFloat((customEl && customEl.value) || '0') || 0;
@@ -235,20 +236,27 @@
             }
             priced = T.calcManualCarTotal(
                 car,
-                typeEl ? typeEl.value : 'private',
+                svc,
                 adultsEl ? adultsEl.value : 1,
                 childrenEl ? childrenEl.value : 0,
                 0
             );
         } else {
+            // Zone ON: sell from zone mapping private_price / shared_price only (not vehicle base_price)
             priced = T.calcVehiclePrice(
                 opt,
-                typeEl ? typeEl.value : 'private',
+                svc,
                 adultsEl ? adultsEl.value : 1,
                 childrenEl ? childrenEl.value : 0,
                 0,
                 0
             );
+            if (!(priced && priced.total > 0)) {
+                alert(svc === 'shared'
+                    ? 'No zone shared price for this route/vehicle. Check vehicle zone mapping.'
+                    : 'No zone private price for this route/vehicle. Check vehicle zone mapping.');
+                return;
+            }
         }
         root.__lastPrice = priced;
         var cur = root.getAttribute('data-currency') || 'SGD';
@@ -257,7 +265,11 @@
         var detail = root.querySelector('.departure-price-detail');
         if (panel) panel.classList.remove('d-none');
         if (totalEl) totalEl.textContent = cur + ' ' + Number(priced.total || 0).toFixed(2);
-        if (detail) detail.textContent = (priced.mode || 'private') + ' · ' + (opt.dataset.vehicleName || opt.textContent);
+        if (detail) {
+            var src = priced.source === 'zone' ? 'Zone price' : (priced.source === 'base' ? 'Base price' : '');
+            detail.textContent = (priced.mode || svc) + (src ? ' · ' + src : '') +
+                ' · ' + (opt.dataset.vehicleName || opt.textContent);
+        }
         var add = root.querySelector('.departure-add-btn');
         if (add) add.disabled = false;
     }
@@ -309,6 +321,11 @@
             plan_index: stay.planIndex || '',
             private_price: opt ? (opt.dataset.privatePrice || '') : '',
             shared_price: opt ? (opt.dataset.sharedPrice || '') : '',
+            private_cost_price: opt ? (opt.dataset.privateCost || '') : '',
+            shared_cost_price: opt ? (opt.dataset.sharedCost || '') : '',
+            zonePrivateCostPrice: opt ? (opt.dataset.privateCost || '') : '',
+            zoneSharedCostPrice: opt ? (opt.dataset.sharedCost || '') : '',
+            mapping_id: opt ? (opt.dataset.mappingId || '') : '',
             remarks: ''
         };
     }

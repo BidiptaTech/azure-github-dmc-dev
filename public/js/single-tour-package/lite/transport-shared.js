@@ -403,28 +403,61 @@
         select.disabled = false;
     }
 
+    function numOrZero(v) {
+        var n = parseFloat(v);
+        return isNaN(n) ? 0 : n;
+    }
+
+    /**
+     * Map API vehicle → <option> dataset.
+     * Zone search (mapping_id / *_cost_price): use zone private/shared only — never vehicle master base_price.
+     * City search (no mapping): use base_price / sharable_base_price.
+     */
     function vehicleOptionMapper(v) {
+        var mappingId = v.mapping_id != null && v.mapping_id !== '' ? String(v.mapping_id) : '';
+        var zonePrivate = numOrZero(v.private_price);
+        var zoneShared = numOrZero(v.shared_price);
+        var masterBase = numOrZero(v.base_price);
+        var masterShared = numOrZero(v.sharable_base_price);
+        // Zone payload always has mapping_id and/or private_cost_price / shared_cost_price
+        var fromZone = !!mappingId
+            || v.private_cost_price != null
+            || v.shared_cost_price != null;
+
+        var privatePrice = fromZone ? zonePrivate : (masterBase || zonePrivate);
+        var sharedPrice = fromZone ? zoneShared : (masterShared || zoneShared);
+        var sellBase = fromZone ? privatePrice : (masterBase || privatePrice);
+        var sellShared = fromZone ? sharedPrice : (masterShared || sharedPrice);
+
+        var dataset = {
+            vehicleName: v.vehicle_name || v.name || '',
+            vehicleType: v.vehicle_type || '',
+            seating: v.seating_capacity || '',
+            privatePrice: privatePrice,
+            sharedPrice: sharedPrice,
+            privateCost: numOrZero(v.private_cost_price),
+            sharedCost: numOrZero(v.shared_cost_price),
+            costPerHour: numOrZero(v.cost_per_hour),
+            sharableCostPerHour: numOrZero(v.sharable_cost_per_hour),
+            basePrice: sellBase,
+            sharableBasePrice: sellShared,
+            fromZone: fromZone ? '1' : '0',
+            sharable: v.sharable != null ? v.sharable : 1,
+            mappingId: mappingId,
+            adultPrice: v.adult_price != null && v.adult_price !== '' ? numOrZero(v.adult_price) : sellShared,
+            childPrice: v.child_price != null && v.child_price !== '' ? numOrZero(v.child_price) : sellShared,
+            infantPrice: numOrZero(v.infant_price)
+        };
+        // Vehicle package tiers from admin "Hourly prices" (hourly_price_1 … hourly_price_12)
+        for (var h = 1; h <= 12; h++) {
+            dataset['hourlyPrice' + h] = numOrZero(v['hourly_price_' + h]);
+        }
+
         return {
             value: String(v.vehicle_id || v.id || ''),
             label: (v.vehicle_name || v.name || 'Vehicle') +
                 (v.seating_capacity ? ' (' + v.seating_capacity + ' seats)' : ''),
-            dataset: {
-                vehicleName: v.vehicle_name || v.name || '',
-                vehicleType: v.vehicle_type || '',
-                seating: v.seating_capacity || '',
-                privatePrice: v.private_price || v.base_price || 0,
-                sharedPrice: v.shared_price || v.sharable_base_price || 0,
-                privateCost: v.private_cost_price || 0,
-                sharedCost: v.shared_cost_price || 0,
-                costPerHour: v.cost_per_hour || 0,
-                sharableCostPerHour: v.sharable_cost_per_hour || 0,
-                basePrice: v.base_price || v.private_price || 0,
-                sharable: v.sharable != null ? v.sharable : 1,
-                mappingId: v.mapping_id || '',
-                adultPrice: v.adult_price || v.shared_price || 0,
-                childPrice: v.child_price || v.shared_price || 0,
-                infantPrice: v.infant_price || 0
-            }
+            dataset: dataset
         };
     }
 
@@ -502,6 +535,7 @@
      * Shared = adult*adults + child*children (+ infant*infants often 0)
      * Hourly private = base + cost_per_hour * hours
      * Hourly shared = (base + sharable_cost_per_hour * hours) * guests
+     * Zone mapping (fromZone/mappingId): use private_price/shared_price only — never master base_price.
      */
     function calcVehiclePrice(opt, serviceType, adults, children, infants, hours) {
         if (!opt) return { total: 0, unit: 0, mode: serviceType || 'private' };
@@ -510,21 +544,20 @@
         var i = parseInt(infants, 10) || 0;
         var h = parseInt(hours, 10) || 0;
         var type = String(serviceType || 'private').toLowerCase();
+        var fromZone = String(opt.dataset.fromZone || '') === '1' || !!(opt.dataset.mappingId);
         var privatePrice = parseFloat(opt.dataset.privatePrice) || 0;
         var sharedPrice = parseFloat(opt.dataset.sharedPrice) || 0;
         var adultUnit = parseFloat(opt.dataset.adultPrice) || sharedPrice;
         var childUnit = parseFloat(opt.dataset.childPrice) || sharedPrice;
         var infantUnit = parseFloat(opt.dataset.infantPrice) || 0;
-        var base = parseFloat(opt.dataset.basePrice) || privatePrice;
+        var masterBase = parseFloat(opt.dataset.basePrice) || 0;
+        var sharableBase = parseFloat(opt.dataset.sharableBasePrice) || 0;
+        // Zone: never fall back to vehicle master base. Non-zone: allow base / sharable base.
+        var base = fromZone ? privatePrice : (masterBase || privatePrice);
         var cph = parseFloat(opt.dataset.costPerHour) || 0;
         var scph = parseFloat(opt.dataset.sharableCostPerHour) || 0;
         var total = 0;
-
-        if (type === 'hourly' || type === 'travel_hourly') {
-            if (type === 'shared' || String(serviceType).toLowerCase() === 'shared') {
-                /* handled below via serviceType */
-            }
-        }
+        var source = fromZone ? 'zone' : 'base';
 
         if (hours > 0 && (type === 'hourly' || opt.__forceHourly)) {
             if (String(serviceType).toLowerCase() === 'shared') {
@@ -532,23 +565,65 @@
             } else {
                 total = base + cph * h;
             }
-            return { total: total, unit: total, mode: 'hourly' };
+            return { total: total, unit: total, mode: 'hourly', source: source };
         }
 
         if (type === 'shared') {
             total = (adultUnit * a) + (childUnit * c) + (infantUnit * i);
-            if (total <= 0 && sharedPrice > 0) total = sharedPrice * Math.max(1, a + c);
-            return { total: total, unit: sharedPrice, mode: 'shared' };
+            if (total <= 0 && sharedPrice > 0) {
+                total = sharedPrice * Math.max(1, a + c);
+            }
+            if (total <= 0 && !fromZone && sharableBase > 0) {
+                total = sharableBase * Math.max(1, a + c);
+            }
+            return { total: total, unit: sharedPrice || sharableBase, mode: 'shared', source: source };
         }
 
-        total = privatePrice > 0 ? privatePrice : base;
-        return { total: total, unit: total, mode: 'private' };
+        if (fromZone) {
+            total = privatePrice;
+        } else {
+            total = privatePrice > 0 ? privatePrice : base;
+        }
+        return { total: total, unit: total, mode: 'private', source: source };
+    }
+
+    /**
+     * Sell price from vehicle admin "Hourly prices" (hourly_price_1 … hourly_price_12).
+     * Hourly is always Private (flat package) — never Shared × pax.
+     */
+    function packageHourlySellPrice(opt, hours) {
+        if (!opt || !opt.dataset) return 0;
+        var h = parseInt(hours, 10) || 1;
+        if (h < 1) h = 1;
+        if (h > 12) h = 12;
+        var pkg = parseFloat(opt.dataset['hourlyPrice' + h]) || 0;
+        if (pkg > 0) return pkg;
+        // If exact tier missing, scale from 1-hour package when present
+        var one = parseFloat(opt.dataset.hourlyPrice1) || 0;
+        if (one > 0) return one * h;
+        return 0;
     }
 
     function calcHourlyPrice(opt, serviceType, adults, children, infants, hours) {
-        if (!opt) return { total: 0 };
+        if (!opt) return { total: 0, unit: 0, mode: 'hourly', source: 'hourly_package' };
+        var h = parseInt(hours, 10) || 1;
+        var total = packageHourlySellPrice(opt, h);
+        if (total > 0) {
+            return {
+                total: total,
+                unit: total,
+                mode: 'hourly',
+                source: 'hourly_package',
+                hours: h
+            };
+        }
+        // Legacy fallback only when package tiers are empty: base + cost_per_hour × hours
         var clone = { dataset: Object.assign({}, opt.dataset), __forceHourly: true };
-        return calcVehiclePrice(clone, serviceType, adults, children, infants, hours);
+        var priced = calcVehiclePrice(clone, 'private', adults, children, infants, h);
+        priced.mode = 'hourly';
+        priced.source = priced.source || 'base';
+        priced.hours = h;
+        return priced;
     }
 
     function syncHiddenJson(hiddenId, chunkSelector) {
@@ -675,18 +750,27 @@
         );
     }
 
-    /** Compact Guide Required expandable fields (attraction). */
+    /** Same package tiers as standalone guide.js — only show tiers with price > 0. */
+    var GUIDE_PACKAGE_TIERS = [
+        { hours: 1,  key: 'hourly_price',      label: '1 Hour' },
+        { hours: 2,  key: 'two_hour_price',    label: '2 Hours' },
+        { hours: 4,  key: 'four_hour_price',   label: '4 Hours' },
+        { hours: 6,  key: 'six_hour_price',    label: '6 Hours' },
+        { hours: 8,  key: 'eight_hour_price',  label: '8 Hours' },
+        { hours: 10, key: 'ten_hour_price',    label: '10 Hours' },
+        { hours: 12, key: 'twelve_hour_price', label: '12 Hours' }
+    ];
+
+    /** Compact Guide Required expandable fields (attraction / restaurant). */
     function guideExtrasHtml(prefix) {
-        var hourOpts = '';
-        for (var h = 1; h <= 12; h++) hourOpts += '<option value="' + h + '">' + h + 'h</option>';
         return (
             '<div class="stp-lite-extras-block">' +
             '  <div class="stp-lite-opt-card stp-lite-opt-card--compact d-none" data-' + prefix + '-guide-card>' +
             '    <div class="row g-1 align-items-end">' +
             '      <div class="col-6 col-md-5"><label class="stp-lite-label">Guide</label>' +
             '        <select class="form-select form-select-sm ' + prefix + '-guide-select" disabled><option value="">Loading…</option></select></div>' +
-            '      <div class="col-6 col-md-3"><label class="stp-lite-label">Hours</label>' +
-            '        <select class="form-select form-select-sm ' + prefix + '-guide-hours"><option value="">Select</option>' + hourOpts + '</select></div>' +
+            '      <div class="col-6 col-md-3"><label class="stp-lite-label">Package</label>' +
+            '        <select class="form-select form-select-sm ' + prefix + '-guide-hours" disabled><option value="">Select guide</option></select></div>' +
             '      <div class="col-6 col-md-4"><label class="stp-lite-label">Pickup time</label>' +
             ampmTimeHtml(prefix + '-guide', '') +
             '      </div>' +
@@ -702,6 +786,57 @@
             '<select class="form-select form-select-sm ' + prefix + '-guide-required" data-no-select2="true">' +
             '<option value="No">No</option><option value="Yes">Yes</option></select>'
         );
+    }
+
+    /** Packages with sell price > 0 for the selected guide (same as guide.js). */
+    function availableGuidePackages(guide) {
+        if (!guide) return [];
+        return GUIDE_PACKAGE_TIERS
+            .map(function (t) {
+                var price = parseFloat(guide[t.key]) || 0;
+                return { hours: t.hours, label: t.label, price: price };
+            })
+            .filter(function (p) { return p.price > 0; });
+    }
+
+    /** Fill attraction/restaurant guide hours with priced packages only. */
+    function fillInlineGuideHours(root, prefix, guide, preferredHours) {
+        var hoursEl = root.querySelector('.' + prefix + '-guide-hours');
+        if (!hoursEl) return;
+        var pkgs = availableGuidePackages(guide);
+        var keep = preferredHours != null && preferredHours !== ''
+            ? String(preferredHours)
+            : String(hoursEl.value || '');
+        hoursEl.innerHTML = '<option value="">Select package</option>';
+        pkgs.forEach(function (p) {
+            var opt = document.createElement('option');
+            opt.value = String(p.hours);
+            opt.textContent = p.label;
+            opt.dataset.price = String(p.price);
+            hoursEl.appendChild(opt);
+        });
+        if (!pkgs.length) {
+            var empty = document.createElement('option');
+            empty.value = '';
+            empty.textContent = guide ? 'No priced packages' : 'Select guide';
+            empty.disabled = true;
+            hoursEl.appendChild(empty);
+            hoursEl.disabled = true;
+            hoursEl.value = '';
+            return;
+        }
+        hoursEl.disabled = false;
+        if (keep && hoursEl.querySelector('option[value="' + keep.replace(/"/g, '\\"') + '"]')) {
+            hoursEl.value = keep;
+        } else {
+            hoursEl.value = '';
+        }
+    }
+
+    function findInlineGuide(root, guideId) {
+        return (root.__guides || []).find(function (g) {
+            return String(g.guide_id || g.id) === String(guideId);
+        }) || null;
     }
 
     function filterTransferVehiclesByType(select, type) {
@@ -981,9 +1116,9 @@
 
     /**
      * Display/header total for attraction/restaurant rows.
-     * Classic create often stores ticket/meal-only in totalPrice while guide/transfer
-     * live in nested options — compose them so the top grid matches Get Price.
-     * If totalPrice already includes extras (lite path), keep it (no double-add).
+     * Stored totalPrice is ticket/meal-only; guide + transfer live in nested options.
+     * Compose for UI / package header. Legacy rows that already stored the full
+     * composed total are returned as-is (no double-add).
      */
     function serviceRowDisplayTotal(row) {
         if (!row || typeof row !== 'object') return 0;
@@ -999,9 +1134,9 @@
         var base = ticketOrMealBaseFromRow(row);
         var composed = (base > 0 ? base : 0) + xfer + guide;
         if (composed <= 0) return stored;
-        // Stored already includes extras
+        // Legacy: totalPrice already included extras
         if (stored + 0.009 >= composed) return stored;
-        // Stored is ticket/meal-only (or missing extras) — use composed for top grid
+        // Ticket/meal-only stored — compose for display / package total
         if (base > 0 && Math.abs(stored - base) < 0.02) return composed;
         if (stored < composed) return composed;
         return stored;
@@ -1105,6 +1240,7 @@
         if (!select) return Promise.resolve();
         select.disabled = true;
         select.innerHTML = '<option value="">Loading guides…</option>';
+        fillInlineGuideHours(root, prefix, null);
         var q = inv(stay.cityName, stay.country);
         return fetchJsonCached((cfg().routes.fetchGuidesByDmc || '') + '?' + q.qs)
             .then(function (res) {
@@ -1119,10 +1255,16 @@
                     select.appendChild(opt);
                 });
                 select.disabled = false;
+                if (select.value) {
+                    fillInlineGuideHours(root, prefix, findInlineGuide(root, select.value));
+                } else {
+                    fillInlineGuideHours(root, prefix, null);
+                }
             })
             .catch(function () {
                 select.innerHTML = '<option value="">Error loading</option>';
                 select.disabled = false;
+                fillInlineGuideHours(root, prefix, null);
             });
     }
 
@@ -1224,6 +1366,12 @@
     function bindGuideExtras(root, stay, prefix, onChange) {
         var req = root.querySelector('.' + prefix + '-guide-required');
         var card = root.querySelector('[data-' + prefix + '-guide-card]');
+        var guideSelect = root.querySelector('.' + prefix + '-guide-select');
+        function onGuidePicked() {
+            var g = guideSelect && guideSelect.value ? findInlineGuide(root, guideSelect.value) : null;
+            fillInlineGuideHours(root, prefix, g);
+            if (typeof onChange === 'function') onChange();
+        }
         function toggle() {
             var yes = req && req.value === 'Yes';
             if (card) card.classList.toggle('d-none', !yes);
@@ -1235,12 +1383,16 @@
             } else if (typeof onChange === 'function') {
                 onChange();
             }
+            if (!yes) fillInlineGuideHours(root, prefix, null);
         }
         if (req) req.addEventListener('change', toggle);
-        ['.' + prefix + '-guide-select', '.' + prefix + '-guide-hours'].forEach(function (sel) {
-            var el = root.querySelector(sel);
-            if (el) el.addEventListener('change', function () { if (typeof onChange === 'function') onChange(); });
-        });
+        if (guideSelect) guideSelect.addEventListener('change', onGuidePicked);
+        var hoursEl = root.querySelector('.' + prefix + '-guide-hours');
+        if (hoursEl) {
+            hoursEl.addEventListener('change', function () {
+                if (typeof onChange === 'function') onChange();
+            });
+        }
         root.addEventListener('stp:time-changed', function (e) {
             var ampm = e.target && e.target.closest ? e.target.closest('[data-ampm-root="' + prefix + '-guide"]') : null;
             if (ampm && typeof onChange === 'function') onChange();
@@ -1314,16 +1466,18 @@
         if (!guideOptions || !guideOptions.guide_required) {
             if (req) req.value = 'No';
             if (card) card.classList.add('d-none');
+            fillInlineGuideHours(root, prefix, null);
             return Promise.resolve();
         }
         if (req) req.value = 'Yes';
         if (card) card.classList.remove('d-none');
-        var hoursEl = root.querySelector('.' + prefix + '-guide-hours');
-        if (hoursEl && guideOptions.package_hours) hoursEl.value = String(guideOptions.package_hours);
         setAmPmValue(root, prefix + '-guide', guideOptions.pickup_time || '');
+        var preferHours = guideOptions.package_hours || guideOptions.hours || '';
         function afterGuides() {
             var select = root.querySelector('.' + prefix + '-guide-select');
             if (select && guideOptions.guide_id) select.value = String(guideOptions.guide_id);
+            var guide = findInlineGuide(root, guideOptions.guide_id);
+            fillInlineGuideHours(root, prefix, guide, preferHours);
         }
         if (!root.__guidesLoaded) {
             root.__guidesLoaded = true;
@@ -1539,7 +1693,11 @@
         var guideSel = root.querySelector('.' + prefix + '-guide-select');
         if (guideSel) guideSel.selectedIndex = 0;
         var hours = root.querySelector('.' + prefix + '-guide-hours');
-        if (hours) hours.value = '';
+        if (hours) {
+            hours.innerHTML = '<option value="">Select guide</option>';
+            hours.disabled = true;
+            hours.value = '';
+        }
         root.__transferVehiclesLoaded = false;
         root.__transferPickupsLoaded = false;
     }
@@ -1584,6 +1742,7 @@
         vehicleOptionMapper: vehicleOptionMapper,
         calcVehiclePrice: calcVehiclePrice,
         calcHourlyPrice: calcHourlyPrice,
+        packageHourlySellPrice: packageHourlySellPrice,
         syncHiddenJson: syncHiddenJson,
         stayFromPanel: stayFromPanel,
         cityLabel: cityLabel,
@@ -1598,6 +1757,8 @@
         refreshTransferCostDisplay: refreshTransferCostDisplay,
         collectTransferOptions: collectTransferOptions,
         hourPriceFromGuide: hourPriceFromGuide,
+        availableGuidePackages: availableGuidePackages,
+        fillInlineGuideHours: fillInlineGuideHours,
         confirmRemoveService: confirmRemoveService,
         isNightTime: isNightTime,
         calcInlineGuidePrice: calcInlineGuidePrice,

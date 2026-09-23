@@ -38,7 +38,6 @@
             @include('single-tour-package.lite.partials.01-config-toggles')
             @include('single-tour-package.lite.partials.02-tour-details')
             @include('single-tour-package.lite.partials.04-multi-country-planner')
-
             @include('single-tour-package.lite.partials.06-lead-guests')
         </form>
     </div>
@@ -72,6 +71,7 @@
 <script src="{{ asset('js/single-tour-package/lite/miscellaneous.js') }}?v={{ filemtime(public_path('js/single-tour-package/lite/miscellaneous.js')) }}"></script>
 <script src="{{ asset('js/single-tour-package/lite/country-segments.js') }}?v={{ filemtime(public_path('js/single-tour-package/lite/country-segments.js')) }}"></script>
 <script src="{{ asset('js/single-tour-package/lite/guests.js') }}?v={{ filemtime(public_path('js/single-tour-package/lite/guests.js')) }}"></script>
+<script src="{{ asset('js/single-tour-package/lite/city-markup.js') }}?v={{ filemtime(public_path('js/single-tour-package/lite/city-markup.js')) }}"></script>
 <script src="{{ asset('js/single-tour-package/lite/submit.js') }}?v={{ filemtime(public_path('js/single-tour-package/lite/submit.js')) }}"></script>
 <script src="{{ asset('js/single-tour-package/lite/main.js') }}?v={{ filemtime(public_path('js/single-tour-package/lite/main.js')) }}"></script>
 @endsection

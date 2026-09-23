@@ -51,6 +51,49 @@ class GuideController extends Controller
         return null;
     }
 
+    private function getDmcBaseCountryNames(?int $dmcId): array
+    {
+        if (!$dmcId) {
+            return [];
+        }
+
+        $dmcUser = User::where('userId', $dmcId)->first();
+        if (!$dmcUser || empty($dmcUser->country)) {
+            return [];
+        }
+
+        return array_values(array_filter(array_map(
+            static fn ($c) => trim($c),
+            preg_split('/\s*,\s*/', (string) $dmcUser->country)
+        )));
+    }
+
+    private function getDmcBaseCountriesCollection(?int $dmcId)
+    {
+        $names = $this->getDmcBaseCountryNames($dmcId);
+        if (empty($names)) {
+            return collect();
+        }
+
+        $matched = Country::where('is_active', 1)
+            ->where(function ($q) use ($names) {
+                foreach ($names as $name) {
+                    $q->orWhereRaw('LOWER(TRIM(name)) = ?', [mb_strtolower(trim($name))]);
+                }
+            })
+            ->orderBy('name')
+            ->get();
+
+        if ($matched->isNotEmpty()) {
+            return $matched;
+        }
+
+        // Fallback when users.country value is not yet in countries table
+        return collect($names)->map(static function ($name) {
+            return (object) ['id' => null, 'name' => $name];
+        });
+    }
+
     private function getMasterDmcCountryNamesForDmc(int $dmcId): array
     {
         $dmcUser = User::where('userId', $dmcId)->first();
@@ -86,24 +129,18 @@ class GuideController extends Controller
             )));
         }
 
-        if (!empty($dmcUser->country)) {
-            return array_values(array_filter(array_map(
-                static fn ($c) => trim($c),
-                preg_split('/\s*,\s*/', (string) $dmcUser->country)
-            )));
-        }
-
-        return [];
+        return $this->getDmcBaseCountryNames($dmcId);
     }
 
     private function getScopedCountriesForUser(User $user, ?int $dmcId = null)
     {
         $dmcId = $dmcId ?: $this->resolveDmcIdForUser($user);
-        $masterNames = $dmcId ? $this->getMasterDmcCountryNamesForDmc($dmcId) : [];
+        // Guide create/edit: DMC base country from users.country (not master DMC countries).
+        $baseNames = $this->getDmcBaseCountryNames($dmcId);
 
         $query = Country::where('is_active', 1)->orderBy('name');
-        if (!empty($masterNames) && !in_array((int) $user->role_id, [1, 2, 3, 20, 23], true)) {
-            $query->whereIn('name', $masterNames);
+        if (!empty($baseNames) && !in_array((int) $user->role_id, [1, 2, 3, 20, 23], true)) {
+            $query->whereIn('name', $baseNames);
         }
 
         return $query->get();
@@ -442,23 +479,21 @@ class GuideController extends Controller
 
         if(in_array($authuser->role_id, [11, 20, 35, 75, 102, 130, 132, 133, 135, 136, 137, 138, 139, 140])){
             $dmcId = $this->resolveDmcIdForUser($authuser);
-            $masterNames = $dmcId ? $this->getMasterDmcCountryNamesForDmc($dmcId) : [];
-            $userCountry = $masterNames[0] ?? '';
+            $dmcBaseCountries = $this->getDmcBaseCountriesCollection($dmcId);
+            $userCountry = old('country', $dmcBaseCountries->count() === 1 ? ($dmcBaseCountries->first()->name ?? '') : '');
+            $cities = $userCountry ? City::where('country', $userCountry)->orderBy('name')->get() : collect();
         }
         else{
-            $userCountry = '';
+            // Admin/agent: country list filled after DMC is selected (users.country of that DMC).
+            $dmcBaseCountries = collect();
+            $userCountry = old('country', '');
+            $cities = $userCountry ? City::where('country', $userCountry)->orderBy('name')->get() : collect();
         }
 
-        // After a validation redirect, cities must match old('country'), not the DMC default.
-        $countryForCities = filled(old('country')) ? (string) old('country') : $userCountry;
-        $cities = $countryForCities !== ''
-            ? City::where('country', $countryForCities)->orderBy('name')->get()
-            : collect();
-
-        $masterDmcCountries = $this->getScopedCountriesForUser($authuser);
-        $country = $masterDmcCountries->isNotEmpty() ? $masterDmcCountries : $country;
+        $masterDmcCountries = $dmcBaseCountries;
+        $country = $dmcBaseCountries->isNotEmpty() ? $dmcBaseCountries : collect();
     
-        return view('guides.create-guide',compact('languages', 'dmcs', 'country', 'userCountry', 'cities', 'masterDmcCountries'));
+        return view('guides.create-guide',compact('languages', 'dmcs', 'country', 'userCountry', 'cities', 'masterDmcCountries', 'dmcBaseCountries'));
     }
 
     /*
@@ -806,27 +841,17 @@ class GuideController extends Controller
         // Check if country is passed directly
         if ($request->has('country') && !empty($request->country)) {
             $country = $request->country;
+            $countries = [$country];
         }
-        // Otherwise, get master-DMC countries from DMC ID
+        // Otherwise: DMC base country from users.country only
         elseif ($request->has('dmc_id') && !empty($request->dmc_id)) {
             $dmcId = (int) $request->dmc_id;
-            $countries = $this->getMasterDmcCountryNamesForDmc($dmcId);
+            $countries = $this->getDmcBaseCountryNames($dmcId);
             $country = $countries[0] ?? null;
-
-            if (!$country) {
-                $dmc = User::where('userId', $dmcId)->first();
-                if ($dmc && !empty($dmc->country)) {
-                    $countries = array_values(array_filter(array_map(
-                        static fn ($c) => trim($c),
-                        preg_split('/\s*,\s*/', (string) $dmc->country)
-                    )));
-                    $country = $countries[0] ?? null;
-                }
-            }
         }
 
         if (!$country) {
-            return response()->json(['error' => 'Country not found'], 400);
+            return response()->json(['error' => 'Country not found', 'countries' => [], 'cities' => []], 400);
         }
 
         if (empty($countries)) {
@@ -854,11 +879,18 @@ class GuideController extends Controller
         $guide = Guide::where('guide_id', $id)->first();
         $languages = GuideLanguage::where('guide_id', $id)->get();
         $dmcId = $guide->dmc_id ? (int) $guide->dmc_id : $this->resolveDmcIdForUser(auth()->user());
-        $masterDmcCountries = $this->getScopedCountriesForUser(auth()->user(), $dmcId);
-        $country = $masterDmcCountries->isNotEmpty()
-            ? $masterDmcCountries
-            : Country::where('is_active', 1)->orderBy('name')->get();
+        $dmcBaseCountries = $this->getDmcBaseCountriesCollection($dmcId);
+        $masterDmcCountries = $dmcBaseCountries;
+        $country = $dmcBaseCountries;
         $selectedCountry = old('country', $guide->country);
+        // Prefer DMC base country when guide country is empty or not in DMC scope.
+        if ($dmcBaseCountries->count() === 1 && !filled(old('country'))) {
+            $selectedCountry = $dmcBaseCountries->first()->name;
+        } elseif (filled($selectedCountry) && $dmcBaseCountries->isNotEmpty()
+            && !$dmcBaseCountries->contains(fn ($c) => strcasecmp(trim((string) $c->name), trim((string) $selectedCountry)) === 0)
+            && $dmcBaseCountries->count() === 1) {
+            $selectedCountry = $dmcBaseCountries->first()->name;
+        }
         $city = $selectedCountry
             ? City::where('country', $selectedCountry)->orderBy('name')->get()
             : collect();
@@ -873,7 +905,7 @@ class GuideController extends Controller
             $dmcs = User::where('role_id', 11)->get();
         }
 
-        return view('guides.edit-guide', compact('guide', 'languages', 'languagesname', 'country', 'city','dmcs', 'masterDmcCountries', 'selectedCountry'));
+        return view('guides.edit-guide', compact('guide', 'languages', 'languagesname', 'country', 'city','dmcs', 'masterDmcCountries', 'dmcBaseCountries', 'selectedCountry'));
     }
     /*
     * Update the Guide details.

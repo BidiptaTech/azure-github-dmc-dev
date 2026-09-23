@@ -349,18 +349,22 @@
                                 @enderror
                             </div>
 
-                            <!-- Country (Master DMC countries) -->
+                            <!-- Country (DMC base country from users.country) -->
                             <div class="mb-3 col-md-3">
                                 <label for="country" class="form-label"><strong><i class="ri-map-pin-line"></i> Country</strong>
                                     <span style="color: red; font-weight: bold;">*</span>
                                 </label>
                                 @php
-                                    $scopedCountries = $masterDmcCountries ?? $country ?? collect();
-                                    // Only restore what the user submitted themselves; never pick a country for them.
-                                    $preselectedCountry = old('country', '');
+                                    $scopedCountries = collect($dmcBaseCountries ?? $masterDmcCountries ?? $country ?? []);
+                                    $preselectedCountry = old('country', $userCountry ?? '');
+                                    if ($preselectedCountry === '' && $scopedCountries->count() === 1) {
+                                        $preselectedCountry = $scopedCountries->first()->name ?? '';
+                                    }
                                 @endphp
                                 <select class="form-control" id="country" name="country" required onchange="validateDriverAge(document.getElementById('guide_age'))">
-                                    <option value="">Select Country</option>
+                                    @if($scopedCountries->count() !== 1)
+                                        <option value="">Select Country</option>
+                                    @endif
                                     @foreach($scopedCountries as $countryOption)
                                         <option value="{{ $countryOption->name }}" {{ $preselectedCountry == $countryOption->name ? 'selected' : '' }}>
                                             {{ $countryOption->name }}
@@ -1209,7 +1213,7 @@ $(document).ready(function() {
     var userRoleId = {{ auth()->user()->role_id }};
     var userCountry = @json($userCountry ?? '');
     var currentCity = @json(old('city', ''));
-    var oldCountry = @json(old('country', ''));
+    var oldCountry = @json($preselectedCountry ?? ($userCountry ?? ''));
 
     $('#citySelect').select2({
         placeholder: "Select Country First",
@@ -1226,12 +1230,21 @@ $(document).ready(function() {
 
     function populateCountryOptions(countries) {
         var $country = $('#country');
-        $country.empty().append('<option value="">Select Country</option>');
+        $country.empty();
+        if (!countries || countries.length !== 1) {
+            $country.append('<option value="">Select Country</option>');
+        }
         $.each(countries || [], function(i, name) {
             $country.append('<option value="' + name + '">' + name + '</option>');
         });
-        // The agent picks the country; refresh Select2 only, so no city load is triggered.
-        $country.val('').trigger('change.select2');
+        // Auto-select when DMC has a single base country
+        if (countries && countries.length === 1) {
+            $country.val(countries[0]).trigger('change');
+        } else {
+            $country.val('').trigger('change.select2');
+            $('#citySelect').prop('disabled', true).empty()
+                .append('<option value="">Select Country First</option>').trigger('change');
+        }
     }
 
     function loadCitiesByCountry(countryName, preserveCity) {
@@ -1283,10 +1296,9 @@ $(document).ready(function() {
             success: function(response) {
                 var countries = response.countries || (response.country ? [response.country] : []);
                 populateCountryOptions(countries);
-                $('#citySelect').prop('disabled', true).empty()
-                    .append('<option value="">Select Country First</option>').trigger('change');
             },
             error: function() {
+                $('#country').empty().append('<option value="">Select Country</option>').trigger('change.select2');
                 $('#citySelect').prop('disabled', true).empty().append('<option value="">Error loading cities</option>').trigger('change');
             }
         });
@@ -1312,7 +1324,7 @@ $(document).ready(function() {
                 loadCountriesAndCitiesForDmc(selectedDmcId);
             } else {
                 $('#citySelect').prop('disabled', true).empty().append('<option value="">Select Country First</option>').trigger('change');
-                $('#country').val('').trigger('change');
+                $('#country').empty().append('<option value="">Select Country</option>').val('').trigger('change.select2');
             }
         });
     } else {
@@ -1322,8 +1334,11 @@ $(document).ready(function() {
 
     // Always reload cities for the currently selected country so they never stay
     // out of sync after a validation redirect (old country vs DMC-default cities).
-    var initialCountry = oldCountry || $('#country').val();
+    var initialCountry = oldCountry || $('#country').val() || userCountry;
     if (initialCountry) {
+        if (!$('#country').val()) {
+            $('#country').val(initialCountry).trigger('change.select2');
+        }
         if (oldCountry && $('#country').val() !== oldCountry) {
             $('#country').val(oldCountry).trigger('change.select2');
         }

@@ -107,14 +107,7 @@
 
     function writeChunk(root, rows) {
         var T = S();
-        rows = (rows || []).map(function (r) {
-            if (!r || typeof r !== 'object') return r;
-            var display = typeof T.serviceRowDisplayTotal === 'function' ? T.serviceRowDisplayTotal(r) : Number(r.totalPrice || 0);
-            if (display > Number(r.totalPrice || 0)) {
-                r = Object.assign({}, r, { totalPrice: display, grand_total: display });
-            }
-            return r;
-        });
+        // Persist meal-only totals; header/list compose meal+xfer+guide via serviceRowDisplayTotal
         var el = root.querySelector('.restaurant_data_chunk');
         if (el) el.value = JSON.stringify(rows || []);
         T.syncHiddenJson('restaurant_data', '.restaurant_data_chunk');
@@ -220,15 +213,11 @@
     function mealsMatchingPeriod(list, period) {
         var wanted = mapMealPeriod(period);
         var rows = list || [];
-        var matched = rows.filter(function (m) {
-            var mealPeriod = mapMealPeriod(m && m.meal_period);
-            return !wanted || !mealPeriod || mealPeriod === wanted;
-        });
-        var explicit = rows.filter(function (m) {
+        if (!wanted) return rows;
+        // Strict: only dishes for this meal type (never blank/other periods)
+        return rows.filter(function (m) {
             return mapMealPeriod(m && m.meal_period) === wanted;
         });
-        if (explicit.length) return explicit;
-        return matched;
     }
 
     function fillDishOptions(dish, list, period) {
@@ -273,34 +262,22 @@
         var baseQs = 'restaurant_id=' + encodeURIComponent(restaurantId) + '&' + q.qs;
         var withPeriod = (cfg().routes.fetchMealsByRestaurant || '') + '?' + baseQs +
             '&meal_period=' + encodeURIComponent(period);
-        var withoutPeriod = (cfg().routes.fetchMealsByRestaurant || '') + '?' + baseQs;
 
         function apply(list) {
             fillDishOptions(dish, list, period);
         }
 
+        // Only load dishes for the selected meal type — never fall back to all meals
+        // (inactive Lunch must not show Breakfast/Dinner dishes)
         return T.fetchJson(withPeriod)
             .then(function (res) {
                 var list = (res && res.meals) || [];
-                if (list.length) {
-                    apply(list);
-                    return list;
-                }
-                return T.fetchJson(withoutPeriod).then(function (res2) {
-                    var all = (res2 && res2.meals) || [];
-                    apply(all);
-                    return all;
-                });
+                apply(list);
+                return list;
             })
             .catch(function () {
-                return T.fetchJson(withoutPeriod)
-                    .then(function (res2) {
-                        apply((res2 && res2.meals) || []);
-                    })
-                    .catch(function () {
-                        dish.innerHTML = '<option value="">Error loading meals</option>';
-                        dish.disabled = false;
-                    });
+                dish.innerHTML = '<option value="">Error loading meals</option>';
+                dish.disabled = false;
             });
     }
 
@@ -363,11 +340,10 @@
         var mealTotal = (adultP * g.adults) + (childP * g.children);
         var transferOptions = T.collectTransferOptions(root, PREFIX, g.adults, g.children, g.infants);
         var guideOptions = T.collectGuideOptions(root, PREFIX);
-        var xferCost = transferOptions ? (Number(transferOptions.cost) || 0) : 0;
-        var guideCost = guideOptions ? (Number(guideOptions.total_price) || 0) : 0;
-        var total = mealTotal + xferCost + guideCost;
-        if (root.__lastPrice && Number(root.__lastPrice.total) > total) {
-            total = Number(root.__lastPrice.total) || total;
+        // Store meal-only; transfer/guide costs live in nested options (classic parity)
+        var total = mealTotal;
+        if (root.__lastPrice && root.__lastPrice.mealTotal != null) {
+            total = Number(root.__lastPrice.mealTotal) || total;
         }
         var supplement = T.autoSupplement(g.adults);
         var visitTime = T.readAmPmValue(root, 'restaurant');
@@ -468,15 +444,15 @@
             var dish = root.querySelector('.restaurant-dish');
             var mealId = row.MealDescription && row.MealDescription[0] && row.MealDescription[0].meal_id;
             if (dish && mealId) dish.value = String(mealId);
+            var mealOnly = Number(row.totalPrice != null ? row.totalPrice : (row.grand_total || 0)) || 0;
             var displayTotal = typeof T.serviceRowDisplayTotal === 'function'
                 ? T.serviceRowDisplayTotal(row)
-                : (row.totalPrice || 0);
-            if (displayTotal > Number(row.totalPrice || 0)) {
-                row.totalPrice = displayTotal;
-                row.grand_total = displayTotal;
-            }
+                : mealOnly;
             root.__lastPrice = {
                 total: displayTotal,
+                mealTotal: mealOnly,
+                transferTotal: (row.transfer_options && Number(row.transfer_options.cost)) || 0,
+                guideTotal: (row.guide_options && Number(row.guide_options.total_price)) || 0,
                 adultPrice: row.adult_price || 0,
                 childPrice: row.child_price || 0,
                 breakdown: ''
