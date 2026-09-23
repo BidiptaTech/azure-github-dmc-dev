@@ -544,16 +544,16 @@
                                         </div>
                                     </div>
 
-                                    <!-- Fourth Row: Adult Price, Child Price, Status, Submit Button -->
+                                    <!-- Fourth Row: Adult Price, Child Price, Vehicle, Guide, Status, Submit Button -->
                                     <div class="col-12">
                                         <div class="row g-2 align-items-end">
                                             <!-- Adult Price -->
-                                            <div class="col-md-3">
+                                            <div class="col-md-2">
                                                 <label class="form-label">
                                                     <strong>Adult Price</strong> <span class="text-danger">*</span>
                                                 </label>
                                                 <div class="input-group">
-                                                    <span class="input-group-text">$</span>
+                                                    <span class="input-group-text">{{ $dmcCurrency ?? '$' }}</span>
                                                     <input type="number" step="0.01" min="0"
                                                            class="form-control"
                                                            name="price"
@@ -562,16 +562,44 @@
                                             </div>
 
                                             <!-- Child Price -->
-                                            <div class="col-md-3">
+                                            <div class="col-md-2">
                                                 <label class="form-label">
                                                     <strong>Child Price</strong>
                                                 </label>
                                                 <div class="input-group">
-                                                    <span class="input-group-text">$</span>
+                                                    <span class="input-group-text">{{ $dmcCurrency ?? '$' }}</span>
                                                     <input type="number" step="1" min="0"
                                                            class="form-control"
                                                            name="child_price"
                                                            placeholder="0 (optional)">
+                                                </div>
+                                            </div>
+
+                                            <!-- Vehicle Included -->
+                                            <div class="col-md-2">
+                                                <label class="form-label">
+                                                    <strong>Vehicle</strong>
+                                                </label>
+                                                <div class="form-check form-switch mt-1">
+                                                    <input class="form-check-input" type="checkbox" id="create_vehicle" name="vehicle" value="1"
+                                                           {{ old('vehicle') ? 'checked' : '' }}>
+                                                    <label class="form-check-label" for="create_vehicle" style="font-size: 0.75rem;">
+                                                        Included
+                                                    </label>
+                                                </div>
+                                            </div>
+
+                                            <!-- Guide Included -->
+                                            <div class="col-md-2">
+                                                <label class="form-label">
+                                                    <strong>Guide</strong>
+                                                </label>
+                                                <div class="form-check form-switch mt-1">
+                                                    <input class="form-check-input" type="checkbox" id="create_guide" name="guide" value="1"
+                                                           {{ old('guide') ? 'checked' : '' }}>
+                                                    <label class="form-check-label" for="create_guide" style="font-size: 0.75rem;">
+                                                        Included
+                                                    </label>
                                                 </div>
                                             </div>
 
@@ -679,9 +707,9 @@
                                             </div>
                                             <div class="col-md-2">
                                             <div class="d-flex flex-column">
-                                                    <strong style="font-size: 0.8rem;">Adult: ${{ number_format($item->adult_price ?? 0, 2) }}</strong>
+                                                    <strong style="font-size: 0.8rem;">Adult: {{ $dmcCurrency ?? '$' }} {{ number_format($item->adult_price ?? 0, 2) }}</strong>
                                                     @if(!is_null($item->child_price ?? null))
-                                                        <small class="text-muted" style="font-size: 0.7rem;">Child: ${{ number_format($item->child_price ?? 0, 2) }}</small>
+                                                        <small class="text-muted" style="font-size: 0.7rem;">Child: {{ $dmcCurrency ?? '$' }} {{ number_format($item->child_price ?? 0, 2) }}</small>
                                                     @endif
                                                 </div>
                                             </div>
@@ -852,16 +880,16 @@
                                                 </div>
                                             </div>
 
-                                            <!-- Fourth Row: Adult Price, Child Price, Status, Submit/Cancel Buttons -->
+                                            <!-- Fourth Row: Adult Price, Child Price, Vehicle, Guide, Status, Submit/Cancel Buttons -->
                                             <div class="col-12">
                                                 <div class="row g-2 align-items-end">
                                                     <!-- Adult Price -->
-                                                    <div class="col-md-3">
+                                                    <div class="col-md-2">
                                                         <label class="form-label">
                                                             <strong>Adult Price</strong> <span class="text-danger">*</span>
                                                         </label>
                                                         <div class="input-group">
-                                                            <span class="input-group-text">$</span>
+                                                            <span class="input-group-text">{{ $dmcCurrency ?? '$' }}</span>
                                                             <input type="number" step="0.01" min="0"
                                                                    class="form-control"
                                                                    name="price" 
@@ -870,17 +898,45 @@
                                                     </div>
 
                                                     <!-- Child Price -->
-                                                    <div class="col-md-3">
+                                                    <div class="col-md-2">
                                                         <label class="form-label">
                                                             <strong>Child Price</strong>
                                                         </label>
                                                         <div class="input-group">
-                                                            <span class="input-group-text">$</span>
+                                                            <span class="input-group-text">{{ $dmcCurrency ?? '$' }}</span>
                                                             <input type="number" step="1" min="0"
                                                                    class="form-control"
                                                                    name="child_price"
                                                                    value="{{ old('child_price', $item->child_price ?? null) }}"
                                                                    placeholder="0 (optional)">
+                                                        </div>
+                                                    </div>
+
+                                                    <!-- Vehicle Included -->
+                                                    <div class="col-md-2">
+                                                        <label class="form-label">
+                                                            <strong>Vehicle</strong>
+                                                        </label>
+                                                        <div class="form-check form-switch mt-1">
+                                                            <input class="form-check-input" type="checkbox" id="update_vehicle_{{ $item->id }}" name="vehicle" value="1"
+                                                                   {{ old('vehicle', $item->vehicle) ? 'checked' : '' }}>
+                                                            <label class="form-check-label" for="update_vehicle_{{ $item->id }}" style="font-size: 0.75rem;">
+                                                                Included
+                                                            </label>
+                                                        </div>
+                                                    </div>
+
+                                                    <!-- Guide Included -->
+                                                    <div class="col-md-2">
+                                                        <label class="form-label">
+                                                            <strong>Guide</strong>
+                                                        </label>
+                                                        <div class="form-check form-switch mt-1">
+                                                            <input class="form-check-input" type="checkbox" id="update_guide_{{ $item->id }}" name="guide" value="1"
+                                                                   {{ old('guide', $item->guide) ? 'checked' : '' }}>
+                                                            <label class="form-check-label" for="update_guide_{{ $item->id }}" style="font-size: 0.75rem;">
+                                                                Included
+                                                            </label>
                                                         </div>
                                                     </div>
 

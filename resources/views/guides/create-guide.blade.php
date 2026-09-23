@@ -223,14 +223,27 @@
             @endif
 
             @if ($errors->any())
-                <div class="alert alert-danger border-0 border-start border-5 border-danger-subtle shadow-sm px-4 py-3 rounded-3">
+                <div id="guide-validation-summary" class="alert alert-danger border-0 border-start border-5 border-danger-subtle shadow-sm px-4 py-3 rounded-3">
                     <div class="d-flex align-items-start gap-2">
                         <i class="bi bi-exclamation-triangle-fill fs-4 text-danger"></i>
                         <div>
                             <h6 class="mb-2 fw-semibold text-danger">Please fix the following errors:</h6>
                             <ul class="mb-0 ps-3">
-                                <li class="small">{{ $errors->first() }}</li>
+                                @foreach ($errors->all() as $error)
+                                    <li class="small" data-server-error-text="{{ $error }}">{{ $error }}</li>
+                                @endforeach
                             </ul>
+                            @if ($errors->any())
+                                <p class="small mb-0 mt-2 text-danger fw-semibold">
+                                    Profile Image and License Image were cleared by the browser after the failed save.
+                                    Please upload both images again before clicking Save.
+                                </p>
+                            @endif
+                            @if ($errors->has('master_image') || $errors->has('license_image') || $errors->has('email') || $errors->has('city') || $errors->has('country'))
+                                <p class="small mb-0 mt-2 text-muted">
+                                    Also confirm City matches the selected Country.
+                                </p>
+                            @endif
                         </div>
                     </div>
                 </div>
@@ -348,7 +361,7 @@
                                         $preselectedCountry = $scopedCountries->first()->name ?? '';
                                     }
                                 @endphp
-                                <select class="form-control" id="country" name="country" required onchange="validateDriverAge(document.getElementById('driver_age'))">
+                                <select class="form-control" id="country" name="country" required onchange="validateDriverAge(document.getElementById('guide_age'))">
                                     @if($scopedCountries->count() !== 1)
                                         <option value="">Select Country</option>
                                     @endif
@@ -429,9 +442,10 @@
                                             style="padding: 20px; border: 2px dashed #007bff; text-align: center; height: 80px;">
                                             Drag & Drop your files here or click to upload.
                                             <input type="file" id="master_image" name="master_image" style="display: none;"
-                                                required>
+                                                accept="image/*">
                                         </div>
                                     </div>
+                                    <div id="master_image_error" class="text-danger small mt-1 d-none"></div>
                                     <div id="master-preview-container" class="mb-3 mt-3 d-flex flex-wrap gap-2"
                                         style="max-width: 30%; overflow-x: auto; white-space: nowrap;">
                                     </div>
@@ -587,9 +601,10 @@
                                                 style="padding: 10px; border: 2px dashed #007bff; text-align: center; height: 50px;">
                                                 Drag & Drop your files here or click to upload.
                                                 <input type="file" id="license_image" name="license_image"
-                                                    style="display: none;" required>
+                                                    style="display: none;" accept="image/*">
                                             </div>
                                         </div>
+                                        <div id="license_image_error" class="text-danger small mt-1 d-none"></div>
                                         <div id="license-preview-container" class="mt-1 d-flex flex-wrap gap-2"
                                             style="max-width: 30%; overflow-x: auto; white-space: nowrap;">
                                         </div>
@@ -929,17 +944,88 @@ $(document).ready(function() {
         }
     }
     $('#guideForm').on('submit', function (e) {
+        let blocked = false;
+
+        function setFileError(id, message) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            if (message) {
+                el.textContent = message;
+                el.classList.remove('d-none');
+            } else {
+                el.textContent = '';
+                el.classList.add('d-none');
+            }
+        }
+
+        const masterInput = document.getElementById('master_image');
+        const licenseInput = document.getElementById('license_image');
+
+        if (!masterInput || !masterInput.files || masterInput.files.length === 0) {
+            setFileError('master_image_error', 'Profile image is required.');
+            blocked = true;
+        } else {
+            setFileError('master_image_error', '');
+        }
+
+        if (!licenseInput || !licenseInput.files || licenseInput.files.length === 0) {
+            setFileError('license_image_error', 'License image is required.');
+            blocked = true;
+        } else {
+            setFileError('license_image_error', '');
+        }
+
         if (getAboutText() === '') {
+            setAboutError('About is required. Please fill in this field.');
+            blocked = true;
+        } else {
+            setAboutError('');
+        }
+
+        if (blocked) {
             e.preventDefault();
             e.stopImmediatePropagation();
-            setAboutError('About is required. Please fill in this field.');
-            var errorEl = document.getElementById('about_error');
-            if (errorEl) {
-                errorEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            if (typeof window.resetFormSubmitSpinners === 'function') {
+                window.resetFormSubmitSpinners(this);
+            } else {
+                const saveBtn = document.getElementById('saveGuideBtn');
+                if (saveBtn) {
+                    saveBtn.disabled = false;
+                    const icon = saveBtn.querySelector('.btn-spinner-icon');
+                    const label = saveBtn.querySelector('.btn-spinner-label');
+                    if (icon) icon.classList.add('d-none');
+                    if (label) label.textContent = 'Save';
+                }
+                const overlay = document.getElementById('formSubmitLoader');
+                if (overlay) {
+                    overlay.classList.remove('active');
+                    overlay.setAttribute('aria-busy', 'false');
+                }
+            }
+            const firstError = document.querySelector('#master_image_error:not(.d-none), #license_image_error:not(.d-none), #about_error:not(.d-none)');
+            if (firstError) {
+                firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
             return false;
         }
-        setAboutError('');
+
+        // Disabled selects are not posted — enable city before submit.
+        const citySelect = document.getElementById('citySelect');
+        if (citySelect) {
+            citySelect.disabled = false;
+            if (window.jQuery) {
+                window.jQuery(citySelect).prop('disabled', false);
+            }
+        }
+    });
+
+    $('#master_image, #license_image').on('change', function () {
+        const errorId = this.id + '_error';
+        const el = document.getElementById(errorId);
+        if (el && this.files && this.files.length > 0) {
+            el.textContent = '';
+            el.classList.add('d-none');
+        }
     });
     $('#summernote').on('summernote.change', function () {
         if (getAboutText() !== '') {
@@ -1127,16 +1213,13 @@ $(document).ready(function() {
     var userRoleId = {{ auth()->user()->role_id }};
     var userCountry = @json($userCountry ?? '');
     var currentCity = @json(old('city', ''));
-
-    @php
-        $hasPreloadedCitiesJs = isset($cities) && count($cities) > 0 && filled($preselectedCountry ?? ($userCountry ?? ''));
-    @endphp
+    var oldCountry = @json($preselectedCountry ?? ($userCountry ?? ''));
 
     $('#citySelect').select2({
         placeholder: "Select Country First",
         allowClear: true,
         width: '100%',
-        disabled: {{ $hasPreloadedCitiesJs ? 'false' : 'true' }}
+        disabled: true
     });
 
     $('#country').select2({
@@ -1181,10 +1264,13 @@ $(document).ready(function() {
                 $('#citySelect').empty().append('<option value="">Select a City</option>');
                 if (response.cities && response.cities.length > 0) {
                     $.each(response.cities, function(key, city) {
-                        var selected = (preserveCity && city.name === currentCity) ? 'selected' : '';
+                        var selected = (preserveCity && currentCity && city.name === currentCity) ? 'selected' : '';
                         $('#citySelect').append('<option value="' + city.name + '" ' + selected + '>' + city.name + '</option>');
                     });
                     $('#citySelect').prop('disabled', false);
+                    if (preserveCity && currentCity) {
+                        $('#citySelect').val(currentCity);
+                    }
                 } else {
                     $('#citySelect').append('<option value="">No cities available</option>');
                 }
@@ -1221,9 +1307,11 @@ $(document).ready(function() {
     $('#country').on('change', function() {
         var selectedCountry = $(this).val();
         if (!selectedCountry) {
+            currentCity = '';
             $('#citySelect').prop('disabled', true).empty().append('<option value="">Select Country First</option>').trigger('change');
             return;
         }
+        // Manual country change should reset city unless we are restoring old input on first load.
         loadCitiesByCountry(selectedCountry, false);
     });
 
@@ -1244,16 +1332,17 @@ $(document).ready(function() {
         $('#dmc').prop('required', false);
     }
 
-    var initialCountry = $('#country').val() || userCountry;
+    // Always reload cities for the currently selected country so they never stay
+    // out of sync after a validation redirect (old country vs DMC-default cities).
+    var initialCountry = oldCountry || $('#country').val() || userCountry;
     if (initialCountry) {
         if (!$('#country').val()) {
             $('#country').val(initialCountry).trigger('change.select2');
         }
-        @if(empty(old('city')) && empty($hasPreloadedCitiesJs))
-            loadCitiesByCountry(initialCountry, true);
-        @else
-            $('#citySelect').prop('disabled', false);
-        @endif
+        if (oldCountry && $('#country').val() !== oldCountry) {
+            $('#country').val(oldCountry).trigger('change.select2');
+        }
+        loadCitiesByCountry(initialCountry, !!currentCity);
     }
 });
 </script>
@@ -1530,6 +1619,7 @@ $(document).ready(function() {
         img.style.objectFit = 'cover';
 
         const deleteButton = document.createElement('button');
+        deleteButton.type = 'button';
         deleteButton.textContent = '×';
         deleteButton.style.position = 'absolute';
         deleteButton.style.top = '2px';
@@ -1543,9 +1633,13 @@ $(document).ready(function() {
         deleteButton.style.height = '20px';
         deleteButton.style.fontSize = '12px';
         deleteButton.style.lineHeight = '16px';
-        deleteButton.addEventListener('click', () => {
+        deleteButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
             licensePreviewContainer.removeChild(imageWrapper);
             licenseFileCounter--;
+            // Clear the hidden file input so submit validation stays accurate
+            licenseFileInput.value = '';
             updateMoreBadge();
         });
 
@@ -1663,6 +1757,7 @@ $(document).ready(function() {
         img.style.objectFit = 'cover';
 
         const deleteButton = document.createElement('button');
+        deleteButton.type = 'button';
         deleteButton.textContent = '×';
         deleteButton.style.position = 'absolute';
         deleteButton.style.top = '2px';
@@ -1676,9 +1771,12 @@ $(document).ready(function() {
         deleteButton.style.height = '20px';
         deleteButton.style.fontSize = '12px';
         deleteButton.style.lineHeight = '16px';
-        deleteButton.addEventListener('click', () => {
+        deleteButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
             masterPreviewContainer.removeChild(imageWrapper);
             masterFileCounter--;
+            masterFileInput.value = '';
             updateMoreBadge();
         });
 
@@ -1850,9 +1948,13 @@ const driverAgeRules = {
 
 
     function validateDriverAge(input) {
-        const value = parseInt(input.value);
-        const country = document.getElementById('country').value;
-        const messageElement = document.getElementById(`${input.id}-validation-message`);
+        if (!input) {
+            return;
+        }
+
+        const value = parseInt(input.value, 10);
+        const countryEl = document.getElementById('country');
+        const country = countryEl ? countryEl.value : '';
 
         if (isNaN(value)) {
             showValidationMessage(input, false, 'Please enter a valid age');
@@ -2170,4 +2272,85 @@ document.head.insertAdjacentHTML('beforeend', `
 </script>
 
 @include('components.currency-price-note-dmc-script')
+
+{{-- Clear Laravel / server field errors as soon as the user edits that field --}}
+<script>
+(function () {
+    const form = document.getElementById('guideForm');
+    if (!form) return;
+
+    function markServerFieldErrors() {
+        form.querySelectorAll('div.text-danger.mt-1, div.text-danger.small.mt-1').forEach(function (el) {
+            if (el.closest('label')) return;
+            if (el.classList.contains('validation-message')) return;
+            el.classList.add('js-server-field-error');
+        });
+    }
+
+    function refreshSummaryAlert() {
+        const summary = document.getElementById('guide-validation-summary');
+        if (!summary) return;
+
+        const remainingFieldErrors = form.querySelectorAll('.js-server-field-error');
+        const list = summary.querySelector('ul');
+
+        if (remainingFieldErrors.length === 0) {
+            summary.remove();
+            return;
+        }
+
+        if (!list) return;
+
+        // Drop summary items whose matching field error was cleared.
+        const remainingTexts = Array.from(remainingFieldErrors).map(function (el) {
+            return (el.textContent || '').trim().toLowerCase();
+        });
+
+        list.querySelectorAll('li').forEach(function (li) {
+            const text = (li.getAttribute('data-server-error-text') || li.textContent || '').trim().toLowerCase();
+            if (text && !remainingTexts.includes(text)) {
+                li.remove();
+            }
+        });
+
+        if (!list.querySelector('li')) {
+            summary.remove();
+        }
+    }
+
+    function clearServerErrorForField(field) {
+        if (!field || !field.name) return;
+
+        const wrap = field.closest('.mb-3, .mb-4, [class*="col-"]') || field.parentElement;
+        if (!wrap) return;
+
+        wrap.querySelectorAll('.js-server-field-error').forEach(function (el) {
+            el.remove();
+        });
+
+        // Also clear any unmarked Laravel error divs next to this control.
+        wrap.querySelectorAll(':scope > div.text-danger.mt-1, :scope > div.text-danger.small').forEach(function (el) {
+            if (el.closest('label')) return;
+            el.remove();
+        });
+
+        field.classList.remove('is-invalid');
+        refreshSummaryAlert();
+    }
+
+    markServerFieldErrors();
+
+    form.addEventListener('input', function (e) {
+        const t = e.target;
+        if (!t || !['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName)) return;
+        clearServerErrorForField(t);
+    });
+
+    form.addEventListener('change', function (e) {
+        const t = e.target;
+        if (!t || !['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName)) return;
+        clearServerErrorForField(t);
+    });
+})();
+</script>
 @endsection
