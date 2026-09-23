@@ -1310,7 +1310,7 @@
         var html = '';
 
         if (Array.isArray(data.breakdown) && data.breakdown.length) {
-            html += '<div class="stp-lite-breakup-section-label">Per-night price cut</div>';
+            html += '<div class="stp-lite-breakup-section-label">Room Rate/Night</div>';
             html += '<div class="stp-lite-night-list">';
             data.breakdown.forEach(function (n, idx) {
                 html += formatNightCutHtml(n, cur, rooms, mealPlanLabel, idx + 1);
