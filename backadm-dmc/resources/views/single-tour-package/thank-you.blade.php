@@ -710,7 +710,7 @@
                                         aria-label="Acco + Service Quotation"
                                     >
                                         <i class="ri-file-text-line"></i>
-                                        <span>Detailed Quotation</span>
+                                        <span>Acco + Service Quotation</span>
                                     </a>
                                     <a
                                         href="{{ route('tour.email.preview', ['encryptedTourId' => $encryptedTourId]) }}"

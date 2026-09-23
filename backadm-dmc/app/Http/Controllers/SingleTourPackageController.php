@@ -4165,9 +4165,35 @@ class SingleTourPackageController extends Controller
                 ];
             });
 
+            $multiRestaurants = collect();
+            if (Schema::hasTable('multi_restaurants')) {
+                $mrQuery = MultiRestaurant::query()->where('status', 1);
+                if (Schema::hasColumn('multi_restaurants', 'dmc_id')) {
+                    $mrQuery->where('dmc_id', (int) $dmcId);
+                }
+                $multiRestaurants = $mrQuery->orderBy('created_at', 'desc')->get()->map(function ($mr) {
+                    return [
+                        'id' => $mr->id,
+                        'package_unique_id' => $mr->package_unique_id ?? null,
+                        'package_name' => $mr->package_name,
+                        'adult_price' => $mr->adult_price,
+                        'child_price' => $mr->child_price,
+                        'breakfast' => (int) ($mr->breakfast ?? 0),
+                        'lunch' => (int) ($mr->lunch ?? 0),
+                        'dinner' => (int) ($mr->dinner ?? 0),
+                        'breakfast_time' => $mr->breakfast_time,
+                        'lunch_time' => $mr->lunch_time,
+                        'dinner_time' => $mr->dinner_time,
+                        'vehicle' => Schema::hasColumn('multi_restaurants', 'vehicle') ? (bool) $mr->vehicle : false,
+                        'guide' => Schema::hasColumn('multi_restaurants', 'guide') ? (bool) $mr->guide : false,
+                    ];
+                })->values();
+            }
+
             return response()->json([
                 'success' => true,
                 'restaurants' => $restaurantsData,
+                'multi_restaurants' => $multiRestaurants,
                 'city' => $city,
                 'dmc_id' => $dmcId,
                 'count' => $restaurants->count()

@@ -45,6 +45,8 @@
             '    <div class="col-md-2"><label class="stp-lite-label">Service</label>' +
             '      <select class="form-select form-select-sm departure-service-type">' +
             '        <option value="private">Private</option><option value="shared">Shared</option></select></div>' +
+            '    <div class="col-md-2"><label class="stp-lite-label">No. of Vehicles</label>' +
+            '      <input type="number" min="1" step="1" class="form-control form-control-sm stp-lite-int departure-vehicle-count" value="1"></div>' +
             '    <div class="col-md-2"><label class="stp-lite-label">Adults</label>' +
             '      <input type="number" min="1" class="form-control form-control-sm stp-lite-int departure-adults" data-guest-cap="adults" value="1"></div>' +
             '    <div class="col-md-2" data-guest-child-ui><label class="stp-lite-label">Children</label>' +
@@ -78,6 +80,20 @@
         if (el) el.value = JSON.stringify(rows || []);
         S().syncHiddenJson('exit_port_data', '.exit_port_data_chunk');
         S().updateServiceHeaderTotal(root, 'departure');
+    }
+
+    function readVehicleCount(root, selector) {
+        var n = parseInt((root.querySelector(selector) || {}).value, 10);
+        return n > 0 ? n : 1;
+    }
+
+    function applyPrivateVehicleCount(priced, count) {
+        if (!priced) return priced;
+        var n = count > 0 ? count : 1;
+        if (String(priced.mode || '').toLowerCase() === 'private' && n > 1) {
+            return Object.assign({}, priced, { total: Number(priced.total || 0) * n, vehicle_count: n });
+        }
+        return Object.assign({}, priced, { vehicle_count: n });
     }
 
     function invalidate(root) {
@@ -258,6 +274,8 @@
                 return;
             }
         }
+        var vehCount = readVehicleCount(root, '.departure-vehicle-count');
+        priced = applyPrivateVehicleCount(priced, vehCount);
         root.__lastPrice = priced;
         var cur = root.getAttribute('data-currency') || 'SGD';
         var panel = root.querySelector('[data-departure-price-panel]');
@@ -268,6 +286,7 @@
         if (detail) {
             var src = priced.source === 'zone' ? 'Zone price' : (priced.source === 'base' ? 'Base price' : '');
             detail.textContent = (priced.mode || svc) + (src ? ' · ' + src : '') +
+                (vehCount > 1 ? ' · ' + vehCount + ' vehicles' : '') +
                 ' · ' + (opt.dataset.vehicleName || opt.textContent);
         }
         var add = root.querySelector('.departure-add-btn');
@@ -290,12 +309,15 @@
         var total = root.__lastPrice ? Number(root.__lastPrice.total || 0) : 0;
         var supplement = T.autoSupplement(adults);
         var exittime = T.readAmPmValue(root, 'departure');
+        var vehicleCount = readVehicleCount(root, '.departure-vehicle-count');
 
         return {
             travel_type: 'exit_port',
             vehicles_id: opt ? opt.value : '',
             vehicles_name: opt ? (opt.dataset.vehicleName || opt.textContent) : '',
             type: typeEl ? typeEl.value : 'private',
+            vehicle_count: vehicleCount,
+            booked_vehicles: vehicleCount,
             exitpickup: pickupText,
             exitdropoff: dropoffText,
             exitpickup_zone_id: pOpt ? (pOpt.dataset.zoneId || pickup.value) : '',
@@ -352,7 +374,9 @@
             var editing = root.__editingIdx === idx;
             html += '<tr class="' + (editing ? 'is-editing' : '') + '" data-idx="' + idx + '">' +
                 '<td><div class="fw-semibold">' + T.esc(row.vehicles_name || 'Vehicle') + '</div>' +
-                '<small class="text-muted">' + T.esc(row.type || '') + '</small>' +
+                '<small class="text-muted">' + T.esc(row.type || '') +
+                ((row.vehicle_count || row.booked_vehicles) ? ' · ' + T.esc(row.vehicle_count || row.booked_vehicles) + ' veh' : '') +
+                '</small>' +
                 T.editingMarkHtml(editing) + '</td>' +
                 '<td><small>' + T.esc(row.exitpickup || '—') + ' → ' + T.esc(row.exitdropoff || '—') + '</small></td>' +
                 '<td><small>' + T.esc(row.adults || 0) + 'A / ' + T.esc(row.children || 0) + 'C</small></td>' +
@@ -375,11 +399,13 @@
         var adultsEl = root.querySelector('.departure-adults');
         var childrenEl = root.querySelector('.departure-children');
         var typeEl = root.querySelector('.departure-service-type');
+        var countEl = root.querySelector('.departure-vehicle-count');
         if (flight) flight.value = row.departure_flight_no || '';
         if (dateEl) dateEl.value = row.exitpickupdate || row.pickupdate || stay.end || stay.start || '';
         if (adultsEl) adultsEl.value = String(row.adults || 1);
         if (childrenEl) childrenEl.value = String(row.children || 0);
         if (typeEl) typeEl.value = row.type || 'private';
+        if (countEl) countEl.value = String(row.vehicle_count || row.booked_vehicles || 1);
         S().setAmPmValue(root, 'departure', row.exittime || '');
         var pickup = root.querySelector('.departure-pickup');
         var dropoff = root.querySelector('.departure-dropoff');
@@ -434,6 +460,7 @@
         T.clearSelectOrInput(root.querySelector('.departure-dropoff-text'), '');
         T.clearSelectOrInput(root.querySelector('.departure-flight-no'), '');
         T.clearSelectOrInput(root.querySelector('.departure-custom-price'), '');
+        T.clearSelectOrInput(root.querySelector('.departure-vehicle-count'), '1');
         T.setAmPmValue(root, 'departure', '');
         var getBtn = root.querySelector('.departure-get-price-btn');
         if (getBtn) getBtn.disabled = true;
@@ -465,7 +492,7 @@
         root.querySelector('.departure-get-price-btn').addEventListener('click', function () { getPrice(root); });
         root.querySelector('.departure-add-btn').addEventListener('click', function () { addRow(root, stay); });
 
-        root.querySelectorAll('.departure-vehicle, .departure-service-type, .departure-adults, .departure-children, .departure-pickup, .departure-dropoff, .departure-pickup-text, .departure-dropoff-text, .departure-custom-price').forEach(function (el) {
+        root.querySelectorAll('.departure-vehicle, .departure-service-type, .departure-vehicle-count, .departure-adults, .departure-children, .departure-pickup, .departure-dropoff, .departure-pickup-text, .departure-dropoff-text, .departure-custom-price').forEach(function (el) {
             el.addEventListener('change', function () { if (!root.__hydrating) invalidate(root); });
             el.addEventListener('input', function () { if (!root.__hydrating) invalidate(root); });
         });
@@ -518,6 +545,7 @@
                     '<div class="small text-muted">' + T.esc(r.type || '') + ' · ' +
                     T.esc(r.exitpickup || '') + ' → ' + T.esc(r.exitdropoff || '') +
                     '<br>' + T.esc(r.adults || 0) + 'A / ' + T.esc(r.children || 0) + 'C' +
+                    ((r.vehicle_count || r.booked_vehicles) ? ' · ' + T.esc(r.vehicle_count || r.booked_vehicles) + ' vehicles' : '') +
                     (r.exittime ? '<br>Time: ' + T.esc(r.exittime) : '') + '</div>'
                 );
             }
