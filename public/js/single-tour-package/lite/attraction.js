@@ -217,17 +217,13 @@
         ticket.value = opt.value;
         ticket.disabled = false;
 
-        // Auto-enable transfer / guide when the bundle includes them
-        var xferReq = root.querySelector('.' + PREFIX + '-transfer-required');
-        var guideReq = root.querySelector('.' + PREFIX + '-guide-required');
-        if (xferReq && aOpt.dataset.vehicleIncluded === '1') {
-            xferReq.value = '1';
-            xferReq.dispatchEvent(new Event('change', { bubbles: true }));
-        }
-        if (guideReq && aOpt.dataset.guideIncluded === '1') {
-            guideReq.value = '1';
-            guideReq.dispatchEvent(new Event('change', { bubbles: true }));
-        }
+        T.applyMasterGuideVehicle(
+            root,
+            PREFIX,
+            aOpt.dataset.vehicleIncluded === '1',
+            aOpt.dataset.guideIncluded === '1',
+            { preserve: !!root.__hydrating }
+        );
     }
 
     function loadTickets(root, stay, attractionId) {
@@ -237,6 +233,9 @@
         if (!attractionId) {
             ticket.innerHTML = '<option value="">Select attraction</option>';
             ticket.disabled = true;
+            if (typeof T.unlockMasterGuideVehicle === 'function' && !root.__hydrating) {
+                T.unlockMasterGuideVehicle(root, PREFIX);
+            }
             return Promise.resolve();
         }
         // Bundle: no ticket API — use package prices as a single ticket option
@@ -245,6 +244,9 @@
         if (aOpt && aOpt.dataset.isBundle === '1') {
             applyBundleSelection(root, stay, aOpt);
             return Promise.resolve();
+        }
+        if (typeof T.unlockMasterGuideVehicle === 'function' && !root.__hydrating) {
+            T.unlockMasterGuideVehicle(root, PREFIX);
         }
         var q = T.inv(stay.cityName, stay.country);
         ticket.disabled = true;
@@ -371,6 +373,8 @@
             package_attraction_id: (aOpt && aOpt.dataset.isBundle === '1')
                 ? (aOpt.dataset.packageAttractionId || String(attr.value || '').replace(/^bundle_/, ''))
                 : null,
+            vehicle_included: !!(aOpt && aOpt.dataset.vehicleIncluded === '1'),
+            guide_included: !!(aOpt && aOpt.dataset.guideIncluded === '1'),
             city: stay.cityName || '',
             country: stay.country || '',
             currency: stay.currency || '',
@@ -467,7 +471,14 @@
         var extras = Promise.all([
             T.hydrateTransferExtras(root, PREFIX, row.transfer_options, stay),
             T.hydrateGuideExtras(root, PREFIX, row.guide_options, stay)
-        ]);
+        ]).then(function () {
+            var opt = attr && attr.options[attr.selectedIndex];
+            var vehicleYes = row.vehicle_included || (opt && opt.dataset && opt.dataset.vehicleIncluded === '1');
+            var guideYes = row.guide_included || (opt && opt.dataset && opt.dataset.guideIncluded === '1');
+            if ((row.is_bundle || row.package_attraction_id) && typeof T.applyMasterGuideVehicle === 'function') {
+                T.applyMasterGuideVehicle(root, PREFIX, vehicleYes, guideYes, { preserve: true });
+            }
+        });
 
         if (attr && row.AttractionId) {
             var attrVal = String(row.AttractionId);

@@ -3,116 +3,153 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tour Quotation</title>
+    <title>Packaged Quotation</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
-            font-size: 12px;
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 11px;
             color: #000;
             margin: 0;
             padding: 0;
             background: #fff;
         }
+        @page {
+            margin: 8mm 8mm 8mm 8mm;
+        }
         @include('invoices.pdf.partials.header-css')
 
-        .page {
-            padding: 10px;
+        /* Readable header / logo — not oversized */
+        .header {
+            margin-bottom: 6px;
         }
-
-        .top-lines {
+        .header-table td {
+            padding: 3px !important;
+            vertical-align: middle !important;
+        }
+        .header-left {
+            width: 16% !important;
+            padding: 0 6px 0 0 !important;
+        }
+        .header-center {
+            width: 66% !important;
+        }
+        .header-right {
+            width: 18% !important;
+        }
+        .dmc-logo-wrapper {
+            height: 85px !important;
+            min-height: 85px !important;
             width: 100%;
-            margin-bottom: 8px;
+        }
+        .dmc-logo-wrapper img {
+            max-width: 100px !important;
+            max-height: 85px !important;
+            width: auto !important;
+            height: auto !important;
+            margin-top: 0 !important;
+            object-fit: contain !important;
+        }
+        .header-center .dmc-name {
+            font-size: 16px !important;
+            margin: 0 0 3px 0 !important;
+        }
+        .header-center .dmc-address,
+        .header-center .dmc-contact,
+        .header-center .dmc-meta {
+            font-size: 9px !important;
+            line-height: 1.35 !important;
+            margin-top: 2px !important;
+        }
+        .header-center .dmc-meta div {
+            margin-top: 1px !important;
+        }
+        .header-right .doc-number {
+            font-size: 10px !important;
+        }
+        .header-doc-title {
+            font-size: 15px !important;
+            margin: 2px 0 0 0 !important;
+            letter-spacing: 0.04em;
         }
 
-        .top-line {
-            margin: 2px 0;
-        }
+        .page { padding: 0; }
 
-        .bold {
-            font-weight: bold;
-        }
-
-        .quotation-main-table {
+        .guest-meta {
             width: 100%;
             border-collapse: collapse;
-            border: 2px solid #000;
-            table-layout: fixed;
+            margin: 2px 0 8px 0;
         }
-
-        .quotation-main-table > tbody > tr > td {
-            border: 1px solid #000;
+        .guest-meta td {
             vertical-align: top;
-            padding: 6px 6px;
+            padding: 0;
+            border: none;
         }
-
-        .quotation-col {
-            width: 50%;
+        .top-lines { width: 100%; margin: 0; }
+        .top-line {
+            margin: 0 0 2px 0;
+            line-height: 1.4;
+            font-size: 11px;
         }
-
-        /* Titles sit in their own row; remove extra gap under grey bar */
-        .quotation-main-table .panel-title {
-            margin-bottom: 0;
-        }
-
-        /* No horizontal rule between inclusions and pricing (same visual column as body above) */
-        .quotation-main-table > tbody > tr.quotation-band-body > td {
-            border-bottom: none;
-        }
-
-        /* Pricing row: both cells share one <tr> so blocks are always on the same horizontal line */
-        .quotation-main-table > tbody > tr.quotation-band-pricing > td {
-            border-top: none;
-            padding-top: 10px;
-            padding-bottom: 5px;
-            vertical-align: top;
-        }
+        .bold { font-weight: bold; }
 
         .panel-title {
-            border: 1px solid #000;
-            padding: 6px 6px;
+            border: none;
+            border-bottom: 1px solid #000;
+            padding: 5px 7px;
             font-weight: bold;
             text-align: center;
-            background: #f3f3f3;
-            margin-bottom: 6px;
+            background: #f0f0f0;
+            margin: 0;
             text-transform: uppercase;
-            font-size: 12px;
+            font-size: 11px;
         }
-
         .section-label {
             font-weight: bold;
-            margin-bottom: 6px;
+            margin-bottom: 4px;
+            font-size: 11px;
         }
 
         .inclusion {
-            margin: 2px 0;
-            line-height: 1.25;
+            margin: 0 0 5px 0;
+            line-height: 1.4;
+            font-size: 11px;
         }
-
         .inclusion-list {
             margin: 0;
-            padding-left: 18px; /* space for bullet */
+            padding-left: 16px;
         }
-
         .inclusion-list li {
-            margin: 2px 0;
-            line-height: 1.25;
+            margin: 0 0 5px 0;
+            line-height: 1.4;
+            page-break-inside: auto;
+        }
+        .svc-inline { font-size: 10px; }
+        .svc-sub {
+            margin: 2px 0 2px 10px;
+            font-size: 9.5px;
+            line-height: 1.35;
         }
 
         .country-box {
-            border: 2px solid #000;
-            margin: 0 0 10px 0;
-            page-break-inside: avoid;
+            border: 1px solid #000;
+            margin: 0 0 8px 0;
+            page-break-inside: auto;
         }
-
         .country-box-title {
             border-bottom: 1px solid #000;
-            padding: 7px 8px;
+            padding: 5px 7px;
             font-weight: bold;
             text-align: center;
-            background: #eef2ff;
+            background: #f0f0f0;
             text-transform: uppercase;
-            font-size: 12px;
-            letter-spacing: 0.04em;
+            font-size: 11px;
+        }
+        .country-box-body { padding: 5px 7px; }
+        .country-date-row {
+            padding: 4px 7px;
+            border-bottom: 1px solid #ccc;
+            font-size: 10.5px;
+            line-height: 1.35;
         }
 
         .country-box-inner {
@@ -120,65 +157,107 @@
             border-collapse: collapse;
             table-layout: fixed;
         }
-
         .country-box-inner td {
             width: 50%;
             vertical-align: top;
-            padding: 8px;
+            padding: 5px 7px;
             border: none;
         }
-
         .country-box-inner td + td {
             border-left: 1px solid #000;
         }
-
         .country-col-label {
             font-weight: bold;
-            margin: 0 0 6px 0;
+            margin: 0 0 4px 0;
+            padding-bottom: 2px;
+            border-bottom: 1px solid #ccc;
             text-transform: uppercase;
-            font-size: 11px;
+            font-size: 10.5px;
         }
 
         .overall-price-box {
-            border: 2px solid #000;
-            margin: 12px 0 0 0;
+            border: 1px solid #000;
+            margin: 8px 0 0 0;
+            page-break-inside: auto;
         }
-
-        .money-line {
-            margin: 6px 0 4px 0;
-        }
-
-        .table-like {
-            border-collapse: collapse;
+        .price-split-table {
             width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
         }
-
-        .table-like td {
-            padding: 2px 0;
+        .price-split-table > tbody > tr > td {
+            width: 50%;
             vertical-align: top;
+            padding: 5px 7px;
+            border: none;
         }
+        .price-split-table > tbody > tr > td + td {
+            border-left: 1px solid #000;
+        }
+        .price-grid {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+            border: 1px solid #000;
+        }
+        .price-grid th,
+        .price-grid td {
+            border: 1px solid #000;
+            padding: 5px 4px;
+            text-align: center;
+            vertical-align: middle;
+            font-size: 10.5px;
+            line-height: 1.35;
+        }
+        .price-grid th {
+            background: #f0f0f0;
+            font-weight: bold;
+        }
+        .price-grid td { font-weight: bold; }
 
-        .subtle {
-            color: #111;
+        .totals-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
         }
+        .totals-table th,
+        .totals-table td {
+            border: 1px solid #000;
+            padding: 6px 7px;
+            vertical-align: middle;
+            font-size: 11px;
+            line-height: 1.4;
+        }
+        .totals-table th {
+            background: #f0f0f0;
+            font-weight: bold;
+            text-align: center;
+        }
+        .totals-table .city-cell {
+            font-weight: bold;
+            text-align: center;
+            vertical-align: middle;
+            background: #f7f7f7;
+            width: 20%;
+        }
+        .totals-table .svc-cell { text-align: left; width: 42%; }
+        .totals-table .pax-cell { text-align: center; width: 12%; white-space: nowrap; }
+        .totals-table .amt-cell { text-align: right; font-weight: bold; width: 26%; white-space: nowrap; }
 
         .api-footnote {
-            margin-top: 10px;
-            font-size: 9.5px;
-            color: #5c3317;
+            margin-top: 8px;
+            font-size: 9px;
+            color: #444;
+            line-height: 1.35;
         }
-
         .quotation-information {
             border: 1px solid #000;
-            padding: 6px 6px;
-            margin-top: 10px;
-            line-height: 1.25;
+            padding: 5px 7px;
+            margin-top: 8px;
+            line-height: 1.4;
+            font-size: 11px;
         }
-
-        .quotation-information p {
-            margin: 0 0 6px 0;
-        }
-
+        .quotation-information p { margin: 0 0 4px 0; }
     </style>
 </head>
 <body>
@@ -560,6 +639,9 @@
         $bookedArrivals = []; // [['text' => ..., 'country' => ...], ...]
         $bookedDepartures = [];
         $bookedLocalTransfers = [];
+        $bookedGuides = [];
+        $bookedPointToPoint = [];
+        $bookedHourly = [];
 
         $cardCountry = function ($card) {
             $country = trim((string)($card['country'] ?? ''));
@@ -761,8 +843,10 @@
                             if (!empty($transferType)) $text .= ' - ' . $transferType;
                             $bookedArrivals[] = [
                                 'text' => $text,
+                                'card' => $card,
                                 'country' => $cardCountry($card),
                                 'currency' => $cardCurrency($card),
+                                'city' => trim((string) ($card['city'] ?? explode(',', (string) ($card['subtitle'] ?? $card['location'] ?? ''))[0] ?? '')),
                             ];
                         }
                     }
@@ -797,8 +881,10 @@
                             if (!empty($transferType)) $text .= ' - ' . $transferType;
                             $bookedDepartures[] = [
                                 'text' => $text,
+                                'card' => $card,
                                 'country' => $cardCountry($card),
                                 'currency' => $cardCurrency($card),
+                                'city' => trim((string) ($card['city'] ?? explode(',', (string) ($card['subtitle'] ?? $card['location'] ?? ''))[0] ?? '')),
                             ];
                         }
                     }
@@ -824,10 +910,130 @@
                             if (!empty($vehicleTypeSeater)) $text .= ' - ' . $vehicleTypeSeater;
                             $bookedLocalTransfers[] = [
                                 'text' => $text,
+                                'card' => $card,
                                 'country' => $cardCountry($card),
                                 'currency' => $cardCurrency($card),
+                                'city' => trim((string) ($card['city'] ?? explode(',', (string) ($card['subtitle'] ?? $card['location'] ?? ''))[0] ?? '')),
                             ];
                         }
+                    }
+                }
+
+                // Guide
+                if ($normalizedType === 'guide') {
+                    foreach ($cards as $card) {
+                        if (!is_array($card)) continue;
+                        $gd = is_array($card['guide'] ?? null) ? $card['guide'] : [];
+                        $guideName = trim((string) ($gd['guide_name'] ?? $card['title'] ?? 'Guide'));
+                        if ($guideName === '') {
+                            $guideName = 'Guide';
+                        }
+                        $lang = trim((string) ($gd['language_proficiency'] ?? ''));
+                        $hours = $gd['hours'] ?? null;
+                        $entryTime = '';
+                        foreach ($card['chips'] ?? [] as $chip) {
+                            if (!is_array($chip)) continue;
+                            if (strtolower((string) ($chip['label'] ?? '')) === 'time') {
+                                $entryTime = (string) ($chip['value'] ?? '');
+                            }
+                        }
+                        if ($entryTime === '' && !empty($gd['entry_time'])) {
+                            $entryTime = (string) $gd['entry_time'];
+                        }
+                        $bits = array_filter([
+                            $guideName,
+                            ($lang !== '' && strtoupper($lang) !== 'N/A') ? $lang : null,
+                            ($hours !== null && $hours !== '') ? ($hours . ' hr' . ((float) $hours != 1 ? 's' : '')) : null,
+                            $entryTime !== '' ? $entryTime : null,
+                        ]);
+                        $bookedGuides[] = [
+                            'text' => implode(' - ', $bits),
+                            'card' => $card,
+                            'country' => $cardCountry($card),
+                            'currency' => $cardCurrency($card),
+                            'city' => trim((string) ($card['city'] ?? explode(',', (string) ($card['subtitle'] ?? $card['location'] ?? ''))[0] ?? '')),
+                        ];
+                    }
+                }
+
+                // Point to point vehicle
+                if ($normalizedType === 'travel_point' || $normalizedType === 'point_to_point') {
+                    foreach ($cards as $card) {
+                        if (!is_array($card)) continue;
+                        $vehicleData = is_array($card['vehicle'] ?? null) ? $card['vehicle'] : [];
+                        $vehicleName = trim((string) ($vehicleData['name'] ?? $card['title'] ?? ''));
+                        $vehicleTypeSeater = trim((string) ($vehicleData['vehicle_type_seater'] ?? ''));
+                        if ($vehicleTypeSeater === 'N/A') {
+                            $vehicleTypeSeater = '';
+                        }
+                        $way = trim((string) ($vehicleData['way'] ?? ''));
+                        $pickup = trim((string) ($vehicleData['pickup'] ?? ''));
+                        $dropoff = trim((string) ($vehicleData['dropoff'] ?? ''));
+                        foreach ($card['chips'] ?? [] as $chip) {
+                            if (!is_array($chip)) continue;
+                            $label = strtolower((string) ($chip['label'] ?? ''));
+                            $value = trim((string) ($chip['value'] ?? ''));
+                            if ($label === 'pickup' && $value !== '') $pickup = $value;
+                            if ($label === 'dropoff' && $value !== '') $dropoff = $value;
+                        }
+                        $route = '';
+                        if ($pickup !== '' && $dropoff !== '') {
+                            $route = $pickup . ' → ' . $dropoff;
+                        } elseif ($pickup !== '') {
+                            $route = $pickup;
+                        } elseif ($dropoff !== '') {
+                            $route = $dropoff;
+                        }
+                        $bits = array_filter([
+                            $vehicleName !== '' && strtoupper($vehicleName) !== 'N/A' ? $vehicleName : null,
+                            $vehicleTypeSeater !== '' ? $vehicleTypeSeater : null,
+                            $way !== '' ? $way : null,
+                            $route !== '' ? $route : null,
+                        ]);
+                        $text = !empty($bits) ? implode(' - ', $bits) : 'Point to Point';
+                        $bookedPointToPoint[] = [
+                            'text' => $text,
+                            'card' => $card,
+                            'country' => $cardCountry($card),
+                            'currency' => $cardCurrency($card),
+                            'city' => trim((string) ($card['city'] ?? explode(',', (string) ($card['subtitle'] ?? $card['location'] ?? ''))[0] ?? '')),
+                        ];
+                    }
+                }
+
+                // Hourly vehicle
+                if ($normalizedType === 'travel_hourly' || $normalizedType === 'hourly') {
+                    foreach ($cards as $card) {
+                        if (!is_array($card)) continue;
+                        $vehicleData = is_array($card['vehicle'] ?? null) ? $card['vehicle'] : [];
+                        $vehicleName = trim((string) ($vehicleData['name'] ?? $card['title'] ?? ''));
+                        $vehicleTypeSeater = trim((string) ($vehicleData['vehicle_type_seater'] ?? ''));
+                        if ($vehicleTypeSeater === 'N/A') {
+                            $vehicleTypeSeater = '';
+                        }
+                        $mode = trim((string) ($vehicleData['mode'] ?? $vehicleData['travel_type'] ?? ''));
+                        $hours = $vehicleData['hours'] ?? null;
+                        foreach ($card['chips'] ?? [] as $chip) {
+                            if (!is_array($chip)) continue;
+                            $label = strtolower((string) ($chip['label'] ?? ''));
+                            if (in_array($label, ['hours', 'hour', 'package'], true) && ($chip['value'] ?? '') !== '') {
+                                $hours = $chip['value'];
+                            }
+                        }
+                        $bits = array_filter([
+                            $vehicleName !== '' && strtoupper($vehicleName) !== 'N/A' ? $vehicleName : null,
+                            $vehicleTypeSeater !== '' ? $vehicleTypeSeater : null,
+                            $mode !== '' ? $mode : null,
+                            ($hours !== null && $hours !== '') ? ($hours . ' hr' . ((float) $hours != 1 ? 's' : '')) : null,
+                        ]);
+                        $text = !empty($bits) ? implode(' - ', $bits) : 'Hourly Transfer';
+                        $bookedHourly[] = [
+                            'text' => $text,
+                            'card' => $card,
+                            'country' => $cardCountry($card),
+                            'currency' => $cardCurrency($card),
+                            'city' => trim((string) ($card['city'] ?? explode(',', (string) ($card['subtitle'] ?? $card['location'] ?? ''))[0] ?? '')),
+                        ];
                     }
                 }
             }
@@ -948,6 +1154,7 @@
                 'children' => max(0, (int) ($hpOcc['children'] ?? 0)),
                 'has_cwb' => (float) ($hpOcc['child_with_bed_total'] ?? 0) > 0,
                 'has_cnb' => (float) ($hpOcc['child_without_bed_total'] ?? 0) > 0,
+                'date_range' => trim((string) ($hpOcc['date_range'] ?? $hpOcc['booking_range'] ?? '')),
             ];
         }
 
@@ -1090,6 +1297,7 @@
                     'has_cnb' => $hasCnb,
                     'has_extra_bed' => $hasExtraBed,
                     'occupancy_bits' => $occupancyBits,
+                    'date_range' => trim((string) ($occMeta['date_range'] ?? ($h['date_range'] ?? ($h['check_in'] ?? '') . (($h['check_out'] ?? '') !== '' ? ' to ' . $h['check_out'] : '')))),
                 ];
             }
         }
@@ -1136,14 +1344,185 @@
             $pushOther($cardCountry($card), $cardCurrency($card), 'restaurants', $card, $cardCity($card));
         }
         foreach ($bookedArrivals as $row) {
-            $pushOther($row['country'] ?? 'Other', $row['currency'] ?? $baseCurrency, 'arrivals', $row['text'], $row['city'] ?? '');
+            $pushOther($row['country'] ?? 'Other', $row['currency'] ?? $baseCurrency, 'arrivals', $row, $row['city'] ?? '');
         }
         foreach ($bookedDepartures as $row) {
-            $pushOther($row['country'] ?? 'Other', $row['currency'] ?? $baseCurrency, 'departures', $row['text'], $row['city'] ?? '');
+            $pushOther($row['country'] ?? 'Other', $row['currency'] ?? $baseCurrency, 'departures', $row, $row['city'] ?? '');
         }
         foreach ($bookedLocalTransfers as $row) {
-            $pushOther($row['country'] ?? 'Other', $row['currency'] ?? $baseCurrency, 'local_transfers', $row['text'], $row['city'] ?? '');
+            $pushOther($row['country'] ?? 'Other', $row['currency'] ?? $baseCurrency, 'local_transfers', $row, $row['city'] ?? '');
         }
+        foreach ($bookedGuides as $row) {
+            $pushOther($row['country'] ?? 'Other', $row['currency'] ?? $baseCurrency, 'guides', $row, $row['city'] ?? '');
+        }
+        foreach ($bookedPointToPoint as $row) {
+            $pushOther($row['country'] ?? 'Other', $row['currency'] ?? $baseCurrency, 'point_to_point', $row, $row['city'] ?? '');
+        }
+        foreach ($bookedHourly as $row) {
+            $pushOther($row['country'] ?? 'Other', $row['currency'] ?? $baseCurrency, 'hourly', $row, $row['city'] ?? '');
+        }
+
+        // Sort key for Other Services: date then time (uses card date_sort / time_sort when present).
+        $serviceDateTimeSortKey = function ($payload) {
+            $card = null;
+            if (is_array($payload)) {
+                if (!empty($payload['card']) && is_array($payload['card'])) {
+                    $card = $payload['card'];
+                } elseif (
+                    isset($payload['chips'])
+                    || isset($payload['date_sort'])
+                    || isset($payload['attraction'])
+                    || isset($payload['restaurant'])
+                    || isset($payload['vehicle'])
+                ) {
+                    $card = $payload;
+                }
+            }
+
+            $dateSort = '9999-12-31';
+            $timeSort = '00:00'; // no time → start of that date
+
+            if (is_array($card)) {
+                if (!empty($card['date_sort'])) {
+                    $dateSort = (string) $card['date_sort'];
+                } else {
+                    foreach (($card['chips'] ?? []) as $chip) {
+                        if (!is_array($chip)) {
+                            continue;
+                        }
+                        if (strcasecmp((string) ($chip['label'] ?? ''), 'Date') !== 0) {
+                            continue;
+                        }
+                        $raw = trim((string) ($chip['value'] ?? ''));
+                        if ($raw === '') {
+                            continue;
+                        }
+                        try {
+                            $dateSort = \Carbon\Carbon::parse($raw)->format('Y-m-d');
+                        } catch (\Throwable $e) {
+                            $dateSort = $raw;
+                        }
+                        break;
+                    }
+                }
+
+                if (!empty($card['time_sort'])) {
+                    $timeSort = (string) $card['time_sort'];
+                } else {
+                    $timeRaw = trim((string) (
+                        $card['time']
+                        ?? ($card['attraction']['visit_time'] ?? null)
+                        ?? ($card['restaurant']['visit_time'] ?? null)
+                        ?? ($card['entry_port_flight']['destination_arrival_time'] ?? null)
+                        ?? ($card['exit_port_flight']['origin_departure_time'] ?? null)
+                        ?? ''
+                    ));
+                    if ($timeRaw === '') {
+                        foreach (($card['chips'] ?? []) as $chip) {
+                            if (!is_array($chip)) {
+                                continue;
+                            }
+                            if (strcasecmp((string) ($chip['label'] ?? ''), 'Time') === 0) {
+                                $timeRaw = trim((string) ($chip['value'] ?? ''));
+                                break;
+                            }
+                        }
+                    }
+                    if ($timeRaw === '' && !empty($payload['text']) && preg_match('/\(([^)]*\d{1,2}:\d{2}[^)]*)\)/', (string) $payload['text'], $tm)) {
+                        $timeRaw = trim($tm[1]);
+                    }
+                    if ($timeRaw !== '') {
+                        try {
+                            $timeSort = \Carbon\Carbon::parse($timeRaw)->format('H:i');
+                        } catch (\Throwable $e) {
+                            if (preg_match('/(\d{1,2}):(\d{2})/', $timeRaw, $m)) {
+                                $timeSort = str_pad($m[1], 2, '0', STR_PAD_LEFT) . ':' . $m[2];
+                            } else {
+                                $timeSort = $timeRaw;
+                            }
+                        }
+                    }
+                }
+            }
+
+            return $dateSort . ' ' . $timeSort;
+        };
+
+        $buildSortedOtherServices = function (array $bucket) use ($serviceDateTimeSortKey) {
+            $items = [];
+            foreach (($bucket['attractions'] ?? []) as $card) {
+                $items[] = [
+                    'kind' => 'attraction',
+                    'label' => '',
+                    'card' => $card,
+                    'plain' => '',
+                    'sort' => $serviceDateTimeSortKey($card),
+                ];
+            }
+            foreach (($bucket['restaurants'] ?? []) as $card) {
+                $items[] = [
+                    'kind' => 'restaurant',
+                    'label' => '',
+                    'card' => $card,
+                    'plain' => '',
+                    'sort' => $serviceDateTimeSortKey($card),
+                ];
+            }
+            // Chronological order for all services (incl. mid-trip / return Arrival & Departure)
+            $vehicleKinds = [
+                'arrivals' => 'Arrival',
+                'departures' => 'Departure',
+                'local_transfers' => 'Local Transfer',
+                'point_to_point' => 'Point to Point',
+                'hourly' => 'Hourly Transfer',
+            ];
+            foreach ($vehicleKinds as $bucketKey => $label) {
+                foreach (($bucket[$bucketKey] ?? []) as $row) {
+                    $items[] = [
+                        'kind' => 'vehicle',
+                        'label' => $label,
+                        'card' => (is_array($row) && !empty($row['card'])) ? $row['card'] : null,
+                        'plain' => is_array($row) ? (string) ($row['text'] ?? '') : (string) $row,
+                        'row' => $row,
+                        'sort' => $serviceDateTimeSortKey($row),
+                    ];
+                }
+            }
+            foreach (($bucket['guides'] ?? []) as $row) {
+                $items[] = [
+                    'kind' => 'guide',
+                    'label' => 'Guide',
+                    'card' => null,
+                    'plain' => is_array($row) ? (string) ($row['text'] ?? '') : (string) $row,
+                    'row' => $row,
+                    'sort' => $serviceDateTimeSortKey($row),
+                ];
+            }
+            usort($items, function ($a, $b) {
+                $cmp = strcmp((string) ($a['sort'] ?? ''), (string) ($b['sort'] ?? ''));
+                if ($cmp !== 0) {
+                    return $cmp;
+                }
+                // Same datetime: Arrival before other, Departure after other
+                $rank = function ($item) {
+                    $label = strtolower((string) ($item['label'] ?? ''));
+                    if ($label === 'arrival') {
+                        return 0;
+                    }
+                    if ($label === 'departure') {
+                        return 2;
+                    }
+                    return 1;
+                };
+                $ra = $rank($a);
+                $rb = $rank($b);
+                if ($ra !== $rb) {
+                    return $ra <=> $rb;
+                }
+                return strcmp((string) ($a['label'] ?? $a['kind'] ?? ''), (string) ($b['label'] ?? $b['kind'] ?? ''));
+            });
+            return $items;
+        };
 
         // One box per country+currency (hotels + other services together).
         $allCountryKeys = $sortCountryKeys(
@@ -1249,9 +1628,9 @@
             'user_agency' => $user_agency ?? null,
         ])
 
-        <table style="width: 100%; border-collapse: collapse; margin-bottom: 10px;">
+        <table class="guest-meta">
             <tr>
-                <td style="width: 100%; vertical-align: top; padding-left: 2px;">
+                <td>
                     <div class="top-lines">
                         <div class="top-line"><span class="bold">Reference No:</span> {{ $formattedDisplayId }}</div>
                         <div class="top-line"><span class="bold">LEAD GUEST NAME:</span> {{ $leadGuestName }}</div>
@@ -1262,7 +1641,7 @@
                         @endif
                         <div class="top-line"><span class="bold">Travelling Date:</span> {{ $travellingDate }}</div>
                         @if(trim((string) $roomingText) !== '')
-                        <div class="top-line"><span class="bold">Rooming:</span> {{ $roomingText }}</div>
+                            <div class="top-line"><span class="bold">Rooming:</span> {{ $roomingText }}</div>
                         @endif
                     </div>
                 </td>
@@ -1286,21 +1665,25 @@
                     $countryArrivals = $bucket['arrivals'] ?? [];
                     $countryDepartures = $bucket['departures'] ?? [];
                     $countryLocalTransfers = $bucket['local_transfers'] ?? [];
-                    $hasOther = !empty($countryAttractions) || !empty($countryRestaurants) || !empty($countryArrivals) || !empty($countryDepartures) || !empty($countryLocalTransfers);
+                    $countryGuides = $bucket['guides'] ?? [];
+                    $countryPointToPoint = $bucket['point_to_point'] ?? [];
+                    $countryHourly = $bucket['hourly'] ?? [];
+                    $hasOther = !empty($countryAttractions) || !empty($countryRestaurants) || !empty($countryArrivals) || !empty($countryDepartures) || !empty($countryLocalTransfers) || !empty($countryGuides) || !empty($countryPointToPoint) || !empty($countryHourly);
+                    $sortedOtherServices = $hasOther ? $buildSortedOtherServices($bucket) : [];
                 @endphp
                 <div class="country-box">
                     <div class="country-box-title">{{ $countryBoxTitle }}</div>
                     @if(!$showCountryPricing)
-                        <div style="padding: 8px;">
-                            <div class="inclusion"><span class="bold">Date:</span> {{ $countryDateRange }}</div>
+                        <div class="country-date-row">
+                            <span class="bold">Date:</span> {{ $countryDateRange }}
                         </div>
                     @else
+                    <div class="country-date-row">
+                        <span class="bold">Date:</span> {{ $countryDateRange }}
+                    </div>
                     <table class="country-box-inner">
                         <tr>
                             <td>
-                                <div class="money-line">
-                                    <div class="inclusion"><span class="bold">Date:</span> {{ $countryDateRange }}</div>
-                                </div>
                                 <div class="country-col-label">Hotels</div>
                                 @if(!empty($countryHotels))
                                     <ul class="inclusion-list">
@@ -1314,9 +1697,12 @@
                                                 $hBits = is_array($h['occupancy_bits'] ?? null) ? $h['occupancy_bits'] : [];
                                             @endphp
                                             <li class="inclusion">
-                                                {{ strtoupper($hName) }}-{{ strtoupper($hRoom) }} — {{ $hRoomLabel }} ({{ $hPax }} Pax)
+                                                <span class="bold">{{ strtoupper($hName) }}</span> — {{ strtoupper($hRoom) }}, {{ $hRoomLabel }} ({{ $hPax }} Pax)
+                                                @if(!empty($h['date_range']))
+                                                    <span class="svc-inline"> · Stay: {{ $h['date_range'] }}</span>
+                                                @endif
                                                 @if(!empty($hBits))
-                                                    <div style="font-size: 10px; margin-top: 2px;">{{ implode(' · ', $hBits) }}</div>
+                                                    <span class="svc-inline"> · {{ implode(' · ', $hBits) }}</span>
                                                 @endif
                                             </li>
                                         @endforeach
@@ -1326,166 +1712,46 @@
                                 @endif
                             </td>
                             <td>
-                                <div class="money-line">
-                                    <div class="inclusion"><span class="bold">Date:</span> {{ $countryDateRange }}</div>
-                                </div>
                                 <div class="country-col-label">Other Services</div>
                                 @if($hasOther)
                                     <ul class="inclusion-list">
-                                        @foreach($countryAttractions as $attrCard)
+                                        @foreach($sortedOtherServices as $svcItem)
                                             @php
-                                                $attrTitle = $attrCard['title'] ?? '';
-                                                $ad = $attrCard['attraction'] ?? null;
-                                                $tr = is_array($ad) ? ($ad['transfer'] ?? null) : null;
-                                                $gd = is_array($ad) ? ($ad['guide'] ?? null) : null;
+                                                $svcKind = (string) ($svcItem['kind'] ?? '');
+                                                $svcCard = $svcItem['card'] ?? null;
+                                                $svcLabel = (string) ($svcItem['label'] ?? '');
+                                                $svcPlain = (string) ($svcItem['plain'] ?? '');
                                             @endphp
-                                            <li class="inclusion">
-                                                <span class="bold">Attraction:</span> {{ $attrTitle }}
-                                                @php
-                                                    $aAdults = is_array($ad) ? (int) ($ad['adult_count'] ?? $ad['adultCount'] ?? 0) : 0;
-                                                    $aChildren = is_array($ad) ? (int) ($ad['child_count'] ?? $ad['childCount'] ?? 0) : 0;
-                                                    $aChildPrice = is_array($ad) ? (float) ($ad['child_price'] ?? ($ad['ticket_details']['child_price'] ?? 0)) : 0;
-                                                    $aAdultPrice = is_array($ad) ? (float) ($ad['adult_price'] ?? ($ad['ticket_details']['adult_price'] ?? 0)) : 0;
-                                                @endphp
-                                                @if($aAdults > 0 || $aChildren > 0)
-                                                    <div style="font-size: 10px; margin-top: 2px;">
-                                                        {{ $aAdults }} Adult{{ $aAdults != 1 ? 's' : '' }} · {{ $aChildren }} Child{{ $aChildren != 1 ? 'ren' : '' }}
-                                                    </div>
+                                            @if($svcKind === 'attraction')
+                                                @include('single-tour-package.partials.quotation-service-detail', [
+                                                    'kind' => 'attraction',
+                                                    'card' => $svcCard,
+                                                    'showPrices' => false,
+                                                    'currencyCode' => $countryCurrency,
+                                                    'moneyFn' => $formatNativeMoney,
+                                                ])
+                                            @elseif($svcKind === 'restaurant')
+                                                @include('single-tour-package.partials.quotation-service-detail', [
+                                                    'kind' => 'restaurant',
+                                                    'card' => $svcCard,
+                                                    'showPrices' => false,
+                                                    'currencyCode' => $countryCurrency,
+                                                    'moneyFn' => $formatNativeMoney,
+                                                ])
+                                            @elseif($svcKind === 'vehicle')
+                                                @if(is_array($svcCard))
+                                                    @include('single-tour-package.partials.quotation-service-detail', [
+                                                        'kind' => 'vehicle',
+                                                        'label' => $svcLabel !== '' ? $svcLabel : 'Transfer',
+                                                        'card' => $svcCard,
+                                                        'plain' => $svcPlain,
+                                                    ])
+                                                @else
+                                                    <li class="inclusion"><span class="bold">{{ $svcLabel !== '' ? $svcLabel : 'Transfer' }}:</span> {{ $svcPlain }}</li>
                                                 @endif
-                                                @if(is_array($ad))
-                                                    @if(is_array($tr) && (!empty($tr['vehicle_name']) || !empty($tr['type']) || !empty($tr['pickup_location_name']) || (isset($tr['cost']) && is_numeric($tr['cost']) && (float)$tr['cost'] > 0)))
-                                                        @php
-                                                            $vehBits = array_filter([
-                                                                $tr['vehicle_name'] ?? null,
-                                                                isset($tr['vehicle_type'], $tr['seating_capacity']) && $tr['vehicle_type'] && $tr['seating_capacity']
-                                                                    ? $tr['vehicle_type'] . ' / ' . $tr['seating_capacity'] . ' seats'
-                                                                    : ($tr['vehicle_type'] ?? null),
-                                                            ]);
-                                                            $vehLine = implode(' — ', $vehBits);
-                                                            $transferMeta = array_filter([
-                                                                $tr['type'] ?? null,
-                                                                $tr['way'] ?? null,
-                                                            ]);
-                                                        @endphp
-                                                        <div class="inclusion" style="margin: 2px 0 0 14px; line-height: 1.25;">
-                                                            <span class="bold">Transfer / vehicle:</span>
-                                                            @if(!empty($transferMeta))
-                                                                {{ implode(' · ', $transferMeta) }}
-                                                                @if($vehLine !== '') — @endif
-                                                            @endif
-                                                            {{ $vehLine }}
-                                                            @if(!empty($tr['pickup_location_name']) || !empty($tr['pickup_time']))
-                                                                <br>
-                                                                @if(!empty($tr['pickup_location_name']))
-                                                                    <span class="bold">Pickup:</span> {{ $tr['pickup_location_name'] }}
-                                                                @endif
-                                                                @if(!empty($tr['pickup_time']))
-                                                                    @if(!empty($tr['pickup_location_name'])) — @endif
-                                                                    <span class="bold">Time:</span> {{ $tr['pickup_time'] }}
-                                                                @endif
-                                                            @endif
-                                                        </div>
-                                                    @endif
-                                                    @if(is_array($gd) && (
-                                                        !empty($gd['guide_name']) ||
-                                                        !empty($gd['language']) ||
-                                                        !empty($gd['pickup_time']) ||
-                                                        !empty($gd['package_hours']) ||
-                                                        (isset($gd['hours']) && $gd['hours'] !== '' && $gd['hours'] !== null) ||
-                                                        (isset($gd['base_price']) && is_numeric($gd['base_price']) && (float)$gd['base_price'] > 0) ||
-                                                        (isset($gd['surcharge']) && is_numeric($gd['surcharge']) && (float)$gd['surcharge'] > 0) ||
-                                                        (isset($gd['total_price']) && is_numeric($gd['total_price']) && (float)$gd['total_price'] > 0)
-                                                    ))
-                                                        @php
-                                                            $guideHours = $gd['package_hours'] ?? $gd['hours'] ?? null;
-                                                        @endphp
-                                                        <div class="inclusion" style="margin: 2px 0 0 14px; line-height: 1.25;">
-                                                            <span class="bold">Guide:</span>
-                                                            @if(!empty($gd['guide_name']))
-                                                                {{ $gd['guide_name'] }}
-                                                            @endif
-                                                            @if(!empty($gd['language']))
-                                                                @if(!empty($gd['guide_name'])) · @endif
-                                                                {{ $gd['language'] }}
-                                                            @endif
-                                                            @if(!empty($gd['pickup_time']))
-                                                                <br><span class="bold">Pickup time:</span> {{ $gd['pickup_time'] }}
-                                                            @endif
-                                                            @if($guideHours !== null && $guideHours !== '')
-                                                                <br><span class="bold">Duration:</span> {{ $guideHours }} hrs
-                                                            @endif
-                                                        </div>
-                                                    @endif
-                                                @endif
-                                            </li>
-                                        @endforeach
-
-                                        @foreach($countryRestaurants as $restCard)
-                                            @php
-                                                $restTitle = $restCard['title'] ?? '';
-                                                $rs = $restCard['restaurant'] ?? null;
-                                                $mealPlan = is_array($rs) ? ($rs['meal_plan'] ?? null) : null;
-                                                $tr = is_array($rs) ? ($rs['transfer'] ?? null) : null;
-                                            @endphp
-                                            <li class="inclusion">
-                                                <span class="bold">Restaurant:</span> {{ $restTitle }}@if(!empty($mealPlan)) — {{ $mealPlan }}@endif
-                                                @php
-                                                    $rAdults = is_array($rs) ? (int) ($rs['adult_count'] ?? $rs['adultCount'] ?? 0) : 0;
-                                                    $rChildren = is_array($rs) ? (int) ($rs['child_count'] ?? $rs['childCount'] ?? 0) : 0;
-                                                    $rAdultPrice = is_array($rs) ? (float) ($rs['adult_price'] ?? ($rs['meal_details']['adult_price'] ?? 0)) : 0;
-                                                    $rChildPrice = is_array($rs) ? (float) ($rs['child_price'] ?? ($rs['meal_details']['child_price'] ?? 0)) : 0;
-                                                @endphp
-                                                @if($rAdults > 0 || $rChildren > 0)
-                                                    <div style="font-size: 10px; margin-top: 2px;">
-                                                        {{ $rAdults }} Adult{{ $rAdults != 1 ? 's' : '' }} · {{ $rChildren }} Child{{ $rChildren != 1 ? 'ren' : '' }}
-                                                    </div>
-                                                @endif
-                                                @if(is_array($rs))
-                                                    @if(is_array($tr) && (!empty($tr['vehicle_name']) || !empty($tr['type']) || !empty($tr['pickup_location_name']) || !empty($tr['pickup_time'])))
-                                                        @php
-                                                            $vehBits = array_filter([
-                                                                $tr['vehicle_name'] ?? null,
-                                                                isset($tr['vehicle_type'], $tr['seating_capacity']) && $tr['vehicle_type'] && $tr['seating_capacity']
-                                                                    ? $tr['vehicle_type'] . ' / ' . $tr['seating_capacity'] . ' seats'
-                                                                    : ($tr['vehicle_type'] ?? null),
-                                                            ]);
-                                                            $vehLine = implode(' — ', $vehBits);
-                                                            $transferMeta = array_filter([
-                                                                $tr['type'] ?? null,
-                                                                $tr['way'] ?? null,
-                                                            ]);
-                                                        @endphp
-                                                        <div class="inclusion" style="margin: 2px 0 0 14px; line-height: 1.25;">
-                                                            <span class="bold">Transfer / vehicle:</span>
-                                                            @if(!empty($transferMeta))
-                                                                {{ implode(' · ', $transferMeta) }}
-                                                                @if($vehLine !== '') — @endif
-                                                            @endif
-                                                            {{ $vehLine }}
-                                                            @if(!empty($tr['pickup_location_name']) || !empty($tr['pickup_time']))
-                                                                <br>
-                                                                @if(!empty($tr['pickup_location_name']))
-                                                                    <span class="bold">Pickup:</span> {{ $tr['pickup_location_name'] }}
-                                                                @endif
-                                                                @if(!empty($tr['pickup_time']))
-                                                                    @if(!empty($tr['pickup_location_name'])) — @endif
-                                                                    <span class="bold">Time:</span> {{ $tr['pickup_time'] }}
-                                                                @endif
-                                                            @endif
-                                                        </div>
-                                                    @endif
-                                                @endif
-                                            </li>
-                                        @endforeach
-
-                                        @foreach($countryArrivals as $ar)
-                                            <li class="inclusion"><span class="bold">Arrival:</span> {{ $ar }}</li>
-                                        @endforeach
-                                        @foreach($countryDepartures as $dp)
-                                            <li class="inclusion"><span class="bold">Departure:</span> {{ $dp }}</li>
-                                        @endforeach
-                                        @foreach($countryLocalTransfers as $lt)
-                                            <li class="inclusion"><span class="bold">Local Transfer:</span> {{ $lt }}</li>
+                                            @elseif($svcKind === 'guide')
+                                                <li class="inclusion"><span class="bold">Guide:</span> {{ $svcPlain }}</li>
+                                            @endif
                                         @endforeach
                                     </ul>
                                 @else
@@ -1500,7 +1766,7 @@
         @else
             <div class="country-box">
                 <div class="country-box-title">Services</div>
-                <div style="padding: 8px;">No hotel or other services booked</div>
+                <div style="padding: 4px;">No hotel or other services booked</div>
             </div>
         @endif
 
@@ -1779,11 +2045,9 @@
             $overallAdultCount = max(1, (int) (($payingPax > 0) ? $payingPax : ($displayAdults ?? $adults ?? 1)));
             $overallChildCount = max(0, (int) ($children ?? 0));
 
-            // Total Package Price per city:
-            // Adult Accommodation & Other  | unit x N Adult
-            // Child Accommodation & Other  | unit x N Child
-            // Total Cost for {City}
-            // (Supplements stay detailed below; then discount + TOTAL)
+            // Total Package Price per city (per person display):
+            // City (bold) | Hotel-Accommodation
+            //             | Other Service(s)
             $cityOverallBuckets = [];
             foreach ($countrySharingRows as $share) {
                 if (!is_array($share)) {
@@ -1823,42 +2087,54 @@
                 }
 
                 $otherAdultUnitNative = (float) ($share['other_services_single'] ?? ($share['other_services_double'] ?? 0));
-                $adultUnitNative = $hotelAdultUnitNative + $otherAdultUnitNative;
-                $adultUnit = $adultUnitNative > 0
-                    ? (float) ceil($convertToOverall($adultUnitNative, $shareCurrency))
+                $hotelAdultUnit = $hotelAdultUnitNative > 0
+                    ? (float) ceil($convertToOverall($hotelAdultUnitNative, $shareCurrency))
+                    : 0.0;
+                $otherAdultUnit = $otherAdultUnitNative > 0
+                    ? (float) ceil($convertToOverall($otherAdultUnitNative, $shareCurrency))
                     : 0.0;
 
                 $childBedNative = (float) ($countryChildBedTotals[$shareChildKey] ?? 0);
                 $otherChildNative = (float) ($share['other_services_child'] ?? 0);
-                $childTotalNative = $childBedNative + $otherChildNative;
                 $cityChildCount = max(
                     (int) ($countryChildCounts[$shareChildKey] ?? 0),
                     $overallChildCount
                 );
-                if ($childTotalNative > 0 && $cityChildCount <= 0) {
+                if (($childBedNative > 0 || $otherChildNative > 0) && $cityChildCount <= 0) {
                     $cityChildCount = 1;
                 }
-                $childUnit = 0.0;
-                if ($childTotalNative > 0 && $cityChildCount > 0) {
-                    $childTotalConverted = (float) ceil($convertToOverall($childTotalNative, $shareCurrency));
-                    $childUnit = (float) ceil($childTotalConverted / $cityChildCount);
+                $hotelChildUnit = 0.0;
+                $otherChildUnit = 0.0;
+                if ($childBedNative > 0 && $cityChildCount > 0) {
+                    $hotelChildUnit = (float) ceil(
+                        (float) ceil($convertToOverall($childBedNative, $shareCurrency)) / $cityChildCount
+                    );
+                }
+                if ($otherChildNative > 0 && $cityChildCount > 0) {
+                    $otherChildUnit = (float) ceil(
+                        (float) ceil($convertToOverall($otherChildNative, $shareCurrency)) / $cityChildCount
+                    );
                 }
 
-                if ($adultUnit <= 0 && $childUnit <= 0) {
+                if ($hotelAdultUnit <= 0 && $otherAdultUnit <= 0 && $hotelChildUnit <= 0 && $otherChildUnit <= 0) {
                     continue;
                 }
 
                 if (!isset($cityOverallBuckets[$shareKey])) {
                     $cityOverallBuckets[$shareKey] = [
                         'label' => $shareCity,
-                        'adult_unit' => 0.0,
-                        'child_unit' => 0.0,
+                        'hotel_adult_unit' => 0.0,
+                        'other_adult_unit' => 0.0,
+                        'hotel_child_unit' => 0.0,
+                        'other_child_unit' => 0.0,
                         'adult_count' => $overallAdultCount,
                         'child_count' => 0,
                     ];
                 }
-                $cityOverallBuckets[$shareKey]['adult_unit'] += $adultUnit;
-                $cityOverallBuckets[$shareKey]['child_unit'] += $childUnit;
+                $cityOverallBuckets[$shareKey]['hotel_adult_unit'] += $hotelAdultUnit;
+                $cityOverallBuckets[$shareKey]['other_adult_unit'] += $otherAdultUnit;
+                $cityOverallBuckets[$shareKey]['hotel_child_unit'] += $hotelChildUnit;
+                $cityOverallBuckets[$shareKey]['other_child_unit'] += $otherChildUnit;
                 $cityOverallBuckets[$shareKey]['adult_count'] = max(
                     (int) $cityOverallBuckets[$shareKey]['adult_count'],
                     $overallAdultCount
@@ -1874,44 +2150,68 @@
                 if ($cityLabel === '') {
                     $cityLabel = 'City';
                 }
-                $adultUnit = (float) ($bucket['adult_unit'] ?? 0);
-                $childUnit = (float) ($bucket['child_unit'] ?? 0);
+                $hotelAdultUnit = (float) ($bucket['hotel_adult_unit'] ?? 0);
+                $otherAdultUnit = (float) ($bucket['other_adult_unit'] ?? 0);
+                $hotelChildUnit = (float) ($bucket['hotel_child_unit'] ?? 0);
+                $otherChildUnit = (float) ($bucket['other_child_unit'] ?? 0);
                 $adultCnt = max(1, (int) ($bucket['adult_count'] ?? $overallAdultCount));
                 $childCnt = max(0, (int) ($bucket['child_count'] ?? 0));
                 $citySubtotal = 0.0;
+                $cityServiceRows = [];
 
-                if ($adultUnit > 0) {
-                    $adultTotal = $adultUnit * $adultCnt;
-                    $citySubtotal += $adultTotal;
-                    $overallPackageRows[] = [
-                        'name' => $cityLabel . ' Adult Hotel-Accommodation & Other Service Cost',
-                        'price' => $adultUnit,
-                        'multiplier' => $adultCnt,
-                        'price_display' => $fmtOverallAmt($adultUnit) . ' x ' . $adultCnt . ' Adult' . ($adultCnt > 1 ? 's' : ''),
-                        'total' => $adultTotal,
-                        'row_kind' => 'normal',
+                if ($hotelAdultUnit > 0) {
+                    $lineTotal = $hotelAdultUnit * $adultCnt;
+                    $citySubtotal += $lineTotal;
+                    $cityServiceRows[] = [
+                        'service' => 'Hotel-Accommodation',
+                        'price' => $hotelAdultUnit,
+                        'total' => $lineTotal,
+                        'pax' => $adultCnt,
+                        'pax_type' => 'adult',
                     ];
                 }
-                if ($childUnit > 0 && $childCnt > 0) {
-                    $childTotal = $childUnit * $childCnt;
-                    $citySubtotal += $childTotal;
-                    $overallPackageRows[] = [
-                        'name' => $cityLabel . ' Child Hotel-Accommodation & Other Service Cost',
-                        'price' => $childUnit,
-                        'multiplier' => $childCnt,
-                        'price_display' => $fmtOverallAmt($childUnit) . ' x ' . $childCnt . ' Child' . ($childCnt > 1 ? 'ren' : ''),
-                        'total' => $childTotal,
-                        'row_kind' => 'normal',
+                if ($otherAdultUnit > 0) {
+                    $lineTotal = $otherAdultUnit * $adultCnt;
+                    $citySubtotal += $lineTotal;
+                    $cityServiceRows[] = [
+                        'service' => 'Other Service(s)',
+                        'price' => $otherAdultUnit,
+                        'total' => $lineTotal,
+                        'pax' => $adultCnt,
+                        'pax_type' => 'adult',
                     ];
                 }
-                if ($citySubtotal > 0) {
+                if ($hotelChildUnit > 0 && $childCnt > 0) {
+                    $lineTotal = $hotelChildUnit * $childCnt;
+                    $citySubtotal += $lineTotal;
+                    $cityServiceRows[] = [
+                        'service' => 'Hotel-Accommodation (Child)',
+                        'price' => $hotelChildUnit,
+                        'total' => $lineTotal,
+                        'pax' => $childCnt,
+                        'pax_type' => 'child',
+                    ];
+                }
+                if ($otherChildUnit > 0 && $childCnt > 0) {
+                    $lineTotal = $otherChildUnit * $childCnt;
+                    $citySubtotal += $lineTotal;
+                    $cityServiceRows[] = [
+                        'service' => 'Other Service(s) (Child)',
+                        'price' => $otherChildUnit,
+                        'total' => $lineTotal,
+                        'pax' => $childCnt,
+                        'pax_type' => 'child',
+                    ];
+                }
+
+                if (!empty($cityServiceRows)) {
                     $overallPackageRows[] = [
-                        'name' => 'Total Cost for ' . $cityLabel,
-                        'price' => $citySubtotal,
-                        'multiplier' => 1,
-                        'price_display' => '—',
-                        'total' => $citySubtotal,
-                        'row_kind' => 'city_total',
+                        'row_kind' => 'city_group',
+                        'city' => $cityLabel,
+                        'services' => $cityServiceRows,
+                        'city_total' => $citySubtotal,
+                        'adult_count' => $adultCnt,
+                        'child_count' => $childCnt,
                     ];
                 }
             }
@@ -1991,41 +2291,70 @@
                 );
             }
 
-            // TOTAL COST = city line items + supplements (exclude city_total rows — those are display subtotals only)
+            // TOTAL COST = city line items + supplements (exclude display-only city_total rows)
             $overallLinesSubtotal = 0.0;
             foreach ($overallPackageRows as $r) {
-                if (($r['row_kind'] ?? 'normal') === 'city_total') {
+                $kind = (string) ($r['row_kind'] ?? 'normal');
+                if ($kind === 'city_total') {
+                    continue;
+                }
+                if ($kind === 'city_group') {
+                    $overallLinesSubtotal += (float) ($r['city_total'] ?? 0);
                     continue;
                 }
                 $overallLinesSubtotal += (float) ($r['total'] ?? 0);
             }
 
             $overallDiscountShown = 0.0;
-            foreach ($cityMarkupIndex as $mInfo) {
-                $dRaw = (float) ($mInfo['discount_value'] ?? 0);
-                if ($dRaw <= 0) {
-                    continue;
-                }
-                if (($mInfo['discount_type'] ?? 'flat') === 'percentage') {
-                    $overallDiscountShown += $overallLinesSubtotal * $dRaw / 100.0;
-                } else {
-                    $overallDiscountShown += $convertToOverall($dRaw, $mInfo['currency'] ?? $overallTargetCurrency);
-                }
-            }
-            if ($overallDiscountShown <= 0 && (float) ($markupDiscountDisplayAmount ?? 0) > 0) {
+            // Prefer pre-converted discount from calculateTourPrices (create/edit markup form)
+            if ((float) ($markupDiscountDisplayAmount ?? 0) > 0) {
                 $overallDiscountShown = (float) $markupDiscountDisplayAmount;
+            } else {
+                foreach ($cityMarkupIndex as $mInfo) {
+                    $dRaw = (float) ($mInfo['discount_value'] ?? 0);
+                    if ($dRaw <= 0) {
+                        continue;
+                    }
+                    if (($mInfo['discount_type'] ?? 'flat') === 'percentage') {
+                        $overallDiscountShown += $overallLinesSubtotal * $dRaw / 100.0;
+                    } else {
+                        $overallDiscountShown += $convertToOverall($dRaw, $mInfo['currency'] ?? $overallTargetCurrency);
+                    }
+                }
             }
 
-            $overallMarkupShown = 0.0; // never show markup to customer
-            $totalCostAmount = max(0.0, $overallLinesSubtotal - $overallDiscountShown);
+            $overallMarkupShown = 0.0; // markup is already baked into per-pax rates — never show to customer
+
+            // Discount first, then Tax on (Subtotal − Discount)
+            $taxableBase = max(0.0, (float) $overallLinesSubtotal - (float) $overallDiscountShown);
+            $taxPersons = max(1, (int) (($displayAdults ?? $adults ?? 0) + ($children ?? 0)));
+            if ($taxPersons < 1) {
+                $taxPersons = max(1, (int) (($bookingDetails['no_of_adults'] ?? 0) + ($bookingDetails['no_of_children'] ?? 0)));
+            }
+            $taxDays = \App\Helpers\TaxHelper::calculateDays(
+                $tour->check_in_time ?? null,
+                $tour->check_out_time ?? null
+            );
+            $taxResult = \App\Helpers\TaxHelper::calculateTourTaxes(
+                (float) $taxableBase,
+                $tour->taxes ?? null,
+                $taxPersons,
+                $taxDays
+            );
+            $overallTaxShown = (float) ceil((float) ($taxResult['total_tax'] ?? 0));
+            $overallTaxBreakdown = is_array($taxResult['breakdown'] ?? null) ? $taxResult['breakdown'] : [];
+
+            // TOTAL COST = Subtotal − Discount + Tax
+            $totalCostAmount = max(0.0, $taxableBase + $overallTaxShown);
             $overallDisplayLabel = $overallTargetCurrency === 'INR' ? 'INR' : $overallTargetCurrency;
             $totalCostLabel = $fmtOverallAmt($totalCostAmount);
+            $showTotalsBreakdown = ((float) $overallDiscountShown > 0) || ((float) $overallTaxShown > 0);
         @endphp
 
         {{-- 1) Package Price by Country --}}
         @if(!empty($countrySharingRows))
         <div class="overall-price-box">
-            <div class="panel-title" style="margin: 0; border: none; border-bottom: 1px solid #000;">Package Price by Country</div>
+            <div class="panel-title">Package Price by Country</div>
             @foreach($countrySharingRows as $share)
                 @php
                     $shareCountry = $share['country'] ?? 'Other';
@@ -2078,110 +2407,143 @@
                         $otherCellHtml = implode('<br>', $parts);
                     }
                 @endphp
-                <div style="border-top: 1px solid #000;">
-                    <div class="country-box-title" style="border-bottom: 1px solid #000;">{{ $shareTitle }}</div>
-            <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
-                <tr>
-                    <td style="width: 50%; vertical-align: top; padding: 8px; border-right: 1px solid #000;">
+                <div style="border-top: 1px solid #222;">
+                    <div class="country-box-title">{{ $shareTitle }}</div>
+                    <table class="price-split-table">
+                        <tr>
+                            <td>
                                 <div class="country-col-label">Hotel-Accommodation (per pax)</div>
-                        <table style="width: 100%; border-collapse: collapse; border: 1px solid #000; table-layout: fixed;">
-                            <thead>
-                                <tr>
-                                    <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 33.33%;">Single</th>
-                                    <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 33.33%;">Double</th>
-                                    <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 33.33%;">Triple</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                            <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold; line-height: 1.35;">{!! $shareCellSingle !!}</td>
-                                            <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold; line-height: 1.35;">{!! $shareCellDouble !!}</td>
-                                            <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold; line-height: 1.35;">{!! $shareCellTriple !!}</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </td>
-                    <td style="width: 50%; vertical-align: top; padding: 8px;">
+                                <table class="price-grid">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 33.33%;">Single</th>
+                                            <th style="width: 33.33%;">Double</th>
+                                            <th style="width: 33.33%;">Triple</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>{!! $shareCellSingle !!}</td>
+                                            <td>{!! $shareCellDouble !!}</td>
+                                            <td>{!! $shareCellTriple !!}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </td>
+                            <td>
                                 <div class="country-col-label">Other Services (per pax)</div>
-                                <table width="100%" border="1" cellspacing="0" cellpadding="6" style="width: 100%; border-collapse: collapse; table-layout: fixed; border: 1px solid #000;">
-                                <tr>
-                                        <td width="33%" align="center" bgcolor="#f3f3f3" style="width: 33%; border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; font-weight: bold;">Single</td>
-                                        <td width="33%" align="center" bgcolor="#f3f3f3" style="width: 33%; border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; font-weight: bold;">Double</td>
-                                        <td width="34%" align="center" bgcolor="#f3f3f3" style="width: 34%; border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; font-weight: bold;">Triple</td>
-                                </tr>
-                                <tr>
-                                        <td colspan="3" align="center" style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold; line-height: 1.35;">
-                                            {!! $otherCellHtml !!}
-                                    </td>
-                                </tr>
-                        </table>
-                    </td>
-                </tr>
-                        
-            </table>
-        </div>
+                                <table class="price-grid">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 33.33%;">Single</th>
+                                            <th style="width: 33.33%;">Double</th>
+                                            <th style="width: 33.33%;">Triple</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td colspan="3">{!! $otherCellHtml !!}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
             @endforeach
         </div>
         @endif
 
-        {{-- 2) Overall Package — one simple calc table --}}
-            <div class="overall-price-box" style="margin-top: 10px;">
-            <div class="panel-title" style="margin: 0; border: none; border-bottom: 1px solid #000;">Total Package Price ({{ $overallDisplayLabel }})</div>
-                <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
-                    <thead>
-                        <tr>
-                        <th style="border: 1px solid #000; padding: 8px; background: #f3f3f3; text-align: left; width: 46%;">Particulars</th>
-                        <th style="border: 1px solid #000; padding: 8px; background: #f3f3f3; text-align: center; width: 27%;">Price</th>
-                        <th style="border: 1px solid #000; padding: 8px; background: #f3f3f3; text-align: right; width: 27%;">Total Price</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                    @forelse($overallPackageRows as $row)
-                        @php $rowKind = (string) ($row['row_kind'] ?? 'normal'); @endphp
-                        <tr>
-                            <td style="border: 1px solid #000; padding: 8px; vertical-align: middle;{{ $rowKind === 'city_total' ? ' font-weight: bold; background: #fafafa;' : '' }}">{{ $row['name'] }}</td>
-                            <td style="border: 1px solid #000; padding: 8px; text-align: center; vertical-align: middle;{{ $rowKind === 'city_total' ? ' background: #fafafa;' : '' }}">
-                                @if($rowKind === 'city_total')
-                                    —
-                                @elseif(!empty($row['price_display']))
-                                    {{ $row['price_display'] }}
-                                @else
-                                    {{ $fmtOverallAmt($row['price']) }} x {{ (int) $row['multiplier'] }}
-                                @endif
-                            </td>
-                            <td style="border: 1px solid #000; padding: 8px; text-align: right; font-weight: bold; vertical-align: middle;{{ $rowKind === 'city_total' ? ' background: #fafafa;' : '' }}">
-                                {{ $fmtOverallAmt($row['total']) }}
-                                </td>
-                            </tr>
-                    @empty
-                        <tr>
-                            <td style="border: 1px solid #000; padding: 8px;" colspan="3">No package items</td>
-                        </tr>
-                    @endforelse
-
-                    @php
-                        $showSubtotalRow = !empty($overallPackageRows) && (float) $overallDiscountShown > 0;
-        @endphp
-                    @if($showSubtotalRow)
-                        <tr>
-                            <td style="border: 1px solid #000; padding: 8px; text-align: right; background: #fafafa;" colspan="2"><strong>Subtotal</strong></td>
-                            <td style="border: 1px solid #000; padding: 8px; text-align: right; font-weight: bold; background: #fafafa;">{{ $fmtOverallAmt($overallLinesSubtotal) }}</td>
-                        </tr>
-                                    @endif
-                    @if($overallDiscountShown > 0)
-                        <tr>
-                            <td style="border: 1px solid #000; padding: 8px;">Discount</td>
-                            <td style="border: 1px solid #000; padding: 8px; text-align: center;">-</td>
-                            <td style="border: 1px solid #000; padding: 8px; text-align: right; font-weight: bold;">{{ $fmtOverallAmt($overallDiscountShown) }}</td>
-                            </tr>
-        @endif
+        {{-- 2) Overall Package — City | Particulars | Pax | Total (× pax) --}}
+        <div class="overall-price-box" style="margin-top: 6px;">
+            <div class="panel-title">Total Package Price ({{ $overallDisplayLabel }})</div>
+            <table class="totals-table">
+                <thead>
                     <tr>
-                        <td style="border: 1px solid #000; padding: 10px; text-align: right; font-weight: bold; background: #f3f3f3;" colspan="2">TOTAL COST</td>
-                        <td style="border: 1px solid #000; padding: 10px; text-align: right; font-weight: bold; background: #f3f3f3;">{{ $totalCostLabel }}</td>
+                        <th class="city-cell" style="width: 20%;">City</th>
+                        <th class="svc-cell" style="text-align: left; width: 42%;">Particulars</th>
+                        <th class="pax-cell" style="width: 12%;">Pax</th>
+                        <th class="amt-cell" style="width: 26%;">Total Price</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @php $hasAnyPackageRow = false; @endphp
+                    @foreach($overallPackageRows as $row)
+                        @php
+                            $rowKind = (string) ($row['row_kind'] ?? 'normal');
+                            $hasAnyPackageRow = true;
+                        @endphp
+                        @if($rowKind === 'city_group')
+                            @php
+                                $services = is_array($row['services'] ?? null) ? $row['services'] : [];
+                                $cityName = (string) ($row['city'] ?? '');
+                                $svcCount = max(1, count($services));
+                            @endphp
+                            @foreach($services as $svcIdx => $svc)
+                                @php
+                                    $svcPax = max(0, (int) ($svc['pax'] ?? 0));
+                                    $svcPaxType = strtolower((string) ($svc['pax_type'] ?? 'adult'));
+                                    $paxLabel = $svcPax > 0
+                                        ? ($svcPax . ' ' . ($svcPaxType === 'child' ? 'Child' : 'Adult') . ($svcPax > 1 ? ($svcPaxType === 'child' ? 'ren' : 's') : ''))
+                                        : '—';
+                                    $svcName = (string) ($svc['service'] ?? '');
+                                @endphp
+                                <tr>
+                                    @if($svcIdx === 0)
+                                        <td class="city-cell" rowspan="{{ $svcCount }}">{{ $cityName }}</td>
+                                    @endif
+                                    <td class="svc-cell">{{ $svcName }}</td>
+                                    <td class="pax-cell">{{ $paxLabel }}</td>
+                                    <td class="amt-cell">{{ $fmtOverallAmt($svc['total'] ?? 0) }}</td>
+                                </tr>
+                            @endforeach
+                        @elseif($rowKind === 'city_total')
+                            {{-- city totals are implied by TOTAL COST; skip display row --}}
+                        @else
+                            <tr>
+                                <td class="city-cell">—</td>
+                                <td class="svc-cell">{{ $row['name'] ?? '' }}</td>
+                                <td class="pax-cell">{{ max(1, (int) ($row['multiplier'] ?? 1)) }}</td>
+                                <td class="amt-cell">{{ $fmtOverallAmt($row['total'] ?? ($row['price'] ?? 0)) }}</td>
+                            </tr>
+                        @endif
+                    @endforeach
+                    @if(!$hasAnyPackageRow)
+                        <tr>
+                            <td colspan="4">No package items</td>
                         </tr>
-                    </tbody>
-                </table>
-            </div>
+                    @endif
+
+                    @if($showTotalsBreakdown)
+                        <tr>
+                            <td style="text-align: right; background: #f7f7f7;" colspan="3"><strong>Subtotal</strong></td>
+                            <td class="amt-cell" style="background: #f7f7f7;">{{ $fmtOverallAmt($overallLinesSubtotal) }}</td>
+                        </tr>
+                        @if((float) $overallDiscountShown > 0)
+                            <tr>
+                                <td style="text-align: right;" colspan="3">Discount</td>
+                                <td class="amt-cell">{{ $fmtOverallAmt($overallDiscountShown) }}</td>
+                            </tr>
+                        @endif
+                        @if((float) $overallTaxShown > 0)
+                            <tr>
+                                <td style="text-align: right;" colspan="3">
+                                    Tax
+                                    @if(!empty($overallTaxBreakdown) && count($overallTaxBreakdown) === 1)
+                                        ({{ array_key_first($overallTaxBreakdown) }})
+                                    @endif
+                                </td>
+                                <td class="amt-cell">{{ $fmtOverallAmt($overallTaxShown) }}</td>
+                            </tr>
+                        @endif
+                    @endif
+                    <tr>
+                        <td style="text-align: right; font-weight: bold; background: #f0f0f0;" colspan="3">TOTAL COST</td>
+                        <td class="amt-cell" style="background: #f0f0f0;">{{ $totalCostLabel }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
 
         @if(!empty($quotationInformationHtml))
             <div class="quotation-information">

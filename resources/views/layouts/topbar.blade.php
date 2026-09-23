@@ -2,7 +2,13 @@
 <div class="layout-page">
 <!-- Navbar -->
 <nav class="layout-navbar container-xxl navbar navbar-expand-xl navbar-detached align-items-center bg-navbar-theme" id="layout-navbar">
-      <div class="navbar-nav-right d-flex align-items-center" id="navbar-collapse">
+      <!-- Mobile: open off-canvas sidebar -->
+      <div class="layout-menu-toggle navbar-nav align-items-center me-2 me-xl-0 d-xl-none">
+        <a class="nav-item nav-link px-0 mobile-sidebar-toggle" href="javascript:void(0);" aria-label="Open menu">
+          <i class="ri-menu-line ri-24px"></i>
+        </a>
+      </div>
+      <div class="navbar-nav-right d-flex align-items-center w-100" id="navbar-collapse">
         <!-- Search -->
         {{-- <div class="navbar-nav align-items-center">
           <div class="nav-item navbar-search-wrapper mb-0">
