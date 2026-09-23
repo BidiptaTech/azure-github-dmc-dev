@@ -53,6 +53,54 @@
         return types.filter(function (mt) { return !!mapMealPeriod(mt); });
     }
 
+    function isMultiRestaurantValue(val) {
+        return String(val || '').indexOf('multi_restaurant_') === 0;
+    }
+
+    function parseMultiRestaurant(opt) {
+        if (!opt) return null;
+        if ((opt.dataset && opt.dataset.isMulti === '1') || isMultiRestaurantValue(opt.value)) {
+            try { return JSON.parse(opt.dataset.multiRestaurant || '{}'); } catch (e) { return {}; }
+        }
+        return null;
+    }
+
+    function applyMasterFromRestaurantOption(root, rOpt) {
+        var T = S();
+        if (typeof T.applyMasterGuideVehicle !== 'function') return;
+        var mr = parseMultiRestaurant(rOpt);
+        if (mr) {
+            T.applyMasterGuideVehicle(
+                root,
+                PREFIX,
+                rOpt.dataset.vehicleIncluded === '1' || mr.vehicle,
+                rOpt.dataset.guideIncluded === '1' || mr.guide,
+                { preserve: !!root.__hydrating }
+            );
+            return;
+        }
+        if (!root.__hydrating && typeof T.unlockMasterGuideVehicle === 'function') {
+            T.unlockMasterGuideVehicle(root, PREFIX);
+        }
+    }
+
+    function applyMultiDish(root, mr) {
+        var dish = root.querySelector('.restaurant-dish');
+        if (!dish) return;
+        dish.innerHTML = '<option value="">Select dish</option>';
+        var opt = document.createElement('option');
+        opt.value = 'buffet';
+        opt.textContent = 'Buffet';
+        opt.dataset.name = 'Buffet';
+        opt.dataset.adultPrice = (mr && mr.adult_price) || 0;
+        opt.dataset.childPrice = (mr && mr.child_price) || 0;
+        opt.dataset.type = 'Buffet';
+        opt.dataset.mealPeriod = '';
+        dish.appendChild(opt);
+        dish.value = 'buffet';
+        dish.disabled = false;
+    }
+
     function shellHtml(stay) {
         var T = S();
         var cur = stay.currency || 'SGD';
@@ -158,7 +206,28 @@
                     opt.textContent = r.name || r.restaurant_name || 'Restaurant';
                     opt.dataset.name = r.name || r.restaurant_name || '';
                     opt.dataset.mealTypes = JSON.stringify(parseMealTypes(r.meal_types));
+                    opt.dataset.isMulti = '0';
                     select.appendChild(opt);
+                });
+                var packages = (res && res.multi_restaurants) || [];
+                root.__multiRestaurants = packages;
+                packages.forEach(function (m) {
+                    var opt = document.createElement('option');
+                    var pid = m.id || m.package_unique_id || '';
+                    opt.value = 'multi_restaurant_' + pid;
+                    opt.textContent = m.package_name || m.name || 'Multi Restaurant';
+                    opt.dataset.name = m.package_name || m.name || 'Multi Restaurant';
+                    opt.dataset.isMulti = '1';
+                    opt.dataset.vehicleIncluded = (m.vehicle ? '1' : '0');
+                    opt.dataset.guideIncluded = (m.guide ? '1' : '0');
+                    opt.dataset.adultPrice = m.adult_price || 0;
+                    opt.dataset.childPrice = m.child_price || 0;
+                    try { opt.dataset.multiRestaurant = JSON.stringify(m); } catch (e) { opt.dataset.multiRestaurant = '{}'; }
+                    if (select.firstChild) {
+                        select.insertBefore(opt, select.firstChild.nextSibling);
+                    } else {
+                        select.appendChild(opt);
+                    }
                 });
                 select.disabled = false;
             })
@@ -177,6 +246,32 @@
             return String(r.restaurant_id || r.id) === String(restaurantId);
         });
         var rOpt = rest && rest.options[rest.selectedIndex];
+        var mr = parseMultiRestaurant(rOpt);
+        if (mr) {
+            mealType.innerHTML = '<option value="">Select meal type</option>';
+            var meals = [];
+            if (mr.breakfast || (mr.breakfast_time && String(mr.breakfast_time).trim() !== '')) {
+                meals.push({ period: '1', label: 'Breakfast' });
+            }
+            if (mr.lunch || (mr.lunch_time && String(mr.lunch_time).trim() !== '')) {
+                meals.push({ period: '2', label: 'Lunch' });
+            }
+            if (mr.dinner || (mr.dinner_time && String(mr.dinner_time).trim() !== '')) {
+                meals.push({ period: '3', label: 'Dinner' });
+            }
+            meals.forEach(function (m) {
+                var opt = document.createElement('option');
+                opt.value = m.period;
+                opt.textContent = m.label;
+                mealType.appendChild(opt);
+            });
+            mealType.disabled = !meals.length;
+            applyMultiDish(root, mr);
+            applyMasterFromRestaurantOption(root, rOpt);
+            if (meals.length === 1) mealType.value = meals[0].period;
+            return;
+        }
+        applyMasterFromRestaurantOption(root, rOpt);
         var types = parseMealTypes((hit && hit.meal_types) || (rOpt && rOpt.dataset.mealTypes) || []);
         mealType.innerHTML = '<option value="">Select meal type</option>';
         types.forEach(function (mt) {
@@ -245,6 +340,12 @@
         var T = S();
         var dish = root.querySelector('.restaurant-dish');
         if (!dish || !restaurantId) return Promise.resolve();
+        if (isMultiRestaurantValue(restaurantId)) {
+            var rest = root.querySelector('.restaurant-select');
+            var rOpt = rest && rest.options[rest.selectedIndex];
+            applyMultiDish(root, parseMultiRestaurant(rOpt) || {});
+            return Promise.resolve();
+        }
         var period = mapMealPeriod(mealPeriod);
         if (!period) {
             dish.innerHTML = '<option value="">Select meal type first</option>';
@@ -372,6 +473,12 @@
             is_supplement: !!supplement,
             transfer_options: transferOptions,
             guide_options: guideOptions,
+            is_multi_restaurant: !!(rOpt && rOpt.dataset.isMulti === '1'),
+            multi_restaurant_id: (rOpt && rOpt.dataset.isMulti === '1')
+                ? String(rest.value || '').replace(/^multi_restaurant_/, '')
+                : null,
+            vehicle_included: !!(rOpt && rOpt.dataset.vehicleIncluded === '1'),
+            guide_included: !!(rOpt && rOpt.dataset.guideIncluded === '1'),
             city: stay.cityName || '',
             country: stay.country || '',
             currency: stay.currency || '',
@@ -470,16 +577,31 @@
         var extras = Promise.all([
             T.hydrateTransferExtras(root, PREFIX, row.transfer_options, stay),
             T.hydrateGuideExtras(root, PREFIX, row.guide_options, stay)
-        ]);
+        ]).then(function () {
+            if ((row.is_multi_restaurant || isMultiRestaurantValue(row.restaurantId)) && typeof T.applyMasterGuideVehicle === 'function') {
+                var opt = rest && rest.options[rest.selectedIndex];
+                T.applyMasterGuideVehicle(
+                    root,
+                    PREFIX,
+                    row.vehicle_included || (opt && opt.dataset && opt.dataset.vehicleIncluded === '1'),
+                    row.guide_included || (opt && opt.dataset && opt.dataset.guideIncluded === '1'),
+                    { preserve: true }
+                );
+            }
+        });
 
         if (rest && row.restaurantId) {
-            rest.value = String(row.restaurantId);
-            fillMealTypes(root, row.restaurantId, stay);
+            var restVal = String(row.restaurantId);
+            if ((row.is_multi_restaurant || row.multi_restaurant_id) && restVal.indexOf('multi_restaurant_') !== 0) {
+                restVal = 'multi_restaurant_' + (row.multi_restaurant_id || restVal);
+            }
+            rest.value = restVal;
+            fillMealTypes(root, restVal, stay);
             var mealType = root.querySelector('.restaurant-meal-type');
             var period = mapMealPeriod(row.mealType || '');
             if (mealType && period) mealType.value = period;
             Promise.all([
-                loadMeals(root, stay, row.restaurantId, period || row.mealType || ''),
+                loadMeals(root, stay, restVal, period || row.mealType || ''),
                 extras
             ]).then(finish);
         } else {

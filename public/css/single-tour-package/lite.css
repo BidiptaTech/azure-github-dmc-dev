@@ -1363,6 +1363,13 @@
 .stp-lite-xfer-time { flex: 0 0 auto; min-width: 11.5rem; width: auto; }
 .stp-lite-xfer-cost { flex: 0 0 auto; width: 7rem; }
 
+.stp-lite-master-locked {
+    background: #f1f5f9 !important;
+    color: #475569 !important;
+    pointer-events: none;
+    cursor: not-allowed;
+}
+
 @media (max-width: 575.98px) {
     .stp-lite-xfer-row { flex-wrap: wrap !important; }
     .stp-lite-xfer-type,

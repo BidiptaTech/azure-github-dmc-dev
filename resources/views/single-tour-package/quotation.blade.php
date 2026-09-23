@@ -1726,7 +1726,7 @@
                                                 @include('single-tour-package.partials.quotation-service-detail', [
                                                     'kind' => 'attraction',
                                                     'card' => $svcCard,
-                                                    'showPrices' => true,
+                                                    'showPrices' => false,
                                                     'currencyCode' => $countryCurrency,
                                                     'moneyFn' => $formatNativeMoney,
                                                 ])
@@ -1734,7 +1734,7 @@
                                                 @include('single-tour-package.partials.quotation-service-detail', [
                                                     'kind' => 'restaurant',
                                                     'card' => $svcCard,
-                                                    'showPrices' => true,
+                                                    'showPrices' => false,
                                                     'currencyCode' => $countryCurrency,
                                                     'moneyFn' => $formatNativeMoney,
                                                 ])

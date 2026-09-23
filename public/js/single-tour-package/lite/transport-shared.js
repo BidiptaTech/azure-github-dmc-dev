@@ -788,6 +788,72 @@
         );
     }
 
+    function masterFlagYes(v) {
+        return v === true || v === 1 || v === '1' || v === 'yes' || v === 'Yes' || v === 'true' || v === 'TRUE';
+    }
+
+    function setRequiredSelectLock(el, lock) {
+        if (!el) return;
+        el.disabled = !!lock;
+        el.classList.toggle('stp-lite-master-locked', !!lock);
+        if (lock) el.setAttribute('title', 'Set from master data');
+        else el.removeAttribute('title');
+    }
+
+    function toggleVehicleCountRow(root, prefix, show) {
+        var row = root.querySelector('[data-' + prefix + '-vehicle-counts]');
+        if (row) row.classList.toggle('d-none', !show);
+    }
+
+    /**
+     * Copy Guide / Vehicle from bundle attraction or multi-restaurant master.
+     * Yes → auto-enable + read-only. No → unlock (reset unless preserve/keepUserChoice).
+     */
+    function applyMasterGuideVehicle(root, prefix, vehicleYes, guideYes, opts) {
+        if (!root || !prefix) return;
+        opts = opts || {};
+        var tReq = root.querySelector('.' + prefix + '-transfer-required');
+        var gReq = root.querySelector('.' + prefix + '-guide-required');
+        var vYes = masterFlagYes(vehicleYes);
+        var gYes = masterFlagYes(guideYes);
+
+        if (tReq) {
+            if (vYes) {
+                if (tReq.value !== 'Yes') {
+                    tReq.value = 'Yes';
+                    if (!opts.silent) tReq.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+                setRequiredSelectLock(tReq, true);
+            } else {
+                setRequiredSelectLock(tReq, false);
+                if (!opts.preserve && !opts.keepUserChoice && tReq.value !== 'No') {
+                    tReq.value = 'No';
+                    if (!opts.silent) tReq.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            }
+        }
+        if (gReq) {
+            if (gYes) {
+                if (gReq.value !== 'Yes') {
+                    gReq.value = 'Yes';
+                    if (!opts.silent) gReq.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+                setRequiredSelectLock(gReq, true);
+            } else {
+                setRequiredSelectLock(gReq, false);
+                if (!opts.preserve && !opts.keepUserChoice && gReq.value !== 'No') {
+                    gReq.value = 'No';
+                    if (!opts.silent) gReq.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            }
+        }
+        toggleVehicleCountRow(root, prefix, !!(tReq && tReq.value === 'Yes'));
+    }
+
+    function unlockMasterGuideVehicle(root, prefix) {
+        applyMasterGuideVehicle(root, prefix, false, false, {});
+    }
+
     /** Packages with sell price > 0 for the selected guide (same as guide.js). */
     function availableGuidePackages(guide) {
         if (!guide) return [];
@@ -1060,7 +1126,9 @@
             pickup_location_id: pickupId,
             pickup_location_name: pickupName,
             pickup_location_type: pickupType,
-            pickup_time: readAmPmValue(root, prefix + '-xfer')
+            pickup_time: readAmPmValue(root, prefix + '-xfer'),
+            arrival_vehicle_count: parseInt((root.querySelector('.' + prefix + '-arrival-vehicle-count') || {}).value, 10) || 0,
+            departure_vehicle_count: parseInt((root.querySelector('.' + prefix + '-departure-vehicle-count') || {}).value, 10) || 0
         };
     }
 
@@ -1300,6 +1368,7 @@
         function toggle() {
             var yes = req && req.value === 'Yes';
             if (card) card.classList.toggle('d-none', !yes);
+            toggleVehicleCountRow(root, prefix, yes);
             if (yes) {
                 if (!root.__transferVehiclesLoaded) {
                     root.__transferVehiclesLoaded = true;
@@ -1349,6 +1418,12 @@
             pickupText.addEventListener('change', function () { if (typeof onChange === 'function') onChange(); });
             pickupText.addEventListener('input', function () { if (typeof onChange === 'function') onChange(); });
         }
+        ['.' + prefix + '-arrival-vehicle-count', '.' + prefix + '-departure-vehicle-count'].forEach(function (sel) {
+            var countEl = root.querySelector(sel);
+            if (!countEl) return;
+            countEl.addEventListener('change', function () { if (typeof onChange === 'function') onChange(); });
+            countEl.addEventListener('input', function () { if (typeof onChange === 'function') onChange(); });
+        });
         var serviceSel = root.querySelector('.' + prefix + '-select');
         if (serviceSel && !mapsMode) {
             serviceSel.addEventListener('change', function () {
@@ -1406,10 +1481,16 @@
         if (!transferOptions || !transferOptions.transfer_required) {
             if (req) req.value = 'No';
             if (card) card.classList.add('d-none');
+            toggleVehicleCountRow(root, prefix, false);
             return Promise.resolve();
         }
         if (req) req.value = 'Yes';
         if (card) card.classList.remove('d-none');
+        toggleVehicleCountRow(root, prefix, true);
+        var arrCount = root.querySelector('.' + prefix + '-arrival-vehicle-count');
+        var depCount = root.querySelector('.' + prefix + '-departure-vehicle-count');
+        if (arrCount) arrCount.value = String(transferOptions.arrival_vehicle_count != null ? transferOptions.arrival_vehicle_count : 0);
+        if (depCount) depCount.value = String(transferOptions.departure_vehicle_count != null ? transferOptions.departure_vehicle_count : 0);
         var typeEl = root.querySelector('.' + prefix + '-transfer-type');
         if (typeEl) typeEl.value = transferOptions.type || '';
         setAmPmValue(root, prefix + '-xfer', transferOptions.pickup_time || '');
@@ -1655,10 +1736,12 @@
         var tReq = root.querySelector('.' + prefix + '-transfer-required');
         var gReq = root.querySelector('.' + prefix + '-guide-required');
         if (tReq) {
+            setRequiredSelectLock(tReq, false);
             tReq.value = 'No';
             tReq.dispatchEvent(new Event('change', { bubbles: true }));
         }
         if (gReq) {
+            setRequiredSelectLock(gReq, false);
             gReq.value = 'No';
             gReq.dispatchEvent(new Event('change', { bubbles: true }));
         }
@@ -1688,6 +1771,11 @@
         }
         var typeEl = root.querySelector('.' + prefix + '-transfer-type');
         if (typeEl) typeEl.value = '';
+        var arrCount = root.querySelector('.' + prefix + '-arrival-vehicle-count');
+        var depCount = root.querySelector('.' + prefix + '-departure-vehicle-count');
+        if (arrCount) arrCount.value = '0';
+        if (depCount) depCount.value = '0';
+        toggleVehicleCountRow(root, prefix, false);
         setAmPmValue(root, prefix + '-xfer', '');
         setAmPmValue(root, prefix + '-guide', '');
         var guideSel = root.querySelector('.' + prefix + '-guide-select');
@@ -1752,6 +1840,9 @@
         transferRequiredSelectHtml: transferRequiredSelectHtml,
         guideExtrasHtml: guideExtrasHtml,
         guideRequiredSelectHtml: guideRequiredSelectHtml,
+        masterFlagYes: masterFlagYes,
+        applyMasterGuideVehicle: applyMasterGuideVehicle,
+        unlockMasterGuideVehicle: unlockMasterGuideVehicle,
         filterTransferVehiclesByType: filterTransferVehiclesByType,
         calcInlineTransferPrice: calcInlineTransferPrice,
         refreshTransferCostDisplay: refreshTransferCostDisplay,
