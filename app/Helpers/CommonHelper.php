@@ -9447,6 +9447,9 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 'model_year' => $item['model_year'] ?? null,
                 'travel_type' => $item['travel_type'] ?? null,
                 'mode' => $item['Mode'] ?? $item['mode'] ?? null,
+                'hours' => $item['hours'] ?? $item['selectedHours'] ?? $item['package_hours'] ?? $item['packageHours'] ?? null,
+                'pickup' => $item['pickup'] ?? $item['pickup_location'] ?? $item['pickuplocation'] ?? $item['from_location'] ?? null,
+                'dropoff' => $item['dropoff'] ?? $item['dropoff_location'] ?? $item['dropofflocation'] ?? $item['to_location'] ?? null,
             ];
         }
 

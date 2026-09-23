@@ -472,6 +472,9 @@
         $bookedArrivals = []; // [['text' => ..., 'country' => ...], ...]
         $bookedDepartures = [];
         $bookedLocalTransfers = [];
+        $bookedGuides = [];
+        $bookedPointToPoint = [];
+        $bookedHourly = [];
 
         $cardCountry = function ($card) {
             $country = trim((string)($card['country'] ?? ''));
@@ -613,8 +616,124 @@
                                 'text' => $text,
                                 'country' => $cardCountry($card),
                                 'currency' => $cardCurrency($card),
+                                'city' => trim((string) ($card['city'] ?? explode(',', (string) ($card['subtitle'] ?? $card['location'] ?? ''))[0] ?? '')),
                             ];
                         }
+                    }
+                }
+
+                // Guide
+                if ($normalizedType === 'guide') {
+                    foreach ($cards as $card) {
+                        if (!is_array($card)) continue;
+                        $gd = is_array($card['guide'] ?? null) ? $card['guide'] : [];
+                        $guideName = trim((string) ($gd['guide_name'] ?? $card['title'] ?? 'Guide'));
+                        if ($guideName === '') {
+                            $guideName = 'Guide';
+                        }
+                        $lang = trim((string) ($gd['language_proficiency'] ?? ''));
+                        $hours = $gd['hours'] ?? null;
+                        $entryTime = '';
+                        foreach ($card['chips'] ?? [] as $chip) {
+                            if (!is_array($chip)) continue;
+                            if (strtolower((string) ($chip['label'] ?? '')) === 'time') {
+                                $entryTime = (string) ($chip['value'] ?? '');
+                            }
+                        }
+                        if ($entryTime === '' && !empty($gd['entry_time'])) {
+                            $entryTime = (string) $gd['entry_time'];
+                        }
+                        $bits = array_filter([
+                            $guideName,
+                            ($lang !== '' && strtoupper($lang) !== 'N/A') ? $lang : null,
+                            ($hours !== null && $hours !== '') ? ($hours . ' hr' . ((float) $hours != 1 ? 's' : '')) : null,
+                            $entryTime !== '' ? $entryTime : null,
+                        ]);
+                        $bookedGuides[] = [
+                            'text' => implode(' - ', $bits),
+                            'country' => $cardCountry($card),
+                            'currency' => $cardCurrency($card),
+                            'city' => trim((string) ($card['city'] ?? explode(',', (string) ($card['subtitle'] ?? $card['location'] ?? ''))[0] ?? '')),
+                        ];
+                    }
+                }
+
+                // Point to point vehicle
+                if ($normalizedType === 'travel_point' || $normalizedType === 'point_to_point') {
+                    foreach ($cards as $card) {
+                        if (!is_array($card)) continue;
+                        $vehicleData = is_array($card['vehicle'] ?? null) ? $card['vehicle'] : [];
+                        $vehicleName = trim((string) ($vehicleData['name'] ?? $card['title'] ?? ''));
+                        $vehicleTypeSeater = trim((string) ($vehicleData['vehicle_type_seater'] ?? ''));
+                        if ($vehicleTypeSeater === 'N/A') {
+                            $vehicleTypeSeater = '';
+                        }
+                        $way = trim((string) ($vehicleData['way'] ?? ''));
+                        $pickup = trim((string) ($vehicleData['pickup'] ?? ''));
+                        $dropoff = trim((string) ($vehicleData['dropoff'] ?? ''));
+                        foreach ($card['chips'] ?? [] as $chip) {
+                            if (!is_array($chip)) continue;
+                            $label = strtolower((string) ($chip['label'] ?? ''));
+                            $value = trim((string) ($chip['value'] ?? ''));
+                            if ($label === 'pickup' && $value !== '') $pickup = $value;
+                            if ($label === 'dropoff' && $value !== '') $dropoff = $value;
+                        }
+                        $route = '';
+                        if ($pickup !== '' && $dropoff !== '') {
+                            $route = $pickup . ' → ' . $dropoff;
+                        } elseif ($pickup !== '') {
+                            $route = $pickup;
+                        } elseif ($dropoff !== '') {
+                            $route = $dropoff;
+                        }
+                        $bits = array_filter([
+                            $vehicleName !== '' && strtoupper($vehicleName) !== 'N/A' ? $vehicleName : null,
+                            $vehicleTypeSeater !== '' ? $vehicleTypeSeater : null,
+                            $way !== '' ? $way : null,
+                            $route !== '' ? $route : null,
+                        ]);
+                        $text = !empty($bits) ? implode(' - ', $bits) : 'Point to Point';
+                        $bookedPointToPoint[] = [
+                            'text' => $text,
+                            'country' => $cardCountry($card),
+                            'currency' => $cardCurrency($card),
+                            'city' => trim((string) ($card['city'] ?? explode(',', (string) ($card['subtitle'] ?? $card['location'] ?? ''))[0] ?? '')),
+                        ];
+                    }
+                }
+
+                // Hourly vehicle
+                if ($normalizedType === 'travel_hourly' || $normalizedType === 'hourly') {
+                    foreach ($cards as $card) {
+                        if (!is_array($card)) continue;
+                        $vehicleData = is_array($card['vehicle'] ?? null) ? $card['vehicle'] : [];
+                        $vehicleName = trim((string) ($vehicleData['name'] ?? $card['title'] ?? ''));
+                        $vehicleTypeSeater = trim((string) ($vehicleData['vehicle_type_seater'] ?? ''));
+                        if ($vehicleTypeSeater === 'N/A') {
+                            $vehicleTypeSeater = '';
+                        }
+                        $mode = trim((string) ($vehicleData['mode'] ?? $vehicleData['travel_type'] ?? ''));
+                        $hours = $vehicleData['hours'] ?? null;
+                        foreach ($card['chips'] ?? [] as $chip) {
+                            if (!is_array($chip)) continue;
+                            $label = strtolower((string) ($chip['label'] ?? ''));
+                            if (in_array($label, ['hours', 'hour', 'package'], true) && ($chip['value'] ?? '') !== '') {
+                                $hours = $chip['value'];
+                            }
+                        }
+                        $bits = array_filter([
+                            $vehicleName !== '' && strtoupper($vehicleName) !== 'N/A' ? $vehicleName : null,
+                            $vehicleTypeSeater !== '' ? $vehicleTypeSeater : null,
+                            $mode !== '' ? $mode : null,
+                            ($hours !== null && $hours !== '') ? ($hours . ' hr' . ((float) $hours != 1 ? 's' : '')) : null,
+                        ]);
+                        $text = !empty($bits) ? implode(' - ', $bits) : 'Hourly Transfer';
+                        $bookedHourly[] = [
+                            'text' => $text,
+                            'country' => $cardCountry($card),
+                            'currency' => $cardCurrency($card),
+                            'city' => trim((string) ($card['city'] ?? explode(',', (string) ($card['subtitle'] ?? $card['location'] ?? ''))[0] ?? '')),
+                        ];
                     }
                 }
             }
@@ -874,17 +993,21 @@
 
         // Other services grouped by country + currency
         $otherByCountry = [];
-        $pushOther = function ($country, $currency, $kind, $value) use (&$otherByCountry, &$countryMeta, $countryBucketKey) {
+        $pushOther = function ($country, $currency, $kind, $value, $city = '') use (&$otherByCountry, &$countryMeta, $countryBucketKey) {
             $bucketKey = $countryBucketKey($country, $currency);
             $countryName = trim((string)$country) !== '' ? trim((string)$country) : 'Other';
             $currencyCode = strtoupper(trim((string)$currency));
+            $cityName = trim((string) $city);
             if (!isset($countryMeta[$bucketKey])) {
                 $countryMeta[$bucketKey] = [
                     'country' => $countryName,
-                    'city' => '',
+                    'city' => $cityName,
                     'currency' => $currencyCode,
                 ];
             } else {
+                if ($cityName !== '' && empty($countryMeta[$bucketKey]['city'])) {
+                    $countryMeta[$bucketKey]['city'] = $cityName;
+                }
                 if (empty($countryMeta[$bucketKey]['currency'])) {
                     $countryMeta[$bucketKey]['currency'] = $currencyCode;
                 }
@@ -899,13 +1022,22 @@
             $pushOther($cardCountry($card), $cardCurrency($card), 'restaurants', $card);
         }
         foreach ($bookedArrivals as $row) {
-            $pushOther($row['country'] ?? 'Other', $row['currency'] ?? $baseCurrency, 'arrivals', $row['text']);
+            $pushOther($row['country'] ?? 'Other', $row['currency'] ?? $baseCurrency, 'arrivals', $row['text'], $row['city'] ?? '');
         }
         foreach ($bookedDepartures as $row) {
-            $pushOther($row['country'] ?? 'Other', $row['currency'] ?? $baseCurrency, 'departures', $row['text']);
+            $pushOther($row['country'] ?? 'Other', $row['currency'] ?? $baseCurrency, 'departures', $row['text'], $row['city'] ?? '');
         }
         foreach ($bookedLocalTransfers as $row) {
-            $pushOther($row['country'] ?? 'Other', $row['currency'] ?? $baseCurrency, 'local_transfers', $row['text']);
+            $pushOther($row['country'] ?? 'Other', $row['currency'] ?? $baseCurrency, 'local_transfers', $row['text'], $row['city'] ?? '');
+        }
+        foreach ($bookedGuides as $row) {
+            $pushOther($row['country'] ?? 'Other', $row['currency'] ?? $baseCurrency, 'guides', $row['text'], $row['city'] ?? '');
+        }
+        foreach ($bookedPointToPoint as $row) {
+            $pushOther($row['country'] ?? 'Other', $row['currency'] ?? $baseCurrency, 'point_to_point', $row['text'], $row['city'] ?? '');
+        }
+        foreach ($bookedHourly as $row) {
+            $pushOther($row['country'] ?? 'Other', $row['currency'] ?? $baseCurrency, 'hourly', $row['text'], $row['city'] ?? '');
         }
 
         // Stay dates per country/city from tour.city
@@ -1135,7 +1267,10 @@
                     $countryArrivals = $bucket['arrivals'] ?? [];
                     $countryDepartures = $bucket['departures'] ?? [];
                     $countryLocalTransfers = $bucket['local_transfers'] ?? [];
-                    $hasOther = !empty($countryAttractions) || !empty($countryRestaurants) || !empty($countryArrivals) || !empty($countryDepartures) || !empty($countryLocalTransfers);
+                    $countryGuides = $bucket['guides'] ?? [];
+                    $countryPointToPoint = $bucket['point_to_point'] ?? [];
+                    $countryHourly = $bucket['hourly'] ?? [];
+                    $hasOther = !empty($countryAttractions) || !empty($countryRestaurants) || !empty($countryArrivals) || !empty($countryDepartures) || !empty($countryLocalTransfers) || !empty($countryGuides) || !empty($countryPointToPoint) || !empty($countryHourly);
                 @endphp
                 <div class="country-box">
                     <div class="country-box-title">{{ $countryName }} ({{ $countryCurrency }})</div>
@@ -1313,6 +1448,15 @@
                                         @endforeach
                                         @foreach($countryLocalTransfers as $lt)
                                             <li class="inclusion"><span class="bold">Local Transfer:</span> {{ $lt }}</li>
+                                        @endforeach
+                                        @foreach($countryGuides as $g)
+                                            <li class="inclusion"><span class="bold">Guide:</span> {{ $g }}</li>
+                                        @endforeach
+                                        @foreach($countryPointToPoint as $ptp)
+                                            <li class="inclusion"><span class="bold">Point to Point:</span> {{ $ptp }}</li>
+                                        @endforeach
+                                        @foreach($countryHourly as $hr)
+                                            <li class="inclusion"><span class="bold">Hourly Transfer:</span> {{ $hr }}</li>
                                         @endforeach
                                     </ul>
                                 @else
