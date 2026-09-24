@@ -1689,4 +1689,321 @@ class OrderCostPriceHelper
 
         return $components;
     }
+
+    /**
+     * Sum order booking totalPrice values country-wise for a tour.
+     * actual_price = sum of totalPrice for bookings in that country
+     * (attraction/restaurant also include transfer_options.cost + guide_options.total_price).
+     * current_price = actual_price after applying currency_markups discount_type/discount_value
+     * (markup row matched by booking city, then country, then currency — applied once per country).
+     *
+     * @param  int|string  $tourId
+     * @return array<string, array{
+     *   country: string,
+     *   actual_price: float,
+     *   current_price: float,
+     *   currency: string|null,
+     *   discount_type: string|null,
+     *   discount_value: float
+     * }>
+     */
+    public static function getCountryWiseTotalPrice($tourId): array
+    {
+        $tourId = trim((string) $tourId);
+        if ($tourId === '') {
+            return [];
+        }
+
+        $tour = \App\Models\Tour::where('tour_id', $tourId)->first();
+        $markups = [];
+        if ($tour) {
+            $raw = $tour->currency_markups ?? null;
+            if (is_string($raw)) {
+                $decoded = json_decode($raw, true);
+                $markups = (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) ? $decoded : [];
+            } elseif (is_array($raw)) {
+                $markups = $raw;
+            }
+        }
+
+        $destinationCountries = self::parseDestinationCountries($tour?->destination ?? null);
+
+        $orders = Order::query()
+            ->where('tour_id', $tourId)
+            ->get(['booking_id', 'tour_id', 'type', 'data', 'country', 'city', 'currency']);
+
+        // country => ['actual' => float, 'city_totals' => [city => float], 'currency' => ?string]
+        $buckets = [];
+
+        foreach ($destinationCountries as $countryName) {
+            $key = mb_strtolower($countryName);
+            $buckets[$key] = [
+                'country' => $countryName,
+                'actual' => 0.0,
+                'city_totals' => [],
+                'currency' => null,
+            ];
+        }
+
+        foreach ($orders as $order) {
+            $data = is_string($order->data) ? json_decode($order->data, true) : $order->data;
+            if (! is_array($data)) {
+                continue;
+            }
+
+            $items = (isset($data[0]) && is_array($data[0])) ? $data : [$data];
+            $orderType = strtolower(trim((string) ($order->type ?? '')));
+            $orderCountry = trim((string) ($order->country ?? ''));
+            $orderCity = trim((string) ($order->city ?? ''));
+            $orderCurrency = strtoupper(trim((string) ($order->currency ?? '')));
+
+            foreach ($items as $item) {
+                if (! is_array($item)) {
+                    continue;
+                }
+
+                $country = trim((string) ($item['country'] ?? $orderCountry));
+                $city = trim((string) ($item['city'] ?? $orderCity));
+                $currency = strtoupper(trim((string) ($item['currency'] ?? $orderCurrency)));
+                $price = self::bookingItemSellTotal($item, $orderType);
+
+                if ($country === '') {
+                    continue;
+                }
+
+                $key = mb_strtolower($country);
+                if (! isset($buckets[$key])) {
+                    $buckets[$key] = [
+                        'country' => $country,
+                        'actual' => 0.0,
+                        'city_totals' => [],
+                        'currency' => null,
+                    ];
+                }
+
+                $buckets[$key]['actual'] += $price;
+
+                $cityKey = $city !== '' ? $city : '_';
+                if (! isset($buckets[$key]['city_totals'][$cityKey])) {
+                    $buckets[$key]['city_totals'][$cityKey] = 0.0;
+                }
+                $buckets[$key]['city_totals'][$cityKey] += $price;
+
+                if (($buckets[$key]['currency'] === null || $buckets[$key]['currency'] === '') && $currency !== '') {
+                    $buckets[$key]['currency'] = $currency;
+                }
+            }
+        }
+
+        $result = [];
+        foreach ($buckets as $key => $bucket) {
+            $actual = round((float) $bucket['actual'], 2);
+            $discountMeta = self::resolveCountryDiscountMeta(
+                (string) $bucket['country'],
+                is_array($bucket['city_totals']) ? $bucket['city_totals'] : [],
+                $bucket['currency'] ?? null,
+                $markups
+            );
+            $current = self::applyDiscountAmount(
+                (float) $bucket['actual'],
+                $discountMeta['discount_type'],
+                (float) $discountMeta['discount_value']
+            );
+
+            $result[$bucket['country']] = [
+                'country' => $bucket['country'],
+                'actual_price' => $actual,
+                'current_price' => round(max(0, $current), 2),
+                'currency' => $bucket['currency'],
+                'discount_type' => $discountMeta['discount_type'],
+                'discount_value' => $discountMeta['discount_value'],
+            ];
+        }
+
+        return $result;
+    }
+
+    /**
+     * Sell total for one booking line: totalPrice plus attraction/restaurant
+     * transfer_options.cost and guide_options.total_price when present.
+     *
+     * @param  array<string, mixed>  $item
+     */
+    private static function bookingItemSellTotal(array $item, string $orderType): float
+    {
+        $price = (float) ($item['totalPrice'] ?? $item['price'] ?? 0);
+
+        $isAttractionOrRestaurant = in_array($orderType, [
+            'attraction',
+            'attractions',
+            'restaurant',
+            'restaurants',
+            'restaurent', // legacy typo used elsewhere in codebase
+        ], true);
+
+        // Also detect from payload when order.type is missing/generic
+        if (! $isAttractionOrRestaurant) {
+            $isAttractionOrRestaurant = isset($item['AttractionId'])
+                || isset($item['AttractionName'])
+                || isset($item['restaurantId'])
+                || isset($item['restaurantName']);
+        }
+
+        if (! $isAttractionOrRestaurant) {
+            return $price;
+        }
+
+        $transfer = 0.0;
+        if (isset($item['transfer_options']) && is_array($item['transfer_options'])) {
+            $transfer = (float) ($item['transfer_options']['cost']
+                ?? $item['transfer_options']['totalPrice']
+                ?? 0);
+        }
+
+        $guide = 0.0;
+        if (isset($item['guide_options']) && is_array($item['guide_options'])) {
+            $guide = (float) ($item['guide_options']['total_price']
+                ?? $item['guide_options']['cost']
+                ?? $item['guide_options']['Cost']
+                ?? 0);
+        }
+
+        return $price + max(0, $transfer) + max(0, $guide);
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private static function parseDestinationCountries(?string $destination): array
+    {
+        if (! is_string($destination) || trim($destination) === '') {
+            return [];
+        }
+
+        $parts = preg_split('/\s*,\s*/', $destination) ?: [];
+        $names = [];
+        foreach ($parts as $part) {
+            $name = trim((string) $part);
+            if ($name !== '') {
+                $names[] = $name;
+            }
+        }
+
+        return array_values(array_unique($names));
+    }
+
+    /**
+     * Resolve discount for a country: prefer a markup row whose city appears in this
+     * country's bookings, else match by country, else by currency.
+     *
+     * @param  array<string, float>  $cityTotals
+     * @param  array<int, array<string, mixed>>  $markups
+     * @return array{discount_type: string|null, discount_value: float}
+     */
+    private static function resolveCountryDiscountMeta(
+        string $country,
+        array $cityTotals,
+        ?string $currency,
+        array $markups
+    ): array {
+        $row = null;
+
+        foreach (array_keys($cityTotals) as $cityKey) {
+            if ($cityKey === '_') {
+                continue;
+            }
+            $row = self::lookupCurrencyMarkupRow($markups, (string) $cityKey, '', '');
+            if ($row) {
+                break;
+            }
+        }
+
+        if (! $row) {
+            $row = self::lookupCurrencyMarkupRow(
+                $markups,
+                '',
+                $country,
+                (string) ($currency ?? '')
+            );
+        }
+
+        $type = isset($row['discount_type']) ? strtolower(trim((string) $row['discount_type'])) : '';
+        if ($type === 'fixed') {
+            $type = 'flat';
+        }
+
+        return [
+            'discount_type' => in_array($type, ['percentage', 'flat', 'foc'], true) ? $type : null,
+            'discount_value' => (float) ($row['discount_value'] ?? 0),
+        ];
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $markups
+     * @return array<string, mixed>|null
+     */
+    private static function lookupCurrencyMarkupRow(
+        array $markups,
+        string $city,
+        string $country,
+        string $currency
+    ): ?array {
+        $city = trim($city);
+        if ($city !== '') {
+            foreach ($markups as $row) {
+                if (! is_array($row)) {
+                    continue;
+                }
+                if (strcasecmp((string) ($row['city'] ?? ''), $city) === 0) {
+                    return $row;
+                }
+            }
+        }
+
+        $country = trim($country);
+        if ($country !== '') {
+            foreach ($markups as $row) {
+                if (! is_array($row)) {
+                    continue;
+                }
+                if (strcasecmp((string) ($row['country'] ?? ''), $country) === 0) {
+                    return $row;
+                }
+            }
+        }
+
+        $currency = strtoupper(trim($currency));
+        if ($currency !== '') {
+            foreach ($markups as $row) {
+                if (! is_array($row)) {
+                    continue;
+                }
+                if (strtoupper(trim((string) ($row['currency'] ?? ''))) === $currency) {
+                    return $row;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * current = actual - discount (percentage / flat / foc). Never below zero.
+     */
+    private static function applyDiscountAmount(float $actual, ?string $discountType, float $discountValue): float
+    {
+        $type = strtolower(trim((string) $discountType));
+        if ($type === 'fixed') {
+            $type = 'flat';
+        }
+
+        $discountMoney = 0.0;
+        if ($type === 'percentage' && $discountValue > 0) {
+            $discountMoney = $actual * $discountValue / 100;
+        } elseif (in_array($type, ['flat', 'foc'], true) && $discountValue > 0) {
+            $discountMoney = $discountValue;
+        }
+
+        return max(0, $actual - $discountMoney);
+    }
 }
