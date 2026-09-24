@@ -804,10 +804,52 @@
             }
         };
 
-        $resolveStayForItem = function ($city, $country, $dateRaw = '', $isReturnHint = false) use ($staySegments, $parseYmdFromRange, $preferredCityByCountry) {
+        // Reject junk city labels like "dd" (often a typed pickup, not a planner city).
+        $plannerCityNames = [];
+        foreach ($staySegments as $s) {
+            $cn = mb_strtolower(trim((string) ($s['city'] ?? '')));
+            if ($cn !== '') {
+                $plannerCityNames[$cn] = true;
+            }
+        }
+        $isUsableCityName = static function ($city) use ($plannerCityNames) {
+            $city = trim((string) $city);
+            if ($city === '') {
+                return false;
+            }
+            // Too short / placeholder (dd, xx, n/a)
+            if (mb_strlen($city) <= 2) {
+                return false;
+            }
+            if (preg_match('/^(n\/?a|null|none|test)$/i', $city)) {
+                return false;
+            }
+            // If planner cities exist, prefer only those (or close match)
+            if (!empty($plannerCityNames)) {
+                $cl = mb_strtolower($city);
+                if (isset($plannerCityNames[$cl])) {
+                    return true;
+                }
+                foreach (array_keys($plannerCityNames) as $known) {
+                    if (str_contains($known, $cl) || str_contains($cl, $known)) {
+                        return true;
+                    }
+                }
+                // Unknown short-ish free text that isn't a planner city → treat as unusable for titles/matching
+                if (mb_strlen($city) < 4) {
+                    return false;
+                }
+            }
+            return true;
+        };
+
+        $resolveStayForItem = function ($city, $country, $dateRaw = '', $isReturnHint = false) use ($staySegments, $parseYmdFromRange, $preferredCityByCountry, $isUsableCityName) {
             $city = trim((string) $city);
             $country = trim((string) $country);
             $isReturnHint = (bool) $isReturnHint;
+            if (!$isUsableCityName($city)) {
+                $city = '';
+            }
             if ($city === '' && $country !== '') {
                 $city = $preferredCityByCountry[mb_strtolower($country)] ?? '';
             }
@@ -825,6 +867,14 @@
                     continue;
                 }
                 $candidates[] = $stay;
+            }
+            // City was junk/unknown: match by country only (never dump into first stay of another country)
+            if (empty($candidates) && $country !== '') {
+                foreach ($staySegments as $stay) {
+                    if (strcasecmp((string) $stay['country'], $country) === 0) {
+                        $candidates[] = $stay;
+                    }
+                }
             }
             if (empty($candidates)) {
                 $candidates = $staySegments;
@@ -901,7 +951,7 @@
         };
 
         // Title: City (Country) (CURRENCY) [· Return]
-        $formatLocationTitle = function ($city, $country, $currency, $isReturn = false) use ($preferredCityByCountry) {
+        $formatLocationTitle = function ($city, $country, $currency, $isReturn = false) use ($preferredCityByCountry, $isUsableCityName) {
             $country = trim((string) $country);
             if ($country === '') {
                 $country = 'Other';
@@ -911,8 +961,8 @@
                 $currency = 'SGD';
             }
             $city = trim((string) $city);
-            if ($city === '') {
-                $city = $preferredCityByCountry[mb_strtolower($country)] ?? $country;
+            if (!$isUsableCityName($city)) {
+                $city = $preferredCityByCountry[mb_strtolower($country)] ?? '';
             }
             if ($city === '') {
                 $city = $country;
@@ -1287,17 +1337,24 @@
             return $countryBucketKey($country, $currency);
         };
 
-        $ensureBucketMeta = function ($bucketKey, $country, $currency, $city = '', $stay = null) use (&$countryMeta) {
+        $ensureBucketMeta = function ($bucketKey, $country, $currency, $city = '', $stay = null) use (&$countryMeta, $isUsableCityName, $preferredCityByCountry) {
             $countryName = trim((string) $country) !== '' ? trim((string) $country) : 'Other';
             $currencyCode = strtoupper(trim((string) $currency));
             $cityName = trim((string) $city);
+            // Prefer planner stay city over junk service city (e.g. pickup "dd")
+            $stayCity = is_array($stay) ? trim((string) ($stay['city'] ?? '')) : '';
+            if ($stayCity !== '') {
+                $cityName = $stayCity;
+            } elseif (!$isUsableCityName($cityName)) {
+                $cityName = $preferredCityByCountry[mb_strtolower($countryName)] ?? '';
+            }
             $isReturn = is_array($stay) ? !empty($stay['is_return']) : false;
             $dateRange = is_array($stay) ? trim((string) ($stay['date_range'] ?? '')) : '';
             $sortStart = is_array($stay) ? (string) ($stay['start'] ?? '') : '';
             if (!isset($countryMeta[$bucketKey])) {
                 $countryMeta[$bucketKey] = [
                     'country' => $countryName,
-                    'city' => $cityName !== '' ? $cityName : (is_array($stay) ? (string) ($stay['city'] ?? '') : ''),
+                    'city' => $cityName,
                     'currency' => $currencyCode,
                     'is_return' => $isReturn,
                     'date_range' => $dateRange,
@@ -1305,11 +1362,14 @@
                     'stay_key' => is_array($stay) ? (string) ($stay['key'] ?? '') : '',
                 ];
             } else {
-                if ($cityName !== '' && empty($countryMeta[$bucketKey]['city'])) {
+                if ($cityName !== '' && (empty($countryMeta[$bucketKey]['city']) || !$isUsableCityName($countryMeta[$bucketKey]['city'] ?? ''))) {
                     $countryMeta[$bucketKey]['city'] = $cityName;
                 }
                 if ($dateRange !== '' && empty($countryMeta[$bucketKey]['date_range'])) {
                     $countryMeta[$bucketKey]['date_range'] = $dateRange;
+                }
+                if ($sortStart !== '' && empty($countryMeta[$bucketKey]['sort_start'])) {
+                    $countryMeta[$bucketKey]['sort_start'] = $sortStart;
                 }
                 if ($isReturn) {
                     $countryMeta[$bucketKey]['is_return'] = true;
