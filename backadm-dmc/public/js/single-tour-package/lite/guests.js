@@ -6,6 +6,61 @@
 
     var additionalGuestCount = 0;
 
+    function showAppPassword() {
+        var section = document.getElementById('guestInfoSection');
+        if (section && section.getAttribute('data-show-app-password') === '1') return true;
+        return !!(window.STP_LITE_EDIT && window.STP_LITE_EDIT.showAppPassword);
+    }
+
+    function generateRandomPassword() {
+        var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%';
+        var password = '';
+        for (var i = 0; i < 10; i++) {
+            password += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return password.split('').sort(function () { return Math.random() - 0.5; }).join('');
+    }
+
+    function togglePasswordVisibility(btn) {
+        if (!btn) return;
+        var container = btn.parentElement;
+        var input = container ? container.querySelector('input[type="password"], input[type="text"]') : null;
+        var icon = btn.querySelector('i');
+        if (!input) return;
+        if (input.type === 'password') {
+            input.type = 'text';
+            if (icon) icon.className = 'ri-eye-line';
+        } else {
+            input.type = 'password';
+            if (icon) icon.className = 'ri-eye-off-line';
+        }
+    }
+
+    function generatePasswordFor(btn) {
+        if (!btn) return;
+        var container = btn.parentElement;
+        var input = container ? container.querySelector('input') : null;
+        if (!input) return;
+        input.value = generateRandomPassword();
+        input.type = 'text';
+        var eyeIcon = container.querySelector('.btn-outline-secondary i');
+        if (eyeIcon) eyeIcon.className = 'ri-eye-line';
+    }
+
+    function appPasswordFieldHtml(guestIndex) {
+        if (!showAppPassword()) return '';
+        return (
+            '<div class="col-md-4">' +
+            '  <label class="stp-lite-label"><i class="ri-lock-password-line me-1"></i>App Password</label>' +
+            '  <div class="d-flex gap-1">' +
+            '    <input type="password" class="form-control form-control-sm guest-app-password" name="additional_guests[' + guestIndex + '][app_password]" placeholder="Enter app password" autocomplete="new-password" style="flex:1;">' +
+            '    <button class="btn btn-outline-secondary btn-sm" type="button" data-stp-toggle-pw title="Toggle visibility" style="min-width:32px;padding:0 6px;"><i class="ri-eye-off-line"></i></button>' +
+            '    <button class="btn btn-outline-primary btn-sm" type="button" data-stp-generate-pw title="Generate password" style="white-space:nowrap;padding:0 8px;font-size:0.75rem;"><i class="ri-key-line me-1"></i>Generate</button>' +
+            '  </div>' +
+            '</div>'
+        );
+    }
+
     function getTotalPax() {
         if (window.StpLiteGuestCaps && typeof window.StpLiteGuestCaps.getCaps === 'function') {
             var caps = window.StpLiteGuestCaps.getCaps() || {};
@@ -57,6 +112,9 @@
             '        <input type="date" class="form-control form-control-sm" name="additional_guests[' + guestIndex + '][passport_exp]"></div>' +
             '      <div class="col-md-2"><label class="stp-lite-label">Contact No.</label>' +
             '        <input type="text" class="form-control form-control-sm stp-lite-guest-phone" name="additional_guests[' + guestIndex + '][contact_no]" placeholder="Contact" data-sanitize="phone" inputmode="numeric" pattern="[0-9]{6,15}" title="Digits only"></div>' +
+            '      <div class="col-md-3"><label class="stp-lite-label">Email</label>' +
+            '        <input type="email" class="form-control form-control-sm" name="additional_guests[' + guestIndex + '][email]" placeholder="Email" data-sanitize="email"></div>' +
+            appPasswordFieldHtml(guestIndex) +
             '    </div>' +
             '  </div>' +
             '</div>'
@@ -128,7 +186,8 @@
             zip: getLeadVal('customerZip', 'customer_zip'),
             special_requests: getLeadVal('customerSpecialRequests', 'customer_special_requests'),
             passport: getLeadVal('customerPassport', 'customer_passport'),
-            passport_exp: getLeadVal('customerPassportExpiry', 'customer_passport_expiry')
+            passport_exp: getLeadVal('customerPassportExpiry', 'customer_passport_expiry'),
+            app_password: getLeadVal('customerAppPassword', 'customer_app_password')
         };
     }
 
@@ -175,10 +234,23 @@
             });
         }
         document.addEventListener('click', function (e) {
-            var btn = e.target.closest('.stp-lite-remove-guest');
-            if (!btn) return;
-            e.preventDefault();
-            removeAdditionalGuest(btn.getAttribute('data-guest-index'));
+            var removeBtn = e.target.closest('.stp-lite-remove-guest');
+            if (removeBtn) {
+                e.preventDefault();
+                removeAdditionalGuest(removeBtn.getAttribute('data-guest-index'));
+                return;
+            }
+            var toggleBtn = e.target.closest('[data-stp-toggle-pw]');
+            if (toggleBtn) {
+                e.preventDefault();
+                togglePasswordVisibility(toggleBtn);
+                return;
+            }
+            var genBtn = e.target.closest('[data-stp-generate-pw]');
+            if (genBtn) {
+                e.preventDefault();
+                generatePasswordFor(genBtn);
+            }
         });
         document.addEventListener('stp:guests-changed', updateGuestLimitInfo);
         updateGuestLimitInfo();
@@ -307,7 +379,10 @@
         getCustomerDataForServices: getCustomerDataForServices,
         updateGuestLimitInfo: updateGuestLimitInfo,
         addAdditionalGuest: addAdditionalGuest,
-        validateGuestFields: validateGuestFields
+        validateGuestFields: validateGuestFields,
+        togglePasswordVisibility: togglePasswordVisibility,
+        generatePasswordFor: generatePasswordFor,
+        showAppPassword: showAppPassword
     };
 
     // Backup global aliases used by inline handlers if any remain
