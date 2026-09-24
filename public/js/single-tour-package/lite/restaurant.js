@@ -108,27 +108,27 @@
         return (
             '<div class="stp-lite-svc stp-lite-restaurant" data-currency="' + T.esc(cur) + '">' +
             '  <div class="row g-2 mb-2">' +
-            '    <div class="col-md-3"><label class="stp-lite-label">City</label>' +
+            '    <div class="col-12 col-md-3"><label class="stp-lite-label">City</label>' +
             '      <div class="stp-lite-city-static">' + T.esc(T.cityLabel(stay)) + '</div></div>' +
-            '    <div class="col-md-3"><label class="stp-lite-label">Restaurant</label>' +
+            '    <div class="col-12 col-md-3"><label class="stp-lite-label">Restaurant</label>' +
             '      <select class="form-select form-select-sm restaurant-select" disabled><option value="">Loading…</option></select></div>' +
-            '    <div class="col-md-2"><label class="stp-lite-label">Meal type</label>' +
+            '    <div class="col-6 col-md-3"><label class="stp-lite-label">Meal type</label>' +
             '      <select class="form-select form-select-sm restaurant-meal-type" disabled><option value="">Select restaurant</option></select></div>' +
-            '    <div class="col-md-2"><label class="stp-lite-label">Dish</label>' +
+            '    <div class="col-6 col-md-3"><label class="stp-lite-label">Dish</label>' +
             '      <select class="form-select form-select-sm restaurant-dish" disabled><option value="">Select meal type</option></select></div>' +
-            '    <div class="col-md-2"><label class="stp-lite-label">Time</label>' +
+            '  </div>' +
+            '  <div class="row g-2 mb-2 align-items-end">' +
+            '    <div class="col-6 col-md-2"><label class="stp-lite-label">Date</label>' +
+            '      <input type="date" class="form-control form-control-sm restaurant-date" value="' + T.esc(stay.start || '') + '"></div>' +
+            '    <div class="col-6 col-md-2"><label class="stp-lite-label">Adults</label>' +
+            '      <input type="number" min="0" class="form-control form-control-sm stp-lite-int restaurant-adults" data-guest-cap="adults" value="' + (g.adults || 1) + '"></div>' +
+            '    <div class="col-6 col-md-2" data-guest-child-ui><label class="stp-lite-label">Children</label>' +
+            '      <input type="number" min="0" class="form-control form-control-sm stp-lite-int restaurant-children" data-guest-cap="children" value="' + (g.children || 0) + '"></div>' +
+            '    <div class="col-6 col-md-3 stp-lite-restaurant-time-col"><label class="stp-lite-label">Time</label>' +
             T.ampmTimeHtml('restaurant', '') +
             '</div>' +
-            '  </div>' +
-            '  <div class="row g-2 mb-2">' +
-            '    <div class="col-md-2"><label class="stp-lite-label">Date</label>' +
-            '      <input type="date" class="form-control form-control-sm restaurant-date" value="' + T.esc(stay.start || '') + '"></div>' +
-            '    <div class="col-md-2"><label class="stp-lite-label">Adults</label>' +
-            '      <input type="number" min="0" class="form-control form-control-sm stp-lite-int restaurant-adults" data-guest-cap="adults" value="' + (g.adults || 1) + '"></div>' +
-            '    <div class="col-md-2" data-guest-child-ui><label class="stp-lite-label">Children</label>' +
-            '      <input type="number" min="0" class="form-control form-control-sm stp-lite-int restaurant-children" data-guest-cap="children" value="' + (g.children || 0) + '"></div>' +
-            '    <div class="col-md-2">' + T.transferRequiredSelectHtml(PREFIX) + '</div>' +
-            '    <div class="col-md-2">' + T.guideRequiredSelectHtml(PREFIX) + '</div>' +
+            '    <div class="col-6 col-md-2">' + T.transferRequiredSelectHtml(PREFIX) + '</div>' +
+            '    <div class="col-6 col-md-2">' + T.guideRequiredSelectHtml(PREFIX) + '</div>' +
             '  </div>' +
             T.transferExtrasHtml(PREFIX) +
             T.guideExtrasHtml(PREFIX) +
