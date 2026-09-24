@@ -1,9 +1,19 @@
 {{-- === STP LITE: Lead Guest + Additional Guests (backup field IDs / names) === --}}
-<div id="guestInfoSection" class="stp-lite-guest-info mt-3">
+@php
+    $tourStatusNorm = strtolower(trim((string) ($tour->tour_status ?? '')));
+    // App Password only for Definite / Actual (not Confirmed)
+    $showAppPassword = in_array($tourStatusNorm, ['definite', 'actual'], true);
+@endphp
+<div id="guestInfoSection" class="stp-lite-guest-info mt-3" data-show-app-password="{{ $showAppPassword ? '1' : '0' }}">
     <div class="stp-lite-card" id="customerAccordion">
         <div class="stp-lite-card-header stp-lite-guest-head" role="button" data-bs-toggle="collapse" data-bs-target="#customerInformationSection" aria-expanded="true">
             <div>
-                <h2 class="mb-0"><i class="ri-user-line me-1"></i>Lead Guest information</h2>
+                <h2 class="mb-0">
+                    <i class="ri-user-line me-1"></i>Lead Guest information
+                    @if($showAppPassword)
+                        <span class="badge bg-secondary ms-1" style="font-size:0.65rem;">App Password</span>
+                    @endif
+                </h2>
                 <small class="text-muted">Customer details posted as <code>mainguest</code> (backup format)</small>
             </div>
             <i class="ri-arrow-down-s-line"></i>
@@ -81,6 +91,21 @@
                         <label class="stp-lite-label">Special Requests</label>
                         <textarea class="form-control form-control-sm" id="customerSpecialRequests" name="customer_special_requests" rows="2" placeholder="Notes"></textarea>
                     </div>
+                    @if($showAppPassword)
+                    <div class="col-md-6" id="leadGuestAppPasswordWrap">
+                        <label class="stp-lite-label"><i class="ri-lock-password-line me-1"></i>App Password</label>
+                        <div class="d-flex gap-1">
+                            <input type="password" class="form-control form-control-sm" id="customerAppPassword" name="customer_app_password" placeholder="Enter app password" autocomplete="new-password" style="flex: 1;">
+                            <button class="btn btn-outline-secondary btn-sm" type="button" onclick="window.StpLiteGuests && window.StpLiteGuests.togglePasswordVisibility(this)" title="Toggle visibility" style="min-width: 32px; padding: 0 6px;">
+                                <i class="ri-eye-off-line"></i>
+                            </button>
+                            <button class="btn btn-outline-primary btn-sm" type="button" onclick="window.StpLiteGuests && window.StpLiteGuests.generatePasswordFor(this)" title="Generate password" style="white-space: nowrap; padding: 0 8px; font-size: 0.75rem;">
+                                <i class="ri-key-line me-1"></i>Generate
+                            </button>
+                        </div>
+                        <small class="text-muted" style="font-size: 0.7rem;">Credentials email is sent when Email and App Password are set and you save (Definite / Actual).</small>
+                    </div>
+                    @endif
                 </div>
             </div>
         </div>
