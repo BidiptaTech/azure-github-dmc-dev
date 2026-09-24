@@ -21,6 +21,7 @@ use App\Models\Attraction;
 use App\Models\Restaurant;
 use App\Models\VehicleZoneMapping;
 use App\Helpers\CommonHelper;
+use App\Helpers\OrderCostPriceHelper;
 use App\Models\Guide;
 use App\Models\Transaction;
 use App\Models\Vehicle;
@@ -3420,39 +3421,70 @@ class TourController extends Controller
                 'success' => false,
                 'message' => 'Tour not found.'
             ], 404); 
-        }else{
-            $enquiry = Enquiry::where('tour_id', $tour->tour_id)->latest()->first();
-            $rem = '';
-            
-            if ($enquiry) {
-            if($enquiry->current_position == "OM"){
-                    $rem = 'Waiting for AM approval';
-            }elseif($enquiry->current_position == "AM"){
-                    $rem = 'Waiting for Offer';
-            }elseif($enquiry->current_position == "agent"){
-                    $rem = 'Offered';
+        }
+
+        $enquiry = Enquiry::where('tour_id', $tour->tour_id)->latest()->first();
+        $rem = '';
+
+        if ($enquiry) {
+            if ($enquiry->current_position == "OM") {
+                $rem = 'Waiting for AM approval';
+            } elseif ($enquiry->current_position == "AM") {
+                $rem = 'Waiting for Offer';
+            } elseif ($enquiry->current_position == "agent") {
+                $rem = 'Offered';
             }
-            }
-            
-            $data = [
+        }
+
+        $countryPrices = OrderCostPriceHelper::getCountryWiseTotalPrice($tour->tour_id);
+
+        $comment = $enquiry ? ($enquiry->comment ?? '') : '';
+        $assigned = $enquiry ? ($enquiry->current_position ?? '') : '';
+        $status = $enquiry ? ($enquiry->status ?? '') : '';
+        $created = $enquiry ? CommonHelper::DateFormatAdmin($enquiry->created_at) : '';
+        $updated = $enquiry ? CommonHelper::DateFormatAdmin($enquiry->updated_at) : '';
+        $pendingDays = $enquiry && $enquiry->created_at
+            ? max(1, now()->diffInDays($enquiry->created_at)) . ' days'
+            : '0 days';
+
+        $data = [];
+        foreach ($countryPrices as $row) {
+            $data[] = [
                 'tour_id' => $tour->tour_id,
+                'country' => $row['country'] ?? '',
+                'actual_price' => $row['actual_price'] ?? 0,
+                'current_price' => $row['current_price'] ?? 0,
+                'comment' => $comment,
+                'remarks' => $rem,
+                'assigned' => $assigned,
+                'status' => $status,
+                'created' => $created,
+                'updated' => $updated,
+                'pending_days' => $pendingDays,
+            ];
+        }
+
+        // Fallback when tour has no destination and no priced bookings yet
+        if ($data === []) {
+            $data[] = [
+                'tour_id' => $tour->tour_id,
+                'country' => '',
                 'actual_price' => $enquiry ? ($enquiry->actual_amount ?? '') : '',
                 'current_price' => $enquiry ? ($enquiry->amount ?? '') : '',
-                'comment' => $enquiry ? ($enquiry->comment ?? '') : '',
+                'comment' => $comment,
                 'remarks' => $rem,
-                'assigned' => $enquiry ? ($enquiry->current_position ?? '') : '',
-                'status' => $enquiry ? ($enquiry->status ?? '') : '',
-                'created' => $enquiry ? CommonHelper::DateFormatAdmin($enquiry->created_at) : '',
-                'updated' => $enquiry ? CommonHelper::DateFormatAdmin($enquiry->updated_at) : '',
-                'pending_days' => $enquiry && $enquiry->created_at 
-                    ? max(1, now()->diffInDays($enquiry->created_at)) . ' days' 
-                    : '0 days',
+                'assigned' => $assigned,
+                'status' => $status,
+                'created' => $created,
+                'updated' => $updated,
+                'pending_days' => $pendingDays,
             ];
-            return response()->json([
-                'success' => true,
-                'data' => $data
-            ], 200);
         }
+
+        return response()->json([
+            'success' => true,
+            'data' => $data
+        ], 200);
     }
 
     /*
