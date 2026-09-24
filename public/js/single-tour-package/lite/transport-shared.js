@@ -356,8 +356,9 @@
             bodyEl.innerHTML =
                 '<div class="stp-lite-svc-price-card">' +
                 (detailHtml || '') +
-                '<div class="d-flex justify-content-between align-items-center mt-2 pt-2" style="border-top:1px dashed #93c5fd;">' +
-                '<span>Total</span><strong>' + esc(currency || '') + ' ' + Number(total || 0).toFixed(2) + '</strong></div></div>';
+                '<div class="stp-lite-summary-row mt-2 pt-2" style="border-top:1px dashed #93c5fd;">' +
+                '<span class="stp-lite-summary-row__left"><strong>Total</strong></span>' +
+                '<strong class="stp-lite-summary-row__amt">' + esc(currency || '') + ' ' + Number(total || 0).toFixed(2) + '</strong></div></div>';
         }
         try {
             if (window.bootstrap && bootstrap.Modal) {
@@ -367,6 +368,99 @@
         } catch (e) { /* fall through */ }
         modalEl.classList.add('show');
         modalEl.style.display = 'block';
+    }
+
+    /** Left formula / right amount line for service price panels & popups. */
+    function priceFormulaRowHtml(labelHtml, amountText) {
+        return (
+            '<div class="stp-lite-summary-row">' +
+            '<span class="stp-lite-summary-row__left">' + (labelHtml || '') + '</span>' +
+            '<strong class="stp-lite-summary-row__amt">' + esc(String(amountText || '')) + '</strong></div>'
+        );
+    }
+
+    /**
+     * Shared vehicle popup/panel: Adult N × rate (+ Child …) on left, amount on right.
+     * Private: vehicle rate × count.
+     */
+    function vehiclePriceDetailHtml(row, currency) {
+        row = row || {};
+        var cur = String(currency || row.currency || '').trim() || 'SGD';
+        var type = String(row.type || row.mode || row.price_detail || '').toLowerCase();
+        var adults = parseInt(row.adults, 10) || 0;
+        var children = parseInt(row.children, 10) || 0;
+        var vehCount = Math.max(1, parseInt(row.vehicle_count != null ? row.vehicle_count : row.booked_vehicles, 10) || 1);
+        var total = Number(row.totalPrice != null ? row.totalPrice : (row.total != null ? row.total : row.grand_total)) || 0;
+        var adultUnit = Number(row.adult_price != null ? row.adult_price
+            : (row.adultUnit != null ? row.adultUnit
+                : (row.shared_price != null ? row.shared_price : row.unit))) || 0;
+        var childUnit = Number(row.child_price != null ? row.child_price
+            : (row.childUnit != null ? row.childUnit : adultUnit)) || 0;
+        var privateUnit = Number(row.private_price != null ? row.private_price
+            : (row.unit != null ? row.unit : 0)) || 0;
+
+        // Infer shared adult unit from total when rate fields missing
+        if (type === 'shared' && adultUnit <= 0 && adults > 0 && total > 0) {
+            var childPart = children > 0 && childUnit > 0 ? (childUnit * children) : 0;
+            var adultPart = Math.max(0, total - childPart);
+            adultUnit = adults > 0 ? (adultPart / adults) : 0;
+            if (childUnit <= 0 && children > 0 && adultPart >= total) {
+                adultUnit = total / Math.max(1, adults + children);
+                childUnit = adultUnit;
+            }
+        }
+        if (type === 'shared' && adultUnit <= 0 && Number(row.shared_price) > 0) {
+            adultUnit = Number(row.shared_price);
+            if (childUnit <= 0) childUnit = adultUnit;
+        }
+
+        var metaParts = [];
+        if (row.type || row.mode) metaParts.push(esc(row.type || row.mode));
+        var routeFrom = row.entrypickup || row.exitpickup || row.pickup || '';
+        var routeTo = row.entrydropoff || row.exitdropoff || row.dropoff || '';
+        if (routeFrom || routeTo) {
+            metaParts.push(esc(routeFrom) + (routeTo ? ' → ' + esc(routeTo) : ''));
+        }
+        if (row.selectedHours || row.hours) {
+            metaParts.push(esc(String(row.selectedHours || row.hours)) + 'h');
+        }
+        if (row.entrytime || row.exittime || row.time) {
+            metaParts.push(esc(row.entrytime || row.exittime || row.time));
+        }
+
+        var html = '';
+        if (metaParts.length) {
+            html += '<div class="small text-muted mb-1">' + metaParts.join(' · ') + '</div>';
+        }
+
+        if (type === 'shared') {
+            if (adults > 0 && adultUnit > 0) {
+                var adultAmt = adultUnit * adults;
+                html += priceFormulaRowHtml(
+                    '<strong>Adult</strong> ' + adults + ' × ' + adultUnit.toFixed(2),
+                    cur + ' ' + adultAmt.toFixed(2)
+                );
+            }
+            if (children > 0 && childUnit > 0) {
+                var childAmt = childUnit * children;
+                html += priceFormulaRowHtml(
+                    '<strong>Child</strong> ' + children + ' × ' + childUnit.toFixed(2),
+                    cur + ' ' + childAmt.toFixed(2)
+                );
+            }
+            if (!html || (adults <= 0 && children <= 0)) {
+                html += priceFormulaRowHtml('<strong>Shared</strong>', cur + ' ' + total.toFixed(2));
+            }
+        } else {
+            var unit = privateUnit > 0 ? privateUnit : (vehCount > 0 ? (total / vehCount) : total);
+            var label = '<strong>Private</strong> ' + unit.toFixed(2);
+            if (vehCount > 1) label += ' × ' + vehCount + ' vehicles';
+            html += priceFormulaRowHtml(label, cur + ' ' + total.toFixed(2));
+            if (adults || children) {
+                html += '<div class="small text-muted mt-1">' + adults + 'A / ' + children + 'C</div>';
+            }
+        }
+        return html;
     }
 
     function fetchVehiclesByZones(payload) {
@@ -572,11 +666,26 @@
             total = (adultUnit * a) + (childUnit * c) + (infantUnit * i);
             if (total <= 0 && sharedPrice > 0) {
                 total = sharedPrice * Math.max(1, a + c);
+                adultUnit = sharedPrice;
+                childUnit = sharedPrice;
             }
             if (total <= 0 && !fromZone && sharableBase > 0) {
                 total = sharableBase * Math.max(1, a + c);
+                adultUnit = sharableBase;
+                childUnit = sharableBase;
             }
-            return { total: total, unit: sharedPrice || sharableBase, mode: 'shared', source: source };
+            return {
+                total: total,
+                unit: adultUnit || sharedPrice || sharableBase,
+                adultUnit: adultUnit,
+                childUnit: childUnit,
+                infantUnit: infantUnit,
+                adults: a,
+                children: c,
+                infants: i,
+                mode: 'shared',
+                source: source
+            };
         }
 
         if (fromZone) {
@@ -584,7 +693,17 @@
         } else {
             total = privatePrice > 0 ? privatePrice : base;
         }
-        return { total: total, unit: total, mode: 'private', source: source };
+        return {
+            total: total,
+            unit: total,
+            adultUnit: 0,
+            childUnit: 0,
+            adults: a,
+            children: c,
+            infants: i,
+            mode: 'private',
+            source: source
+        };
     }
 
     /**
@@ -717,7 +836,7 @@
         return (
             '<div class="stp-lite-extras-block">' +
             '  <div class="stp-lite-opt-card stp-lite-opt-card--compact d-none" data-' + prefix + '-transfer-card>' +
-            '    <div class="row g-1 align-items-end flex-nowrap stp-lite-xfer-row">' +
+            '    <div class="row g-1 align-items-end stp-lite-xfer-row">' +
             '      <div class="col stp-lite-xfer-type"><label class="stp-lite-label">Type</label>' +
             '        <select class="form-select form-select-sm ' + prefix + '-transfer-type" data-no-select2="true">' +
             '          <option value="">Select</option><option value="Shared">Shared</option><option value="Private">Private</option></select></div>' +
@@ -1798,9 +1917,22 @@
         var car = parseFloat(carCost) || 0;
         if (car <= 0) return { total: 0, unit: 0, mode: String(serviceType || 'private').toLowerCase(), base: 0 };
         var type = String(serviceType || 'private').toLowerCase();
-        var guests = Math.max(1, (parseInt(adults, 10) || 0) + (parseInt(children, 10) || 0) + (parseInt(infants, 10) || 0));
+        var a = parseInt(adults, 10) || 0;
+        var c = parseInt(children, 10) || 0;
+        var i = parseInt(infants, 10) || 0;
+        var guests = Math.max(1, a + c + i);
         var total = type === 'shared' ? (car * guests) : car;
-        return { total: total, unit: car, mode: type, base: car };
+        return {
+            total: total,
+            unit: car,
+            base: car,
+            mode: type,
+            adultUnit: type === 'shared' ? car : 0,
+            childUnit: type === 'shared' ? car : 0,
+            adults: a,
+            children: c,
+            infants: i
+        };
     }
 
     function confirmRemoveService() {
@@ -1877,6 +2009,8 @@
         addedTableActions: addedTableActions,
         editingMarkHtml: editingMarkHtml,
         showPriceBreakdownModal: showPriceBreakdownModal,
+        priceFormulaRowHtml: priceFormulaRowHtml,
+        vehiclePriceDetailHtml: vehiclePriceDetailHtml,
         clearSelectOrInput: clearSelectOrInput,
         resetTransferGuideExtras: resetTransferGuideExtras,
         calcManualCarTotal: calcManualCarTotal,

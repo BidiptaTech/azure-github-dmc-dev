@@ -938,12 +938,25 @@
         }
 
         // Preferred city + stay dates per country from tour.city
+        // e.g. "Batam (Indonesia) [2026-09-23→2026-09-26], Singapore (Singapore) [2026-09-26→2026-09-29], Batam (Indonesia) [2026-09-29→2026-10-01]"
+        // Same city appearing again = Return stay (separate section, date-wise).
         $preferredCityByCountry = [];
-        $dateRangeByCountry = [];
-        $dateRangeByCity = [];
-        $dateBoundsByCountry = [];
+        $dateRangeByCountry = []; // country(lower) => 'd M Y to d M Y' (merged fallback)
+        $dateRangeByCity = [];    // city(lower) => 'd M Y to d M Y' (merged fallback)
+        $dateBoundsByCountry = []; // country(lower) => ['start' => Y-m-d, 'end' => Y-m-d]
         $dateBoundsByCity = [];
+        $staySegments = [];       // one entry per planner stay (primary + return)
+        $seenCityStayCount = [];
         $tourCityRaw = trim((string) ($tour->city ?? ''));
+        $formatPlanRange = static function (string $startYmd, string $endYmd): string {
+            try {
+                return \Carbon\Carbon::parse($startYmd)->format('d M Y')
+                    . ' to '
+                    . \Carbon\Carbon::parse($endYmd)->format('d M Y');
+            } catch (\Throwable $e) {
+                return $startYmd . ' to ' . $endYmd;
+            }
+        };
         if ($tourCityRaw !== '') {
             $planRe = '/^(.+?)\s*\[(\d{4}-\d{2}-\d{2})\s*(?:→|->)\s*(\d{4}-\d{2}-\d{2})\]\s*$/u';
             foreach (preg_split('/\s*,\s*/', $tourCityRaw) ?: [] as $part) {
@@ -973,13 +986,29 @@
                     continue;
                 }
                 if ($countryName === '') {
-                    $countryName = $cityName;
+                    $countryName = $cityName; // city-state fallback
                 }
                 $preferredCityByCountry[mb_strtolower($countryName)] = $cityName;
 
+                $cityKeyLower = mb_strtolower($cityName);
+                $seenCityStayCount[$cityKeyLower] = ($seenCityStayCount[$cityKeyLower] ?? 0) + 1;
+                $isReturnStay = $seenCityStayCount[$cityKeyLower] > 1;
+                $stayIdx = count($staySegments);
+                $staySegments[] = [
+                    'key' => 'stay_' . $stayIdx,
+                    'city' => $cityName,
+                    'country' => $countryName,
+                    'start' => $startYmd,
+                    'end' => $endYmd,
+                    'is_return' => $isReturnStay,
+                    'date_range' => ($startYmd !== '' && $endYmd !== '')
+                        ? $formatPlanRange($startYmd, $endYmd)
+                        : '',
+                ];
+
                 if ($startYmd !== '' && $endYmd !== '') {
                     $cKey = mb_strtolower($countryName);
-                    $cityKey = mb_strtolower($cityName);
+                    $cityKey = $cityKeyLower;
                     if (!isset($dateBoundsByCountry[$cKey])) {
                         $dateBoundsByCountry[$cKey] = ['start' => $startYmd, 'end' => $endYmd];
                     } else {
@@ -1002,15 +1031,6 @@
                     }
                 }
             }
-            $formatPlanRange = static function (string $startYmd, string $endYmd): string {
-                try {
-                    return \Carbon\Carbon::parse($startYmd)->format('d M Y')
-                        . ' to '
-                        . \Carbon\Carbon::parse($endYmd)->format('d M Y');
-                } catch (\Throwable $e) {
-                    return $startYmd . ' to ' . $endYmd;
-                }
-            };
             foreach ($dateBoundsByCountry as $k => $bounds) {
                 $dateRangeByCountry[$k] = $formatPlanRange($bounds['start'], $bounds['end']);
             }
@@ -1019,8 +1039,93 @@
             }
         }
 
-        // Title: City (Country) (CURRENCY)
-        $formatLocationTitle = function ($city, $country, $currency) use ($preferredCityByCountry) {
+        $parseYmdFromRange = static function ($raw) {
+            $raw = trim((string) $raw);
+            if ($raw === '') {
+                return ['', ''];
+            }
+            if (preg_match('/(\d{4}-\d{2}-\d{2})\s*(?:to|→|->)\s*(\d{4}-\d{2}-\d{2})/i', $raw, $m)) {
+                return [trim($m[1]), trim($m[2])];
+            }
+            // Single Y-m-d (service date)
+            if (preg_match('/^(\d{4}-\d{2}-\d{2})$/', $raw, $m)) {
+                return [trim($m[1]), trim($m[1])];
+            }
+            // "d M Y to d M Y" or single "d M Y"
+            if (preg_match('/^(.+?)\s+to\s+(.+)$/i', $raw, $m)) {
+                try {
+                    return [
+                        \Carbon\Carbon::parse(trim($m[1]))->format('Y-m-d'),
+                        \Carbon\Carbon::parse(trim($m[2]))->format('Y-m-d'),
+                    ];
+                } catch (\Throwable $e) {
+                    return ['', ''];
+                }
+            }
+            try {
+                $one = \Carbon\Carbon::parse($raw)->format('Y-m-d');
+                return [$one, $one];
+            } catch (\Throwable $e) {
+                return ['', ''];
+            }
+        };
+
+        $resolveStayForItem = function ($city, $country, $dateRaw = '') use ($staySegments, $parseYmdFromRange, $preferredCityByCountry) {
+            $city = trim((string) $city);
+            $country = trim((string) $country);
+            if ($city === '' && $country !== '') {
+                $city = $preferredCityByCountry[mb_strtolower($country)] ?? '';
+            }
+            if (empty($staySegments)) {
+                return null;
+            }
+            [$itemStart, $itemEnd] = $parseYmdFromRange($dateRaw);
+            $cityL = mb_strtolower($city);
+            $candidates = [];
+            foreach ($staySegments as $stay) {
+                if ($cityL !== '' && mb_strtolower($stay['city']) !== $cityL) {
+                    continue;
+                }
+                if ($cityL === '' && $country !== '' && strcasecmp($stay['country'], $country) !== 0) {
+                    continue;
+                }
+                $candidates[] = $stay;
+            }
+            if (empty($candidates)) {
+                $candidates = $staySegments;
+            }
+            if ($itemStart !== '' && $itemEnd !== '') {
+                foreach ($candidates as $stay) {
+                    if ($stay['start'] === '' || $stay['end'] === '') {
+                        continue;
+                    }
+                    // Overlap: item stays within / overlaps this stay window
+                    if ($itemStart < $stay['end'] && $itemEnd > $stay['start']) {
+                        return $stay;
+                    }
+                }
+                // Prefer stay whose start is closest to item start
+                $best = null;
+                $bestDiff = null;
+                foreach ($candidates as $stay) {
+                    if ($stay['start'] === '') {
+                        continue;
+                    }
+                    $diff = abs(strtotime($itemStart) - strtotime($stay['start']));
+                    if ($bestDiff === null || $diff < $bestDiff) {
+                        $bestDiff = $diff;
+                        $best = $stay;
+                    }
+                }
+                if ($best) {
+                    return $best;
+                }
+            }
+            return $candidates[0] ?? $staySegments[0] ?? null;
+        };
+
+        // Title: City (Country) (CURRENCY) [· Return]
+        $formatLocationTitle = function ($city, $country, $currency, $isReturn = false) use ($preferredCityByCountry) {
             $country = trim((string) $country);
             if ($country === '') {
                 $country = 'Other';
@@ -1036,13 +1141,57 @@
             if ($city === '') {
                 $city = $country;
             }
-            return $city . ' (' . $country . ') (' . $currency . ')';
+            $title = $city . ' (' . $country . ') (' . $currency . ')';
+            if ($isReturn) {
+                $title .= ' · Return';
+            }
+            return $title;
         };
 
-        // Hotels grouped by country + currency (from orders)
+        // Hotels grouped by stay (city+dates+return) + currency when planner stays exist;
+        // otherwise fall back to country + currency.
         $hotelsByCountry = [];
         $countryMeta = [];
         $seenHotelKeys = [];
+        $useStayBuckets = count($staySegments) > 0;
+
+        $makeBucketKey = function ($country, $currency, $stay = null) use ($countryBucketKey, $useStayBuckets) {
+            $currency = strtoupper(trim((string) $currency));
+            if ($useStayBuckets && is_array($stay) && !empty($stay['key'])) {
+                return $stay['key'] . '|' . $currency;
+            }
+            return $countryBucketKey($country, $currency);
+        };
+
+        $ensureBucketMeta = function ($bucketKey, $country, $currency, $city = '', $stay = null) use (&$countryMeta) {
+            $countryName = trim((string) $country) !== '' ? trim((string) $country) : 'Other';
+            $currencyCode = strtoupper(trim((string) $currency));
+            $cityName = trim((string) $city);
+            $isReturn = is_array($stay) ? !empty($stay['is_return']) : false;
+            $dateRange = is_array($stay) ? trim((string) ($stay['date_range'] ?? '')) : '';
+            $sortStart = is_array($stay) ? (string) ($stay['start'] ?? '') : '';
+            if (!isset($countryMeta[$bucketKey])) {
+                $countryMeta[$bucketKey] = [
+                    'country' => $countryName,
+                    'city' => $cityName !== '' ? $cityName : (is_array($stay) ? (string) ($stay['city'] ?? '') : ''),
+                    'currency' => $currencyCode,
+                    'is_return' => $isReturn,
+                    'date_range' => $dateRange,
+                    'sort_start' => $sortStart,
+                    'stay_key' => is_array($stay) ? (string) ($stay['key'] ?? '') : '',
+                ];
+            } else {
+                if ($cityName !== '' && empty($countryMeta[$bucketKey]['city'])) {
+                    $countryMeta[$bucketKey]['city'] = $cityName;
+                }
+                if ($dateRange !== '' && empty($countryMeta[$bucketKey]['date_range'])) {
+                    $countryMeta[$bucketKey]['date_range'] = $dateRange;
+                }
+                if ($isReturn) {
+                    $countryMeta[$bucketKey]['is_return'] = true;
+                }
+            }
+        };
 
         // Occupancy meta from hotel_price_options (no prices — pax / CWB / CNB only)
         $hotelOccByName = [];
@@ -1070,7 +1219,9 @@
                 $hotelNameLower = strtolower(trim((string)$hotelName));
                 $roomCategoryName = $h['room_categories'][0]['name'] ?? ($h['hotel_category'] ?? 'Room');
                 $roomCatLower = strtolower(trim((string)$roomCategoryName));
-                $dedupKey = $hotelNameLower . '||' . $roomCatLower;
+                $occMetaEarly = $hotelOccByName[$hotelNameLower] ?? null;
+                $hotelDateRangeEarly = trim((string) ($occMetaEarly['date_range'] ?? ($h['date_range'] ?? ($h['check_in'] ?? '') . (($h['check_out'] ?? '') !== '' ? ' to ' . $h['check_out'] : ''))));
+                $dedupKey = $hotelNameLower . '||' . $roomCatLower . '||' . mb_strtolower($hotelDateRangeEarly);
                 if (isset($seenHotelKeys[$dedupKey])) continue;
                 $seenHotelKeys[$dedupKey] = true;
 
@@ -1082,12 +1233,9 @@
                 if ($city === '') {
                     $city = $preferredCityByCountry[mb_strtolower($country)] ?? '';
                 }
-                $bucketKey = $countryBucketKey($country, $currency);
-                if (!isset($countryMeta[$bucketKey])) {
-                    $countryMeta[$bucketKey] = ['country' => $country, 'city' => $city, 'currency' => $currency];
-                } elseif ($city !== '' && empty($countryMeta[$bucketKey]['city'])) {
-                    $countryMeta[$bucketKey]['city'] = $city;
-                }
+                $stay = $resolveStayForItem($city, $country, $hotelDateRangeEarly);
+                $bucketKey = $makeBucketKey($country, $currency, $stay);
+                $ensureBucketMeta($bucketKey, $country, $currency, $city, $stay);
 
                 // Room occupancy from booked rooms (prefer selected_persons)
                 $selectedPersons = 0;
@@ -1201,56 +1349,83 @@
             }
         }
 
-        // Other services grouped by country + currency
+        // Other services grouped by stay (or country + currency fallback)
         $otherByCountry = [];
-        $pushOther = function ($country, $currency, $kind, $value, $city = '') use (&$otherByCountry, &$countryMeta, $countryBucketKey, $preferredCityByCountry) {
-            $bucketKey = $countryBucketKey($country, $currency);
-            $countryName = trim((string)$country) !== '' ? trim((string)$country) : 'Other';
-            $currencyCode = strtoupper(trim((string)$currency));
+        $pushOther = function ($country, $currency, $kind, $value, $city = '', $dateRaw = '') use (
+            &$otherByCountry,
+            &$countryMeta,
+            $preferredCityByCountry,
+            $makeBucketKey,
+            $ensureBucketMeta,
+            $resolveStayForItem
+        ) {
+            $countryName = trim((string) $country) !== '' ? trim((string) $country) : 'Other';
+            $currencyCode = strtoupper(trim((string) $currency));
             $cityName = trim((string) $city);
             if ($cityName === '') {
                 $cityName = $preferredCityByCountry[mb_strtolower($countryName)] ?? '';
             }
-            if (!isset($countryMeta[$bucketKey])) {
-                $countryMeta[$bucketKey] = [
-                    'country' => $countryName,
-                    'city' => $cityName,
-                    'currency' => $currencyCode,
-                ];
-            } else {
-                if ($cityName !== '' && empty($countryMeta[$bucketKey]['city'])) {
-                    $countryMeta[$bucketKey]['city'] = $cityName;
-                }
-                if (empty($countryMeta[$bucketKey]['currency'])) {
-                    $countryMeta[$bucketKey]['currency'] = $currencyCode;
-                }
+            if ($dateRaw === '' && is_array($value)) {
+                $dateRaw = trim((string) (
+                    $value['date_sort']
+                    ?? $value['date']
+                    ?? ($value['attraction']['date'] ?? null)
+                    ?? ($value['restaurant']['date'] ?? null)
+                    ?? ($value['date_range'] ?? '')
+                    ?? ''
+                ));
             }
+            $stay = $resolveStayForItem($cityName, $countryName, $dateRaw);
+            $bucketKey = $makeBucketKey($countryName, $currencyCode, $stay);
+            $ensureBucketMeta($bucketKey, $countryName, $currencyCode, $cityName, $stay);
             $otherByCountry[$bucketKey][$kind][] = $value;
         };
 
+        $cardCity = function ($card) {
+            $city = trim((string) ($card['city'] ?? ($card['attraction']['city'] ?? ($card['restaurant']['city'] ?? ''))));
+            if ($city === '' && !empty($card['location'])) {
+                $city = trim(explode(',', (string) $card['location'])[0]);
+            }
+            return $city;
+        };
+
+        $cardDateRaw = function ($card) {
+            if (!is_array($card)) {
+                return '';
+            }
+            $raw = trim((string) (
+                $card['date_sort']
+                ?? $card['date']
+                ?? ($card['attraction']['date'] ?? null)
+                ?? ($card['restaurant']['date'] ?? null)
+                ?? ''
+            ));
+            return $raw;
+        };
+
         foreach ($bookedAttractionCards as $card) {
-            $pushOther($cardCountry($card), $cardCurrency($card), 'attractions', $card);
+            $pushOther($cardCountry($card), $cardCurrency($card), 'attractions', $card, $cardCity($card), $cardDateRaw($card));
         }
         foreach ($bookedRestaurantCards as $card) {
-            $pushOther($cardCountry($card), $cardCurrency($card), 'restaurants', $card);
+            $pushOther($cardCountry($card), $cardCurrency($card), 'restaurants', $card, $cardCity($card), $cardDateRaw($card));
         }
         foreach ($bookedArrivals as $row) {
-            $pushOther($row['country'] ?? 'Other', $row['currency'] ?? $baseCurrency, 'arrivals', $row, $row['city'] ?? '');
+            $pushOther($row['country'] ?? 'Other', $row['currency'] ?? $baseCurrency, 'arrivals', $row, $row['city'] ?? '', $row['date'] ?? ($row['date_sort'] ?? ''));
         }
         foreach ($bookedDepartures as $row) {
-            $pushOther($row['country'] ?? 'Other', $row['currency'] ?? $baseCurrency, 'departures', $row, $row['city'] ?? '');
+            $pushOther($row['country'] ?? 'Other', $row['currency'] ?? $baseCurrency, 'departures', $row, $row['city'] ?? '', $row['date'] ?? ($row['date_sort'] ?? ''));
         }
         foreach ($bookedLocalTransfers as $row) {
-            $pushOther($row['country'] ?? 'Other', $row['currency'] ?? $baseCurrency, 'local_transfers', $row, $row['city'] ?? '');
+            $pushOther($row['country'] ?? 'Other', $row['currency'] ?? $baseCurrency, 'local_transfers', $row, $row['city'] ?? '', $row['date'] ?? ($row['date_sort'] ?? ''));
         }
         foreach ($bookedGuides as $row) {
-            $pushOther($row['country'] ?? 'Other', $row['currency'] ?? $baseCurrency, 'guides', $row, $row['city'] ?? '');
+            $pushOther($row['country'] ?? 'Other', $row['currency'] ?? $baseCurrency, 'guides', $row, $row['city'] ?? '', $row['date'] ?? ($row['date_sort'] ?? ''));
         }
         foreach ($bookedPointToPoint as $row) {
-            $pushOther($row['country'] ?? 'Other', $row['currency'] ?? $baseCurrency, 'point_to_point', $row, $row['city'] ?? '');
+            $pushOther($row['country'] ?? 'Other', $row['currency'] ?? $baseCurrency, 'point_to_point', $row, $row['city'] ?? '', $row['date'] ?? ($row['date_sort'] ?? ''));
         }
         foreach ($bookedHourly as $row) {
-            $pushOther($row['country'] ?? 'Other', $row['currency'] ?? $baseCurrency, 'hourly', $row, $row['city'] ?? '');
+            $pushOther($row['country'] ?? 'Other', $row['currency'] ?? $baseCurrency, 'hourly', $row, $row['city'] ?? '', $row['date'] ?? ($row['date_sort'] ?? ''));
         }
 
         // Sort key for Other Services: date then time (uses card date_sort / time_sort when present).
@@ -1427,11 +1602,37 @@
             return $inclusionDateRange;
         };
 
-        // One box per country+currency (hotels + other services together).
-        $allCountryKeys = $sortCountryKeys(
-            array_values(array_unique(array_merge(array_keys($hotelsByCountry), array_keys($otherByCountry)))),
-            $countryMeta
-        );
+        // One box per stay (city+dates+return) + currency when planner stays exist;
+        // otherwise one box per country+currency. Sorted date-wise for stays.
+        $sortStayKeys = function (array $keys, array $meta) {
+            usort($keys, function ($a, $b) use ($meta) {
+                $aStart = (string) ($meta[$a]['sort_start'] ?? '');
+                $bStart = (string) ($meta[$b]['sort_start'] ?? '');
+                if ($aStart !== '' && $bStart !== '' && $aStart !== $bStart) {
+                    return strcmp($aStart, $bStart);
+                }
+                $aRet = !empty($meta[$a]['is_return']) ? 1 : 0;
+                $bRet = !empty($meta[$b]['is_return']) ? 1 : 0;
+                if ($aRet !== $bRet) {
+                    return $aRet <=> $bRet;
+                }
+                return strcasecmp(
+                    ($meta[$a]['city'] ?? '') . ' ' . ($meta[$a]['country'] ?? '') . ' ' . ($meta[$a]['currency'] ?? ''),
+                    ($meta[$b]['city'] ?? '') . ' ' . ($meta[$b]['country'] ?? '') . ' ' . ($meta[$b]['currency'] ?? '')
+                );
+            });
+            return $keys;
+        };
+
+        $allCountryKeys = $useStayBuckets
+            ? $sortStayKeys(
+                array_values(array_unique(array_merge(array_keys($hotelsByCountry), array_keys($otherByCountry)))),
+                $countryMeta
+            )
+            : $sortCountryKeys(
+                array_values(array_unique(array_merge(array_keys($hotelsByCountry), array_keys($otherByCountry)))),
+                $countryMeta
+            );
 
         $formatNativeMoney = function ($amount, $currency) {
             $currency = strtoupper(trim((string)$currency));
@@ -1558,12 +1759,16 @@
                     $countryName = $countryMeta[$bucketKey]['country'] ?? $bucketKey;
                     $countryCity = $countryMeta[$bucketKey]['city'] ?? '';
                     $countryCurrency = $countryMeta[$bucketKey]['currency'] ?? strtoupper((string)$baseCurrency);
+                    $countryIsReturn = !empty($countryMeta[$bucketKey]['is_return']);
                     $countryBoxTitle = isset($formatLocationTitle) && is_callable($formatLocationTitle)
-                        ? $formatLocationTitle($countryCity, $countryName, $countryCurrency)
+                        ? $formatLocationTitle($countryCity, $countryName, $countryCurrency, $countryIsReturn)
                         : (trim((string) $countryCity) !== ''
-                            ? trim((string) $countryCity) . ' (' . $countryName . ') (' . $countryCurrency . ')'
-                            : $countryName . ' (' . $countryCurrency . ')');
-                    $countryDateRange = $resolveCountryDateRange($countryCity, $countryName);
+                            ? trim((string) $countryCity) . ' (' . $countryName . ') (' . $countryCurrency . ')' . ($countryIsReturn ? ' · Return' : '')
+                            : $countryName . ' (' . $countryCurrency . ')' . ($countryIsReturn ? ' · Return' : ''));
+                    $countryDateRange = trim((string) ($countryMeta[$bucketKey]['date_range'] ?? ''));
+                    if ($countryDateRange === '') {
+                        $countryDateRange = $resolveCountryDateRange($countryCity, $countryName);
+                    }
                     $showCountryPricing = $isPricedCountry($countryName);
                     $countryHotels = $showCountryPricing ? ($hotelsByCountry[$bucketKey] ?? []) : [];
                     $bucket = $showCountryPricing ? ($otherByCountry[$bucketKey] ?? []) : [];
