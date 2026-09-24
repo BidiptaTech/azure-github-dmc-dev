@@ -52,7 +52,8 @@ import {
   setType,
 } from "../../../slice/common/stepsSlice";
 import { fetchGuides } from "../../../slice/tourguide/guideslice";
-import { setBookingType } from "../../../slice/common/commonSlice";
+import { setCity } from "../../../slice/common/citySlice";
+import { setBookingType, setSelectedCity, setCityWiseDates } from "../../../slice/common/commonSlice";
 import { clearUserInfo } from "../../../slice/common/customerInfo";
 import { clearAttractions, resetIsFromMainSearch } from "../../../slice/attractions/attractionSlice";
 import { fetchAttractions } from "../../../slice/attractions/attractionSlice";
@@ -64,7 +65,6 @@ import {
 import { resetguide } from "../../../slice/tourguide/guideslice";
 import { resetVehicles } from "../../../slice/port/pickupDropSlice";
 import { resetVehicles1 } from "../../../slice/localtour/Localslice";
-import { setSelectedCity } from "../../../slice/common/commonSlice";
 import { 
   fetchBookingid,  
   setCheckIn, 
@@ -275,8 +275,69 @@ export default function SearchForm({ onNext, setActiveTab, packageData: propPack
   const [snackbarSeverity, setSnackbarSeverity] = useState("error");
   console.log("packageDatasss", packageData);
   const tourStatus = useSelector((state) => state.tourPackages.tourStatus);
+
+  const parseDestinationCountries = (destination) => {
+    if (!destination || typeof destination !== "string") return [];
+    return destination
+      .split(",")
+      .map((part) => part.trim())
+      .filter(Boolean);
+  };
+
+  const getTourDestinationCountries = () =>
+    parseDestinationCountries(
+      packageData?.tour?.destination || enquirydetail?.country || ""
+    );
+
+  const normalizeCityWiseDatesList = (list) => {
+    if (!Array.isArray(list) || list.length === 0) return [];
+    return list
+      .map((item) => {
+        if (!item) return null;
+        const city =
+          typeof item === "string"
+            ? item.trim()
+            : String(item.city || "").trim();
+        if (!city) return null;
+        return {
+          city,
+          checkIn: item.checkIn || item.checkin || "",
+          checkOut: item.checkOut || item.checkout || "",
+        };
+      })
+      .filter(Boolean);
+  };
+
+  const getInitialCityWiseDateRanges = () => {
+    const fromTour = normalizeCityWiseDatesList(
+      packageData?.tour?.cityWiseDates
+    );
+    if (fromTour.length > 0) return fromTour;
+    return normalizeCityWiseDatesList(enquirydetail?.cityWiseDates);
+  };
+
+  const [cityWiseDateRanges, setCityWiseDateRanges] = useState(
+    getInitialCityWiseDateRanges
+  );
+
   // Helper functions to get destination and city values
+  const getCitiesFromCityWiseDates = (source) => {
+    return normalizeCityWiseDatesList(source?.cityWiseDates).map(
+      (item) => item.city
+    );
+  };
+
   const getDestinationValue = () => {
+    const citiesFromTour = getCitiesFromCityWiseDates(packageData?.tour);
+    if (citiesFromTour.length > 0) {
+      return citiesFromTour;
+    }
+
+    const citiesFromEnquiry = getCitiesFromCityWiseDates(enquirydetail);
+    if (citiesFromEnquiry.length > 0) {
+      return citiesFromEnquiry;
+    }
+
     if (packageData?.tour?.destination) {
       return packageData.tour.destination;
     }
@@ -287,6 +348,16 @@ export default function SearchForm({ onNext, setActiveTab, packageData: propPack
   };
 
   const getCityValue = () => {
+    const citiesFromTour = getCitiesFromCityWiseDates(packageData?.tour);
+    if (citiesFromTour.length > 0) {
+      return citiesFromTour;
+    }
+
+    const citiesFromEnquiry = getCitiesFromCityWiseDates(enquirydetail);
+    if (citiesFromEnquiry.length > 0) {
+      return citiesFromEnquiry;
+    }
+
     if (packageData?.tour?.city) {
       return packageData.tour.city;
     }
@@ -429,16 +500,157 @@ export default function SearchForm({ onNext, setActiveTab, packageData: propPack
   };
 
   const handleLocationSelect = (location) => {
-    setSelectedLocation(location);
-    
-    // Clear previous enquiry list data
-    
+    const destinationCountries = getTourDestinationCountries();
+    let nextLocation = location;
+
+    if (location?.cities?.length) {
+      const cities = location.cities.map((city, index) => ({
+        ...city,
+        country:
+          city?.country ||
+          destinationCountries[index] ||
+          null,
+      }));
+      const countryNames = cities.map((c) => c.country).filter(Boolean);
+      nextLocation = {
+        ...location,
+        cities,
+        country:
+          countryNames.join(", ") ||
+          packageData?.tour?.destination ||
+          enquirydetail?.country ||
+          null,
+      };
+    }
+
+    setSelectedLocation(nextLocation);
+
+    // Keep city-wise date rows in sync with selected cities
+    if (nextLocation?.cities?.length) {
+      setCityWiseDateRanges((prev) => {
+        const packageRanges = getInitialCityWiseDateRanges();
+        return nextLocation.cities.map((cityItem) => {
+          const cityName = cityItem.city || cityItem.name;
+          const existing = prev.find(
+            (item) =>
+              String(item.city || "").toLowerCase() ===
+              String(cityName || "").toLowerCase()
+          );
+          if (existing) return { ...existing, city: cityName };
+
+          const fromPackage = packageRanges.find(
+            (item) =>
+              String(item.city || "").toLowerCase() ===
+              String(cityName || "").toLowerCase()
+          );
+          if (fromPackage) return fromPackage;
+
+          return {
+            city: cityName,
+            checkIn: startDate
+              ? moment(startDate).format("DD/MM/YYYY")
+              : "",
+            checkOut: endDate ? moment(endDate).format("DD/MM/YYYY") : "",
+          };
+        });
+      });
+    }
     
     // Clear previous packages data
     dispatch(clearPackages());
-    
-    
   };
+
+  const resolveSelectedLocation = (location = selectedLocation) => {
+    const destinationCountries = getTourDestinationCountries();
+    const rawCities = Array.isArray(location?.cities) ? location.cities : [];
+    const cities = rawCities.map((item, index) => ({
+      ...item,
+      country:
+        item?.country ||
+        destinationCountries[index] ||
+        null,
+    }));
+    const citiesArray = cities
+      .map((item) => item?.city || item?.name)
+      .filter(Boolean);
+    const countriesArray = cities.map(
+      (item, index) =>
+        item?.country ||
+        destinationCountries[index] ||
+        null
+    ).filter(Boolean);
+    const locations = cities.map((item, index) => ({
+      city: item?.city || item?.name || "",
+      country:
+        item?.country ||
+        destinationCountries[index] ||
+        "",
+      city_id: item?.city_id || null,
+      country_code: item?.country_code || null,
+    })).filter((item) => item.city);
+    const countryCodes = locations
+      .map((item) => item.country_code)
+      .filter(Boolean);
+    const primary = locations[0] || null;
+
+    return {
+      cities,
+      locations,
+      citiesArray,
+      countriesArray,
+      // Joined strings kept for legacy single-value API calls
+      city: citiesArray.length > 0 ? citiesArray.join(", ") : location?.city || null,
+      country:
+        countriesArray.length > 0
+          ? countriesArray.join(", ")
+          : location?.country ||
+            packageData?.tour?.destination ||
+            enquirydetail?.country ||
+            null,
+      countryCode: location?.countryCode || primary?.country_code || null,
+      countryCodes:
+        countryCodes.length > 0
+          ? countryCodes
+          : countriesArray,
+      cityCode: location?.cityCode || primary?.city_id || null,
+    };
+  };
+
+  const handleCityWiseDateChange = (cityIndex, dateRange) => {
+    if (isDateGuestLocked) {
+      return;
+    }
+
+    if (dateRange && Array.isArray(dateRange) && dateRange.length === 2) {
+      const newStartDate = dateRange[0].toDate
+        ? dateRange[0].toDate()
+        : dateRange[0];
+      const newEndDate = dateRange[1].toDate
+        ? dateRange[1].toDate()
+        : dateRange[1];
+
+      setCityWiseDateRanges((prev) =>
+        prev.map((item, index) =>
+          index === cityIndex
+            ? {
+                ...item,
+                checkIn: moment(newStartDate).format("DD/MM/YYYY"),
+                checkOut: moment(newEndDate).format("DD/MM/YYYY"),
+              }
+            : item
+        )
+      );
+    }
+  };
+
+  const getCityWiseDatesPayload = () =>
+    cityWiseDateRanges
+      .map((item) => ({
+        city: item.city,
+        checkIn: item.checkIn || "",
+        checkOut: item.checkOut || "",
+      }))
+      .filter((item) => item.city);
 
   // Function to validate services against new date range
   const validateServicesAgainstNewDates = (newStartDate, newEndDate) => {
@@ -583,12 +795,20 @@ export default function SearchForm({ onNext, setActiveTab, packageData: propPack
     const formatedHotelCheckOut = moment(endDate).format("YYYY-MM-DD");
 
     
-    // Get the country and city data
-    const country = selectedLocation.country;
-    const city = selectedLocation.city;
-    const countryCode = selectedLocation.countryCode;
-    console.log("countryCode",countryCode);
-    const cityCode = selectedLocation.cityCode;
+    // Get the country and city data (arrays for multi-city / multi-country)
+    const {
+      country,
+      city,
+      countryCode,
+      cityCode,
+      citiesArray,
+      countriesArray,
+      locations,
+      countryCodes,
+    } = resolveSelectedLocation(selectedLocation);
+    console.log("countryCode", countryCode);
+    console.log("citiesArray", citiesArray);
+    console.log("countriesArray", countriesArray);
     
     // Create genders array based on male and female counts
     const maleCount = guestCounts.maleCount || 0;
@@ -600,9 +820,16 @@ export default function SearchForm({ onNext, setActiveTab, packageData: propPack
 
     // Get tour_id from packageData
     const tourId = packageData?.tour?.tour_id;
+    const primaryCity = citiesArray[0] || city;
+    const primaryCountry = countriesArray[0] || country;
+    const primaryLocationLabel =
+      primaryCity && primaryCountry
+        ? `${primaryCity}, (${primaryCountry})`
+        : primaryCity || primaryCountry || "";
+
     dispatch(setAllServices({
-      country: country,
-      city: city,
+      country: countriesArray,
+      city: citiesArray,
       check_in_time: formattedCheckIn,
       check_out_time: formattedCheckOut,
       tour_id: tourId,
@@ -619,8 +846,8 @@ export default function SearchForm({ onNext, setActiveTab, packageData: propPack
 
     // Update tour packages search criteria in Redux
     dispatch(setSearchCriteria({
-      country: country,
-      city: city,
+      country: countriesArray,
+      city: citiesArray,
       checkIn: formattedCheckIn,
       checkOut: formattedCheckOut,
       guests: {
@@ -639,10 +866,10 @@ export default function SearchForm({ onNext, setActiveTab, packageData: propPack
     
     dispatch(setAttractionSearchParams({
       location: {
-        country: country,
-        city: `${city}, (${country})`,
-        address: `${city}, (${country})`,
-        countryCode: countryCode,
+        country: countriesArray,
+        city: citiesArray,
+        address: locations,
+        countryCode: countryCodes,
         cityCode: cityCode
       },
       date: moment(startDate),
@@ -654,10 +881,10 @@ export default function SearchForm({ onNext, setActiveTab, packageData: propPack
     // Update the guide search params and fetch guides
     dispatch(setGuideSearchParams({
       location: {
-        country: country,
-        city: `${city}, (${country})`,
-        address: `${city}, (${country})`,
-        countryCode: countryCode,
+        country: countriesArray,
+        city: citiesArray,
+        address: locations,
+        countryCode: countryCodes,
         cityCode: cityCode
       },
       date: moment(startDate),
@@ -668,13 +895,13 @@ export default function SearchForm({ onNext, setActiveTab, packageData: propPack
 
     // Fetch guides with the required parameters
     // dispatch(fetchGuides({
-    //   city: `${city}, (${country})`,
+    //   city: primaryLocationLabel,
     //   date: formattedAttractionDate
     // }));
 
     // Fetch attractions based on search criteria
     dispatch(fetchAttractions({
-      city: `${city}, (${country})`, // Format city with country
+      city: primaryLocationLabel, // Format city with country
       date: formattedAttractionDate, // Use YYYY-MM-DD format
       adults: guestCounts.Adults,
       children: guestCounts.Children,
@@ -686,7 +913,7 @@ export default function SearchForm({ onNext, setActiveTab, packageData: propPack
 
     // Fetch restaurants based on search criteria
     console.log('Dispatching fetchRestaurants with params:', {
-      city: `${city}, (${country})`,
+      city: primaryLocationLabel,
       date: formattedAttractionDate,
       adults: guestCounts.Adults,
       children: guestCounts.Children,
@@ -695,7 +922,7 @@ export default function SearchForm({ onNext, setActiveTab, packageData: propPack
     });
 
     dispatch(fetchRestaurants({
-      city: `${city}, (${country})`,
+      city: primaryLocationLabel,
       date: formattedAttractionDate,
       adults: guestCounts.Adults,
       children: guestCounts.Children,
@@ -710,7 +937,8 @@ export default function SearchForm({ onNext, setActiveTab, packageData: propPack
     });
 
    dispatch(updateSearchState({
-  location: [city], // or just city if location is a single string
+  location: locations,
+  cityWiseDates: getCityWiseDatesPayload(),
   ucheckIn: formatedHotelCheckIn,
   ucheckOut: formatedHotelCheckOut,
   guests: guestCounts
@@ -722,18 +950,14 @@ dispatch(fetchHotels());
     // Also update the enquiry slice data for compatibility with other parts of the app
     // Set location data in the right format for EnquirySlice
     
-    dispatch(setSearchLocation(countryCode));
+    dispatch(setSearchLocation(countryCodes));
     dispatch(setCheckIn(formattedCheckIn));
     dispatch(setCheckOut(formattedCheckOut));
+    dispatch(setCityWiseDates(getCityWiseDatesPayload()));
+    dispatch(setCity({ cities: locations }));
     
-    // Set the selected city in common slice
-    dispatch(setSelectedCity({
-      countryCode: countryCode,
-      countryName: country,
-      cityCode: cityCode,
-      cityName: city,
-      combinedCode: cityCode
-    }));
+    // Set the selected cities in common slice (array for multi-city)
+    dispatch(setSelectedCity(locations));
     
     // Dispatch guest details to EnquirySlice
     dispatch(
@@ -750,9 +974,16 @@ dispatch(fetchHotels());
 
     // Set existing tour data in Redux state
     const dataSource = packageData?.tour || enquirydetail;
-    dispatch(updateSearchState({ location: dataSource?.destination }));
+    dispatch(updateSearchState({
+      location: locations,
+      cityWiseDates: getCityWiseDatesPayload(),
+    }));
     dispatch(setId(tourId));
-    dispatch(settourdetails(dataSource));
+    dispatch(settourdetails({
+      ...dataSource,
+      destination: locations,
+      cityWiseDates: getCityWiseDatesPayload(),
+    }));
 
     
 
@@ -786,19 +1017,17 @@ dispatch(fetchHotels());
   };
 
   const validateForm = () => {
-    if (!selectedLocation || !selectedLocation.country) {
-      setSnackbarMessage("Please select a country.");
+    const hasCities =
+      (Array.isArray(selectedLocation?.cities) &&
+        selectedLocation.cities.length > 0) ||
+      Boolean(selectedLocation?.city);
+
+    if (!selectedLocation || !hasCities) {
+      setSnackbarMessage("Please select at least one city.");
       setSnackbarSeverity("error");
       setOpenSnackbar(true);
       return false;
     }
-
-    // if (!selectedLocation.city) {
-    //   setSnackbarMessage("Please select a city.");
-    //   setSnackbarSeverity("error");
-    //   setOpenSnackbar(true);
-    //   return false;
-    // }
 
     if (!startDate || !endDate) {
       setSnackbarMessage("Please select check-in and check-out dates.");
@@ -915,11 +1144,13 @@ dispatch(fetchHotels());
 
     
     // Get the country and city data
-    const country = selectedLocation.country;
-    const city = selectedLocation.city;
-    const countryCode = selectedLocation.countryCode;
+    const {
+      country,
+      city,
+      countryCode,
+      cityCode,
+    } = resolveSelectedLocation(selectedLocation);
     console.log("countryCode",countryCode);
-    const cityCode = selectedLocation.cityCode;
     
     // Create genders array based on male and female counts
     const maleCount = guestCounts.maleCount || 0;
@@ -1069,6 +1300,7 @@ dispatch(fetchHotels());
     dispatch(setSearchLocation(countryCode));
     dispatch(setCheckIn(formattedCheckIn));
     dispatch(setCheckOut(formattedCheckOut));
+    dispatch(setCityWiseDates(getCityWiseDatesPayload()));
     
     // Set the selected city in common slice
     dispatch(setSelectedCity({
@@ -1210,12 +1442,20 @@ dispatch(fetchHotels());
  
 
     
-    // Get the country and city data
-    const country = selectedLocation.country;
-    const city = selectedLocation.city;
-    const countryCode = selectedLocation.countryCode;
+    // Get the country and city data (arrays for multi-city / multi-country)
+    const {
+      country,
+      city,
+      countryCode,
+      cityCode,
+      citiesArray,
+      countriesArray,
+      locations,
+      countryCodes,
+    } = resolveSelectedLocation(selectedLocation);
     console.log("countryCode",countryCode);
-    const cityCode = selectedLocation.cityCode;
+    console.log("citiesArray", citiesArray);
+    console.log("countriesArray", countriesArray);
     
     // Create genders array based on male and female counts
     const maleCount = guestCounts.maleCount || 0;
@@ -1227,9 +1467,18 @@ dispatch(fetchHotels());
 
     // Get tour_id from packageData
     const tourId = packageData?.tour?.tour_id;
+    const primaryCity = citiesArray[0] || city;
+    const primaryCountry = countriesArray[0] || country;
+    const primaryLocationLabel =
+      primaryCity && primaryCountry
+        ? `${primaryCity}, (${primaryCountry})`
+        : primaryCity || primaryCountry || "";
+    const formatedHotelCheckIn = moment(startDate).format("YYYY-MM-DD");
+    const formatedHotelCheckOut = moment(endDate).format("YYYY-MM-DD");
+
     dispatch(setAllServices({
-      country: country,
-      city: city,
+      country: countriesArray,
+      city: citiesArray,
       check_in_time: formattedCheckIn,
       check_out_time: formattedCheckOut,
       tour_id: tourId,
@@ -1246,8 +1495,8 @@ dispatch(fetchHotels());
 
     // Update tour packages search criteria in Redux
     dispatch(setSearchCriteria({
-      country: country,
-      city: city,
+      country: countriesArray,
+      city: citiesArray,
       checkIn: formattedCheckIn,
       checkOut: formattedCheckOut,
       guests: {
@@ -1266,10 +1515,10 @@ dispatch(fetchHotels());
     
     dispatch(setAttractionSearchParams({
       location: {
-        country: country,
-        city: `${city}, (${country})`,
-        address: `${city}, (${country})`,
-        countryCode: countryCode,
+        country: countriesArray,
+        city: citiesArray,
+        address: locations,
+        countryCode: countryCodes,
         cityCode: cityCode
       },
       date: moment(startDate),
@@ -1279,10 +1528,10 @@ dispatch(fetchHotels());
     }));
     dispatch(setRestaurantSearchParams({
       location: {
-        country: country,
-        city: `${city}, (${country})`,
-        address: `${city}, (${country})`,
-        countryCode: countryCode,
+        country: countriesArray,
+        city: citiesArray,
+        address: locations,
+        countryCode: countryCodes,
         cityCode: cityCode
       },
       date: moment(startDate),
@@ -1294,10 +1543,10 @@ dispatch(fetchHotels());
     // Update the guide search params and fetch guides
     dispatch(setGuideSearchParams({
       location: {
-        country: country,
-        city: `${city}, (${country})`,
-        address: `${city}, (${country})`,
-        countryCode: countryCode,
+        country: countriesArray,
+        city: citiesArray,
+        address: locations,
+        countryCode: countryCodes,
         cityCode: cityCode
       },
       date: moment(startDate),
@@ -1308,13 +1557,13 @@ dispatch(fetchHotels());
 
     // Fetch guides with the required parameters
     // dispatch(fetchGuides({
-    //   city: `${city}, (${country})`,
+    //   city: primaryLocationLabel,
     //   date: formattedAttractionDate
     // }));
 
     // Fetch attractions based on search criteria
     // dispatch(fetchAttractions({
-    //   city: `${city}, (${country})`, // Format city with country
+    //   city: primaryLocationLabel, // Format city with country
     //   date: formattedAttractionDate, // Use YYYY-MM-DD format
     //   adults: guestCounts.Adults,
     //   children: guestCounts.Children,
@@ -1326,7 +1575,7 @@ dispatch(fetchHotels());
 
     // Fetch restaurants based on search criteria
     console.log('Dispatching fetchRestaurants with params:', {
-      city: `${city}, (${country})`,
+      city: primaryLocationLabel,
       date: formattedAttractionDate,
       adults: guestCounts.Adults,
       children: guestCounts.Children,
@@ -1335,7 +1584,7 @@ dispatch(fetchHotels());
     });
 
     // dispatch(fetchRestaurants({
-    //   city: `${city}, (${country})`,
+    //   city: primaryLocationLabel,
     //   date: formattedAttractionDate,
     //   adults: guestCounts.Adults,
     //   children: guestCounts.Children,
@@ -1350,7 +1599,8 @@ dispatch(fetchHotels());
     // });
 
    dispatch(updateSearchState({
-  location: [city], // or just city if location is a single string
+  location: locations,
+  cityWiseDates: getCityWiseDatesPayload(),
   ucheckIn: formatedHotelCheckIn,
   ucheckOut: formatedHotelCheckOut,
   guests: guestCounts
@@ -1363,18 +1613,14 @@ dispatch(fetchHotels());
     // Also update the enquiry slice data for compatibility with other parts of the app
     // Set location data in the right format for EnquirySlice
     
-    dispatch(setSearchLocation(countryCode));
+    dispatch(setSearchLocation(countryCodes));
     dispatch(setCheckIn(formattedCheckIn));
     dispatch(setCheckOut(formattedCheckOut));
+    dispatch(setCityWiseDates(getCityWiseDatesPayload()));
+    dispatch(setCity({ cities: locations }));
     
-    // Set the selected city in common slice
-    dispatch(setSelectedCity({
-      countryCode: countryCode,
-      countryName: country,
-      cityCode: cityCode,
-      cityName: city,
-      combinedCode: cityCode
-    }));
+    // Set the selected cities in common slice (array for multi-city)
+    dispatch(setSelectedCity(locations));
     
     // Dispatch guest details to EnquirySlice
     dispatch(
@@ -1391,9 +1637,16 @@ dispatch(fetchHotels());
 
     // Set existing tour data in Redux state
     const dataSource = packageData?.tour || enquirydetail;
-    dispatch(updateSearchState({ location: dataSource?.destination }));
+    dispatch(updateSearchState({
+      location: locations,
+      cityWiseDates: getCityWiseDatesPayload(),
+    }));
     dispatch(setId(tourId));
-    dispatch(settourdetails(dataSource));
+    dispatch(settourdetails({
+      ...dataSource,
+      destination: locations,
+      cityWiseDates: getCityWiseDatesPayload(),
+    }));
 
     
 
@@ -1479,7 +1732,8 @@ dispatch(fetchHotels());
                   height: '100%',
                   minHeight: '60px',
                   position: 'relative',
-                  zIndex: 1,
+                  zIndex: 20,
+                  overflow: 'visible',
                   '&:hover': {
                     borderColor: '#3b82f6',
                     bgcolor: '#f1f5f9'
@@ -1508,6 +1762,8 @@ dispatch(fetchHotels());
                   onLocationSelect={handleLocationSelect}
                   defaultDestination={getDestinationValue()}
                   defaultCity={getCityValue()}
+                  defaultCities={getCityValue()}
+                  destinationCountries={getTourDestinationCountries()}
                 />
               </Box>
             </Grid>
@@ -1935,6 +2191,99 @@ dispatch(fetchHotels());
             </Grid>
           </Grid>
         </Grid>
+
+        {/* City-wise travel dates */}
+        {cityWiseDateRanges.length > 0 && (
+          <Grid item xs={12}>
+            <Grid container spacing={1.5}>
+              {cityWiseDateRanges.map((cityDate, index) => (
+                <Grid item xs={12} sm={6} md={4} key={`${cityDate.city}-${index}`}>
+                  <Box
+                    sx={{
+                      p: 1,
+                      borderRadius: 1.5,
+                      bgcolor: isDateGuestLocked ? '#f5f5f5' : 'white',
+                      border: '1px solid #e2e8f0',
+                      height: '100%',
+                      minHeight: '60px',
+                      position: 'relative',
+                      zIndex: 9 - Math.min(index, 5),
+                      overflow: 'visible',
+                      opacity: isDateGuestLocked ? 0.7 : 1,
+                      '&:hover': {
+                        borderColor: isDateGuestLocked ? '#e2e8f0' : '#3b82f6',
+                        boxShadow: isDateGuestLocked
+                          ? 'none'
+                          : '0 2px 6px rgba(59, 130, 246, 0.1)',
+                      },
+                      transition: 'all 0.2s ease-in-out',
+                    }}
+                  >
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        mb: 0.5,
+                        fontWeight: 600,
+                        color: isDateGuestLocked ? '#9ca3af' : '#374151',
+                        textTransform: 'uppercase',
+                        fontSize: '0.65rem',
+                        letterSpacing: '0.05em',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 0.5,
+                      }}
+                    >
+                      <CalendarIcon
+                        sx={{
+                          color: isDateGuestLocked ? '#9ca3af' : '#10b981',
+                          fontSize: 14,
+                        }}
+                      />
+                      {cityDate.city} Dates
+                      {isDateGuestLocked && (
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            ml: 1,
+                            color: '#6b7280',
+                            fontSize: '0.6rem',
+                            fontStyle: 'italic',
+                          }}
+                        >
+                          (Locked)
+                        </Typography>
+                      )}
+                    </Typography>
+                    <Box sx={{ position: 'relative' }}>
+                      <DateRangePicker
+                        onDateChange={(range) =>
+                          handleCityWiseDateChange(index, range)
+                        }
+                        defaultCheckIn={cityDate.checkIn}
+                        defaultCheckOut={cityDate.checkOut}
+                        isDataFromEnquiryDetail={isDateGuestLocked}
+                      />
+                      {isDateGuestLocked && (
+                        <Box
+                          sx={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            bgcolor: 'transparent',
+                            zIndex: 10,
+                            cursor: 'not-allowed',
+                          }}
+                        />
+                      )}
+                    </Box>
+                  </Box>
+                </Grid>
+              ))}
+            </Grid>
+          </Grid>
+        )}
         
         {/* Attractive Search Button Section */}
         <Grid item xs={12}>
