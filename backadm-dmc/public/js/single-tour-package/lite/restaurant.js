@@ -403,10 +403,20 @@
         T.refreshTransferCostDisplay(root, PREFIX, g.adults, g.children, g.infants);
         var guide = T.calcInlineGuidePrice(root, PREFIX);
         var total = mealTotal + (Number(xfer) || 0) + (Number(guide.total) || 0);
-        var parts = [g.adults + '×' + adultP.toFixed(2)];
-        if (g.children) parts.push(g.children + '×' + childP.toFixed(2));
-        if (xfer) parts.push('xfer ' + Number(xfer).toFixed(2));
-        if (guide.total) parts.push('guide ' + Number(guide.total).toFixed(2));
+        var parts = [];
+        var cur = root.getAttribute('data-currency') || 'SGD';
+        var mealAmt = (adultP * g.adults) + (childP * g.children);
+        parts.push(T.priceFormulaRowHtml(
+            '<strong>Meal</strong> ' + g.adults + 'A × ' + adultP.toFixed(2)
+                + (g.children ? ' + ' + g.children + 'C × ' + childP.toFixed(2) : ''),
+            cur + ' ' + mealAmt.toFixed(2)
+        ));
+        if (xfer) {
+            parts.push(T.priceFormulaRowHtml('<strong>Transfer</strong>', cur + ' ' + Number(xfer).toFixed(2)));
+        }
+        if (guide.total) {
+            parts.push(T.priceFormulaRowHtml('<strong>Guide</strong>', cur + ' ' + Number(guide.total).toFixed(2)));
+        }
         root.__lastPrice = {
             total: total,
             mealTotal: mealTotal,
@@ -414,15 +424,14 @@
             guideTotal: Number(guide.total) || 0,
             adultPrice: adultP,
             childPrice: childP,
-            breakdown: parts.join(' + ')
+            breakdown: parts.join('')
         };
-        var cur = root.getAttribute('data-currency') || 'SGD';
         var panel = root.querySelector('[data-restaurant-price-panel]');
         var totalEl = root.querySelector('.restaurant-price-total');
         var detail = root.querySelector('.restaurant-price-detail');
         if (panel) panel.classList.remove('d-none');
         if (totalEl) totalEl.textContent = cur + ' ' + total.toFixed(2);
-        if (detail) detail.textContent = root.__lastPrice.breakdown;
+        if (detail) detail.innerHTML = root.__lastPrice.breakdown;
         var add = root.querySelector('.restaurant-add-btn');
         if (add) add.disabled = false;
     }
@@ -737,16 +746,35 @@
                 var dishName = (r.MealDescription && r.MealDescription[0] && r.MealDescription[0].name) || '';
                 var xfer = r.transfer_options || {};
                 var guide = r.guide_options || {};
+                var cur = r.currency || root.getAttribute('data-currency') || 'SGD';
+                var mealAmt = (Number(r.adults || 0) * Number(r.adult_price || 0))
+                    + (Number(r.children || 0) * Number(r.child_price || 0));
+                var detailRows = '';
+                detailRows += '<div class="small text-muted mb-1">' + T.esc(r.mealTypeLabel || r.mealType || '')
+                    + (dishName ? ' · ' + T.esc(dishName) : '')
+                    + (r.visitTime ? ' · ' + T.esc(r.visitTime) : '') + '</div>';
+                detailRows += T.priceFormulaRowHtml(
+                    '<strong>Meal</strong> ' + T.esc(r.adults || 0) + 'A × ' + Number(r.adult_price || 0).toFixed(2)
+                        + (r.children ? ' + ' + T.esc(r.children) + 'C × ' + Number(r.child_price || 0).toFixed(2) : ''),
+                    cur + ' ' + mealAmt.toFixed(2)
+                );
+                if (xfer.transfer_required) {
+                    detailRows += T.priceFormulaRowHtml(
+                        '<strong>Transfer</strong> (' + T.esc(xfer.type || '') + ')',
+                        cur + ' ' + Number(xfer.cost || 0).toFixed(2)
+                    );
+                }
+                if (guide.guide_required) {
+                    detailRows += T.priceFormulaRowHtml(
+                        '<strong>Guide</strong>',
+                        cur + ' ' + Number(guide.total_price || 0).toFixed(2)
+                    );
+                }
                 T.showPriceBreakdownModal(
                     r.restaurantName || 'Restaurant',
-                    r.currency || root.getAttribute('data-currency'),
+                    cur,
                     (typeof T.serviceRowDisplayTotal === 'function' ? T.serviceRowDisplayTotal(r) : r.totalPrice),
-                    '<div class="small text-muted">' + T.esc(r.mealTypeLabel || r.mealType || '') + ' · ' + T.esc(dishName) +
-                    '<br>' + T.esc(r.adults || 0) + 'A × ' + Number(r.adult_price || 0).toFixed(2) +
-                    (r.children ? ' · ' + T.esc(r.children) + 'C × ' + Number(r.child_price || 0).toFixed(2) : '') +
-                    (xfer.transfer_required ? '<br>Transfer (' + T.esc(xfer.type || '') + '): ' + Number(xfer.cost || 0).toFixed(2) : '') +
-                    (guide.guide_required ? '<br>Guide: ' + Number(guide.total_price || 0).toFixed(2) : '') +
-                    (r.visitTime ? '<br>Time: ' + T.esc(r.visitTime) : '') + '</div>'
+                    detailRows
                 );
             }
         });

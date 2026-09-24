@@ -799,6 +799,27 @@
     word-break: break-word;
 }
 
+.stp-lite-summary-row__left {
+    min-width: 0;
+    flex: 1 1 auto;
+    word-break: break-word;
+    line-height: 1.35;
+}
+
+.stp-lite-summary-row__amt {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    text-align: right;
+}
+
+.stp-lite-strike {
+    text-decoration: line-through;
+    opacity: 0.7;
+    color: #94a3b8;
+    font-weight: 500;
+    margin-right: 0.15rem;
+}
+
 .stp-lite-night-row__amt {
     font-weight: 700;
     color: #1e293b;
@@ -1338,6 +1359,9 @@
 
 .stp-lite-extras-block {
     margin-bottom: 0.35rem;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
 .stp-lite-opt-card--compact {
@@ -1346,6 +1370,8 @@
     background: #f8fafc;
     padding: 0.4rem 0.5rem;
     margin-top: 0.25rem;
+    max-width: 100%;
+    box-sizing: border-box;
 }
 
 .stp-lite-opt-card--compact .stp-lite-label {
@@ -1353,15 +1379,17 @@
 }
 
 .stp-lite-xfer-row {
-    flex-wrap: nowrap !important;
-    overflow-x: auto;
+    flex-wrap: wrap !important;
+    max-width: 100%;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
 }
 
-.stp-lite-xfer-type { flex: 0 0 6.5rem; max-width: 6.5rem; }
-.stp-lite-xfer-vehicle { flex: 1 1 10rem; min-width: 8rem; }
-.stp-lite-xfer-pickup { flex: 1 1 11rem; min-width: 9rem; }
-.stp-lite-xfer-time { flex: 0 0 auto; min-width: 11.5rem; width: auto; }
-.stp-lite-xfer-cost { flex: 0 0 auto; width: 7rem; }
+.stp-lite-xfer-type { flex: 1 1 6.5rem; max-width: 100%; min-width: 5.5rem; }
+.stp-lite-xfer-vehicle { flex: 1 1 10rem; min-width: 8rem; max-width: 100%; }
+.stp-lite-xfer-pickup { flex: 1 1 11rem; min-width: 9rem; max-width: 100%; }
+.stp-lite-xfer-time { flex: 1 1 11.5rem; min-width: 10rem; max-width: 100%; width: auto; }
+.stp-lite-xfer-cost { flex: 0 1 7rem; min-width: 5.5rem; max-width: 100%; width: auto; }
 
 .stp-lite-master-locked {
     background: #f1f5f9 !important;
@@ -1376,13 +1404,23 @@
     .stp-lite-xfer-vehicle,
     .stp-lite-xfer-pickup,
     .stp-lite-xfer-time,
-    .stp-lite-xfer-cost { flex: 1 1 100%; max-width: none; width: auto; }
+    .stp-lite-xfer-cost { flex: 1 1 100%; max-width: none; width: auto; min-width: 0; }
 }
 
-.stp-lite-service-panel,
+.stp-lite-service-panel {
+    overflow: visible;
+    max-width: 100%;
+}
+
 .stp-lite-svc,
 .stp-lite-service-body {
-    overflow: visible;
+    overflow-x: hidden;
+    max-width: 100%;
+}
+
+.stp-lite-restaurant {
+    overflow-x: hidden;
+    max-width: 100%;
 }
 
 .hotel-child-pricing-section .form-check-label {

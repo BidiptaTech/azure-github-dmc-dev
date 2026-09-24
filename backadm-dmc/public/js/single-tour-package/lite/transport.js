@@ -414,14 +414,28 @@
         if (panel) panel.classList.remove('d-none');
         if (totalEl) totalEl.textContent = cur + ' ' + Number(priced.total || 0).toFixed(2);
         if (detail) {
-            var srcLabel = '';
-            if (priced.source === 'hourly_package') srcLabel = ' · Hourly package';
-            else if (priced.source === 'zone') srcLabel = ' · Zone price';
-            else if (priced.source === 'base') srcLabel = ' · Base price';
-            var hoursLabel = (mode === 'hourly' && (priced.hours || (hoursEl && hoursEl.value)))
-                ? (' · ' + (priced.hours || hoursEl.value) + 'h')
-                : '';
-            detail.textContent = (priced.mode || mode) + hoursLabel + srcLabel + ' · ' + (opt.dataset.vehicleName || opt.textContent);
+            if (String(svc).toLowerCase() === 'shared' && typeof T.vehiclePriceDetailHtml === 'function') {
+                detail.innerHTML = T.vehiclePriceDetailHtml({
+                    type: 'shared',
+                    mode: priced.mode || 'shared',
+                    adults: adultsEl ? adultsEl.value : 1,
+                    children: childrenEl ? childrenEl.value : 0,
+                    adultUnit: priced.adultUnit,
+                    childUnit: priced.childUnit,
+                    shared_price: opt.dataset.sharedPrice,
+                    unit: priced.unit,
+                    total: priced.total
+                }, cur);
+            } else {
+                var srcLabel = '';
+                if (priced.source === 'hourly_package') srcLabel = ' · Hourly package';
+                else if (priced.source === 'zone') srcLabel = ' · Zone price';
+                else if (priced.source === 'base') srcLabel = ' · Base price';
+                var hoursLabel = (mode === 'hourly' && (priced.hours || (hoursEl && hoursEl.value)))
+                    ? (' · ' + (priced.hours || hoursEl.value) + 'h')
+                    : '';
+                detail.textContent = (priced.mode || mode) + hoursLabel + srcLabel + ' · ' + (opt.dataset.vehicleName || opt.textContent);
+            }
         }
         var add = root.querySelector('.transport-add-btn');
         if (add) add.disabled = false;
@@ -476,6 +490,8 @@
             plan_index: stay.planIndex || '',
             private_price: opt ? (opt.dataset.privatePrice || '') : '',
             shared_price: opt ? (opt.dataset.sharedPrice || '') : '',
+            adult_price: opt ? (opt.dataset.adultPrice || opt.dataset.sharedPrice || '') : '',
+            child_price: opt ? (opt.dataset.childPrice || opt.dataset.sharedPrice || '') : '',
             hourly_package_price: hourlyPkg || '',
             remarks: ''
         };
@@ -711,10 +727,12 @@
                     r.vehicles_name || 'Transport',
                     r.currency || root.getAttribute('data-currency'),
                     r.totalPrice,
-                    '<div class="small text-muted">' + T.esc(r.travel_type || '') +
-                    (r.selectedHours ? ' · ' + T.esc(r.selectedHours) + 'h' : '') +
-                    '<br>' + T.esc(r.entrypickup || '') + (r.entrydropoff ? ' → ' + T.esc(r.entrydropoff) : '') +
-                    '<br>' + T.esc(r.adults || 0) + 'A / ' + T.esc(r.children || 0) + 'C</div>'
+                    (typeof T.vehiclePriceDetailHtml === 'function'
+                        ? T.vehiclePriceDetailHtml(r, r.currency || root.getAttribute('data-currency'))
+                        : ('<div class="small text-muted">' + T.esc(r.travel_type || '') +
+                            '<br>' + T.esc(r.entrypickup || '') +
+                            (r.entrydropoff ? ' → ' + T.esc(r.entrydropoff) : '') +
+                            '<br>' + T.esc(r.adults || 0) + 'A / ' + T.esc(r.children || 0) + 'C</div>'))
                 );
             }
         });
