@@ -44,6 +44,8 @@
             '    <div class="col-md-2"><label class="stp-lite-label">Service</label>' +
             '      <select class="form-select form-select-sm arrival-service-type">' +
             '        <option value="private">Private</option><option value="shared">Shared</option></select></div>' +
+            '    <div class="col-md-2"><label class="stp-lite-label">No. of Vehicles</label>' +
+            '      <input type="number" min="1" step="1" class="form-control form-control-sm stp-lite-int arrival-vehicle-count" value="1"></div>' +
             '    <div class="col-md-2"><label class="stp-lite-label">Adults</label>' +
             '      <input type="number" min="1" class="form-control form-control-sm stp-lite-int arrival-adults" data-guest-cap="adults" value="1"></div>' +
             '    <div class="col-md-2" data-guest-child-ui><label class="stp-lite-label">Children</label>' +
@@ -77,6 +79,20 @@
         if (el) el.value = JSON.stringify(rows || []);
         S().syncHiddenJson('entry_port_data', '.entry_port_data_chunk');
         S().updateServiceHeaderTotal(root, 'arrival');
+    }
+
+    function readVehicleCount(root, selector) {
+        var n = parseInt((root.querySelector(selector) || {}).value, 10);
+        return n > 0 ? n : 1;
+    }
+
+    function applyPrivateVehicleCount(priced, count) {
+        if (!priced) return priced;
+        var n = count > 0 ? count : 1;
+        if (String(priced.mode || '').toLowerCase() === 'private' && n > 1) {
+            return Object.assign({}, priced, { total: Number(priced.total || 0) * n, vehicle_count: n });
+        }
+        return Object.assign({}, priced, { vehicle_count: n });
     }
 
     function invalidate(root) {
@@ -257,6 +273,8 @@
                 return;
             }
         }
+        var vehCount = readVehicleCount(root, '.arrival-vehicle-count');
+        priced = applyPrivateVehicleCount(priced, vehCount);
         root.__lastPrice = priced;
         var cur = root.getAttribute('data-currency') || 'SGD';
         var panel = root.querySelector('[data-arrival-price-panel]');
@@ -265,9 +283,26 @@
         if (panel) panel.classList.remove('d-none');
         if (totalEl) totalEl.textContent = cur + ' ' + Number(priced.total || 0).toFixed(2);
         if (detail) {
-            var src = priced.source === 'zone' ? 'Zone price' : (priced.source === 'base' ? 'Base price' : '');
-            detail.textContent = (priced.mode || svc) + (src ? ' · ' + src : '') +
-                ' · ' + (opt.dataset.vehicleName || opt.textContent);
+            var curLabel = cur;
+            if (String(svc).toLowerCase() === 'shared' && typeof T.vehiclePriceDetailHtml === 'function') {
+                detail.innerHTML = T.vehiclePriceDetailHtml({
+                    type: 'shared',
+                    mode: priced.mode || 'shared',
+                    adults: adultsEl ? adultsEl.value : 1,
+                    children: childrenEl ? childrenEl.value : 0,
+                    adultUnit: priced.adultUnit,
+                    childUnit: priced.childUnit,
+                    shared_price: opt.dataset.sharedPrice,
+                    unit: priced.unit,
+                    total: priced.total,
+                    vehicle_count: vehCount
+                }, curLabel);
+            } else {
+                var src = priced.source === 'zone' ? 'Zone price' : (priced.source === 'base' ? 'Base price' : '');
+                detail.textContent = (priced.mode || svc) + (src ? ' · ' + src : '') +
+                    (vehCount > 1 ? ' · ' + vehCount + ' vehicles' : '') +
+                    ' · ' + (opt.dataset.vehicleName || opt.textContent);
+            }
         }
         var add = root.querySelector('.arrival-add-btn');
         if (add) add.disabled = false;
@@ -289,6 +324,7 @@
         var total = root.__lastPrice ? Number(root.__lastPrice.total || 0) : 0;
         var supplement = T.autoSupplement(adults);
         var entrytime = T.readAmPmValue(root, 'arrival');
+        var vehicleCount = readVehicleCount(root, '.arrival-vehicle-count');
 
         return {
             id: 'entry-' + Date.now() + '-' + Math.random().toString(36).slice(2, 9),
@@ -303,6 +339,8 @@
             type: typeEl ? typeEl.value : 'private',
             vehicle_type: opt ? (opt.dataset.vehicleType || '') : '',
             seating_capacity: opt ? (parseInt(opt.dataset.seating, 10) || 0) : 0,
+            vehicle_count: vehicleCount,
+            booked_vehicles: vehicleCount,
             arrival_transport_type: 'flight',
             arrival_flight_no: (root.querySelector('.arrival-flight-no') || {}).value || '',
             entrypickup: pickupText,
@@ -337,6 +375,8 @@
             plan_index: stay.planIndex || '',
             private_price: opt ? (opt.dataset.privatePrice || '') : '',
             shared_price: opt ? (opt.dataset.sharedPrice || '') : '',
+            adult_price: opt ? (opt.dataset.adultPrice || opt.dataset.sharedPrice || '') : '',
+            child_price: opt ? (opt.dataset.childPrice || opt.dataset.sharedPrice || '') : '',
             private_cost_price: opt ? (opt.dataset.privateCost || '') : '',
             shared_cost_price: opt ? (opt.dataset.sharedCost || '') : '',
             zonePrivateCostPrice: opt ? (opt.dataset.privateCost || '') : '',
@@ -370,7 +410,9 @@
             var editing = root.__editingIdx === idx;
             html += '<tr class="' + (editing ? 'is-editing' : '') + '" data-idx="' + idx + '">' +
                 '<td><div class="fw-semibold">' + T.esc(row.vehicles_name || 'Vehicle') + '</div>' +
-                '<small class="text-muted">' + T.esc(row.type || '') + '</small>' +
+                '<small class="text-muted">' + T.esc(row.type || '') +
+                ((row.vehicle_count || row.booked_vehicles) ? ' · ' + T.esc(row.vehicle_count || row.booked_vehicles) + ' veh' : '') +
+                '</small>' +
                 T.editingMarkHtml(editing) + '</td>' +
                 '<td><small>' + T.esc(row.entrypickup || '—') + ' → ' + T.esc(row.entrydropoff || '—') + '</small></td>' +
                 '<td><small>' + T.esc(row.adults || 0) + 'A / ' + T.esc(row.children || 0) + 'C</small></td>' +
@@ -393,11 +435,13 @@
         var adultsEl = root.querySelector('.arrival-adults');
         var childrenEl = root.querySelector('.arrival-children');
         var typeEl = root.querySelector('.arrival-service-type');
+        var countEl = root.querySelector('.arrival-vehicle-count');
         if (flight) flight.value = row.arrival_flight_no || '';
         if (dateEl) dateEl.value = row.pickupdate || stay.start || '';
         if (adultsEl) adultsEl.value = String(row.adults || 1);
         if (childrenEl) childrenEl.value = String(row.children || 0);
         if (typeEl) typeEl.value = row.type || 'private';
+        if (countEl) countEl.value = String(row.vehicle_count || row.booked_vehicles || 1);
         S().setAmPmValue(root, 'arrival', row.entrytime || '');
         var pickup = root.querySelector('.arrival-pickup');
         var dropoff = root.querySelector('.arrival-dropoff');
@@ -452,6 +496,7 @@
         T.clearSelectOrInput(root.querySelector('.arrival-dropoff-text'), '');
         T.clearSelectOrInput(root.querySelector('.arrival-flight-no'), '');
         T.clearSelectOrInput(root.querySelector('.arrival-custom-price'), '');
+        T.clearSelectOrInput(root.querySelector('.arrival-vehicle-count'), '1');
         T.setAmPmValue(root, 'arrival', '');
         // Get Price stays off until Search Vehicles again; Search must stay usable
         var getBtn = root.querySelector('.arrival-get-price-btn');
@@ -484,7 +529,7 @@
         root.querySelector('.arrival-get-price-btn').addEventListener('click', function () { getPrice(root); });
         root.querySelector('.arrival-add-btn').addEventListener('click', function () { addRow(root, stay); });
 
-        root.querySelectorAll('.arrival-vehicle, .arrival-service-type, .arrival-adults, .arrival-children, .arrival-pickup, .arrival-dropoff, .arrival-pickup-text, .arrival-dropoff-text, .arrival-custom-price').forEach(function (el) {
+        root.querySelectorAll('.arrival-vehicle, .arrival-service-type, .arrival-vehicle-count, .arrival-adults, .arrival-children, .arrival-pickup, .arrival-dropoff, .arrival-pickup-text, .arrival-dropoff-text, .arrival-custom-price').forEach(function (el) {
             el.addEventListener('change', function () { if (!root.__hydrating) invalidate(root); });
             el.addEventListener('input', function () { if (!root.__hydrating) invalidate(root); });
         });
@@ -534,10 +579,11 @@
                     r.vehicles_name || 'Arrival',
                     r.currency || root.getAttribute('data-currency'),
                     r.totalPrice,
-                    '<div class="small text-muted">' + T.esc(r.type || '') + ' · ' +
-                    T.esc(r.entrypickup || '') + ' → ' + T.esc(r.entrydropoff || '') +
-                    '<br>' + T.esc(r.adults || 0) + 'A / ' + T.esc(r.children || 0) + 'C' +
-                    (r.entrytime ? '<br>Time: ' + T.esc(r.entrytime) : '') + '</div>'
+                    (typeof T.vehiclePriceDetailHtml === 'function'
+                        ? T.vehiclePriceDetailHtml(r, r.currency || root.getAttribute('data-currency'))
+                        : ('<div class="small text-muted">' + T.esc(r.type || '') + ' · ' +
+                            T.esc(r.entrypickup || '') + ' → ' + T.esc(r.entrydropoff || '') +
+                            '<br>' + T.esc(r.adults || 0) + 'A / ' + T.esc(r.children || 0) + 'C</div>'))
                 );
             }
         });

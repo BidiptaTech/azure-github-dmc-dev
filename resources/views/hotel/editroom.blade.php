@@ -171,68 +171,63 @@
                     <div class="col-md-3 mb-3" id="base_room_type" style="display: none;">
                         <label for="base_room_type_input" class="form-label"><strong>Base Room
                                 Category</strong><span class="text-danger">*</span></label>
-                        <input id="base_room_type_input" value="" name="base_room_type" class="form-control"
+                        <input id="base_room_type_input" value="" name="base_room_type" class="form-control @error('base_room_type') is-invalid @enderror"
                             placeholder="Enter Room Category"
                             {{ !in_array($auth_user->role_id, [1, 20]) ? 'readonly' : '' }}
                             style="{{ !in_array($auth_user->role_id, [1, 20]) ? 'background-color:#f8f9fa;cursor:not-allowed;' : '' }}">
                         @if(!in_array($auth_user->role_id, [1, 20]))
                             <small class="text-muted">(Only admin can modify room category)</small>
                         @endif
-                        @error('base_room_type')
-                        <div class="text-danger mt-1">{{ $message }}</div>
-                        @enderror
+                        <div class="invalid-feedback js-field-error @error('base_room_type') d-block @enderror" id="base_room_type_input-error">@error('base_room_type'){{ $message }}@enderror</div>
                     </div>
 
                     <!-- Room Category -->
                     <div class="col-md-3 mb-3" id="room_type" style="display: none;">
                         <label for="room_type" class="form-label"><strong>Room Category</strong><span
                                 class="text-danger">*</span></label>
-                        <input value="" name="room_type" id="room_type_input" class="form-control"
+                        <input value="" name="room_type" id="room_type_input" class="form-control @error('room_type') is-invalid @enderror"
                             placeholder="Enter Room Category"
                             {{ !in_array($auth_user->role_id, [1, 20]) ? 'readonly' : '' }}
                             style="{{ !in_array($auth_user->role_id, [1, 20]) ? 'background-color:#f8f9fa;cursor:not-allowed;' : '' }}">
                         @if(!in_array($auth_user->role_id, [1, 20]))
                             <small class="text-muted">(Only admin can modify room category)</small>
                         @endif
-                        @error('room_type')
-                        <div class="text-danger mt-1">{{ $message }}</div>
-                        @enderror
+                        <div class="invalid-feedback js-field-error @error('room_type') d-block @enderror" id="room_type_input-error">@error('room_type'){{ $message }}@enderror</div>
                     </div>
 
                     <!-- Variant Price -->
                     <div class="col-md-3 mb-3" id="varient_price" style="display: none;">
                         <label for="varient_price_input" class="form-label"><strong>Room Rate
                                 Variant</strong><span class="text-danger">*</span></label>
-                        <input name="varient_price" id="varient_price_input" class="form-control" type="number" step="0.01"
-                            placeholder="Enter Variant Price">
-                        @error('varient_price')
-                        <div class="text-danger mt-1">{{ $message }}</div>
-                        @enderror
+                        <input name="varient_price" id="varient_price_input" class="form-control @error('varient_price') is-invalid @enderror" type="number" step="0.01"
+                            placeholder="Enter Variant Price" value="{{ old('varient_price', $room->varient_price) }}">
+                        <div class="invalid-feedback js-field-error @error('varient_price') d-block @enderror" id="varient_price_input-error">@error('varient_price'){{ $message }}@enderror</div>
                     </div>
 
                     <!-- Number of Rooms -->
                     <div class="col-md-3 mb-3">
                         <label for="total_rooms" class="form-label"><strong>Total No of Rooms</strong><span
                                 class="text-danger">*</span></label>
-                        <input value="{{$room->no_of_room}}" type="text" class="form-control" name="total_no_of_room"
-                               id="total_rooms" placeholder="Enter Number of Rooms"
+                        <input value="{{ old('total_no_of_room', (int) $room->no_of_room) }}" type="text" class="form-control @error('total_no_of_room') is-invalid @enderror" name="total_no_of_room"
+                               id="total_rooms" placeholder="Enter Number of Rooms" inputmode="numeric"
                                oninput="validateTotalRooms(this)" required>
                         <small class="validation-message text-danger" id="total_rooms-validation-message"></small>
-                        @error('base_no_of_room')
-                        <div class="text-danger mt-1">{{ $message }}</div>
-                        @enderror
+                        <div class="invalid-feedback js-field-error @error('total_no_of_room') d-block @enderror" id="total_rooms-error">@error('total_no_of_room'){{ $message }}@enderror</div>
                     </div>
                     <!-- dimension -->
                     <div class="mb-3 col-md-3" id="dimension">
-                        <label for="dimension_input" class="form-label"><strong>Dimension</strong></label>
-                        <input value="{{$room->dimension}}" type="number" name="dimension" id="dimension_input" class="form-control"
-                               placeholder="Enter Dimension"
+                        <label for="dimension_input" class="form-label"><strong>Dimension(sq.m)</strong><span class="text-danger">*</span></label>
+                        <input value="{{ old('dimension', $room->dimension) }}" type="number" name="dimension" id="dimension_input"
+                               class="form-control @error('dimension') is-invalid @enderror"
+                               placeholder="Enter Dimension" min="0" step="0.01" required
+                               oninput="validateDimension(this)"
                                {{ !in_array($auth_user->role_id, [1, 20]) ? 'readonly' : '' }}
                                style="{{ !in_array($auth_user->role_id, [1, 20]) ? 'background-color:#f8f9fa;cursor:not-allowed;' : '' }}">
                         @if(!in_array($auth_user->role_id, [1, 20]))
                             <small class="text-muted">(Only admin can modify dimension)</small>
                         @endif
                         <small class="validation-message text-danger" id="dimension_input-validation-message"></small>
+                        <div class="invalid-feedback js-field-error @error('dimension') d-block @enderror" id="dimension_input-error">@error('dimension'){{ $message }}@enderror</div>
                     </div>
                 </div>
 
@@ -1574,27 +1569,144 @@ function updateMoreBadge() {
     }
 
     function validateTotalRooms(input) {
-        // Force numeric input by immediately replacing non-numeric characters
-        input.value = input.value.replace(/[^0-9]/g, '');
-        
+        // Keep whole numbers only — "100.00" → "100" (not "10000")
+        var raw = String(input.value || '').trim();
+        if (raw.indexOf('.') !== -1 || raw.indexOf(',') !== -1) {
+            var asNum = parseFloat(raw.replace(',', '.'));
+            raw = isNaN(asNum) ? '' : String(Math.floor(Math.abs(asNum)));
+        }
+        input.value = String(raw).replace(/[^0-9]/g, '');
+
         const value = input.value.trim();
         const roomsRegex = /^[1-9][0-9]{0,3}$/;  // 1-9999 rooms
-        
+        const errEl = document.getElementById('total_rooms-error');
+
         if (value === '') {
-            showValidationMessage(input, false, 'Total number of rooms is required');
+            showValidationMessage(input, false, 'Total number of rooms is required.');
+            if (errEl) { errEl.textContent = 'Total number of rooms is required.'; errEl.style.display = 'block'; }
         } else if (!roomsRegex.test(value)) {
-            showValidationMessage(input, false, `
-                Please enter a valid number of rooms:
-                <ul class="mt-1 mb-0">
-                    <li>Must be a positive number (1-9999)</li>
-                    <li>No decimal places allowed</li>
-                    <li>No leading zeros</li>
-                </ul>
-            `);
+            const msg = 'Enter a whole number between 1 and 9999 (no decimals).';
+            showValidationMessage(input, false, msg);
+            if (errEl) { errEl.textContent = msg; errEl.style.display = 'block'; }
         } else {
             showValidationMessage(input, true, '');
+            if (errEl) { errEl.textContent = ''; errEl.style.display = 'none'; }
+            input.classList.remove('is-invalid');
         }
     }
+
+    function validateDimension(input) {
+        if (input && input.readOnly) return;
+        const value = String(input.value || '').trim();
+        const errEl = document.getElementById('dimension_input-error');
+        if (value === '') {
+            const msg = 'Dimension is required.';
+            showValidationMessage(input, false, msg);
+            if (errEl) { errEl.textContent = msg; errEl.style.display = 'block'; }
+            return;
+        }
+        const num = Number(value);
+        if (isNaN(num) || num < 0) {
+            const msg = 'Dimension must be a number 0 or greater.';
+            showValidationMessage(input, false, msg);
+            if (errEl) { errEl.textContent = msg; errEl.style.display = 'block'; }
+        } else {
+            showValidationMessage(input, true, '');
+            if (errEl) { errEl.textContent = ''; errEl.style.display = 'none'; }
+            input.classList.remove('is-invalid');
+        }
+    }
+
+    // Form validation before update (same rules as create room)
+    document.addEventListener('DOMContentLoaded', function () {
+        const form = document.getElementById('hotelForm');
+        const totalRoomsOnLoad = document.getElementById('total_rooms');
+        if (totalRoomsOnLoad) {
+            var rawLoad = String(totalRoomsOnLoad.value || '').trim();
+            if (rawLoad.indexOf('.') !== -1 || rawLoad.indexOf(',') !== -1) {
+                var asNum = parseFloat(rawLoad.replace(',', '.'));
+                totalRoomsOnLoad.value = isNaN(asNum) ? '' : String(Math.floor(Math.abs(asNum)));
+            }
+            totalRoomsOnLoad.value = String(totalRoomsOnLoad.value || '').replace(/[^0-9]/g, '');
+        }
+        if (!form) return;
+
+        function setEditFieldError(el, message) {
+            if (!el) return;
+            el.classList.add('is-invalid');
+            el.classList.remove('is-valid');
+            const errId = el.id ? (el.id + '-error') : null;
+            const errEl = errId ? document.getElementById(errId) : null;
+            if (errEl) {
+                errEl.textContent = message;
+                errEl.style.display = 'block';
+                errEl.classList.add('d-block');
+                return;
+            }
+            const msgSlot = el.id ? document.getElementById(el.id + '-validation-message') : null;
+            if (msgSlot) {
+                msgSlot.innerHTML = '<div class="invalid-feedback d-block"><i class="fas fa-exclamation-circle"></i> ' + message + '</div>';
+            }
+        }
+
+        form.addEventListener('submit', function (e) {
+            let isValid = true;
+            let firstInvalid = null;
+
+            function markInvalid(el, message) {
+                setEditFieldError(el, message);
+                if (!firstInvalid) firstInvalid = el;
+                isValid = false;
+            }
+
+            const totalRooms = document.getElementById('total_rooms');
+            if (totalRooms) {
+                validateTotalRooms(totalRooms);
+            }
+            const totalVal = (totalRooms && totalRooms.value || '').trim();
+            if (!totalVal) {
+                markInvalid(totalRooms, 'Total number of rooms is required.');
+            } else if (!/^[1-9][0-9]{0,3}$/.test(totalVal)) {
+                markInvalid(totalRooms, 'Enter a whole number between 1 and 9999.');
+            }
+
+            const dimInput = document.getElementById('dimension_input');
+            const dimVal = (dimInput && dimInput.value || '').trim();
+            if (!dimVal) {
+                markInvalid(dimInput, 'Dimension is required.');
+            } else if (isNaN(Number(dimVal)) || Number(dimVal) < 0) {
+                markInvalid(dimInput, 'Dimension must be a number 0 or greater.');
+            }
+
+            const roomTypeVisible = document.getElementById('room_type');
+            const baseVisible = document.getElementById('base_room_type');
+            if (roomTypeVisible && roomTypeVisible.style.display !== 'none') {
+                const roomTypeInput = document.getElementById('room_type_input');
+                if (roomTypeInput && !roomTypeInput.readOnly && !(roomTypeInput.value || '').trim()) {
+                    markInvalid(roomTypeInput, 'Room category is required.');
+                }
+                const variantInput = document.getElementById('varient_price_input');
+                if (variantInput && (variantInput.value === '' || variantInput.value === null)) {
+                    markInvalid(variantInput, 'Room rate variant is required.');
+                }
+            }
+            if (baseVisible && baseVisible.style.display !== 'none') {
+                const baseInput = document.getElementById('base_room_type_input');
+                if (baseInput && !baseInput.readOnly && !(baseInput.value || '').trim()) {
+                    markInvalid(baseInput, 'Base room category is required.');
+                }
+            }
+
+            if (!isValid) {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                if (firstInvalid && typeof firstInvalid.scrollIntoView === 'function') {
+                    firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+                return false;
+            }
+        });
+    });
 
     // function validateDimension(input) {
     //     // Allow only digits, 'x', '*', and spaces

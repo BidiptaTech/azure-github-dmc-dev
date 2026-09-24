@@ -462,8 +462,8 @@
         display: none !important;
     }
 
-    /* 3D Menu Toggle Icon Styling */
-    .layout-menu-toggle {
+    /* 3D Menu Toggle Icon Styling (sidebar collapse control) */
+    .layout-menu .layout-menu-toggle {
         position: relative;
         display: flex;
         align-items: center;
@@ -471,7 +471,7 @@
         margin-right: 10px;
     }
 
-    .layout-menu-toggle .menu-icon {
+    .layout-menu .layout-menu-toggle .menu-icon {
         padding: 10px;
         border-radius: 12px;
         background: linear-gradient(145deg, #ffffff, #f0f0f0);
@@ -483,7 +483,7 @@
         border: 1px solid rgba(99, 102, 241, 0.1);
     }
 
-    .layout-menu-toggle:hover .menu-icon {
+    .layout-menu .layout-menu-toggle:hover .menu-icon {
         transform: translateY(-3px) rotate(180deg);
         box-shadow: 6px 6px 10px rgba(0,0,0,0.15), 
                     -6px -6px 10px rgba(255,255,255,0.95);
@@ -491,13 +491,47 @@
         color: white !important;
     }
 
-    .layout-menu-toggle:active .menu-icon {
+    .layout-menu .layout-menu-toggle:active .menu-icon {
         transform: translateY(1px);
         box-shadow: 2px 2px 5px rgba(0,0,0,0.1), 
                     -2px -2px 5px rgba(255,255,255,0.8);
     }
 
-    /* (Toggle moved back to sidebar) */
+    /* Mobile navbar hamburger — open off-canvas sidebar */
+    .layout-navbar .layout-menu-toggle .mobile-sidebar-toggle {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 2.5rem;
+        height: 2.5rem;
+        border-radius: 0.75rem;
+        color: #4f46e5;
+        background: #f8fafc;
+        border: 1px solid rgba(15, 23, 42, 0.08);
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+        transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+    }
+    .layout-navbar .layout-menu-toggle .mobile-sidebar-toggle:hover,
+    .layout-navbar .layout-menu-toggle .mobile-sidebar-toggle:focus {
+        color: #fff;
+        background: #6366f1;
+        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);
+    }
+
+    /* Ensure mobile off-canvas sidebar slides in above page content */
+    @media (max-width: 1199.98px) {
+        #layout-menu.layout-menu {
+            z-index: 1100;
+        }
+        html.layout-menu-expanded #layout-menu.layout-menu {
+            transform: translate3d(0, 0, 0) !important;
+            visibility: visible;
+            pointer-events: auto;
+        }
+        .layout-overlay {
+            z-index: 1099;
+        }
+    }
 
     .rounded-logo {
         width: 1.625rem;

@@ -53,6 +53,54 @@
         return types.filter(function (mt) { return !!mapMealPeriod(mt); });
     }
 
+    function isMultiRestaurantValue(val) {
+        return String(val || '').indexOf('multi_restaurant_') === 0;
+    }
+
+    function parseMultiRestaurant(opt) {
+        if (!opt) return null;
+        if ((opt.dataset && opt.dataset.isMulti === '1') || isMultiRestaurantValue(opt.value)) {
+            try { return JSON.parse(opt.dataset.multiRestaurant || '{}'); } catch (e) { return {}; }
+        }
+        return null;
+    }
+
+    function applyMasterFromRestaurantOption(root, rOpt) {
+        var T = S();
+        if (typeof T.applyMasterGuideVehicle !== 'function') return;
+        var mr = parseMultiRestaurant(rOpt);
+        if (mr) {
+            T.applyMasterGuideVehicle(
+                root,
+                PREFIX,
+                rOpt.dataset.vehicleIncluded === '1' || mr.vehicle,
+                rOpt.dataset.guideIncluded === '1' || mr.guide,
+                { preserve: !!root.__hydrating }
+            );
+            return;
+        }
+        if (!root.__hydrating && typeof T.unlockMasterGuideVehicle === 'function') {
+            T.unlockMasterGuideVehicle(root, PREFIX);
+        }
+    }
+
+    function applyMultiDish(root, mr) {
+        var dish = root.querySelector('.restaurant-dish');
+        if (!dish) return;
+        dish.innerHTML = '<option value="">Select dish</option>';
+        var opt = document.createElement('option');
+        opt.value = 'buffet';
+        opt.textContent = 'Buffet';
+        opt.dataset.name = 'Buffet';
+        opt.dataset.adultPrice = (mr && mr.adult_price) || 0;
+        opt.dataset.childPrice = (mr && mr.child_price) || 0;
+        opt.dataset.type = 'Buffet';
+        opt.dataset.mealPeriod = '';
+        dish.appendChild(opt);
+        dish.value = 'buffet';
+        dish.disabled = false;
+    }
+
     function shellHtml(stay) {
         var T = S();
         var cur = stay.currency || 'SGD';
@@ -60,27 +108,27 @@
         return (
             '<div class="stp-lite-svc stp-lite-restaurant" data-currency="' + T.esc(cur) + '">' +
             '  <div class="row g-2 mb-2">' +
-            '    <div class="col-md-3"><label class="stp-lite-label">City</label>' +
+            '    <div class="col-12 col-md-3"><label class="stp-lite-label">City</label>' +
             '      <div class="stp-lite-city-static">' + T.esc(T.cityLabel(stay)) + '</div></div>' +
-            '    <div class="col-md-3"><label class="stp-lite-label">Restaurant</label>' +
+            '    <div class="col-12 col-md-3"><label class="stp-lite-label">Restaurant</label>' +
             '      <select class="form-select form-select-sm restaurant-select" disabled><option value="">Loading…</option></select></div>' +
-            '    <div class="col-md-2"><label class="stp-lite-label">Meal type</label>' +
+            '    <div class="col-6 col-md-3"><label class="stp-lite-label">Meal type</label>' +
             '      <select class="form-select form-select-sm restaurant-meal-type" disabled><option value="">Select restaurant</option></select></div>' +
-            '    <div class="col-md-2"><label class="stp-lite-label">Dish</label>' +
+            '    <div class="col-6 col-md-3"><label class="stp-lite-label">Dish</label>' +
             '      <select class="form-select form-select-sm restaurant-dish" disabled><option value="">Select meal type</option></select></div>' +
-            '    <div class="col-md-2"><label class="stp-lite-label">Time</label>' +
+            '  </div>' +
+            '  <div class="row g-2 mb-2 align-items-end">' +
+            '    <div class="col-6 col-md-2"><label class="stp-lite-label">Date</label>' +
+            '      <input type="date" class="form-control form-control-sm restaurant-date" value="' + T.esc(stay.start || '') + '"></div>' +
+            '    <div class="col-6 col-md-2"><label class="stp-lite-label">Adults</label>' +
+            '      <input type="number" min="0" class="form-control form-control-sm stp-lite-int restaurant-adults" data-guest-cap="adults" value="' + (g.adults || 1) + '"></div>' +
+            '    <div class="col-6 col-md-2" data-guest-child-ui><label class="stp-lite-label">Children</label>' +
+            '      <input type="number" min="0" class="form-control form-control-sm stp-lite-int restaurant-children" data-guest-cap="children" value="' + (g.children || 0) + '"></div>' +
+            '    <div class="col-6 col-md-3 stp-lite-restaurant-time-col"><label class="stp-lite-label">Time</label>' +
             T.ampmTimeHtml('restaurant', '') +
             '</div>' +
-            '  </div>' +
-            '  <div class="row g-2 mb-2">' +
-            '    <div class="col-md-2"><label class="stp-lite-label">Date</label>' +
-            '      <input type="date" class="form-control form-control-sm restaurant-date" value="' + T.esc(stay.start || '') + '"></div>' +
-            '    <div class="col-md-2"><label class="stp-lite-label">Adults</label>' +
-            '      <input type="number" min="0" class="form-control form-control-sm stp-lite-int restaurant-adults" data-guest-cap="adults" value="' + (g.adults || 1) + '"></div>' +
-            '    <div class="col-md-2" data-guest-child-ui><label class="stp-lite-label">Children</label>' +
-            '      <input type="number" min="0" class="form-control form-control-sm stp-lite-int restaurant-children" data-guest-cap="children" value="' + (g.children || 0) + '"></div>' +
-            '    <div class="col-md-2">' + T.transferRequiredSelectHtml(PREFIX) + '</div>' +
-            '    <div class="col-md-2">' + T.guideRequiredSelectHtml(PREFIX) + '</div>' +
+            '    <div class="col-6 col-md-2">' + T.transferRequiredSelectHtml(PREFIX) + '</div>' +
+            '    <div class="col-6 col-md-2">' + T.guideRequiredSelectHtml(PREFIX) + '</div>' +
             '  </div>' +
             T.transferExtrasHtml(PREFIX) +
             T.guideExtrasHtml(PREFIX) +
@@ -158,7 +206,28 @@
                     opt.textContent = r.name || r.restaurant_name || 'Restaurant';
                     opt.dataset.name = r.name || r.restaurant_name || '';
                     opt.dataset.mealTypes = JSON.stringify(parseMealTypes(r.meal_types));
+                    opt.dataset.isMulti = '0';
                     select.appendChild(opt);
+                });
+                var packages = (res && res.multi_restaurants) || [];
+                root.__multiRestaurants = packages;
+                packages.forEach(function (m) {
+                    var opt = document.createElement('option');
+                    var pid = m.id || m.package_unique_id || '';
+                    opt.value = 'multi_restaurant_' + pid;
+                    opt.textContent = m.package_name || m.name || 'Multi Restaurant';
+                    opt.dataset.name = m.package_name || m.name || 'Multi Restaurant';
+                    opt.dataset.isMulti = '1';
+                    opt.dataset.vehicleIncluded = (m.vehicle ? '1' : '0');
+                    opt.dataset.guideIncluded = (m.guide ? '1' : '0');
+                    opt.dataset.adultPrice = m.adult_price || 0;
+                    opt.dataset.childPrice = m.child_price || 0;
+                    try { opt.dataset.multiRestaurant = JSON.stringify(m); } catch (e) { opt.dataset.multiRestaurant = '{}'; }
+                    if (select.firstChild) {
+                        select.insertBefore(opt, select.firstChild.nextSibling);
+                    } else {
+                        select.appendChild(opt);
+                    }
                 });
                 select.disabled = false;
             })
@@ -177,6 +246,32 @@
             return String(r.restaurant_id || r.id) === String(restaurantId);
         });
         var rOpt = rest && rest.options[rest.selectedIndex];
+        var mr = parseMultiRestaurant(rOpt);
+        if (mr) {
+            mealType.innerHTML = '<option value="">Select meal type</option>';
+            var meals = [];
+            if (mr.breakfast || (mr.breakfast_time && String(mr.breakfast_time).trim() !== '')) {
+                meals.push({ period: '1', label: 'Breakfast' });
+            }
+            if (mr.lunch || (mr.lunch_time && String(mr.lunch_time).trim() !== '')) {
+                meals.push({ period: '2', label: 'Lunch' });
+            }
+            if (mr.dinner || (mr.dinner_time && String(mr.dinner_time).trim() !== '')) {
+                meals.push({ period: '3', label: 'Dinner' });
+            }
+            meals.forEach(function (m) {
+                var opt = document.createElement('option');
+                opt.value = m.period;
+                opt.textContent = m.label;
+                mealType.appendChild(opt);
+            });
+            mealType.disabled = !meals.length;
+            applyMultiDish(root, mr);
+            applyMasterFromRestaurantOption(root, rOpt);
+            if (meals.length === 1) mealType.value = meals[0].period;
+            return;
+        }
+        applyMasterFromRestaurantOption(root, rOpt);
         var types = parseMealTypes((hit && hit.meal_types) || (rOpt && rOpt.dataset.mealTypes) || []);
         mealType.innerHTML = '<option value="">Select meal type</option>';
         types.forEach(function (mt) {
@@ -245,6 +340,12 @@
         var T = S();
         var dish = root.querySelector('.restaurant-dish');
         if (!dish || !restaurantId) return Promise.resolve();
+        if (isMultiRestaurantValue(restaurantId)) {
+            var rest = root.querySelector('.restaurant-select');
+            var rOpt = rest && rest.options[rest.selectedIndex];
+            applyMultiDish(root, parseMultiRestaurant(rOpt) || {});
+            return Promise.resolve();
+        }
         var period = mapMealPeriod(mealPeriod);
         if (!period) {
             dish.innerHTML = '<option value="">Select meal type first</option>';
@@ -302,10 +403,20 @@
         T.refreshTransferCostDisplay(root, PREFIX, g.adults, g.children, g.infants);
         var guide = T.calcInlineGuidePrice(root, PREFIX);
         var total = mealTotal + (Number(xfer) || 0) + (Number(guide.total) || 0);
-        var parts = [g.adults + '×' + adultP.toFixed(2)];
-        if (g.children) parts.push(g.children + '×' + childP.toFixed(2));
-        if (xfer) parts.push('xfer ' + Number(xfer).toFixed(2));
-        if (guide.total) parts.push('guide ' + Number(guide.total).toFixed(2));
+        var parts = [];
+        var cur = root.getAttribute('data-currency') || 'SGD';
+        var mealAmt = (adultP * g.adults) + (childP * g.children);
+        parts.push(T.priceFormulaRowHtml(
+            '<strong>Meal</strong> ' + g.adults + 'A × ' + adultP.toFixed(2)
+                + (g.children ? ' + ' + g.children + 'C × ' + childP.toFixed(2) : ''),
+            cur + ' ' + mealAmt.toFixed(2)
+        ));
+        if (xfer) {
+            parts.push(T.priceFormulaRowHtml('<strong>Transfer</strong>', cur + ' ' + Number(xfer).toFixed(2)));
+        }
+        if (guide.total) {
+            parts.push(T.priceFormulaRowHtml('<strong>Guide</strong>', cur + ' ' + Number(guide.total).toFixed(2)));
+        }
         root.__lastPrice = {
             total: total,
             mealTotal: mealTotal,
@@ -313,15 +424,14 @@
             guideTotal: Number(guide.total) || 0,
             adultPrice: adultP,
             childPrice: childP,
-            breakdown: parts.join(' + ')
+            breakdown: parts.join('')
         };
-        var cur = root.getAttribute('data-currency') || 'SGD';
         var panel = root.querySelector('[data-restaurant-price-panel]');
         var totalEl = root.querySelector('.restaurant-price-total');
         var detail = root.querySelector('.restaurant-price-detail');
         if (panel) panel.classList.remove('d-none');
         if (totalEl) totalEl.textContent = cur + ' ' + total.toFixed(2);
-        if (detail) detail.textContent = root.__lastPrice.breakdown;
+        if (detail) detail.innerHTML = root.__lastPrice.breakdown;
         var add = root.querySelector('.restaurant-add-btn');
         if (add) add.disabled = false;
     }
@@ -372,6 +482,12 @@
             is_supplement: !!supplement,
             transfer_options: transferOptions,
             guide_options: guideOptions,
+            is_multi_restaurant: !!(rOpt && rOpt.dataset.isMulti === '1'),
+            multi_restaurant_id: (rOpt && rOpt.dataset.isMulti === '1')
+                ? String(rest.value || '').replace(/^multi_restaurant_/, '')
+                : null,
+            vehicle_included: !!(rOpt && rOpt.dataset.vehicleIncluded === '1'),
+            guide_included: !!(rOpt && rOpt.dataset.guideIncluded === '1'),
             city: stay.cityName || '',
             country: stay.country || '',
             currency: stay.currency || '',
@@ -470,16 +586,31 @@
         var extras = Promise.all([
             T.hydrateTransferExtras(root, PREFIX, row.transfer_options, stay),
             T.hydrateGuideExtras(root, PREFIX, row.guide_options, stay)
-        ]);
+        ]).then(function () {
+            if ((row.is_multi_restaurant || isMultiRestaurantValue(row.restaurantId)) && typeof T.applyMasterGuideVehicle === 'function') {
+                var opt = rest && rest.options[rest.selectedIndex];
+                T.applyMasterGuideVehicle(
+                    root,
+                    PREFIX,
+                    row.vehicle_included || (opt && opt.dataset && opt.dataset.vehicleIncluded === '1'),
+                    row.guide_included || (opt && opt.dataset && opt.dataset.guideIncluded === '1'),
+                    { preserve: true }
+                );
+            }
+        });
 
         if (rest && row.restaurantId) {
-            rest.value = String(row.restaurantId);
-            fillMealTypes(root, row.restaurantId, stay);
+            var restVal = String(row.restaurantId);
+            if ((row.is_multi_restaurant || row.multi_restaurant_id) && restVal.indexOf('multi_restaurant_') !== 0) {
+                restVal = 'multi_restaurant_' + (row.multi_restaurant_id || restVal);
+            }
+            rest.value = restVal;
+            fillMealTypes(root, restVal, stay);
             var mealType = root.querySelector('.restaurant-meal-type');
             var period = mapMealPeriod(row.mealType || '');
             if (mealType && period) mealType.value = period;
             Promise.all([
-                loadMeals(root, stay, row.restaurantId, period || row.mealType || ''),
+                loadMeals(root, stay, restVal, period || row.mealType || ''),
                 extras
             ]).then(finish);
         } else {
@@ -615,16 +746,35 @@
                 var dishName = (r.MealDescription && r.MealDescription[0] && r.MealDescription[0].name) || '';
                 var xfer = r.transfer_options || {};
                 var guide = r.guide_options || {};
+                var cur = r.currency || root.getAttribute('data-currency') || 'SGD';
+                var mealAmt = (Number(r.adults || 0) * Number(r.adult_price || 0))
+                    + (Number(r.children || 0) * Number(r.child_price || 0));
+                var detailRows = '';
+                detailRows += '<div class="small text-muted mb-1">' + T.esc(r.mealTypeLabel || r.mealType || '')
+                    + (dishName ? ' · ' + T.esc(dishName) : '')
+                    + (r.visitTime ? ' · ' + T.esc(r.visitTime) : '') + '</div>';
+                detailRows += T.priceFormulaRowHtml(
+                    '<strong>Meal</strong> ' + T.esc(r.adults || 0) + 'A × ' + Number(r.adult_price || 0).toFixed(2)
+                        + (r.children ? ' + ' + T.esc(r.children) + 'C × ' + Number(r.child_price || 0).toFixed(2) : ''),
+                    cur + ' ' + mealAmt.toFixed(2)
+                );
+                if (xfer.transfer_required) {
+                    detailRows += T.priceFormulaRowHtml(
+                        '<strong>Transfer</strong> (' + T.esc(xfer.type || '') + ')',
+                        cur + ' ' + Number(xfer.cost || 0).toFixed(2)
+                    );
+                }
+                if (guide.guide_required) {
+                    detailRows += T.priceFormulaRowHtml(
+                        '<strong>Guide</strong>',
+                        cur + ' ' + Number(guide.total_price || 0).toFixed(2)
+                    );
+                }
                 T.showPriceBreakdownModal(
                     r.restaurantName || 'Restaurant',
-                    r.currency || root.getAttribute('data-currency'),
+                    cur,
                     (typeof T.serviceRowDisplayTotal === 'function' ? T.serviceRowDisplayTotal(r) : r.totalPrice),
-                    '<div class="small text-muted">' + T.esc(r.mealTypeLabel || r.mealType || '') + ' · ' + T.esc(dishName) +
-                    '<br>' + T.esc(r.adults || 0) + 'A × ' + Number(r.adult_price || 0).toFixed(2) +
-                    (r.children ? ' · ' + T.esc(r.children) + 'C × ' + Number(r.child_price || 0).toFixed(2) : '') +
-                    (xfer.transfer_required ? '<br>Transfer (' + T.esc(xfer.type || '') + '): ' + Number(xfer.cost || 0).toFixed(2) : '') +
-                    (guide.guide_required ? '<br>Guide: ' + Number(guide.total_price || 0).toFixed(2) : '') +
-                    (r.visitTime ? '<br>Time: ' + T.esc(r.visitTime) : '') + '</div>'
+                    detailRows
                 );
             }
         });
