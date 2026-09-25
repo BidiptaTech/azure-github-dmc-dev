@@ -1,4 +1,3 @@
-import CallToActions from "@/components/common/CallToActions";
 import MainFilterSearchBox from "@/components/hotel-list/hotel-list-v1/MainFilterSearchBox";
 import TopHeaderFilter from "@/components/hotel-list/hotel-list-v1/TopHeaderFilter";
 import HotelProperties from "@/components/hotel-list/hotel-list-v1/HotelProperties";
@@ -16,8 +15,6 @@ const metadata = {
   title: "Hotel List || Travclick - Travel & Tour",
   description: "Travclick - Travel & Tour",
 };
-
-const HERO_BG = "/img/masthead/hotel-list-hero.jpg";
 
 const HotelListPage1 = () => {
   const hotelsdata = useSelector((state) => state.hotels);
@@ -40,29 +37,9 @@ const HotelListPage1 = () => {
 
       <div className="hotel-list-top">
         <div className="container">
-          <section className="hotel-list-hero">
-            <div
-              className="hotel-list-hero__bg"
-              style={{
-                backgroundImage: `
-                  linear-gradient(
-                    105deg,
-                    rgba(255, 255, 255, 0.92) 0%,
-                    rgba(255, 255, 255, 0.78) 36%,
-                    rgba(232, 242, 255, 0.28) 58%,
-                    rgba(255, 255, 255, 0.1) 100%
-                  ),
-                  url(${HERO_BG})
-                `,
-              }}
-              aria-hidden="true"
-            />
-            <div className="hotel-list-hero__inner">
-              <div className="hotel-list-hero__search-wrap">
-                <MainFilterSearchBox layout="hero" />
-              </div>
-            </div>
-          </section>
+          <div className="hotel-list-hero">
+            <MainFilterSearchBox layout="hero" />
+          </div>
         </div>
       </div>
 
@@ -114,8 +91,6 @@ const HotelListPage1 = () => {
           </div>
         </div>
       </section>
-
-      <CallToActions />
     </>
   );
 };
