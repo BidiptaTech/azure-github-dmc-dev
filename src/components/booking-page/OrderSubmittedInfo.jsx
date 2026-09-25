@@ -80,8 +80,8 @@ const OrderSubmittedInfo = () => {
   return (
     <>
       <div className="header-margin">
-        <CustomStepper />
-        <TourStatus />
+        <CustomStepper variant="lite" />
+        <TourStatus variant="lite" />
       </div>
       <div className="col-xl-12 col-lg-12 d-flex justify-content-center">
         <div className="col-xl-6 col-lg-6">

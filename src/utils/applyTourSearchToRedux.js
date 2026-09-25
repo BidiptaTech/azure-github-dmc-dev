@@ -113,6 +113,12 @@ export const applyTourSearchToRedux = (dispatch, payload = {}) => {
     payload.country ||
     destinationLocations.find((loc) => loc.country)?.country ||
     "";
+  const city_type =
+    payload.city_type === "multi" || payload.city_type === "single"
+      ? payload.city_type
+      : destinationLocations.length > 1
+        ? "multi"
+        : "single";
   const searchLocation = Array.isArray(payload.searchLocation)
     ? payload.searchLocation.filter(Boolean)
     : Array.isArray(payload.countryCodes)
@@ -168,6 +174,7 @@ export const applyTourSearchToRedux = (dispatch, payload = {}) => {
       CheckOutTime: checkOut,
       tour_id: tourId,
       country: primaryCountry,
+      city_type,
       searchLocation,
       ...(adultGenders ? { adultGenders } : {}),
       ...(childrenAges ? { childrenAges } : {}),

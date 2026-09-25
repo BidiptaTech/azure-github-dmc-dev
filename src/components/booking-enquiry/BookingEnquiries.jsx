@@ -383,28 +383,69 @@ const BookingEnquiries = ({
 
   // Auto-fetch DMCs when location is selected in LocationSearch component
   useEffect(() => {
-    // Priority: Use location from Redux (LocationSearch) > Navigation state
-    let countryName = null;
-    
-    if (locationFromRedux) {
-      // From LocationSearch component via Redux
-      countryName = locationFromRedux.countryName || locationFromRedux.country;
-      console.log('🌍 Using location from LocationSearch (Redux):', locationFromRedux);
-    } else if (selectedLocationFromNavigation) {
-      // From navigation state (backward compatibility)
-      countryName = selectedLocationFromNavigation.country;
-      console.log('🌍 Using location from navigation:', selectedLocationFromNavigation);
-    } else if (selectedCountryFromNavigation) {
-      // Legacy support
-      countryName = selectedCountryFromNavigation.name;
-      console.log('🌍 Using country from navigation:', selectedCountryFromNavigation);
+    // Resolve one or more country names (multi-city may join them as "A, B")
+    const resolveCountries = () => {
+      // Prefer structured cities[] from multi-city search
+      const cities =
+        locationFromRedux?.cities ||
+        enquiryData?.searchLocation?.cities ||
+        null;
+      if (Array.isArray(cities) && cities.length > 0) {
+        return [
+          ...new Set(
+            cities
+              .map((c) => c?.country || c?.countryName)
+              .filter(Boolean)
+              .map((c) => String(c).trim())
+          ),
+        ];
+      }
+
+      let raw = null;
+      if (locationFromRedux) {
+        raw = locationFromRedux.countryName || locationFromRedux.country;
+        console.log(
+          "🌍 Using location from LocationSearch (Redux):",
+          locationFromRedux
+        );
+      } else if (selectedLocationFromNavigation) {
+        raw = selectedLocationFromNavigation.country;
+        console.log(
+          "🌍 Using location from navigation:",
+          selectedLocationFromNavigation
+        );
+      } else if (selectedCountryFromNavigation) {
+        raw = selectedCountryFromNavigation.name;
+        console.log(
+          "🌍 Using country from navigation:",
+          selectedCountryFromNavigation
+        );
+      }
+
+      if (!raw) return [];
+      // Split joined multi-country strings from setSearchLocation(...join(", "))
+      return [
+        ...new Set(
+          String(raw)
+            .split(",")
+            .map((c) => c.trim())
+            .filter(Boolean)
+        ),
+      ];
+    };
+
+    const countries = resolveCountries();
+    if (countries.length > 0) {
+      console.log("🏢 Auto-fetching DMCs for countries:", countries);
+      dispatch(fetchDMCsByCountry(countries));
     }
-    
-    if (countryName) {
-      console.log('🏢 Auto-fetching DMCs for country:', countryName);
-      dispatch(fetchDMCsByCountry([countryName]));
-    }
-  }, [locationFromRedux, selectedLocationFromNavigation, selectedCountryFromNavigation, dispatch]);
+  }, [
+    locationFromRedux,
+    selectedLocationFromNavigation,
+    selectedCountryFromNavigation,
+    enquiryData?.searchLocation,
+    dispatch,
+  ]);
 
 
   // Fetch enquiry list when component mounts or when city data changes

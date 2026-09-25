@@ -141,6 +141,7 @@ const CartPage = () => {
       adultGenders: trip.adultGenders,
       childrenAges: trip.childrenAges,
       tour_id: trip.tour_id,
+      city_type: trip.city_type,
     });
   };
 

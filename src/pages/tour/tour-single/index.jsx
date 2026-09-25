@@ -109,8 +109,8 @@ const TourSingleV1Dynamic = () => {
 
       <Header11 />
 
-      <CustomStepper />
-      <TourStatus />
+      <CustomStepper variant="lite" />
+      <TourStatus variant="lite" />
 
       <section className="pt-40">
         <div className="container">

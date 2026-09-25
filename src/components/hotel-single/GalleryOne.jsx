@@ -74,7 +74,7 @@ export default function GalleryOne({ hotel }) {
       bookingArray,
       totalPrice,
       priceMode,
-      hotelDetails: {
+      hotelDetails: bookingDetails || {
         hotel_id,
         hotel_name,
         location,
@@ -93,6 +93,7 @@ export default function GalleryOne({ hotel }) {
   }, [
     address,
     bookingArray,
+    bookingDetails,
     dispatch,
     hotel_id,
     hotel_name,
