@@ -301,8 +301,8 @@ const ActivityListPage1 = () => {
     <>
       <MetaComponent meta={metadata} />
       <div className="header-margin">
-        <CustomStepper />
-        <TourStatus />
+        <CustomStepper variant="lite" />
+        <TourStatus variant="lite" />
       </div>
       {/* <Header11 /> */}
       <section className="pt-40 pb-40 bg-light-2">

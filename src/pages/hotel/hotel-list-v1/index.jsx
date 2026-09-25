@@ -27,6 +27,16 @@ const HotelListPage1 = () => {
   return (
     <>
       <MetaComponent meta={metadata} />
+      {/* Stepper and Tour Status — header-margin clears the fixed header */}
+      <div className="header-margin">
+        <div className="hotel-list-lite-stack">
+          <div className="hotel-list-lite-panel">
+            <CustomStepper variant="lite" />
+            <TourStatus variant="lite" />
+          </div>
+        </div>
+      </div>
+
 
       <div className="hotel-list-top">
         <div className="container">
@@ -56,12 +66,7 @@ const HotelListPage1 = () => {
         </div>
       </div>
 
-      <div className="container hotel-list-lite-stack">
-        <div className="hotel-list-lite-panel">
-          <CustomStepper variant="lite" />
-          <TourStatus variant="lite" />
-        </div>
-      </div>
+      
 
       <section className="hotel-list-results layout-pb-lg">
         <div className="container">
