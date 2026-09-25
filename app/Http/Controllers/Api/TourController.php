@@ -2946,7 +2946,6 @@ class TourController extends Controller
                 $countries[] = trim((string) $row['country']);
             }
         }
-
         return implode(', ', array_values(array_unique(array_filter($countries))));
     }
 
@@ -3893,10 +3892,11 @@ class TourController extends Controller
     }
 
     /**
-     * Pair tours.destination countries with tours.city names (index-aligned).
-     * destination: "Singapore, Indonesia"
-     * city: "Singapore [2026-09-06→2026-09-08], Batam [2026-09-09→2026-09-12]"
-     * => [{city: Singapore, country: Singapore}, {city: Batam, country: Indonesia}]
+     * Pair tours.destination countries with tours.city names.
+     * city formats supported:
+     *   "Batam (Indonesia) [2026-10-24→2026-10-28], Singapore [2026-11-01→2026-11-02]"
+     * City is always the bare name (e.g. "Batam"), never "Batam (Indonesia)".
+     * Country comes from "(Country)" when present, else index-aligned destination.
      */
     private function formatTourDestinationCityPairs($destination, $cityColumn): array
     {
@@ -3905,24 +3905,34 @@ class TourController extends Controller
             explode(',', (string) ($destination ?? ''))
         )));
 
-        $cityNames = [];
-        $cityColumn = (string) ($cityColumn ?? '');
-        if (preg_match_all('/([^,\[\]]+?)\s*\[[^\]]*\]/', $cityColumn, $matches)) {
-            $cityNames = array_map(static fn ($name) => trim((string) $name), $matches[1]);
-        } elseif (trim($cityColumn) !== '') {
-            $cityNames = array_values(array_filter(array_map(
-                static fn ($value) => trim((string) $value),
-                explode(',', $cityColumn)
-            )));
+        $segments = $this->parseTourCityColumnSegments((string) ($cityColumn ?? ''));
+
+        $pairs = [];
+        $seen = [];
+        foreach ($segments as $i => $seg) {
+            $city = $seg['city'];
+            $country = $seg['country'] !== ''
+                ? $seg['country']
+                : ($countries[$i] ?? '');
+
+            $key = mb_strtolower($city . '|' . $country);
+            if ($city === '' || isset($seen[$key])) {
+                continue;
+            }
+            $seen[$key] = true;
+            $pairs[] = [
+                'city' => $city,
+                'country' => $country,
+            ];
         }
 
-        $count = max(count($countries), count($cityNames));
-        $pairs = [];
-        for ($i = 0; $i < $count; $i++) {
-            $pairs[] = [
-                'city' => $cityNames[$i] ?? '',
-                'country' => $countries[$i] ?? '',
-            ];
+        if ($pairs === [] && $countries !== []) {
+            foreach ($countries as $country) {
+                $pairs[] = [
+                    'city' => '',
+                    'country' => $country,
+                ];
+            }
         }
 
         return $pairs;
@@ -3930,40 +3940,109 @@ class TourController extends Controller
 
     /**
      * Parse tours.city into cityWiseDates for API response.
-     * city: "Singapore [2026-09-06→2026-09-08], Batam [2026-09-09→2026-09-12]"
-     * => [{city, checkin: d/m/Y, checkout: d/m/Y}, ...]
+     * city: "Batam (Indonesia) [2026-10-24→2026-10-28], Singapore [2026-11-01→2026-11-02]"
+     * => [{city, checkin: d/m/Y, checkout: d/m/Y}, ...] (city without country parentheses)
      */
     private function formatTourCityWiseDates($cityColumn): array
     {
-        $cityColumn = (string) ($cityColumn ?? '');
-        if ($cityColumn === '') {
+        $segments = $this->parseTourCityColumnSegments((string) ($cityColumn ?? ''));
+        if ($segments === []) {
             return [];
         }
 
         $items = [];
-        if (!preg_match_all('/([^,\[\]]+?)\s*\[([^\]]*)\]/', $cityColumn, $matches, PREG_SET_ORDER)) {
-            return [];
-        }
-
-        foreach ($matches as $match) {
-            $city = trim((string) ($match[1] ?? ''));
-            $range = trim((string) ($match[2] ?? ''));
-            if ($city === '' || $range === '') {
+        foreach ($segments as $seg) {
+            if ($seg['city'] === '' || $seg['range'] === '') {
                 continue;
             }
 
-            $parts = preg_split('/\s*(?:→|->|–|—)\s*/u', $range);
+            $parts = preg_split('/\s*(?:→|->|–|—)\s*/u', $seg['range']);
             $checkInRaw = trim((string) ($parts[0] ?? ''));
             $checkOutRaw = trim((string) ($parts[1] ?? ''));
 
             $items[] = [
-                'city' => $city,
+                'city' => $seg['city'],
                 'checkin' => $this->formatTourDateToDmY($checkInRaw),
                 'checkout' => $this->formatTourDateToDmY($checkOutRaw),
             ];
         }
 
         return $items;
+    }
+
+    /**
+     * Parse tours.city varchar into segments.
+     * Supports:
+     *   Batam (Indonesia) [2026-10-24→2026-10-28]
+     *   Batam [2026-10-24→2026-10-28]
+     *
+     * @return list<array{city: string, country: string, range: string}>
+     */
+    private function parseTourCityColumnSegments(string $cityColumn): array
+    {
+        $cityColumn = trim($cityColumn);
+        if ($cityColumn === '') {
+            return [];
+        }
+
+        $segments = [];
+
+        if (preg_match_all('/([^,\[\]]+?)\s*\[([^\]]*)\]/', $cityColumn, $matches, PREG_SET_ORDER)) {
+            foreach ($matches as $match) {
+                $label = trim((string) ($match[1] ?? ''));
+                $range = trim((string) ($match[2] ?? ''));
+                if ($label === '') {
+                    continue;
+                }
+
+                $parsed = $this->splitTourCityLabel($label);
+                $segments[] = [
+                    'city' => $parsed['city'],
+                    'country' => $parsed['country'],
+                    'range' => $range,
+                ];
+            }
+
+            return $segments;
+        }
+
+        foreach (explode(',', $cityColumn) as $part) {
+            $label = trim((string) $part);
+            if ($label === '') {
+                continue;
+            }
+            $parsed = $this->splitTourCityLabel($label);
+            $segments[] = [
+                'city' => $parsed['city'],
+                'country' => $parsed['country'],
+                'range' => '',
+            ];
+        }
+
+        return $segments;
+    }
+
+    /**
+     * "Batam (Indonesia)" => city=Batam, country=Indonesia
+     * "Batam"            => city=Batam, country=
+     *
+     * @return array{city: string, country: string}
+     */
+    private function splitTourCityLabel(string $label): array
+    {
+        $label = trim($label);
+        $country = '';
+        $city = $label;
+
+        if (preg_match('/^(.*?)\s*\(([^)]+)\)\s*$/', $label, $m)) {
+            $city = trim((string) $m[1]);
+            $country = trim((string) $m[2]);
+        }
+
+        return [
+            'city' => $city,
+            'country' => $country,
+        ];
     }
 
     private function formatTourDateToDmY(?string $value): string
