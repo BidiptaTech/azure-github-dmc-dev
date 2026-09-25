@@ -118,6 +118,20 @@
         if (add) add.disabled = true;
     }
 
+    /** Pickup/dropoff changed → vehicle list is invalid until Search Vehicles again. */
+    function clearVehicleOnRouteChange(root) {
+        root.__preferredVehicleId = '';
+        root.__preferredVehicleName = '';
+        var vehicle = root.querySelector('.arrival-vehicle');
+        if (vehicle) {
+            vehicle.innerHTML = '<option value="">Click Search Vehicles</option>';
+            vehicle.disabled = true;
+        }
+        var getBtn = root.querySelector('.arrival-get-price-btn');
+        if (getBtn) getBtn.disabled = true;
+        invalidate(root);
+    }
+
     function loadPickupDropoff(root, stay) {
         var T = S();
         var pickup = root.querySelector('.arrival-pickup');
@@ -179,6 +193,7 @@
                 addGroup('Restaurants', restaurants, 'Restaurant', 'restaurant_id', 'name');
                 dropoff.disabled = false;
             }
+            if (T.applyBookedHotelsToArrivalDeparture) T.applyBookedHotelsToArrivalDeparture();
         }).catch(function () {
             if (pickup) { pickup.innerHTML = '<option value="">Error loading ports</option>'; pickup.disabled = false; }
             if (dropoff) { dropoff.innerHTML = '<option value="">Error loading</option>'; dropoff.disabled = false; }
@@ -543,12 +558,19 @@
         if (!stayZoneOn(T, stay) && window.StpLiteMaps) {
             window.StpLiteMaps.initIn(root, stay.country, stay.cityName);
         }
+        if (T.applyBookedHotelsToArrivalDeparture) {
+            setTimeout(function () { T.applyBookedHotelsToArrivalDeparture(); }, 0);
+        }
 
         root.querySelector('.arrival-search-btn').addEventListener('click', function () { searchVehicles(root, stay); });
         root.querySelector('.arrival-get-price-btn').addEventListener('click', function () { getPrice(root, stay); });
         root.querySelector('.arrival-add-btn').addEventListener('click', function () { addRow(root, stay); });
 
-        root.querySelectorAll('.arrival-vehicle, .arrival-service-type, .arrival-vehicle-count, .arrival-adults, .arrival-children, .arrival-pickup, .arrival-dropoff, .arrival-pickup-text, .arrival-dropoff-text, .arrival-custom-price').forEach(function (el) {
+        root.querySelectorAll('.arrival-pickup, .arrival-dropoff, .arrival-pickup-text, .arrival-dropoff-text').forEach(function (el) {
+            el.addEventListener('change', function () { if (!root.__hydrating) clearVehicleOnRouteChange(root); });
+            el.addEventListener('input', function () { if (!root.__hydrating) clearVehicleOnRouteChange(root); });
+        });
+        root.querySelectorAll('.arrival-vehicle, .arrival-service-type, .arrival-vehicle-count, .arrival-adults, .arrival-children, .arrival-custom-price').forEach(function (el) {
             el.addEventListener('change', function () { if (!root.__hydrating) invalidate(root); });
             el.addEventListener('input', function () { if (!root.__hydrating) invalidate(root); });
         });

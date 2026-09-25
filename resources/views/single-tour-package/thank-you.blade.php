@@ -698,19 +698,19 @@
                                         href="{{ route('tour.itinerary.preview', ['encryptedTourId' => $encryptedTourId]) }}"
                                         class="stp-ty-action"
                                         target="_blank"
-                                        aria-label="Packaged Quotation"
+                                        aria-label="Acco + Service Quotation"
                                     >
                                         <i class="ri-file-list-3-line"></i>
-                                        <span>Packaged Quotation</span>
+                                        <span>Acco + Service Quotation</span>
                                     </a>
                                     <a
                                         href="{{ route('tour.detailed-quotation.preview', ['encryptedTourId' => $encryptedTourId]) }}"
                                         class="stp-ty-action"
                                         target="_blank"
-                                        aria-label="Acco + Service Quotation"
+                                        aria-label="Detailed Quotation"
                                     >
                                         <i class="ri-file-text-line"></i>
-                                        <span>Acco + Service Quotation</span>
+                                        <span>Detailed Quotation</span>
                                     </a>
                                     <a
                                         href="{{ route('tour.email.preview', ['encryptedTourId' => $encryptedTourId]) }}"
