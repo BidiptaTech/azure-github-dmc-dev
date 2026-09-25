@@ -3432,6 +3432,11 @@ class TourController extends Controller
                 $enquiry->refresh();
                 
                 if ($enquiry) {
+                    // Persist city/country discount payload onto the tour
+                    if ($tour) {
+                        $this->applyEnquiryCurrencyMarkups($tour, $request->input('currency_markups'));
+                    }
+
                     // Mark previous enquiry as inactive if it exists
                     if ($currentEnquiry && $currentEnquiry->enquiry_id !== $enquiry->enquiry_id) {
                         $currentEnquiry->update(['status' => 0]);
@@ -3531,8 +3536,101 @@ class TourController extends Controller
         }
     }
 
+    /**
+     * Save frontend currency_markups onto the tour and sync discount_type / discount_amount.
+     * Full markup rows are stored; tour-level discount columns use discount_type + discount_value only.
+     *
+     * @param  mixed  $rawMarkups
+     */
+    private function applyEnquiryCurrencyMarkups(Tour $tour, $rawMarkups): void
+    {
+        if (is_string($rawMarkups)) {
+            $decoded = json_decode($rawMarkups, true);
+            $rawMarkups = (json_last_error() === JSON_ERROR_NONE) ? $decoded : null;
+        }
+
+        if (! is_array($rawMarkups) || $rawMarkups === []) {
+            return;
+        }
+
+        $normalized = [];
+        foreach ($rawMarkups as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+
+            $city = trim((string) ($row['city'] ?? ''));
+            $country = trim((string) ($row['country'] ?? ''));
+            $currency = strtoupper(trim((string) ($row['currency'] ?? '')));
+
+            // Skip completely empty rows
+            if ($city === '' && $country === '' && $currency === '') {
+                continue;
+            }
+
+            $markupType = strtolower(trim((string) ($row['markup_type'] ?? '')));
+            if ($markupType === 'fixed') {
+                $markupType = 'flat';
+            }
+            if (! in_array($markupType, ['percentage', 'flat'], true)) {
+                $markupType = '';
+            }
+
+            $discountType = strtolower(trim((string) ($row['discount_type'] ?? '')));
+            if ($discountType === 'fixed') {
+                $discountType = 'flat';
+            }
+            if (! in_array($discountType, ['percentage', 'flat', 'foc'], true)) {
+                $discountType = '';
+            }
+
+            $hotelMarkup = (float) ($row['hotel_markup'] ?? $row['markup_value'] ?? 0);
+            $otherMarkup = (float) ($row['other_markup'] ?? 0);
+
+            $normalized[] = [
+                'city' => $city,
+                'currency' => $currency,
+                'country' => $country,
+                'markup_type' => $markupType !== '' ? $markupType : null,
+                'markup_value' => (float) ($row['markup_value'] ?? ($hotelMarkup + $otherMarkup)),
+                'hotel_markup' => $hotelMarkup,
+                'other_markup' => $otherMarkup,
+                'discount_type' => $discountType !== '' ? $discountType : null,
+                'discount_value' => (float) ($row['discount_value'] ?? 0),
+            ];
+        }
+
+        if ($normalized === []) {
+            return;
+        }
+
+        $tour->currency_markups = array_values($normalized);
+
+        // Tour-level discount: prefer first row with a discount value, else first row with a type
+        $primary = null;
+        foreach ($normalized as $row) {
+            if (! empty($row['discount_type']) && (float) ($row['discount_value'] ?? 0) > 0) {
+                $primary = $row;
+                break;
+            }
+        }
+        if ($primary === null) {
+            foreach ($normalized as $row) {
+                if (! empty($row['discount_type'])) {
+                    $primary = $row;
+                    break;
+                }
+            }
+        }
+        $primary = $primary ?? $normalized[0];
+
+        $tour->discount_type = $primary['discount_type'] ?? null;
+        $tour->discount_amount = (float) ($primary['discount_value'] ?? 0);
+        $tour->save();
+    }
+
     /* 
-    *Update Enquiry 
+    * Enquiry Status
     * Date 24-03-2025
     */
     public function enquiryStatus(Request $request){
@@ -3580,6 +3678,7 @@ class TourController extends Controller
             $data[] = [
                 'tour_id' => $tour->tour_id,
                 'country' => $row['country'] ?? '',
+                'currency' => $row['currency'] ?? '',
                 'actual_price' => $row['actual_price'] ?? 0,
                 'current_price' => $row['current_price'] ?? 0,
                 'comment' => $comment,
@@ -3597,6 +3696,7 @@ class TourController extends Controller
             $data[] = [
                 'tour_id' => $tour->tour_id,
                 'country' => '',
+                'currency' => '',
                 'actual_price' => $enquiry ? ($enquiry->actual_amount ?? '') : '',
                 'current_price' => $enquiry ? ($enquiry->amount ?? '') : '',
                 'comment' => $comment,
