@@ -833,17 +833,17 @@ export default function TourStatus({ variant = "default" }) {
   };
 
   const subBoxIcons = [
-    { icon: hotelIcon, name: "Hotel", color: "#4caf50" },
-    { icon: airplane, name: "Pickup/Drop(Entry Port)", color: "#ff9800" },
-    { icon: airplane2, name: "Pickup/Drop(Exit Port)", color: "#2196f3" },
+    { icon: hotelIcon, name: "Hotel", color: "#2e7d32" },
+    { icon: airplane, name: "Pickup/Drop(Entry Port)", color: "#ef6c00" },
+    { icon: airplane2, name: "Pickup/Drop(Exit Port)", color: "#1565c0" },
     {
       icon: attractionIcon,
       name: "Attraction & Experiences",
-      color: "#9c27b0",
+      color: "#7b1fa2",
     },
-    { icon: guideIcon, name: "Tour Guide", color: "#795548" },
-    { icon: restaurant, name: "Restaurant", color: "#607d8b" },
-    { icon: car1, name: "Travellers", color: "#f44336" },
+    { icon: guideIcon, name: "Tour Guide", color: "#00838f" },
+    { icon: restaurant, name: "Restaurant", color: "#c62828" },
+    { icon: car1, name: "Travellers", color: "#455a64" },
   ];
 
   const formatDateForDisplay = (date) => {
@@ -872,7 +872,7 @@ export default function TourStatus({ variant = "default" }) {
   const scrollBoxes = (direction) => {
     const el = boxesScrollRef.current;
     if (!el) return;
-    el.scrollBy({ left: direction * 180, behavior: "smooth" });
+    el.scrollBy({ left: direction * 130, behavior: "smooth" });
   };
 
   if (isLite) {
@@ -904,6 +904,14 @@ export default function TourStatus({ variant = "default" }) {
                     const exitcount = services.exit_port?.count || 0;
                     const guidecount = services.guide?.count || 0;
                     const hotelCount = services.hotel?.count || 0;
+                    const dayBookingTotal =
+                      hotelCount +
+                      attractionCount +
+                      restaurantCount +
+                      localtravelCount +
+                      entrycount +
+                      exitcount +
+                      guidecount;
 
                     // Same visibility rules as default TourStatus (entry on first day, exit on last)
                     const visibleIcons = subBoxIcons.filter((icon) => {
@@ -917,7 +925,12 @@ export default function TourStatus({ variant = "default" }) {
                     });
 
                     return (
-                      <div key={index} className="tour-status-lite__card">
+                      <div
+                        key={index}
+                        className={`tour-status-lite__card${
+                          dayBookingTotal > 0 ? " has-bookings" : ""
+                        }`}
+                      >
                         <div className="tour-status-lite__date">
                           {formatDateForDisplay(date)}
                         </div>
@@ -944,10 +957,17 @@ export default function TourStatus({ variant = "default" }) {
                               <div
                                 key={subIndex}
                                 className={`tour-status-lite__icon-wrap${
-                                  isActive ? "" : " is-empty"
+                                  isActive ? " is-active" : " is-empty"
                                 }`}
                                 style={{
                                   cursor: isActive ? "pointer" : "default",
+                                  ...(isActive
+                                    ? {
+                                        "--icon-accent": icon.color,
+                                        background: `${icon.color}1f`,
+                                        borderColor: `${icon.color}66`,
+                                      }
+                                    : {}),
                                 }}
                                 onClick={() => {
                                   if (!isActive) return;
@@ -981,7 +1001,10 @@ export default function TourStatus({ variant = "default" }) {
                                   data-tooltip-id={`tooltip-${subIndex}-${index}`}
                                 />
                                 {count > 0 && (
-                                  <span className="tour-status-lite__badge">
+                                  <span
+                                    className="tour-status-lite__badge"
+                                    style={{ backgroundColor: icon.color }}
+                                  >
                                     {count}
                                   </span>
                                 )}

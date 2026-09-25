@@ -551,28 +551,16 @@ const MainFilterSearchBox = ({ layout = "default" }) => {
                       : "text-12 text-light-1 mt-5"
                   }
                 >
-                  {isHeroLayout && (
-                    <span
-                      aria-hidden="true"
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        width: 14,
-                        height: 14,
-                        borderRadius: "50%",
-                        background: "#3554d1",
-                        color: "#fff",
-                        fontSize: 10,
-                        fontWeight: 700,
-                        lineHeight: 1,
-                        flexShrink: 0,
-                      }}
-                    >
-                      i
-                    </span>
+                  {isHeroLayout ? (
+                    <>
+                      <i className="icon-info-circle text-12" aria-hidden="true" />
+                      <span>
+                        Dates locked to {toCityOnly(selectedLocation)}
+                      </span>
+                    </>
+                  ) : (
+                    <>Dates locked to {toCityOnly(selectedLocation)}</>
                   )}
-                  Dates locked to {toCityOnly(selectedLocation)} stay
                 </div>
               )}
             </div>
@@ -620,16 +608,9 @@ const MainFilterSearchBox = ({ layout = "default" }) => {
   if (isHeroLayout) {
     return (
       <>
-        <div className="hotel-list-hero__top">
-          <div>
-            <p className="hotel-list-hero__eyebrow">Agent portal</p>
-            <h1 className="hotel-list-hero__title">Search Hotels</h1>
-            <p className="hotel-list-hero__subtitle">
-              Compare stays, lock city dates, and build the itinerary faster.
-            </p>
-          </div>
-          {cityPills}
-        </div>
+        {cityPills ? (
+          <div className="hotel-list-hero__top">{cityPills}</div>
+        ) : null}
         {searchCard}
       </>
     );
