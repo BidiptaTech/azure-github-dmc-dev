@@ -20,9 +20,9 @@ import guideIcon from "../../../../public/icons/tour-guide.png";
 import MuiAlert from "@mui/material/Alert";
 import { ToastContainer } from "react-toastify";
 import swal from "sweetalert";
-import { statusUpdate, updateStepStatus, setType, setLocalCurrentStep, updateLocalStepStatus } from "@/slice/common/stepsSlice";
+import { statusUpdate, updateStepStatus, setType, setCurrentStep, setLocalCurrentStep, updateLocalStepStatus } from "@/slice/common/stepsSlice";
 import { useDispatch, useSelector } from "react-redux";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
@@ -106,6 +106,9 @@ const LoadingDots = () => {
 
 export default function CustomStepper({ variant = "default" }) {
   const isLite = variant === "lite";
+  const navigate = useNavigate();
+  const location = useLocation();
+  const dispatch = useDispatch();
   const id = useSelector((state) => state.hotels.id);
   const tourId = useSelector((state) => state.steps.id);
   const authTourId = useSelector((state) => state.auth?.tourId);
@@ -239,8 +242,6 @@ export default function CustomStepper({ variant = "default" }) {
   const [openSnackbar, setOpenSnackbar] = React.useState(false);
   const [snackbarMessage, setSnackbarMessage] = React.useState("");
   const [isTourCompleted, setIsTourCompleted] = React.useState(false);
-  const dispatch = useDispatch();
-  const navigate = useNavigate();
 
   const [isSkipping, setIsSkipping] = useState(false);
   const [isProgressing, setIsProgressing] = useState(false);
@@ -480,21 +481,39 @@ export default function CustomStepper({ variant = "default" }) {
     (isLastStep && (currentStepStatus >= 2 || !showSkip));
 
   if (isLite) {
+    // Highlight from the current route so it stays correct even if the
+    // backend active_task (currentStep) still points at Hotels.
+    const path = location.pathname || "";
+    let routeStepIndex = null;
+    if (/pickupdrop/i.test(path)) routeStepIndex = 1;
+    else if (/attractions|tour-single/i.test(path)) routeStepIndex = 2;
+    else if (/tourguide/i.test(path)) routeStepIndex = 3;
+    else if (/restaurants/i.test(path)) routeStepIndex = 4;
+    else if (/localtransfer/i.test(path)) routeStepIndex = 5;
+    else if (/view-hotel-search|hotel-details|hotel-checkout|hotel-list/i.test(path))
+      routeStepIndex = 0;
+
+    const liteActiveStep =
+      routeStepIndex !== null ? routeStepIndex : effectiveCurrentStep;
+
     const handleLiteStepClick = (index, path, key) => {
       const status = getDerivedStatus(key, index);
 
-      // Keep step tracking in sync so the destination page highlights correctly
+      // Always update the active step locally so the UI highlights immediately
+      dispatch(setCurrentStep(index));
+      dispatch(setLocalCurrentStep(index));
+
       if (tourId && tourId > 0) {
         if (status < 2) {
           dispatch(updateStepStatus({ key, status: 2 }));
           dispatch(setType(null));
-          dispatch(statusUpdate());
+          dispatch(statusUpdate()).then(() => {
+            // statusUpdate may reset currentStep from active_task — keep click target
+            dispatch(setCurrentStep(index));
+          });
         }
-      } else {
-        dispatch(setLocalCurrentStep(index));
-        if (status < 2) {
-          dispatch(updateLocalStepStatus({ key, status: 2 }));
-        }
+      } else if (status < 2) {
+        dispatch(updateLocalStepStatus({ key, status: 2 }));
       }
 
       navigate(path);
@@ -505,7 +524,7 @@ export default function CustomStepper({ variant = "default" }) {
         <div className="stepper-lite__track">
           {steps.map(({ label, path, key }, index) => {
             const status = getDerivedStatus(key, index);
-            const isActive = index === effectiveCurrentStep;
+            const isActive = index === liteActiveStep;
             const isCompleted = status === 3;
             return (
               <button

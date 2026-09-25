@@ -248,7 +248,8 @@
 }
 
 .hotel-list-lite-stack {
-  margin-top: 12px;
+  /* header-margin is 50px; fixed header is 90px — clear the rest */
+  margin-top: 40px;
   position: relative;
   z-index: 1;
   padding-bottom: 0;
@@ -433,11 +434,13 @@
   flex-wrap: nowrap;
   overflow-x: auto;
   gap: 12px;
-  padding: 8px 4px;
+  /* Horizontal padding so the first/last cards aren't clipped by overflow */
+  padding: 8px 8px;
   scroll-behavior: auto;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
-  justify-content: center;
+  /* center clips the left side when content overflows (scrollLeft can't go < 0) */
+  justify-content: flex-start;
   flex: 0 1 auto;
   max-width: min(100%, 860px);
   overflow-anchor: none;

@@ -22,8 +22,8 @@ const TourListPage2 = () => {
       {/* End Page Title */}
 
       <div className="header-margin">
-        <CustomStepper />
-        <TourStatus />
+        <CustomStepper variant="lite" />
+        <TourStatus variant="lite" />
       </div>
       {/* header top margin */}
 
