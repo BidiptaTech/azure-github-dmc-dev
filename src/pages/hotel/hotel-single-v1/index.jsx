@@ -118,8 +118,8 @@ const HotelSingleV1Dynamic = () => {
       <MetaComponent meta={metadata} />
 
       <div className="header-margin">
-        <CustomStepper />
-        <TourStatus />
+        <CustomStepper variant="lite" />
+        <TourStatus variant="lite" />
       </div>
 
       <Header11 />

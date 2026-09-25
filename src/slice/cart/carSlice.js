@@ -144,6 +144,12 @@ export const buildTourMeta = (tourDetails = {}) => {
     tourDetails.dmc_Id ??
     tourDetails.dmcId ??
     null;
+  const city_type =
+    tourDetails.city_type === "multi" || tourDetails.city_type === "single"
+      ? tourDetails.city_type
+      : Array.isArray(destination) && destination.length > 1
+        ? "multi"
+        : "single";
 
   return {
     check_in,
@@ -156,6 +162,7 @@ export const buildTourMeta = (tourDetails = {}) => {
     child,
     infant,
     cityWiseDates,
+    city_type,
     adultGenders: Array.isArray(tourDetails.adultGenders)
       ? tourDetails.adultGenders
       : undefined,

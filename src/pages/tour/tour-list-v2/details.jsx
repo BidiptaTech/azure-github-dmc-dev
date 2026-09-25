@@ -84,8 +84,8 @@ const RestaurantsDetails = () => {
 
       <Header11 />
       {/* End Header 1 */}
-      <CustomStepper />
-      <TourStatus />
+      <CustomStepper variant="lite" />
+      <TourStatus variant="lite" />
       {/* <TopBreadCrumb /> */}
       {/* End top breadcrumb */}
 
