@@ -5,9 +5,35 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 
 <style>
+    /* Compact form layout (aligned with add-vehicle) */
+    .guide-form-compact .form-label { margin-bottom: 0.2rem; font-size: 0.8125rem; }
+    .guide-form-compact .section-title {
+        font-size: 0.9375rem;
+        font-weight: 600;
+        color: #405189;
+        margin-bottom: 0.5rem;
+        padding-bottom: 0.25rem;
+        border-bottom: 1px solid #e9ecef;
+    }
+    .guide-price-table { font-size: 0.8125rem; margin-bottom: 0; }
+    .guide-price-table th,
+    .guide-price-table td { padding: 0.35rem 0.5rem; vertical-align: middle; }
+    .guide-price-table thead th { font-size: 0.75rem; font-weight: 600; white-space: nowrap; }
+    .guide-price-table .form-control { max-width: 100%; }
+    .guide-price-table .charge-badge { font-size: 0.7rem; padding: 0.2em 0.45em; }
+    .guide-price-table .visitor-group {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        color: #6c757d;
+    }
+    .guide-form-compact .form-control-sm,
+    .guide-form-compact .form-select-sm { font-size: 0.8125rem; }
+    .guide-form-compact textarea.form-control { min-height: auto; }
+
     .flatpickr-time {
-        height: 38px; /* match Bootstrap input height */
-        line-height: 38px;
+        height: 31px;
+        line-height: 31px;
     }
 
     /* Reduce width of the time dropdown */
@@ -19,10 +45,10 @@
     /* Make time inputs (hour & minute) smaller */
     .flatpickr-time input {
         width: 40px;
-        height: 30px;
+        height: 28px;
         padding: 0;
         text-align: center;
-        font-size: 14px;
+        font-size: 13px;
     }
 
     .flatpickr-input:hover {
@@ -40,9 +66,9 @@
         top: 15%;
         left: 50%;
         transform: translate(-50%, -50%);
-        background-color: rgba(255, 0, 0, 0.85); /* Softer red */
+        background-color: rgba(255, 0, 0, 0.85);
         color: white;
-        padding: 10px 20px; /* Adjust padding for better appearance */
+        padding: 10px 20px;
         border-radius: 4px;
         font-size: 12px;
         font-weight: bold;
@@ -51,10 +77,9 @@
         z-index: 9999;
         box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
         animation: fadeIn 0.3s ease-in-out, fadeOut 0.5s ease-in-out 2.5s;
-        width: 250px; /* Set a specific width for the popup */
+        width: 250px;
     }
 
-    /* Fade-in and fade-out animation */
     @keyframes fadeIn {
         from { opacity: 0; transform: translate(-50%, -55%); }
         to { opacity: 1; transform: translate(-50%, -50%); }
@@ -66,33 +91,33 @@
     }
 
     .time-error-popup i {
-    margin-right: 8px; /* Space between icon and text */
-    color: yellow; /* Warning color */
-    font-size: 14px; /* Adjust icon size */
+        margin-right: 8px;
+        color: yellow;
+        font-size: 14px;
     }
 
     /* Select2 Custom Styling for Bootstrap 5 Integration */
-    .select2-container--default .select2-selection--single {
-        height: 40px !important;
+    .guide-form-compact .select2-container--default .select2-selection--single {
+        height: 31px !important;
         border: 1px solid #d9dee3 !important;
         border-radius: 0.375rem !important;
-        padding: 0.375rem 0.75rem !important;
+        padding: 0.2rem 0.5rem !important;
         display: flex !important;
         align-items: center !important;
     }
 
-    .select2-container--default .select2-selection--single .select2-selection__rendered {
+    .guide-form-compact .select2-container--default .select2-selection--single .select2-selection__rendered {
         line-height: 24px !important;
         padding: 0 !important;
         color: #697a8d !important;
+        font-size: 0.8125rem !important;
     }
 
-    .select2-container--default .select2-selection--single .select2-selection__arrow {
-        height: 40px !important;
+    .guide-form-compact .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 28px !important;
         right: 5px !important;
     }
 
-    /* Ensure Select2 takes full width inside Bootstrap grid */
     .select2-container {
         width: 100% !important;
     }
@@ -135,23 +160,39 @@
         box-shadow: 0 0 0.25rem rgba(105, 108, 255, 0.1) !important;
     }
 
-    #language-container .proficiency-select,
-    #language-container .language-select {
-        height: 40px;
+    .guide-form-compact #language-container .proficiency-select,
+    .guide-form-compact #language-container .language-select {
+        height: 31px;
+        font-size: 0.8125rem;
     }
 
-    #language-container .proficiency-select {
-        padding-top: 0.375rem;
-        padding-bottom: 0.375rem;
-        line-height: 1.5;
+    .guide-form-compact #language-container .proficiency-select {
+        padding-top: 0.2rem;
+        padding-bottom: 0.2rem;
+        line-height: 1.4;
     }
 
-    #language-container .remove-language {
-        height: 40px;
+    .guide-form-compact #language-container .remove-language {
+        height: 31px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
         white-space: nowrap;
+        font-size: 0.8125rem;
+        padding: 0.2rem 0.5rem;
+    }
+
+    .form-check-input[type="checkbox"] {
+        background-color: rgb(246, 249, 253);
+        border-color: rgb(192, 199, 207);
+        transition: all 0.3s ease;
+    }
+    .form-check-input:checked[type="checkbox"] {
+        background-color: #28a745;
+        border-color: #28a745;
+    }
+    .form-check-input:focus {
+        box-shadow: 0 0 0 0.25rem rgba(40, 167, 69, 0.25);
     }
 
     /* Auto-calculated field styles */
@@ -168,10 +209,9 @@
     .auto-calculated-cost:focus {
         background-color: #fff !important;
         border-left-color: #007bff !important;
-        box-shadow: 0 0 0 0.2rem rgba(23, 162, 184, 0.25) !important;
+        box-shadow: 0 0 0.2rem rgba(23, 162, 184, 0.25) !important;
     }
 
-    /* Animation for value changes */
     .auto-calculated.value-updated,
     .auto-calculated-sell.value-updated,
     .auto-calculated-cost.value-updated {
@@ -182,7 +222,6 @@
         0% { background-color: #d4edda; border-left-color: #28a745; }
         100% { background-color: #f8f9fa; border-left-color: #17a2b8; }
     }
-
 </style>
 <!-- Font Awesome CDN -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
@@ -191,19 +230,19 @@
 <div class="content-wrapper">
     <div class="container-xxl flex-grow-1 container-p-y">
         <div class="card mb-6">
-            <h5 class="card-header d-flex justify-content-between align-items-center">
-                <span class="d-flex align-items-center flex-wrap gap-2">
-                    Add New Guide
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center flex-wrap gap-2">
+                    <h4 class="card-title mb-0">Add New Guide</h4>
                     <x-currency-price-note
                         :country="old('country')"
                         :watch-country="true"
                         country-select-id="country"
                     />
-                </span>
+                </div>
                 <a href="{{ route('guide.index') }}" class="btn btn-sm btn-outline-danger">
                     <i class="mdi mdi-arrow-left"></i> Back
                 </a>
-            </h5>
+            </div>
             {{-- @if (session('error'))
                 <div class="alert alert-danger">
                     {{ session('error') }}
@@ -249,18 +288,20 @@
                 </div>
             @endif
             <form id="guideForm" method="POST" action="{{ route('guide.store') }}" enctype="multipart/form-data"
-                class="card-body js-submit-loader-form" data-loader-message="Saving...">
+                class="card-body guide-form-compact js-submit-loader-form" data-loader-message="Saving...">
                 @csrf
-                <!-- Hidden Fields -->
-
                 <div id="guideDetailsContainer">
                     <div class="guide-form">
-                        <div class="row">
-                            <!-- Select DMC Name -->
+                        <div class="row g-2">
+                            {{-- Guide basics --}}
+                            <div class="col-12 mt-1 mb-1">
+                                <div class="section-title"><i class="ri-user-line me-1"></i> Guide Info</div>
+                            </div>
+
                             @if(auth()->user()->role_id == 1 || auth()->user()->role_id == 23 || auth()->user()->role_id == 25 || auth()->user()->role_id == 45 || auth()->user()->role_id == 61 || auth()->user()->role_id == 100 || auth()->user()->role_id == 101)
-                            <div class="mb-3 col-md-3" id="dmc-container" style="display: none;">
-                                <label for="dmc" class="form-label"><strong><i class="ri-building-line"></i> DMC</strong><span style="color: red; font-weight: bold;">*</span></label>
-                                <select id="dmc" name="dmc" class="form-control" required>
+                            <div class="col-md-3 mb-2" id="dmc-container" style="display: none;">
+                                <label for="dmc" class="form-label"><strong>Select DMC</strong><span class="text-danger">*</span></label>
+                                <select id="dmc" name="dmc" class="form-control form-control-sm" required>
                                     <option value="">Select DMC</option>
                                     @foreach ($dmcs as $dmc)
                                         <option value="{{ $dmc->userId }}">{{ $dmc->company_name }}</option>
@@ -268,92 +309,69 @@
                                 </select>
                             </div>
                             @endif
-                            <!-- Guide Salutation -->
-                            <div class="col-md-3 mb-3">
+
+                            <div class="col-md-2 mb-2">
                                 <label for="salutation" class="form-label"><strong>Salutation</strong><span class="text-danger">*</span></label>
-                                <select class="form-control" name="salutation" required>
-                                    <option value="">Select Salutation</option>
+                                <select class="form-control form-control-sm" name="salutation" required>
+                                    <option value="">Select</option>
                                     <option value="Mr" {{ old('salutation') == 'Mr' ? 'selected' : '' }}>Mr.</option>
                                     <option value="Mrs" {{ old('salutation') == 'Mrs' ? 'selected' : '' }}>Mrs.</option>
                                     <option value="Miss" {{ old('salutation') == 'Miss' ? 'selected' : '' }}>Ms.</option>
                                     <option value="Dear" {{ old('salutation') == 'Dear' ? 'selected' : '' }}>Dear</option>
                                 </select>
-                                @error('salutation')
-                                <div class="text-danger mt-1">{{ $message }}</div>
-                                @enderror
+                                @error('salutation')<div class="text-danger small">{{ $message }}</div>@enderror
                             </div>
 
-                            <div class="col-md-3 mb-3">
-                                    <label for="guide_gender" class="form-label"><strong>Guide Gender</strong><span class="text-danger">*</span></label>
-                                    <select id="guide_gender" name="guide_gender" class="form-select">
-                                        <option value="">Select gender</option>
-                                        <option value="Male" {{ old('guide_gender') == 'Male' ? 'selected' : '' }}>Male</option>
-                                        <option value="Female" {{ old('guide_gender') == 'Female' ? 'selected' : '' }}>Female</option>
-                                        <option value="Other" {{ old('guide_gender') == 'Other' ? 'selected' : '' }}>Other</option>
-                                    </select>
-                                    @error('guide_gender')
-                                    <div class="text-danger mt-1">{{ $message }}</div>
-                                    @enderror
+                            <div class="col-md-2 mb-2">
+                                <label for="guide_gender" class="form-label"><strong>Gender</strong><span class="text-danger">*</span></label>
+                                <select id="guide_gender" name="guide_gender" class="form-select form-select-sm">
+                                    <option value="">Select</option>
+                                    <option value="Male" {{ old('guide_gender') == 'Male' ? 'selected' : '' }}>Male</option>
+                                    <option value="Female" {{ old('guide_gender') == 'Female' ? 'selected' : '' }}>Female</option>
+                                    <option value="Other" {{ old('guide_gender') == 'Other' ? 'selected' : '' }}>Other</option>
+                                </select>
+                                @error('guide_gender')<div class="text-danger small">{{ $message }}</div>@enderror
                             </div>
 
-                            <!-- guide Name -->
-                            <div class="col-md-3 mb-3">
-                                <label for="name" class="form-label"><strong>Guide Name</strong><span
-                                        class="text-danger">*</span></label>
-                                <input type="text" class="form-control" name="name" placeholder="Enter Guide Name"
+                            <div class="col-md-3 mb-2">
+                                <label for="name" class="form-label"><strong>Guide Name</strong><span class="text-danger">*</span></label>
+                                <input type="text" class="form-control form-control-sm" name="name" placeholder="Enter Guide Name"
                                     value="{{ old('name') }}" required>
-                                @error('name')
-                                <div class="text-danger mt-1">{{ $message }}</div>
-                                @enderror
+                                @error('name')<div class="text-danger small">{{ $message }}</div>@enderror
                             </div>
 
-                            <!-- Contact No -->
-                            <div class="col-md-3 mb-3">
-                                <label for="contact_no" class="form-label">
-                                    <strong>Contact No</strong><span class="text-danger">*</span>
-                                </label>
-                                <input name="contact_no" type="text" id="contact_no" class="form-control"
+                            <div class="col-md-3 mb-2">
+                                <label for="contact_no" class="form-label"><strong>Contact No</strong><span class="text-danger">*</span></label>
+                                <input name="contact_no" type="text" id="contact_no" class="form-control form-control-sm"
                                     placeholder="Enter Contact No" value="{{ old('contact_no') }}" required
                                     oninput="validatePhoneNumber(this)">
                                 <small class="validation-message text-danger" id="contact_no-validation-message"></small>
-                                @error('contact_no')
-                                <div class="text-danger mt-1">{{ $message }}</div>
-                                @enderror
+                                @error('contact_no')<div class="text-danger small">{{ $message }}</div>@enderror
                             </div>
 
-                            <!-- email -->
-                            <div class="col-md-3 mb-4">
-                                <label for="email" class="form-label"><strong>Email</strong><span
-                                        class="text-danger">*</span></label>
-                                <input type="text" class="form-control" id="email" name="email" 
+                            <div class="col-md-3 mb-2">
+                                <label for="email" class="form-label"><strong>Email</strong><span class="text-danger">*</span></label>
+                                <input type="text" class="form-control form-control-sm" id="email" name="email"
                                     placeholder="Enter Email..." value="{{ old('email') }}" required
                                     oninput="validateEmail(this)">
                                 <small class="validation-message text-danger" id="email-validation-message"></small>
-                                @error('email')
-                                <div class="text-danger mt-1">{{ $message }}</div>
-                                @enderror
+                                @error('email')<div class="text-danger small">{{ $message }}</div>@enderror
                             </div>
 
-                            <!-- App Password -->
-                            <div class="col-md-3 mb-4">
+                            <div class="col-md-3 mb-2">
                                 <label for="app_password" class="form-label"><strong>App Password</strong></label>
-                                <div class="input-group">
-                                    <input type="password" class="form-control" id="app_password" name="app_password" 
+                                <div class="input-group input-group-sm">
+                                    <input type="password" class="form-control form-control-sm" id="app_password" name="app_password"
                                         placeholder="Enter app password" autocomplete="new-password">
                                     <button class="btn btn-outline-secondary" type="button" id="toggleAppPassword">
                                         <i class="ri-eye-off-line" id="appPasswordIcon"></i>
                                     </button>
                                 </div>
-                                @error('app_password')
-                                <div class="text-danger mt-1">{{ $message }}</div>
-                                @enderror
+                                @error('app_password')<div class="text-danger small">{{ $message }}</div>@enderror
                             </div>
 
-                            <!-- Country (DMC base country from users.country) -->
-                            <div class="mb-3 col-md-3">
-                                <label for="country" class="form-label"><strong><i class="ri-map-pin-line"></i> Country</strong>
-                                    <span style="color: red; font-weight: bold;">*</span>
-                                </label>
+                            <div class="col-md-3 mb-2">
+                                <label for="country" class="form-label"><strong>Country</strong><span class="text-danger">*</span></label>
                                 @php
                                     $scopedCountries = collect($dmcBaseCountries ?? $masterDmcCountries ?? $country ?? []);
                                     $preselectedCountry = old('country', $userCountry ?? '');
@@ -361,7 +379,7 @@
                                         $preselectedCountry = $scopedCountries->first()->name ?? '';
                                     }
                                 @endphp
-                                <select class="form-control" id="country" name="country" required onchange="validateDriverAge(document.getElementById('guide_age'))">
+                                <select class="form-control form-control-sm" id="country" name="country" required onchange="validateDriverAge(document.getElementById('guide_age'))">
                                     @if($scopedCountries->count() !== 1)
                                         <option value="">Select Country</option>
                                     @endif
@@ -371,20 +389,16 @@
                                         </option>
                                     @endforeach
                                 </select>
-                                @error('country')
-                                    <div class="text-danger mt-1">{{ $message }}</div>
-                                @enderror
+                                @error('country')<div class="text-danger small">{{ $message }}</div>@enderror
                             </div>
 
-                            <!-- City -->
-                            <div class="col-md-3 mb-3">
+                            <div class="col-md-3 mb-2">
                                 <label for="city" class="form-label"><strong>City</strong><span class="text-danger">*</span></label>
                                 @php
                                     $hasPreloadedCities = isset($cities) && count($cities) > 0 && $preselectedCountry !== '';
                                     $placeholder = $hasPreloadedCities ? 'Select City' : 'Select Country First';
                                 @endphp
-                                
-                                <select name="city" id="citySelect" class="form-control" required {{ !$hasPreloadedCities ? 'disabled' : '' }}>
+                                <select name="city" id="citySelect" class="form-control form-control-sm" required {{ !$hasPreloadedCities ? 'disabled' : '' }}>
                                     <option value="">{{ $placeholder }}</option>
                                     @if($hasPreloadedCities)
                                         @foreach($cities as $city)
@@ -392,511 +406,375 @@
                                         @endforeach
                                     @endif
                                 </select>
-                                @error('city')
-                                    <div class="text-danger mt-1">{{ $message }}</div>
-                                @enderror
+                                @error('city')<div class="text-danger small">{{ $message }}</div>@enderror
                             </div>
 
-                            <!-- Service Type -->
-                            <div class="col-md-3 mb-3">
-                                <label for="service_type" class="form-label"><strong>Service Type</strong><span
-                                        class="text-danger">*</span></label>
-                                <select id="service_type" type="text" class="form-select" name="service_type"
-                                    placeholder="Enter service type..." required>
+                            <div class="col-md-2 mb-2">
+                                <label for="service_type" class="form-label"><strong>Service Type</strong><span class="text-danger">*</span></label>
+                                <select id="service_type" class="form-select form-select-sm" name="service_type" required>
                                     <option value="">Select</option>
                                     <option value="1" {{ old('service_type') == '1' ? 'selected' : '' }}>Private</option>
                                     <option value="2" {{ old('service_type') == '2' ? 'selected' : '' }}>Shared</option>
                                     <option value="3" {{ old('service_type') == '3' ? 'selected' : '' }}>Both</option>
                                 </select>
-                                @error('service_type')
-                                <div class="text-danger mt-1">{{ $message }}</div>
-                                @enderror
+                                @error('service_type')<div class="text-danger small">{{ $message }}</div>@enderror
                             </div>
 
-                            <!-- Guide Age -->
-                                <div class="col-md-3 mb-3">
-                                    <label for="guide_age" class="form-label"><strong>Guide Age</strong><span class="text-danger">*</span></label>
-                                    <input id="guide_age" type="number" class="form-control" name="guide_age" 
-                                           value="{{ old('guide_age') }}" placeholder="Enter Guide Age" oninput="validateDriverAge(this)">
-                                    <small class="validation-message text-danger" id="guide_age-validation-message"></small>
-                                    @error('guide_age')
-                                        <div class="text-danger mt-1">{{ $message }}</div>
-                                    @enderror
-                                </div>
+                            <div class="col-md-2 mb-2">
+                                <label for="guide_age" class="form-label"><strong>Age</strong><span class="text-danger">*</span></label>
+                                <input id="guide_age" type="number" class="form-control form-control-sm" name="guide_age"
+                                    value="{{ old('guide_age') }}" placeholder="Age" oninput="validateDriverAge(this)">
+                                <small class="validation-message text-danger" id="guide_age-validation-message"></small>
+                                @error('guide_age')<div class="text-danger small">{{ $message }}</div>@enderror
+                            </div>
 
-                                <!-- WP Number -->
-                                <div class="col-md-3 mb-3">
-                                    <label for="wp_number" class="form-label"><strong>Whatsapp Number</strong><span class="text-danger">*</span></label>
-                                    <input type="text" class="form-control" name="wp_number" placeholder="Enter Whatsapp Number" value="{{ old('wp_number') }}" required>
-                                    @error('wp_number')
-                                    <div class="text-danger mt-1">{{ $message }}</div>
-                                    @enderror
-                                </div>
+                            <div class="col-md-3 mb-2">
+                                <label for="wp_number" class="form-label"><strong>Whatsapp Number</strong><span class="text-danger">*</span></label>
+                                <input type="text" class="form-control form-control-sm" name="wp_number" placeholder="Enter Whatsapp Number" value="{{ old('wp_number') }}" required>
+                                @error('wp_number')<div class="text-danger small">{{ $message }}</div>@enderror
+                            </div>
 
-                                <!-- Guide image -->
-                                <div class="col-md-3">
-                                    <div>
-                                        <label for="master_image" class="form-label"><strong>Profile
-                                                Image</strong><span style="color: red; font-weight: bold;">*</span></label>
-                                        <div id="master-drop-area" class="form-control"
-                                            style="padding: 20px; border: 2px dashed #007bff; text-align: center; height: 80px;">
-                                            Drag & Drop your files here or click to upload.
-                                            <input type="file" id="master_image" name="master_image" style="display: none;"
-                                                accept="image/*">
-                                        </div>
-                                    </div>
-                                    <div id="master_image_error" class="text-danger small mt-1 d-none"></div>
-                                    <div id="master-preview-container" class="mb-3 mt-3 d-flex flex-wrap gap-2"
-                                        style="max-width: 30%; overflow-x: auto; white-space: nowrap;">
-                                    </div>
-                                </div>
-
-                            <div id="guide_language" class="col-md-12 mb-3">
-                                <fieldset>
-                                    <h5 class="card-title mb-3">Languages & Proficiency</h5>
-                                    <div id="language-container">
-                                        @if(old('languages'))
-                                            @foreach(old('languages') as $index => $language)
-                                                <div class="language-row row g-2 mb-3 align-items-end">
-                                                    <!-- Languages Dropdown -->
-                                                    <div class="col-md-5">
-                                                        <label for="languages" class="form-label"><strong>Languages</strong>
-                                                            <span class="text-danger">*</span>
-                                                        </label>
-                                                        <select class="form-control language-select" name="languages[]" required>
-                                                            <option value="">Select Language</option>
-                                                            @foreach($languages as $lang)
-                                                                <option value="{{ $lang->name }}" {{ $language == $lang->name ? 'selected' : '' }}>{{ $lang->name }}</option>
-                                                            @endforeach
-                                                        </select>
-                                                        @error('languages.'.$index)
-                                                            <div class="text-danger mt-1">{{ $message }}</div>
-                                                        @enderror
-                                                    </div>
-                                            
-                                                    <!-- Language Proficiency Dropdown -->
-                                                    <div class="col-md-5">
-                                                        <label for="language_proficiency" class="form-label"><strong>Proficiency</strong>
-                                                            <span class="text-danger">*</span>
-                                                        </label>
-                                                        <select class="form-select proficiency-select" name="language_proficiency[]" required>
-                                                            <option value="">Select</option>
-                                                            <option value="Beginner" {{ old('language_proficiency')[$index] == 'Beginner' ? 'selected' : '' }}>Beginner</option>
-                                                            <option value="Intermediate" {{ old('language_proficiency')[$index] == 'Intermediate' ? 'selected' : '' }}>Intermediate</option>
-                                                            <option value="Fluent" {{ old('language_proficiency')[$index] == 'Fluent' ? 'selected' : '' }}>Fluent</option>
-                                                            <option value="Expert" {{ old('language_proficiency')[$index] == 'Expert' ? 'selected' : '' }}>Expert</option>
-                                                            <option value="Mother Tongue" {{ old('language_proficiency')[$index] == 'Mother Tongue' ? 'selected' : '' }}>Mother Tongue</option>
-                                                        </select>
-                                                        @error('language_proficiency.'.$index)
-                                                            <div class="text-danger mt-1">{{ $message }}</div>
-                                                        @enderror
-                                                    </div>
-                                            
-                                                    <!-- Remove Button (Hidden for First Row) -->
-                                                    <div class="col-md-2 d-flex align-items-end">
-                                                        <button type="button" class="btn btn-danger remove-language {{ $index == 0 ? 'd-none' : '' }}">Remove</button>
-                                                    </div>
-                                                </div>
-                                            @endforeach
-                                        @else
-                                            <div class="language-row row g-2 mb-3 align-items-end">
-                                                <!-- Languages Dropdown -->
+                            {{-- Languages --}}
+                            <div class="col-12 mt-2 mb-1" id="guide_language">
+                                <div class="section-title"><i class="ri-translate-2 me-1"></i> Languages & Proficiency</div>
+                            </div>
+                            <div class="col-12 mb-2">
+                                <div id="language-container">
+                                    @if(old('languages'))
+                                        @foreach(old('languages') as $index => $language)
+                                            <div class="language-row row g-2 mb-2 align-items-end">
                                                 <div class="col-md-5">
-                                                    <label for="languages" class="form-label"><strong>Languages</strong>
-                                                        <span class="text-danger">*</span>
-                                                    </label>
-                                                    <select class="form-control language-select" name="languages[]" required>
+                                                    <label class="form-label"><strong>Languages</strong><span class="text-danger">*</span></label>
+                                                    <select class="form-control form-control-sm language-select" name="languages[]" required>
                                                         <option value="">Select Language</option>
-                                                        @foreach($languages as $c)
-                                                            <option value="{{ $c->name }}">{{ $c->name }}</option>
+                                                        @foreach($languages as $lang)
+                                                            <option value="{{ $lang->name }}" {{ $language == $lang->name ? 'selected' : '' }}>{{ $lang->name }}</option>
                                                         @endforeach
                                                     </select>
-                                                    @error('languages.0')
-                                                        <div class="text-danger mt-1">{{ $message }}</div>
-                                                    @enderror
+                                                    @error('languages.'.$index)<div class="text-danger small">{{ $message }}</div>@enderror
                                                 </div>
-                                        
-                                                <!-- Language Proficiency Dropdown -->
                                                 <div class="col-md-5">
-                                                    <label for="language_proficiency" class="form-label"><strong>Proficiency</strong>
-                                                        <span class="text-danger">*</span>
-                                                    </label>
-                                                    <select class="form-select proficiency-select" name="language_proficiency[]" required>
+                                                    <label class="form-label"><strong>Proficiency</strong><span class="text-danger">*</span></label>
+                                                    <select class="form-select form-select-sm proficiency-select" name="language_proficiency[]" required>
                                                         <option value="">Select</option>
-                                                        <option value="Beginner">Beginner</option>
-                                                        <option value="Intermediate">Intermediate</option>
-                                                        <option value="Fluent">Fluent</option>
-                                                        <option value="Expert">Expert</option>
-                                                        <option value="Mother Tongue">Mother Tongue</option>
+                                                        <option value="Beginner" {{ old('language_proficiency')[$index] == 'Beginner' ? 'selected' : '' }}>Beginner</option>
+                                                        <option value="Intermediate" {{ old('language_proficiency')[$index] == 'Intermediate' ? 'selected' : '' }}>Intermediate</option>
+                                                        <option value="Fluent" {{ old('language_proficiency')[$index] == 'Fluent' ? 'selected' : '' }}>Fluent</option>
+                                                        <option value="Expert" {{ old('language_proficiency')[$index] == 'Expert' ? 'selected' : '' }}>Expert</option>
+                                                        <option value="Mother Tongue" {{ old('language_proficiency')[$index] == 'Mother Tongue' ? 'selected' : '' }}>Mother Tongue</option>
                                                     </select>
-                                                    @error('language_proficiency.0')
-                                                        <div class="text-danger mt-1">{{ $message }}</div>
-                                                    @enderror
+                                                    @error('language_proficiency.'.$index)<div class="text-danger small">{{ $message }}</div>@enderror
                                                 </div>
-                                        
-                                                <!-- Remove Button (Hidden for First Row) -->
                                                 <div class="col-md-2 d-flex align-items-end">
-                                                    <button type="button" class="btn btn-danger remove-language d-none">Remove</button>
+                                                    <button type="button" class="btn btn-sm btn-danger remove-language {{ $index == 0 ? 'd-none' : '' }}">Remove</button>
                                                 </div>
                                             </div>
-                                        @endif
-                                    </div>
-                            
-                                    <!-- Add More Button -->
-                                    <div class="row">
-                                        <div class="col-md-5">
-                                            <button type="button" id="addmore" class="btn btn-primary">Add More</button>
+                                        @endforeach
+                                    @else
+                                        <div class="language-row row g-2 mb-2 align-items-end">
+                                            <div class="col-md-5">
+                                                <label class="form-label"><strong>Languages</strong><span class="text-danger">*</span></label>
+                                                <select class="form-control form-control-sm language-select" name="languages[]" required>
+                                                    <option value="">Select Language</option>
+                                                    @foreach($languages as $c)
+                                                        <option value="{{ $c->name }}">{{ $c->name }}</option>
+                                                    @endforeach
+                                                </select>
+                                                @error('languages.0')<div class="text-danger small">{{ $message }}</div>@enderror
+                                            </div>
+                                            <div class="col-md-5">
+                                                <label class="form-label"><strong>Proficiency</strong><span class="text-danger">*</span></label>
+                                                <select class="form-select form-select-sm proficiency-select" name="language_proficiency[]" required>
+                                                    <option value="">Select</option>
+                                                    <option value="Beginner">Beginner</option>
+                                                    <option value="Intermediate">Intermediate</option>
+                                                    <option value="Fluent">Fluent</option>
+                                                    <option value="Expert">Expert</option>
+                                                    <option value="Mother Tongue">Mother Tongue</option>
+                                                </select>
+                                                @error('language_proficiency.0')<div class="text-danger small">{{ $message }}</div>@enderror
+                                            </div>
+                                            <div class="col-md-2 d-flex align-items-end">
+                                                <button type="button" class="btn btn-sm btn-danger remove-language d-none">Remove</button>
+                                            </div>
                                         </div>
-                                        <div class="col-md-7"></div>
-                                    </div>
-                                </fieldset>
+                                    @endif
+                                </div>
+                                <button type="button" id="addmore" class="btn btn-sm btn-primary mt-1">Add More</button>
                             </div>
 
-                            <!-- License -->
-                            <fieldset id="License" class="border p-4 rounded mb-4">
-                                <h5 class="card-title mb-3">License</h5>
-                                <div class="row">
+                            {{-- License --}}
+                            <div class="col-12 mt-2 mb-1" id="License">
+                                <div class="section-title"><i class="ri-id-card-line me-1"></i> License</div>
+                            </div>
 
-                                    <!-- Government License No -->
-                                    <div class="col-md-3">
-                                        <label for="license_no" class="form-label"><strong>Government License
-                                                No</strong><span class="text-danger">*</span></label>
-                                        <input type="text" step="0.1" class="form-control" name="license_no"
-                                            placeholder="Enter Gov. License No" value="{{ old('license_no') }}" required>
-                                        @error('license_no')
-                                        <div class="text-danger mt-1">{{ $message }}</div>
-                                        @enderror
-                                    </div>
-                                    <!-- license_exp_date -->
-                                    <div class="col-md-3">
-                                        <label for="license_exp_date" class="form-label"><strong>License Expiry
-                                                Date</strong><span class="text-danger">*</span></label>
-                                        <input type="date" step="0.01" class="form-control" name="license_exp_date"
-                                            placeholder="Enter Cost" value="{{ old('license_exp_date') }}" required>
-                                        @error('license_exp_date')
-                                        <div class="text-danger mt-1">{{ $message }}</div>
-                                        @enderror
-                                    </div>
-
-                                    <!-- Experience -->
-                                    <div class="col-md-2">
-                                        <label for="experience" class="form-label"><strong>Experience (In
-                                                Years)</strong><span class="text-danger">*</span></label>
-                                        <input type="text" class="form-control" id="experience" name="experience"
-                                            placeholder="Enter Experience" value="{{ old('experience') }}" required
-                                            oninput="validateNumericPrice(this)">
-                                        <small class="validation-message text-danger" id="experience-validation-message"></small>
-                                        @error('experience')
-                                        <div class="text-danger mt-1">{{ $message }}</div>
-                                        @enderror
-                                    </div>
-
-                                    <!-- License image -->
-                                    <div class="mb-3 col-md-3">
-                                        <div>
-                                            <label for="license_image" class="form-label"><strong>License
-                                                    Image</strong><span
-                                                    style="color: red; font-weight: bold;">*</span></label>
-                                            <div id="license-drop-area" class="form-control"
-                                                style="padding: 10px; border: 2px dashed #007bff; text-align: center; height: 50px;">
-                                                Drag & Drop your files here or click to upload.
-                                                <input type="file" id="license_image" name="license_image"
-                                                    style="display: none;" accept="image/*">
-                                            </div>
-                                        </div>
-                                        <div id="license_image_error" class="text-danger small mt-1 d-none"></div>
-                                        <div id="license-preview-container" class="mt-1 d-flex flex-wrap gap-2"
-                                            style="max-width: 30%; overflow-x: auto; white-space: nowrap;">
-                                        </div>
-
-                                    </div>
+                            <div class="col-md-3 mb-2">
+                                <label for="license_no" class="form-label"><strong>Gov. License No</strong><span class="text-danger">*</span></label>
+                                <input type="text" class="form-control form-control-sm" name="license_no"
+                                    placeholder="Enter Gov. License No" value="{{ old('license_no') }}" required>
+                                @error('license_no')<div class="text-danger small">{{ $message }}</div>@enderror
+                            </div>
+                            <div class="col-md-3 mb-2">
+                                <label for="license_exp_date" class="form-label"><strong>License Expiry</strong><span class="text-danger">*</span></label>
+                                <input type="date" class="form-control form-control-sm" name="license_exp_date"
+                                    value="{{ old('license_exp_date') }}" required>
+                                @error('license_exp_date')<div class="text-danger small">{{ $message }}</div>@enderror
+                            </div>
+                            <div class="col-md-2 mb-2">
+                                <label for="experience" class="form-label"><strong>Experience (Yrs)</strong><span class="text-danger">*</span></label>
+                                <input type="text" class="form-control form-control-sm" id="experience" name="experience"
+                                    placeholder="Years" value="{{ old('experience') }}" required
+                                    oninput="validateNumericPrice(this)">
+                                <small class="validation-message text-danger" id="experience-validation-message"></small>
+                                @error('experience')<div class="text-danger small">{{ $message }}</div>@enderror
+                            </div>
+                            <div class="col-md-4 mb-2">
+                                <label for="license_image" class="form-label"><strong>License Image</strong><span class="text-danger">*</span></label>
+                                <div id="license-drop-area" class="form-control form-control-sm"
+                                    style="padding: 12px; border: 2px dashed #007bff; text-align: center; cursor: pointer;">
+                                    Drag & Drop or click to upload
+                                    <input type="file" id="license_image" name="license_image" style="display: none;" accept="image/*">
                                 </div>
-                            </fieldset>
+                                <div id="license_image_error" class="text-danger small mt-1 d-none"></div>
+                                <div id="license-preview-container" class="mt-1 d-flex flex-wrap gap-2"
+                                    style="max-width: 100%; overflow-x: auto; white-space: nowrap;"></div>
+                            </div>
 
-                            <!-- Rate -->
-                            <fieldset id="rate" class="border p-4 rounded mb-4">
-                                <h5 class="card-title mb-3">Rates</h5>
-                                <div class="row">
+                            {{-- Profit helpers --}}
+                            <div class="col-12 mt-2 mb-1" id="rate">
+                                <div class="section-title"><i class="ri-percent-line me-1"></i> Profit <small class="text-muted fw-normal">(helper only — auto-fills Sell from Cost · not saved)</small></div>
+                            </div>
+                            <div class="col-md-3 mb-2">
+                                <label for="guide_profit_margin" class="form-label"><strong>Profit Type</strong></label>
+                                <select id="guide_profit_margin" class="form-select form-select-sm js-guide-profit-type">
+                                    <option value="percentage" selected>%</option>
+                                    <option value="flat">Flat</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3 mb-2">
+                                <label for="guide_profit_amount" class="form-label"><strong>Profit Amount</strong></label>
+                                <input type="number" id="guide_profit_amount" class="form-control form-control-sm js-guide-profit-amount"
+                                       value="0" min="0" step="0.01" placeholder="0.00">
+                            </div>
+                            <div class="col-md-2 mb-2">
+                                <label for="night_surcharge" class="form-label"><strong>Night Surcharge</strong><span class="text-danger">*</span></label>
+                                <input type="text" class="form-control form-control-sm" id="night_surcharge" name="night_surcharge"
+                                    placeholder="0.00" value="{{ old('night_surcharge') }}" required
+                                    oninput="validateNumericPrice(this)">
+                                <small class="validation-message text-danger" id="night_surcharge-validation-message"></small>
+                                @error('night_surcharge')<div class="text-danger small">{{ $message }}</div>@enderror
+                            </div>
+                            <div class="col-md-2 mb-2">
+                                <label for="night_start_time" class="form-label"><strong>Night Start</strong><span class="text-danger">*</span></label>
+                                <input type="text" class="form-control form-control-sm" id="night_start_time" name="night_start_time" placeholder="Start time" value="{{ old('night_start_time') }}">
+                                @error('night_start_time')<div class="text-danger small">{{ $message }}</div>@enderror
+                            </div>
+                            <div class="col-md-2 mb-2">
+                                <label for="night_end_time" class="form-label"><strong>Night End</strong><span class="text-danger">*</span></label>
+                                <input type="text" class="form-control form-control-sm" id="night_end_time" name="night_end_time" placeholder="End time" value="{{ old('night_end_time') }}">
+                                @error('night_end_time')<div class="text-danger small">{{ $message }}</div>@enderror
+                            </div>
 
-                                    <div class="col-md-3 mb-3">
-                                        <label for="guide_profit_margin" class="form-label"><strong>Profit (margin)</strong></label>
-                                        <select id="guide_profit_margin" class="form-select js-guide-profit-type">
-                                            <option value="percentage" selected>%</option>
-                                            <option value="flat">Flat</option>
-                                        </select>
-                                        <small class="text-muted">Helper only — not saved</small>
-                                    </div>
-                                    <div class="col-md-3 mb-3">
-                                        <label for="guide_profit_amount" class="form-label"><strong>Profit amount</strong></label>
-                                        <input type="number" id="guide_profit_amount" class="form-control js-guide-profit-amount"
-                                               value="0" min="0" step="0.01" placeholder="Enter profit amount">
-                                        <small class="text-muted">Auto-fills Sell from Cost</small>
-                                    </div>
-
-                                    <!-- Minimum Cost then Sell -->
-                                    <div class="col-md-3">
-                                        <label for="minimum_cost_price" class="form-label"><strong>Minimum Cost Price</strong><span
-                                                class="text-danger">*</span></label>
-                                        <input type="text" class="form-control js-guide-cost" id="minimum_cost_price" name="minimum_cost_price"
-                                            data-sell-target="day_rate"
-                                            placeholder="Enter Minimum Cost Price" value="{{ old('minimum_cost_price') }}" required
-                                            oninput="validateNumericPrice(this); calculateHourlyCostRates(); applyGuideProfitToSells(true);">
-                                        <small class="validation-message text-danger" id="minimum_cost_price-validation-message"></small>
-                                        @error('minimum_cost_price')
-                                        <div class="text-danger mt-1">{{ $message }}</div>
-                                        @enderror
-                                    </div>
-                                    <div class="col-md-3">
-                                        <label for="day_rate" class="form-label"><strong>Minimum Sell Price</strong><span
-                                                class="text-danger">*</span></label>
-                                        <input type="text" class="form-control js-guide-sell" id="day_rate" name="day_rate"
-                                            placeholder="Enter Minimum Sell Price" value="{{ old('day_rate') }}" required
-                                            oninput="validateNumericPrice(this); calculateHourlyRates();">
-                                        <small class="validation-message text-danger" id="day_rate-validation-message"></small>
-                                        <small class="text-muted">This is the hourly rate - will auto-calculate multi-hour prices below</small>
-                                        @error('day_rate')
-                                        <div class="text-danger mt-1">{{ $message }}</div>
-                                        @enderror
-                                    </div>
-
-                                    <!-- night_surcharge -->
-                                    <div class="col-md-3">
-                                        <label for="night_surcharge" class="form-label"><strong>Night
-                                                Surcharge</strong><span class="text-danger">*</span></label>
-                                        <input type="text" class="form-control" id="night_surcharge" name="night_surcharge"
-                                            placeholder="Enter Night Surcharge" value="{{ old('night_surcharge') }}" required
-                                            oninput="validateNumericPrice(this)">
-                                        <small class="validation-message text-danger" id="night_surcharge-validation-message"></small>
-                                        @error('night_surcharge')
-                                        <div class="text-danger mt-1">{{ $message }}</div>
-                                        @enderror
-                                    </div>
-
-                                    <!-- Night Start Time -->
-                                    <div class="col-md-2">
-                                        <label for="night_start_time" class="form-label"><strong>Night Start Time</strong><span class="text-danger">*</span></label>
-                                        <input type="text" class="form-control" id="night_start_time" name="night_start_time" placeholder="Select start time" value="{{ old('night_start_time') }}">
-                                        @error('night_start_time')
-                                        <div class="text-danger mt-1">{{ $message }}</div>
-                                        @enderror
-                                    </div>
-
-                                    <!-- Night End Time -->
-                                    <div class="col-md-2">
-                                        <label for="night_end_time" class="form-label"><strong>Night End Time</strong><span class="text-danger">*</span></label>
-                                        <input type="text" class="form-control" id="night_end_time" name="night_end_time" placeholder="Select end time" value="{{ old('night_end_time') }}">
-                                        @error('night_end_time')
-                                        <div class="text-danger mt-1">{{ $message }}</div>
-                                        @enderror
-                                    </div>
-
-                                    <!-- Hourly Cost then Sell -->
-                                    <div class="col-md-3 mb-3">
-                                        <label for="hourly_cost_price" class="form-label"><strong>Hourly Cost Price</strong><span class="text-danger">*</span>
-                                            <i class="fas fa-calculator text-primary ms-1" title="Auto-calculated from minimum cost price"></i>
-                                        </label>
-                                        <input type="text" class="form-control auto-calculated-cost js-guide-cost" id="hourly_cost_price" name="hourly_cost_price"
-                                            data-sell-target="hourly_price"
-                                            placeholder="Auto-calculated" value="{{ old('hourly_cost_price') }}" required
-                                            oninput="validateNumericPrice(this); applyGuideProfitToSells(true);">
-                                        <small class="validation-message text-danger" id="hourly_cost_price-validation-message"></small>
-                                        <small class="text-muted">Auto-calculated • Editable</small>
-                                        @error('hourly_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                    </div>
-                                    <div class="col-md-3 mb-3">
-                                        <label for="hourly_price" class="form-label"><strong>Hourly Sell Price</strong><span class="text-danger">*</span>
-                                            <i class="fas fa-calculator text-primary ms-1" title="Auto-calculated from minimum sell price"></i>
-                                        </label>
-                                        <input type="text" class="form-control auto-calculated-sell js-guide-sell" id="hourly_price" name="hourly_price"
-                                            placeholder="Auto-calculated" value="{{ old('hourly_price') }}" required
-                                            oninput="validateNumericPrice(this)">
-                                        <small class="validation-message text-danger" id="hourly_price-validation-message"></small>
-                                        <small class="text-muted">Auto-calculated • Editable</small>
-                                        @error('hourly_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                    </div>
-
-                                    <!-- Two Hour Cost then Sell -->
-                                    <div class="col-md-3 mb-3">
-                                        <label for="two_hour_cost_price" class="form-label"><strong>Two Hour Cost Price</strong><span class="text-danger">*</span>
-                                            <i class="fas fa-calculator text-primary ms-1" title="Auto-calculated from minimum cost price"></i>
-                                        </label>
-                                        <input type="text" class="form-control auto-calculated-cost js-guide-cost" id="two_hour_cost_price" name="two_hour_cost_price"
-                                            data-sell-target="two_hour_price"
-                                            placeholder="Auto-calculated" value="{{ old('two_hour_cost_price') }}" required
-                                            oninput="validateNumericPrice(this); applyGuideProfitToSells(true);">
-                                        <small class="validation-message text-danger" id="two_hour_cost_price-validation-message"></small>
-                                        <small class="text-muted">Auto-calculated • Editable</small>
-                                        @error('two_hour_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                    </div>
-                                    <div class="col-md-3 mb-3">
-                                        <label for="two_hour_price" class="form-label"><strong>Two Hour Sell Price</strong><span class="text-danger">*</span>
-                                            <i class="fas fa-calculator text-primary ms-1" title="Auto-calculated from minimum sell price"></i>
-                                        </label>
-                                        <input type="text" class="form-control auto-calculated-sell js-guide-sell" id="two_hour_price" name="two_hour_price"
-                                            placeholder="Auto-calculated" value="{{ old('two_hour_price') }}" required
-                                            oninput="validateNumericPrice(this)">
-                                        <small class="validation-message text-danger" id="two_hour_price-validation-message"></small>
-                                        <small class="text-muted">Auto-calculated • Editable</small>
-                                        @error('two_hour_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                    </div>
-
-                                    <!-- Four Hour Cost then Sell -->
-                                    <div class="col-md-3 mb-3">
-                                        <label for="four_hour_cost_price" class="form-label"><strong>Four Hour Cost Price</strong><span class="text-danger">*</span>
-                                            <i class="fas fa-calculator text-primary ms-1" title="Auto-calculated from minimum cost price"></i>
-                                        </label>
-                                        <input type="text" class="form-control auto-calculated-cost js-guide-cost" id="four_hour_cost_price" name="four_hour_cost_price"
-                                            data-sell-target="four_hour_price"
-                                            placeholder="Auto-calculated" value="{{ old('four_hour_cost_price') }}" required
-                                            oninput="validateNumericPrice(this); applyGuideProfitToSells(true);">
-                                        <small class="validation-message text-danger" id="four_hour_cost_price-validation-message"></small>
-                                        <small class="text-muted">Auto-calculated • Editable</small>
-                                        @error('four_hour_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                    </div>
-                                    <div class="col-md-3 mb-3">
-                                        <label for="four_hour_price" class="form-label"><strong>Four Hour Sell Price</strong><span class="text-danger">*</span>
-                                            <i class="fas fa-calculator text-primary ms-1" title="Auto-calculated from minimum sell price"></i>
-                                        </label>
-                                        <input type="text" class="form-control auto-calculated-sell js-guide-sell" id="four_hour_price" name="four_hour_price"
-                                            placeholder="Auto-calculated" value="{{ old('four_hour_price') }}" required
-                                            oninput="validateNumericPrice(this)">
-                                        <small class="validation-message text-danger" id="four_hour_price-validation-message"></small>
-                                        <small class="text-muted">Auto-calculated • Editable</small>
-                                        @error('four_hour_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                    </div>
-
-                                    <!-- Six Hour Cost then Sell -->
-                                    <div class="col-md-3 mb-3">
-                                        <label for="six_hour_cost_price" class="form-label"><strong>Six Hour Cost Price</strong><span class="text-danger">*</span>
-                                            <i class="fas fa-calculator text-primary ms-1" title="Auto-calculated from minimum cost price"></i>
-                                        </label>
-                                        <input type="text" class="form-control auto-calculated-cost js-guide-cost" id="six_hour_cost_price" name="six_hour_cost_price"
-                                            data-sell-target="six_hour_price"
-                                            placeholder="Auto-calculated" value="{{ old('six_hour_cost_price') }}" required
-                                            oninput="validateNumericPrice(this); applyGuideProfitToSells(true);">
-                                        <small class="validation-message text-danger" id="six_hour_cost_price-validation-message"></small>
-                                        <small class="text-muted">Auto-calculated • Editable</small>
-                                        @error('six_hour_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                    </div>
-                                    <div class="col-md-3 mb-3">
-                                        <label for="six_hour_price" class="form-label"><strong>Six Hour Sell Price</strong><span class="text-danger">*</span>
-                                            <i class="fas fa-calculator text-primary ms-1" title="Auto-calculated from minimum sell price"></i>
-                                        </label>
-                                        <input type="text" class="form-control auto-calculated-sell js-guide-sell" id="six_hour_price" name="six_hour_price"
-                                            placeholder="Auto-calculated" value="{{ old('six_hour_price') }}" required
-                                            oninput="validateNumericPrice(this)">
-                                        <small class="validation-message text-danger" id="six_hour_price-validation-message"></small>
-                                        <small class="text-muted">Auto-calculated • Editable</small>
-                                        @error('six_hour_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                    </div>
-
-                                    <!-- Eight Hour Cost then Sell -->
-                                    <div class="col-md-3 mb-3">
-                                        <label for="eight_hour_cost_price" class="form-label"><strong>Eight Hour Cost Price</strong><span class="text-danger">*</span>
-                                            <i class="fas fa-calculator text-primary ms-1" title="Auto-calculated from minimum cost price"></i>
-                                        </label>
-                                        <input type="text" class="form-control auto-calculated-cost js-guide-cost" id="eight_hour_cost_price" name="eight_hour_cost_price"
-                                            data-sell-target="eight_hour_price"
-                                            placeholder="Auto-calculated" value="{{ old('eight_hour_cost_price') }}" required
-                                            oninput="validateNumericPrice(this); applyGuideProfitToSells(true);">
-                                        <small class="validation-message text-danger" id="eight_hour_cost_price-validation-message"></small>
-                                        <small class="text-muted">Auto-calculated • Editable</small>
-                                        @error('eight_hour_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                    </div>
-                                    <div class="col-md-3 mb-3">
-                                        <label for="eight_hour_price" class="form-label"><strong>Eight Hour Sell Price</strong><span class="text-danger">*</span>
-                                            <i class="fas fa-calculator text-primary ms-1" title="Auto-calculated from minimum sell price"></i>
-                                        </label>
-                                        <input type="text" class="form-control auto-calculated-sell js-guide-sell" id="eight_hour_price" name="eight_hour_price"
-                                            placeholder="Auto-calculated" value="{{ old('eight_hour_price') }}" required
-                                            oninput="validateNumericPrice(this)">
-                                        <small class="validation-message text-danger" id="eight_hour_price-validation-message"></small>
-                                        <small class="text-muted">Auto-calculated • Editable</small>
-                                        @error('eight_hour_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                    </div>
-
-                                    <!-- Ten Hour Cost then Sell -->
-                                    <div class="col-md-3 mb-3">
-                                        <label for="ten_hour_cost_price" class="form-label"><strong>Ten Hour Cost Price</strong><span class="text-danger">*</span>
-                                            <i class="fas fa-calculator text-primary ms-1" title="Auto-calculated from minimum cost price"></i>
-                                        </label>
-                                        <input type="text" class="form-control auto-calculated-cost js-guide-cost" id="ten_hour_cost_price" name="ten_hour_cost_price"
-                                            data-sell-target="ten_hour_price"
-                                            placeholder="Auto-calculated" value="{{ old('ten_hour_cost_price') }}" required
-                                            oninput="validateNumericPrice(this); applyGuideProfitToSells(true);">
-                                        <small class="validation-message text-danger" id="ten_hour_cost_price-validation-message"></small>
-                                        <small class="text-muted">Auto-calculated • Editable</small>
-                                        @error('ten_hour_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                    </div>
-                                    <div class="col-md-3 mb-3">
-                                        <label for="ten_hour_price" class="form-label"><strong>Ten Hour Sell Price</strong><span class="text-danger">*</span>
-                                            <i class="fas fa-calculator text-primary ms-1" title="Auto-calculated from minimum sell price"></i>
-                                        </label>
-                                        <input type="text" class="form-control auto-calculated-sell js-guide-sell" id="ten_hour_price" name="ten_hour_price"
-                                            placeholder="Auto-calculated" value="{{ old('ten_hour_price') }}" required
-                                            oninput="validateNumericPrice(this)">
-                                        <small class="validation-message text-danger" id="ten_hour_price-validation-message"></small>
-                                        <small class="text-muted">Auto-calculated • Editable</small>
-                                        @error('ten_hour_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                    </div>
-
-                                    <!-- Twelve Hour Cost then Sell -->
-                                    <div class="col-md-3 mb-3">
-                                        <label for="twelve_hour_cost_price" class="form-label"><strong>Twelve Hour Cost Price</strong><span class="text-danger">*</span>
-                                            <i class="fas fa-calculator text-primary ms-1" title="Auto-calculated from minimum cost price"></i>
-                                        </label>
-                                        <input type="text" class="form-control auto-calculated-cost js-guide-cost" id="twelve_hour_cost_price" name="twelve_hour_cost_price"
-                                            data-sell-target="twelve_hour_price"
-                                            placeholder="Auto-calculated" value="{{ old('twelve_hour_cost_price') }}" required
-                                            oninput="validateNumericPrice(this); applyGuideProfitToSells(true);">
-                                        <small class="validation-message text-danger" id="twelve_hour_cost_price-validation-message"></small>
-                                        <small class="text-muted">Auto-calculated • Editable</small>
-                                        @error('twelve_hour_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                    </div>
-                                    <div class="col-md-3 mb-3">
-                                        <label for="twelve_hour_price" class="form-label"><strong>Twelve Hour Sell Price</strong><span class="text-danger">*</span>
-                                            <i class="fas fa-calculator text-primary ms-1" title="Auto-calculated from minimum sell price"></i>
-                                        </label>
-                                        <input type="text" class="form-control auto-calculated-sell js-guide-sell" id="twelve_hour_price" name="twelve_hour_price"
-                                            placeholder="Auto-calculated" value="{{ old('twelve_hour_price') }}" required
-                                            oninput="validateNumericPrice(this)">
-                                        <small class="validation-message text-danger" id="twelve_hour_price-validation-message"></small>
-                                        <small class="text-muted">Auto-calculated • Editable</small>
-                                        @error('twelve_hour_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                    </div>
+                            {{-- Pricing grid --}}
+                            <div class="col-12 mt-2 mb-2">
+                                <div class="section-title">
+                                    <i class="ri-money-dollar-circle-line me-1"></i> Pricing
+                                    <small class="text-muted fw-normal">(Cost = supplier fee · Sell = customer pays · multi-hour auto-calcs from Minimum)</small>
                                 </div>
-                            </fieldset>
+                                <div class="table-responsive">
+                                    <table class="table table-bordered table-sm guide-price-table">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th style="width:18%">Charge</th>
+                                                <th class="text-center visitor-group" style="width:41%">Cost <span class="text-danger">*</span></th>
+                                                <th class="text-center visitor-group" style="width:41%">Sell <span class="text-danger">*</span></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td><span class="badge bg-primary-subtle text-primary charge-badge">Minimum</span></td>
+                                                <td>
+                                                    <input type="text" class="form-control form-control-sm js-guide-cost" id="minimum_cost_price" name="minimum_cost_price"
+                                                        data-sell-target="day_rate" placeholder="0.00" value="{{ old('minimum_cost_price') }}" required
+                                                        oninput="validateNumericPrice(this); calculateHourlyCostRates(); applyGuideProfitToSells(true);">
+                                                    <small class="validation-message text-danger" id="minimum_cost_price-validation-message"></small>
+                                                    @error('minimum_cost_price')<div class="text-danger small">{{ $message }}</div>@enderror
+                                                </td>
+                                                <td>
+                                                    <input type="text" class="form-control form-control-sm js-guide-sell" id="day_rate" name="day_rate"
+                                                        placeholder="0.00" value="{{ old('day_rate') }}" required
+                                                        oninput="validateNumericPrice(this); calculateHourlyRates();">
+                                                    <small class="validation-message text-danger" id="day_rate-validation-message"></small>
+                                                    @error('day_rate')<div class="text-danger small">{{ $message }}</div>@enderror
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td><span class="badge bg-info-subtle text-info charge-badge">1 Hr</span></td>
+                                                <td>
+                                                    <input type="text" class="form-control form-control-sm auto-calculated-cost js-guide-cost" id="hourly_cost_price" name="hourly_cost_price"
+                                                        data-sell-target="hourly_price" placeholder="Auto" value="{{ old('hourly_cost_price') }}" required
+                                                        oninput="validateNumericPrice(this); applyGuideProfitToSells(true);">
+                                                    <small class="validation-message text-danger" id="hourly_cost_price-validation-message"></small>
+                                                    @error('hourly_cost_price')<div class="text-danger small">{{ $message }}</div>@enderror
+                                                </td>
+                                                <td>
+                                                    <input type="text" class="form-control form-control-sm auto-calculated-sell js-guide-sell" id="hourly_price" name="hourly_price"
+                                                        placeholder="Auto" value="{{ old('hourly_price') }}" required
+                                                        oninput="validateNumericPrice(this)">
+                                                    <small class="validation-message text-danger" id="hourly_price-validation-message"></small>
+                                                    @error('hourly_price')<div class="text-danger small">{{ $message }}</div>@enderror
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td><span class="badge bg-info-subtle text-info charge-badge">2 Hr</span></td>
+                                                <td>
+                                                    <input type="text" class="form-control form-control-sm auto-calculated-cost js-guide-cost" id="two_hour_cost_price" name="two_hour_cost_price"
+                                                        data-sell-target="two_hour_price" placeholder="Auto" value="{{ old('two_hour_cost_price') }}" required
+                                                        oninput="validateNumericPrice(this); applyGuideProfitToSells(true);">
+                                                    <small class="validation-message text-danger" id="two_hour_cost_price-validation-message"></small>
+                                                    @error('two_hour_cost_price')<div class="text-danger small">{{ $message }}</div>@enderror
+                                                </td>
+                                                <td>
+                                                    <input type="text" class="form-control form-control-sm auto-calculated-sell js-guide-sell" id="two_hour_price" name="two_hour_price"
+                                                        placeholder="Auto" value="{{ old('two_hour_price') }}" required
+                                                        oninput="validateNumericPrice(this)">
+                                                    <small class="validation-message text-danger" id="two_hour_price-validation-message"></small>
+                                                    @error('two_hour_price')<div class="text-danger small">{{ $message }}</div>@enderror
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td><span class="badge bg-info-subtle text-info charge-badge">4 Hr</span></td>
+                                                <td>
+                                                    <input type="text" class="form-control form-control-sm auto-calculated-cost js-guide-cost" id="four_hour_cost_price" name="four_hour_cost_price"
+                                                        data-sell-target="four_hour_price" placeholder="Auto" value="{{ old('four_hour_cost_price') }}" required
+                                                        oninput="validateNumericPrice(this); applyGuideProfitToSells(true);">
+                                                    <small class="validation-message text-danger" id="four_hour_cost_price-validation-message"></small>
+                                                    @error('four_hour_cost_price')<div class="text-danger small">{{ $message }}</div>@enderror
+                                                </td>
+                                                <td>
+                                                    <input type="text" class="form-control form-control-sm auto-calculated-sell js-guide-sell" id="four_hour_price" name="four_hour_price"
+                                                        placeholder="Auto" value="{{ old('four_hour_price') }}" required
+                                                        oninput="validateNumericPrice(this)">
+                                                    <small class="validation-message text-danger" id="four_hour_price-validation-message"></small>
+                                                    @error('four_hour_price')<div class="text-danger small">{{ $message }}</div>@enderror
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td><span class="badge bg-info-subtle text-info charge-badge">6 Hr</span></td>
+                                                <td>
+                                                    <input type="text" class="form-control form-control-sm auto-calculated-cost js-guide-cost" id="six_hour_cost_price" name="six_hour_cost_price"
+                                                        data-sell-target="six_hour_price" placeholder="Auto" value="{{ old('six_hour_cost_price') }}" required
+                                                        oninput="validateNumericPrice(this); applyGuideProfitToSells(true);">
+                                                    <small class="validation-message text-danger" id="six_hour_cost_price-validation-message"></small>
+                                                    @error('six_hour_cost_price')<div class="text-danger small">{{ $message }}</div>@enderror
+                                                </td>
+                                                <td>
+                                                    <input type="text" class="form-control form-control-sm auto-calculated-sell js-guide-sell" id="six_hour_price" name="six_hour_price"
+                                                        placeholder="Auto" value="{{ old('six_hour_price') }}" required
+                                                        oninput="validateNumericPrice(this)">
+                                                    <small class="validation-message text-danger" id="six_hour_price-validation-message"></small>
+                                                    @error('six_hour_price')<div class="text-danger small">{{ $message }}</div>@enderror
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td><span class="badge bg-info-subtle text-info charge-badge">8 Hr</span></td>
+                                                <td>
+                                                    <input type="text" class="form-control form-control-sm auto-calculated-cost js-guide-cost" id="eight_hour_cost_price" name="eight_hour_cost_price"
+                                                        data-sell-target="eight_hour_price" placeholder="Auto" value="{{ old('eight_hour_cost_price') }}" required
+                                                        oninput="validateNumericPrice(this); applyGuideProfitToSells(true);">
+                                                    <small class="validation-message text-danger" id="eight_hour_cost_price-validation-message"></small>
+                                                    @error('eight_hour_cost_price')<div class="text-danger small">{{ $message }}</div>@enderror
+                                                </td>
+                                                <td>
+                                                    <input type="text" class="form-control form-control-sm auto-calculated-sell js-guide-sell" id="eight_hour_price" name="eight_hour_price"
+                                                        placeholder="Auto" value="{{ old('eight_hour_price') }}" required
+                                                        oninput="validateNumericPrice(this)">
+                                                    <small class="validation-message text-danger" id="eight_hour_price-validation-message"></small>
+                                                    @error('eight_hour_price')<div class="text-danger small">{{ $message }}</div>@enderror
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td><span class="badge bg-info-subtle text-info charge-badge">10 Hr</span></td>
+                                                <td>
+                                                    <input type="text" class="form-control form-control-sm auto-calculated-cost js-guide-cost" id="ten_hour_cost_price" name="ten_hour_cost_price"
+                                                        data-sell-target="ten_hour_price" placeholder="Auto" value="{{ old('ten_hour_cost_price') }}" required
+                                                        oninput="validateNumericPrice(this); applyGuideProfitToSells(true);">
+                                                    <small class="validation-message text-danger" id="ten_hour_cost_price-validation-message"></small>
+                                                    @error('ten_hour_cost_price')<div class="text-danger small">{{ $message }}</div>@enderror
+                                                </td>
+                                                <td>
+                                                    <input type="text" class="form-control form-control-sm auto-calculated-sell js-guide-sell" id="ten_hour_price" name="ten_hour_price"
+                                                        placeholder="Auto" value="{{ old('ten_hour_price') }}" required
+                                                        oninput="validateNumericPrice(this)">
+                                                    <small class="validation-message text-danger" id="ten_hour_price-validation-message"></small>
+                                                    @error('ten_hour_price')<div class="text-danger small">{{ $message }}</div>@enderror
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td><span class="badge bg-info-subtle text-info charge-badge">12 Hr</span></td>
+                                                <td>
+                                                    <input type="text" class="form-control form-control-sm auto-calculated-cost js-guide-cost" id="twelve_hour_cost_price" name="twelve_hour_cost_price"
+                                                        data-sell-target="twelve_hour_price" placeholder="Auto" value="{{ old('twelve_hour_cost_price') }}" required
+                                                        oninput="validateNumericPrice(this); applyGuideProfitToSells(true);">
+                                                    <small class="validation-message text-danger" id="twelve_hour_cost_price-validation-message"></small>
+                                                    @error('twelve_hour_cost_price')<div class="text-danger small">{{ $message }}</div>@enderror
+                                                </td>
+                                                <td>
+                                                    <input type="text" class="form-control form-control-sm auto-calculated-sell js-guide-sell" id="twelve_hour_price" name="twelve_hour_price"
+                                                        placeholder="Auto" value="{{ old('twelve_hour_price') }}" required
+                                                        oninput="validateNumericPrice(this)">
+                                                    <small class="validation-message text-danger" id="twelve_hour_price-validation-message"></small>
+                                                    @error('twelve_hour_price')<div class="text-danger small">{{ $message }}</div>@enderror
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
 
-                            <!-- about -->
-                            <div class="col-md-12 mb-3">
-                                <label for="about" class="form-label"><strong>About</strong><span
-                                        class="text-danger">*</span></label>
-                                <textarea id="summernote" name="about" class="form-control" rows="10"
+                            {{-- Details --}}
+                            <div class="col-12 mt-2 mb-1">
+                                <div class="section-title"><i class="ri-file-text-line me-1"></i> Details</div>
+                            </div>
+
+                            <div class="col-md-4 mb-2">
+                                <label for="master_image" class="form-label"><strong>Profile Image</strong><span class="text-danger">*</span></label>
+                                <div id="master-drop-area" class="form-control form-control-sm"
+                                    style="padding: 16px; border: 2px dashed #007bff; text-align: center; cursor: pointer;">
+                                    Drag & Drop or click to upload
+                                    <input type="file" id="master_image" name="master_image" style="display: none;" accept="image/*">
+                                </div>
+                                <div id="master_image_error" class="text-danger small mt-1 d-none"></div>
+                                <div id="master-preview-container" class="mt-2 d-flex flex-wrap gap-2"
+                                    style="max-width: 100%; overflow-x: auto; white-space: nowrap;"></div>
+                            </div>
+
+                            <div class="col-md-8 mb-2">
+                                <label for="about" class="form-label"><strong>About</strong><span class="text-danger">*</span></label>
+                                <textarea id="summernote" name="about" class="form-control form-control-sm" rows="4"
                                     placeholder="Write About Guide..." required>{{ old('about') }}</textarea>
                                 <div id="about_error" class="text-danger small mt-1 d-none"></div>
-                                @error('about')
-                                <div class="text-danger mt-1">{{ $message }}</div>
-                                @enderror
+                                @error('about')<div class="text-danger small">{{ $message }}</div>@enderror
+                            </div>
+
+                            <div class="col-md-4 mb-2">
+                                <div class="form-check form-switch mt-1">
+                                    <input type="hidden" name="guide_status" value="0">
+                                    <input class="form-check-input" name="guide_status" type="checkbox" id="guide_status" value="1"
+                                        {{ old('guide_status', '1') == '1' ? 'checked' : '' }}>
+                                    <label for="guide_status" class="form-check-label"><strong>Active</strong></label>
+                                </div>
                             </div>
                         </div>
-
                     </div>
 
-                    <!-- Status -->
-                    <div class="form-check form-switch">
-                        <label for="guide_status" class="form-label"><strong>Status</strong></label>
-                        {{-- Hidden 0 + optional checkbox: unchecked = inactive. Do NOT use required (blocks inactive save). --}}
-                        <input type="hidden" name="guide_status" value="0">
-                        <input class="form-check-input" name="guide_status" type="checkbox" id="guide_status" value="1"
-                            {{ old('guide_status', '1') == '1' ? 'checked' : '' }}>
-                        <label class="form-check-label"></label>
-                    </div>
-
-                    <!-- Submit Buttons -->
-                    <div class="d-flex gap-3 mt-4">
+                    <div class="d-flex gap-2 mt-3">
                         <x-button-spinner id="saveGuideBtn" class="js-submit-loader-btn" label="Save" loadingText="Saving..." />
+                        <a href="{{ route('guide.index') }}" class="btn btn-secondary">Cancel</a>
                     </div>
+                </div>
             </form>
+
         </div>
     </div>
 </div>
@@ -1477,7 +1355,7 @@ $(document).ready(function() {
             newRow.innerHTML = `
                 <div class="col-md-5">
                     <label class="form-label invisible"><strong>Languages</strong><span class="text-danger">*</span></label>
-                    <select class="form-control language-select" name="languages[]" required>
+                    <select class="form-control form-control-sm language-select" name="languages[]" required>
                         <option value="">Select Language</option>
                         @foreach($languages as $c)
                             <option value="{{ $c->name }}">{{ $c->name }}</option>
@@ -1487,7 +1365,7 @@ $(document).ready(function() {
     
                 <div class="col-md-5">
                     <label class="form-label invisible"><strong>Proficiency</strong><span class="text-danger">*</span></label>
-                    <select class="form-select proficiency-select" name="language_proficiency[]" required>
+                    <select class="form-select form-select-sm proficiency-select" name="language_proficiency[]" required>
                         <option value="">Select</option>
                         <option value="Beginner">Beginner</option>
                         <option value="Intermediate">Intermediate</option>
@@ -1499,7 +1377,7 @@ $(document).ready(function() {
     
                 <div class="col-md-2 d-flex align-items-end">
                     <label class="form-label invisible">Remove</label>
-                    <button type="button" class="btn btn-danger remove-language">Remove</button>
+                    <button type="button" class="btn btn-sm btn-danger remove-language">Remove</button>
                 </div>
             `;
     
@@ -1845,13 +1723,9 @@ function showValidationMessage(inputElement, isValid, message) {
     if (!messageElement) return;
     
     if (isValid) {
-        messageElement.innerHTML = `
-            <div class="valid-feedback d-block">
-                <i class="fas fa-check-circle text-success"></i> 
-                Looks good!
-            </div>`;
-        inputElement.classList.remove('is-invalid');
-        inputElement.classList.add('is-valid');
+        // Keep valid fields clean — no green border / "Looks good!" clutter
+        messageElement.innerHTML = '';
+        inputElement.classList.remove('is-invalid', 'is-valid');
     } else {
         messageElement.innerHTML = `
             <div class="invalid-feedback d-block">
@@ -2123,133 +1997,61 @@ function applyGuideProfitToSells(force) {
 // Add CSS for validation messages and input styles
 document.head.insertAdjacentHTML('beforeend', `
     <style>
-        /* Base validation message styles */
         .validation-message {
-            margin-top: 0.5rem;
-            font-size: 0.85rem;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            margin-top: 0.25rem;
+            font-size: 0.75rem;
         }
 
-        /* Error state styles */
         .validation-message .invalid-feedback {
             display: block;
-            color: #e74c3c;
-            background-color: #fef5f5;
-            border-left: 3px solid #e74c3c;
-            padding: 0.75rem 1rem;
-            border-radius: 4px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-            animation: slideIn 0.3s ease-in-out;
+            color: #dc3545;
+            padding: 0;
+            margin: 0;
+            background: none;
+            border: none;
+            box-shadow: none;
         }
 
-        /* Success state styles */
-        .validation-message .valid-feedback {
-            display: block;
-            color: #2ecc71;
-            background-color: #f4fff6;
-            border-left: 3px solid #2ecc71;
-            padding: 0.75rem 1rem;
-            border-radius: 4px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-            animation: slideIn 0.3s ease-in-out;
-        }
-
-        /* List styles within validation messages */
         .validation-message ul {
-            margin: 0.5rem 0 0 0;
-            padding-left: 1.5rem;
-            list-style-type: none;
+            margin: 0.25rem 0 0 0;
+            padding-left: 1.25rem;
+            list-style-type: disc;
         }
 
         .validation-message ul li {
-            position: relative;
-            padding: 0.2rem 0;
-            color: #666;
+            padding: 0.1rem 0;
+            color: #6c757d;
         }
 
-        .validation-message ul li::before {
-            content: "•";
-            color: #e74c3c;
-            font-weight: bold;
-            position: absolute;
-            left: -1rem;
-        }
-
-        /* Icon styles */
         .validation-message i {
-            margin-right: 0.5rem;
-            font-size: 1rem;
+            margin-right: 0.35rem;
+            font-size: 0.8rem;
         }
 
-        /* Input field styles with validation icons */
-        .form-control.is-valid {
-            border-color: #2ecc71 !important;
+        /* Suppress Bootstrap success styling — only show errors */
+        .guide-form-compact .form-control.is-valid,
+        .guide-form-compact .form-select.is-valid {
+            border-color: #d9dee3 !important;
+            background-image: none !important;
+            padding-right: 0.5rem !important;
+        }
+
+        .guide-form-compact .form-control.is-invalid,
+        .guide-form-compact .form-select.is-invalid {
+            border-color: #dc3545 !important;
             background-color: #fff !important;
-            padding-right: calc(1.5em + 0.75rem);
-            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3e%3cpath fill='%232ecc71' d='M2.3 6.73L.6 4.53c-.4-1.04.46-1.4 1.1-.8l1.1 1.4 3.4-3.8c.6-.63 1.6-.27 1.2.7l-4 4.6c-.43.5-.8.4-1.1.1z'/%3e%3c/svg%3e");
-            background-repeat: no-repeat;
-            background-position: right calc(0.375em + 0.1875rem) center;
-            background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);
         }
 
-        .form-control.is-invalid {
-            border-color: #e74c3c !important;
-            background-color: #fff !important;
-            padding-right: calc(1.5em + 0.75rem);
-            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' width='12' height='12' fill='none' stroke='%23e74c3c'%3e%3ccircle cx='6' cy='6' r='4.5'/%3e%3cpath stroke-linejoin='round' d='M5.8 3.6h.4L6 6.5z'/%3e%3ccircle cx='6' cy='8.2' r='.6' fill='%23e74c3c' stroke='none'/%3e%3c/svg%3e");
-            background-repeat: no-repeat;
-            background-position: right calc(0.375em + 0.1875rem) center;
-            background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);
+        .guide-form-compact .form-control:focus,
+        .guide-form-compact .form-select:focus {
+            border-color: #696cff !important;
+            box-shadow: 0 0 0 0.2rem rgba(105, 108, 255, 0.15) !important;
         }
 
-        /* Animation for validation messages */
-        @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateY(-10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        /* Hover effect for validation messages */
-        .validation-message .invalid-feedback:hover,
-        .validation-message .valid-feedback:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
-            transition: all 0.3s ease;
-        }
-
-        /* Required field indicator */
-        .required-field::after {
-            content: "*";
-            color: #e74c3c;
-            margin-left: 4px;
-        }
-
-        /* Responsive adjustments */
-        @media (max-width: 768px) {
-            .validation-message {
-                font-size: 0.8rem;
-            }
-            
-            .validation-message .invalid-feedback,
-            .validation-message .valid-feedback {
-                padding: 0.5rem 0.75rem;
-            }
-        }
-
-        /* Focus state styles */
-        .form-control:focus {
-            box-shadow: 0 0 0 0.2rem rgba(46, 204, 113, 0.25);
-            border-color: #2ecc71;
-        }
-
-        .form-control.is-invalid:focus {
-            box-shadow: 0 0 0 0.2rem rgba(231, 76, 60, 0.25);
-            border-color: #e74c3c;
+        .guide-form-compact .form-control.is-invalid:focus,
+        .guide-form-compact .form-select.is-invalid:focus {
+            border-color: #dc3545 !important;
+            box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.15) !important;
         }
     </style>
 `);
