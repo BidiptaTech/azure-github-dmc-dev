@@ -80,7 +80,7 @@ export const fetchGuideDetails = createAsyncThunk(
         throw new Error("Parameters are required for fetching guide details");
       }
       
-      const { pickup, date, guide_id, mode } = params;
+      const { pickup, date, guide_id, mode, dmc_id: paramDmcId } = params;
       
       if (!pickup) {
         throw new Error("Pickup location is required");
@@ -93,8 +93,10 @@ export const fetchGuideDetails = createAsyncThunk(
       if (!mode) {
         throw new Error("Mode is required");
       }
+
+      const resolvedDmcId = paramDmcId || dmcId;
       
-      if (!dmcId) {
+      if (!resolvedDmcId) {
         throw new Error("DMC ID is required");
       }
       
@@ -124,7 +126,7 @@ export const fetchGuideDetails = createAsyncThunk(
         date: JSON.stringify({ 0: date }), 
         guide_id,
         mode,
-        dmc_id: dmcId,
+        dmc_id: resolvedDmcId,
       };
 
       // Make API request with params

@@ -1,17 +1,16 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useSelector } from 'react-redux';
 import moment from 'moment';
-import { UpdateCustomPackage } from '@/slice/tour-packages/tourPackageSlice';
 import { createConfigFromRoomAndBed } from '../utils/hotelUtils';
 
 /**
  * Custom hook for loading and managing hotel data
+ * packageData (read-only) → hotelConfigurations (local draft)
+ * AllServices sync lives in HotelComponent (single write path).
  * @param {Array} mealPlanOptions Available meal plan options
  * @returns {Object} Hotel data and functions
  */
 const useHotelData = (mealPlanOptions) => {
-  const dispatch = useDispatch();
-  
   // States for hotel configurations
   const [hotelConfigurations, setHotelConfigurations] = useState([]);
   const [activeHotelIndex, setActiveHotelIndex] = useState(0);
@@ -22,12 +21,12 @@ const useHotelData = (mealPlanOptions) => {
   const urlTourId = router ? router.searchParams.get('tour_id') : null;
   const reduxTourId = useSelector((state) => state.hotels.id);
   const tourId = urlTourId || reduxTourId;
-  const tour_id = useSelector((state) => state.tourPackages.packageData?.tour?.tour_id);
-  console.log("tour_idusehotel",tour_id);
   
-  // Get package data from Redux store
+  // Get package data from Redux store (source for edit hydrate only)
   const packageData = useSelector(state => state.tourPackages.packageData);
-  console.log("packageDatahotel",packageData?.tour?.booking);
+  
+  // Track whether we already attempted packageData hydrate (prevents empty-placeholder race)
+  const hasHydratedRef = useRef(false);
   
   // Function to get booking ID for a specific hotel configuration (simplified)
   const getBookingIdForConfig = useCallback((config) => {
@@ -41,34 +40,12 @@ const useHotelData = (mealPlanOptions) => {
       .filter(Boolean); // Remove null/undefined values
   }, [hotelConfigurations]);
   
-  // Fetch existing tour data when component mounts - ONLY if we already have packageData (update mode)
-  
-  useEffect(() => {
-    if (tour_id) {
-      console.log("HOTEL COMPONENT - Fetching existing tour data for tour ID:", tour_id);
-      dispatch(UpdateCustomPackage({ tour_id: tour_id }))
-        .then(response => {
-          console.log("HOTEL COMPONENT - UpdateCustomPackage response:", response);
-        })
-        .catch(error => {
-          console.error("HOTEL COMPONENT - Error fetching tour data:", error);
-        });
-    }
-  }, [tour_id, dispatch]);
-  
   // Function to create an initial hotel configuration
   const createInitialHotelConfiguration = useCallback((searchCriteria = {}) => {
     // Handle both uppercase and lowercase property names and calculate total guests
     const adults = parseInt(searchCriteria?.guests?.Adults || searchCriteria?.guests?.adults || 1);
     const children = parseInt(searchCriteria?.guests?.Children || searchCriteria?.guests?.children || 0);
     const initialGuests = adults + children; // Total guests (adults + children)
-    
-    console.log("Creating initial hotel config with guests:", {
-      searchCriteria: searchCriteria?.guests,
-      adults,
-      children,
-      initialGuests
-    });
     
     // Calculate individual hotel booking dates
     let hotelCheckIn, hotelCheckOut;
@@ -89,7 +66,7 @@ const useHotelData = (mealPlanOptions) => {
       initialNightIndices.push(i);
     }
     
-    const initialConfig = {
+    return {
       id: Math.random().toString(36).substring(2) + Date.now().toString(36),
       hotelId: '',
       hotelDetails: {},
@@ -102,7 +79,6 @@ const useHotelData = (mealPlanOptions) => {
       mealPlanId: 'self',
       nights: nightsCount,
       selectedNightIndices: initialNightIndices,
-      // Add individual hotel booking dates
       hotelCheckIn: hotelCheckIn,
       hotelCheckOut: hotelCheckOut,
       babyCot: false,
@@ -110,8 +86,8 @@ const useHotelData = (mealPlanOptions) => {
       adultDistribution: { male: 0, female: 0 },
       expanded: true,
       selectedGuests: initialGuests,
-      selectedMealPlan: 'self', // Single meal plan for the entire room
-      mealPlanDetails: null, // Will be populated when meal plan is selected
+      selectedMealPlan: 'self',
+      mealPlanDetails: null,
       customerDetails: {
         fullName: "",
         email: "",
@@ -124,115 +100,118 @@ const useHotelData = (mealPlanOptions) => {
         specialRequests: ""
       }
     };
-    
-    console.log("Creating initial hotel configuration:", initialConfig);
-    return initialConfig;
   }, []);
   
   // Function to load existing hotel data from package data
   const loadExistingHotelData = useCallback(() => {
-    if (packageData?.tour?.booking) {
-      console.log("HOTEL COMPONENT - Loading existing hotel data from package data");
-      
-      // Find ALL hotel bookings in the package data (fixed case sensitivity: "hotel" not "Hotel")
-      const hotelBookings = packageData.tour.booking.filter(booking => booking.type === "hotel");
-      console.log("HOTEL COMPONENT - Found hotel bookings:", hotelBookings.length);
-      console.log("HOTEL COMPONENT - Hotel bookings data:", hotelBookings);
-      
-      if (hotelBookings.length > 0) {
-        // Process all hotels and their rooms
-        const allConfigurations = [];
-        
-        // For each hotel booking
-        hotelBookings.forEach(hotelBooking => {
-          if (hotelBooking.data && hotelBooking.data.length > 0) {
-            // Extract booking ID from the booking object
-            const bookingId = hotelBooking.booking_id;
-            console.log("HOTEL COMPONENT - Processing booking with ID:", bookingId);
-            
-            // Process each hotel in the data array
-            hotelBooking.data.forEach(hotelData => {
-              console.log("HOTEL COMPONENT - Processing hotel data:", hotelData.hotelDetails?.hotel_name);
-              
-              if (hotelData.hotelDetails && hotelData.rooms && hotelData.rooms.length > 0) {
-                const hotelDetails = hotelData.hotelDetails;
-                const bookingDates = hotelData.bookingDate || [];
-                
-                // Process each room and its beds
-                hotelData.rooms.forEach(room => {
-                  if (room.beds && room.beds.length > 0) {
-                    room.beds.forEach(bed => {
-                      // Extract customer details from hotel data
-                      const customerDetails = {
-                        fullName: hotelData.fullName || "",
-                        email: hotelData.email || "",
-                        phone: hotelData.phone || "",
-                        countryCode: hotelData.countryCode || "",
-                        address1: hotelData.address1 || "",
-                        address2: hotelData.address2 || "",
-                        state: hotelData.state || "",
-                        zip: hotelData.zip || "",
-                        specialRequests: hotelData.specialRequests || ""
-                      };
-                      
-                      // Create configuration from room and bed data, including booking ID
-                      const config = createConfigFromRoomAndBed(
-                        hotelDetails, 
-                        room, 
-                        bed, 
-                        bookingDates, 
-                        mealPlanOptions, 
-                        bookingId
-                      );
-                      
-                      // Add customer details to the configuration
-                      config.customerDetails = customerDetails;
-                      
-                      allConfigurations.push(config);
-                    });
-                  }
-                });
-              }
-            });
-          }
-        });
-        
-        if (allConfigurations.length > 0) {
-          console.log("HOTEL COMPONENT - Created configurations from all hotel data:", allConfigurations);
-          
-          setHotelConfigurations(allConfigurations);
-          
-          // Show success message
-          setAlert({
-            show: true,
-            message: `Loaded ${allConfigurations.length} room configuration(s) from ${hotelBookings.length} hotel(s)`,
-            severity: 'success'
-          });
-          
-          // Hide message after 5 seconds
-          setTimeout(() => {
-            setAlert(prev => ({ ...prev, show: false }));
-          }, 5000);
-          
-          return { success: true, configurations: allConfigurations };
-        }
-      }
+    if (!packageData?.tour?.booking) {
+      return { success: false };
     }
+
+    // Case-insensitive: API may send "hotel" or "Hotel"
+    const hotelBookings = packageData.tour.booking.filter(
+      (booking) => String(booking.type || '').toLowerCase() === 'hotel'
+    );
+
+    if (hotelBookings.length === 0) {
+      return { success: false };
+    }
+
+    const allConfigurations = [];
+
+    hotelBookings.forEach((hotelBooking) => {
+      if (!hotelBooking.data || hotelBooking.data.length === 0) return;
+
+      const bookingId = hotelBooking.booking_id;
+
+      hotelBooking.data.forEach((hotelData) => {
+        if (!hotelData.hotelDetails || !hotelData.rooms || hotelData.rooms.length === 0) return;
+
+        const hotelDetails = hotelData.hotelDetails;
+        const bookingDates = hotelData.bookingDate || [];
+
+        hotelData.rooms.forEach((room) => {
+          if (!room.beds || room.beds.length === 0) return;
+
+          room.beds.forEach((bed) => {
+            const customerDetails = {
+              fullName: hotelData.fullName || "",
+              email: hotelData.email || "",
+              phone: hotelData.phone || "",
+              countryCode: hotelData.countryCode || "",
+              address1: hotelData.address1 || "",
+              address2: hotelData.address2 || "",
+              state: hotelData.state || "",
+              zip: hotelData.zip || "",
+              specialRequests: hotelData.specialRequests || ""
+            };
+
+            const config = createConfigFromRoomAndBed(
+              hotelDetails,
+              room,
+              bed,
+              bookingDates,
+              mealPlanOptions,
+              bookingId
+            );
+
+            config.customerDetails = customerDetails;
+            allConfigurations.push(config);
+          });
+        });
+      });
+    });
+
+    if (allConfigurations.length > 0) {
+      setHotelConfigurations(allConfigurations);
+      setActiveHotelIndex(0);
+      setAlert({
+        show: true,
+        message: `Loaded ${allConfigurations.length} room configuration(s) from ${hotelBookings.length} hotel(s)`,
+        severity: 'success'
+      });
+      setTimeout(() => {
+        setAlert((prev) => ({ ...prev, show: false }));
+      }, 5000);
+      return { success: true, configurations: allConfigurations };
+    }
+
     return { success: false };
   }, [packageData, mealPlanOptions]);
   
-  // Call loadExistingHotelData when packageData changes
+  // Hydrate from packageData once per package identity (edit mode)
   useEffect(() => {
-    if (packageData?.tour?.booking) {
-      const result = loadExistingHotelData();
-      console.log("HOTEL COMPONENT - Attempted to load existing hotel data, result:", result);
+    const bookingKey = packageData?.tour?.tour_id
+      ? `tour-${packageData.tour.tour_id}`
+      : packageData?.tour?.booking
+        ? `booking-${packageData.tour.booking.length}`
+        : null;
+
+    if (!bookingKey) {
+      // No package yet — allow empty placeholder in parent
+      hasHydratedRef.current = true;
+      return;
     }
-  }, [packageData, loadExistingHotelData]);
+
+    // Re-hydrate when a different package is loaded
+    if (hasHydratedRef.current === bookingKey) {
+      return;
+    }
+
+    const result = loadExistingHotelData();
+    hasHydratedRef.current = bookingKey;
+
+    // If package has no hotels, still mark hydrated so empty placeholder can appear
+    if (!result.success && hotelConfigurations.length === 0) {
+      // leave empty; parent may create placeholder after hydrate
+    }
+  }, [packageData, loadExistingHotelData, hotelConfigurations.length]);
   
-  // Initialize hotel configurations when component mounts
+  // Create empty config only for NEW packages (no booking list at all)
   useEffect(() => {
-    if (hotelConfigurations.length === 0 && !packageData?.tour?.booking) {
-      console.log("HOTEL COMPONENT - Creating initial hotel configuration as no existing data found");
+    if (!hasHydratedRef.current) return;
+    if (packageData?.tour?.booking) return; // edit/create-with-booking handled by hydrate
+    if (hotelConfigurations.length === 0) {
       const initialConfig = createInitialHotelConfiguration();
       setHotelConfigurations([initialConfig]);
       setActiveHotelIndex(0);
@@ -251,7 +230,8 @@ const useHotelData = (mealPlanOptions) => {
     getBookingIdForConfig,
     getAllBookingIds,
     loadExistingHotelData,
-    createInitialHotelConfiguration
+    createInitialHotelConfiguration,
+    hasHydratedFromPackage: Boolean(hasHydratedRef.current)
   };
 };
 

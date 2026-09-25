@@ -81,8 +81,6 @@ export default function Itinerary({ onBookingSuccess }) {
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [snackbarSeverity, setSnackbarSeverity] = useState('success');
-  const [portType,setPortType] = useState("Entry Port");
-  const [portType1,setPortType1] = useState("Exit Port");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const dispatch = useDispatch();
   const packageData = useSelector((state) => state.tourPackages.packageData);
@@ -628,7 +626,7 @@ export default function Itinerary({ onBookingSuccess }) {
             </Box>
             
             {/* Hotel Component */}
-            <HotelComponent hotels={categorizedServices.hotels} />
+            <HotelComponent />
 
           </Paper>
 
@@ -780,10 +778,8 @@ export default function Itinerary({ onBookingSuccess }) {
                   <Box sx={{ mb: 1 }}>
                     <Paper elevation={1} sx={{ p: 1.5, borderLeft: '3px solid #1976d2' }}>
                       <PickupDropComponent 
-                        portType={portType} 
-                        setPortType={() => setPortType("Entry Port")} 
+                        mode="entry"
                         date={date}
-                        dayIndex={index}
                         entryPorts={categorizedServices.entryPorts}
                         tourDates={dates.map(d => d.format('YYYY-MM-DD'))}
                       />
@@ -848,10 +844,8 @@ export default function Itinerary({ onBookingSuccess }) {
                   <Box sx={{ mb: 1 }}>
                     <Paper elevation={1} sx={{ p: 1.5, borderLeft: '3px solid #1976d2' }}>
                       <PickupDropComponent 
-                        portType1={portType1} 
-                        setPortType1={() => setPortType1("Exit Port")} 
+                        mode="exit"
                         date={date}
-                        dayIndex={index}
                         exitPorts={categorizedServices.exitPorts}
                         tourDates={dates.map(d => d.format('YYYY-MM-DD'))}
                       />
