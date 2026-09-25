@@ -151,6 +151,25 @@ export const buildTourMeta = (tourDetails = {}) => {
         ? "multi"
         : "single";
 
+  const adultGenders = Array.isArray(tourDetails.adultGenders)
+    ? tourDetails.adultGenders
+    : undefined;
+  const maleCount = Number(
+    tourDetails.maleCount ??
+      tourDetails.male_count ??
+      (adultGenders
+        ? adultGenders.filter((g) => String(g).toLowerCase() === "male").length
+        : 0)
+  );
+  const femaleCount = Number(
+    tourDetails.femaleCount ??
+      tourDetails.female_count ??
+      (adultGenders
+        ? adultGenders.filter((g) => String(g).toLowerCase() === "female")
+            .length
+        : 0)
+  );
+
   return {
     check_in,
     check_out,
@@ -161,11 +180,11 @@ export const buildTourMeta = (tourDetails = {}) => {
     adult,
     child,
     infant,
+    maleCount,
+    femaleCount,
     cityWiseDates,
     city_type,
-    adultGenders: Array.isArray(tourDetails.adultGenders)
-      ? tourDetails.adultGenders
-      : undefined,
+    adultGenders,
     childrenAges: Array.isArray(tourDetails.childrenAges)
       ? tourDetails.childrenAges
       : undefined,
@@ -228,6 +247,9 @@ const cartSlice = createSlice({
         state.cart[existingIndex].adult = meta.adult;
         state.cart[existingIndex].child = meta.child;
         state.cart[existingIndex].infant = meta.infant;
+        state.cart[existingIndex].maleCount = meta.maleCount;
+        state.cart[existingIndex].femaleCount = meta.femaleCount;
+        state.cart[existingIndex].city_type = meta.city_type;
         state.cart[existingIndex].destination = meta.destination;
         if (meta.country) {
           state.cart[existingIndex].country = meta.country;

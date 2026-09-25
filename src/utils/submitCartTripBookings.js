@@ -101,6 +101,31 @@ export async function submitCartTripBookings(
   dispatch(setBookingType(kind));
 
   // Same shape as state.cart JSON (array of trips)
+  const adultGenders = Array.isArray(trip.adultGenders)
+    ? trip.adultGenders
+    : undefined;
+  const maleCount = Number(
+    trip.maleCount ??
+      trip.male_count ??
+      (adultGenders
+        ? adultGenders.filter((g) => String(g).toLowerCase() === "male").length
+        : 0)
+  );
+  const femaleCount = Number(
+    trip.femaleCount ??
+      trip.female_count ??
+      (adultGenders
+        ? adultGenders.filter((g) => String(g).toLowerCase() === "female")
+            .length
+        : 0)
+  );
+  const city_type =
+    trip.city_type === "multi" || trip.city_type === "single"
+      ? trip.city_type
+      : Array.isArray(trip.destination) && trip.destination.length > 1
+        ? "multi"
+        : "single";
+
   const payload = [
     {
       tripId: trip.tripId,
@@ -114,6 +139,9 @@ export async function submitCartTripBookings(
       adult: Number(trip.adult ?? 0),
       child: Number(trip.child ?? 0),
       infant: Number(trip.infant ?? 0),
+      maleCount,
+      femaleCount,
+      city_type,
       cityWiseDates: Array.isArray(trip.cityWiseDates)
         ? trip.cityWiseDates
         : [],
@@ -123,9 +151,7 @@ export async function submitCartTripBookings(
       bookingType: kind,
       agent_id: Number(AgentId) || AgentId,
       dmc_id: dmcId,
-      ...(Array.isArray(trip.adultGenders)
-        ? { adultGenders: trip.adultGenders }
-        : {}),
+      ...(adultGenders ? { adultGenders } : {}),
       ...(Array.isArray(trip.childrenAges)
         ? { childrenAges: trip.childrenAges }
         : {}),

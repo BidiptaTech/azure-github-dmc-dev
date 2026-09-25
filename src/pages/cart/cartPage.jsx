@@ -138,6 +138,8 @@ const CartPage = () => {
       adult: trip.adult,
       child: trip.child,
       infant: trip.infant,
+      maleCount: trip.maleCount,
+      femaleCount: trip.femaleCount,
       adultGenders: trip.adultGenders,
       childrenAges: trip.childrenAges,
       tour_id: trip.tour_id,
