@@ -2838,10 +2838,10 @@
             $showTotalsBreakdown = ((float) $overallDiscountShown > 0) || ((float) $overallTaxShown > 0);
         @endphp
 
-        {{-- 1) Package Price by Country — Hotel THEN Other Services (stacked, separate prices) --}}
+        {{-- 1) Package Price by Country — hotel + other combined (per pax) --}}
         @if(!empty($countrySharingRows))
         <div class="overall-price-box">
-            <div class="panel-title">Package Price by Country</div>
+            <div class="panel-title">Packaged Price by Country</div>
             @foreach($countrySharingRows as $share)
                 @php
                     $shareCountry = $share['country'] ?? 'Other';
@@ -2861,45 +2861,41 @@
                     $shareChildBed = (float) ($share['child_bed_total'] ?? ($countryChildBedTotals[$shareChildKey] ?? 0));
                     $shareOther = (float)($share['other_services_single'] ?? ($share['other_services_double'] ?? 0));
                     $shareOtherChild = (float)($share['other_services_child'] ?? 0);
+                    $shareChildAll = $shareChildBed + $shareOtherChild;
                     if ($isProTour) {
                         $shareHotelSingle = $shareHotelDouble > 0 ? $shareHotelDouble : $shareHotelSingle;
                     }
+                    // Combined per pax = hotel + other (same occupancy columns)
+                    $shareTotalSingle = $shareHotelSingle > 0 ? ($shareHotelSingle + $shareOther) : 0.0;
+                    $shareTotalDouble = $shareHotelDouble > 0 ? ($shareHotelDouble + $shareOther) : 0.0;
+                    $shareTotalTriple = $shareHotelTriple > 0 ? ($shareHotelTriple + $shareOther) : 0.0;
+                    if ($shareTotalSingle <= 0 && $shareTotalDouble <= 0 && $shareTotalTriple <= 0 && $shareOther > 0) {
+                        $shareTotalSingle = $shareOther;
+                    }
                     $shareShowSp = 1;
-                    if ($shareHotelTriple > 0) $shareShowSp = 3;
-                    elseif ($shareHotelDouble > 0) $shareShowSp = 2;
+                    if ($shareTotalTriple > 0) $shareShowSp = 3;
+                    elseif ($shareTotalDouble > 0) $shareShowSp = 2;
 
-                    $hotelOccCell = function ($adultAmt, $isBookedCol) use ($shareCurrency, $shareChildBed, $formatNativeMoney) {
+                    $hotelOccCell = function ($adultAmt, $isBookedCol) use ($shareCurrency, $shareChildAll, $formatNativeMoney) {
                         $adultAmt = (float) $adultAmt;
                         if ($adultAmt <= 0) {
                             return '--';
                         }
                         $html = e($formatNativeMoney($adultAmt, $shareCurrency)) . '(Adult)';
-                        if ($isBookedCol && $shareChildBed > 0) {
-                            $html .= '<br>' . e($formatNativeMoney($shareChildBed, $shareCurrency)) . '(Child)';
+                        if ($isBookedCol && $shareChildAll > 0) {
+                            $html .= '<br>' . e($formatNativeMoney($shareChildAll, $shareCurrency)) . '(Child)';
                         }
                         return $html;
                     };
-                    $shareCellSingle = $hotelOccCell($shareHotelSingle, $shareShowSp === 1);
-                    $shareCellDouble = $hotelOccCell($shareHotelDouble, $shareShowSp === 2);
-                    $shareCellTriple = $hotelOccCell($shareHotelTriple, $shareShowSp === 3);
-
-                    $otherCellHtml = '--';
-                    if ($shareOther > 0 || $shareOtherChild > 0) {
-                        $parts = [];
-                        if ($shareOther > 0) {
-                            $parts[] = e($formatNativeMoney($shareOther, $shareCurrency)) . '(Adult)';
-                        }
-                        if ($shareOtherChild > 0) {
-                            $parts[] = e($formatNativeMoney($shareOtherChild, $shareCurrency)) . '(Child)';
-                        }
-                        $otherCellHtml = implode('<br>', $parts);
-                    }
+                    $shareCellSingle = $hotelOccCell($shareTotalSingle, $shareShowSp === 1);
+                    $shareCellDouble = $hotelOccCell($shareTotalDouble, $shareShowSp === 2);
+                    $shareCellTriple = $hotelOccCell($shareTotalTriple, $shareShowSp === 3);
                 @endphp
                 <div style="border-top: 1px solid #222;">
                     <div class="country-box-title">{{ $shareTitle }}</div>
                     <div class="country-box-body">
                         <div class="country-stack-section">
-                            <div class="country-col-label">Hotel-Accommodation (per pax)</div>
+                            <div class="country-col-label">Hotel-Accommodation &amp; Other Services (per pax)</div>
                             <table class="price-grid">
                                 <thead>
                                     <tr>
@@ -2913,23 +2909,6 @@
                                         <td>{!! $shareCellSingle !!}</td>
                                         <td>{!! $shareCellDouble !!}</td>
                                         <td>{!! $shareCellTriple !!}</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                        <div class="country-stack-section">
-                            <div class="country-col-label">Other Services (per pax)</div>
-                            <table class="price-grid">
-                                <thead>
-                                    <tr>
-                                        <th style="width: 33.33%;">Single</th>
-                                        <th style="width: 33.33%;">Double</th>
-                                        <th style="width: 33.33%;">Triple</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr>
-                                        <td colspan="3">{!! $otherCellHtml !!}</td>
                                     </tr>
                                 </tbody>
                             </table>

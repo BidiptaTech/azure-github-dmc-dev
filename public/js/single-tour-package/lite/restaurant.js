@@ -777,6 +777,9 @@
                 var guide = r.guide_options || {};
                 var cur = r.currency || root.getAttribute('data-currency') || 'SGD';
                 var infants = Math.max(0, parseInt(r.infantCount != null ? r.infantCount : r.infants, 10) || 0);
+                if (infants <= 0 && T.tourGuests) {
+                    infants = Math.max(0, parseInt((T.tourGuests() || {}).infants, 10) || 0);
+                }
                 var adultsXfer = Math.max(0, parseInt(r.adults, 10) || 0);
                 var childrenXfer = Math.max(0, parseInt(r.children, 10) || 0);
                 var transferHtml = (xfer.transfer_required && typeof T.transferPriceDetailHtml === 'function')

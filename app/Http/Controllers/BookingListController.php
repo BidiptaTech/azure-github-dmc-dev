@@ -2752,11 +2752,34 @@ class BookingListController extends Controller
             $tourLastDate = $tourDateKeys[count($tourDateKeys) - 1] ?? null;
 
             $pdfCountryGroups = [];
-            if ($isMultiCountry) {
+            $stayPlanGroups = $this->groupItineraryBookingsByStayPlan(
+                $itineraryByDate,
+                (string) ($tourDetails->city ?? ''),
+                $tourCountries,
+                $cityCountryMap
+            );
+            if (!empty($stayPlanGroups)) {
+                foreach ($stayPlanGroups as $stayGroup) {
+                    $pdfCountryGroups[] = [
+                        'name' => $stayGroup['name'],
+                        'is_return' => !empty($stayGroup['is_return']),
+                        'days' => $this->buildPdfDays($stayGroup['dates'], $tourDetails, $tourFirstDate, $tourLastDate),
+                    ];
+                }
+                $isMultiCountry = true;
+                $pdfDays = [];
+                foreach ($pdfCountryGroups as $group) {
+                    foreach ($group['days'] as $dateStr => $day) {
+                        $pdfDays[$dateStr] = $day;
+                    }
+                }
+                ksort($pdfDays);
+            } elseif ($isMultiCountry) {
                 $grouped = $this->groupItineraryBookingsByCountry($itineraryByDate, $tourCountries, $cityCountryMap);
                 foreach ($grouped as $countryName => $countryDates) {
                     $pdfCountryGroups[] = [
                         'name' => $countryName,
+                        'is_return' => false,
                         'days' => $this->buildPdfDays($countryDates, $tourDetails, $tourFirstDate, $tourLastDate),
                     ];
                 }
@@ -3106,6 +3129,154 @@ class BookingListController extends Controller
                 return $name !== '' ? [$name => $country] : [];
             })
             ->all();
+    }
+
+    /**
+     * Group bookings by lite planner stays (tour.city order), including Return.
+     * Example: Singapore → Batam → Singapore Return (date-wise, not merged by country).
+     *
+     * @param  array<string, array>  $itineraryByDate
+     * @param  array<int, string>  $tourCountries
+     * @param  array<string, string>  $cityCountryMap
+     * @return array<int, array{name: string, is_return: bool, dates: array<string, array>}>
+     */
+    private function groupItineraryBookingsByStayPlan(
+        array $itineraryByDate,
+        string $tourCityRaw,
+        array $tourCountries,
+        array $cityCountryMap
+    ): array {
+        $tourCityRaw = trim($tourCityRaw);
+        if ($tourCityRaw === '' || empty($itineraryByDate)) {
+            return [];
+        }
+
+        $planRe = '/^(.+?)\s*\[(\d{4}-\d{2}-\d{2})\s*(?:→|->)\s*(\d{4}-\d{2}-\d{2})\]\s*$/u';
+        $segments = [];
+        $seenCityStay = [];
+        foreach (preg_split('/\s*,\s*/', $tourCityRaw) ?: [] as $part) {
+            $part = trim((string) $part);
+            if ($part === '') {
+                continue;
+            }
+            $startYmd = '';
+            $endYmd = '';
+            if (preg_match($planRe, $part, $dm)) {
+                $part = trim((string) $dm[1]);
+                $startYmd = trim((string) $dm[2]);
+                $endYmd = trim((string) $dm[3]);
+            } else {
+                $part = trim((string) preg_replace('/\s*\[[^\]]*\]\s*/', '', $part));
+            }
+            if ($startYmd === '' || $endYmd === '') {
+                continue;
+            }
+            $cityName = $part;
+            $countryName = '';
+            if (preg_match('/^(.+?)\s*\(([^)]+)\)\s*$/', $part, $m)) {
+                $cityName = trim($m[1]);
+                $countryName = trim($m[2]);
+            } else {
+                $cityName = trim($part);
+                $countryName = $cityCountryMap[mb_strtolower($cityName)] ?? '';
+            }
+            if ($cityName === '') {
+                continue;
+            }
+            if ($countryName === '') {
+                $countryName = $cityName;
+            }
+            $cityKeyLower = mb_strtolower($cityName);
+            $seenCityStay[$cityKeyLower] = ($seenCityStay[$cityKeyLower] ?? 0) + 1;
+            $isReturnStay = $seenCityStay[$cityKeyLower] > 1;
+            $segments[] = [
+                'city' => $cityName,
+                'country' => $countryName,
+                'start' => $startYmd,
+                'end' => $endYmd,
+                'is_return' => $isReturnStay,
+                'name' => $cityName . ($isReturnStay ? ' · Return' : ''),
+            ];
+        }
+
+        if (empty($segments)) {
+            return [];
+        }
+
+        // Chronological by stay-from (Singapore before later Return)
+        usort($segments, static function ($a, $b) {
+            $as = (string) ($a['start'] ?? '');
+            $bs = (string) ($b['start'] ?? '');
+            if ($as !== $bs) {
+                return strcmp($as, $bs);
+            }
+            $ae = (string) ($a['end'] ?? '');
+            $be = (string) ($b['end'] ?? '');
+            if ($ae !== $be) {
+                return strcmp($ae, $be);
+            }
+
+            return ((int) !empty($a['is_return'])) <=> ((int) !empty($b['is_return']));
+        });
+
+        $bookingItemCity = static function ($bookingItem) {
+            $item = [];
+            if (is_object($bookingItem) && isset($bookingItem->data_decoded)) {
+                $decoded = $bookingItem->data_decoded;
+                $item = (is_array($decoded) && isset($decoded[0]) && is_array($decoded[0]))
+                    ? $decoded[0]
+                    : (is_array($decoded) ? $decoded : []);
+            }
+            $city = trim((string) ($item['city'] ?? ''));
+            if ($city === '' && is_array($item['hotelDetails'] ?? null)) {
+                $city = trim((string) ($item['hotelDetails']['city'] ?? $item['hotelDetails']['location'] ?? ''));
+            }
+
+            return $city;
+        };
+
+        $groups = [];
+        foreach ($segments as $stay) {
+            try {
+                $stayStart = \Carbon\Carbon::parse($stay['start'])->startOfDay();
+                $stayEnd = \Carbon\Carbon::parse($stay['end'])->startOfDay();
+            } catch (\Throwable $e) {
+                continue;
+            }
+            $stayDates = [];
+            $cursor = $stayStart->copy();
+            while ($cursor->lte($stayEnd)) {
+                $ds = $cursor->format('Y-m-d');
+                if (array_key_exists($ds, $itineraryByDate)) {
+                    $dayBookings = [];
+                    foreach ($itineraryByDate[$ds] as $bookingItem) {
+                        $resolvedCountry = CommonHelper::resolveBookingServiceCountry(
+                            $bookingItem,
+                            $tourCountries,
+                            $cityCountryMap
+                        );
+                        $bCity = $bookingItemCity($bookingItem);
+                        $countryOk = strcasecmp((string) $resolvedCountry, (string) $stay['country']) === 0;
+                        $cityOk = $bCity !== '' && strcasecmp($bCity, (string) $stay['city']) === 0;
+                        if ($countryOk || $cityOk) {
+                            $dayBookings[] = $bookingItem;
+                        }
+                    }
+                    $stayDates[$ds] = $dayBookings;
+                }
+                $cursor->addDay();
+            }
+            if (empty($stayDates)) {
+                continue;
+            }
+            $groups[] = [
+                'name' => $stay['name'],
+                'is_return' => !empty($stay['is_return']),
+                'dates' => $stayDates,
+            ];
+        }
+
+        return $groups;
     }
 
     /**

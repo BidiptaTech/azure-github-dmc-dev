@@ -1488,6 +1488,22 @@
         } else if (cot.enabled && Number(cot.unit || 0) <= 0) {
             html += summaryRowHtml('<strong>Baby cot</strong>', 'Incl.', 'is-ok');
         }
+        // Tour/hotel infants always shown at 0 — never added to Total
+        var infantN = Math.max(0, parseInt(opts.infants, 10) || 0);
+        if (infantN <= 0) {
+            try {
+                var tourCaps = (window.StpLiteGuestCaps && window.StpLiteGuestCaps.getCaps)
+                    ? window.StpLiteGuestCaps.getCaps()
+                    : null;
+                infantN = Math.max(0, parseInt((tourCaps && tourCaps.infants) || (document.getElementById('infants') || {}).value || 0, 10) || 0);
+            } catch (eInf) { infantN = 0; }
+        }
+        if (infantN > 0) {
+            html += summaryRowHtml(
+                '<strong>Infant</strong> × ' + infantN,
+                moneyTxt(cur, 0)
+            );
+        }
         html += '</div>';
         return { html: html, grand: grand, babyCot: cot };
     }
@@ -1528,7 +1544,8 @@
         var built = buildBreakdownHtml(data, rooms, cur, {
             mealPlan: mealPlan,
             babyCot: babyCot,
-            isAdHoc: !!(data.is_adhoc)
+            isAdHoc: !!(data.is_adhoc),
+            infants: selectedInfantsCount(root)
         });
         grid.innerHTML = built.html || '<div class="text-muted" style="font-size:0.72rem;">No breakdown returned.</div>';
         if (grandEl) grandEl.textContent = cur + ' ' + Number(built.grand || 0).toFixed(2);
@@ -1758,7 +1775,8 @@
 
             var built = buildBreakdownHtml(helper, rooms, cur, {
                 mealPlan: row.meal_plan || helper.meal_plan || '',
-                isAdHoc: !!(helper.is_adhoc || isAdHocRow(row))
+                isAdHoc: !!(helper.is_adhoc || isAdHocRow(row)),
+                infants: savedInfantsFromRow(row)
             });
             bodyEl.innerHTML =
                 '<div class="stp-lite-hotel-breakup-card is-modal">' +

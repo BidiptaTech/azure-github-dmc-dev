@@ -661,6 +661,9 @@
                 var guide = r.guide_options || {};
                 var cur = r.currency || root.getAttribute('data-currency') || 'SGD';
                 var infants = Math.max(0, parseInt(r.infantCount != null ? r.infantCount : r.infants, 10) || 0);
+                if (infants <= 0 && T.tourGuests) {
+                    infants = Math.max(0, parseInt((T.tourGuests() || {}).infants, 10) || 0);
+                }
                 var adultsXfer = Math.max(0, parseInt(r.adultCount != null ? r.adultCount : r.adults, 10) || 0)
                     + Math.max(0, parseInt(r.seniorCount, 10) || 0);
                 var childrenXfer = Math.max(0, parseInt(r.childCount != null ? r.childCount : r.children, 10) || 0);
