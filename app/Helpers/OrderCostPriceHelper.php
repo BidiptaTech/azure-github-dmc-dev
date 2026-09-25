@@ -852,8 +852,8 @@ class OrderCostPriceHelper
     }
 
     /**
-     * Shared = per-pax unit × (adults + children); Private = flat vehicle cost.
-     * Payload `cost` is already way-applied (one-way or both-way). Zone unit costs are per way.
+     * Shared = unit × pax; Private = unit × vehicle qty (same as enquiry Pro sell / lineCost).
+     * Payload `cost` may be way-applied; zone unit costs are per way.
      *
      * @return array{cost: float, meta: array}|null
      */
@@ -881,29 +881,39 @@ class OrderCostPriceHelper
         }
         $pax = max(0, $adults + $children);
 
+        $vehicleQty = self::qtyFromItem($transfer, ['qty', 'quantity', 'vehicle_qty', 'vehicleQty', 'booked_vehicles']);
+        if ($vehicleQty <= 0) {
+            $vehicleQty = self::qtyFromItem($item, ['vehicle_qty', 'vehicleQty', 'booked_vehicles', 'qty', 'quantity']);
+        }
+        if ($vehicleQty <= 0) {
+            $vehicleQty = 1;
+        }
+
+        $explicitLine = self::firstNumeric($transfer, ['lineCost', 'line_cost']);
         $payloadCost = self::firstNumeric($transfer, [
-            'cost', 'Cost', 'adult_cost', 'adultCost', 'base_cost', 'baseCost', 'cost_price', 'total_cost',
+            'cost', 'Cost', 'adult_cost', 'adultCost', 'base_cost', 'baseCost', 'cost_price',
         ]);
 
         $zoneSharedUnit = self::firstNumeric($transfer, [
-            'zoneSharedCostPrice', 'shared_cost_price', 'sharedCostPrice',
+            'zoneSharedCostPrice', 'shared_cost_price', 'sharedCostPrice', 'unitCost', 'unit_cost',
         ]);
         $zonePrivateUnit = self::firstNumeric($transfer, [
-            'zonePrivateCostPrice', 'private_cost_price', 'privateCostPrice',
+            'zonePrivateCostPrice', 'private_cost_price', 'privateCostPrice', 'unitCost', 'unit_cost',
         ]);
 
         $unitCost = 0.0;
         $transferCost = 0.0;
 
-        if ($isShared) {
+        if ($explicitLine > 0) {
+            $transferCost = $explicitLine;
+            $unitCost = $isShared && $pax > 0
+                ? ($explicitLine / max(1, $pax))
+                : ($explicitLine / max(1, $vehicleQty));
+        } elseif ($isShared) {
             if ($zoneSharedUnit > 0) {
                 $unitCost = $zoneSharedUnit * $wayMultiplier;
             } elseif ($payloadCost > 0) {
-                // Payload cost is already way-applied upstream.
                 $unitCost = $payloadCost;
-            } else {
-                // Last resort: sell is often way-applied unit for shared.
-                $unitCost = self::firstNumeric($transfer, ['sell', 'Sell', 'basePrice', 'base_price']);
             }
             if ($unitCost > 0) {
                 $transferCost = $unitCost * max(1, $pax);
@@ -913,10 +923,8 @@ class OrderCostPriceHelper
                 $unitCost = $zonePrivateUnit * $wayMultiplier;
             } elseif ($payloadCost > 0) {
                 $unitCost = $payloadCost;
-            } else {
-                $unitCost = self::firstNumeric($transfer, ['sell', 'Sell', 'basePrice', 'base_price', 'totalPrice']);
             }
-            $transferCost = $unitCost;
+            $transferCost = $unitCost * max(1, $vehicleQty);
         }
 
         if ($transferCost <= 0) {
@@ -931,7 +939,10 @@ class OrderCostPriceHelper
                 'transfer_type' => $isShared ? 'shared' : 'private',
                 'adults' => $adults,
                 'children' => $children,
+                'pax' => $pax,
+                'vehicle_qty' => $vehicleQty,
                 'unit_cost' => round($unitCost, 2),
+                'formula' => $isShared ? 'unit_cost × pax' : 'unit_cost × qty',
             ],
         ];
     }
@@ -1019,7 +1030,9 @@ class OrderCostPriceHelper
         $components = [];
         $source = 'payload';
 
-        // Transfer type: Shared unit cost × pax; Private = flat vehicle cost (no × pax).
+        // Match enquiry Pro sell logic:
+        // Shared: zone/unit cost × pax (adults + children); qty is coverage only.
+        // Private: zone/unit cost × vehicle quantity.
         $transferTypeRaw = strtolower(trim((string) (
             $item['transferType']
             ?? $item['transfer_type']
@@ -1030,37 +1043,103 @@ class OrderCostPriceHelper
 
         $adults = self::qtyFromItem($item, ['adults', 'adultsQty', 'adult_qty', 'Adults']);
         $children = self::qtyFromItem($item, ['children', 'child', 'childQty', 'child_qty', 'Children']);
+        $pax = max(0, $adults + $children);
 
-        // Prefer explicit zone cost columns when present; otherwise unit cost from payload.
-        // Frontend stores shared/private zone cost as adultCost/cost (unit, not yet × pax).
-        $adultUnitCost = 0.0;
-        $childUnitCost = 0.0;
-        if ($isShared) {
-            $adultUnitCost = self::firstNumeric($item, [
-                'zoneSharedCostPrice', 'shared_cost_price', 'sharedCostPrice',
-                'adult_cost', 'adultCost', 'cost_price', 'cost', 'Cost', 'base_cost', 'baseCost',
-            ]);
-            $childUnitCost = self::firstNumeric($item, [
-                'zoneSharedCostPrice', 'shared_cost_price', 'sharedCostPrice',
-                'child_cost', 'childCost', 'adult_cost', 'adultCost', 'cost_price', 'cost', 'Cost',
-            ]);
-        } else {
-            $adultUnitCost = self::firstNumeric($item, [
-                'zonePrivateCostPrice', 'private_cost_price', 'privateCostPrice',
-                'adult_cost', 'adultCost', 'cost_price', 'cost', 'Cost', 'base_cost', 'baseCost',
-            ]);
-            $childUnitCost = $adultUnitCost;
+        $vehicleQty = self::qtyFromItem($item, [
+            'vehicle_qty', 'vehicleQty', 'booked_vehicles', 'quantity', 'qty',
+        ]);
+        if ($vehicleQty <= 0) {
+            $vehicleQty = 1;
+        }
+        // Prefer per-vehicle qty from vehicles[] when present
+        $vehicles = is_array($item['vehicles'] ?? null) ? $item['vehicles'] : [];
+        $primaryVehicle = is_array($vehicles[0] ?? null) ? $vehicles[0] : [];
+        if ($primaryVehicle) {
+            $vQty = self::qtyFromItem($primaryVehicle, ['qty', 'quantity', 'vehicle_qty', 'vehicleQty']);
+            if ($vQty > 0) {
+                $vehicleQty = $vQty;
+            }
+            $vAdults = self::qtyFromItem($primaryVehicle, ['adults', 'adultsQty', 'adult_qty']);
+            $vChild = self::qtyFromItem($primaryVehicle, ['children', 'child', 'childQty', 'child_qty']);
+            if (($vAdults + $vChild) > 0) {
+                $adults = $vAdults;
+                $children = $vChild;
+                $pax = $adults + $children;
+            }
         }
 
-        // Do not fall back to sell/totalPrice for cost_price — those are customer sell figures.
-        $vehicleCost = 0.0;
+        // Resolve UNIT cost only (never treat line totals as unit).
+        $unitCost = 0.0;
         if ($isShared) {
-            if ($adultUnitCost > 0 || $childUnitCost > 0) {
-                $vehicleCost = ($adultUnitCost * $adults) + ($childUnitCost * $children);
+            $unitCost = self::firstNumeric($item, [
+                'zoneSharedCostPrice', 'shared_cost_price', 'sharedCostPrice', 'unitCost', 'unit_cost',
+            ]);
+            if ($unitCost <= 0 && $primaryVehicle) {
+                $unitCost = self::firstNumeric($primaryVehicle, [
+                    'zoneSharedCostPrice', 'shared_cost_price', 'sharedCostPrice', 'unitCost', 'unit_cost',
+                ]);
             }
-        } elseif ($adultUnitCost > 0) {
-            // Private / unknown: flat per-vehicle cost (already includes both-way if applied upstream).
-            $vehicleCost = $adultUnitCost;
+        } else {
+            $unitCost = self::firstNumeric($item, [
+                'zonePrivateCostPrice', 'private_cost_price', 'privateCostPrice', 'unitCost', 'unit_cost',
+            ]);
+            if ($unitCost <= 0 && $primaryVehicle) {
+                $unitCost = self::firstNumeric($primaryVehicle, [
+                    'zonePrivateCostPrice', 'private_cost_price', 'privateCostPrice', 'unitCost', 'unit_cost',
+                ]);
+            }
+        }
+
+        // Derive unit from lineCost when unit missing (lineCost already matches sell formula)
+        if ($unitCost <= 0) {
+            $lineCost = self::firstNumeric($item, ['lineCost', 'line_cost']);
+            if ($lineCost <= 0 && $primaryVehicle) {
+                $lineCost = self::firstNumeric($primaryVehicle, ['lineCost', 'line_cost']);
+            }
+            if ($lineCost > 0) {
+                if ($isShared && $pax > 0) {
+                    $unitCost = $lineCost / $pax;
+                } elseif (! $isShared && $vehicleQty > 0) {
+                    $unitCost = $lineCost / $vehicleQty;
+                }
+            }
+        }
+
+        // Last resort: adultCost/cost may be unit (legacy) — only when no line/unit/zone present
+        if ($unitCost <= 0) {
+            $unitCost = self::firstNumeric($item, [
+                'adult_cost', 'adultCost', 'cost_price', 'base_cost', 'baseCost',
+            ]);
+            // If `cost` equals line total for shared (≈ unit×pax), peel pax; else treat as unit
+            $payloadCost = self::firstNumeric($item, ['cost', 'Cost']);
+            if ($unitCost <= 0 && $payloadCost > 0) {
+                if ($isShared && $pax > 1 && abs($payloadCost - ($payloadCost / $pax) * $pax) < 0.01) {
+                    // Prefer peeling when cost looks like a line total vs tiny unit
+                    $maybeUnit = $payloadCost / $pax;
+                    // Heuristic: if vehicles also have unitCost use that; else if cost >> typical unit use peel
+                    $unitCost = $maybeUnit > 0 ? $maybeUnit : $payloadCost;
+                } else {
+                    $unitCost = $payloadCost;
+                }
+            }
+        }
+
+        $vehicleCost = 0.0;
+        if ($unitCost > 0) {
+            if ($isShared) {
+                $vehicleCost = $unitCost * max(1, $pax);
+            } else {
+                $vehicleCost = $unitCost * max(1, $vehicleQty);
+            }
+        }
+
+        // Prefer explicit lineCost from payload when it already matches the sell-side total
+        $explicitLine = self::firstNumeric($item, ['lineCost', 'line_cost']);
+        if ($explicitLine <= 0 && $primaryVehicle) {
+            $explicitLine = self::firstNumeric($primaryVehicle, ['lineCost', 'line_cost']);
+        }
+        if ($explicitLine > 0) {
+            $vehicleCost = $explicitLine;
         }
 
         if ($vehicleCost > 0) {
@@ -1069,11 +1148,15 @@ class OrderCostPriceHelper
                 'label' => ucfirst(str_replace('_', ' ', $type)),
                 'cost' => round($vehicleCost, 2),
                 'meta' => [
-                    'vehicle' => $item['vehicles_name'] ?? $item['vehicle_name'] ?? $item['vehicleName'] ?? null,
+                    'vehicle' => $item['vehicles_name'] ?? $item['vehicle_name'] ?? $item['vehicleName']
+                        ?? ($primaryVehicle['vehicleName'] ?? $primaryVehicle['vehicle_name'] ?? null),
                     'transfer_type' => $isShared ? 'shared' : 'private',
                     'adults' => $adults,
                     'children' => $children,
-                    'unit_cost' => round($adultUnitCost, 2),
+                    'pax' => $pax,
+                    'vehicle_qty' => $vehicleQty,
+                    'unit_cost' => round($unitCost, 2),
+                    'formula' => $isShared ? 'unit_cost × pax' : 'unit_cost × qty',
                 ],
             ];
         }
