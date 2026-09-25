@@ -119,6 +119,12 @@ export const applyTourSearchToRedux = (dispatch, payload = {}) => {
       : destinationLocations.length > 1
         ? "multi"
         : "single";
+  const maleCount = Number(
+    payload.maleCount ?? payload.male_count ?? 0
+  );
+  const femaleCount = Number(
+    payload.femaleCount ?? payload.female_count ?? 0
+  );
   const searchLocation = Array.isArray(payload.searchLocation)
     ? payload.searchLocation.filter(Boolean)
     : Array.isArray(payload.countryCodes)
@@ -170,6 +176,8 @@ export const applyTourSearchToRedux = (dispatch, payload = {}) => {
       adult: adults,
       child: children,
       infant,
+      maleCount,
+      femaleCount,
       CheckInTime: checkIn,
       CheckOutTime: checkOut,
       tour_id: tourId,

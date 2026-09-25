@@ -99,7 +99,7 @@ const usdPrice = Math.ceil(totalPrice * usdExchangeRate);
   const bookingArray = useSelector((state) => state.hoteldetails.bookingArray);
   const hotelDetails = useSelector((state) => state.hoteldetails.bookingDetails);
   const tourDetails = useSelector((state) => state.hotels?.tourdetails);
-
+  console.log("tour details hotel:", tourDetails);
   // Clear booking-related data but preserve hotel details when component mounts
   useEffect(() => {
     // console.log("Initializing booking data...");
