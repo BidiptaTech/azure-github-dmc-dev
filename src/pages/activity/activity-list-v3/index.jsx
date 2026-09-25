@@ -1519,8 +1519,8 @@ console.log("zone_on5", zone_on);
       <MetaComponent meta={metadata} />
       {/* End Page Title */}
       <div className="header-margin">
-        <CustomStepper />
-        <TourStatus />
+        <CustomStepper variant="lite" />
+        <TourStatus variant="lite" />
       </div>
 
       {showBookingTable && hasBookings ? (

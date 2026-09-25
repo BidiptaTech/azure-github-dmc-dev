@@ -34,7 +34,7 @@ const SearchBar = ({
   
   // Access city data from Redux store
   const cityData = useSelector((state) => state.city.city);
-  //console.log("City Data:", cityData);
+  console.log("City Data hotel:", cityData);
 
   // Transform city data into expected format (API/session may return strings or objects)
   const transformedCityData = (Array.isArray(cityData) ? cityData : [])

@@ -499,9 +499,13 @@ const MainFilterSearchBox = () => {
         adult: guestCounts.Adults,
         child: guestCounts.Children,
         infant: guestCounts.Infants,
+        maleCount: guestCounts.maleCount,
+        femaleCount: guestCounts.femaleCount,
+        childrenAges: guestCounts.ages,
         CheckInTime: formattedCheckIn,
         CheckOutTime: formattedCheckOut,
         tour_id: null,
+        city_type: tripType, // "single" | "multi"
       })
     );
     dispatch(setId(0));

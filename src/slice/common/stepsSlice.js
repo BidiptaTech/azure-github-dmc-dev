@@ -110,6 +110,10 @@ const stepsSlice = createSlice({
     setType: (state, action) => {
       state.type = action.payload;
     },
+    // Set current step index (tour-backed navigation / lite stepper clicks)
+    setCurrentStep: (state, action) => {
+      state.currentStep = action.payload;
+    },
     // Set local current step (for navigation before tour exists)
     setLocalCurrentStep: (state, action) => {
       state.localCurrentStep = action.payload;
@@ -232,6 +236,7 @@ export const {
   updateStepStatus,
   resetSteps,
   setType,
+  setCurrentStep,
   setLocalCurrentStep,
   updateLocalStepStatus,
   hydrateStepsFromSession,
