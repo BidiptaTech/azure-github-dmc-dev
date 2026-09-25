@@ -127,6 +127,7 @@ const CartPage = () => {
 
   /** Same Redux fields as MainFilterSearchBox handleSearch */
   const restoreTripToRedux = (trip) => {
+    console.log("trip cart page:", trip);
     applyTourSearchToRedux(dispatch, {
       destination: trip.destination,
       country: trip.country,

@@ -109,7 +109,6 @@ export const applyTourSearchToRedux = (dispatch, payload = {}) => {
   const tourId =
     payload.tour_id ?? payload.tourId ?? payload.id ?? null;
 
-  const destinationNames = destinationLocations.map((loc) => loc.city);
   const primaryCountry =
     payload.country ||
     destinationLocations.find((loc) => loc.country)?.country ||
@@ -179,7 +178,8 @@ export const applyTourSearchToRedux = (dispatch, payload = {}) => {
 
   dispatch(
     setCity({
-      cities: destinationNames,
+      // Keep each city's own country from destination [{ city, country }, ...]
+      cities: destinationLocations,
       country: primaryCountry,
     })
   );
