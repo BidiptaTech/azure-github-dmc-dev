@@ -12,9 +12,13 @@
                 <p class="enquiry-md-panel__title">Pricing by city</p>
                 <span class="enquiry-md-panel__count" id="enquiryProMarkupCityCount">0</span>
             </div>
-            <p class="enquiry-md-panel__hint">Per destination currency</p>
+            <p class="enquiry-md-panel__hint">Markup added to rates · Discount on total</p>
         </div>
         <div class="enquiry-md-panel__body">
+            <p class="enquiry-md-panel__note">
+                Hotel markup and Other markup are applied per destination currency and included in quotation rates.
+                Discount is shown on the quotation total only.
+            </p>
             <div class="enquiry-md-table-wrap">
                 <table class="enquiry-md-table">
                     <thead>
@@ -22,7 +26,7 @@
                             <th scope="col">City</th>
                             <th scope="col" class="enquiry-md-th-markup">Markup type</th>
                             <th scope="col" class="enquiry-md-th-markup">Hotel markup</th>
-                            <th scope="col" class="enquiry-md-th-markup">Other markup</th>
+                            <th scope="col" class="enquiry-md-th-markup">Other Service(s) markup</th>
                             <th scope="col" class="enquiry-md-th-discount">Disc type</th>
                             <th scope="col" class="enquiry-md-th-discount">Disc value</th>
                         </tr>

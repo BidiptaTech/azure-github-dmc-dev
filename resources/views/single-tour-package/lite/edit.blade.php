@@ -70,6 +70,8 @@
     if ($editAgencyId === '' && !empty($tour->agent_id)) {
         $editAgencyId = (string) (optional(\App\Models\Agent::where('agent_id', $tour->agent_id)->first())->agency_id ?? '');
     }
+    $tourStatusNorm = strtolower(trim((string) ($tour->tour_status ?? '')));
+    $showAppPassword = in_array($tourStatusNorm, ['definite', 'actual'], true);
 @endphp
 
 @push('css')
@@ -128,6 +130,8 @@
 window.STP_LITE_EDIT = {
     tourId: @json((int) ($tour->tour_id ?? 0)),
     displayId: @json($tour->display_id ?? ''),
+    tourStatus: @json($tour->tour_status ?? ''),
+    showAppPassword: @json($showAppPassword),
     startDate: @json($startYmd),
     endDate: @json($endYmd),
     datesDisplay: @json($datesDisplay),

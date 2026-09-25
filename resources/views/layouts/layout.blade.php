@@ -17,9 +17,13 @@
 
 @yield('content')  
 @include('layouts.footer') 
-<!-- Close layout wrappers (opened in sidebar/topbar) -->
+<!-- Close layout-page + layout-container (opened in sidebar/topbar) -->
 </div>
 </div>
+<!-- Mobile sidebar backdrop (click to close) -->
+<div class="layout-overlay layout-menu-toggle"></div>
+<div class="drag-target"></div>
+<!-- Close layout-wrapper -->
 </div>
 @yield('scripts')
 @stack('scripts')

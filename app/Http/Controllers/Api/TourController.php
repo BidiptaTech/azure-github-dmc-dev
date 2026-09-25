@@ -21,6 +21,7 @@ use App\Models\Attraction;
 use App\Models\Restaurant;
 use App\Models\VehicleZoneMapping;
 use App\Helpers\CommonHelper;
+use App\Helpers\OrderCostPriceHelper;
 use App\Models\Guide;
 use App\Models\Transaction;
 use App\Models\Vehicle;
@@ -1194,6 +1195,7 @@ class TourController extends Controller
                 ], 422);
             }
             $order = $jsonData[0];  // Object data
+            $bookingPayloadItem = $jsonData[0]; // keep geo source after $order is reassigned to Eloquent model
 
         if (in_array($validatedData['type'], ['entry_port', 'exit_port', 'travel_point','local_transport'])) {
 
@@ -1259,6 +1261,7 @@ class TourController extends Controller
                         $order->bookingType = $bookingType;
                         $order->discount = $commission;
                         $order->markup_percentage = $markup_percentage;
+                        $this->assignOrderGeoColumns($order, $bookingPayloadItem, $request);
                         $order->save();
                         $order->refresh();
                         $service = CommonHelper::CommonBookingResponse($agent_id,$tour_id,$type);
@@ -1421,6 +1424,7 @@ class TourController extends Controller
                 $order->bookingType = $bookingType;
                 $order->discount = $commission;
                 $order->markup_percentage = $markup_percentage;
+                $this->assignOrderGeoColumns($order, $bookingPayloadItem, $request);
                 $order->save();
                 $order->refresh();
                 $service = CommonHelper::CommonBookingResponse($agent_id,$tour_id,$type);
@@ -2529,6 +2533,7 @@ class TourController extends Controller
                 $order->bookingType = $bookingType;
                 $order->discount = $commission;
                 $order->markup_percentage = $markup_percentage;
+                $this->assignOrderGeoColumns($order, $bookingPayloadItem, $request);
                 $order->save();
                 $order->refresh();
                 
@@ -3002,6 +3007,12 @@ class TourController extends Controller
                 if (empty($data[0]['dmc_id'])) {
                     $data[0]['dmc_id'] = $booking['dmc_id'] ?? $ctx['dmc_id'] ?? null;
                 }
+                if (empty($data[0]['country']) && !empty($booking['country'])) {
+                    $data[0]['country'] = is_string($booking['country']) ? $booking['country'] : null;
+                }
+                if (empty($data[0]['city']) && !empty($booking['city'])) {
+                    $data[0]['city'] = is_string($booking['city']) ? $booking['city'] : null;
+                }
                 unset($data[0]['type'], $data[0]['tour_id']);
                 $data[0] = array_merge($ctx['customerInfo'] ?? [], $data[0]);
             }
@@ -3060,6 +3071,8 @@ class TourController extends Controller
                     'bookingType' => $ctx['bookingType'] ?? 'booking',
                     'totalPrice' => $booking['totalPrice'] ?? 0,
                     'priceMode' => $booking['priceMode'] ?? $booking['pricemode'] ?? 'dmc',
+                    'city' => $booking['city'] ?? null,
+                    'country' => is_string($booking['country'] ?? null) ? $booking['country'] : null,
                     'hotelDetails' => [
                         'hotel_id' => $hotelId,
                         'hotel_name' => $booking['hotel_name'] ?? 'Hotel',
@@ -3196,6 +3209,8 @@ class TourController extends Controller
                     'totalPrice' => $booking['totalPrice'] ?? 0,
                     'dmc_id' => $booking['dmc_id'] ?? $ctx['dmc_id'] ?? null,
                     'nri' => $booking['nri'] ?? ($ticketDetails['nri'] ?? 'residential'),
+                    'city' => $booking['city'] ?? null,
+                    'country' => is_string($booking['country'] ?? null) ? $booking['country'] : null,
                 ])],
             ]);
         }
@@ -3242,6 +3257,120 @@ class TourController extends Controller
         } finally {
             $request->json()->replace($original);
         }
+    }
+
+    /**
+     * Persist country / city / currency columns on an order from booking payload.
+     *
+     * @param  object|array|null  $dataItem
+     */
+    private function assignOrderGeoColumns(Order $order, $dataItem, ?Request $request = null): void
+    {
+        $geo = $this->resolveBookingOrderGeo($dataItem, $request);
+
+        if (! empty($geo['country'])) {
+            $order->country = $geo['country'];
+        }
+        if (! empty($geo['city'])) {
+            $order->city = $geo['city'];
+        }
+        if (! empty($geo['currency'])) {
+            $order->currency = $geo['currency'];
+        }
+    }
+
+    /**
+     * Resolve country/city from booking data (and request fallbacks),
+     * then look up currency from countries table by country name.
+     *
+     * @param  object|array|null  $dataItem
+     * @return array{country: ?string, city: ?string, currency: ?string}
+     */
+    private function resolveBookingOrderGeo($dataItem, ?Request $request = null): array
+    {
+        $payload = [];
+        if (is_object($dataItem)) {
+            $payload = json_decode(json_encode($dataItem), true) ?: [];
+        } elseif (is_array($dataItem)) {
+            $payload = $dataItem;
+        }
+
+        $cityCandidates = [
+            $payload['city'] ?? null,
+            $payload['AttractionCity'] ?? null,
+            $payload['restaurantCity'] ?? null,
+            $payload['hotelCity'] ?? null,
+            $payload['hotel_city'] ?? null,
+            $payload['destination'] ?? null,
+            is_array($payload['hotelDetails'] ?? null) ? ($payload['hotelDetails']['location'] ?? null) : null,
+            is_array($payload['hotelDetails'] ?? null) ? ($payload['hotelDetails']['city'] ?? null) : null,
+        ];
+
+        $city = null;
+        foreach ($cityCandidates as $candidate) {
+            $candidate = trim((string) ($candidate ?? ''));
+            if ($candidate === '') {
+                continue;
+            }
+            // Skip multi-city tour strings / date ranges like "Singapore [2026-09-06→...]"
+            if (str_contains($candidate, '[') || preg_match('/^(Arrival|Departure)\s*:/i', $candidate)) {
+                continue;
+            }
+            foreach (preg_split('/\s*,\s*/', $candidate) ?: [] as $part) {
+                $part = trim((string) $part);
+                if ($part === '') {
+                    continue;
+                }
+                if (City::where('name', $part)->exists()) {
+                    $city = $part;
+                    break 2;
+                }
+                if ($city === null) {
+                    $city = $part;
+                }
+            }
+        }
+
+        // Top-level request city only when it's a single plain city name
+        if (($city === null || $city === '') && $request) {
+            $reqCity = trim((string) ($request->input('city') ?? ''));
+            if ($reqCity !== '' && ! str_contains($reqCity, ',') && ! str_contains($reqCity, '[')) {
+                $city = $reqCity;
+            }
+        }
+
+        $country = trim((string) ($payload['country'] ?? ''));
+        // Reject city-CSV or a city name mistakenly sent as country
+        if ($country !== '' && (str_contains($country, ',') || City::where('name', $country)->exists())) {
+            $country = '';
+        }
+        if ($country === '' && $request) {
+            $reqCountry = trim((string) ($request->input('country') ?? ''));
+            if ($reqCountry !== '' && ! str_contains($reqCountry, ',') && ! City::where('name', $reqCountry)->exists()) {
+                $country = $reqCountry;
+            }
+        }
+        if ($country === '' && $city) {
+            $country = trim((string) (City::where('name', $city)->value('country') ?? ''));
+        }
+
+        $currency = null;
+        if ($country !== '') {
+            $currencyRaw = Country::where('name', $country)->value('currency');
+            if ($currencyRaw !== null && trim((string) $currencyRaw) !== '') {
+                $currency = strtoupper(trim((string) $currencyRaw));
+            }
+        }
+        // Prefer explicit currency from payload only when countries lookup failed
+        if (($currency === null || $currency === '') && ! empty($payload['currency'])) {
+            $currency = strtoupper(trim((string) $payload['currency']));
+        }
+
+        return [
+            'country' => $country !== '' ? $country : null,
+            'city' => ($city !== null && $city !== '') ? $city : null,
+            'currency' => ($currency !== null && $currency !== '') ? $currency : null,
+        ];
     }
 
     /* 
@@ -3303,6 +3432,11 @@ class TourController extends Controller
                 $enquiry->refresh();
                 
                 if ($enquiry) {
+                    // Persist city/country discount payload onto the tour
+                    if ($tour) {
+                        $this->applyEnquiryCurrencyMarkups($tour, $request->input('currency_markups'));
+                    }
+
                     // Mark previous enquiry as inactive if it exists
                     if ($currentEnquiry && $currentEnquiry->enquiry_id !== $enquiry->enquiry_id) {
                         $currentEnquiry->update(['status' => 0]);
@@ -3402,8 +3536,101 @@ class TourController extends Controller
         }
     }
 
+    /**
+     * Save frontend currency_markups onto the tour and sync discount_type / discount_amount.
+     * Full markup rows are stored; tour-level discount columns use discount_type + discount_value only.
+     *
+     * @param  mixed  $rawMarkups
+     */
+    private function applyEnquiryCurrencyMarkups(Tour $tour, $rawMarkups): void
+    {
+        if (is_string($rawMarkups)) {
+            $decoded = json_decode($rawMarkups, true);
+            $rawMarkups = (json_last_error() === JSON_ERROR_NONE) ? $decoded : null;
+        }
+
+        if (! is_array($rawMarkups) || $rawMarkups === []) {
+            return;
+        }
+
+        $normalized = [];
+        foreach ($rawMarkups as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+
+            $city = trim((string) ($row['city'] ?? ''));
+            $country = trim((string) ($row['country'] ?? ''));
+            $currency = strtoupper(trim((string) ($row['currency'] ?? '')));
+
+            // Skip completely empty rows
+            if ($city === '' && $country === '' && $currency === '') {
+                continue;
+            }
+
+            $markupType = strtolower(trim((string) ($row['markup_type'] ?? '')));
+            if ($markupType === 'fixed') {
+                $markupType = 'flat';
+            }
+            if (! in_array($markupType, ['percentage', 'flat'], true)) {
+                $markupType = '';
+            }
+
+            $discountType = strtolower(trim((string) ($row['discount_type'] ?? '')));
+            if ($discountType === 'fixed') {
+                $discountType = 'flat';
+            }
+            if (! in_array($discountType, ['percentage', 'flat', 'foc'], true)) {
+                $discountType = '';
+            }
+
+            $hotelMarkup = (float) ($row['hotel_markup'] ?? $row['markup_value'] ?? 0);
+            $otherMarkup = (float) ($row['other_markup'] ?? 0);
+
+            $normalized[] = [
+                'city' => $city,
+                'currency' => $currency,
+                'country' => $country,
+                'markup_type' => $markupType !== '' ? $markupType : null,
+                'markup_value' => (float) ($row['markup_value'] ?? ($hotelMarkup + $otherMarkup)),
+                'hotel_markup' => $hotelMarkup,
+                'other_markup' => $otherMarkup,
+                'discount_type' => $discountType !== '' ? $discountType : null,
+                'discount_value' => (float) ($row['discount_value'] ?? 0),
+            ];
+        }
+
+        if ($normalized === []) {
+            return;
+        }
+
+        $tour->currency_markups = array_values($normalized);
+
+        // Tour-level discount: prefer first row with a discount value, else first row with a type
+        $primary = null;
+        foreach ($normalized as $row) {
+            if (! empty($row['discount_type']) && (float) ($row['discount_value'] ?? 0) > 0) {
+                $primary = $row;
+                break;
+            }
+        }
+        if ($primary === null) {
+            foreach ($normalized as $row) {
+                if (! empty($row['discount_type'])) {
+                    $primary = $row;
+                    break;
+                }
+            }
+        }
+        $primary = $primary ?? $normalized[0];
+
+        $tour->discount_type = $primary['discount_type'] ?? null;
+        $tour->discount_amount = (float) ($primary['discount_value'] ?? 0);
+        $tour->save();
+    }
+
     /* 
-    *Update Enquiry 
+    * Enquiry Status
     * Date 24-03-2025
     */
     public function enquiryStatus(Request $request){
@@ -3420,39 +3647,72 @@ class TourController extends Controller
                 'success' => false,
                 'message' => 'Tour not found.'
             ], 404); 
-        }else{
-            $enquiry = Enquiry::where('tour_id', $tour->tour_id)->latest()->first();
-            $rem = '';
-            
-            if ($enquiry) {
-            if($enquiry->current_position == "OM"){
-                    $rem = 'Waiting for AM approval';
-            }elseif($enquiry->current_position == "AM"){
-                    $rem = 'Waiting for Offer';
-            }elseif($enquiry->current_position == "agent"){
-                    $rem = 'Offered';
+        }
+
+        $enquiry = Enquiry::where('tour_id', $tour->tour_id)->latest()->first();
+        $rem = '';
+
+        if ($enquiry) {
+            if ($enquiry->current_position == "OM") {
+                $rem = 'Waiting for AM approval';
+            } elseif ($enquiry->current_position == "AM") {
+                $rem = 'Waiting for Offer';
+            } elseif ($enquiry->current_position == "agent") {
+                $rem = 'Offered';
             }
-            }
-            
-            $data = [
+        }
+
+        $countryPrices = OrderCostPriceHelper::getCountryWiseTotalPrice($tour->tour_id);
+
+        $comment = $enquiry ? ($enquiry->comment ?? '') : '';
+        $assigned = $enquiry ? ($enquiry->current_position ?? '') : '';
+        $status = $enquiry ? ($enquiry->status ?? '') : '';
+        $created = $enquiry ? CommonHelper::DateFormatAdmin($enquiry->created_at) : '';
+        $updated = $enquiry ? CommonHelper::DateFormatAdmin($enquiry->updated_at) : '';
+        $pendingDays = $enquiry && $enquiry->created_at
+            ? max(1, now()->diffInDays($enquiry->created_at)) . ' days'
+            : '0 days';
+
+        $data = [];
+        foreach ($countryPrices as $row) {
+            $data[] = [
                 'tour_id' => $tour->tour_id,
+                'country' => $row['country'] ?? '',
+                'currency' => $row['currency'] ?? '',
+                'actual_price' => $row['actual_price'] ?? 0,
+                'current_price' => $row['current_price'] ?? 0,
+                'comment' => $comment,
+                'remarks' => $rem,
+                'assigned' => $assigned,
+                'status' => $status,
+                'created' => $created,
+                'updated' => $updated,
+                'pending_days' => $pendingDays,
+            ];
+        }
+
+        // Fallback when tour has no destination and no priced bookings yet
+        if ($data === []) {
+            $data[] = [
+                'tour_id' => $tour->tour_id,
+                'country' => '',
+                'currency' => '',
                 'actual_price' => $enquiry ? ($enquiry->actual_amount ?? '') : '',
                 'current_price' => $enquiry ? ($enquiry->amount ?? '') : '',
-                'comment' => $enquiry ? ($enquiry->comment ?? '') : '',
+                'comment' => $comment,
                 'remarks' => $rem,
-                'assigned' => $enquiry ? ($enquiry->current_position ?? '') : '',
-                'status' => $enquiry ? ($enquiry->status ?? '') : '',
-                'created' => $enquiry ? CommonHelper::DateFormatAdmin($enquiry->created_at) : '',
-                'updated' => $enquiry ? CommonHelper::DateFormatAdmin($enquiry->updated_at) : '',
-                'pending_days' => $enquiry && $enquiry->created_at 
-                    ? max(1, now()->diffInDays($enquiry->created_at)) . ' days' 
-                    : '0 days',
+                'assigned' => $assigned,
+                'status' => $status,
+                'created' => $created,
+                'updated' => $updated,
+                'pending_days' => $pendingDays,
             ];
-            return response()->json([
-                'success' => true,
-                'data' => $data
-            ], 200);
         }
+
+        return response()->json([
+            'success' => true,
+            'data' => $data
+        ], 200);
     }
 
     /*

@@ -70,7 +70,7 @@
 <div class="container-fluid">
     <div class="row mb-2 align-items-start">
         <div class="col-md-6">
-            <h4 class="mb-1">Tour Quotation Preview</h4>
+            <h4 class="mb-1">Packaged Quotation Preview</h4>
             <p class="text-muted small mb-0">
                 Tour ID: {{ $tour->display_id ?? $tour->tour_id }} &mdash;
                 Destination: {{ $tour->destination ?? $tour->tour_destination ?? 'N/A' }}

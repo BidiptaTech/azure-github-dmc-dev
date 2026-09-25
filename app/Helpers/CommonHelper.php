@@ -8066,16 +8066,27 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         };
 
         $bookingRangeLabel = function (array $item) use ($tour): string {
-            $bookingDate = $item['bookingDate'] ?? null;
+            // Prefer lite stay window — never fall back to full tour dates (breaks return-city matching).
             try {
-                if (is_array($bookingDate) && count($bookingDate) === 2 && !empty($bookingDate[0]) && !empty($bookingDate[1])) {
+                $stayStart = trim((string) ($item['stay_start'] ?? ''));
+                $stayEnd = trim((string) ($item['stay_end'] ?? ''));
+                if ($stayStart !== '' && $stayEnd !== '') {
+                    return Carbon::parse($stayStart)->format('Y-m-d') . ' to ' . Carbon::parse($stayEnd)->format('Y-m-d');
+                }
+            } catch (\Throwable $e) {
+            }
+            $bookingDate = $item['bookingDate'] ?? $item['booking_date'] ?? null;
+            try {
+                if (is_array($bookingDate) && count($bookingDate) >= 2 && !empty($bookingDate[0]) && !empty($bookingDate[1])) {
                     return Carbon::parse($bookingDate[0])->format('Y-m-d') . ' to ' . Carbon::parse($bookingDate[1])->format('Y-m-d');
                 }
             } catch (\Throwable $e) {
             }
             try {
-                if (!empty($tour->check_in_time) && !empty($tour->check_out_time)) {
-                    return Carbon::parse($tour->check_in_time)->format('Y-m-d') . ' to ' . Carbon::parse($tour->check_out_time)->format('Y-m-d');
+                $checkIn = trim((string) ($item['check_in'] ?? $item['checkIn'] ?? ($item['hotelDetails']['checkInTime'] ?? '')));
+                $checkOut = trim((string) ($item['check_out'] ?? $item['checkOut'] ?? ($item['hotelDetails']['checkOutTime'] ?? '')));
+                if ($checkIn !== '' && $checkOut !== '') {
+                    return Carbon::parse($checkIn)->format('Y-m-d') . ' to ' . Carbon::parse($checkOut)->format('Y-m-d');
                 }
             } catch (\Throwable $e) {
             }
@@ -8200,8 +8211,9 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                         ?? $item['name']
                         ?? 'Hotel';
                     $dateRange = $bookingRangeLabel($item);
-                    // Merge same hotel into one quotation row (ignore date splits).
-                    $hotelKey = mb_strtolower(trim((string) $hotelName)) . '|' . $countryKey;
+                    $isReturnStay = !empty($item['is_return']) || !empty($item['isReturn']);
+                    // Keep primary vs return (same hotel, different dates) as separate quotation rows.
+                    $hotelKey = mb_strtolower(trim((string) $hotelName)) . '|' . $countryKey . '|' . ($dateRange !== '' ? $dateRange : ($isReturnStay ? 'return' : 'primary'));
 
                     // Add booked occupancy per-pax only into country totals (e.g. 100 / 100 / 117).
                     $addBookedToCountry = function () use (
@@ -8307,6 +8319,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                             'country' => $orderCountry,
                             'city' => $orderCity !== '' ? $orderCity : null,
                             'currency' => $orderCurrency,
+                            'is_return' => $isReturnStay,
                         ];
                     }
                     $hotelBuckets[$hotelKey]['selected_persons'] = max(
@@ -8783,6 +8796,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 'hotel_id' => $meta['hotel_id'] ?? null,
                 'hotel_name' => $meta['hotel_name'] ?? null,
                 'date_range' => $meta['date_range'] ?? null,
+                'is_return' => !empty($meta['is_return']),
                 'display_name' => $meta['display_name'] ?? ($meta['hotel_name'] ?? $hotelKey),
                 'country' => $meta['country'] ?? null,
                 'city' => $meta['city'] ?? null,
@@ -9446,6 +9460,9 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 'model_year' => $item['model_year'] ?? null,
                 'travel_type' => $item['travel_type'] ?? null,
                 'mode' => $item['Mode'] ?? $item['mode'] ?? null,
+                'hours' => $item['hours'] ?? $item['selectedHours'] ?? $item['package_hours'] ?? $item['packageHours'] ?? null,
+                'pickup' => $item['pickup'] ?? $item['pickup_location'] ?? $item['pickuplocation'] ?? $item['from_location'] ?? null,
+                'dropoff' => $item['dropoff'] ?? $item['dropoff_location'] ?? $item['dropofflocation'] ?? $item['to_location'] ?? null,
             ];
         }
 
@@ -10071,6 +10088,40 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                         $order,
                         (is_object($tour) && !empty($tour->currency)) ? (string) $tour->currency : 'SGD'
                     ),
+                    // Stay window for return-city quotation buckets
+                    'bookingDate' => $item['bookingDate'] ?? $item['booking_date'] ?? null,
+                    'stay_start' => $item['stay_start'] ?? null,
+                    'stay_end' => $item['stay_end'] ?? null,
+                    'is_return' => !empty($item['is_return']) || !empty($item['isReturn']),
+                    'check_in' => (function () use ($item) {
+                        $v = $item['stay_start']
+                            ?? (is_array($item['bookingDate'] ?? null) ? ($item['bookingDate'][0] ?? null) : null)
+                            ?? $item['check_in']
+                            ?? ($item['hotelDetails']['checkInTime'] ?? null);
+                        return $v ? (string) $v : null;
+                    })(),
+                    'check_out' => (function () use ($item) {
+                        $v = $item['stay_end']
+                            ?? (is_array($item['bookingDate'] ?? null) ? ($item['bookingDate'][1] ?? null) : null)
+                            ?? $item['check_out']
+                            ?? ($item['hotelDetails']['checkOutTime'] ?? null);
+                        return $v ? (string) $v : null;
+                    })(),
+                    'date_range' => (function () use ($item) {
+                        try {
+                            $s = trim((string) ($item['stay_start'] ?? ''));
+                            $e = trim((string) ($item['stay_end'] ?? ''));
+                            if ($s !== '' && $e !== '') {
+                                return \Carbon\Carbon::parse($s)->format('Y-m-d') . ' to ' . \Carbon\Carbon::parse($e)->format('Y-m-d');
+                            }
+                            $bd = $item['bookingDate'] ?? $item['booking_date'] ?? null;
+                            if (is_array($bd) && count($bd) >= 2 && !empty($bd[0]) && !empty($bd[1])) {
+                                return \Carbon\Carbon::parse($bd[0])->format('Y-m-d') . ' to ' . \Carbon\Carbon::parse($bd[1])->format('Y-m-d');
+                            }
+                        } catch (\Throwable $e) {
+                        }
+                        return null;
+                    })(),
                     // Keep raw rooms payload so email template can extract beds[*].head_count
                     'rooms' => is_array($rooms) ? $rooms : [],
                     'adult_price' => isset($adultPrice) && is_numeric($adultPrice) ? number_format($adultPrice, 2) : ($adultPrice ?? 'N/A'),
