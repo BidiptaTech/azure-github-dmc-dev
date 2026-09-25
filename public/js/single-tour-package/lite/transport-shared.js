@@ -2178,6 +2178,130 @@
         }
     }
 
+    function hotelRowMeta(h) {
+        var hd = (h && h.hotelDetails) || {};
+        return {
+            id: String(h.hotel_unique_id || h.hotel_id || hd.hotel_id || '').trim(),
+            name: String(h.hotel_name || hd.hotel_name || hd.name || '').trim(),
+            city: String(h.city || hd.city || hd.location || '').trim().toLowerCase(),
+            planIndex: h.plan_index != null ? String(h.plan_index) : '',
+            isReturn: !!(h.is_return || h.isReturn)
+        };
+    }
+
+    function hotelsForStay(hotels, stay) {
+        var stayCity = String((stay && stay.cityName) || '').trim().toLowerCase();
+        var stayPlan = stay && stay.planIndex != null ? String(stay.planIndex) : '';
+        var stayReturn = !!(stay && stay.isReturn);
+        return (hotels || []).filter(function (h) {
+            var m = hotelRowMeta(h);
+            if (!m.id && !m.name) return false;
+            if (stayCity && m.city && m.city !== stayCity) return false;
+            if (stayPlan !== '' && m.planIndex !== '' && m.planIndex !== stayPlan) return false;
+            if (m.planIndex === '' && stayCity) {
+                // Fall back: match return flag when plan_index missing
+                if (!!m.isReturn !== stayReturn && (h.is_return != null || h.isReturn != null)) {
+                    return false;
+                }
+            }
+            return true;
+        });
+    }
+
+    function setLocationToHotel(selectEl, textEl, hotelId, hotelName) {
+        var applied = false;
+        if (selectEl && selectEl.tagName === 'SELECT' && selectEl.options && selectEl.options.length) {
+            var matchVal = '';
+            var idStr = String(hotelId || '');
+            var nameLower = String(hotelName || '').toLowerCase();
+            for (var i = 0; i < selectEl.options.length; i++) {
+                var opt = selectEl.options[i];
+                if (!opt.value) continue;
+                var label = String(opt.dataset.label || opt.textContent || '').trim();
+                if ((idStr && String(opt.value) === idStr) ||
+                    (idStr && String(opt.dataset.zoneId || '') === idStr) ||
+                    (nameLower && label.toLowerCase() === nameLower) ||
+                    (nameLower && label.toLowerCase().indexOf(nameLower) === 0)) {
+                    matchVal = opt.value;
+                    break;
+                }
+            }
+            if (matchVal && String(selectEl.value) !== String(matchVal)) {
+                selectEl.__stpAutoHotel = true;
+                clearSelectOrInput(selectEl, matchVal);
+                selectEl.__stpAutoHotel = false;
+                applied = true;
+            } else if (matchVal) {
+                applied = true;
+            }
+        }
+        if (textEl && hotelName) {
+            if (String(textEl.value || '').trim() !== hotelName) {
+                textEl.__stpAutoHotel = true;
+                textEl.value = hotelName;
+                try { textEl.dispatchEvent(new Event('change', { bubbles: true })); } catch (e) { /* ignore */ }
+                textEl.__stpAutoHotel = false;
+                applied = true;
+            } else {
+                applied = true;
+            }
+        }
+        return applied;
+    }
+
+    /**
+     * When hotels are added: Arrival dropoff = first hotel of stay;
+     * Departure pickup = last hotel of stay (same hotel when only one).
+     */
+    function applyBookedHotelsToArrivalDeparture(hotels) {
+        var list = Array.isArray(hotels) ? hotels : [];
+        try {
+            if (!list.length) {
+                var hidden = document.getElementById('hotel_data');
+                if (hidden && hidden.value) {
+                    var parsed = JSON.parse(hidden.value || '[]');
+                    if (Array.isArray(parsed)) list = parsed;
+                }
+            }
+        } catch (e) { /* ignore */ }
+
+        document.querySelectorAll('.stp-lite-arrival').forEach(function (root) {
+            if (root.__hydrating) return;
+            var stay = stayFromPanel(root, 'arrival');
+            var matched = hotelsForStay(list, stay);
+            if (!matched.length) return;
+            var first = hotelRowMeta(matched[0]);
+            setLocationToHotel(
+                root.querySelector('.arrival-dropoff'),
+                root.querySelector('.arrival-dropoff-text'),
+                first.id,
+                first.name
+            );
+        });
+
+        document.querySelectorAll('.stp-lite-departure').forEach(function (root) {
+            if (root.__hydrating) return;
+            var stay = stayFromPanel(root, 'departure');
+            var matched = hotelsForStay(list, stay);
+            if (!matched.length) return;
+            var last = hotelRowMeta(matched[matched.length - 1]);
+            setLocationToHotel(
+                root.querySelector('.departure-pickup'),
+                root.querySelector('.departure-pickup-text'),
+                last.id,
+                last.name
+            );
+        });
+    }
+
+    if (!window.__stpLiteHotelTransferBound) {
+        window.__stpLiteHotelTransferBound = true;
+        document.addEventListener('stp:hotel-data-changed', function (ev) {
+            var hotels = (ev && ev.detail && ev.detail.hotels) || [];
+            applyBookedHotelsToArrivalDeparture(hotels);
+        });
+    }
+
     /** Reset Transfer?/Guide? extras after Add/Update so user can search again. */
     function resetTransferGuideExtras(root, prefix) {
         if (!root || !prefix) return;
@@ -2387,6 +2511,7 @@
         transferPriceDetailHtml: transferPriceDetailHtml,
         clearSelectOrInput: clearSelectOrInput,
         resetTransferGuideExtras: resetTransferGuideExtras,
+        applyBookedHotelsToArrivalDeparture: applyBookedHotelsToArrivalDeparture,
         calcManualCarTotal: calcManualCarTotal,
         parseManualCarCost: parseManualCarCost,
         fetchInlineTransferZonePrice: fetchInlineTransferZonePrice

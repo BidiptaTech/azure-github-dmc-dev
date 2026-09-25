@@ -194,6 +194,7 @@
                 });
                 dropoff.disabled = false;
             }
+            if (T.applyBookedHotelsToArrivalDeparture) T.applyBookedHotelsToArrivalDeparture();
         }).catch(function () {
             if (pickup) { pickup.innerHTML = '<option value="">Error loading</option>'; pickup.disabled = false; }
             if (dropoff) { dropoff.innerHTML = '<option value="">Error loading ports</option>'; dropoff.disabled = false; }
@@ -539,6 +540,9 @@
         loadPickupDropoff(root, stay);
         if (!stayZoneOn(T, stay) && window.StpLiteMaps) {
             window.StpLiteMaps.initIn(root, stay.country, stay.cityName);
+        }
+        if (T.applyBookedHotelsToArrivalDeparture) {
+            setTimeout(function () { T.applyBookedHotelsToArrivalDeparture(); }, 0);
         }
 
         root.querySelector('.departure-search-btn').addEventListener('click', function () { searchVehicles(root, stay); });
