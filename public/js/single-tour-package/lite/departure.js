@@ -8,10 +8,25 @@
 
     var S = function () { return window.StpLiteTransportShared || {}; };
 
+    /** Use inventory (sibling) DMC zone_on for this stay — not Master's login flag. */
+    function stayZoneOn(T, stay) {
+        if (stay && stay.zoneOn != null && stay.zoneOn !== '') {
+            return parseInt(stay.zoneOn, 10) === 1;
+        }
+        if (T.zoneOnForStay) {
+            return !!T.zoneOnForStay(
+                stay && stay.cityName,
+                stay && stay.country,
+                stay && stay.dmcId
+            );
+        }
+        return !!(T.zoneOn && T.zoneOn());
+    }
+
     function shellHtml(stay) {
         var T = S();
         var cur = stay.currency || 'SGD';
-        var zone = T.zoneOn && T.zoneOn();
+        var zone = stayZoneOn(T, stay);
         return (
             '<div class="stp-lite-svc stp-lite-departure" data-currency="' + T.esc(cur) + '">' +
             '  <div class="row g-2 mb-2">' +
@@ -108,7 +123,7 @@
         var T = S();
         var pickup = root.querySelector('.departure-pickup');
         var dropoff = root.querySelector('.departure-dropoff');
-        if (!T.zoneOn || !T.zoneOn()) return Promise.resolve();
+        if (!stayZoneOn(T, stay)) return Promise.resolve();
 
         // Backup: pickup = hotels + attractions + restaurants (+ ports); dropoff = ports by country
         return Promise.all([
@@ -186,7 +201,7 @@
         }
 
         var promise;
-        if (T.zoneOn && T.zoneOn()) {
+        if (stayZoneOn(T, stay)) {
             var pickup = root.querySelector('.departure-pickup');
             var dropoff = root.querySelector('.departure-dropoff');
             var pOpt = pickup && pickup.options[pickup.selectedIndex];
@@ -208,7 +223,7 @@
                 dmc_id: q.dmc_id
             });
         } else {
-            promise = T.fetchVehiclesByCity(stay.cityName, stay.country, true);
+            promise = T.fetchVehiclesByCity(stay.cityName, stay.country, false);
         }
 
         return promise.then(function (res) {
@@ -230,8 +245,9 @@
         });
     }
 
-    function getPrice(root) {
+    function getPrice(root, stay) {
         var T = S();
+        stay = stay || (T.stayFromPanel && T.stayFromPanel(root, 'departure')) || {};
         var vehicle = root.querySelector('.departure-vehicle');
         var typeEl = root.querySelector('.departure-service-type');
         var adultsEl = root.querySelector('.departure-adults');
@@ -243,7 +259,7 @@
         }
         var priced;
         var svc = typeEl ? typeEl.value : 'private';
-        if (!T.zoneOn || !T.zoneOn()) {
+        if (!stayZoneOn(T, stay)) {
             var customEl = root.querySelector('.departure-custom-price');
             var car = parseFloat((customEl && customEl.value) || '0') || 0;
             if (car <= 0) {
@@ -356,6 +372,7 @@
             city: stay.cityName || '',
             country: stay.country || '',
             currency: stay.currency || '',
+            dmc_id: parseInt((T.inv(stay.cityName, stay.country).dmc_id || stay.dmcId || (window.STP_LITE_CONFIG || {}).dmcId || 0), 10) || 0,
             plan_index: stay.planIndex || '',
             private_price: opt ? (opt.dataset.privatePrice || '') : '',
             shared_price: opt ? (opt.dataset.sharedPrice || '') : '',
@@ -366,7 +383,8 @@
             zonePrivateCostPrice: opt ? (opt.dataset.privateCost || '') : '',
             zoneSharedCostPrice: opt ? (opt.dataset.sharedCost || '') : '',
             mapping_id: opt ? (opt.dataset.mappingId || '') : '',
-            remarks: ''
+            remarks: '',
+            bookingType: T.resolveRowBookingType ? T.resolveRowBookingType(null) : 'enquiry'
         };
     }
 
@@ -451,9 +469,13 @@
         if (!root.__lastPrice) { alert('Please Get Price first.'); return; }
         var rows = readChunk(root);
         var payload = collectPayload(root, stay);
+        var T = S();
         if (root.__editingIdx != null && root.__editingIdx >= 0 && root.__editingIdx < rows.length) {
             payload.supplement = rows[root.__editingIdx].supplement;
             payload.is_supplement = rows[root.__editingIdx].is_supplement;
+            payload.bookingType = T.resolveRowBookingType
+                ? T.resolveRowBookingType(rows[root.__editingIdx])
+                : (rows[root.__editingIdx].bookingType || payload.bookingType);
             rows[root.__editingIdx] = payload;
             root.__editingIdx = null;
             setAddMode(root, false);
@@ -465,7 +487,6 @@
         invalidate(root);
         root.__preferredVehicleId = '';
         root.__preferredVehicleName = '';
-        var T = S();
         var vehicle = root.querySelector('.departure-vehicle');
         if (vehicle) {
             vehicle.innerHTML = '<option value="">Click Search Vehicles</option>';
@@ -502,12 +523,12 @@
         T.bindStayDate(root.querySelector('.departure-date'), stay, function () { invalidate(root); });
         T.bindGuestCaps(root);
         loadPickupDropoff(root, stay);
-        if ((!T.zoneOn || !T.zoneOn()) && window.StpLiteMaps) {
+        if (!stayZoneOn(T, stay) && window.StpLiteMaps) {
             window.StpLiteMaps.initIn(root, stay.country, stay.cityName);
         }
 
         root.querySelector('.departure-search-btn').addEventListener('click', function () { searchVehicles(root, stay); });
-        root.querySelector('.departure-get-price-btn').addEventListener('click', function () { getPrice(root); });
+        root.querySelector('.departure-get-price-btn').addEventListener('click', function () { getPrice(root, stay); });
         root.querySelector('.departure-add-btn').addEventListener('click', function () { addRow(root, stay); });
 
         root.querySelectorAll('.departure-vehicle, .departure-service-type, .departure-vehicle-count, .departure-adults, .departure-children, .departure-pickup, .departure-dropoff, .departure-pickup-text, .departure-dropoff-text, .departure-custom-price').forEach(function (el) {

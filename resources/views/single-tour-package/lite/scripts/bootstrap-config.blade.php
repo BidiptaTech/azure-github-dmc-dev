@@ -65,6 +65,7 @@ window.STP_LITE_CONFIG = {
     countryIdByName: @json($countryIdByName),
     siblingDmcCountryMap: @json($siblingDmcCountryMap ?? new \stdClass()),
     siblingDmcCityMap: @json($siblingDmcCityMap ?? new \stdClass()),
+    siblingDmcZoneOnMap: @json($siblingDmcZoneOnMap ?? new \stdClass()),
     enquiryLocked: @json(!empty($enquiry) && empty($tour->tour_id ?? null)),
     routes: {
         store: @json(route('single-tour-package.store')),

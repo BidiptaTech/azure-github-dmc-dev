@@ -2007,7 +2007,9 @@
             zip: customer.zip,
             specialRequests: customer.specialRequests,
             id: null,
-            bookingType: 'enquiry',
+            bookingType: (window.StpLiteTransportShared && window.StpLiteTransportShared.defaultBookingType)
+                ? window.StpLiteTransportShared.defaultBookingType()
+                : 'enquiry',
             bookingDate: [checkIn, checkOut],
             city: stay.cityName || '',
             country: stay.country || '',
@@ -2118,6 +2120,10 @@
         var rows = readHotelChunk(root);
         var payload = collectAddPayload(root, root.__lastHotelPrice);
         if (root.__editingIdx != null && root.__editingIdx >= 0 && root.__editingIdx < rows.length) {
+            var prevHotel = rows[root.__editingIdx] || {};
+            payload.bookingType = (window.StpLiteTransportShared && window.StpLiteTransportShared.resolveRowBookingType)
+                ? window.StpLiteTransportShared.resolveRowBookingType(prevHotel)
+                : (prevHotel.bookingType || payload.bookingType);
             rows[root.__editingIdx] = payload;
             root.__editingIdx = null;
         } else {
@@ -2822,7 +2828,9 @@
                         var adultN = parseInt(bed.adult_count, 10) || 0;
                         var childN = parseInt(bed.child_count, 10) || 0;
                         var acMax = adultN + childN;
-                        // Label shows total capacity (with extra bed), not the reduced base.
+                        // Label Max = total capacity. When extra_bed is on, DB max_occupancy
+                        // already includes that slot — say "extra bed included" (not "+ Extra Bed",
+                        // which wrongly suggests capacity beyond Max).
                         var displayMax = bed.extra_bed
                             ? Math.max(rawMax, acMax, baseMax + 1)
                             : Math.max(rawMax, acMax);
@@ -2830,7 +2838,7 @@
                         if (bed.adult_count != null || bed.child_count != null) {
                             if (adultN || childN) text += ' (' + adultN + 'A+' + childN + 'C)';
                         }
-                        if (bed.extra_bed) text += ' + Extra Bed';
+                        if (bed.extra_bed) text += ' · Extra bed included';
                         if (bed.baby_cot) text += ' + Baby Cot';
 
                         var opt = document.createElement('option');
