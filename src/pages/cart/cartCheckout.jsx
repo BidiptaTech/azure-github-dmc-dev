@@ -384,7 +384,7 @@ const CartCheckout = () => {
                 )}
 
                 <Stack spacing={1.25}>
-                  {showBookNow && (
+                  {/* {showBookNow && (
                     <Button
                       fullWidth
                       variant="contained"
@@ -409,7 +409,7 @@ const CartCheckout = () => {
                         "Book Now"
                       )}
                     </Button>
-                  )}
+                  )} */}
                   {showEnquiry && (
                     <Button
                       fullWidth

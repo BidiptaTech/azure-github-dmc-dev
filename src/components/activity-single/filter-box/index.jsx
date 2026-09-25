@@ -41,6 +41,7 @@ import {
 import dayjs from "dayjs";
 import { setDateService } from "@/slice/common/dateServicesSlice";
 import { addGuideBookingToCart } from "@/utils/addGuideToCart";
+import { toCityOnly, getCountryForCityFromDestination } from "@/utils/locationFormat";
 
 const Index = () => {
   const pickUpLocation = useSelector((state) => state.tourguide.entrypickup);
@@ -50,7 +51,8 @@ const Index = () => {
   const selectedDate = useSelector((state) => state.tourguide.pickupdate);
   const PickupPlaceid = useSelector((state) => state.tourguide.PickupPlaceid);
   const DropoffPlaceid = useSelector((state) => state.tourguide.DropoffPlaceid);
-  const country = useSelector((state) => state.hotels.tourdetails.destination);
+  const destination = useSelector((state) => state.hotels.tourdetails?.destination);
+  const countryFromTour = useSelector((state) => state.hotels.tourdetails?.country);
   const statemode = useSelector((state) => state.tourguide.mode);
   const reduxEntrytime = useSelector((state) => state.tourguide.entrytime);
   const reduxHours = useSelector((state) => state.tourguide.hours);
@@ -377,6 +379,11 @@ const Index = () => {
     dispatch(settourId(id));
     dispatch(setbookingType("guide"));
     dispatch(setbookingImage(guide.guide.image));
+    const cityName = toCityOnly(pickUpLocation);
+    const resolvedCountry =
+      getCountryForCityFromDestination(destination, cityName) ||
+      (typeof countryFromTour === "string" ? countryFromTour : "") ||
+      "";
     const details = {
       bookingDate: dayjs(selectedDate).format("YYYY-MM-DD"),
       guide_id: guide.guide.guide_id,
@@ -399,8 +406,8 @@ const Index = () => {
       Tax: guide.guide.tax_percentage,
       Night_Start_Time: guide.guide.night_start_time,
       Night_End_Time: guide.guide.night_end_time,
-      city: pickUpLocation,
-      country: country,
+      city: cityName,
+      country: resolvedCountry,
     };
     console.log("guide details", details);
     dispatch(setData(details));

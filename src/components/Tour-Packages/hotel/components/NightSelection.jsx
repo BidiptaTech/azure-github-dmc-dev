@@ -3,7 +3,6 @@ import {
   Box, Typography, Grid, Chip, Checkbox, FormControlLabel, Divider, Alert, Button
 } from '@mui/material';
 import { CalendarToday, Hotel, Warning, Refresh, CheckCircle } from '@mui/icons-material';
-import moment from 'moment';
 
 /**
  * Night Selection component - Compact checkbox design with date range update handling
@@ -15,9 +14,7 @@ const NightSelection = ({
   selectedNightIndices,
   setSelectedNightIndices,
   setSelectedNights,
-  hotelConfigurations,
-  activeHotelIndex,
-  setHotelConfigurations
+  hotelName
 }) => {
   const [previousDateRange, setPreviousDateRange] = useState(null);
   const [showDateUpdateAlert, setShowDateUpdateAlert] = useState(false);
@@ -49,7 +46,7 @@ const NightSelection = ({
     }
   }, [dates, selectedNightIndices]);
 
-  // Clear selected nights that are outside the new date range
+  // Clear selected nights that are outside the new date range — parent handler owns AllServices sync
   const handleClearInvalidNights = () => {
     const maxNightIndex = dates.length - 2;
     const validNights = Array.from(selectedNightIndices).filter(nightIndex => nightIndex <= maxNightIndex);
@@ -57,57 +54,6 @@ const NightSelection = ({
     const newSelectedIndices = new Set(validNights);
     setSelectedNightIndices(newSelectedIndices);
     setSelectedNights(newSelectedIndices.size);
-    
-    // Update hotel configurations
-    const currentConfig = hotelConfigurations[activeHotelIndex];
-    const currentHotelId = currentConfig?.hotelId;
-    
-    let checkInDate = null;
-    let checkOutDate = null;
-    
-    if (newSelectedIndices.size > 0) {
-      const sortedIndices = Array.from(newSelectedIndices).sort((a, b) => a - b);
-      const firstIndex = sortedIndices[0];
-      const lastIndex = sortedIndices[sortedIndices.length - 1];
-      
-      checkInDate = (dates[firstIndex] && dates[firstIndex].format) ? dates[firstIndex].format('YYYY-MM-DD') : null;
-      checkOutDate = (dates[lastIndex + 1] && dates[lastIndex + 1].format) ? dates[lastIndex + 1].format('YYYY-MM-DD') : null;
-    }
-    
-    if (!currentHotelId) {
-      const updatedConfig = {
-        ...currentConfig,
-        nights: newSelectedIndices.size,
-        selectedNightIndices: Array.from(newSelectedIndices),
-        checkInDate: checkInDate,
-        checkOutDate: checkOutDate,
-        // Add individual hotel dates in DD/MM/YYYY format for Redux sync
-        hotelCheckIn: checkInDate ? moment(checkInDate, 'YYYY-MM-DD').format('DD/MM/YYYY') : null,
-        hotelCheckOut: checkOutDate ? moment(checkOutDate, 'YYYY-MM-DD').format('DD/MM/YYYY') : null
-      };
-      
-      const updatedConfigurations = [...hotelConfigurations];
-      updatedConfigurations[activeHotelIndex] = updatedConfig;
-      setHotelConfigurations(updatedConfigurations);
-    } else {
-      const updatedConfigurations = hotelConfigurations.map(config => {
-        if (config.hotelId === currentHotelId) {
-          return {
-            ...config,
-            nights: newSelectedIndices.size,
-            selectedNightIndices: Array.from(newSelectedIndices),
-            checkInDate: checkInDate,
-            checkOutDate: checkOutDate,
-            // Add individual hotel dates in DD/MM/YYYY format for Redux sync
-            hotelCheckIn: checkInDate ? moment(checkInDate, 'YYYY-MM-DD').format('DD/MM/YYYY') : null,
-            hotelCheckOut: checkOutDate ? moment(checkOutDate, 'YYYY-MM-DD').format('DD/MM/YYYY') : null
-          };
-        }
-        return config;
-      });
-      
-      setHotelConfigurations(updatedConfigurations);
-    }
     
     setHasDateConflict(false);
     setShowDateUpdateAlert(false);
@@ -134,78 +80,24 @@ const NightSelection = ({
     return true;
   };
 
-  // Handle checkbox change - Updated to work at hotel level
+  // Single write path: only call parent handlers (they update hotelConfigurations + AllServices sync)
   const handleNightCheckboxChange = (nightIndex, isChecked) => {
     const newSelectedIndices = new Set(selectedNightIndices);
     
     if (isChecked) {
       newSelectedIndices.add(nightIndex);
     } else {
-      // If unchecking, check if it would create a gap
       newSelectedIndices.delete(nightIndex);
       
-      // Convert to array and check if remaining nights are consecutive
       const remainingNights = Array.from(newSelectedIndices);
       
       if (remainingNights.length > 1 && !areNightsConsecutive(remainingNights)) {
-        // Prevent unchecking as it would create a gap
         return;
       }
     }
     
     setSelectedNightIndices(newSelectedIndices);
     setSelectedNights(newSelectedIndices.size);
-    
-    // Calculate check-in and check-out dates from selected nights
-    let checkInDate = null;
-    let checkOutDate = null;
-    
-    if (newSelectedIndices.size > 0) {
-      const sortedIndices = Array.from(newSelectedIndices).sort((a, b) => a - b);
-      const firstIndex = sortedIndices[0];
-      const lastIndex = sortedIndices[sortedIndices.length - 1];
-      
-      checkInDate = (dates[firstIndex] && dates[firstIndex].format) ? dates[firstIndex].format('YYYY-MM-DD') : null;
-      checkOutDate = (dates[lastIndex + 1] && dates[lastIndex + 1].format) ? dates[lastIndex + 1].format('YYYY-MM-DD') : null;
-    }
-
-    // Update ALL rooms of the same hotel with the same night selection
-    const currentConfig = hotelConfigurations[activeHotelIndex];
-    const currentHotelId = currentConfig?.hotelId;
-    
-    if (!currentHotelId) {
-      // If no hotel selected, just update the active room
-      const updatedConfig = {
-        ...currentConfig,
-        nights: newSelectedIndices.size,
-        selectedNightIndices: Array.from(newSelectedIndices),
-        checkInDate: checkInDate,
-        checkOutDate: checkOutDate
-      };
-      
-      const updatedConfigurations = [...hotelConfigurations];
-      updatedConfigurations[activeHotelIndex] = updatedConfig;
-      setHotelConfigurations(updatedConfigurations);
-    } else {
-      // Update ALL rooms of the same hotel
-      const updatedConfigurations = hotelConfigurations.map(config => {
-        if (config.hotelId === currentHotelId) {
-          return {
-            ...config,
-            nights: newSelectedIndices.size,
-            selectedNightIndices: Array.from(newSelectedIndices),
-            checkInDate: checkInDate,
-            checkOutDate: checkOutDate,
-            // Add individual hotel dates in DD/MM/YYYY format for Redux sync
-            hotelCheckIn: checkInDate ? moment(checkInDate, 'YYYY-MM-DD').format('DD/MM/YYYY') : null,
-            hotelCheckOut: checkOutDate ? moment(checkOutDate, 'YYYY-MM-DD').format('DD/MM/YYYY') : null
-          };
-        }
-        return config;
-      });
-      
-      setHotelConfigurations(updatedConfigurations);
-    }
   };
 
   // Calculate date range for summary
@@ -225,7 +117,6 @@ const NightSelection = ({
   };
 
   const dateRange = getDateRange();
-  const currentHotel = hotelConfigurations[activeHotelIndex];
   
   // Early return if dates are not available
   if (!dates || dates.length === 0) {
@@ -293,7 +184,7 @@ const NightSelection = ({
               Select Hotel Nights
             </Typography>
             <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
-              Choose nights for {currentHotel?.hotelDetails?.hotel_name || 'this hotel'} (applies to all rooms)
+              Choose nights for {hotelName || 'this hotel'} (applies to all rooms)
             </Typography>
           </Box>
         </Box>

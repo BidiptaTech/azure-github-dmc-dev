@@ -330,7 +330,7 @@ const MainMenu = ({ style = "" }) => {
           </li>
         )}
 
-        {!(userRole === "Operational Head(DMC)" || userRole === "DMC Operational Manager" || userRole === "DMC Assistant Operational Manager") && (
+        {/* {!(userRole === "Operational Head(DMC)" || userRole === "DMC Operational Manager" || userRole === "DMC Assistant Operational Manager") && (
           <li
             className={`menu-item ${
               pathname === packagesPath ? "current" : ""
@@ -360,7 +360,7 @@ const MainMenu = ({ style = "" }) => {
                 </div>
              </a>
           </li>
-        )}
+        )} */}
 
         {!isManagerOrSalesHead && (
           <li

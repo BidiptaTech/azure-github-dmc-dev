@@ -178,6 +178,24 @@ export const createConfigFromRoomAndBed = (hotelDetails, room, bed, bookingDates
     roomTypeId: String(room.room_id || ''),
     roomTypeName: room.room_type || ''
   };
+
+  // Restore meal plan into the same shape the UI writes (selectedMealPlan + mealPlanDetails)
+  const savedMeal = bed.selectedMeals?.meal_plan;
+  const mealPlanName = savedMeal?.type || bed.mealType || 'Room Only';
+  const matchedOption = (mealPlanOptions || []).find(
+    (opt) =>
+      opt.id === bed.meal_plan_id ||
+      opt.title === mealPlanName ||
+      opt.name === mealPlanName
+  );
+  const selectedMealPlan = matchedOption?.id || (mealPlanName === 'Room Only' ? 'self' : 'self');
+  const mealPlanDetails = matchedOption
+    ? { ...matchedOption, price: parseFloat(savedMeal?.price ?? matchedOption.price ?? 0) || 0 }
+    : {
+        id: selectedMealPlan,
+        title: mealPlanName,
+        price: parseFloat(savedMeal?.price || 0) || 0
+      };
   
   // Create the hotel configuration object
   const config = {
@@ -185,7 +203,6 @@ export const createConfigFromRoomAndBed = (hotelDetails, room, bed, bookingDates
     hotelId: String(hotelDetails.hotel_id || ''),
     hotelDetails: {
       ...hotelDetails,
-      // Ensure required fields are present
       hotel_name: hotelDetails.hotel_name || hotelDetails.name || 'Unknown Hotel',
       image: hotelDetails.image || hotelDetails.main_image || hotelDetails.logo || ''
     },
@@ -195,10 +212,9 @@ export const createConfigFromRoomAndBed = (hotelDetails, room, bed, bookingDates
     bedTypeName: bedData.bedTypeName,
     max_occupancy: bedData.maxOccupancy,
     bedPrice: bedData.bedPrice,
-    mealPlanId: 'self', // Default meal plan
+    mealPlanId: selectedMealPlan,
     nights: nights,
     selectedNightIndices: selectedNightIndices,
-    // Add individual hotel booking dates from the booking data
     hotelCheckIn: bookingDates.length > 0 ? moment(bookingDates[0], 'YYYY-MM-DD').format('DD/MM/YYYY') : moment().format('DD/MM/YYYY'),
     hotelCheckOut: bookingDates.length > 1 ? moment(bookingDates[1], 'YYYY-MM-DD').format('DD/MM/YYYY') : moment().add(1, 'day').format('DD/MM/YYYY'),
     babyCot: bedData.babyCot,
@@ -206,18 +222,17 @@ export const createConfigFromRoomAndBed = (hotelDetails, room, bed, bookingDates
     adultDistribution: { male: 0, female: 0 },
     expanded: true,
     selectedGuests: bedData.headCount,
+    selectedMealPlan,
+    mealPlanDetails,
     guestMealPlans: guestMealPlans,
-    // Store original booking data for reference
     originalData: {
       hotelDetails: { ...hotelDetails },
       room: { ...room },
       bed: { ...bed },
       bookingDates: [...bookingDates],
-      booking_id: bookingId // Preserve booking_id from service level
+      booking_id: bookingId
     }
   };
-  
-  console.log("Created hotel configuration with booking ID:", { configId: config.id, bookingId });
   
   return config;
 }; 
