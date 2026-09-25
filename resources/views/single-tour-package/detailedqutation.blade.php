@@ -1290,11 +1290,17 @@
             }
             $dr = trim((string) ($hpOcc['date_range'] ?? $hpOcc['booking_range'] ?? ''));
             $occKey = $n . ($dr !== '' ? '||' . mb_strtolower($dr) : '');
+            $cwbKidsOcc = max(0, (int) ($hpOcc['children_with_bed'] ?? 0));
+            $cnbKidsOcc = max(0, (int) ($hpOcc['children_without_bed'] ?? 0));
+            $cwbAmtOcc = (float) ($hpOcc['child_with_bed_total'] ?? 0);
+            // CWB: show when count or extra-bed charge exists. CNB: count only (price is 0 — never use amount).
             $hotelOccByName[$occKey] = [
                 'selected_persons' => max(0, (int) ($hpOcc['selected_persons'] ?? 0)),
                 'children' => max(0, (int) ($hpOcc['children'] ?? 0)),
-                'has_cwb' => (float) ($hpOcc['child_with_bed_total'] ?? 0) > 0,
-                'has_cnb' => (float) ($hpOcc['child_without_bed_total'] ?? 0) > 0,
+                'children_with_bed' => $cwbKidsOcc,
+                'children_without_bed' => $cnbKidsOcc,
+                'has_cwb' => $cwbKidsOcc > 0 || $cwbAmtOcc > 0,
+                'has_cnb' => $cnbKidsOcc > 0,
                 'date_range' => $dr,
                 'is_return' => !empty($hpOcc['is_return']),
             ];
@@ -1414,8 +1420,15 @@
                 }
 
                 $children = (int) ($occMeta['children'] ?? 0);
-                $hasCwb = !empty($occMeta['has_cwb']);
-                $hasCnb = !empty($occMeta['has_cnb']);
+                $cwbKids = max(0, (int) ($occMeta['children_with_bed'] ?? 0));
+                $cnbKids = max(0, (int) ($occMeta['children_without_bed'] ?? 0));
+                $hasCwb = !empty($occMeta['has_cwb']) || $cwbKids > 0;
+                $hasCnb = !empty($occMeta['has_cnb']) || $cnbKids > 0;
+                if ($children > 0 && !$hasCwb && !$hasCnb) {
+                    $hasCnb = true;
+                    $cnbKids = $children;
+                }
+                $childLabelCount = max($children, $cwbKids + $cnbKids);
 
                 $extraBedAdults = 0;
                 $mainAdults = max(1, $selectedPersons);
@@ -1427,7 +1440,7 @@
                     $extraBedAdults = 0;
                 }
 
-                $totalPaxShown = $mainAdults + $extraBedAdults + ($children > 0 ? $children : 0);
+                $totalPaxShown = $mainAdults + $extraBedAdults + ($childLabelCount > 0 ? $childLabelCount : 0);
 
                 $occupancyBits = [];
                 if ($mainAdults > 0) {
@@ -1440,18 +1453,23 @@
                         $occupancyBits[] = 'Extra Bed';
                     }
                 }
-                if ($children > 0) {
-                    if ($hasCwb) {
-                        $occupancyBits[] = $children . ' Child with Bed';
-                    } elseif ($hasCnb) {
-                        $occupancyBits[] = $children . ' Child with no Bed';
+                if ($hasCwb && $hasCnb) {
+                    if ($cwbKids > 0) {
+                        $occupancyBits[] = $cwbKids . ' Child with Bed';
                     } else {
-                        $occupancyBits[] = $children . ' Child with no Bed';
+                        $occupancyBits[] = 'Child with Bed';
+                    }
+                    if ($cnbKids > 0) {
+                        $occupancyBits[] = $cnbKids . ' Child with no Bed';
+                    } else {
+                        $occupancyBits[] = 'Child with no Bed';
                     }
                 } elseif ($hasCwb) {
-                    $occupancyBits[] = 'Child with Bed';
-                } elseif ($hasCnb) {
-                    $occupancyBits[] = 'Child with no Bed';
+                    $n = $cwbKids > 0 ? $cwbKids : $childLabelCount;
+                    $occupancyBits[] = ($n > 0 ? $n . ' ' : '') . 'Child with Bed';
+                } elseif ($hasCnb || $childLabelCount > 0) {
+                    $n = $cnbKids > 0 ? $cnbKids : $childLabelCount;
+                    $occupancyBits[] = ($n > 0 ? $n . ' ' : '') . 'Child with no Bed';
                 }
 
                 $hotelsByCountry[$bucketKey][] = [
@@ -2083,8 +2101,8 @@
                     $staySharingMap[$key]['hotel_single'] += (float) ($hp['single'] ?? 0);
                     $staySharingMap[$key]['hotel_double'] += (float) ($hp['double'] ?? 0);
                     $staySharingMap[$key]['hotel_triple'] += (float) ($hp['triple'] ?? 0);
-                    $staySharingMap[$key]['child_bed_total'] += (float) ($hp['child_with_bed_total'] ?? 0)
-                        + (float) ($hp['child_without_bed_total'] ?? 0);
+                    // Only CWB extra-bed charge appears on quotation; CNB is always 0 — omit it.
+                    $staySharingMap[$key]['child_bed_total'] += (float) ($hp['child_with_bed_total'] ?? 0);
                     $staySharingMap[$key]['children'] = max(
                         (int) $staySharingMap[$key]['children'],
                         max(0, (int) ($hp['children'] ?? 0))
@@ -2498,9 +2516,13 @@
                 }
                 $cKey = mb_strtolower(trim((string) ($hpChild['country'] ?? 'Other')))
                     . '|' . strtoupper(trim((string) ($hpChild['currency'] ?? $baseCurrency)));
-                $cBed = (float) ($hpChild['child_with_bed_total'] ?? 0)
-                    + (float) ($hpChild['child_without_bed_total'] ?? 0);
-                $cKids = max(0, (int) ($hpChild['children'] ?? 0));
+                // Quotation child hotel line = CWB only (CNB price 0 must not appear)
+                $cBed = (float) ($hpChild['child_with_bed_total'] ?? 0);
+                $cKids = max(
+                    0,
+                    (int) ($hpChild['children_with_bed'] ?? 0),
+                    $cBed > 0 ? (int) ($hpChild['children'] ?? 0) : 0
+                );
                 if ($cBed > 0) {
                     $countryChildBedTotals[$cKey] = ($countryChildBedTotals[$cKey] ?? 0.0) + $cBed;
                 }

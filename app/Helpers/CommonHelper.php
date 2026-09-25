@@ -7976,6 +7976,9 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 if (isset($block['total_cost']) && (float) $block['total_cost'] > 0) {
                     return (float) $block['total_cost'];
                 }
+                if (isset($block['total']) && (float) $block['total'] > 0) {
+                    return (float) $block['total'];
+                }
                 $unit = (float) ($block['price'] ?? $block['unit_price'] ?? 0);
                 $kids = max(1, (int) ($block['children'] ?? $children));
                 if ($unit <= 0 || $kids <= 0) {
@@ -7988,8 +7991,79 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             $cwbTotal = $resolveChildBedTotal($cwb);
             $cnbTotal = $resolveChildBedTotal($cnb);
 
+            $cwbKids = 0;
+            if ($cwb && !empty($cwb['enabled'])) {
+                $cwbKids = max(0, (int) ($cwb['children'] ?? 0));
+            }
+            if ($cwbKids <= 0) {
+                $cwbKids = max(0, (int) ($item['selected_children_with_bed'] ?? $item['child_with_bed_count'] ?? 0));
+            }
+            $cnbKids = 0;
+            if ($cnb && !empty($cnb['enabled'])) {
+                $cnbKids = max(0, (int) ($cnb['children'] ?? 0));
+            }
+            if ($cnbKids <= 0) {
+                $cnbKids = max(0, (int) ($item['selected_children_no_bed'] ?? $item['child_without_bed_count'] ?? 0));
+            }
+            // If children exist but neither split was stored, treat as no-bed (price 0)
+            if ($children > 0 && $cwbKids <= 0 && $cnbKids <= 0 && $cwbTotal <= 0) {
+                $cnbKids = $children;
+            }
+
+            // Child with bed = child on extra bed. When rooms.child_with_bed is 0,
+            // HotelPriceHelper still bakes beds.extra_bed_price into room_total —
+            // pull that out so quotation can show it as (Child).
+            if ($cwbKids > 0 && $cwbTotal <= 0) {
+                $extraBedCost = 0.0;
+                $roomListForXb = $item['rooms'] ?? [];
+                if (is_array($roomListForXb)) {
+                    foreach ($roomListForXb as $roomRow) {
+                        if (!is_array($roomRow)) {
+                            continue;
+                        }
+                        $beds = isset($roomRow['beds']) && is_array($roomRow['beds']) ? $roomRow['beds'] : [];
+                        foreach ($beds as $bedRow) {
+                            if (!is_array($bedRow) || empty($bedRow['extra_bed'])) {
+                                continue;
+                            }
+                            $xbCost = (float) ($bedRow['extra_bed_cost'] ?? 0);
+                            if ($xbCost > 0) {
+                                $extraBedCost += $xbCost;
+                                continue;
+                            }
+                            $xbUnit = (float) ($bedRow['extra_bed_price'] ?? 0);
+                            if ($xbUnit > 0) {
+                                $extraBedCost += $xbUnit * $nights * $rooms;
+                            }
+                        }
+                    }
+                }
+                if ($extraBedCost <= 0) {
+                    $pd = $item['price_payload'] ?? $item['helperPriceResult'] ?? null;
+                    if (is_array($pd)) {
+                        $xbPrice = (float) ($pd['extra_bed_price'] ?? 0);
+                        $xbCount = (int) ($pd['extra_bed'] ?? 0);
+                        if ($xbCount > 0 && $xbPrice > 0) {
+                            $extraBedCost = $xbPrice * $xbCount * $nights * $rooms;
+                        } elseif (!empty($pd['breakdown']) && is_array($pd['breakdown'])) {
+                            foreach ($pd['breakdown'] as $nightRow) {
+                                if (!is_array($nightRow)) {
+                                    continue;
+                                }
+                                $extraBedCost += (float) ($nightRow['extra_bed_total'] ?? 0) * $rooms;
+                            }
+                        }
+                    }
+                }
+                if ($extraBedCost > 0) {
+                    $cwbTotal = $extraBedCost;
+                }
+            }
+
             return [
                 'children' => $children,
+                'children_with_bed' => $cwbKids,
+                'children_without_bed' => $cnbKids,
                 'children_price' => $childrenPriceCode,
                 'child_meal_factor' => $childMealFactor,
                 'child_with_bed_total' => $cwbTotal,
@@ -8217,6 +8291,8 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                     $childMealFactor = (float) ($childMeta['child_meal_factor'] ?? 1.0);
                     $cwbTotal = (float) ($childMeta['child_with_bed_total'] ?? 0);
                     $cnbTotal = (float) ($childMeta['child_without_bed_total'] ?? 0);
+                    $cwbKidsCount = max(0, (int) ($childMeta['children_with_bed'] ?? 0));
+                    $cnbKidsCount = max(0, (int) ($childMeta['children_without_bed'] ?? 0));
                     $childBedTotal = $cwbTotal + $cnbTotal;
 
                     // totalPrice usually already includes CWB/CNB — strip them before occupancy share
@@ -8300,6 +8376,8 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                                 'currency' => $orderCurrency,
                                 'selected_persons' => $selectedPersons,
                                 'children' => $childrenCount,
+                                'children_with_bed' => $cwbKidsCount,
+                                'children_without_bed' => $cnbKidsCount,
                                 'children_price' => $childrenPriceCode,
                                 'child_meal_factor' => $childMealFactor,
                                 'child_with_bed_total' => 0.0,
@@ -8320,6 +8398,14 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                         $hotelSupplementBuckets[$suppKey]['children'] = max(
                             (int) ($hotelSupplementBuckets[$suppKey]['children'] ?? 0),
                             $childrenCount
+                        );
+                        $hotelSupplementBuckets[$suppKey]['children_with_bed'] = max(
+                            (int) ($hotelSupplementBuckets[$suppKey]['children_with_bed'] ?? 0),
+                            $cwbKidsCount
+                        );
+                        $hotelSupplementBuckets[$suppKey]['children_without_bed'] = max(
+                            (int) ($hotelSupplementBuckets[$suppKey]['children_without_bed'] ?? 0),
+                            $cnbKidsCount
                         );
                         $hotelSupplementBuckets[$suppKey]['children_price'] = $childrenPriceCode;
                         $hotelSupplementBuckets[$suppKey]['child_meal_factor'] = $childMealFactor;
@@ -8349,6 +8435,8 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                             'triple' => 0.0,
                             'selected_persons' => 0,
                             'children' => 0,
+                            'children_with_bed' => 0,
+                            'children_without_bed' => 0,
                             'children_price' => $childrenPriceCode,
                             'child_meal_factor' => $childMealFactor,
                             'child_with_bed_total' => 0.0,
@@ -8372,6 +8460,14 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                     $hotelBuckets[$hotelKey]['children'] = max(
                         (int) ($hotelBuckets[$hotelKey]['children'] ?? 0),
                         $childrenCount
+                    );
+                    $hotelBuckets[$hotelKey]['children_with_bed'] = max(
+                        (int) ($hotelBuckets[$hotelKey]['children_with_bed'] ?? 0),
+                        $cwbKidsCount
+                    );
+                    $hotelBuckets[$hotelKey]['children_without_bed'] = max(
+                        (int) ($hotelBuckets[$hotelKey]['children_without_bed'] ?? 0),
+                        $cnbKidsCount
                     );
                     $hotelBuckets[$hotelKey]['children_price'] = $childrenPriceCode;
                     $hotelBuckets[$hotelKey]['child_meal_factor'] = $childMealFactor;
@@ -8846,6 +8942,8 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 'currency' => $meta['currency'] ?? null,
                 'selected_persons' => $selectedPersons,
                 'children' => (int) ($bucket['children'] ?? 0),
+                'children_with_bed' => (int) ($bucket['children_with_bed'] ?? 0),
+                'children_without_bed' => (int) ($bucket['children_without_bed'] ?? 0),
                 'children_price' => (int) ($bucket['children_price'] ?? 2),
                 'child_meal_factor' => (float) ($bucket['child_meal_factor'] ?? 1),
                 'child_with_bed_total' => ceil((float) ($bucket['child_with_bed_total'] ?? 0) * $focFactor),

@@ -1968,25 +1968,55 @@
         var apiCnb = priceData.child_without_bed || null;
         var cwbObj = null;
         var cnbObj = null;
-        if (kidsWithBed > 0 && unitCwb > 0) {
-            var cwbTotal = apiCwb && Number(apiCwb.total) > 0
-                ? Number(apiCwb.total) * rooms
-                : unitCwb * kidsWithBed * nights * rooms;
+        // Resolve total extra-bed sell (Get Price bakes this into room_total; also store on bed)
+        var xbSellTotal = Number(priceData.extra_bed_total || 0);
+        if (!(xbSellTotal > 0) && Array.isArray(priceData.breakdown)) {
+            priceData.breakdown.forEach(function (n) {
+                xbSellTotal += Number(n.extra_bed_total || 0);
+            });
+        }
+        if (!(xbSellTotal > 0)) {
+            xbSellTotal = Number(priceData.extra_bed_price || 0)
+                * (Number(priceData.extra_bed || 0) || 0)
+                * nights;
+        }
+        if (kidsWithBed > 0) {
+            var cwbTotal = 0;
+            var cwbUnit = unitCwb;
+            // Prefer Get Price child_with_bed total (even when room dataset unit is 0)
+            if (apiCwb && Number(apiCwb.total) > 0) {
+                cwbTotal = Number(apiCwb.total) * rooms;
+                if (!(cwbUnit > 0)) {
+                    cwbUnit = Number(apiCwb.unit_price || apiCwb.price || 0) || 0;
+                }
+            } else if (unitCwb > 0) {
+                cwbTotal = unitCwb * kidsWithBed * nights * rooms;
+            }
+            // Do NOT copy extra-bed into child_with_bed.total_cost — it is already in
+            // room/grand total. Quotation pulls extra-bed via beds.extra_bed_cost when CWB.
             cwbObj = {
                 enabled: true,
-                price: unitCwb,
+                price: cwbUnit,
                 children: kidsWithBed,
                 total_cost: cwbTotal,
                 total: cwbTotal
             };
         }
-        if (kidsNoBed > 0 && unitCnb > 0) {
-            var cnbTotal = apiCnb && Number(apiCnb.total) > 0
-                ? Number(apiCnb.total) * rooms
-                : unitCnb * kidsNoBed * nights * rooms;
+        // Child without bed: keep enabled (count) even when unit price is 0 — quotation must not show a child price
+        if (kidsNoBed > 0) {
+            var cnbTotal = 0;
+            var cnbUnit = unitCnb;
+            if (apiCnb && Number(apiCnb.total) > 0) {
+                cnbTotal = Number(apiCnb.total) * rooms;
+                if (!(cnbUnit > 0)) {
+                    cnbUnit = Number(apiCnb.unit_price || apiCnb.price || 0) || 0;
+                }
+            } else if (unitCnb > 0) {
+                cnbTotal = unitCnb * kidsNoBed * nights * rooms;
+            }
             cnbObj = {
                 enabled: true,
-                price: unitCnb,
+                price: cnbUnit,
                 children: kidsNoBed,
                 total_cost: cnbTotal,
                 total: cnbTotal
@@ -2071,8 +2101,8 @@
                     head_count: persons,
                     max_occupancy: occInfo.maxOccupancy || persons,
                     extra_bed: extraBedOn ? 1 : 0,
-                    extra_bed_price: occInfo.extraBedPrice || 0,
-                    extra_bed_cost: extraBedOn ? Number(priceData.extra_bed_total || 0) * rooms : 0,
+                    extra_bed_price: occInfo.extraBedPrice || Number(priceData.extra_bed_price || 0) || 0,
+                    extra_bed_cost: extraBedOn ? (xbSellTotal * rooms) : 0,
                     price: Number(priceData.room_total || 0),
                     mealTypes: [mealVal],
                     meal_plan: mealVal
