@@ -11,11 +11,13 @@
     function cfg() { return window.STP_LITE_CONFIG || {}; }
 
     function guestCounts(root) {
+        var T = S();
+        var tour = (T.tourGuests && T.tourGuests()) || {};
         return {
             adults: parseInt((root.querySelector('.attraction-adults') || {}).value, 10) || 0,
             children: parseInt((root.querySelector('.attraction-children') || {}).value, 10) || 0,
             seniors: parseInt((root.querySelector('.attraction-seniors') || {}).value, 10) || 0,
-            infants: 0
+            infants: Math.max(0, parseInt(tour.infants, 10) || 0)
         };
     }
 
@@ -48,7 +50,7 @@
             '    <div class="col-md-2">' + T.transferRequiredSelectHtml(PREFIX) + '</div>' +
             '    <div class="col-md-2">' + T.guideRequiredSelectHtml(PREFIX) + '</div>' +
             '  </div>' +
-            T.transferExtrasHtml(PREFIX) +
+            T.transferExtrasHtml(PREFIX, stay) +
             T.guideExtrasHtml(PREFIX) +
             '  <div class="row g-2 mb-2">' +
             '    <div class="col-md-12 d-flex align-items-end gap-2 flex-wrap">' +
@@ -296,13 +298,42 @@
         var xfer = T.calcInlineTransferPrice(root, PREFIX, g.adults + g.seniors, g.children, g.infants);
         T.refreshTransferCostDisplay(root, PREFIX, g.adults + g.seniors, g.children, g.infants);
         var guide = T.calcInlineGuidePrice(root, PREFIX);
-        // Always compose ticket + transfer + guide (top grid must include extras)
         var total = ticketTotal + (Number(xfer) || 0) + (Number(guide.total) || 0);
-        var parts = [g.adults + '×' + adultP.toFixed(2)];
-        if (g.children) parts.push(g.children + '×' + childP.toFixed(2));
-        if (g.seniors) parts.push(g.seniors + '×' + seniorP.toFixed(2));
-        if (xfer) parts.push('xfer ' + Number(xfer).toFixed(2));
-        if (guide.total) parts.push('guide ' + Number(guide.total).toFixed(2));
+        var cur = root.getAttribute('data-currency') || 'SGD';
+        var xferOpts = (Number(xfer) > 0 && typeof T.collectTransferOptions === 'function')
+            ? T.collectTransferOptions(root, PREFIX, g.adults + g.seniors, g.children, g.infants)
+            : null;
+        var transferHtml = (xferOpts && typeof T.transferPriceDetailHtml === 'function')
+            ? T.transferPriceDetailHtml(xferOpts, g.adults + g.seniors, g.children, g.infants, cur)
+            : '';
+        if (!transferHtml && xfer && typeof T.priceFormulaRowHtml === 'function') {
+            transferHtml = T.priceFormulaRowHtml(
+                '<strong>Transfer</strong>',
+                cur + ' ' + Number(xfer).toFixed(2)
+            );
+        }
+        var guideHtml = '';
+        if (guide.total && typeof T.priceFormulaRowHtml === 'function') {
+            guideHtml = T.priceFormulaRowHtml(
+                '<strong>Guide</strong>',
+                cur + ' ' + Number(guide.total).toFixed(2)
+            );
+        }
+        var breakdownHtml = typeof T.paxPriceLinesHtml === 'function'
+            ? T.paxPriceLinesHtml({
+                currency: cur,
+                metaHtml: '<div class="small text-muted mb-1">' + T.esc((opt.dataset.name || opt.textContent || 'Ticket')) + '</div>',
+                adults: g.adults,
+                children: g.children,
+                seniors: g.seniors,
+                infants: g.infants,
+                adultPrice: adultP,
+                childPrice: childP,
+                seniorPrice: seniorP,
+                infantPrice: 0,
+                extraHtml: (transferHtml || '') + guideHtml
+            })
+            : '';
         root.__lastPrice = {
             total: total,
             ticketTotal: ticketTotal,
@@ -311,15 +342,19 @@
             adultPrice: adultP,
             childPrice: childP,
             seniorPrice: seniorP,
-            breakdown: parts.join(' + ')
+            infantPrice: 0,
+            adults: g.adults,
+            children: g.children,
+            seniors: g.seniors,
+            infants: g.infants,
+            breakdown: breakdownHtml
         };
-        var cur = root.getAttribute('data-currency') || 'SGD';
         var panel = root.querySelector('[data-attraction-price-panel]');
         var totalEl = root.querySelector('.attraction-price-total');
         var detail = root.querySelector('.attraction-price-detail');
         if (panel) panel.classList.remove('d-none');
         if (totalEl) totalEl.textContent = cur + ' ' + total.toFixed(2);
-        if (detail) detail.textContent = root.__lastPrice.breakdown;
+        if (detail) detail.innerHTML = breakdownHtml;
         var add = root.querySelector('.attraction-add-btn');
         if (add) add.disabled = false;
     }
@@ -359,8 +394,10 @@
             adultCount: g.adults,
             childCount: g.children,
             seniorCount: g.seniors,
+            infantCount: g.infants,
             adults: g.adults,
             children: g.children,
+            infants: g.infants,
             visitTime: visitTime,
             bookingDate: (root.querySelector('.attraction-date') || {}).value || stay.start || '',
             totalPrice: total,
@@ -379,7 +416,8 @@
             country: stay.country || '',
             currency: stay.currency || '',
             plan_index: stay.planIndex || '',
-            remarks: ''
+            remarks: '',
+            bookingType: T.resolveRowBookingType ? T.resolveRowBookingType(null) : 'enquiry'
         };
     }
 
@@ -499,9 +537,13 @@
         if (!root.__lastPrice) { alert('Please Get Price first.'); return; }
         var rows = readChunk(root);
         var payload = collectPayload(root, stay);
+        var T = S();
         if (root.__editingIdx != null && root.__editingIdx >= 0 && root.__editingIdx < rows.length) {
             payload.supplement = rows[root.__editingIdx].supplement;
             payload.is_supplement = rows[root.__editingIdx].is_supplement;
+            payload.bookingType = T.resolveRowBookingType
+                ? T.resolveRowBookingType(rows[root.__editingIdx])
+                : (rows[root.__editingIdx].bookingType || payload.bookingType);
             rows[root.__editingIdx] = payload;
             root.__editingIdx = null;
             setAddMode(root, false);
@@ -617,17 +659,54 @@
                 var td = r.ticket_details || {};
                 var xfer = r.transfer_options || {};
                 var guide = r.guide_options || {};
+                var cur = r.currency || root.getAttribute('data-currency') || 'SGD';
+                var infants = Math.max(0, parseInt(r.infantCount != null ? r.infantCount : r.infants, 10) || 0);
+                var adultsXfer = Math.max(0, parseInt(r.adultCount != null ? r.adultCount : r.adults, 10) || 0)
+                    + Math.max(0, parseInt(r.seniorCount, 10) || 0);
+                var childrenXfer = Math.max(0, parseInt(r.childCount != null ? r.childCount : r.children, 10) || 0);
+                var transferHtml = (xfer.transfer_required && typeof T.transferPriceDetailHtml === 'function')
+                    ? T.transferPriceDetailHtml(
+                        xfer,
+                        xfer.adults != null ? xfer.adults : adultsXfer,
+                        xfer.children != null ? xfer.children : childrenXfer,
+                        xfer.infants != null ? xfer.infants : infants,
+                        cur
+                    )
+                    : '';
+                if (!transferHtml && xfer.transfer_required && typeof T.priceFormulaRowHtml === 'function') {
+                    transferHtml = T.priceFormulaRowHtml(
+                        '<strong>Transfer</strong> (' + T.esc(xfer.type || '') + ')',
+                        cur + ' ' + Number(xfer.cost || 0).toFixed(2)
+                    );
+                }
+                var guideHtml = '';
+                if (guide.guide_required && typeof T.priceFormulaRowHtml === 'function') {
+                    guideHtml = T.priceFormulaRowHtml(
+                        '<strong>Guide</strong>',
+                        cur + ' ' + Number(guide.total_price || 0).toFixed(2)
+                    );
+                }
+                var detailHtml = typeof T.paxPriceLinesHtml === 'function'
+                    ? T.paxPriceLinesHtml({
+                        currency: cur,
+                        metaHtml: '<div class="small text-muted mb-1">' + T.esc(r.ticketName || '') +
+                            (r.visitTime ? ' · ' + T.esc(r.visitTime) : '') + '</div>',
+                        adults: r.adultCount || r.adults || 0,
+                        children: r.childCount || r.children || 0,
+                        seniors: r.seniorCount || 0,
+                        infants: infants,
+                        adultPrice: Number(td.adult_price || 0),
+                        childPrice: Number(td.child_price || 0),
+                        seniorPrice: Number(td.senior_adult_price || 0),
+                        infantPrice: 0,
+                        extraHtml: (transferHtml || '') + guideHtml
+                    })
+                    : '';
                 T.showPriceBreakdownModal(
                     r.AttractionName || 'Attraction',
-                    r.currency || root.getAttribute('data-currency'),
+                    cur,
                     (typeof T.serviceRowDisplayTotal === 'function' ? T.serviceRowDisplayTotal(r) : r.totalPrice),
-                    '<div class="small text-muted">' + T.esc(r.ticketName || '') +
-                    '<br>' + T.esc(r.adultCount || 0) + 'A × ' + Number(td.adult_price || 0).toFixed(2) +
-                    (r.childCount ? ' · ' + T.esc(r.childCount) + 'C × ' + Number(td.child_price || 0).toFixed(2) : '') +
-                    (r.seniorCount ? ' · ' + T.esc(r.seniorCount) + 'S × ' + Number(td.senior_adult_price || 0).toFixed(2) : '') +
-                    (xfer.transfer_required ? '<br>Transfer (' + T.esc(xfer.type || '') + '): ' + Number(xfer.cost || 0).toFixed(2) : '') +
-                    (guide.guide_required ? '<br>Guide: ' + Number(guide.total_price || 0).toFixed(2) : '') +
-                    (r.visitTime ? '<br>Time: ' + T.esc(r.visitTime) : '') + '</div>'
+                    detailHtml
                 );
             }
         });

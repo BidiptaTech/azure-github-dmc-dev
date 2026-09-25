@@ -156,6 +156,7 @@ window.STP_LITE_EDIT = {
 if (window.STP_LITE_CONFIG) {
     window.STP_LITE_CONFIG.mode = 'edit';
     window.STP_LITE_CONFIG.tourId = window.STP_LITE_EDIT.tourId;
+    window.STP_LITE_CONFIG.tourStatus = window.STP_LITE_EDIT.tourStatus;
     window.STP_LITE_CONFIG.edit = window.STP_LITE_EDIT;
 }
 </script>

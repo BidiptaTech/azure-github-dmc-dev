@@ -11,10 +11,12 @@
     function cfg() { return window.STP_LITE_CONFIG || {}; }
 
     function guestCounts(root) {
+        var T = S();
+        var tour = (T.tourGuests && T.tourGuests()) || {};
         return {
             adults: parseInt((root.querySelector('.restaurant-adults') || {}).value, 10) || 0,
             children: parseInt((root.querySelector('.restaurant-children') || {}).value, 10) || 0,
-            infants: 0
+            infants: Math.max(0, parseInt(tour.infants, 10) || 0)
         };
     }
 
@@ -130,7 +132,7 @@
             '    <div class="col-6 col-md-2">' + T.transferRequiredSelectHtml(PREFIX) + '</div>' +
             '    <div class="col-6 col-md-2">' + T.guideRequiredSelectHtml(PREFIX) + '</div>' +
             '  </div>' +
-            T.transferExtrasHtml(PREFIX) +
+            T.transferExtrasHtml(PREFIX, stay) +
             T.guideExtrasHtml(PREFIX) +
             '  <div class="row g-2 mb-2">' +
             '    <div class="col-md-12 d-flex align-items-end gap-2 flex-wrap">' +
@@ -403,20 +405,39 @@
         T.refreshTransferCostDisplay(root, PREFIX, g.adults, g.children, g.infants);
         var guide = T.calcInlineGuidePrice(root, PREFIX);
         var total = mealTotal + (Number(xfer) || 0) + (Number(guide.total) || 0);
-        var parts = [];
         var cur = root.getAttribute('data-currency') || 'SGD';
-        var mealAmt = (adultP * g.adults) + (childP * g.children);
-        parts.push(T.priceFormulaRowHtml(
-            '<strong>Meal</strong> ' + g.adults + 'A × ' + adultP.toFixed(2)
-                + (g.children ? ' + ' + g.children + 'C × ' + childP.toFixed(2) : ''),
-            cur + ' ' + mealAmt.toFixed(2)
-        ));
-        if (xfer) {
-            parts.push(T.priceFormulaRowHtml('<strong>Transfer</strong>', cur + ' ' + Number(xfer).toFixed(2)));
+        var xferOpts = (Number(xfer) > 0 && typeof T.collectTransferOptions === 'function')
+            ? T.collectTransferOptions(root, PREFIX, g.adults, g.children, g.infants)
+            : null;
+        var transferHtml = (xferOpts && typeof T.transferPriceDetailHtml === 'function')
+            ? T.transferPriceDetailHtml(xferOpts, g.adults, g.children, g.infants, cur)
+            : '';
+        if (!transferHtml && xfer && typeof T.priceFormulaRowHtml === 'function') {
+            transferHtml = T.priceFormulaRowHtml(
+                '<strong>Transfer</strong>',
+                cur + ' ' + Number(xfer).toFixed(2)
+            );
         }
-        if (guide.total) {
-            parts.push(T.priceFormulaRowHtml('<strong>Guide</strong>', cur + ' ' + Number(guide.total).toFixed(2)));
+        var guideHtml = '';
+        if (guide.total && typeof T.priceFormulaRowHtml === 'function') {
+            guideHtml = T.priceFormulaRowHtml(
+                '<strong>Guide</strong>',
+                cur + ' ' + Number(guide.total).toFixed(2)
+            );
         }
+        var breakdownHtml = typeof T.paxPriceLinesHtml === 'function'
+            ? T.paxPriceLinesHtml({
+                currency: cur,
+                metaHtml: '<div class="small text-muted mb-1">' + T.esc((opt.dataset.name || opt.textContent || 'Meal')) + '</div>',
+                adults: g.adults,
+                children: g.children,
+                infants: g.infants,
+                adultPrice: adultP,
+                childPrice: childP,
+                infantPrice: 0,
+                extraHtml: (transferHtml || '') + guideHtml
+            })
+            : '';
         root.__lastPrice = {
             total: total,
             mealTotal: mealTotal,
@@ -424,14 +445,15 @@
             guideTotal: Number(guide.total) || 0,
             adultPrice: adultP,
             childPrice: childP,
-            breakdown: parts.join('')
+            infants: g.infants,
+            breakdown: breakdownHtml
         };
         var panel = root.querySelector('[data-restaurant-price-panel]');
         var totalEl = root.querySelector('.restaurant-price-total');
         var detail = root.querySelector('.restaurant-price-detail');
         if (panel) panel.classList.remove('d-none');
         if (totalEl) totalEl.textContent = cur + ' ' + total.toFixed(2);
-        if (detail) detail.innerHTML = root.__lastPrice.breakdown;
+        if (detail) detail.innerHTML = breakdownHtml;
         var add = root.querySelector('.restaurant-add-btn');
         if (add) add.disabled = false;
     }
@@ -474,6 +496,8 @@
             child_price: childP,
             adults: g.adults,
             children: g.children,
+            infants: g.infants,
+            infantCount: g.infants,
             visitTime: visitTime,
             bookingDate: (root.querySelector('.restaurant-date') || {}).value || stay.start || '',
             totalPrice: total,
@@ -492,7 +516,8 @@
             country: stay.country || '',
             currency: stay.currency || '',
             plan_index: stay.planIndex || '',
-            remarks: ''
+            remarks: '',
+            bookingType: T.resolveRowBookingType ? T.resolveRowBookingType(null) : 'enquiry'
         };
     }
 
@@ -622,9 +647,13 @@
         if (!root.__lastPrice) { alert('Please Get Price first.'); return; }
         var rows = readChunk(root);
         var payload = collectPayload(root, stay);
+        var T = S();
         if (root.__editingIdx != null && root.__editingIdx >= 0 && root.__editingIdx < rows.length) {
             payload.supplement = rows[root.__editingIdx].supplement;
             payload.is_supplement = rows[root.__editingIdx].is_supplement;
+            payload.bookingType = T.resolveRowBookingType
+                ? T.resolveRowBookingType(rows[root.__editingIdx])
+                : (rows[root.__editingIdx].bookingType || payload.bookingType);
             rows[root.__editingIdx] = payload;
             root.__editingIdx = null;
             setAddMode(root, false);
@@ -747,29 +776,46 @@
                 var xfer = r.transfer_options || {};
                 var guide = r.guide_options || {};
                 var cur = r.currency || root.getAttribute('data-currency') || 'SGD';
-                var mealAmt = (Number(r.adults || 0) * Number(r.adult_price || 0))
-                    + (Number(r.children || 0) * Number(r.child_price || 0));
-                var detailRows = '';
-                detailRows += '<div class="small text-muted mb-1">' + T.esc(r.mealTypeLabel || r.mealType || '')
-                    + (dishName ? ' · ' + T.esc(dishName) : '')
-                    + (r.visitTime ? ' · ' + T.esc(r.visitTime) : '') + '</div>';
-                detailRows += T.priceFormulaRowHtml(
-                    '<strong>Meal</strong> ' + T.esc(r.adults || 0) + 'A × ' + Number(r.adult_price || 0).toFixed(2)
-                        + (r.children ? ' + ' + T.esc(r.children) + 'C × ' + Number(r.child_price || 0).toFixed(2) : ''),
-                    cur + ' ' + mealAmt.toFixed(2)
-                );
-                if (xfer.transfer_required) {
-                    detailRows += T.priceFormulaRowHtml(
+                var infants = Math.max(0, parseInt(r.infantCount != null ? r.infantCount : r.infants, 10) || 0);
+                var adultsXfer = Math.max(0, parseInt(r.adults, 10) || 0);
+                var childrenXfer = Math.max(0, parseInt(r.children, 10) || 0);
+                var transferHtml = (xfer.transfer_required && typeof T.transferPriceDetailHtml === 'function')
+                    ? T.transferPriceDetailHtml(
+                        xfer,
+                        xfer.adults != null ? xfer.adults : adultsXfer,
+                        xfer.children != null ? xfer.children : childrenXfer,
+                        xfer.infants != null ? xfer.infants : infants,
+                        cur
+                    )
+                    : '';
+                if (!transferHtml && xfer.transfer_required && typeof T.priceFormulaRowHtml === 'function') {
+                    transferHtml = T.priceFormulaRowHtml(
                         '<strong>Transfer</strong> (' + T.esc(xfer.type || '') + ')',
                         cur + ' ' + Number(xfer.cost || 0).toFixed(2)
                     );
                 }
-                if (guide.guide_required) {
-                    detailRows += T.priceFormulaRowHtml(
+                var guideHtml = '';
+                if (guide.guide_required && typeof T.priceFormulaRowHtml === 'function') {
+                    guideHtml = T.priceFormulaRowHtml(
                         '<strong>Guide</strong>',
                         cur + ' ' + Number(guide.total_price || 0).toFixed(2)
                     );
                 }
+                var detailRows = typeof T.paxPriceLinesHtml === 'function'
+                    ? T.paxPriceLinesHtml({
+                        currency: cur,
+                        metaHtml: '<div class="small text-muted mb-1">' + T.esc(r.mealTypeLabel || r.mealType || '')
+                            + (dishName ? ' · ' + T.esc(dishName) : '')
+                            + (r.visitTime ? ' · ' + T.esc(r.visitTime) : '') + '</div>',
+                        adults: r.adults || 0,
+                        children: r.children || 0,
+                        infants: infants,
+                        adultPrice: Number(r.adult_price || 0),
+                        childPrice: Number(r.child_price || 0),
+                        infantPrice: 0,
+                        extraHtml: (transferHtml || '') + guideHtml
+                    })
+                    : '';
                 T.showPriceBreakdownModal(
                     r.restaurantName || 'Restaurant',
                     cur,

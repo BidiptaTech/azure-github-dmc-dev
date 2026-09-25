@@ -493,7 +493,8 @@
             adult_price: opt ? (opt.dataset.adultPrice || opt.dataset.sharedPrice || '') : '',
             child_price: opt ? (opt.dataset.childPrice || opt.dataset.sharedPrice || '') : '',
             hourly_package_price: hourlyPkg || '',
-            remarks: ''
+            remarks: '',
+            bookingType: T.resolveRowBookingType ? T.resolveRowBookingType(null) : 'enquiry'
         };
     }
 
@@ -584,9 +585,13 @@
         if (!root.__lastPrice) { alert('Please Get Price first.'); return; }
         var rows = readChunk(root);
         var payload = collectPayload(root, stay);
+        var T = S();
         if (root.__editingIdx != null && root.__editingIdx >= 0 && root.__editingIdx < rows.length) {
             payload.supplement = rows[root.__editingIdx].supplement;
             payload.is_supplement = rows[root.__editingIdx].is_supplement;
+            payload.bookingType = T.resolveRowBookingType
+                ? T.resolveRowBookingType(rows[root.__editingIdx])
+                : (rows[root.__editingIdx].bookingType || payload.bookingType);
             rows[root.__editingIdx] = payload;
             root.__editingIdx = null;
             setAddMode(root, false);
@@ -598,7 +603,6 @@
         invalidate(root);
         root.__preferredVehicleId = '';
         root.__preferredVehicleName = '';
-        var T = S();
         var vehicle = root.querySelector('.transport-vehicle');
         if (vehicle) {
             vehicle.innerHTML = '<option value="">Click Search Vehicles</option>';

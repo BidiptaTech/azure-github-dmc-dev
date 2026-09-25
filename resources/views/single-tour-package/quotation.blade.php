@@ -950,8 +950,8 @@
             return $inclusionDateRange;
         };
 
-        // Title: City (Country) (CURRENCY) [· Return]
-        $formatLocationTitle = function ($city, $country, $currency, $isReturn = false) use ($preferredCityByCountry, $isUsableCityName) {
+        // Title: City (Country) (CURRENCY) [· Return] [· date range]
+        $formatLocationTitle = function ($city, $country, $currency, $isReturn = false, $dateRange = '') use ($preferredCityByCountry, $isUsableCityName) {
             $country = trim((string) $country);
             if ($country === '') {
                 $country = 'Other';
@@ -970,6 +970,10 @@
             $title = $city . ' (' . $country . ') (' . $currency . ')';
             if ($isReturn) {
                 $title .= ' · Return';
+            }
+            $dateRange = trim((string) $dateRange);
+            if ($dateRange !== '') {
+                $title .= ' · ' . $dateRange;
             }
             return $title;
         };
@@ -1978,11 +1982,11 @@
                     $countryCity = $countryMeta[$bucketKey]['city'] ?? '';
                     $countryCurrency = $countryMeta[$bucketKey]['currency'] ?? strtoupper((string)$baseCurrency);
                     $countryIsReturn = !empty($countryMeta[$bucketKey]['is_return']);
-                    $countryBoxTitle = $formatLocationTitle($countryCity, $countryName, $countryCurrency, $countryIsReturn);
                     $countryDateRange = trim((string) ($countryMeta[$bucketKey]['date_range'] ?? ''));
                     if ($countryDateRange === '') {
                         $countryDateRange = $resolveCountryDateRange($countryCity, $countryName);
                     }
+                    $countryBoxTitle = $formatLocationTitle($countryCity, $countryName, $countryCurrency, $countryIsReturn, $countryDateRange);
                     $showCountryPricing = $isPricedCountry($countryName);
                     $countryHotels = $showCountryPricing ? ($hotelsByCountry[$bucketKey] ?? []) : [];
                     $bucket = $showCountryPricing ? ($otherByCountry[$bucketKey] ?? []) : [];
@@ -1999,14 +2003,7 @@
                 @endphp
                 <div class="country-box">
                     <div class="country-box-title">{{ $countryBoxTitle }}</div>
-                    @if(!$showCountryPricing)
-                        <div class="country-date-row">
-                            <span class="bold">Date:</span> {{ $countryDateRange }}
-                        </div>
-                    @else
-                    <div class="country-date-row">
-                        <span class="bold">Date:</span> {{ $countryDateRange }}
-                    </div>
+                    @if($showCountryPricing)
                     <table class="country-box-inner">
                         <tr>
                             <td>
@@ -2122,6 +2119,249 @@
                 $countrySharingRows = array_values(array_filter($countrySharingRows, function ($share) use ($isPricedCountry) {
                     return $isPricedCountry($share['country'] ?? '');
                 }));
+            }
+
+            // Split same-city return stays (like edit form): do not club primary + return.
+            if (!empty($staySegments) && is_array($staySegments) && count($staySegments) > 0) {
+                $rawCountrySharing = $countrySharingRows;
+                $staySharingMap = [];
+
+                $ensureStayShare = function ($stay, $country, $currency) use (&$staySharingMap) {
+                    $currency = strtoupper(trim((string) $currency));
+                    if ($currency === '') {
+                        $currency = 'SGD';
+                    }
+                    $key = ((string) ($stay['key'] ?? 'stay')) . '|' . $currency;
+                    if (!isset($staySharingMap[$key])) {
+                        $staySharingMap[$key] = [
+                            'key' => $key,
+                            'country' => trim((string) $country) !== '' ? trim((string) $country) : 'Other',
+                            'city' => (string) ($stay['city'] ?? ''),
+                            'currency' => $currency,
+                            'is_return' => !empty($stay['is_return']),
+                            'date_range' => (string) ($stay['date_range'] ?? ''),
+                            'sort_start' => (string) ($stay['start'] ?? ''),
+                            'hotel_single' => 0.0,
+                            'hotel_double' => 0.0,
+                            'hotel_triple' => 0.0,
+                            'other_services_single' => 0.0,
+                            'other_services_double' => 0.0,
+                            'other_services_child' => 0.0,
+                            'child_bed_total' => 0.0,
+                            'children' => 0,
+                            '_has_other_slot' => false,
+                        ];
+                    }
+                    return $key;
+                };
+
+                foreach (($tourPrices['hotel_price_options'] ?? []) as $hp) {
+                    if (!is_array($hp)) {
+                        continue;
+                    }
+                    $country = trim((string) ($hp['country'] ?? 'Other'));
+                    if (!$isPricedCountry($country)) {
+                        continue;
+                    }
+                    $currency = strtoupper(trim((string) ($hp['currency'] ?? $baseCurrency)));
+                    if ($currency === '') {
+                        $currency = strtoupper((string) $baseCurrency);
+                    }
+                    $city = trim((string) ($hp['city'] ?? ''));
+                    $dr = trim((string) ($hp['date_range'] ?? ''));
+                    $stay = $resolveStayForItem($city, $country, $dr, !empty($hp['is_return']));
+                    if (!is_array($stay)) {
+                        continue;
+                    }
+                    $key = $ensureStayShare($stay, $country !== '' ? $country : ($stay['country'] ?? 'Other'), $currency);
+                    $staySharingMap[$key]['hotel_single'] += (float) ($hp['single'] ?? 0);
+                    $staySharingMap[$key]['hotel_double'] += (float) ($hp['double'] ?? 0);
+                    $staySharingMap[$key]['hotel_triple'] += (float) ($hp['triple'] ?? 0);
+                    $staySharingMap[$key]['child_bed_total'] += (float) ($hp['child_with_bed_total'] ?? 0)
+                        + (float) ($hp['child_without_bed_total'] ?? 0);
+                    $staySharingMap[$key]['children'] = max(
+                        (int) $staySharingMap[$key]['children'],
+                        max(0, (int) ($hp['children'] ?? 0))
+                    );
+                    if ($staySharingMap[$key]['city'] === '' && !empty($stay['city'])) {
+                        $staySharingMap[$key]['city'] = (string) $stay['city'];
+                    }
+                }
+
+                foreach (($allCountryKeys ?? []) as $bucketKey) {
+                    $meta = $countryMeta[$bucketKey] ?? null;
+                    if (!is_array($meta)) {
+                        continue;
+                    }
+                    $stayKey = (string) ($meta['stay_key'] ?? '');
+                    if ($stayKey === '') {
+                        continue;
+                    }
+                    $stay = null;
+                    foreach ($staySegments as $s) {
+                        if ((string) ($s['key'] ?? '') === $stayKey) {
+                            $stay = $s;
+                            break;
+                        }
+                    }
+                    if (!is_array($stay)) {
+                        continue;
+                    }
+                    $country = trim((string) ($meta['country'] ?? ($stay['country'] ?? 'Other')));
+                    if (!$isPricedCountry($country)) {
+                        continue;
+                    }
+                    $currency = strtoupper(trim((string) ($meta['currency'] ?? $baseCurrency)));
+                    $key = $ensureStayShare($stay, $country, $currency);
+                    if (!empty($otherByCountry[$bucketKey])) {
+                        $staySharingMap[$key]['_has_other_slot'] = true;
+                    }
+                    if ($staySharingMap[$key]['city'] === '' && !empty($meta['city'])) {
+                        $staySharingMap[$key]['city'] = (string) $meta['city'];
+                    }
+                }
+
+                $otherPool = [];
+                foreach ($rawCountrySharing as $share) {
+                    if (!is_array($share)) {
+                        continue;
+                    }
+                    $ck = mb_strtolower(trim((string) ($share['country'] ?? 'Other')))
+                        . '|' . strtoupper(trim((string) ($share['currency'] ?? $baseCurrency)));
+                    $otherPool[$ck] = [
+                        'other_services_single' => (float) ($share['other_services_single'] ?? 0),
+                        'other_services_double' => (float) ($share['other_services_double'] ?? 0),
+                        'other_services_child' => (float) ($share['other_services_child'] ?? 0),
+                        'hotel_single' => (float) ($share['hotel_single'] ?? 0),
+                        'hotel_double' => (float) ($share['hotel_double'] ?? 0),
+                        'hotel_triple' => (float) ($share['hotel_triple'] ?? 0),
+                    ];
+                }
+
+                $slotsByCountryCur = [];
+                foreach ($staySharingMap as $key => $row) {
+                    $ck = mb_strtolower(trim((string) $row['country'])) . '|' . $row['currency'];
+                    if (!empty($row['_has_other_slot'])) {
+                        $slotsByCountryCur[$ck][] = $key;
+                    }
+                }
+
+                foreach ($otherPool as $ck => $pool) {
+                    $otherSum = (float) $pool['other_services_single']
+                        + (float) $pool['other_services_double']
+                        + (float) $pool['other_services_child'];
+                    if ($otherSum <= 0) {
+                        continue;
+                    }
+                    if (empty($slotsByCountryCur[$ck])) {
+                        foreach ($staySharingMap as $key => $row) {
+                            $rck = mb_strtolower(trim((string) $row['country'])) . '|' . $row['currency'];
+                            if ($rck === $ck) {
+                                $slotsByCountryCur[$ck][] = $key;
+                            }
+                        }
+                    }
+                    if (empty($slotsByCountryCur[$ck])) {
+                        [$cName, $cur] = array_pad(explode('|', $ck, 2), 2, '');
+                        foreach ($staySegments as $stay) {
+                            if (mb_strtolower(trim((string) ($stay['country'] ?? ''))) !== $cName) {
+                                continue;
+                            }
+                            $key = $ensureStayShare($stay, $stay['country'] ?? 'Other', $cur);
+                            $slotsByCountryCur[$ck][] = $key;
+                        }
+                    }
+                    $slots = array_values(array_unique($slotsByCountryCur[$ck] ?? []));
+                    $n = max(1, count($slots));
+                    foreach ($slots as $sk) {
+                        if (!isset($staySharingMap[$sk])) {
+                            continue;
+                        }
+                        $staySharingMap[$sk]['other_services_single'] += ((float) $pool['other_services_single']) / $n;
+                        $staySharingMap[$sk]['other_services_double'] += ((float) $pool['other_services_double']) / $n;
+                        $staySharingMap[$sk]['other_services_child'] += ((float) $pool['other_services_child']) / $n;
+                    }
+                }
+
+                // Fallback hotel amounts from country_sharing when options did not map
+                foreach ($otherPool as $ck => $pool) {
+                    $hotelSum = 0.0;
+                    $firstKey = null;
+                    $primaryKey = null;
+                    foreach ($staySharingMap as $key => $row) {
+                        $rck = mb_strtolower(trim((string) $row['country'])) . '|' . $row['currency'];
+                        if ($rck !== $ck) {
+                            continue;
+                        }
+                        $hotelSum += (float) $row['hotel_single'] + (float) $row['hotel_double'] + (float) $row['hotel_triple'];
+                        if ($firstKey === null) {
+                            $firstKey = $key;
+                        }
+                        if ($primaryKey === null && empty($row['is_return'])) {
+                            $primaryKey = $key;
+                        }
+                    }
+                    $poolHotel = (float) $pool['hotel_single'] + (float) $pool['hotel_double'] + (float) $pool['hotel_triple'];
+                    if ($hotelSum <= 0 && $poolHotel > 0) {
+                        $target = $primaryKey ?? $firstKey;
+                        if ($target !== null) {
+                            $staySharingMap[$target]['hotel_single'] = (float) $pool['hotel_single'];
+                            $staySharingMap[$target]['hotel_double'] = (float) $pool['hotel_double'];
+                            $staySharingMap[$target]['hotel_triple'] = (float) $pool['hotel_triple'];
+                        }
+                    } elseif ($hotelSum <= 0 && $poolHotel <= 0 && empty($slotsByCountryCur[$ck] ?? [])) {
+                        // Keep legacy country row when nothing mapped
+                        continue;
+                    }
+                }
+
+                foreach ($rawCountrySharing as $share) {
+                    if (!is_array($share)) {
+                        continue;
+                    }
+                    $ck = mb_strtolower(trim((string) ($share['country'] ?? 'Other')))
+                        . '|' . strtoupper(trim((string) ($share['currency'] ?? $baseCurrency)));
+                    $hasStay = false;
+                    foreach ($staySharingMap as $row) {
+                        $rck = mb_strtolower(trim((string) $row['country'])) . '|' . $row['currency'];
+                        if ($rck === $ck) {
+                            $hasStay = true;
+                            break;
+                        }
+                    }
+                    if (!$hasStay) {
+                        $legacyKey = 'legacy_' . (string) ($share['key'] ?? $ck);
+                        $staySharingMap[$legacyKey] = array_merge($share, [
+                            'key' => $legacyKey,
+                            'is_return' => false,
+                            'sort_start' => '',
+                            'child_bed_total' => 0.0,
+                            'children' => 0,
+                        ]);
+                    }
+                }
+
+                $countrySharingRows = array_values($staySharingMap);
+                usort($countrySharingRows, function ($a, $b) {
+                    $as = (string) ($a['sort_start'] ?? '');
+                    $bs = (string) ($b['sort_start'] ?? '');
+                    if ($as !== '' && $bs !== '' && $as !== $bs) {
+                        return strcmp($as, $bs);
+                    }
+                    $ar = !empty($a['is_return']) ? 1 : 0;
+                    $br = !empty($b['is_return']) ? 1 : 0;
+                    if ($ar !== $br) {
+                        return $ar <=> $br;
+                    }
+                    return strcasecmp(
+                        ((string) ($a['city'] ?? '')) . ' ' . ((string) ($a['country'] ?? '')),
+                        ((string) ($b['city'] ?? '')) . ' ' . ((string) ($b['country'] ?? ''))
+                    );
+                });
+                foreach ($countrySharingRows as &$shareRow) {
+                    unset($shareRow['_has_other_slot']);
+                }
+                unset($shareRow);
             }
 
             $overallHotelSingle = 0.0;
@@ -2396,6 +2636,14 @@
                 if ($shareCity === '') {
                     $shareCity = $shareCountry;
                 }
+                $shareIsReturn = !empty($share['is_return']) || !empty($countryMeta[$shareKey]['is_return'] ?? false);
+                $shareDateRange = trim((string) ($share['date_range'] ?? ($countryMeta[$shareKey]['date_range'] ?? '')));
+                if ($shareIsReturn && !preg_match('/\breturn\b/i', $shareCity)) {
+                    $shareCity .= ' · Return';
+                }
+                if ($shareDateRange !== '' && stripos($shareCity, $shareDateRange) === false) {
+                    $shareCity .= ' · ' . $shareDateRange;
+                }
 
                 $hSingle = (float) ($share['hotel_single'] ?? 0);
                 $hDouble = (float) ($share['hotel_double'] ?? 0);
@@ -2420,12 +2668,20 @@
                     ? (float) ceil($convertToOverall($otherAdultUnitNative, $shareCurrency))
                     : 0.0;
 
-                $childBedNative = (float) ($countryChildBedTotals[$shareChildKey] ?? 0);
+                $hasStayChild = array_key_exists('child_bed_total', $share);
+                $childBedNative = $hasStayChild
+                    ? (float) ($share['child_bed_total'] ?? 0)
+                    : (float) ($countryChildBedTotals[$shareChildKey] ?? 0);
                 $otherChildNative = (float) ($share['other_services_child'] ?? 0);
-                $cityChildCount = max(
-                    (int) ($countryChildCounts[$shareChildKey] ?? 0),
-                    $overallChildCount
-                );
+                $cityChildCount = $hasStayChild
+                    ? max(
+                        (int) ($share['children'] ?? 0),
+                        ($childBedNative > 0 || $otherChildNative > 0) ? max(1, $overallChildCount) : 0
+                    )
+                    : max(
+                        (int) ($countryChildCounts[$shareChildKey] ?? 0),
+                        $overallChildCount
+                    );
                 if (($childBedNative > 0 || $otherChildNative > 0) && $cityChildCount <= 0) {
                     $cityChildCount = 1;
                 }
@@ -2686,13 +2942,14 @@
                     $shareCountry = $share['country'] ?? 'Other';
                     $shareCity = $share['city'] ?? ($countryMeta[$share['key'] ?? '']['city'] ?? '');
                     $shareCurrency = strtoupper((string)($share['currency'] ?? $baseCurrency));
-                    $shareTitle = $formatLocationTitle($shareCity, $shareCountry, $shareCurrency);
+                    $shareDateRange = trim((string) ($share['date_range'] ?? ($countryMeta[$share['key'] ?? '']['date_range'] ?? '')));
+                    $shareTitle = $formatLocationTitle($shareCity, $shareCountry, $shareCurrency, !empty($share['is_return']), $shareDateRange);
                     $shareHotelSingle = (float)($share['hotel_single'] ?? 0);
                     $shareHotelDouble = (float)($share['hotel_double'] ?? 0);
                     $shareHotelTriple = (float)($share['hotel_triple'] ?? 0);
                     $shareKey = (string)($share['key'] ?? (mb_strtolower($shareCountry) . '|' . $shareCurrency));
                     $shareChildKey = mb_strtolower(trim((string) $shareCountry)) . '|' . $shareCurrency;
-                    $shareChildBed = (float) ($countryChildBedTotals[$shareChildKey] ?? 0);
+                    $shareChildBed = (float) ($share['child_bed_total'] ?? ($countryChildBedTotals[$shareChildKey] ?? 0));
                     // Other is per-pax (same formula as CommonHelper), not order-line total
                     $shareOther = (float)($share['other_services_single'] ?? ($share['other_services_double'] ?? 0));
                     $shareOtherChild = (float)($share['other_services_child'] ?? 0);
