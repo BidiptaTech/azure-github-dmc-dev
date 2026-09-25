@@ -202,27 +202,36 @@
 
     /**
      * Google often reuses one .pac-container for multiple Autocomplete inputs.
-     * While this input is focused, bind whatever list Google is filling to it.
+     * Prefer this input's own pac / an unowned pac. Only transfer from prevInput
+     * (the field we just left) so PTP Pickup↔Dropoff never shows two lists.
      */
-    function adoptLivePac(input) {
+    function adoptLivePac(input, prevInput) {
         if (!input) return null;
         var owned = resolveOwnedPac(input);
-        if (owned && owned.querySelector('.pac-item')) return owned;
+        if (owned) return owned;
 
-        var live = null;
         var orphan = null;
         Array.prototype.forEach.call(document.querySelectorAll('.pac-container'), function (pac) {
             if (!pac || !pac.isConnected) return;
+            if (pac._stpLiteOwner && pac._stpLiteOwner !== input) return;
             if (!pac._stpLiteOwner && !orphan) orphan = pac;
-            if (pac.querySelector('.pac-item')) live = pac;
         });
+        if (orphan) {
+            claimPacForInput(input, orphan);
+            return orphan;
+        }
 
-        var target = live || orphan;
-        if (!target) return owned;
+        // Shared-container case: take over the pac from the field we just left
+        if (prevInput && prevInput !== input) {
+            var prevPac = prevInput._pacContainer || resolveOwnedPac(prevInput);
+            if (prevPac) {
+                if (prevInput._pacContainer === prevPac) prevInput._pacContainer = null;
+                claimPacForInput(input, prevPac);
+                return prevPac;
+            }
+        }
 
-        // Steal display ownership for the focused field (shared pac case)
-        claimPacForInput(input, target);
-        return target;
+        return null;
     }
 
     function hideOtherPacContainers(keepInput) {
@@ -238,12 +247,12 @@
         });
     }
 
-    function syncPacVisibility(input) {
+    function syncPacVisibility(input, prevInput) {
         if (!input) {
             hideAllPacContainers();
             return;
         }
-        adoptLivePac(input);
+        adoptLivePac(input, prevInput);
         hideOtherPacContainers(input);
     }
 
@@ -256,8 +265,7 @@
                 stopPacGuard();
                 return;
             }
-            // Re-adopt in case Google attached suggestions to a shared/unowned pac
-            adoptLivePac(input);
+            adoptLivePac(input, null);
             hideOtherPacContainers(input);
             if (ticks > 100) stopPacGuard();
         }, 50);
@@ -272,8 +280,17 @@
 
     function activateInput(input) {
         if (!input) return;
+        var prev = activeMapsInput;
+        // Always close the previous field's dropdown before opening this one
+        if (prev && prev !== input) {
+            var prevPac = prev._pacContainer || resolveOwnedPac(prev);
+            if (prevPac) hidePac(prevPac);
+            Array.prototype.forEach.call(document.querySelectorAll('.pac-container'), function (pac) {
+                if (pac._stpLiteOwner === prev) hidePac(pac);
+            });
+        }
         activeMapsInput = input;
-        syncPacVisibility(input);
+        syncPacVisibility(input, prev);
         startPacGuard(input);
     }
 

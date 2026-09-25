@@ -2936,7 +2936,7 @@
         {{-- 1) Package Price by Country --}}
         @if(!empty($countrySharingRows))
         <div class="overall-price-box">
-            <div class="panel-title">Package Price by Country</div>
+            <div class="panel-title">Packaged Price by Country</div>
             @foreach($countrySharingRows as $share)
                 @php
                     $shareCountry = $share['country'] ?? 'Other';

@@ -250,6 +250,20 @@
         if (add) add.disabled = true;
     }
 
+    /** Pickup/dropoff changed → vehicle must be re-searched. */
+    function clearVehicleOnRouteChange(root) {
+        root.__preferredVehicleId = '';
+        root.__preferredVehicleName = '';
+        var vehicle = root.querySelector('.transport-vehicle');
+        if (vehicle) {
+            vehicle.innerHTML = '<option value="">Click Search Vehicles</option>';
+            vehicle.disabled = true;
+        }
+        var getBtn = root.querySelector('.transport-get-price-btn');
+        if (getBtn) getBtn.disabled = true;
+        invalidate(root);
+    }
+
     function searchVehicles(root, stay, preferredVehicleId) {
         var T = S();
         var vehicle = root.querySelector('.transport-vehicle');
@@ -678,7 +692,11 @@
         root.querySelector('.transport-get-price-btn').addEventListener('click', function () { getPrice(root); });
         root.querySelector('.transport-add-btn').addEventListener('click', function () { addRow(root, stay); });
 
-        root.querySelectorAll('.transport-vehicle, .transport-service-type, .transport-adults, .transport-children, .transport-hours, .transport-custom-price, .transport-from-zone, .transport-to-zone, .transport-pickup-text, .transport-dropoff-text').forEach(function (el) {
+        root.querySelectorAll('.transport-from-zone, .transport-to-zone, .transport-pickup-text, .transport-dropoff-text').forEach(function (el) {
+            el.addEventListener('change', function () { if (!root.__hydrating) clearVehicleOnRouteChange(root); });
+            el.addEventListener('input', function () { if (!root.__hydrating) clearVehicleOnRouteChange(root); });
+        });
+        root.querySelectorAll('.transport-vehicle, .transport-service-type, .transport-adults, .transport-children, .transport-hours, .transport-custom-price').forEach(function (el) {
             el.addEventListener('change', function () { if (!root.__hydrating) invalidate(root); });
             el.addEventListener('input', function () { if (!root.__hydrating) invalidate(root); });
         });
