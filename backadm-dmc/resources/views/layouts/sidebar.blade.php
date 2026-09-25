@@ -1818,6 +1818,12 @@
                     // Tour cannot start today — earliest selectable start is tomorrow.
                     $ctpMinStartDate = \Carbon\Carbon::now()->addDay()->format('Y-m-d');
                     $ctpMinEndDate = \Carbon\Carbon::now()->addDays(2)->format('Y-m-d');
+                    // DMC group_pax threshold (same source as Lite create FIT/GROUP auto-switch)
+                    $ctpProDmcId = \App\Helpers\CommonHelper::getDmcId(auth()->user());
+                    $ctpProDmcGroupPax = 0;
+                    if ($ctpProDmcId) {
+                        $ctpProDmcGroupPax = (int) (\App\Models\User::where('userId', $ctpProDmcId)->value('group_pax') ?? 0);
+                    }
                 @endphp
                 <div class="ctp-shell">
                     <aside class="ctp-sidenav" aria-label="Tour setup steps">
@@ -1835,8 +1841,21 @@
                                 <span class="ctp-step-sub">Lead guest details</span>
                             </span>
                         </button>
-                        <div class="ctp-sidenav-foot">
-                            Create memorable<br>experiences <i class="ri-plane-line"></i>
+                        <div class="ctp-sidenav-foot" aria-hidden="true">
+                            <span class="ctp-sidenav-foot-text">Create memorable<br>experiences</span>
+                            <div class="ctp-flight-stage">
+                                <span class="ctp-flight-glow"></span>
+                                <svg class="ctp-flight-path" viewBox="0 0 210 56" preserveAspectRatio="none" aria-hidden="true">
+                                    <path d="M6 46 C 45 42, 70 18, 105 14 S 160 18, 205 6" fill="none" stroke="currentColor" stroke-width="1.25" stroke-dasharray="3 5" stroke-linecap="round"/>
+                                </svg>
+                                <span class="ctp-wake ctp-wake-a"></span>
+                                <span class="ctp-wake ctp-wake-b"></span>
+                                <span class="ctp-wake ctp-wake-c"></span>
+                                <span class="ctp-wake ctp-wake-d"></span>
+                                <span class="ctp-sidenav-plane">
+                                    <i class="ri-plane-line"></i>
+                                </span>
+                            </div>
                         </div>
                     </aside>
 
@@ -1866,16 +1885,20 @@
                             <div class="row g-3">
                                 <div class="col-md-4">
                                     <span class="ctp-label">Type <span class="ctp-req">*</span></span>
-                                    <div class="ctp-radios">
+                                    <div class="ctp-radios ctp-tour-type-locked" title="Auto from DMC Group Pax vs adults + children">
                                         <label class="ctp-radio" for="tourTypeFIT">
-                                            <input type="radio" name="tour_type" id="tourTypeFIT" value="FIT" checked>
+                                            <input type="radio" name="tour_type_ui" id="tourTypeFIT" value="FIT" checked disabled>
                                             <span>FIT</span>
                                         </label>
                                         <label class="ctp-radio" for="tourTypeGroup">
-                                            <input type="radio" name="tour_type" id="tourTypeGroup" value="GROUP">
+                                            <input type="radio" name="tour_type_ui" id="tourTypeGroup" value="GROUP" disabled>
                                             <span>Group</span>
                                         </label>
                                     </div>
+                                    <input type="hidden" name="tour_type" id="ctp_tour_type_value" value="FIT">
+                                    <small class="text-muted d-block mt-1" id="ctpTourTypeAutoHint" style="font-size:0.72rem; line-height:1.3;">
+                                        FIT/GROUP switches automatically from DMC Group Pax — you cannot change them manually.
+                                    </small>
                                 </div>
                                 <div class="col-md-4">
                                     <label class="ctp-label" for="tourStartDate">Start Date <span class="ctp-req">*</span></label>
@@ -2601,6 +2624,8 @@
         }
 
         // Create Tour Pro — FIT pax vs Group (FOC + guest modal, Create Lite parity)
+        // Auto FIT/GROUP from DMC group_pax (same rule as Lite: adults + children >= threshold → GROUP)
+        window.CTP_DMC_GROUP_PAX = {{ (int) ($ctpProDmcGroupPax ?? 0) }};
         window.tourProGuestConfigured = false;
         let selectedDestinations = [];
         let allDestinations = [];
@@ -2612,9 +2637,110 @@
             return Number.isFinite(n) ? n : 0;
         }
         function ctpIsGroup() {
+            const hidden = document.getElementById('ctp_tour_type_value');
+            if (hidden && String(hidden.value || '').toUpperCase() === 'GROUP') return true;
             const r = document.getElementById('tourTypeGroup');
             return !!(r && r.checked);
         }
+
+        /** Adults + children for DMC group_pax threshold (infants excluded — Lite parity). */
+        function ctpReadPaxForThreshold() {
+            const guestModal = document.getElementById('tourProGuestModal');
+            const modalOpen = !!(guestModal && guestModal.classList.contains('show'));
+            const maleEl = document.getElementById('ctpModalMale');
+            const femaleEl = document.getElementById('ctpModalFemale');
+            const childEl = document.getElementById('ctpModalChildren');
+            const infEl = document.getElementById('ctpModalInfants');
+            if (modalOpen && maleEl && femaleEl && childEl) {
+                return {
+                    adults: Math.max(0, ctpSafeInt(maleEl.textContent) + ctpSafeInt(femaleEl.textContent)),
+                    children: Math.max(0, ctpSafeInt(childEl.textContent)),
+                    infants: Math.max(0, ctpSafeInt(infEl ? infEl.textContent : 0))
+                };
+            }
+            return {
+                adults: Math.max(0, ctpSafeInt(document.getElementById('ctp_hidden_adult_count')?.value)),
+                children: Math.max(0, ctpSafeInt(document.getElementById('ctp_hidden_child_count')?.value)),
+                infants: Math.max(0, ctpSafeInt(document.getElementById('ctp_hidden_infant_count')?.value))
+            };
+        }
+
+        function ctpUpdateTourTypeHint(threshold, total, next) {
+            const hint = document.getElementById('ctpTourTypeAutoHint');
+            if (!hint) return;
+            if (threshold > 0) {
+                hint.textContent = 'Auto from DMC Group Pax (' + threshold + '). Current paying pax: ' + total
+                    + ' (adults + children). '
+                    + (next === 'GROUP' ? 'Switched to GROUP.' : 'FIT until pax reaches ' + threshold + '.');
+            } else {
+                hint.textContent = 'DMC Group Pax is not set — defaulting to FIT. FIT/GROUP cannot be changed manually.';
+            }
+        }
+
+        /**
+         * Lock FIT/GROUP radios and set type (Lite parity).
+         * Does not reset guestConfigured — safe to call while editing guests.
+         */
+        function ctpSetTourType(type, opts) {
+            const options = opts || {};
+            const next = String(type || 'FIT').toUpperCase() === 'GROUP' ? 'GROUP' : 'FIT';
+            const prev = ctpIsGroup() ? 'GROUP' : 'FIT';
+            const fit = document.getElementById('tourTypeFIT');
+            const group = document.getElementById('tourTypeGroup');
+            const hidden = document.getElementById('ctp_tour_type_value');
+            if (fit) {
+                fit.checked = next === 'FIT';
+                fit.disabled = true;
+            }
+            if (group) {
+                group.checked = next === 'GROUP';
+                group.disabled = true;
+            }
+            if (hidden) hidden.value = next;
+
+            const threshold = Math.max(0, ctpSafeInt(window.CTP_DMC_GROUP_PAX));
+            const pax = ctpReadPaxForThreshold();
+            const total = pax.adults + pax.children;
+            ctpUpdateTourTypeHint(threshold, total, next);
+
+            const helper = document.getElementById('tourProGuestsHelper');
+            if (helper) {
+                helper.textContent = next === 'GROUP'
+                    ? 'Select tour guests to set passengers. Group size = paying pax; FOC adds to total pax. Adults + children must match total pax (male + female = adults). Infants are extra.'
+                    : 'Select tour guests to set passengers. Set adults (male + female), children, and infants. Infants do not use a pax slot.';
+            }
+
+            const focSec = document.getElementById('ctpProGroupDetailsSection');
+            if (focSec) focSec.classList.toggle('d-none', next !== 'GROUP');
+
+            // When auto-switching to GROUP, seed paying group size from current adults+children
+            if (next === 'GROUP' && (prev !== 'GROUP' || options.forceSeedGroup)) {
+                const gsd = document.getElementById('pro_group_size_display');
+                const focEl = document.getElementById('pro_foc_size');
+                const paying = Math.max(1, total > 0 ? total : 1);
+                if (gsd) gsd.value = String(paying);
+                if (focEl && (prev !== 'GROUP' || options.forceSeedGroup)) {
+                    // Keep existing FOC when already GROUP; reset only on first switch
+                    if (prev !== 'GROUP') focEl.value = '0';
+                }
+                const guestModal = document.getElementById('tourProGuestModal');
+                if (guestModal && guestModal.classList.contains('show') && typeof ctpSyncModalGuestsToCap === 'function') {
+                    ctpSyncModalGuestsToCap();
+                }
+            }
+
+            return next;
+        }
+
+        function ctpSyncTourTypeFromPax(opts) {
+            const threshold = Math.max(0, ctpSafeInt(window.CTP_DMC_GROUP_PAX));
+            const pax = ctpReadPaxForThreshold();
+            const total = pax.adults + pax.children;
+            const next = (threshold > 0 && total >= threshold) ? 'GROUP' : 'FIT';
+            return ctpSetTourType(next, opts);
+        }
+        window.ctpSyncTourTypeFromPax = ctpSyncTourTypeFromPax;
+        window.ctpSetTourType = ctpSetTourType;
 
         /** Enable Continue when required fields are set. Contact number and email are optional. */
         function ctpExpandLeadGuestAccordion() {
@@ -2740,24 +2866,25 @@
             ctpSetHidden('ctp_hidden_child_ages', '[]');
         }
         function ctpRefreshTourTypeUI() {
-            const helper = document.getElementById('tourProGuestsHelper');
-            const g = ctpIsGroup();
-            if (helper) {
-                helper.textContent = g
-                    ? 'Select tour guests to set passengers. Group size = paying pax; FOC adds to total pax. Adults + children must match total pax (male + female = adults). Infants are extra.'
-                    : 'Select tour guests to set passengers. Set adults (male + female), children, and infants. Infants do not use a pax slot.';
-            }
+            // Auto FIT/GROUP from current pax; reset guest selection defaults for the mode
+            const next = ctpSyncTourTypeFromPax();
             window.tourProGuestConfigured = false;
-            if (g) ctpInitDefaultGroupHidden();
+            if (next === 'GROUP') ctpInitDefaultGroupHidden();
             else ctpInitDefaultFitHidden();
+            // After defaults, re-apply type so hint/FOC section stay in sync
+            ctpSetTourType(next, { forceSeedGroup: next === 'GROUP' });
             ctpRenderGuestSummary();
             ctpUpdateSubmitButtonState();
         }
-        document.querySelectorAll('input[name="tour_type"]').forEach(function(r) {
-            r.addEventListener('change', function() {
-                ctpRefreshTourTypeUI();
+        // Lock FIT/GROUP — no manual toggle (Lite parity)
+        document.querySelectorAll('.ctp-tour-type-locked, .ctp-tour-type-locked label, .ctp-tour-type-locked input').forEach(function(el) {
+            el.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
             });
         });
+        // Initial sync (defaults to FIT until guests are chosen)
+        ctpSyncTourTypeFromPax();
         const ctpLeadGuestRules = {
             name: {
                 strip: /[^\p{L}\s\-]/gu,
@@ -2977,6 +3104,7 @@
             if (!e.target) return;
             if (e.target.id === 'pro_group_size_display' || e.target.id === 'pro_foc_size') {
                 ctpRebalanceHeadcountToTotal();
+                ctpSyncTourTypeFromPax();
             }
         }, true);
         document.addEventListener('change', function(e) {
@@ -3032,6 +3160,7 @@
                 maleEl.textContent = String(m);
                 femaleEl.textContent = String(f);
                 if (adEl) adEl.textContent = String(m + f);
+                ctpSyncTourTypeFromPax();
                 return;
             }
             if (type === 'children') {
@@ -3043,6 +3172,7 @@
                 window.ctpUpdateChildAgeDropdownsPro(c);
                 if (adEl) adEl.textContent = String(m + f);
                 if (isGroup) ctpSyncModalGuestsToCap();
+                ctpSyncTourTypeFromPax();
                 return;
             }
             if (type === 'infants') {
@@ -3079,6 +3209,7 @@
                 maleEl.textContent = String(m);
                 femaleEl.textContent = String(f);
                 if (adEl) adEl.textContent = String(m + f);
+                ctpSyncTourTypeFromPax();
                 return;
             }
 
@@ -3098,6 +3229,7 @@
             maleEl.textContent = String(m);
             femaleEl.textContent = String(f);
             if (adEl) adEl.textContent = String(m + f);
+            ctpSyncTourTypeFromPax();
         };
         window.ctpGuestFemaleDelta = function(change) {
             const maleEl = document.getElementById('ctpModalMale');
@@ -3118,6 +3250,7 @@
             maleEl.textContent = String(m);
             femaleEl.textContent = String(f);
             if (adEl) adEl.textContent = String(m + f);
+            ctpSyncTourTypeFromPax();
         };
         function ctpCollectChildAgesFromModal(expectedCount) {
             const expected = Math.max(0, parseInt(expectedCount, 10) || 0);
@@ -3200,6 +3333,8 @@
             });
         }
         function ctpOpenGuestModal() {
+            // Sync FIT/GROUP from current pax before showing FOC section
+            ctpSyncTourTypeFromPax();
             const focSec = document.getElementById('ctpProGroupDetailsSection');
             if (focSec) focSec.classList.toggle('d-none', !ctpIsGroup());
             if (!window.tourProGuestConfigured) {
@@ -3207,6 +3342,9 @@
                 else ctpInitDefaultFitHidden();
             }
             ctpCopyModalInputsFromHidden();
+            // After copying guests into modal, re-sync (in case hidden adults+children cross threshold)
+            ctpSyncTourTypeFromPax();
+            if (focSec) focSec.classList.toggle('d-none', !ctpIsGroup());
             const el = document.getElementById('tourProGuestModal');
             if (!el || !window.bootstrap) return;
             const bm = bootstrap.Modal.getOrCreateInstance(el);
@@ -3217,6 +3355,7 @@
                         bootstrap.Tooltip.getOrCreateInstance(t);
                     });
                 } catch (e3) { /* ignore */ }
+                ctpSyncTourTypeFromPax();
             }, { once: true });
             bm.show();
         }
@@ -3225,6 +3364,8 @@
         const ctpApplyBtn = document.getElementById('tourProGuestApplyBtn');
         if (ctpApplyBtn) {
             ctpApplyBtn.addEventListener('click', function() {
+                // Auto FIT/GROUP from modal adults+children before saving (Lite parity)
+                ctpSyncTourTypeFromPax();
                 const childEl = document.getElementById('ctpModalChildren');
                 let c = ctpSafeInt(childEl.textContent);
                 const m = ctpSafeInt(document.getElementById('ctpModalMale').textContent);
@@ -3251,8 +3392,13 @@
                     return;
                 }
                 if (ctpIsGroup()) {
-                    const gs = Math.max(0, ctpSafeInt(document.getElementById('pro_group_size_display').value));
+                    let gs = Math.max(0, ctpSafeInt(document.getElementById('pro_group_size_display').value));
                     const foc = Math.max(0, ctpSafeInt(document.getElementById('pro_foc_size').value));
+                    // Keep group size aligned with adults+children when FOC is 0
+                    const payingFromGuests = Math.max(0, (m + f) + c - foc);
+                    if (gs < 1) gs = Math.max(1, payingFromGuests);
+                    const gsd = document.getElementById('pro_group_size_display');
+                    if (gsd) gsd.value = String(gs);
                     const cb = document.getElementById('pro_include_foc_in_group_price');
                     ctpSetHidden('ctp_hidden_group_size', gs);
                     ctpSetHidden('ctp_hidden_foc_size', foc);
@@ -3273,6 +3419,7 @@
                 ctpSetHidden('ctp_hidden_infant_count', inf);
                 ctpSetHidden('ctp_hidden_child_ages', JSON.stringify(childAges));
                 window.tourProGuestConfigured = true;
+                ctpSyncTourTypeFromPax();
                 ctpRenderGuestSummary();
                 const gmod = document.getElementById('tourProGuestModal');
                 const inst = gmod && window.bootstrap ? bootstrap.Modal.getInstance(gmod) : null;
@@ -3792,6 +3939,8 @@
                 alert('Click "Select tour guests", set passengers, then Apply Selection.');
                 return false;
             }
+            // Final FIT/GROUP sync from saved adults+children (Lite parity)
+            ctpSyncTourTypeFromPax();
             const adults = ctpSafeInt(document.getElementById('ctp_hidden_adult_count').value);
             const children = ctpSafeInt(document.getElementById('ctp_hidden_child_count').value);
             const infants = ctpSafeInt(document.getElementById('ctp_hidden_infant_count').value);
