@@ -326,7 +326,10 @@
                 if (r.state == null) r.state = customer.state;
                 if (!r.zip && customer.zip) r.zip = customer.zip;
                 if (r.specialRequests == null) r.specialRequests = customer.specialRequests;
-                if (!r.bookingType) r.bookingType = 'enquiry';
+                // Align with tour status on every save (Confirmed+ must stay booking)
+                r.bookingType = (window.StpLiteTransportShared && window.StpLiteTransportShared.resolveRowBookingType)
+                    ? window.StpLiteTransportShared.resolveRowBookingType(r)
+                    : (r.bookingType || 'enquiry');
                 if (!r.userInfo) {
                     r.userInfo = {
                         fullName: r.fullName || customer.fullName || '',
