@@ -2991,22 +2991,60 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
 
         $map = [];
         $dmcs = User::whereIn('userId', $siblingIds)->get(['userId', 'country', 'role_id']);
+        // Operating DMCs first — Master (role 10) must not steal sibling country inventory.
+        $dmcs = $dmcs->sortBy(function ($dmc) {
+            $role = (int) ($dmc->role_id ?? 0);
+            return in_array($role, self::NORMAL_DMC_ROLE_IDS, true) ? 0 : 1;
+        })->values();
         foreach ($dmcs as $dmc) {
             $dmcId = (int) $dmc->userId;
+            $roleId = (int) ($dmc->role_id ?? 0);
+            $isOperating = in_array($roleId, self::NORMAL_DMC_ROLE_IDS, true);
             foreach (self::resolveSupportedCountriesForDmc($dmc) as $country) {
                 $key = self::normalizeCountryName($country);
                 if ($key === '') {
                     continue;
                 }
-                // Prefer the operating/base DMC for countries it owns.
-                // Never let another sibling overwrite a base-DMC mapping
-                // (e.g. Indonesia DMC listing "Singapore" must not steal SG inventory).
+                // Prefer operating/base DMC for countries it owns.
+                // Never let Master overwrite an operating sibling (e.g. SG DMC inventory).
                 if (!isset($map[$key])) {
                     $map[$key] = $dmcId;
-                } elseif ($dmcId === $baseDmcId && (int) $map[$key] !== $baseDmcId) {
+                } elseif ($dmcId === $baseDmcId && (int) $map[$key] !== $baseDmcId && $isOperating) {
                     $map[$key] = $dmcId;
                 }
             }
+        }
+
+        return $map;
+    }
+
+    /**
+     * Sibling DMC id → zone_on (0/1) under the same Master as $baseDmcId.
+     * Used so Master booking Singapore uses Singapore DMC zone mapping, not Master's zone_off.
+     *
+     * @return array<string, int>
+     */
+    public static function getSiblingDmcZoneOnMap($baseDmcId): array
+    {
+        $baseDmcId = (int) $baseDmcId;
+        if ($baseDmcId <= 0) {
+            return [];
+        }
+
+        $siblingIds = self::getSiblingDmcIds($baseDmcId);
+        if ($siblingIds === []) {
+            return [];
+        }
+
+        $map = [];
+        $dmcs = User::whereIn('userId', $siblingIds)->get(['userId', 'zone_on']);
+        foreach ($dmcs as $dmc) {
+            $id = (int) $dmc->userId;
+            if ($id <= 0) {
+                continue;
+            }
+            $map[(string) $id] = (int) ($dmc->zone_on ?? 0) === 1 ? 1 : 0;
+            $map[$id] = $map[(string) $id];
         }
 
         return $map;
@@ -3032,6 +3070,11 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         }
 
         $dmcs = User::whereIn('userId', $siblingIds)->get(['userId', 'country', 'role_id']);
+        // Operating siblings first so Master does not claim Singapore/etc. cities for inventory.
+        $dmcs = $dmcs->sortBy(function ($dmc) {
+            $role = (int) ($dmc->role_id ?? 0);
+            return in_array($role, self::NORMAL_DMC_ROLE_IDS, true) ? 0 : 1;
+        })->values();
         $rows = [];
         $seen = [];
 

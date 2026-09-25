@@ -226,11 +226,9 @@ class EditTourController extends Controller
 
             DB::commit();
 
-            try {
-                CommonHelper::maybeRevertTourStatusToNewEnquiry((int) $tour->tour_id);
-            } catch (\Throwable $e) {
-                // ignore
-            }
+            // Lite edit save clears all services then immediately re-stores them.
+            // Never revert tour_status here — update must keep Definite / Confirmed / etc. unchanged.
+            // (maybeRevertTourStatusToNewEnquiry is for real service remove/reject only.)
 
             return response()->json([
                 'success' => true,
