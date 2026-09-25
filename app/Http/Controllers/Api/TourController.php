@@ -3966,7 +3966,6 @@ class TourController extends Controller
                 'checkout' => $this->formatTourDateToDmY($checkOutRaw),
             ];
         }
-
         return $items;
     }
 
