@@ -355,7 +355,39 @@ class BookingsController extends Controller
             $index = 0;
             $countryGroups = [];
             foreach ($groups as $group) {
-                $gross = (float) ceil($group['gross']);
+                $serviceRows = [];
+                $hotelFromServices = 0.0;
+                $otherFromServices = 0.0;
+                foreach ($group['services'] as $service) {
+                    $sell = round((float) ($service['sell'] ?? 0), 2);
+                    $cost = round((float) ($service['cost'] ?? 0), 2);
+                    $profit = round($sell - $cost, 2);
+                    $margin = $sell > 0 ? round(($profit / $sell) * 100, 2) : 0.0;
+                    $serviceType = strtolower(trim((string) ($service['type'] ?? '')));
+                    if ($serviceType === 'hotel') {
+                        $hotelFromServices += $sell;
+                    } else {
+                        $otherFromServices += $sell;
+                    }
+                    $serviceRows[] = [
+                        'service' => $service['service'] ?? 'Service',
+                        'type' => $service['type'] ?? '',
+                        'sell' => $sell,
+                        'cost' => $cost,
+                        'profit' => $profit,
+                        'margin' => $margin,
+                        'count' => (int) ($service['count'] ?? 1),
+                    ];
+                }
+
+                // Align left-panel hotel/other with right-panel service SELL (source of truth)
+                if ($hotelFromServices > 0.009 || $otherFromServices > 0.009) {
+                    $group['hotel_gross'] = $hotelFromServices;
+                    $group['other_gross'] = $otherFromServices;
+                    $group['gross'] = $hotelFromServices + $otherFromServices;
+                }
+
+                $gross = (float) ceil((float) ($group['gross'] ?? 0));
                 $applied = $this->applyNegotiationMarkupDiscount(
                     $gross,
                     $group,
@@ -379,22 +411,6 @@ class BookingsController extends Controller
                 $discountRawOut = (float) ($applied['discount_raw'] ?? $discountRaw);
 
                 $payable = max(0, ceil($gross + $markupMoney - $discountMoney));
-                $serviceRows = [];
-                foreach ($group['services'] as $service) {
-                    $sell = round((float) ($service['sell'] ?? 0), 2);
-                    $cost = round((float) ($service['cost'] ?? 0), 2);
-                    $profit = round($sell - $cost, 2);
-                    $margin = $sell > 0 ? round(($profit / $sell) * 100, 2) : 0.0;
-                    $serviceRows[] = [
-                        'service' => $service['service'] ?? 'Service',
-                        'type' => $service['type'] ?? '',
-                        'sell' => $sell,
-                        'cost' => $cost,
-                        'profit' => $profit,
-                        'margin' => $margin,
-                        'count' => (int) ($service['count'] ?? 1),
-                    ];
-                }
 
                 $sellTotal = round((float) ($group['sell_total'] ?? 0), 2);
                 $costTotal = round((float) ($group['cost_total'] ?? 0), 2);
@@ -780,11 +796,10 @@ class BookingsController extends Controller
 
             $guidePrice = 0.0;
             if (isset($item['guide_options']) && is_array($item['guide_options'])) {
-                $gv = $item['guide_options']['total_price']
-                    ?? $item['guide_options']['cost']
-                    ?? $item['guide_options']['Cost']
-                    ?? $item['guide_options']['sell']
+                // Prefer sell (same as margin/service rows) — never pick cost into negotiation gross
+                $gv = $item['guide_options']['sell']
                     ?? $item['guide_options']['Sell']
+                    ?? $item['guide_options']['total_price']
                     ?? 0;
                 if ($gv > 0) {
                     $guidePrice = (float) $gv;
@@ -829,9 +844,9 @@ class BookingsController extends Controller
 
             $guideSell = 0.0;
             if (isset($item['guide_options']) && is_array($item['guide_options'])) {
-                $guideValue = $item['guide_options']['total_price']
-                    ?? $item['guide_options']['sell']
+                $guideValue = $item['guide_options']['sell']
                     ?? $item['guide_options']['Sell']
+                    ?? $item['guide_options']['total_price']
                     ?? 0;
                 $guideSell = (float) $guideValue;
             }

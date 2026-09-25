@@ -6236,8 +6236,8 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                     $noOfRooms = $noOfRooms > 0 ? $noOfRooms : 1;
                     $bucket = $classifyOccupancy($resolveRoomSelectedPersons($room));
                     if ($bucket === null) {
-                        continue;
-                    }
+                                continue;
+                            }
                     $roomCounts[$bucket] += $noOfRooms;
                 }
             }
@@ -6328,16 +6328,16 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         if ($roomingPartsLabeled !== []) {
             $roomingParts = $roomingPartsLabeled;
         } else {
-            $roomingParts = [];
-            if ($roomCounts['single'] > 0) {
-                $roomingParts[] = sprintf('%02d SGL', $roomCounts['single']);
-            }
-            if ($roomCounts['double'] > 0) {
-                $roomingParts[] = sprintf('%02d DBL TWIN', $roomCounts['double']);
-            }
-            if ($roomCounts['triple'] > 0) {
-                $roomingParts[] = sprintf('%02d TRPL', $roomCounts['triple']);
-            }
+        $roomingParts = [];
+        if ($roomCounts['single'] > 0) {
+            $roomingParts[] = sprintf('%02d SGL', $roomCounts['single']);
+        }
+        if ($roomCounts['double'] > 0) {
+            $roomingParts[] = sprintf('%02d DBL TWIN', $roomCounts['double']);
+        }
+        if ($roomCounts['triple'] > 0) {
+            $roomingParts[] = sprintf('%02d TRPL', $roomCounts['triple']);
+        }
         }
 
         return [
@@ -7731,28 +7731,28 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
     public static function calculateTourPrices($tourId)
     {
         $empty = [
-            'single_sharing' => 0,
-            'double_sharing' => 0,
-            'triple_sharing' => 0,
-            'baby_cot_sharing' => 0,
-            'other_services_single' => 0,
-            'other_services_double' => 0,
-            'country_sharing' => [],
-            'hotel_price_options' => [],
+                'single_sharing' => 0,
+                'double_sharing' => 0,
+                'triple_sharing' => 0,
+                'baby_cot_sharing' => 0,
+                'other_services_single' => 0,
+                'other_services_double' => 0,
+                'country_sharing' => [],
+                'hotel_price_options' => [],
             'service_price_lines' => [],
-            'segregated' => [
-                'hotel' => ['single' => 0, 'double' => 0, 'triple' => 0, 'baby_cot' => 0],
-                'attraction' => ['single' => 0, 'double' => 0],
-                'restaurant' => ['single' => 0, 'double' => 0],
-                'entry_port' => ['single' => 0, 'double' => 0],
-                'exit_port' => ['single' => 0, 'double' => 0],
-                'guide' => ['single' => 0, 'double' => 0],
-                'travel_hourly' => ['single' => 0, 'double' => 0],
-                'travel_point' => ['single' => 0, 'double' => 0],
-                'local_transport' => ['single' => 0, 'double' => 0],
-                'other' => ['single' => 0, 'double' => 0],
-            ],
-            'supplements' => [],
+                'segregated' => [
+                    'hotel' => ['single' => 0, 'double' => 0, 'triple' => 0, 'baby_cot' => 0],
+                    'attraction' => ['single' => 0, 'double' => 0],
+                    'restaurant' => ['single' => 0, 'double' => 0],
+                    'entry_port' => ['single' => 0, 'double' => 0],
+                    'exit_port' => ['single' => 0, 'double' => 0],
+                    'guide' => ['single' => 0, 'double' => 0],
+                    'travel_hourly' => ['single' => 0, 'double' => 0],
+                    'travel_point' => ['single' => 0, 'double' => 0],
+                    'local_transport' => ['single' => 0, 'double' => 0],
+                    'other' => ['single' => 0, 'double' => 0],
+                ],
+                'supplements' => [],
             'supplyments' => [],
         ];
 
@@ -7854,8 +7854,8 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             $count = 0;
             foreach ($rooms as $room) {
                 if (!is_array($room)) {
-                    continue;
-                }
+                continue;
+            }
                 $count += max(1, (int) ($room['number_of_rooms'] ?? $room['no_of_room'] ?? 1));
             }
 
@@ -8024,11 +8024,10 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             }
             $guide = 0.0;
             if (isset($item['guide_options']) && is_array($item['guide_options'])) {
-                $gv = $item['guide_options']['total_price']
-                    ?? $item['guide_options']['cost']
-                    ?? $item['guide_options']['Cost']
-                    ?? $item['guide_options']['sell']
+                // Prefer sell for sell/gross totals — never pick cost into sell
+                $gv = $item['guide_options']['sell']
                     ?? $item['guide_options']['Sell']
+                    ?? $item['guide_options']['total_price']
                     ?? 0;
                 if ((float) $gv > 0) {
                     $guide = (float) $gv;
@@ -8275,7 +8274,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                         } elseif ($selectedPersons === 2) {
                             $countryHotel[$countryKey]['double'] += $bookedPerPax;
                             $segregated['hotel']['double'] += $bookedPerPax;
-                        } else {
+                            } else {
                             $countryHotel[$countryKey]['single'] += $bookedPerPax;
                             $segregated['hotel']['single'] += $bookedPerPax;
                         }
@@ -8336,7 +8335,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                         } elseif ($selectedPersons === 2) {
                             $hotelSupplementBuckets[$suppKey]['double'] += $scaled;
                             $hotelSupplementBuckets[$suppKey]['show_double'] = true;
-                        } else {
+                                } else {
                             $hotelSupplementBuckets[$suppKey]['single'] += $scaled;
                             $hotelSupplementBuckets[$suppKey]['show_single'] = true;
                         }
@@ -9909,11 +9908,10 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
 
             $guidePrice = 0.0;
             if (isset($item['guide_options']) && is_array($item['guide_options'])) {
-                $gv = $item['guide_options']['total_price']
-                    ?? $item['guide_options']['cost']
-                    ?? $item['guide_options']['Cost']
-                    ?? $item['guide_options']['sell']
+                // Prefer sell for sell/gross totals — never pick cost into sell
+                $gv = $item['guide_options']['sell']
                     ?? $item['guide_options']['Sell']
+                    ?? $item['guide_options']['total_price']
                     ?? 0;
                 if ($gv > 0) {
                     $guidePrice = (float) $gv;
@@ -12918,7 +12916,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             }
         }
 
-        foreach ($offers as $offer) {
+            foreach ($offers as $offer) {
             $cities = is_array($offer['cities'] ?? null) ? $offer['cities'] : [];
             if ($cities === []) {
                 if ($existing === []) {
@@ -13007,11 +13005,10 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
 
             $guidePrice = 0.0;
             if (isset($item['guide_options']) && is_array($item['guide_options'])) {
-                $gv = $item['guide_options']['total_price']
-                    ?? $item['guide_options']['cost']
-                    ?? $item['guide_options']['Cost']
-                    ?? $item['guide_options']['sell']
+                // Prefer sell for sell/gross totals — never pick cost into sell
+                $gv = $item['guide_options']['sell']
                     ?? $item['guide_options']['Sell']
+                    ?? $item['guide_options']['total_price']
                     ?? 0;
                 if ($gv > 0) {
                     $guidePrice = (float) $gv;
