@@ -212,9 +212,20 @@ export const store = configureStore({
       dispatch(setSelectedCity(saved.selectedCity));
     }
 
+    const destination = saved.tourdetails?.destination;
+    const citiesFromDestination = Array.isArray(destination)
+      ? destination.filter(
+          (item) =>
+            item &&
+            typeof item === "object" &&
+            (item.city || item.name || item.country)
+        )
+      : [];
+
+    // Prefer first destination country's name; each city already carries its own country
     const countryDestination = resolveCountryName(
-      (typeof saved.tourdetails?.destination === "string" &&
-        saved.tourdetails.destination) ||
+      citiesFromDestination[0]?.country ||
+        (typeof destination === "string" && destination) ||
         (typeof saved.tourdetails?.country === "string" &&
           saved.tourdetails.country) ||
         saved.searchLocation ||
@@ -222,7 +233,15 @@ export const store = configureStore({
       []
     );
 
-    if (Array.isArray(saved.cityList) && saved.cityList.length) {
+    if (citiesFromDestination.length) {
+      // destination is already [{ city, country }, ...] — store as-is
+      dispatch(
+        setCity({
+          cities: citiesFromDestination,
+          country: countryDestination,
+        })
+      );
+    } else if (Array.isArray(saved.cityList) && saved.cityList.length) {
       dispatch(
         setCity({
           cities: saved.cityList,
@@ -247,8 +266,9 @@ export const store = configureStore({
             saved.tourdetails?.check_out_time ||
             saved.checkOut ||
             "",
-          destination:
-            countryDestination || saved.tourdetails?.destination || "",
+          destination: citiesFromDestination.length
+            ? citiesFromDestination
+            : countryDestination || saved.tourdetails?.destination || "",
           country: countryDestination || saved.tourdetails?.country || "",
         })
       );
