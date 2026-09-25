@@ -804,9 +804,52 @@
             }
         };
 
-        $resolveStayForItem = function ($city, $country, $dateRaw = '') use ($staySegments, $parseYmdFromRange, $preferredCityByCountry) {
+        // Reject junk city labels like "dd" (often a typed pickup, not a planner city).
+        $plannerCityNames = [];
+        foreach ($staySegments as $s) {
+            $cn = mb_strtolower(trim((string) ($s['city'] ?? '')));
+            if ($cn !== '') {
+                $plannerCityNames[$cn] = true;
+            }
+        }
+        $isUsableCityName = static function ($city) use ($plannerCityNames) {
+            $city = trim((string) $city);
+            if ($city === '') {
+                return false;
+            }
+            // Too short / placeholder (dd, xx, n/a)
+            if (mb_strlen($city) <= 2) {
+                return false;
+            }
+            if (preg_match('/^(n\/?a|null|none|test)$/i', $city)) {
+                return false;
+            }
+            // If planner cities exist, prefer only those (or close match)
+            if (!empty($plannerCityNames)) {
+                $cl = mb_strtolower($city);
+                if (isset($plannerCityNames[$cl])) {
+                    return true;
+                }
+                foreach (array_keys($plannerCityNames) as $known) {
+                    if (str_contains($known, $cl) || str_contains($cl, $known)) {
+                        return true;
+                    }
+                }
+                // Unknown short-ish free text that isn't a planner city → treat as unusable for titles/matching
+                if (mb_strlen($city) < 4) {
+                    return false;
+                }
+            }
+            return true;
+        };
+
+        $resolveStayForItem = function ($city, $country, $dateRaw = '', $isReturnHint = false) use ($staySegments, $parseYmdFromRange, $preferredCityByCountry, $isUsableCityName) {
             $city = trim((string) $city);
             $country = trim((string) $country);
+            $isReturnHint = (bool) $isReturnHint;
+            if (!$isUsableCityName($city)) {
+                $city = '';
+            }
             if ($city === '' && $country !== '') {
                 $city = $preferredCityByCountry[mb_strtolower($country)] ?? '';
             }
@@ -825,18 +868,46 @@
                 }
                 $candidates[] = $stay;
             }
+            // City was junk/unknown: match by country only (never dump into first stay of another country)
+            if (empty($candidates) && $country !== '') {
+                foreach ($staySegments as $stay) {
+                    if (strcasecmp((string) $stay['country'], $country) === 0) {
+                        $candidates[] = $stay;
+                    }
+                }
+            }
             if (empty($candidates)) {
                 $candidates = $staySegments;
             }
+
             if ($itemStart !== '' && $itemEnd !== '') {
+                // Pick best overlapping stay (not the first) so return dates map to return segment.
+                $best = null;
+                $bestScore = null;
                 foreach ($candidates as $stay) {
                     if ($stay['start'] === '' || $stay['end'] === '') {
                         continue;
                     }
-                    // Overlap: item stays within / overlaps this stay window
-                    if ($itemStart < $stay['end'] && $itemEnd > $stay['start']) {
-                        return $stay;
+                    // Inclusive overlap on calendar dates
+                    if ($itemStart > $stay['end'] || $itemEnd < $stay['start']) {
+                        continue;
                     }
+                    $oStart = max($itemStart, $stay['start']);
+                    $oEnd = min($itemEnd, $stay['end']);
+                    $overlapDays = max(0, (int) ((strtotime($oEnd) - strtotime($oStart)) / 86400));
+                    $contained = ($itemStart >= $stay['start'] && $itemEnd <= $stay['end']) ? 10000 : 0;
+                    $checkInInside = ($itemStart >= $stay['start'] && $itemStart <= $stay['end']) ? 5000 : 0;
+                    $returnBonus = (!empty($stay['is_return']) && $isReturnHint) ? 500 : 0;
+                    $stayLen = max(1, (int) ((strtotime($stay['end']) - strtotime($stay['start'])) / 86400));
+                    // Prefer tighter stay when scores otherwise equal (return legs are usually shorter)
+                    $score = $contained + $checkInInside + $returnBonus + $overlapDays - ($stayLen * 0.01);
+                    if ($bestScore === null || $score > $bestScore) {
+                        $bestScore = $score;
+                        $best = $stay;
+                    }
+                }
+                if ($best) {
+                    return $best;
                 }
                 // Prefer stay whose start is closest to item start
                 $best = null;
@@ -855,6 +926,15 @@
                     return $best;
                 }
             }
+
+            // No usable dates: prefer return stay only when hinted, else first stay
+            if ($isReturnHint) {
+                foreach (array_reverse($candidates) as $stay) {
+                    if (!empty($stay['is_return'])) {
+                        return $stay;
+                    }
+                }
+            }
             return $candidates[0] ?? $staySegments[0] ?? null;
         };
 
@@ -871,7 +951,7 @@
         };
 
         // Title: City (Country) (CURRENCY) [· Return]
-        $formatLocationTitle = function ($city, $country, $currency, $isReturn = false) use ($preferredCityByCountry) {
+        $formatLocationTitle = function ($city, $country, $currency, $isReturn = false) use ($preferredCityByCountry, $isUsableCityName) {
             $country = trim((string) $country);
             if ($country === '') {
                 $country = 'Other';
@@ -881,8 +961,8 @@
                 $currency = 'SGD';
             }
             $city = trim((string) $city);
-            if ($city === '') {
-                $city = $preferredCityByCountry[mb_strtolower($country)] ?? $country;
+            if (!$isUsableCityName($city)) {
+                $city = $preferredCityByCountry[mb_strtolower($country)] ?? '';
             }
             if ($city === '') {
                 $city = $country;
@@ -1257,17 +1337,24 @@
             return $countryBucketKey($country, $currency);
         };
 
-        $ensureBucketMeta = function ($bucketKey, $country, $currency, $city = '', $stay = null) use (&$countryMeta) {
+        $ensureBucketMeta = function ($bucketKey, $country, $currency, $city = '', $stay = null) use (&$countryMeta, $isUsableCityName, $preferredCityByCountry) {
             $countryName = trim((string) $country) !== '' ? trim((string) $country) : 'Other';
             $currencyCode = strtoupper(trim((string) $currency));
             $cityName = trim((string) $city);
+            // Prefer planner stay city over junk service city (e.g. pickup "dd")
+            $stayCity = is_array($stay) ? trim((string) ($stay['city'] ?? '')) : '';
+            if ($stayCity !== '') {
+                $cityName = $stayCity;
+            } elseif (!$isUsableCityName($cityName)) {
+                $cityName = $preferredCityByCountry[mb_strtolower($countryName)] ?? '';
+            }
             $isReturn = is_array($stay) ? !empty($stay['is_return']) : false;
             $dateRange = is_array($stay) ? trim((string) ($stay['date_range'] ?? '')) : '';
             $sortStart = is_array($stay) ? (string) ($stay['start'] ?? '') : '';
             if (!isset($countryMeta[$bucketKey])) {
                 $countryMeta[$bucketKey] = [
                     'country' => $countryName,
-                    'city' => $cityName !== '' ? $cityName : (is_array($stay) ? (string) ($stay['city'] ?? '') : ''),
+                    'city' => $cityName,
                     'currency' => $currencyCode,
                     'is_return' => $isReturn,
                     'date_range' => $dateRange,
@@ -1275,11 +1362,14 @@
                     'stay_key' => is_array($stay) ? (string) ($stay['key'] ?? '') : '',
                 ];
             } else {
-                if ($cityName !== '' && empty($countryMeta[$bucketKey]['city'])) {
+                if ($cityName !== '' && (empty($countryMeta[$bucketKey]['city']) || !$isUsableCityName($countryMeta[$bucketKey]['city'] ?? ''))) {
                     $countryMeta[$bucketKey]['city'] = $cityName;
                 }
                 if ($dateRange !== '' && empty($countryMeta[$bucketKey]['date_range'])) {
                     $countryMeta[$bucketKey]['date_range'] = $dateRange;
+                }
+                if ($sortStart !== '' && empty($countryMeta[$bucketKey]['sort_start'])) {
+                    $countryMeta[$bucketKey]['sort_start'] = $sortStart;
                 }
                 if ($isReturn) {
                     $countryMeta[$bucketKey]['is_return'] = true;
@@ -1297,14 +1387,44 @@
             if ($n === '') {
                 continue;
             }
-            $hotelOccByName[$n] = [
+            $dr = trim((string) ($hpOcc['date_range'] ?? $hpOcc['booking_range'] ?? ''));
+            $occKey = $n . ($dr !== '' ? '||' . mb_strtolower($dr) : '');
+            $hotelOccByName[$occKey] = [
                 'selected_persons' => max(0, (int) ($hpOcc['selected_persons'] ?? 0)),
                 'children' => max(0, (int) ($hpOcc['children'] ?? 0)),
                 'has_cwb' => (float) ($hpOcc['child_with_bed_total'] ?? 0) > 0,
                 'has_cnb' => (float) ($hpOcc['child_without_bed_total'] ?? 0) > 0,
-                'date_range' => trim((string) ($hpOcc['date_range'] ?? $hpOcc['booking_range'] ?? '')),
+                'date_range' => $dr,
+                'is_return' => !empty($hpOcc['is_return']),
             ];
+            // Fallback by name only (last write wins) for older payloads
+            if (!isset($hotelOccByName[$n]) || $dr !== '') {
+                $hotelOccByName[$n] = $hotelOccByName[$occKey];
+            }
         }
+
+        $hotelDateRangeFromRow = static function (array $h, ?array $occMeta = null): string {
+            $candidates = [
+                trim((string) ($h['date_range'] ?? '')),
+                (trim((string) ($h['stay_start'] ?? '')) !== '' && trim((string) ($h['stay_end'] ?? '')) !== '')
+                    ? (trim((string) $h['stay_start']) . ' to ' . trim((string) $h['stay_end']))
+                    : '',
+                (trim((string) ($h['check_in'] ?? '')) !== '' && trim((string) ($h['check_out'] ?? '')) !== '')
+                    ? (trim((string) $h['check_in']) . ' to ' . trim((string) $h['check_out']))
+                    : '',
+                (is_array($h['bookingDate'] ?? null) && count($h['bookingDate']) >= 2)
+                    ? (trim((string) ($h['bookingDate'][0] ?? '')) . ' to ' . trim((string) ($h['bookingDate'][1] ?? '')))
+                    : '',
+                trim((string) ($occMeta['date_range'] ?? '')),
+            ];
+            foreach ($candidates as $c) {
+                $c = trim((string) $c);
+                if ($c !== '' && !preg_match('/^\s*to\s*$/i', $c)) {
+                    return $c;
+                }
+            }
+            return '';
+        };
 
         if (!empty($hotelOptions) && is_array($hotelOptions)) {
             foreach ($hotelOptions as $h) {
@@ -1313,8 +1433,13 @@
                 $hotelNameLower = strtolower(trim((string)$hotelName));
                 $roomCategoryName = $h['room_categories'][0]['name'] ?? ($h['hotel_category'] ?? 'Room');
                 $roomCatLower = strtolower(trim((string)$roomCategoryName));
-                $occMetaEarly = $hotelOccByName[$hotelNameLower] ?? null;
-                $hotelDateRangeEarly = trim((string) ($occMetaEarly['date_range'] ?? ($h['date_range'] ?? ($h['check_in'] ?? '') . (($h['check_out'] ?? '') !== '' ? ' to ' . $h['check_out'] : ''))));
+                $hotelDateRangeEarly = $hotelDateRangeFromRow($h, null);
+                $occMetaEarly = $hotelOccByName[$hotelNameLower . ($hotelDateRangeEarly !== '' ? '||' . mb_strtolower($hotelDateRangeEarly) : '')]
+                    ?? $hotelOccByName[$hotelNameLower]
+                    ?? null;
+                if ($hotelDateRangeEarly === '') {
+                    $hotelDateRangeEarly = $hotelDateRangeFromRow($h, $occMetaEarly);
+                }
                 $dedupKey = $hotelNameLower . '||' . $roomCatLower . '||' . mb_strtolower($hotelDateRangeEarly);
                 if (isset($seenHotelKeys[$dedupKey])) continue;
                 $seenHotelKeys[$dedupKey] = true;
@@ -1327,7 +1452,8 @@
                 if ($city === '') {
                     $city = $preferredCityByCountry[mb_strtolower($country)] ?? '';
                 }
-                $stay = $resolveStayForItem($city, $country, $hotelDateRangeEarly);
+                $isReturnHint = !empty($h['is_return']) || !empty($occMetaEarly['is_return']);
+                $stay = $resolveStayForItem($city, $country, $hotelDateRangeEarly, $isReturnHint);
                 $bucketKey = $makeBucketKey($country, $currency, $stay);
                 $ensureBucketMeta($bucketKey, $country, $currency, $city, $stay);
 
@@ -1373,7 +1499,9 @@
                     $roomCount = 1;
                 }
 
-                $occMeta = $hotelOccByName[$hotelNameLower] ?? null;
+                $occMeta = $hotelOccByName[$hotelNameLower . ($hotelDateRangeEarly !== '' ? '||' . mb_strtolower($hotelDateRangeEarly) : '')]
+                    ?? $hotelOccByName[$hotelNameLower]
+                    ?? null;
                 if ($occMeta) {
                     if ((int) ($occMeta['selected_persons'] ?? 0) > 0) {
                         $selectedPersons = (int) $occMeta['selected_persons'];
@@ -1444,7 +1572,9 @@
                     'has_cnb' => $hasCnb,
                     'has_extra_bed' => $hasExtraBed,
                     'occupancy_bits' => $occupancyBits,
-                    'date_range' => trim((string) ($occMeta['date_range'] ?? ($h['date_range'] ?? ($h['check_in'] ?? '') . (($h['check_out'] ?? '') !== '' ? ' to ' . $h['check_out'] : '')))),
+                    'date_range' => $hotelDateRangeEarly !== ''
+                        ? $hotelDateRangeEarly
+                        : trim((string) ($occMeta['date_range'] ?? ($h['date_range'] ?? ''))),
                 ];
             }
         }
