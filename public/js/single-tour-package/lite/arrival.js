@@ -118,6 +118,20 @@
         if (add) add.disabled = true;
     }
 
+    /** Pickup/dropoff changed → vehicle list is invalid until Search Vehicles again. */
+    function clearVehicleOnRouteChange(root) {
+        root.__preferredVehicleId = '';
+        root.__preferredVehicleName = '';
+        var vehicle = root.querySelector('.arrival-vehicle');
+        if (vehicle) {
+            vehicle.innerHTML = '<option value="">Click Search Vehicles</option>';
+            vehicle.disabled = true;
+        }
+        var getBtn = root.querySelector('.arrival-get-price-btn');
+        if (getBtn) getBtn.disabled = true;
+        invalidate(root);
+    }
+
     function loadPickupDropoff(root, stay) {
         var T = S();
         var pickup = root.querySelector('.arrival-pickup');
@@ -548,7 +562,11 @@
         root.querySelector('.arrival-get-price-btn').addEventListener('click', function () { getPrice(root, stay); });
         root.querySelector('.arrival-add-btn').addEventListener('click', function () { addRow(root, stay); });
 
-        root.querySelectorAll('.arrival-vehicle, .arrival-service-type, .arrival-vehicle-count, .arrival-adults, .arrival-children, .arrival-pickup, .arrival-dropoff, .arrival-pickup-text, .arrival-dropoff-text, .arrival-custom-price').forEach(function (el) {
+        root.querySelectorAll('.arrival-pickup, .arrival-dropoff, .arrival-pickup-text, .arrival-dropoff-text').forEach(function (el) {
+            el.addEventListener('change', function () { if (!root.__hydrating) clearVehicleOnRouteChange(root); });
+            el.addEventListener('input', function () { if (!root.__hydrating) clearVehicleOnRouteChange(root); });
+        });
+        root.querySelectorAll('.arrival-vehicle, .arrival-service-type, .arrival-vehicle-count, .arrival-adults, .arrival-children, .arrival-custom-price').forEach(function (el) {
             el.addEventListener('change', function () { if (!root.__hydrating) invalidate(root); });
             el.addEventListener('input', function () { if (!root.__hydrating) invalidate(root); });
         });

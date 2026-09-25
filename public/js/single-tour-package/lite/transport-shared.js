@@ -372,10 +372,22 @@
         var titleEl = document.getElementById(id + 'Label');
         var bodyEl = document.getElementById(id + 'Body');
         if (titleEl) titleEl.textContent = title || 'Price breakdown';
+        var detail = String(detailHtml || '');
+        // Tour infants: always show at 0 in every service breakup (not added to total)
+        var tourInfants = 0;
+        try {
+            tourInfants = Math.max(0, parseInt((tourGuests() || {}).infants, 10) || 0);
+        } catch (eInf) { tourInfants = 0; }
+        if (tourInfants > 0 && !/\bInfant\b/i.test(detail)) {
+            detail += priceFormulaRowHtml(
+                '<strong>Infant</strong> 0.00 × ' + tourInfants,
+                String(currency || 'SGD').trim() + ' 0.00'
+            );
+        }
         if (bodyEl) {
             bodyEl.innerHTML =
                 '<div class="stp-lite-svc-price-card">' +
-                (detailHtml || '') +
+                detail +
                 '<div class="stp-lite-summary-row mt-2 pt-2" style="border-top:1px dashed #93c5fd;">' +
                 '<span class="stp-lite-summary-row__left"><strong>Total</strong></span>' +
                 '<strong class="stp-lite-summary-row__amt">' + esc(currency || '') + ' ' + Number(total || 0).toFixed(2) + '</strong></div></div>';
@@ -412,11 +424,16 @@
         var children = Math.max(0, parseInt(opts.children, 10) || 0);
         var seniors = Math.max(0, parseInt(opts.seniors, 10) || 0);
         var infants = Math.max(0, parseInt(opts.infants, 10) || 0);
+        if (infants <= 0) {
+            try {
+                infants = Math.max(0, parseInt((tourGuests() || {}).infants, 10) || 0);
+            } catch (eInf) { infants = 0; }
+        }
         var adultUnit = Number(opts.adultPrice) || 0;
         var childUnit = Number(opts.childPrice) || 0;
         var seniorUnit = Number(opts.seniorPrice) || 0;
-        var infantUnit = Number(opts.infantPrice);
-        if (isNaN(infantUnit)) infantUnit = 0;
+        // Infants always display at 0 — never priced
+        var infantUnit = 0;
 
         var html = '';
         if (opts.metaHtml) html += opts.metaHtml;
@@ -460,6 +477,11 @@
         var a = Math.max(0, parseInt(adults != null ? adults : xfer.adults, 10) || 0);
         var c = Math.max(0, parseInt(children != null ? children : xfer.children, 10) || 0);
         var i = Math.max(0, parseInt(infants != null ? infants : xfer.infants, 10) || 0);
+        if (i <= 0) {
+            try {
+                i = Math.max(0, parseInt((tourGuests() || {}).infants, 10) || 0);
+            } catch (eInf) { i = 0; }
+        }
         var header = '<div class="small text-muted mb-1 mt-2"><strong>Transfer'
             + (typeRaw ? ' (' + esc(typeRaw) + ')' : '')
             + '</strong></div>';
@@ -603,6 +625,12 @@
         if (adults || children || infants) {
             html += '<div class="small text-muted mt-1">' + adults + 'A / ' + children + 'C'
                 + (infants > 0 ? (' / ' + infants + 'I') : '') + '</div>';
+        }
+        if (infants > 0) {
+            html += priceFormulaRowHtml(
+                '<strong>Infant</strong> 0.00 × ' + infants,
+                cur + ' 0.00'
+            );
         }
         return html;
     }

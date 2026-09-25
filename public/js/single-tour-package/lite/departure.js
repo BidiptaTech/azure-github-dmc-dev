@@ -119,6 +119,20 @@
         if (add) add.disabled = true;
     }
 
+    /** Pickup/dropoff changed → vehicle list is invalid until Search Vehicles again. */
+    function clearVehicleOnRouteChange(root) {
+        root.__preferredVehicleId = '';
+        root.__preferredVehicleName = '';
+        var vehicle = root.querySelector('.departure-vehicle');
+        if (vehicle) {
+            vehicle.innerHTML = '<option value="">Click Search Vehicles</option>';
+            vehicle.disabled = true;
+        }
+        var getBtn = root.querySelector('.departure-get-price-btn');
+        if (getBtn) getBtn.disabled = true;
+        invalidate(root);
+    }
+
     function loadPickupDropoff(root, stay) {
         var T = S();
         var pickup = root.querySelector('.departure-pickup');
@@ -531,7 +545,11 @@
         root.querySelector('.departure-get-price-btn').addEventListener('click', function () { getPrice(root, stay); });
         root.querySelector('.departure-add-btn').addEventListener('click', function () { addRow(root, stay); });
 
-        root.querySelectorAll('.departure-vehicle, .departure-service-type, .departure-vehicle-count, .departure-adults, .departure-children, .departure-pickup, .departure-dropoff, .departure-pickup-text, .departure-dropoff-text, .departure-custom-price').forEach(function (el) {
+        root.querySelectorAll('.departure-pickup, .departure-dropoff, .departure-pickup-text, .departure-dropoff-text').forEach(function (el) {
+            el.addEventListener('change', function () { if (!root.__hydrating) clearVehicleOnRouteChange(root); });
+            el.addEventListener('input', function () { if (!root.__hydrating) clearVehicleOnRouteChange(root); });
+        });
+        root.querySelectorAll('.departure-vehicle, .departure-service-type, .departure-vehicle-count, .departure-adults, .departure-children, .departure-custom-price').forEach(function (el) {
             el.addEventListener('change', function () { if (!root.__hydrating) invalidate(root); });
             el.addEventListener('input', function () { if (!root.__hydrating) invalidate(root); });
         });
