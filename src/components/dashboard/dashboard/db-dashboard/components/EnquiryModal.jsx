@@ -1,17 +1,16 @@
-import React from "react";
-import { 
-  Button, 
-  Box, 
-  Typography, 
-  Card, 
-  CardContent, 
-  TextField, 
+import React, { useMemo } from "react";
+import {
+  Button,
+  Box,
+  Typography,
+  Card,
+  CardContent,
+  TextField,
   InputAdornment,
   Chip,
-  Paper,
-  Divider,
   Alert,
-  Stack
+  Stack,
+  Grid,
 } from "@mui/material";
 import { Modal, Table, Empty } from "antd";
 import CheckCircleOutlinedIcon from "@mui/icons-material/CheckCircleOutlined";
@@ -23,9 +22,8 @@ import HistoryIcon from "@mui/icons-material/History";
 import InfoIcon from "@mui/icons-material/Info";
 import WarningIcon from "@mui/icons-material/Warning";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
-import AccessTimeIcon from "@mui/icons-material/AccessTime";
-import PersonIcon from "@mui/icons-material/Person";
 import MonetizationOnIcon from "@mui/icons-material/MonetizationOn";
+import PublicIcon from "@mui/icons-material/Public";
 
 const EnquiryModal = ({
   isEnquiryModalVisible,
@@ -33,9 +31,8 @@ const EnquiryModal = ({
   enquiryHistory,
   loadingEnquiryHistory,
   assigned,
-  enquiryAmount,
-  handleEnquiryAmountChange,
-  totalPrice,
+  countryEnquiryAmounts = {},
+  handleCountryEnquiryAmountChange,
   enquiryComment,
   setEnquiryComment,
   commentError,
@@ -43,52 +40,95 @@ const EnquiryModal = ({
   submitEnquiry,
   handleEnquirySubmit,
 }) => {
-  // Calculate max amount and validation
-  // Use current_price from enquiryHistory if available, otherwise use totalPrice
-  const getCurrentPrice = () => {
-    if (enquiryHistory && enquiryHistory.length > 0) {
-      // Get the latest enquiry's current_price
-      const latestEnquiry = enquiryHistory[enquiryHistory.length - 1];
-      if (latestEnquiry.current_price) {
-        return parseFloat(latestEnquiry.current_price);
-      }
-    }
-    return totalPrice || 0;
-  };
+  const countryRows = useMemo(() => {
+    const map = {};
+    (Array.isArray(enquiryHistory) ? enquiryHistory : []).forEach((item) => {
+      const country = String(item?.country || "").trim();
+      if (!country) return;
+      const actual = parseFloat(item.actual_price);
+      const current = parseFloat(item.current_price);
+      const currency = String(item?.currency || "").trim() || "SGD";
+      map[country] = {
+        country,
+        currency,
+        actual_price: Number.isFinite(actual)
+          ? actual
+          : Number.isFinite(current)
+            ? current
+            : 0,
+        current_price: Number.isFinite(current)
+          ? current
+          : Number.isFinite(actual)
+            ? actual
+            : 0,
+      };
+    });
+    return Object.values(map);
+  }, [enquiryHistory]);
 
-  const maxAmount = getCurrentPrice();
-  const currentAmount = parseFloat(enquiryAmount) || 0;
-  const isAmountExceeded = currentAmount > maxAmount;
+  const formatMoney = (amount, currency = "SGD") =>
+    `${currency} ${Math.ceil(parseFloat(amount) || 0).toLocaleString()}`;
+
+  const canNegotiate = assigned === null || assigned === "Agent";
+
+  const exceededCountries = countryRows.filter((row) => {
+    const max = row.current_price || row.actual_price || 0;
+    const value = parseFloat(countryEnquiryAmounts[row.country]);
+    return Number.isFinite(value) && value > max;
+  });
+  const isAmountExceeded = exceededCountries.length > 0;
+
+  const totalsByCurrency = useMemo(() => {
+    const totals = {};
+    countryRows.forEach((row) => {
+      const currency = row.currency || "SGD";
+      if (!totals[currency]) {
+        totals[currency] = { actual: 0, current: 0, negotiated: 0 };
+      }
+      const negotiatedRaw = parseFloat(countryEnquiryAmounts[row.country]);
+      const negotiated = Number.isFinite(negotiatedRaw)
+        ? negotiatedRaw
+        : row.current_price || row.actual_price || 0;
+      totals[currency].actual += row.actual_price || 0;
+      totals[currency].current += row.current_price || 0;
+      totals[currency].negotiated += negotiated;
+    });
+    return totals;
+  }, [countryRows, countryEnquiryAmounts]);
+
+  const negotiatedTotalsLabel = Object.entries(totalsByCurrency)
+    .map(([currency, values]) => formatMoney(values.negotiated, currency))
+    .join(" · ");
+
   return (
     <Modal
       title={
         <Box display="flex" alignItems="center" gap={1}>
           <HistoryIcon color="primary" />
           <Typography variant="h6" component="span" sx={{ fontWeight: 600 }}>
-            Enquiry Management
+            Country-wise Enquiry
           </Typography>
         </Box>
       }
       open={isEnquiryModalVisible}
       onCancel={handleCloseEnquiryModal}
       footer={null}
-      width="950px"
+      width="980px"
       centered
       styles={{
-        body: { padding: 0 }
+        body: { padding: 0 },
       }}
     >
-      <Box sx={{ p: 1 }}>
-        <Card elevation={0} sx={{ mb: 1, border: '1px solid', borderColor: 'divider' }}>
-          <CardContent>
-            <Box display="flex" alignItems="center" gap={1} mb={2}>
+      <Box sx={{ p: 1.5 }}>
+        <Card elevation={0} sx={{ mb: 1.5, border: "1px solid", borderColor: "divider" }}>
+          <CardContent sx={{ pb: "12px !important" }}>
+            <Box display="flex" alignItems="center" gap={1} mb={1.5}>
               <InfoIcon color="primary" />
-              <Typography variant="h6" sx={{ fontWeight: 600, color: 'primary.main' }}>
-                Enquiry History
+              <Typography variant="h6" sx={{ fontWeight: 600, color: "primary.main" }}>
+                Enquiry Overview
               </Typography>
             </Box>
 
-          <div style={{ marginBottom: "5px", marginTop: "10px" }}>
             <Table
               dataSource={enquiryHistory}
               columns={[
@@ -96,25 +136,45 @@ const EnquiryModal = ({
                   title: "Tour Id",
                   dataIndex: "tour_id",
                   key: "tour_id",
-                  width: "8%",
+                  width: "10%",
                 },
-
+                {
+                  title: "Country",
+                  dataIndex: "country",
+                  key: "country",
+                  width: "14%",
+                  render: (country) => (
+                    <Chip
+                      icon={<PublicIcon sx={{ fontSize: "16px !important" }} />}
+                      label={country || "N/A"}
+                      size="small"
+                      sx={{
+                        backgroundColor: "rgba(53, 84, 209, 0.08)",
+                        color: "#3554D1",
+                        fontWeight: 600,
+                      }}
+                    />
+                  ),
+                },
                 {
                   title: "Assigned",
                   dataIndex: "assigned",
                   key: "assigned",
                   width: "10%",
+                  render: (value) => value || "—",
                 },
                 {
                   title: "Actual Price",
                   dataIndex: "actual_price",
                   key: "actual_price",
-                  width: "12%",
-                  render: (price) => (
+                  width: "14%",
+                  render: (price, record) => (
                     <Box display="flex" alignItems="center" gap={0.5}>
-                      <MonetizationOnIcon sx={{ fontSize: 16, color: 'success.main' }} />
+                      <MonetizationOnIcon sx={{ fontSize: 16, color: "success.main" }} />
                       <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                        {price ? `SGD${parseFloat(price).toFixed(0)}` : "N/A"}
+                        {price != null && price !== ""
+                          ? formatMoney(price, record?.currency || "SGD")
+                          : "N/A"}
                       </Typography>
                     </Box>
                   ),
@@ -123,12 +183,14 @@ const EnquiryModal = ({
                   title: "Current Price",
                   dataIndex: "current_price",
                   key: "current_price",
-                  width: "12%",
-                  render: (price) => (
+                  width: "14%",
+                  render: (price, record) => (
                     <Box display="flex" alignItems="center" gap={0.5}>
-                      <TrendingUpIcon sx={{ fontSize: 16, color: 'primary.main' }} />
+                      <TrendingUpIcon sx={{ fontSize: 16, color: "primary.main" }} />
                       <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                        {price ? `SGD${parseFloat(price).toFixed(0)}` : "N/A"}
+                        {price != null && price !== ""
+                          ? formatMoney(price, record?.currency || "SGD")
+                          : "N/A"}
                       </Typography>
                     </Box>
                   ),
@@ -137,81 +199,24 @@ const EnquiryModal = ({
                   title: "Comment",
                   dataIndex: "comment",
                   key: "comment",
-                  width: "15%",
-                  ellipsis: false,
-                  render: (comment) => (
-                    <Box display="flex" alignItems="center" gap={0.5}>
-                      <CommentIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-                      <Typography variant="body2">
-                        {comment || "N/A"}
-                      </Typography>
-                    </Box>
-                  ),
+                  width: "18%",
+                  render: (value) => value || "—",
                 },
                 {
                   title: "Remarks",
                   dataIndex: "remarks",
                   key: "remarks",
-                  width: "15%",
-                  ellipsis: false,
-                  render: (remarks) => (
-                    <Typography variant="body2">
-                      {remarks || "N/A"}
-                    </Typography>
-                  ),
-                },
-                {
-                  title: "Created",
-                  dataIndex: "created",
-                  key: "created",
-                  width: "10%",
-                  render: (date) => (
-                    <Box display="flex" alignItems="center" gap={0.5}>
-                      <AccessTimeIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-                      <Typography variant="body2">
-                        {date || "N/A"}
-                      </Typography>
-                    </Box>
-                  ),
-                },
-                {
-                  title: "Updated",
-                  dataIndex: "updated",
-                  key: "updated",
-                  width: "10%",
-                  render: (date) => (
-                    <Box display="flex" alignItems="center" gap={0.5}>
-                      <AccessTimeIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-                      <Typography variant="body2">
-                        {date || "N/A"}
-                      </Typography>
-                    </Box>
-                  ),
-                },
-                {
-                  title: "Pending",
-                  dataIndex: "pending_days",
-                  key: "pending_days",
-                  width: "8%",
-                  render: (days) => (
-                    <Chip 
-                      label={days || "N/A"} 
-                      size="small" 
-                      color={days > 7 ? "error" : days > 3 ? "warning" : "success"}
-                      variant="outlined"
-                    />
-                  ),
+                  width: "12%",
+                  render: (value) => value || "—",
                 },
                 {
                   title: "Status",
                   dataIndex: "status",
                   key: "status",
-                  width: "10%",
+                  width: "12%",
                   render: (status) => {
-                    let color = "";
-                    // Map different statuses to colors
+                    let color = "#1890ff";
                     if (status && typeof status === "string") {
-                      // Default color handling for various statuses
                       if (
                         status === "0" ||
                         status.toLowerCase().includes("pending") ||
@@ -235,16 +240,12 @@ const EnquiryModal = ({
                         status.toLowerCase().includes("cancel")
                       ) {
                         color = "#f5222d";
-                      } else {
-                        color = "#1890ff";
                       }
                     }
 
-                    // Convert numeric status to human-readable text
-                    const getStatusText = (status) => {
-                      if (!status) return "Unknown";
-
-                      switch (status.toString()) {
+                    const getStatusText = (value) => {
+                      if (!value) return "Open";
+                      switch (String(value)) {
                         case "0":
                           return "Enquiry";
                         case "1":
@@ -254,7 +255,7 @@ const EnquiryModal = ({
                         case "3":
                           return "Cancelled";
                         default:
-                          return status;
+                          return value;
                       }
                     };
 
@@ -263,10 +264,10 @@ const EnquiryModal = ({
                         label={getStatusText(status)}
                         size="small"
                         sx={{
-                          backgroundColor: color ? `${color}15` : "rgba(24, 144, 255, 0.1)",
-                          color: color || "#1890ff",
+                          backgroundColor: `${color}15`,
+                          color,
                           fontWeight: "bold",
-                          border: `1px solid ${color || "#1890ff"}`,
+                          border: `1px solid ${color}`,
                         }}
                       />
                     );
@@ -275,10 +276,8 @@ const EnquiryModal = ({
               ]}
               loading={loadingEnquiryHistory}
               pagination={false}
-              rowKey={(record) =>
-                record.id ||
-                record.tour_id ||
-                Math.random().toString(36).substring(7)
+              rowKey={(record, index) =>
+                `${record.tour_id || "tour"}-${record.country || "country"}-${index}`
               }
               locale={{
                 emptyText: <Empty description="No enquiry history found" />,
@@ -290,147 +289,226 @@ const EnquiryModal = ({
               }}
               size="small"
             />
-          </div>
           </CardContent>
         </Card>
 
-        {/* Show form ONLY when assigned is null or exactly "Agent". Hide for all other values  */}
-        {(assigned === null || assigned === "Agent") && (
-          <Card elevation={0} sx={{ border: '1px solid', borderColor: 'divider' }}>
-            <CardContent sx={{ p: 2 }}>
-              <Box display="flex" alignItems="center" gap={1} mb={1.5}>
-                <AttachMoneyIcon color="primary" />
-                <Typography variant="h6" sx={{ fontWeight: 600, color: 'primary.main' }}>
-                  Negotiate Amount
-                </Typography>
+        {canNegotiate ? (
+          <Card elevation={0} sx={{ border: "1px solid", borderColor: "divider", mb: 1.5 }}>
+            <CardContent sx={{ p: 2, pb: "12px !important" }}>
+              <Box display="flex" alignItems="center" justifyContent="space-between" mb={1.5}>
+                <Box display="flex" alignItems="center" gap={1}>
+                  <AttachMoneyIcon color="primary" />
+                  <Typography variant="h6" sx={{ fontWeight: 600, color: "primary.main" }}>
+                    Country-wise Negotiation
+                  </Typography>
+                </Box>
+                <Chip
+                  label={`Total negotiated: ${negotiatedTotalsLabel || "—"}`}
+                  sx={{
+                    backgroundColor: "rgba(53, 84, 209, 0.08)",
+                    color: "#3554D1",
+                    fontWeight: 700,
+                  }}
+                />
               </Box>
-              <TextField
-                label="Negotiated Amount"
-                id="enquiryAmount"
-                type="number"
-                value={enquiryAmount || ""}
-                onChange={(e) => {
-                  const value = parseFloat(e.target.value) || 0;
-                  
-                  // Allow empty value or values up to maxAmount
-                  if (e.target.value === "" || value <= maxAmount) {
-                    handleEnquiryAmountChange(e);
-                  } else {
-                    // If value exceeds max, revert to the previous valid value
-                    e.target.value = enquiryAmount || "";
-                  }
-                }}
-                onBlur={(e) => {
-                  // Ensure value doesn't exceed max on blur
-                  const value = parseFloat(e.target.value) || 0;
-                  if (value > maxAmount) {
-                    const syntheticEvent = {
-                      ...e,
-                      target: {
-                        ...e.target,
-                        value: maxAmount.toString()
-                      }
-                    };
-                    handleEnquiryAmountChange(syntheticEvent);
-                  }
-                }}
-                onKeyDown={(e) => {
-                  // Prevent typing if it would exceed maxAmount
-                  const currentValue = parseFloat(e.target.value) || 0;
-                  const key = e.key;
-                  
-                  // Allow backspace, delete, arrow keys, etc.
-                  if (['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(key)) {
-                    return;
-                  }
-                  
-                  // Allow numbers and decimal point
-                  if (/^[0-9.]$/.test(key)) {
-                    const newValue = parseFloat(currentValue.toString() + key) || 0;
-                    if (newValue > maxAmount) {
-                      e.preventDefault();
-                    }
-                  } else {
-                    // Prevent other keys
-                    e.preventDefault();
-                  }
-                }}
-                placeholder="Enter negotiated amount"
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                        <MonetizationOnIcon color="primary" />
-                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                          SGD
-                        </Typography>
+
+              <Alert severity="info" icon={<InfoIcon />} sx={{ mb: 1.5 }}>
+                Negotiate each country separately. Actual/current prices come from enquiry-status.
+                Comment below applies to the whole enquiry.
+              </Alert>
+
+              <Grid container spacing={1.5}>
+                {countryRows.map((row) => {
+                  const currency = row.currency || "SGD";
+                  const maxAmount = row.current_price || row.actual_price || 0;
+                  const value = countryEnquiryAmounts[row.country];
+                  const numericValue = parseFloat(value);
+                  const exceeded =
+                    Number.isFinite(numericValue) && numericValue > maxAmount;
+
+                  return (
+                    <Grid item xs={12} md={6} key={row.country}>
+                      <Box
+                        sx={{
+                          p: 1.5,
+                          borderRadius: 2,
+                          border: "1px solid",
+                          borderColor: exceeded ? "error.light" : "divider",
+                          backgroundColor: exceeded
+                            ? "rgba(244, 67, 54, 0.04)"
+                            : "rgba(248, 250, 252, 1)",
+                          height: "100%",
+                        }}
+                      >
+                        <Box display="flex" alignItems="center" gap={1} mb={1}>
+                          <PublicIcon sx={{ color: "#3554D1", fontSize: 18 }} />
+                          <Typography sx={{ fontWeight: 700, color: "#0f172a" }}>
+                            {row.country}
+                          </Typography>
+                          <Chip size="small" label={currency} sx={{ ml: "auto", fontWeight: 600 }} />
+                        </Box>
+
+                        <Stack direction="row" spacing={1} mb={1.25}>
+                          <Chip
+                            size="small"
+                            label={`Actual ${formatMoney(row.actual_price, currency)}`}
+                            variant="outlined"
+                          />
+                          <Chip
+                            size="small"
+                            color="primary"
+                            variant="outlined"
+                            label={`Current ${formatMoney(row.current_price, currency)}`}
+                          />
+                        </Stack>
+
+                        <TextField
+                          label="Negotiated Amount"
+                          type="number"
+                          value={value ?? ""}
+                          onChange={(e) => {
+                            const next = e.target.value;
+                            if (next === "") {
+                              handleCountryEnquiryAmountChange?.(row.country, "");
+                              return;
+                            }
+                            const parsed = parseFloat(next);
+                            if (!Number.isFinite(parsed)) return;
+                            if (parsed <= maxAmount) {
+                              handleCountryEnquiryAmountChange?.(row.country, next);
+                            }
+                          }}
+                          onBlur={(e) => {
+                            const parsed = parseFloat(e.target.value);
+                            if (!Number.isFinite(parsed)) {
+                              handleCountryEnquiryAmountChange?.(
+                                row.country,
+                                String(Math.ceil(maxAmount))
+                              );
+                              return;
+                            }
+                            if (parsed > maxAmount) {
+                              handleCountryEnquiryAmountChange?.(
+                                row.country,
+                                String(Math.ceil(maxAmount))
+                              );
+                            }
+                          }}
+                          InputProps={{
+                            startAdornment: (
+                              <InputAdornment position="start">
+                                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                                  <MonetizationOnIcon color="primary" fontSize="small" />
+                                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                    {currency}
+                                  </Typography>
+                                </Box>
+                              </InputAdornment>
+                            ),
+                          }}
+                          fullWidth
+                          size="small"
+                          error={exceeded}
+                          helperText={
+                            exceeded
+                              ? `Cannot exceed ${formatMoney(maxAmount, currency)}`
+                              : `Max ${formatMoney(maxAmount, currency)}`
+                          }
+                        />
                       </Box>
-                    </InputAdornment>
-                  ),
-                }}
-                fullWidth
-                error={isAmountExceeded}
-                helperText={isAmountExceeded ? `Amount cannot exceed SGD ${maxAmount.toFixed(2)}` : `Maximum: SGD ${maxAmount.toFixed(2)}`}
-                sx={{ mb: 0.5 }}
-              />
+                    </Grid>
+                  );
+                })}
+              </Grid>
+
+              {countryRows.length === 0 && (
+                <Empty description="No country-wise price data available" />
+              )}
 
               {isAmountExceeded && (
-                <Alert 
-                  severity="error" 
-                  icon={<WarningIcon />}
-                  sx={{ mb: 0.5 }}
-                >
-                  Negotiated amount cannot exceed the current price of SGD {maxAmount.toFixed(2)}
+                <Alert severity="error" icon={<WarningIcon />} sx={{ mt: 1.5 }}>
+                  Negotiated amount exceeds current price for:{" "}
+                  {exceededCountries.map((item) => item.country).join(", ")}
                 </Alert>
               )}
 
-              <Alert 
-                severity="info" 
-                icon={<InfoIcon />}
-                sx={{ mb: 0.5 }}
+              <Box
+                sx={{
+                  mt: 1.5,
+                  p: 1.25,
+                  borderRadius: 1.5,
+                  backgroundColor: "rgba(53, 84, 209, 0.05)",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 0.75,
+                }}
               >
-                <Box display="flex" justifyContent="space-between" alignItems="center">
-                  <Typography variant="body2">
-                    The negotiated amount must be less than or equal to the current price.
-                  </Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 600, color: 'primary.main' }}>
-                    Current Price: SGD {maxAmount.toFixed(2)}
-                  </Typography>
-                </Box>
-              </Alert>
+                {Object.entries(totalsByCurrency).map(([currency, values]) => (
+                  <Box
+                    key={currency}
+                    sx={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      gap: 2,
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <Typography variant="body2" sx={{ color: "#475569" }}>
+                      Actual ({currency}): <b>{formatMoney(values.actual, currency)}</b>
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: "#475569" }}>
+                      Current ({currency}): <b>{formatMoney(values.current, currency)}</b>
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: "#3554D1", fontWeight: 700 }}>
+                      Negotiated ({currency}): {formatMoney(values.negotiated, currency)}
+                    </Typography>
+                  </Box>
+                ))}
+              </Box>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card elevation={0} sx={{ border: "1px solid", borderColor: "divider", mb: 1.5 }}>
+            <CardContent>
+              <Typography variant="h6" sx={{ color: "#3554D1", mb: 0.5 }}>
+                Tour is not assigned to you
+              </Typography>
+              <Typography variant="body2" sx={{ color: "#64748b" }}>
+                This enquiry is not currently assigned to you as an agent. You can negotiate
+                when it is assigned to you.
+              </Typography>
             </CardContent>
           </Card>
         )}
 
-        {/* Comment Section */}
-          <Card elevation={0} sx={{ border: '1px solid', borderColor: 'divider', mt: 1.5 }}>
-            <CardContent sx={{ p: 2 }}>
-              <Box display="flex" alignItems="center" gap={1} mb={1.5}>
-                <CommentIcon color="primary" />
-                <Typography variant="h6" sx={{ fontWeight: 600, color: 'primary.main' }}>
-                  Add Comment
-                </Typography>
-              </Box>
+        <Card elevation={0} sx={{ border: "1px solid", borderColor: "divider" }}>
+          <CardContent sx={{ p: 2 }}>
+            <Box display="flex" alignItems="center" gap={1} mb={1.5}>
+              <CommentIcon color="primary" />
+              <Typography variant="h6" sx={{ fontWeight: 600, color: "primary.main" }}>
+                Common Comment
+              </Typography>
+            </Box>
 
-              <TextField
-                label="Comment"
-                id="enquiryComment"
-                value={enquiryComment}
-                onChange={(e) => {
-                  setEnquiryComment(e.target.value);
-                  setCommentError(false);
-                }}
-                placeholder="Enter your comment for this enquiry"
-                multiline
-                rows={3}
-                fullWidth
-                required
-                error={commentError}
-                helperText={commentError ? "Comment is required" : ""}
-                sx={{ mb: 1.5 }}
-              />
-   
+            <TextField
+              label="Comment"
+              id="enquiryComment"
+              value={enquiryComment}
+              onChange={(e) => {
+                setEnquiryComment(e.target.value);
+                setCommentError(false);
+              }}
+              placeholder="Enter one comment for this enquiry (applies to all countries)"
+              multiline
+              rows={3}
+              fullWidth
+              required
+              error={commentError}
+              helperText={commentError ? "Comment is required" : ""}
+              sx={{ mb: 1.5 }}
+            />
 
+            {canNegotiate && (
               <Stack direction="row" spacing={1.5} justifyContent="flex-end">
                 <Button
                   onClick={() => submitEnquiry("cancel")}
@@ -447,7 +525,7 @@ const EnquiryModal = ({
                   variant="contained"
                   color="success"
                   startIcon={<CheckCircleOutlinedIcon />}
-                  disabled={isAmountExceeded || (enquiryAmount && enquiryAmount > 0)}
+                  disabled={isAmountExceeded}
                   size="medium"
                 >
                   Accept & Booking
@@ -469,10 +547,9 @@ const EnquiryModal = ({
                   Submit Enquiry
                 </Button>
               </Stack>
-    
-
-            </CardContent>
-          </Card>
+            )}
+          </CardContent>
+        </Card>
       </Box>
     </Modal>
   );

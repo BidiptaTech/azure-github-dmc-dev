@@ -6,7 +6,6 @@ import {
   CardContent,
   Popover,
   Button,
-  Paper,
   styled,
   Chip
 } from '@mui/material';
@@ -42,43 +41,39 @@ const PackageButton = styled(Button)(({ theme, isSelected }) => ({
   textTransform: 'none'
 }));
 
-const PackageSelection = ({ value, onChange, disabled, pickUpTime, bookingDate, formSection }) => {
+const PackageSelection = ({ value, onChange, disabled, pickUpTime, bookingDate, formSection, onBeforeOpen }) => {
   const [anchorEl, setAnchorEl] = useState(null);
   const selectedGuide = useSelector(state => state.tourguide.selectedGuide);
   const exchangeRate = useSelector(state => state.auth.exchangeRate) || 1;
   const currencyCode = useSelector(state => state.auth.currencyCode) || 'USD';
   const PriceHide = useSelector(state => state.auth.PriceHide) || '1';
   
-  // Get booking date from section if not provided as prop
   const sectionBookingDate = formSection?.bookingDate || formSection?.date;
   const effectiveBookingDate = bookingDate || sectionBookingDate;
+  const packageHoursValue = value !== '' && value !== null && value !== undefined ? Number(value) : null;
 
-  // Log props received from parent component
-  React.useEffect(() => {
-    console.log('PackageSelection - Received props:', { 
-      bookingDate, 
-      effectiveBookingDate,
-      sectionBookingDate,
-      formSectionBookingDate: formSection?.bookingDate
-    });
-  }, [bookingDate, effectiveBookingDate, sectionBookingDate, formSection?.bookingDate]);
+  // Prefer live selectedGuide night windows; fall back to packageData booking
+  const nightStartTime =
+    selectedGuide?.night_start_time ||
+    formSection?.originalData?.Night_Start_Time ||
+    "21:00";
+  const nightEndTime =
+    selectedGuide?.night_end_time ||
+    formSection?.originalData?.Night_End_Time ||
+    "00:00";
   
-  // Parse night time limits from guide data
-  const nightStartTime = selectedGuide?.night_start_time || "21:00"; // Default to 9 PM
-  const nightEndTime = selectedGuide?.night_end_time || "00:00"; // Default to 12 AM
-  
-  // Parse pickup time to calculate night hours
   const parseTimeToHour = useCallback((timeStr) => {
-    if (!timeStr) return -1;
+    if (!timeStr && timeStr !== 0) return -1;
+    if (typeof timeStr === 'number') return timeStr;
     if (timeStr.includes("AM") || timeStr.includes("PM")) {
       const [timePart, period] = timeStr.split(" ");
-      let [hours, minutes] = timePart.split(":");
+      let [hours] = timePart.split(":");
       hours = parseInt(hours, 10);
       if (period === "PM" && hours !== 12) hours += 12;
       else if (period === "AM" && hours === 12) hours = 0;
       return hours;
     }
-    const [hours] = timeStr.split(":");
+    const [hours] = String(timeStr).split(":");
     return parseInt(hours, 10);
   }, []);
 
@@ -86,8 +81,8 @@ const PackageSelection = ({ value, onChange, disabled, pickUpTime, bookingDate, 
   const nightEndHour = parseTimeToHour(nightEndTime);
   
   const isNightHour = useCallback((hour) => {
-    let adjustedEndHour = nightEndTime.includes(":") && 
-      parseInt(nightEndTime.split(":")[1], 10) > 0
+    let adjustedEndHour = String(nightEndTime).includes(":") && 
+      parseInt(String(nightEndTime).split(":")[1], 10) > 0
       ? (nightEndHour + 1) % 24
       : nightEndHour;
 
@@ -100,13 +95,12 @@ const PackageSelection = ({ value, onChange, disabled, pickUpTime, bookingDate, 
 
   const packages = useMemo(() => {
     if (!selectedGuide?.prices) {
-      console.log("No prices available in selectedGuide:", selectedGuide);
       return [];
     }
 
     const prices = selectedGuide.prices;
 
-    const hourlyPackages = [
+    return [
       { hours: 1, price: prices.dmc_hourly_price || prices.travclicks_hourly_price },
       { hours: 2, price: prices.dmc_two_hour_price || prices.travclicks_two_hour_price },
       { hours: 4, price: prices.dmc_four_hour_price || prices.travclicks_four_hour_price },
@@ -115,13 +109,20 @@ const PackageSelection = ({ value, onChange, disabled, pickUpTime, bookingDate, 
       { hours: 10, price: prices.dmc_ten_hour_price || prices.travclicks_ten_hour_price },
       { hours: 12, price: prices.dmc_twelve_hour_price || prices.travclicks_twelve_hour_price }
     ].filter(pkg => pkg.price > 0);
-
-    return hourlyPackages;
   }, [selectedGuide]);
 
-  // Calculate price breakdown between day and night hours
   const calculatePackagePriceBreakdown = useCallback((packageHours) => {
-    if (!selectedGuide?.prices || !pickUpTime || pickUpTime.hourValue === undefined) {
+    if (!selectedGuide?.prices || !pickUpTime || pickUpTime.hourValue === undefined || pickUpTime.hourValue === null) {
+      // Keep existing packageData pricing until guide details + pickup are ready
+      if (formSection?.originalData && packageHoursValue === Number(packageHours)) {
+        return {
+          basePrice: Number(formSection.priceBreakdown?.basePrice ?? formSection.originalData.basePrice) || 0,
+          nightSurcharge: Number(formSection.priceBreakdown?.nightSurcharge ?? formSection.originalData.surcharge) || 0,
+          totalPrice: Number(formSection.priceBreakdown?.totalPrice ?? formSection.originalData.totalPrice) || 0,
+          nightHours: Number(formSection.priceBreakdown?.nightHours) || 0,
+          dayHours: Number(formSection.priceBreakdown?.dayHours ?? packageHours) || 0
+        };
+      }
       return {
         basePrice: 0,
         nightSurcharge: 0,
@@ -133,7 +134,7 @@ const PackageSelection = ({ value, onChange, disabled, pickUpTime, bookingDate, 
     
     const prices = selectedGuide.prices;
     const basePrice = (() => {
-      switch (packageHours) {
+      switch (Number(packageHours)) {
         case 1: return prices.dmc_hourly_price || prices.travclicks_hourly_price || 0;
         case 2: return prices.dmc_two_hour_price || prices.travclicks_two_hour_price || 0;
         case 4: return prices.dmc_four_hour_price || prices.travclicks_four_hour_price || 0;
@@ -145,12 +146,11 @@ const PackageSelection = ({ value, onChange, disabled, pickUpTime, bookingDate, 
       }
     })();
     
-    // Calculate how many hours fall within night hours
     let nightHours = 0;
     let dayHours = 0;
-    const startHour = pickUpTime.hourValue; // 0-23 hour format
+    const startHour = Number(pickUpTime.hourValue);
     
-    for (let i = 0; i < packageHours; i++) {
+    for (let i = 0; i < Number(packageHours); i++) {
       const currentHour = (startHour + i) % 24;
       if (isNightHour(currentHour)) {
         nightHours++;
@@ -159,7 +159,6 @@ const PackageSelection = ({ value, onChange, disabled, pickUpTime, bookingDate, 
       }
     }
     
-    // Calculate night surcharge based on hourly rate
     const nightSurchargeRate = prices.dmc_night_surcharge || 0;
     const nightSurcharge = nightHours > 0 ? nightSurchargeRate * nightHours : 0;
     
@@ -170,20 +169,21 @@ const PackageSelection = ({ value, onChange, disabled, pickUpTime, bookingDate, 
       nightHours,
       dayHours
     };
-  }, [pickUpTime, selectedGuide, isNightHour]);
+  }, [pickUpTime, selectedGuide, isNightHour, formSection, packageHoursValue]);
 
   const handleClick = useCallback((event) => {
-    if (!disabled) {
-      setAnchorEl(event.currentTarget);
+    if (disabled) return;
+    if (typeof onBeforeOpen === 'function') {
+      onBeforeOpen();
     }
-  }, [disabled]);
+    setAnchorEl(event.currentTarget);
+  }, [disabled, onBeforeOpen]);
 
   const handleClose = useCallback(() => {
     setAnchorEl(null);
   }, []);
 
   const handlePackageSelect = useCallback((hours) => {
-    // Calculate price breakdown for the selected package
     const priceBreakdown = calculatePackagePriceBreakdown(hours);
     
     onChange({ 
@@ -197,15 +197,15 @@ const PackageSelection = ({ value, onChange, disabled, pickUpTime, bookingDate, 
   const open = Boolean(anchorEl);
   const id = open ? 'package-popover' : undefined;
 
-  const selectedPackage = useMemo(() => {
-    return packages.find(pkg => pkg.hours === value);
-  }, [packages, value]);
-
-  // Calculate price breakdown for currently selected package
   const currentPriceBreakdown = useMemo(() => {
-    if (!value) return null;
-    return calculatePackagePriceBreakdown(value);
-  }, [value, calculatePackagePriceBreakdown]);
+    if (packageHoursValue == null || Number.isNaN(packageHoursValue)) return null;
+    return calculatePackagePriceBreakdown(packageHoursValue);
+  }, [packageHoursValue, calculatePackagePriceBreakdown]);
+
+  // Static label for packageData hours even before selectedGuide prices load
+  const displayLabel = packageHoursValue != null && !Number.isNaN(packageHoursValue)
+    ? `${packageHoursValue} Hour Package`
+    : 'Select Duration';
 
   return (
     <Box sx={{ flex: 1 }}>
@@ -223,9 +223,7 @@ const PackageSelection = ({ value, onChange, disabled, pickUpTime, bookingDate, 
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
             <TimerIcon sx={{ color: 'primary.main', fontSize: 18 }} />
             <Typography sx={{ fontSize: '0.8rem' }}>
-              {selectedPackage 
-                ? `${selectedPackage.hours} Hour Package`
-                : 'Select Duration'}
+              {displayLabel}
             </Typography>
           </Box>
           {currentPriceBreakdown?.nightHours > 0 && (
@@ -284,8 +282,27 @@ const PackageSelection = ({ value, onChange, disabled, pickUpTime, bookingDate, 
         )}
 
         <Box sx={{ maxHeight: '300px', overflow: 'auto', pr: 0.8 }}>
+          {packages.length === 0 && packageHoursValue != null && (
+            <PackageButton
+              key={`static-${packageHoursValue}`}
+              onClick={() => handlePackageSelect(packageHoursValue)}
+              isSelected
+            >
+              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <TimerIcon sx={{ mr: 0.8, fontSize: 18 }} />
+                  <Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.8rem' }}>
+                    {packageHoursValue} Hour Package
+                  </Typography>
+                </Box>
+                <Typography variant="caption" color="text.secondary" sx={{ mt: 0.4, fontSize: '0.7rem' }}>
+                  Loading guide rates…
+                </Typography>
+              </Box>
+            </PackageButton>
+          )}
           {packages.map((pkg) => {
-            const isSelected = value === pkg.hours;
+            const isSelected = packageHoursValue === Number(pkg.hours);
             const priceBreakdown = pickUpTime ? calculatePackagePriceBreakdown(pkg.hours) : null;
             const hasNightHours = priceBreakdown && priceBreakdown.nightHours > 0;
             const adjustedPrice = priceBreakdown ? 
@@ -335,4 +352,4 @@ const PackageSelection = ({ value, onChange, disabled, pickUpTime, bookingDate, 
   );
 };
 
-export default memo(PackageSelection); 
+export default memo(PackageSelection);

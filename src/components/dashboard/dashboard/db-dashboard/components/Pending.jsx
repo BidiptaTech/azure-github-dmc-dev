@@ -344,35 +344,9 @@ export default function Pending({ filters = {} }) {
     return { nameToCode, codeToName };
   }, [user_country]);
 
-  const [enquiryAmount, setEnquiryAmount] = useState(() => {
-    // Initialize with current total price if data is available
-    if (bookings && Object.keys(bookings).length > 0) {
-      let totalPrice = 0;
-
-      // Calculate total from all services
-      const services = [
-        ...(bookings.hotel || bookings.data?.hotel || []),
-        ...(bookings.entry_port || bookings.data?.entry_port || []),
-        ...(bookings.exit_port || bookings.data?.exit_port || []),
-        ...(bookings.attraction || bookings.data?.attraction || []),
-        ...(bookings.guide || bookings.data?.guide || []),
-        ...(bookings.restaurant || bookings.data?.restaurant || []),
-        ...(bookings.travel_point || bookings.data?.travel_point || []),
-        ...(bookings.travel_hourly || bookings.data?.travel_hourly || []),
-        ...(bookings.local_transport || bookings.data?.local_transport || []),
-      ];
-
-      services.forEach((item) => {
-        if (item.totalPrice) {
-          totalPrice += parseFloat(item.totalPrice);
-        }
-      });
-
-      return Math.ceil(totalPrice) || 0;
-    }
-
-    return 0;
-  });
+  const [enquiryAmount, setEnquiryAmount] = useState(0);
+  // Country-wise negotiated amounts: { [country]: number }
+  const [countryEnquiryAmounts, setCountryEnquiryAmounts] = useState({});
   const [enquiryComment, setEnquiryComment] = useState("");
   const [commentError, setCommentError] = useState(false);
   const navigate = useNavigate(); // Initialize navigate
@@ -1864,7 +1838,13 @@ export default function Pending({ filters = {} }) {
           ? response.data.data
           : [response.data.data];
         setEnquiryHistory(historyData);
-        setEnquiryAmount(historyData[0].current_price);
+        const countryAmounts = buildCountryEnquiryAmounts(historyData);
+        setCountryEnquiryAmounts(countryAmounts);
+        const totalNegotiated = Object.values(countryAmounts).reduce(
+          (sum, value) => sum + (parseFloat(value) || 0),
+          0
+        );
+        setEnquiryAmount(Math.ceil(totalNegotiated));
         
 
         // Check if there's an entry with status 2 (Booked) or 3 (Cancel)
@@ -1934,11 +1914,37 @@ export default function Pending({ filters = {} }) {
     setEnquiryComment("");
     setCommentError(false);
     setAssigned(null);
+    setCountryEnquiryAmounts({});
+    setEnquiryAmount(0);
     // We don't reset enquiryProcessed here so the button stays hidden
+  };
+
+  const buildCountryEnquiryAmounts = (historyData = []) => {
+    const byCountry = {};
+    (Array.isArray(historyData) ? historyData : []).forEach((item) => {
+      const country = String(item?.country || "").trim();
+      if (!country) return;
+      const current = parseFloat(item.current_price);
+      const actual = parseFloat(item.actual_price);
+      const value = Number.isFinite(current)
+        ? current
+        : Number.isFinite(actual)
+          ? actual
+          : 0;
+      byCountry[country] = Math.ceil(value);
+    });
+    return byCountry;
   };
 
   const handleEnquiryAmountChange = (e) => {
     setEnquiryAmount(e.target.value);
+  };
+
+  const handleCountryEnquiryAmountChange = (country, value) => {
+    setCountryEnquiryAmounts((prev) => ({
+      ...prev,
+      [country]: value,
+    }));
   };
 
   // Create a shared function to submit enquiry with different types
@@ -1965,86 +1971,79 @@ export default function Pending({ filters = {} }) {
         return;
       }
 
-      // Calculate actual price (original total price)
-      let actualPrice = 0;
-
-      // Get all services
-      const hotels = bookings.hotel || bookings.data?.hotel || [];
-      const entryPorts = bookings.entry_port || bookings.data?.entry_port || [];
-      const exitPorts = bookings.exit_port || bookings.data?.exit_port || [];
-      const attractions =
-        bookings.attraction || bookings.data?.attraction || [];
-      const guides = bookings.guide || bookings.data?.guide || [];
-      const restaurants =
-        bookings.restaurant || bookings.data?.restaurant || [];
-      const travelPoints =
-        bookings.travel_point || bookings.data?.travel_point || [];
-      const travelHourly =
-        bookings.travel_hourly || bookings.data?.travel_hourly || [];
-
-      // Calculate total original price
-      hotels.forEach((hotel) => {
-        if (hotel.totalPrice) {
-          actualPrice += parseFloat(hotel.totalPrice);
-        }
+      // Build country-wise price payload from enquiry-status rows + negotiated amounts
+      const countryMap = {};
+      (Array.isArray(enquiryHistory) ? enquiryHistory : []).forEach((item) => {
+        const country = String(item?.country || "").trim();
+        if (!country) return;
+        const actual = parseFloat(item.actual_price);
+        const current = parseFloat(item.current_price);
+        countryMap[country] = {
+          country,
+          currency: String(item?.currency || "").trim() || "SGD",
+          actual_price: Number.isFinite(actual)
+            ? Math.ceil(actual)
+            : Number.isFinite(current)
+              ? Math.ceil(current)
+              : 0,
+          current_price: Number.isFinite(current)
+            ? Math.ceil(current)
+            : Number.isFinite(actual)
+              ? Math.ceil(actual)
+              : 0,
+        };
       });
 
-      entryPorts.forEach((port) => {
-        if (port.totalPrice) {
-          actualPrice += parseFloat(port.totalPrice);
-        }
+      const country_prices = Object.values(countryMap).map((item) => {
+        const negotiatedRaw = countryEnquiryAmounts[item.country];
+        const negotiated = parseFloat(negotiatedRaw);
+        const enquiryPrice = Number.isFinite(negotiated)
+          ? Math.ceil(negotiated)
+          : item.current_price;
+        return {
+          country: item.country,
+          currency: item.currency,
+          actual_price: String(item.actual_price),
+          enquiry_price: String(enquiryPrice),
+        };
       });
 
-      exitPorts.forEach((port) => {
-        if (port.totalPrice) {
-          actualPrice += parseFloat(port.totalPrice);
-        }
-      });
+      if (country_prices.length === 0) {
+        setSnackbarMessage("No country price data found for this enquiry.");
+        setSnackbarSeverity("error");
+        setOpenSnackbar(true);
+        return;
+      }
 
-      attractions.forEach((attraction) => {
-        if (attraction.totalPrice) {
-          actualPrice += parseFloat(attraction.totalPrice);
-        }
+      // Validate negotiated amounts do not exceed current/actual per country
+      const exceededCountry = country_prices.find((item) => {
+        const max = parseFloat(
+          countryMap[item.country]?.current_price ||
+            countryMap[item.country]?.actual_price ||
+            0
+        );
+        return parseFloat(item.enquiry_price) > max;
       });
+      if (exceededCountry) {
+        setSnackbarMessage(
+          `Negotiated amount for ${exceededCountry.country} cannot exceed its current price.`
+        );
+        setSnackbarSeverity("error");
+        setOpenSnackbar(true);
+        return;
+      }
 
-      guides.forEach((guide) => {
-        if (guide.totalPrice) {
-          actualPrice += parseFloat(guide.totalPrice);
-        }
-      });
+      const actualPrice = country_prices.reduce(
+        (sum, item) => sum + (parseFloat(item.actual_price) || 0),
+        0
+      );
+      const enquiryPrice = country_prices.reduce(
+        (sum, item) => sum + (parseFloat(item.enquiry_price) || 0),
+        0
+      );
 
-      restaurants.forEach((restaurant) => {
-        if (restaurant.totalPrice) {
-          actualPrice += parseFloat(restaurant.totalPrice);
-        }
-      });
-
-      travelPoints.forEach((travelPoint) => {
-        if (travelPoint.totalPrice) {
-          actualPrice += parseFloat(travelPoint.totalPrice);
-        }
-      });
-
-      travelHourly.forEach((travelPoint) => {
-        if (travelPoint.totalPrice) {
-          actualPrice += parseFloat(travelPoint.totalPrice);
-        }
-      });
-      
-      // Add local transport prices
-      const localTransports = bookings.local_transport || bookings.data?.local_transport || [];
-      localTransports.forEach((transport) => {
-        if (transport.totalPrice) {
-          actualPrice += parseFloat(transport.totalPrice);
-        }
-      });
-
-      // Use Math.ceil for the prices
-      actualPrice = Math.ceil(actualPrice);
-      const enquiryPrice = Math.ceil(enquiryAmount);
-
-      // Get tour_id from bookings data
-      const tour_id = bookings.id || bookings.data?.id || tourId;
+      // Get tour_id from list state / bookings fallback
+      const tour_id = tourId || bookings.id || bookings.data?.id;
 
       if (!tour_id) {
         setSnackbarMessage("Tour ID is missing. Cannot submit enquiry.");
@@ -2053,22 +2052,21 @@ export default function Pending({ filters = {} }) {
         return;
       }
 
-      // Prepare data for API call
+      // Prepare data for API call (country-wise negotiation)
       const requestData = {
         tour_id: tour_id,
         comment: enquiryComment,
-        total_price: actualPrice.toString(),
-        enquiry_price: enquiryPrice.toString(),
+        total_price: Math.ceil(actualPrice).toString(),
+        enquiry_price: Math.ceil(enquiryPrice).toString(),
+        country_prices,
         type: type, // Dynamic type based on action
       };
-
-      //console.log(`Submitting ${type} with data:`, requestData);
 
       // Make API call to the new endpoint, explicitly sending data in the request body
       const response = await axios({
         method: "post",
         url: `${BASE_URL}/update-enquiry`,
-        data: requestData, // This ensures data is sent in the request body
+        data: requestData,
         headers: {
           Authorization: `Bearer ${authToken}`,
           "Content-Type": "application/json",
@@ -2208,39 +2206,15 @@ export default function Pending({ filters = {} }) {
   // New function to handle enquiry directly from the list
   const handleDirectEnquiry = async (list) => {
     try {
-      //console.log("Direct enquiry started for tour:", list.id);
-
       // Set necessary state variables
       setBookingType1(list.booking_type);
       setDisplayId(list.display_id);
       setTId(list.id);
 
-      // Fetch the tour details
-      await dispatch(fetchViewDetails({ tour_id: list.id })).unwrap();
-
-      // Calculate the enquiry amount from the fetched data
-      let totalPrice = 0;
-      const services = [
-        ...(bookings.hotel || bookings.data?.hotel || []),
-        ...(bookings.entry_port || bookings.data?.entry_port || []),
-        ...(bookings.exit_port || bookings.data?.exit_port || []),
-        ...(bookings.attraction || bookings.data?.attraction || []),
-        ...(bookings.guide || bookings.data?.guide || []),
-        ...(bookings.restaurant || bookings.data?.restaurant || []),
-        ...(bookings.travel_point || bookings.data?.travel_point || []),
-        ...(bookings.travel_hourly || bookings.data?.travel_hourly || []),
-        ...(bookings.local_transport || bookings.data?.local_transport || []),
-      ];
-
-      services.forEach((item) => {
-        if (item.totalPrice) {
-          totalPrice += parseFloat(item.totalPrice);
-        }
-      });
-
       setEnquiryAmount(0);
+      setCountryEnquiryAmounts({});
 
-      // Directly fetch enquiry history
+      // Fetch enquiry history (country-wise prices) — no view-details needed
       const authToken = Cookies.get("authToken");
       const AgentId = Cookies.get("AgentId");
 
@@ -2263,9 +2237,13 @@ export default function Pending({ filters = {} }) {
 
           setEnquiryHistory(historyData);
 
-          // if (historyData.length > 0) {
-          //   setEnquiryAmount(historyData[0].current_price);
-          // }
+          const countryAmounts = buildCountryEnquiryAmounts(historyData);
+          setCountryEnquiryAmounts(countryAmounts);
+          const totalNegotiated = Object.values(countryAmounts).reduce(
+            (sum, value) => sum + (parseFloat(value) || 0),
+            0
+          );
+          setEnquiryAmount(Math.ceil(totalNegotiated));
 
           // Check for processed status
           const hasProcessedStatus = historyData.some(
@@ -2300,14 +2278,12 @@ export default function Pending({ filters = {} }) {
         } else {
           setEnquiryHistory([]);
           setAssigned(null);
+          setCountryEnquiryAmounts({});
         }
       }
 
-      // Finally, open the enquiry modal
-      //console.log("Opening enquiry modal directly");
       setIsEnquiryModalVisible(true);
     } catch (error) {
-     // console.error("Error preparing enquiry:", error);
       setSnackbarMessage("Could not prepare the enquiry. Please try again.");
       setSnackbarSeverity("error");
       setOpenSnackbar(true);
@@ -3765,6 +3741,8 @@ export default function Pending({ filters = {} }) {
         assigned={assigned}
         enquiryAmount={enquiryAmount}
         handleEnquiryAmountChange={handleEnquiryAmountChange}
+        countryEnquiryAmounts={countryEnquiryAmounts}
+        handleCountryEnquiryAmountChange={handleCountryEnquiryAmountChange}
         totalPrice={totalPrice}
         enquiryComment={enquiryComment}
         setEnquiryComment={setEnquiryComment}

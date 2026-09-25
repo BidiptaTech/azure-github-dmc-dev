@@ -5,11 +5,8 @@ import {
   Card,
   CardContent,
   Popover,
-  Stack,
   Button,
-  Paper,
-  styled,
-  Chip
+  styled
 } from '@mui/material';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import NightsStayIcon from '@mui/icons-material/NightsStay';
@@ -48,25 +45,31 @@ const TimeButton = styled(Button)(({ theme, isNightTime, isSelected, disabled })
   textTransform: 'none'
 }));
 
-const TimeSelection = ({ value, onChange, disabled }) => {
+const TimeSelection = ({ value, onChange, disabled, formSection, onBeforeOpen }) => {
   const [anchorEl, setAnchorEl] = useState(null);
   const selectedGuide = useSelector(state => state.tourguide.selectedGuide);
 
-  // Parse night time limits from guide data
-  const nightStartTime = selectedGuide?.night_start_time || "21:00"; // Default to 9 PM
-  const nightEndTime = selectedGuide?.night_end_time || "00:00";    // Default to 12 AM
+  const nightStartTime =
+    selectedGuide?.night_start_time ||
+    formSection?.originalData?.Night_Start_Time ||
+    "21:00";
+  const nightEndTime =
+    selectedGuide?.night_end_time ||
+    formSection?.originalData?.Night_End_Time ||
+    "00:00";
 
   const parseTimeToHour = useCallback((timeStr) => {
-    if (!timeStr) return 0;
-    if (timeStr.includes("AM") || timeStr.includes("PM")) {
-      const [timePart, period] = timeStr.split(" ");
-      let [hours, minutes] = timePart.split(":");
+    if (!timeStr && timeStr !== 0) return 0;
+    if (typeof timeStr === 'number') return timeStr;
+    if (String(timeStr).includes("AM") || String(timeStr).includes("PM")) {
+      const [timePart, period] = String(timeStr).split(" ");
+      let [hours] = timePart.split(":");
       hours = parseInt(hours, 10);
       if (period === "PM" && hours !== 12) hours += 12;
       else if (period === "AM" && hours === 12) hours = 0;
       return hours;
     }
-    const [hours] = timeStr.split(":");
+    const [hours] = String(timeStr).split(":");
     return parseInt(hours, 10);
   }, []);
 
@@ -74,8 +77,8 @@ const TimeSelection = ({ value, onChange, disabled }) => {
   const nightEndHour = parseTimeToHour(nightEndTime);
 
   const isNightHour = useCallback((hour) => {
-    let adjustedEndHour = nightEndTime.includes(":") && 
-      parseInt(nightEndTime.split(":")[1], 10) > 0
+    let adjustedEndHour = String(nightEndTime).includes(":") && 
+      parseInt(String(nightEndTime).split(":")[1], 10) > 0
       ? (nightEndHour + 1) % 24
       : nightEndHour;
 
@@ -86,7 +89,6 @@ const TimeSelection = ({ value, onChange, disabled }) => {
     }
   }, [nightStartHour, nightEndHour, nightEndTime]);
 
-  // Get blocked times from guide's booking details
   const blockedTimes = useMemo(() => {
     const blocked = new Set();
     if (selectedGuide?.bookingDetails?.length) {
@@ -102,10 +104,12 @@ const TimeSelection = ({ value, onChange, disabled }) => {
   }, [selectedGuide, parseTimeToHour]);
 
   const handleClick = useCallback((event) => {
-    if (!disabled) {
-      setAnchorEl(event.currentTarget);
+    if (disabled) return;
+    if (typeof onBeforeOpen === 'function') {
+      onBeforeOpen();
     }
-  }, [disabled]);
+    setAnchorEl(event.currentTarget);
+  }, [disabled, onBeforeOpen]);
 
   const handleClose = useCallback(() => {
     setAnchorEl(null);
@@ -122,14 +126,12 @@ const TimeSelection = ({ value, onChange, disabled }) => {
   const open = Boolean(anchorEl);
   const id = open ? 'time-popover' : undefined;
 
-  // Format night hours for display
   const formattedNightHours = useMemo(() => {
     const formatTimeStr = (timeStr) => {
-      if (timeStr.includes("AM") || timeStr.includes("PM")) {
+      if (String(timeStr).includes("AM") || String(timeStr).includes("PM")) {
         return timeStr;
       }
-      // Convert 24h format to AM/PM
-      const [hours, minutes] = timeStr.split(":");
+      const [hours, minutes] = String(timeStr).split(":");
       const hour = parseInt(hours, 10);
       const min = minutes || "00";
       const period = hour >= 12 ? "PM" : "AM";
@@ -137,10 +139,7 @@ const TimeSelection = ({ value, onChange, disabled }) => {
       return `${displayHour}:${min} ${period}`;
     };
 
-    const startFormatted = formatTimeStr(nightStartTime);
-    const endFormatted = formatTimeStr(nightEndTime);
-
-    return `${startFormatted} - ${endFormatted}`;
+    return `${formatTimeStr(nightStartTime)} - ${formatTimeStr(nightEndTime)}`;
   }, [nightStartTime, nightEndTime]);
 
   return (
@@ -254,4 +253,4 @@ const TimeSelection = ({ value, onChange, disabled }) => {
   );
 };
 
-export default memo(TimeSelection); 
+export default memo(TimeSelection);

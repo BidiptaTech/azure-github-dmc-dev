@@ -94,14 +94,16 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
   // Use the passed date as the booking date for this specific day
   const bookingDate = formatDateToString(date);
 
-  const [formSections, setFormSections] = useState([{ ...initialFormState, bookingDate: bookingDate }]);
+  const [formSections, setFormSections] = useState([{
+    ...initialFormState,
+    bookingDate: bookingDate,
+    localId: `attr-new-${dayIndex}-0`
+  }]);
   const [openModal, setOpenModal] = useState(false);
   const [selectedSectionIndex, setSelectedSectionIndex] = useState(null);
   const [validationError, setValidationError] = useState(false);
   const [bookingSuccess, setBookingSuccess] = useState(false);
   const [expandedSections, setExpandedSections] = useState([0]);
-  // Track which sections have already been saved to Redux
-  const [savedSectionIds, setSavedSectionIds] = useState([]);
   const [selectedCity, setSelectedCity] = useState(null);
   const [cityError, setCityError] = useState(false);
   const [isCityEnabled, setIsCityEnabled] = useState(true);
@@ -110,13 +112,16 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
   const country = useSelector((state) => state.tourPackages.searchCriteria.country);
   const tour = useSelector((state) => state.hotels.tourdetails, shallowEqual);
   console.log("tour", tour);
-  // Refs to prevent infinite loops
+  // Refs to prevent infinite loops / stale AllServices merges
   const hasInitializedRef = useRef(false);
   const lastDispatchRef = useRef(null);
   const hasDispatchedAllAttractionsRef = useRef(false);
   const currentServicesRef = useRef([]);
   const isInitializingRef = useRef(false);
   const hasDataConflictsRef = useRef(false);
+  const isProcessingRef = useRef(false);
+  const lastFormSectionsRef = useRef([]);
+  const getBookingSummaryRef = useRef(() => null);
   console.log("hasDataConflictsRef", hasDataConflictsRef);
 
   console.log("formsection", formSections);
@@ -222,185 +227,125 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
 
    
 
-    // Convert attraction data to form sections for current day
+  // Convert attraction data to form sections for current day only
     const newFormSections = dayAttractions.map((attractionService, index) => {
       const attractionData = attractionService.data[0];
-      
-      console.log('Processing attraction data for form section:', {
-        AttractionId: attractionData.AttractionId,
-        ticketId: attractionData.ticketId,
-        visitTime: attractionData.visitTime,
-        adultCount: attractionData.adultCount,
-        childCount: attractionData.childCount,
-        seniorCount: attractionData.seniorCount
-      });
+      const resolvedDayIndex = Array.isArray(tourDates) && attractionData.bookingDate
+        ? Math.max(0, tourDates.indexOf(attractionData.bookingDate))
+        : dayIndex;
       
       const formSection = {
-        attraction: String(attractionData.AttractionId), // Convert to string
+        attraction: String(attractionData.AttractionId),
         pax: {
           Adults: Number(attractionData.adultCount) || 0,
           Children: Number(attractionData.childCount) || 0,
           Seniors: Number(attractionData.seniorCount) || 0
         },
         timeSlot: attractionData.visitTime || '',
-        ticketType: String(attractionData.ticketId), // Convert to string
+        ticketType: String(attractionData.ticketId),
         priceType: attractionData.nri || 'residential',
-        type: attractionService.type || 'attraction', // Include service type
+        type: attractionService.type || 'attraction',
         bookingDate: attractionData.bookingDate || bookingDate,
-        // Store the original data for reference, including booking_id and service type
+        localId: attractionService.booking_id
+          ? `bk-${attractionService.booking_id}`
+          : `attr-${resolvedDayIndex}-${attractionData.AttractionId}-${attractionData.ticketId}-${attractionData.visitTime || index}`,
         originalData: {
           ...attractionData,
-          booking_id: attractionService.booking_id, // Preserve booking_id from service level
-          type: attractionService.type || 'attraction', // Preserve service type
-          dayIndex: dayIndex // Set dayIndex in the copy, not the original
+          booking_id: attractionService.booking_id,
+          type: attractionService.type || 'attraction',
+          dayIndex: typeof attractionData.dayIndex === 'number' ? attractionData.dayIndex : resolvedDayIndex
         }
       };
       
-      console.log('Created form section:', formSection);
       return formSection;
     });
 
-   
-    
     setFormSections(newFormSections);
     setExpandedSections(newFormSections.map((_, index) => index));
     
-    // Clear initialization flag after a short delay to allow components to render
     setTimeout(() => {
       isInitializingRef.current = false;
-      console.log('Initialization complete, allowing component updates');
     }, 100);
-  }, [ dayIndex, bookingDate, searchParams]); // Added tourDates to dependencies
+  }, [dayIndex, bookingDate, searchParams, attractionspack, tourDates]);
 
-  // Function to dispatch ALL attractions from attractionspack to Redux state
-  const dispatchAllAttractionsToRedux = useCallback(() => {
-    if (!attractionspack || !Array.isArray(attractionspack) || attractionspack.length === 0) {
-      console.log('No attractionspack data to dispatch to Redux');
-      return;
-    }
+  // Seed ONLY this day's package attractions into AllServices (never wipe other days)
+  const seedDayAttractionsToRedux = useCallback((daySections) => {
+    if (!daySections || daySections.length === 0) return;
 
-    // Create a unique key for this dispatch to prevent duplicates
-    const dispatchKey = JSON.stringify(attractionspack.map(service => service.data?.[0]?.AttractionId));
-    
-    if (lastDispatchRef.current === dispatchKey) {
-      console.log('Skipping duplicate dispatch for all attractions');
-      return;
-    }
+    const currentServices = currentServicesRef.current || [];
 
-    // Check if there are already attraction services for the current day in Redux
-    const existingAttractionServices = currentServicesRef.current.filter(service => 
-      (service.type === "attraction" || service.type === "attraction_package") && 
-      service.data && 
-      Array.isArray(service.data) &&
-      service.data.some(booking => booking.dayIndex === dayIndex)
-    );
-    console.log('Existing attraction services:', existingAttractionServices);
-    if (existingAttractionServices.length > 0) {
-      console.log('Attraction services already exist for this day, skipping dispatch to prevent duplicates');
-      return;
-    }
+    // Drop only attraction rows that belong to this dayIndex
+    const servicesWithoutThisDay = currentServices.filter((service) => {
+      const type = String(service.type || '').toLowerCase();
+      if (type !== 'attraction' && type !== 'attraction_package') return true;
+      if (!service.data || !Array.isArray(service.data)) return true;
+      return !service.data.some((item) => item.dayIndex === dayIndex);
+    });
 
-    console.log('Dispatching ALL attractions from attractionspack to Redux:', attractionspack);
+    const newAttractionServices = daySections.map((section) => {
+      const attractionData = section.originalData || {};
+      const resolvedDayIndex = typeof attractionData.dayIndex === 'number' ? attractionData.dayIndex : dayIndex;
 
-    // Remove any existing attraction services using the ref (both attraction and attraction_package types)
-    const filteredServices = currentServicesRef.current.filter(service => 
-      service.type !== "attraction" && service.type !== "attraction_package"
-    );
-
-    // Create new attraction service entries for ALL attractions, preserving booking_id
-    const newAttractionServices = attractionspack.map(attractionService => {
-      const originalAttractionData = attractionService.data[0];
-      console.log('Original attraction data:', originalAttractionData);
-      if (!originalAttractionData) {
-        console.log('No attraction data found in service:', attractionService);
-        return null;
-      }
-
-      console.log('Processing attraction for Redux:', originalAttractionData);
-      console.log('Service type:', attractionService.type, 'Package type:', originalAttractionData.package_type);
-      
-      // Create a copy of the data instead of modifying the original
       const processedAttractionData = {
-        AttractionId: originalAttractionData.AttractionId,
-        AttractionName: originalAttractionData.AttractionName,
-        location: originalAttractionData.location || originalAttractionData.city || '',
-        city: originalAttractionData.city || '',
-        country: originalAttractionData.country || '',
-        visitTime: originalAttractionData.visitTime || '',
-        ticketId: originalAttractionData.ticketId,
-        ticketName: originalAttractionData.ticketName,
-        adultCount: Number(originalAttractionData.adultCount) || 0,
-        childCount: Number(originalAttractionData.childCount) || 0,
-        seniorCount: Number(originalAttractionData.seniorCount) || 0,
-        ticket_details: originalAttractionData.ticket_details || {
+        id: section.localId,
+        AttractionId: attractionData.AttractionId,
+        AttractionName: attractionData.AttractionName,
+        location: attractionData.location || attractionData.city || '',
+        city: attractionData.city || '',
+        country: attractionData.country || '',
+        visitTime: attractionData.visitTime || section.timeSlot || '',
+        ticketId: attractionData.ticketId ?? section.ticketType,
+        ticketName: attractionData.ticketName,
+        adultCount: Number(section.pax?.Adults ?? attractionData.adultCount) || 0,
+        childCount: Number(section.pax?.Children ?? attractionData.childCount) || 0,
+        seniorCount: Number(section.pax?.Seniors ?? attractionData.seniorCount) || 0,
+        ticket_details: attractionData.ticket_details || {
           adult_price: 0,
           child_price: 0,
           senior_price: 0,
           description: ''
         },
-        nri: originalAttractionData.nri || 'residential',
-        totalPrice: Number(originalAttractionData.totalPrice) || Number(originalAttractionData.price) || 0,
-        image: originalAttractionData.image || '',
-        mode: originalAttractionData.mode || 'dmc',
-        dmc_id: originalAttractionData.dmc_id || '',
-        bookingDate: originalAttractionData.bookingDate || bookingDate,
-        dayIndex: dayIndex, // Always use current dayIndex
-        bookingType: originalAttractionData.bookingType || "enquiry",
-        // Include package-related fields if they exist
-        package_type: originalAttractionData.package_type || (attractionService.type === "attraction_package" ? 1 : 0),
-        package_attraction_id: originalAttractionData.package_attraction_id || null,
-        ...(originalAttractionData.package_details && { package_details: originalAttractionData.package_details })
+        nri: section.priceType || attractionData.nri || 'residential',
+        totalPrice: Number(attractionData.totalPrice) || Number(attractionData.price) || 0,
+        image: attractionData.image || '',
+        mode: attractionData.mode || 'dmc',
+        dmc_id: attractionData.dmc_id || '',
+        bookingDate: section.bookingDate || attractionData.bookingDate || bookingDate,
+        dayIndex: resolvedDayIndex,
+        bookingType: attractionData.bookingType || 'enquiry',
+        package_type: attractionData.package_type || (section.type === 'attraction_package' ? 1 : 0),
+        package_attraction_id: attractionData.package_attraction_id || null,
+        ...(attractionData.package_details && { package_details: attractionData.package_details })
       };
 
-      // Determine if this is a package booking (check service type first, then data properties)
-      const isPackageBooking = attractionService.type === "attraction_package" || 
-                               processedAttractionData.package_type === 1 || 
-                               (typeof processedAttractionData.ticketId === 'string' && processedAttractionData.ticketId.startsWith('pkg_'));
-      
-      // Create service object with booking_id preserved
+      const isPackageBooking = section.type === 'attraction_package' ||
+        processedAttractionData.package_type === 1 ||
+        (typeof processedAttractionData.ticketId === 'string' && String(processedAttractionData.ticketId).startsWith('pkg_'));
+
       const serviceObject = {
-        type: isPackageBooking ? "attraction_package" : "attraction",
+        type: isPackageBooking ? 'attraction_package' : 'attraction',
         agent_id: agentId,
         tour_id: tourId,
         data: [processedAttractionData],
-        bookingType: "enquiry"
+        bookingType: 'enquiry'
       };
 
-      // Add booking_id if it exists in the original service
-      if (attractionService.booking_id) {
-        serviceObject.booking_id = attractionService.booking_id;
+      if (attractionData.booking_id) {
+        serviceObject.booking_id = attractionData.booking_id;
       }
 
       return serviceObject;
-    }).filter(Boolean); // Remove null entries
-
-    console.log('New attraction services:', newAttractionServices);
-    if (newAttractionServices.length === 0) {
-      console.log('No valid attractions to dispatch to Redux');
-      return;
-    }
-
-    // Add new services to filtered services
-    const finalServices = [...filteredServices, ...newAttractionServices];
-
-    console.log('Dispatching ALL attraction services to Redux:', finalServices);
-    console.log('Services by type:', {
-      attractions: newAttractionServices.filter(s => s.type === 'attraction').length,
-      packages: newAttractionServices.filter(s => s.type === 'attraction_package').length
     });
-    dispatch(setAllServices(finalServices));
-    
-    // Update the last dispatch ref
-    lastDispatchRef.current = dispatchKey;
-    hasDispatchedAllAttractionsRef.current = true;
-  }, [attractionspack, agentId, tourId, dispatch, dayIndex, bookingDate]);
 
-  // Reset refs when dayIndex changes
+    dispatch(setAllServices([...servicesWithoutThisDay, ...newAttractionServices]));
+    hasDispatchedAllAttractionsRef.current = true;
+  }, [agentId, tourId, dispatch, dayIndex, bookingDate]);
+
+  // Reset init flags when dayIndex changes (each day instance is separate mount usually)
   useEffect(() => {
     hasInitializedRef.current = false;
     lastDispatchRef.current = null;
     hasDispatchedAllAttractionsRef.current = false;
-    currentServicesRef.current = [];
     isInitializingRef.current = false;
     hasDataConflictsRef.current = false;
   }, [dayIndex]);
@@ -411,58 +356,35 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
       hasInitializedRef.current = false;
       lastDispatchRef.current = null;
       hasDispatchedAllAttractionsRef.current = false;
-      currentServicesRef.current = [];
       isInitializingRef.current = false;
       hasDataConflictsRef.current = false;
     };
   }, []);
 
-  // Initialize form sections when attractionspack changes
+  // Initialize form sections + seed this day once when pack arrives
   useEffect(() => {
-    if (!hasInitializedRef.current && attractionspack && Array.isArray(attractionspack) && attractionspack.length > 0) {
-      console.log('Initializing form sections from attractionspack');
-      initializeFormSectionsFromAttractionPack();
-      hasInitializedRef.current = true;
-    }
+    if (hasInitializedRef.current) return;
+    if (!attractionspack || !Array.isArray(attractionspack) || attractionspack.length === 0) return;
+
+    initializeFormSectionsFromAttractionPack();
+    hasInitializedRef.current = true;
   }, [attractionspack, initializeFormSectionsFromAttractionPack]);
 
-  // Dispatch ALL attractions to Redux when attractionspack is available (only once)
+  // After form hydrate from pack, seed this day's attractions into AllServices once
   useEffect(() => {
-    if (!hasDispatchedAllAttractionsRef.current && attractionspack && Array.isArray(attractionspack) && attractionspack.length > 0) {
-      console.log('Dispatching ALL attractions from attractionspack to Redux on mount');
-      dispatchAllAttractionsToRedux();
-      hasDispatchedAllAttractionsRef.current = true;
-    }
-  }, [attractionspack, dispatchAllAttractionsToRedux]);
+    if (!hasInitializedRef.current || hasDispatchedAllAttractionsRef.current) return;
+    if (!attractionspack || attractionspack.length === 0) return;
+    if (!formSections.some((s) => s.originalData)) return;
 
-  // Log attractionspack data when it changes
-  useEffect(() => {
-    if (attractionspack && Array.isArray(attractionspack) && attractionspack.length > 0) {
-      console.log('Received attractionspack data:', attractionspack);
-      console.log('Attractions by type:', {
-        attractions: attractionspack.filter(s => s.type === 'attraction').length,
-        packages: attractionspack.filter(s => s.type === 'attraction_package').length
-      });
-      
-      // Reset the dispatch flag when attractionspack changes
-      hasDispatchedAllAttractionsRef.current = false;
-    }
-  }, [attractionspack]);
-
-  useEffect(() => {
-    console.log('AttractionComponent - Received props:', { date, dayIndex, bookingDate });
-    console.log('AttractionComponent - Form sections count:', formSections.length);
-    console.log('AttractionComponent - Has initialized:', hasInitializedRef.current);
-  }, [date, dayIndex, bookingDate, formSections.length]);
-
-
+    seedDayAttractionsToRedux(formSections.filter((s) => s.originalData));
+  }, [formSections, attractionspack, seedDayAttractionsToRedux]);
 
   const handleAddMore = () => {
     const newIndex = formSections.length;
     const newSection = { 
       ...initialFormState, 
       bookingDate: bookingDate,
-      // Ensure new sections don't have originalData to avoid conflicts
+      localId: `attr-new-${dayIndex}-${Date.now()}-${newIndex}`,
       originalData: null
     };
     setFormSections([...formSections, newSection]);
@@ -471,80 +393,45 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
 
   const handleRemoveSection = (indexToRemove) => {
     const sectionToRemove = formSections[indexToRemove];
-    
-    if (!sectionToRemove) {
-      console.log("Attraction - No section found at index:", indexToRemove);
-      return;
-    }
+    if (!sectionToRemove) return;
 
-    console.log("Attraction - Removing section:", sectionToRemove);
-    
-    // Remove from local state
     setFormSections(formSections.filter((_, index) => index !== indexToRemove));
-    setExpandedSections(expandedSections.filter(index => index !== indexToRemove).map(index => index > indexToRemove ? index - 1 : index));
-    
-    // Remove section signature from saved IDs
-    if (sectionToRemove) {
-      const sectionSignature = `${sectionToRemove.attraction}-${sectionToRemove.timeSlot}-${sectionToRemove.ticketType}-${dayIndex}`;
-      setSavedSectionIds(prev => prev.filter(signature => signature !== sectionSignature));
-    }
-    
-    // Remove from Redux state if the section has attraction data (either has an original ID or attraction selection)
-    const hasOriginalId = sectionToRemove?.originalData?.id;
-    const hasAttractionId = sectionToRemove?.attraction;
-    console.log("Attraction - Has original ID:", hasOriginalId);
-    console.log("Attraction - Section to remove:", sectionToRemove);
-    
-    if (hasOriginalId || hasAttractionId) {
-      // Clone the existing services array
-      const currentServices = [...existingServices];
-      console.log("Attraction - Current services before removal:", currentServices);
-      
-      // Filter out the specific attraction service
-      const filteredServices = currentServices.filter(service => {
-        // Check if this is an attraction service
-        if (service.type === "attraction" || service.type === "attraction_package") {
-          // For existing services with booking_id, match by booking_id
-          if (sectionToRemove.originalData?.booking_id && service.booking_id) {
-            const shouldRemove = service.booking_id === sectionToRemove.originalData.booking_id;
-            console.log(`Attraction - Checking booking_id match: ${service.booking_id} === ${sectionToRemove.originalData.booking_id} = ${shouldRemove}`);
-            return !shouldRemove;
-          }
-          
-          // For new services without booking_id, match by attraction data
-          if (service.data && Array.isArray(service.data)) {
-            const hasMatchingData = service.data.some(dataItem => {
-              // Match by AttractionId and dayIndex
-              if (sectionToRemove.attraction && dataItem.AttractionId) {
-                const matchesAttraction = dataItem.AttractionId === sectionToRemove.attraction;
-                const matchesDay = dataItem.dayIndex === dayIndex;
-                console.log(`Attraction - Checking data match: AttractionId ${dataItem.AttractionId} === ${sectionToRemove.attraction} && dayIndex ${dataItem.dayIndex} === ${dayIndex} = ${matchesAttraction && matchesDay}`);
-                return matchesAttraction && matchesDay;
-              }
-              return false;
-            });
-            
-            if (hasMatchingData) {
-              console.log("Attraction - Found matching data, removing service");
-              return false; // Remove this service
-            }
-          }
-        }
-        
-        // Keep all other services
-        return true;
-      });
-      
-      console.log("Attraction - Filtered services after removal:", filteredServices);
-      
-      // Only dispatch if there's an actual change
-      if (filteredServices.length !== currentServices.length) {
-        console.log("Attraction - Removing attraction service from Redux");
-        console.log(`Attraction - Services count: ${currentServices.length} -> ${filteredServices.length}`);
-        dispatch(setAllServices(filteredServices));
-      } else {
-        console.log("Attraction - No matching service found to remove");
+    setExpandedSections(
+      expandedSections
+        .filter((index) => index !== indexToRemove)
+        .map((index) => (index > indexToRemove ? index - 1 : index))
+    );
+
+    const sectionKey = sectionToRemove.localId
+      || (sectionToRemove.originalData?.booking_id ? `bk-${sectionToRemove.originalData.booking_id}` : null);
+    const hasIdentity = sectionKey || sectionToRemove.attraction || sectionToRemove.originalData?.booking_id;
+    if (!hasIdentity) return;
+
+    const currentServices = [...(currentServicesRef.current || [])];
+    const filteredServices = currentServices.filter((service) => {
+      const type = String(service.type || '').toLowerCase();
+      if (type !== 'attraction' && type !== 'attraction_package') return true;
+
+      if (sectionToRemove.originalData?.booking_id && service.booking_id === sectionToRemove.originalData.booking_id) {
+        return false;
       }
+
+      if (service.data && Array.isArray(service.data)) {
+        const matches = service.data.some((item) =>
+          (sectionKey && item.id === sectionKey) ||
+          (sectionToRemove.attraction &&
+            item.dayIndex === dayIndex &&
+            String(item.AttractionId) === String(sectionToRemove.attraction) &&
+            String(item.visitTime || '') === String(sectionToRemove.timeSlot || '') &&
+            String(item.ticketId) === String(sectionToRemove.ticketType))
+        );
+        if (matches) return false;
+      }
+      return true;
+    });
+
+    if (filteredServices.length !== currentServices.length) {
+      dispatch(setAllServices(filteredServices));
     }
   };
 
@@ -556,19 +443,37 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
     }
   };
 
-  // Function to dispatch individual booking updates to Redux
+  // Upsert one complete section into AllServices (always write live form values)
   const dispatchBookingUpdateToRedux = useCallback((sectionIndex, updatedSection) => {
     if (!updatedSection.attraction || !updatedSection.timeSlot || !updatedSection.ticketType) {
-      console.log('Incomplete section, skipping Redux dispatch');
+      return;
+    }
+    if ((updatedSection.pax?.Adults || 0) + (updatedSection.pax?.Children || 0) + (updatedSection.pax?.Seniors || 0) <= 0) {
       return;
     }
 
-    // If we have original data, use it directly
+    const currentServices = [...(currentServicesRef.current || [])];
+    const sectionKey = updatedSection.localId
+      || (updatedSection.originalData?.booking_id ? `bk-${updatedSection.originalData.booking_id}` : null)
+      || `attr-${dayIndex}-${updatedSection.attraction}-${updatedSection.timeSlot}-${updatedSection.ticketType}`;
+
+    let bookingData;
+    let serviceType = updatedSection.type === 'attraction_package' ? 'attraction_package' : 'attraction';
+
     if (updatedSection.originalData) {
-      console.log('Using original data for individual booking update:', updatedSection.originalData);
-      
-      // Get customer details from original data if available
-      const customerDetails = {
+      // Preserve identity/pricing from pack, but apply live UI edits
+      const summaryData = (() => {
+        try { return getBookingSummaryRef.current(updatedSection); } catch { return null; }
+      })();
+
+      const adultPrice = summaryData?.adultPrice ?? updatedSection.originalData.ticket_details?.adult_price ?? 0;
+      const childPrice = summaryData?.childPrice ?? updatedSection.originalData.ticket_details?.child_price ?? 0;
+      const seniorPrice = summaryData?.seniorPrice ?? updatedSection.originalData.ticket_details?.senior_price ?? 0;
+      const totalPrice = summaryData
+        ? (adultPrice * updatedSection.pax.Adults) + (childPrice * updatedSection.pax.Children) + (seniorPrice * updatedSection.pax.Seniors)
+        : Number(updatedSection.originalData.totalPrice) || 0;
+
+      bookingData = {
         fullName: updatedSection.originalData.fullName || "",
         email: updatedSection.originalData.email || "",
         phone: updatedSection.originalData.phone || "",
@@ -578,202 +483,132 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
         state: updatedSection.originalData.state || "",
         zip: updatedSection.originalData.zip || "",
         specialRequests: updatedSection.originalData.specialRequests || "",
+        id: sectionKey,
+        AttractionId: updatedSection.attraction || updatedSection.originalData.AttractionId,
+        AttractionName: summaryData?.attraction || updatedSection.originalData.AttractionName,
+        location: summaryData?.location || updatedSection.originalData.location,
+        city: summaryData?.city || updatedSection.originalData.city,
+        country: summaryData?.country || updatedSection.originalData.country,
+        visitTime: updatedSection.timeSlot,
+        ticketId: updatedSection.ticketType,
+        ticketName: summaryData?.ticketType || updatedSection.originalData.ticketName,
+        adultCount: updatedSection.pax.Adults,
+        childCount: updatedSection.pax.Children,
+        seniorCount: updatedSection.pax.Seniors,
+        ticket_details: summaryData ? {
+          adult_price: adultPrice,
+          child_price: childPrice,
+          senior_price: seniorPrice,
+          description: summaryData.ticketDescription || ''
+        } : (updatedSection.originalData.ticket_details || {}),
+        nri: updatedSection.priceType || updatedSection.originalData.nri || 'residential',
+        totalPrice,
+        image: summaryData?.image || updatedSection.originalData.image || '',
+        mode: updatedSection.originalData.mode || currentMode,
+        dmc_id: updatedSection.originalData.dmc_id || agentId,
+        bookingDate: updatedSection.bookingDate || bookingDate,
+        dayIndex: dayIndex,
+        bookingType: "enquiry",
+        booking_id: updatedSection.originalData.booking_id,
+        package_type: updatedSection.originalData.package_type || (summaryData?.type === 'attraction_package' ? 1 : 0),
+        package_attraction_id: updatedSection.originalData.package_attraction_id || null,
+        ...(updatedSection.originalData.package_details && { package_details: updatedSection.originalData.package_details })
       };
-      
-      const bookingData = {
-        // Include customer details
-        ...customerDetails,
-        
-        // Core booking details
-        
-        AttractionId: updatedSection.originalData.AttractionId,
-        AttractionName: updatedSection.originalData.AttractionName,
-        location: updatedSection.originalData.location,
-        city: updatedSection.originalData.city,
-        country: updatedSection.originalData.country,
-        visitTime: updatedSection.originalData.visitTime,
-        ticketId: updatedSection.originalData.ticketId,
-        ticketName: updatedSection.originalData.ticketName,
-        adultCount: updatedSection.originalData.adultCount,
-        childCount: updatedSection.originalData.childCount,
-        seniorCount: updatedSection.originalData.seniorCount,
-        ticket_details: updatedSection.originalData.ticket_details,
-        nri: updatedSection.originalData.nri,
-        totalPrice: updatedSection.originalData.totalPrice,
-        image: updatedSection.originalData.image,
-        mode: updatedSection.originalData.mode,
-        dmc_id: updatedSection.originalData.dmc_id,
-        bookingDate: updatedSection.originalData.bookingDate,
-        dayIndex: updatedSection.originalData.dayIndex,
-        bookingType: updatedSection.originalData.bookingType || "enquiry",
-        booking_id: updatedSection.originalData.booking_id // Preserve booking_id
+      serviceType = bookingData.package_type === 1 || updatedSection.type === 'attraction_package'
+        ? 'attraction_package'
+        : 'attraction';
+    } else {
+      const summaryData = getBookingSummaryRef.current(updatedSection);
+      if (!summaryData) return;
+      const adultTotal = summaryData.adultPrice * updatedSection.pax.Adults;
+      const childTotal = summaryData.childPrice * updatedSection.pax.Children;
+      const seniorTotal = summaryData.seniorPrice * updatedSection.pax.Seniors;
+      const totalPrice = adultTotal + childTotal + seniorTotal;
+
+      bookingData = {
+        fullName: "",
+        email: "",
+        phone: "",
+        countryCode: "",
+        address1: "",
+        address2: "",
+        state: "",
+        zip: "",
+        specialRequests: "",
+        id: sectionKey,
+        AttractionId: updatedSection.attraction,
+        AttractionName: summaryData.attraction,
+        location: summaryData.location,
+        city: summaryData.city,
+        country: summaryData.country,
+        visitTime: updatedSection.timeSlot,
+        ticketId: updatedSection.ticketType,
+        ticketName: summaryData.ticketType,
+        adultCount: updatedSection.pax.Adults,
+        childCount: updatedSection.pax.Children,
+        seniorCount: updatedSection.pax.Seniors,
+        ticket_details: {
+          adult_price: summaryData.adultPrice,
+          child_price: summaryData.childPrice,
+          senior_price: summaryData.seniorPrice,
+          description: summaryData.ticketDescription || ''
+        },
+        nri: updatedSection.priceType || 'residential',
+        totalPrice,
+        image: summaryData.image,
+        mode: currentMode,
+        dmc_id: agentId,
+        bookingDate: updatedSection.bookingDate || bookingDate,
+        dayIndex: dayIndex,
+        bookingType: "enquiry",
+        package_type: summaryData.type === 'attraction_package' ? 1 : 0,
+        package_attraction_id: summaryData.type === 'attraction_package' ? summaryData.packageDetails?.package_id : null,
+        ...(summaryData.type === 'attraction_package' && summaryData.packageDetails && { package_details: summaryData.packageDetails })
       };
-
-      // Clone existing services
-      const currentServices = [...existingServices];
-      
-      // Find and update existing attraction service for this dayIndex
-      let found = false;
-      const updatedServices = currentServices.map(service => {
-        if ((service.type === "attraction" || service.type === "attraction_package") && service.data && Array.isArray(service.data)) {
-          const updatedData = service.data.map(item => {
-            if (item.dayIndex === dayIndex && item.id === bookingData.id) {
-              found = true;
-              return bookingData;
-            }
-            return item;
-          });
-          
-          if (found) {
-            return { ...service, data: updatedData };
-          }
-        }
-        return service;
-      });
-
-      // If not found, add new service entry
-      if (!found) {
-        // Determine if this is a package booking
-        const isPackageBooking = bookingData.package_type === 1 || (typeof bookingData.ticketId === 'string' && bookingData.ticketId.startsWith('pkg_'));
-        
-        const newAttractionService = {
-          type: isPackageBooking ? "attraction_package" : "attraction",
-          agent_id: agentId,
-          tour_id: tourId,
-          data: [bookingData],
-          bookingType: "enquiry"
-        };
-        
-        // Add booking_id if available from original data
-        if (updatedSection.originalData?.booking_id) {
-          newAttractionService.booking_id = updatedSection.originalData.booking_id;
-        }
-        
-        updatedServices.push(newAttractionService);
-      }
-
-      console.log("Attraction - Dispatching individual booking update to Redux (original data):", bookingData);
-      dispatch(setAllServices(updatedServices));
-      return;
+      serviceType = bookingData.package_type === 1 ? 'attraction_package' : 'attraction';
     }
 
-    // For new bookings, calculate everything
-    const summaryData = getBookingSummary(updatedSection);
-    
-    const adultTotal = summaryData.adultPrice * updatedSection.pax.Adults;
-    const childTotal = summaryData.childPrice * updatedSection.pax.Children;
-    const seniorTotal = summaryData.seniorPrice * updatedSection.pax.Seniors;
-    const totalPrice = adultTotal + childTotal + seniorTotal;
+    // Remove matching service (by booking_id, local id, or AttractionId+dayIndex+visitTime)
+    const filteredServices = currentServices.filter((service) => {
+      const type = String(service.type || '').toLowerCase();
+      if (type !== 'attraction' && type !== 'attraction_package') return true;
 
-    const bookingData = {
-      // Customer information fields (will be populated when available)
-      fullName: "",
-      email: "",
-      phone: "",
-      countryCode: "",
-      address1: "",
-      address2: "",
-      state: "",
-      zip: "",
-      specialRequests: "",
-      
-      // Core booking details
-      
-      AttractionId: updatedSection.attraction,
-      AttractionName: summaryData.attraction,
-      location: summaryData.location,
-      city: summaryData.city,
-      country: summaryData.country,
-      visitTime: updatedSection.timeSlot,
-      ticketId: updatedSection.ticketType,
-      ticketName: summaryData.ticketType,
-      adultCount: updatedSection.pax.Adults,
-      childCount: updatedSection.pax.Children,
-      seniorCount: updatedSection.pax.Seniors,
-      ticket_details: {
-        adult_price: summaryData.adultPrice,
-        child_price: summaryData.childPrice,
-        senior_price: summaryData.seniorPrice,
-        description: summaryData.ticketDescription || ''
-      },
-      nri: updatedSection.priceType || 'residential',
-      totalPrice: totalPrice,
-      image: summaryData.image,
-      mode: currentMode,
-      dmc_id: agentId,
-      bookingDate: updatedSection.bookingDate,
-      dayIndex: dayIndex,
-      bookingType: "enquiry",
-      package_type: summaryData.type === 'attraction_package' ? 1 : 0,
-      package_attraction_id: summaryData.type === 'attraction_package' ? summaryData.packageDetails?.package_id : null,
-      ...(summaryData.type === 'attraction_package' && summaryData.packageDetails && { package_details: summaryData.packageDetails })
-    };
-
-    // Clone existing services
-    const currentServices = [...existingServices];
-    
-    // Find and update existing attraction service for this dayIndex
-    let found = false;
-    const updatedServices = currentServices.map(service => {
-      if ((service.type === "attraction" || service.type === "attraction_package") && service.data && Array.isArray(service.data)) {
-        const updatedData = service.data.map(item => {
-          if (item.dayIndex === dayIndex && item.id === bookingData.id) {
-            found = true;
-            return bookingData;
-          }
-          return item;
-        });
-        
-        if (found) {
-          return { ...service, data: updatedData };
-        }
+      if (updatedSection.originalData?.booking_id && service.booking_id === updatedSection.originalData.booking_id) {
+        return false;
       }
-      return service;
+
+      if (service.data && Array.isArray(service.data)) {
+        const matches = service.data.some((item) =>
+          item.id === sectionKey ||
+          (item.dayIndex === dayIndex &&
+            String(item.AttractionId) === String(bookingData.AttractionId) &&
+            String(item.visitTime || '') === String(bookingData.visitTime || '') &&
+            String(item.ticketId) === String(bookingData.ticketId))
+        );
+        if (matches) return false;
+      }
+      return true;
     });
 
-    // If not found, add new service entry
-    if (!found) {
-      const newAttractionService = {
-        type: "attraction",
-        agent_id: agentId,
-        tour_id: tourId,
-        data: [bookingData],
-        bookingType: "enquiry"
-      };
-      
-      // Add booking_id if available from original data
-      if (updatedSection.originalData?.booking_id) {
-        newAttractionService.booking_id = updatedSection.originalData.booking_id;
-      }
-      
-      updatedServices.push(newAttractionService);
+    const newAttractionService = {
+      type: serviceType,
+      agent_id: agentId,
+      tour_id: tourId,
+      data: [bookingData],
+      bookingType: "enquiry"
+    };
+    if (updatedSection.originalData?.booking_id) {
+      newAttractionService.booking_id = updatedSection.originalData.booking_id;
     }
 
-    console.log("Attraction - Dispatching individual booking update to Redux:", bookingData);
-    dispatch(setAllServices(updatedServices));
-    setBookingSuccess(true);
-    
-    setTimeout(() => {
-      setBookingSuccess(false);
-    }, 5000);
-  }, [attractions, attractionDetails, currentMode, agentId, tourId, dayIndex, existingServices, dispatch]);
+    dispatch(setAllServices([...filteredServices, newAttractionService]));
+  }, [currentMode, agentId, tourId, dayIndex, bookingDate, dispatch]);
 
   const handleInputChange = (sectionIndex, field, value) => {
-    console.log('handleInputChange called:', { sectionIndex, field, value, currentFormSections: formSections, isInitializing: isInitializingRef.current });
-    
-    // Skip updates during initialization to prevent overwriting initialized data
-    if (isInitializingRef.current) {
-      console.log('Skipping handleInputChange during initialization');
-      return;
-    }
-    
-    
+    if (isInitializingRef.current) return;
+
     const newFormSections = [...formSections];
-    
-    // Generate old signature before changes
-    const oldSectionSignature = formSections[sectionIndex] ? 
-      `${formSections[sectionIndex].attraction}-${formSections[sectionIndex].timeSlot}-${formSections[sectionIndex].ticketType}-${dayIndex}` : '';
-    
+
     if (field === 'pax') {
       const currentPax = newFormSections[sectionIndex].pax;
       if (
@@ -790,29 +625,15 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
           }
         };
         setFormSections(newFormSections);
-        
-        // Check completion and manage saved signatures
+
         const updatedSection = newFormSections[sectionIndex];
-        const isComplete = 
-          updatedSection.attraction && 
-          updatedSection.timeSlot && 
-          updatedSection.ticketType && 
+        const isComplete =
+          updatedSection.attraction &&
+          updatedSection.timeSlot &&
+          updatedSection.ticketType &&
           (updatedSection.pax.Adults + updatedSection.pax.Children + updatedSection.pax.Seniors > 0);
-        
-        const newSectionSignature = 
-          `${updatedSection.attraction}-${updatedSection.timeSlot}-${updatedSection.ticketType}-${dayIndex}`;
-        
-        // If the data changed, remove the old signature from saved list
-        if (oldSectionSignature !== newSectionSignature) {
-          setSavedSectionIds(prev => 
-            prev.filter(signature => signature !== oldSectionSignature)
-          );
-          console.log(`Attraction booking section ${sectionIndex + 1} data changed, will be re-evaluated for saving`);
-        }
-        
-        // Dispatch update to Redux if section is complete
+
         if (isComplete) {
-          console.log(`Attraction booking section ${sectionIndex + 1} is now complete`);
           dispatchBookingUpdateToRedux(sectionIndex, updatedSection);
         }
       }
@@ -821,81 +642,45 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
         ...newFormSections[sectionIndex],
         [field]: value,
         timeSlot: '',
-        bookingDate: bookingDate // Preserve booking date
+        bookingDate: bookingDate
       };
       setFormSections(newFormSections);
-      
-      // Remove old signature since attraction changed
-      if (oldSectionSignature) {
-        setSavedSectionIds(prev => 
-          prev.filter(signature => signature !== oldSectionSignature)
-        );
-        console.log(`Attraction booking section ${sectionIndex + 1} attraction changed, will be re-evaluated for saving`);
-      }
     } else if (field === 'ticketType') {
       newFormSections[sectionIndex] = {
         ...newFormSections[sectionIndex],
         ticketType: value.ticketId,
         priceType: value.priceType,
-        type: value.type || 'attraction', // Add the type field
-        bookingDate: bookingDate // Preserve booking date
+        type: value.type || 'attraction',
+        bookingDate: bookingDate
       };
       setFormSections(newFormSections);
-      
-      // Check completion and manage saved signatures
+
       const updatedSection = newFormSections[sectionIndex];
-      const isComplete = 
-        updatedSection.attraction && 
-        updatedSection.timeSlot && 
-        updatedSection.ticketType && 
+      const isComplete =
+        updatedSection.attraction &&
+        updatedSection.timeSlot &&
+        updatedSection.ticketType &&
         (updatedSection.pax.Adults + updatedSection.pax.Children + updatedSection.pax.Seniors > 0);
-      
-      const newSectionSignature = 
-        `${updatedSection.attraction}-${updatedSection.timeSlot}-${updatedSection.ticketType}-${dayIndex}`;
-      
-      // If the data changed, remove the old signature from saved list
-      if (oldSectionSignature !== newSectionSignature) {
-        setSavedSectionIds(prev => 
-          prev.filter(signature => signature !== oldSectionSignature)
-        );
-        console.log(`Attraction booking section ${sectionIndex + 1} data changed, will be re-evaluated for saving`);
-      }
-      
-      // Dispatch update to Redux if section is complete
+
       if (isComplete) {
-        console.log(`Attraction booking section ${sectionIndex + 1} is now complete`);
         dispatchBookingUpdateToRedux(sectionIndex, updatedSection);
       }
     } else {
       newFormSections[sectionIndex] = {
         ...newFormSections[sectionIndex],
         [field]: value,
-        bookingDate: bookingDate // Preserve booking date
+        bookingDate: bookingDate
       };
       setFormSections(newFormSections);
-      
-      // Check completion and manage saved signatures
+
       const updatedSection = newFormSections[sectionIndex];
-      const isComplete = 
-        updatedSection.attraction && 
-        updatedSection.timeSlot && 
-        updatedSection.ticketType && 
+      const isComplete =
+        updatedSection.attraction &&
+        updatedSection.timeSlot &&
+        updatedSection.ticketType &&
         (updatedSection.pax.Adults + updatedSection.pax.Children + updatedSection.pax.Seniors > 0);
-      
-      const newSectionSignature = 
-        `${updatedSection.attraction}-${updatedSection.timeSlot}-${updatedSection.ticketType}-${dayIndex}`;
-      
-      // If the data changed, remove the old signature from saved list
-      if (oldSectionSignature !== newSectionSignature) {
-        setSavedSectionIds(prev => 
-          prev.filter(signature => signature !== oldSectionSignature)
-        );
-        console.log(`Attraction booking section ${sectionIndex + 1} data changed, will be re-evaluated for saving`);
-      }
-      
-      // Dispatch update to Redux if section is complete
+
       if (isComplete) {
-        console.log(`Attraction booking section ${sectionIndex + 1} is now complete`);
         dispatchBookingUpdateToRedux(sectionIndex, updatedSection);
       }
     }
@@ -912,53 +697,55 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
   };
 
   const getBookingSummary = useCallback((booking) => {
-    // If we have original data, use it directly
+    // Pack / edit hydrate: prefer live form values, fall back to originalData
     if (booking.originalData) {
-      console.log('Using original data for booking summary:', booking.originalData);
-      
-      // Determine if this is a package booking
-      const isPackageBooking = 
-        booking.originalData.package_type === 1 || 
+      const isPackageBooking =
+        booking.originalData.package_type === 1 ||
         booking.type === 'attraction_package' ||
+        (typeof booking.ticketType === 'string' && booking.ticketType?.startsWith('pkg_')) ||
         (typeof booking.originalData.ticketId === 'string' && booking.originalData.ticketId?.startsWith('pkg_'));
-      
+
+      const liveAttraction = booking.attraction
+        ? attractions.find((a) => String(a.id) === String(booking.attraction))
+        : null;
+
       return {
-        attraction: booking.originalData.AttractionName || 'Unknown Attraction',
-        location: booking.originalData.location || booking.originalData.city || '',
-        country: booking.originalData.country || '',
-        city: booking.originalData.city || '',
-        image: booking.originalData.image || '',
-        description: booking.originalData.description || 'Description from original booking',
+        attraction: liveAttraction?.name || booking.originalData.AttractionName || 'Unknown Attraction',
+        location: liveAttraction?.location || booking.originalData.location || booking.originalData.city || '',
+        country: liveAttraction?.country || booking.originalData.country || '',
+        city: liveAttraction?.city || booking.originalData.city || '',
+        image: liveAttraction?.image || booking.originalData.image || '',
+        description: liveAttraction?.description || booking.originalData.description || '',
         pax: {
-          Adults: Number(booking.originalData.adultCount) || 0,
-          Children: Number(booking.originalData.childCount) || 0,
-          Seniors: Number(booking.originalData.seniorCount) || 0
+          Adults: Number(booking.pax?.Adults ?? booking.originalData.adultCount) || 0,
+          Children: Number(booking.pax?.Children ?? booking.originalData.childCount) || 0,
+          Seniors: Number(booking.pax?.Seniors ?? booking.originalData.seniorCount) || 0
         },
-        timeSlot: booking.originalData.visitTime || '',
+        timeSlot: booking.timeSlot || booking.originalData.visitTime || '',
         ticketType: booking.originalData.ticketName || '',
         ticketDescription: booking.originalData.ticket_details?.description || 'No description available',
         adultPrice: Number(booking.originalData.ticket_details?.adult_price) || 0,
         childPrice: Number(booking.originalData.ticket_details?.child_price) || 0,
         seniorPrice: Number(booking.originalData.ticket_details?.senior_price) || 0,
-        openingHours: booking.originalData.openingHours || 'Opening hours from original booking',
-        terms: booking.originalData.terms || 'Terms from original booking',
-        remarks: booking.originalData.remarks || 'Remarks from original booking',
+        openingHours: booking.originalData.openingHours || '',
+        terms: booking.originalData.terms || '',
+        remarks: booking.originalData.remarks || '',
         mode: booking.originalData.mode || 'dmc',
-        address: booking.originalData.address || 'Address from original booking',
-        category: booking.originalData.category || 'Category from original booking',
-        duration: booking.originalData.duration || 'Duration from original booking',
-        cancellation_policy: booking.originalData.cancellation_policy || 'Cancellation policy from original booking',
-        inclusions: booking.originalData.inclusions || 'Inclusions from original booking',
-        exclusions: booking.originalData.exclusions || 'Exclusions from original booking',
+        address: booking.originalData.address || '',
+        category: booking.originalData.category || '',
+        duration: booking.originalData.duration || '',
+        cancellation_policy: booking.originalData.cancellation_policy || '',
+        inclusions: booking.originalData.inclusions || '',
+        exclusions: booking.originalData.exclusions || '',
         tax_percentage: booking.originalData.ticket_details?.tax_percentage || 0,
         tax_amount: booking.originalData.ticket_details?.tax_amount || 0,
         currency: booking.originalData.currency || 'SGD',
-        priceType: booking.originalData.nri || 'residential',
-        booking_id: booking.originalData.booking_id, // Preserve booking_id
+        priceType: booking.priceType || booking.originalData.nri || 'residential',
+        booking_id: booking.originalData.booking_id,
         type: isPackageBooking ? 'attraction_package' : 'attraction',
         packageAttractions: booking.originalData.package_details?.package_attractions || null,
         packageDescription: booking.originalData.package_details?.package_description || null,
-        packageDetails: booking.originalData.package_details || null, // Add full package details
+        packageDetails: booking.originalData.package_details || null,
       };
     }
 
@@ -1061,6 +848,8 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
     return summaryData;
   }, [attractions, attractionDetails, currentMode]);
 
+  getBookingSummaryRef.current = getBookingSummary;
+
   const validateBookings = () => {
     if (formSections.length === 0) {
       setValidationError("Please add at least one attraction.");
@@ -1096,270 +885,44 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
     return true;
   };
 
-  const handleBookNow = useCallback(() => {
-    if (!validateBookings()) {
-      return;
-    }
-    
-    console.log("Processing attraction bookings for Redux dispatch");
-    
-    // Format sections for Redux state
-    const attractionsForRedux = formSections.map((section, index) => {
-      // If we have original data, use it directly
-      if (section.originalData) {
-        console.log('Using original data for booking:', section.originalData);
-        
-        // Get customer details from original data if available
-        const customerDetails = {
-          fullName: section.originalData.fullName || "",
-          email: section.originalData.email || "",
-          phone: section.originalData.phone || "",
-          countryCode: section.originalData.countryCode || "",
-          address1: section.originalData.address1 || "",
-          address2: section.originalData.address2 || "",
-          state: section.originalData.state || "",
-          zip: section.originalData.zip || "",
-          specialRequests: section.originalData.specialRequests || "",
-        };
-        
-        return {
-          // Include customer details
-          ...customerDetails,
-          
-          // Core booking details
-         
-          AttractionId: section.originalData.AttractionId,
-          AttractionName: section.originalData.AttractionName,
-          location: section.originalData.location,
-          city: section.originalData.city,
-          country: section.originalData.country,
-          visitTime: section.originalData.visitTime,
-          ticketId: section.originalData.ticketId,
-          ticketName: section.originalData.ticketName,
-          adultCount: section.originalData.adultCount,
-          childCount: section.originalData.childCount,
-          seniorCount: section.originalData.seniorCount,
-          ticket_details: section.originalData.ticket_details,
-          nri: section.originalData.nri,
-          totalPrice: section.originalData.totalPrice,
-          image: section.originalData.image,
-          mode: section.originalData.mode,
-          dmc_id: section.originalData.dmc_id,
-          bookingDate: section.originalData.bookingDate,
-          dayIndex: section.originalData.dayIndex,
-          bookingType: section.originalData.bookingType || "enquiry",
-          booking_id: section.originalData.booking_id, // Preserve booking_id
-          package_type: section.originalData.package_type || 0,
-          package_attraction_id: section.originalData.package_attraction_id || null,
-          ...(section.originalData.package_details && { package_details: section.originalData.package_details })
-        };
-      }
-
-      // For new bookings, calculate everything
-      const summaryData = getBookingSummary(section);
-      
-      const adultTotal = summaryData.adultPrice * section.pax.Adults;
-      const childTotal = summaryData.childPrice * section.pax.Children;
-      const seniorTotal = summaryData.seniorPrice * section.pax.Seniors;
-      const totalPrice = adultTotal + childTotal + seniorTotal;
-      
-      return {
-        // Customer information fields (will be populated when available)
-        fullName: "",
-        email: "",
-        phone: "",
-        countryCode: "",
-        address1: "",
-        address2: "",
-        state: "",
-        zip: "",
-        specialRequests: "",
-        
-        // Core booking details
-       
-        AttractionId: section.attraction,
-        AttractionName: summaryData.attraction,
-        location: summaryData.location,
-        city: summaryData.city,
-        country: summaryData.country,
-        visitTime: section.timeSlot,
-        ticketId: section.ticketType,
-        ticketName: summaryData.ticketType,
-        adultCount: section.pax.Adults,
-        childCount: section.pax.Children,
-        seniorCount: section.pax.Seniors,
-        ticket_details: {
-          adult_price: summaryData.adultPrice,
-          child_price: summaryData.childPrice,
-          senior_price: summaryData.seniorPrice,
-          description: summaryData.ticketDescription || ''
-        },
-        nri: section.priceType || 'residential',
-        totalPrice: totalPrice,
-        image: summaryData.image,
-        mode: currentMode,
-        dmc_id: agentId,
-        bookingDate: section.bookingDate,
-        dayIndex: dayIndex,
-        bookingType: "enquiry",
-        package_type: summaryData.type === 'attraction_package' ? 1 : 0,
-        package_attraction_id: summaryData.type === 'attraction_package' ? summaryData.packageDetails?.package_id : null,
-        ...(summaryData.type === 'attraction_package' && summaryData.packageDetails && { package_details: summaryData.packageDetails })
-      };
-    });
-
-    // Remove any existing attraction services for this dayIndex
-    const filteredServices = existingServices.filter(service => {
-      if ((service.type === "attraction" || service.type === "attraction_package") && service.data && Array.isArray(service.data)) {
-        // Keep services that don't match this dayIndex
-        return !service.data.some(item => item.dayIndex === dayIndex);
-      }
-      return true; // Keep all other services
-    });
-
-    // Create new attraction service entries
-    const newAttractionServices = attractionsForRedux.map((attractionData, index) => {
-      // Determine if this is a package booking
-      const isPackageBooking = attractionData.package_type === 1 || (typeof attractionData.ticketId === 'string' && attractionData.ticketId.startsWith('pkg_'));
-      
-      const serviceObject = {
-        type: isPackageBooking ? "attraction_package" : "attraction",
-        agent_id: agentId,
-        tour_id: tourId,
-        data: [attractionData],
-        bookingType: "enquiry"
-      };
-      
-      // Add booking_id if available from original data
-      const originalSection = formSections[index];
-      if (originalSection?.originalData?.booking_id) {
-        serviceObject.booking_id = originalSection.originalData.booking_id;
-      }
-      
-      return serviceObject;
-    });
-
-    // Add new services to filtered services
-    const finalServices = [...filteredServices, ...newAttractionServices];
-
-    console.log("Attraction - Dispatching updated services to Redux:", finalServices);
-    
-    // Dispatch the updated services
-    dispatch(setAllServices(finalServices));
-    
-    setBookingSuccess(true);
-    
-    setTimeout(() => {
-      setBookingSuccess(false);
-    }, 5000);
-  }, [formSections, existingServices, validateBookings, dispatch, currentMode, getBookingSummary, agentId, tourId, dayIndex]);
-
-  // Ref to track if we're already processing to prevent infinite loops
-  const isProcessingRef = useRef(false);
-  const lastFormSectionsRef = useRef([]);
-  const lastAttractionspackRef = useRef([]);
-  
-  // Effect to automatically dispatch completed attraction bookings to Redux
+  // Sync complete sections to AllServices on form changes (create + edit)
   useEffect(() => {
-    // Skip if no form sections, during loading, or already processing
-    if (formSections.length === 0 || !attractions || attractions.length === 0 || isProcessingRef.current) return;
-    
-    // Skip auto-dispatch if we have attractionspack data (to prevent duplicates)
-    // Only auto-dispatch when there's no attractionspack data (new bookings)
-    if (attractionspack && Array.isArray(attractionspack) && attractionspack.length > 0) {
-      console.log('Attraction - Skipping auto-dispatch because attractionspack data exists');
-      return;
-    }
-    
-    // Check for data conflicts that could cause infinite loops using the ref
-    if (hasDataConflictsRef.current) {
-      console.log('Attraction - Data conflicts detected, skipping auto-dispatch to prevent infinite loops');
-      return;
-    }
-    
-    // Check if form sections have actually changed to prevent unnecessary re-runs
+    if (formSections.length === 0 || isProcessingRef.current || isInitializingRef.current) return;
+
     const currentFormSectionsString = JSON.stringify(formSections.map(s => ({
       attraction: s.attraction,
       timeSlot: s.timeSlot,
       ticketType: s.ticketType,
-      pax: s.pax
+      pax: s.pax,
+      localId: s.localId
     })));
     const lastFormSectionsString = JSON.stringify(lastFormSectionsRef.current);
-    
+
     if (currentFormSectionsString === lastFormSectionsString) {
-      console.log('Attraction - Form sections unchanged, skipping auto-dispatch');
       return;
     }
-    
-    // Update the ref with current form sections
+
     lastFormSectionsRef.current = formSections.map(s => ({
       attraction: s.attraction,
       timeSlot: s.timeSlot,
       ticketType: s.ticketType,
-      pax: s.pax
+      pax: s.pax,
+      localId: s.localId
     }));
-    
-    // Find sections that are complete but not yet saved
-    const newCompleteSections = formSections.filter((section, index) => {
-      // Check if all required fields are filled
+
+    formSections.forEach((section, index) => {
       const isComplete = (
-        section.attraction && 
-        section.timeSlot && 
-        section.ticketType && 
-        (section.pax.Adults + section.pax.Children + section.pax.Seniors > 0)
+        section.attraction &&
+        section.timeSlot &&
+        section.ticketType &&
+        ((section.pax?.Adults || 0) + (section.pax?.Children || 0) + (section.pax?.Seniors || 0) > 0)
       );
-      
-      // Generate a unique ID for this section based on its contents and dayIndex
-      const sectionSignature = `${section.attraction}-${section.timeSlot}-${section.ticketType}-${dayIndex}`;
-      
-      // Check if this section has already been saved
-      const isSaved = savedSectionIds.includes(sectionSignature);
-      
-      // Return true if this section is complete and not yet saved
-      return isComplete && !isSaved;
+      if (!isComplete) return;
+      if (!section.originalData && (!attractions || attractions.length === 0)) return;
+
+      dispatchBookingUpdateToRedux(index, section);
     });
-    
-    // If we found new complete sections, update Redux
-    if (newCompleteSections.length > 0) {
-      // Set processing flag to prevent multiple simultaneous executions
-      isProcessingRef.current = true;
-      
-      // Get signatures for the new sections
-      const newSectionSignatures = newCompleteSections.map(section => 
-        `${section.attraction}-${section.timeSlot}-${section.ticketType}-${dayIndex}`
-      );
-      
-      console.log('Attraction - Auto dispatch triggered:', {
-        newCompleteSections: newCompleteSections.length,
-        dayIndex: dayIndex,
-        newSectionSignatures: newSectionSignatures,
-        currentSavedIds: savedSectionIds
-      });
-      
-      // Wait a bit to avoid too many Redux updates
-      const timeoutId = setTimeout(() => {
-        try {
-          // Call handleBookNow
-          handleBookNow();
-          
-          // Mark these sections as saved
-          setSavedSectionIds(prev => [...prev, ...newSectionSignatures]);
-        } catch (error) {
-          console.error('Error in auto dispatch:', error);
-        } finally {
-          // Reset processing flag after a delay to allow for state updates
-          setTimeout(() => {
-            isProcessingRef.current = false;
-          }, 1000);
-        }
-      }, 500);
-      
-      return () => {
-        clearTimeout(timeoutId);
-        isProcessingRef.current = false;
-      };
-    }
-  }, [formSections, attractions, savedSectionIds, dayIndex, attractionspack, tour]); // Added tour to dependencies
+  }, [formSections, attractions, dayIndex, dispatchBookingUpdateToRedux]);
 
   const getCompletionStatus = (section) => {
     const steps = [
