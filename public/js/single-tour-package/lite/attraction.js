@@ -507,7 +507,11 @@
         }
 
         var extras = Promise.all([
-            T.hydrateTransferExtras(root, PREFIX, row.transfer_options, stay),
+            T.hydrateTransferExtras(root, PREFIX, row.transfer_options, stay, {
+                adults: (row.adultCount || 0) + (row.seniorCount || 0),
+                children: row.childCount || 0,
+                infants: row.infantCount || 0
+            }),
             T.hydrateGuideExtras(root, PREFIX, row.guide_options, stay)
         ]).then(function () {
             var opt = attr && attr.options[attr.selectedIndex];

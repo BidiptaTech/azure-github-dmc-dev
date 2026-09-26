@@ -71,6 +71,7 @@ window.STP_LITE_CONFIG = {
         store: @json(route('single-tour-package.store')),
         ajaxCities: @json(route('ajax.cities')),
         fetchAgentsByAgency: @json(route('fetch-agents-by-agency')),
+        agentsQuickStore: @json(route('agents.quick-store')),
         fetchRoomsByHotel: @json(route('fetch-rooms-by-hotel')),
         fetchBedsByRoom: @json(route('fetch-beds-by-room')),
         getHotelPrice: @json(route('get-hotel-price')),
