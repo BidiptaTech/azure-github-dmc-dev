@@ -3,6 +3,9 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+use App\Http\Controllers\Api\AiConfigController;
+use Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful;
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -13,15 +16,30 @@ use Illuminate\Support\Facades\Http;
 | be assigned to the "api" middleware group. Make something great!
 |
 */
+Route::get('/v1/ai-keywords', [AiConfigController::class, 'keywords'])
+    ->withoutMiddleware([EnsureFrontendRequestsAreStateful::class]);
 
 Route::post('/v1/login', 'App\Http\Controllers\Api\LoginControllerApi@login');
 Route::post('/v1/register-agent', 'App\Http\Controllers\Api\LoginControllerApi@registerAgent');
 Route::post('/v1/send-otp', 'App\Http\Controllers\Api\LoginControllerApi@sendOtpRegistration');
 Route::post('/v1/verify-otp', 'App\Http\Controllers\Api\LoginControllerApi@verifyOtp');
+Route::get('/v1/day-level/combined-json', 'App\Http\Controllers\Api\DayLevelController@combinedJsonApi');
+
+Route::post('/external-api-receive', 'App\Http\Controllers\Api\ExternalApiReceiveController@receive')
+    ->withoutMiddleware([\Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class]);
+Route::get('/external-api-receive', 'App\Http\Controllers\Api\ExternalApiReceiveController@index')
+    ->withoutMiddleware([\Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class]);
+// Backward-compatible external receive endpoints (legacy python integration)
+Route::post('/v1/external/receive', 'App\Http\Controllers\Api\ExternalApiReceiveController@receive')
+    ->withoutMiddleware([\Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class]);
+Route::get('/v1/external/receive', 'App\Http\Controllers\Api\ExternalApiReceiveController@index')
+    ->withoutMiddleware([\Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class]);
+Route::get('/v1/external/received', 'App\Http\Controllers\Api\ExternalApiReceiveController@index')
+    ->withoutMiddleware([\Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class]);
 
 // Simple test route to debug routing issues
 Route::get('/debug-test', function () {
-    \Log::info('API DEBUG ROUTE HIT - API routes working');
+    Log::info('API DEBUG ROUTE HIT - API routes working');
     return response()->json(['message' => 'API debug route working', 'time' => now()]);
 });
 
@@ -45,11 +63,13 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
     Route::post('/create-tour', 'App\Http\Controllers\Api\TourController@createTour');
     Route::get('/edit-tour', 'App\Http\Controllers\Api\TourController@editTour');
     Route::post('/create-booking', 'App\Http\Controllers\Api\TourController@createBooking');
+    Route::post('/book-all', 'App\Http\Controllers\Api\TourController@bookAll');
     Route::post('/cancel-booking', 'App\Http\Controllers\Api\TourController@CancelBooking');
     Route::post('/update-enquiry', 'App\Http\Controllers\Api\TourController@updateEnquiry');
     Route::get('/enquiry-status', 'App\Http\Controllers\Api\TourController@enquiryStatus');
     Route::get('/get-pdf', 'App\Http\Controllers\Api\CountryPdf@GetPdf');
     Route::get('/get-cities', 'App\Http\Controllers\Api\CountryController@getCity');
+    Route::get('/get-country', 'App\Http\Controllers\Api\CountryController@getCountry');
     Route::get('/get-ports', 'App\Http\Controllers\Api\PortController@port_list');
     Route::get('/zone-vehicles', 'App\Http\Controllers\Api\ZoneController@vehicleLists');
 
@@ -102,4 +122,7 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
     Route::post('/save-service', 'App\Http\Controllers\OrderController@saveService');
 
     Route::get('/city-country', 'App\Http\Controllers\Api\CountryController@cityCountry');
+    
 });
+
+Route::get('/get-payment-details', 'App\Http\Controllers\Api\PaymentController@getPaymentDetails');

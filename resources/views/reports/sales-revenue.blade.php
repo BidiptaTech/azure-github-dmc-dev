@@ -1,6 +1,9 @@
 @extends('layouts.layout')
 @extends('layouts.datatablecss')
 @section('content')
+@php
+    $dmcCurrency = \App\Helpers\CommonHelper::getDmcCurrencyByCountry();
+@endphp
 <style>
     .card .card-body .input-group-text {
         background: #f4f6fa;
@@ -128,7 +131,7 @@
                         <div>
                             <div class="fw-bold text-muted small">Total Revenue</div>
                             <div class="fs-5 fw-semibold">
-                                ₹{{ number_format($groupedResults->sum('total_revenue'), 2) }}
+                                {{ $dmcCurrency }} {{ number_format($groupedResults->sum('total_revenue'), 2) }}
                             </div>
                         </div>
                     </div>
@@ -360,7 +363,7 @@
                                                                 </div>
                                                                 <span class="small">{{ $serviceDisplayName }}</span>
                                                             </div>
-                                                            <span class="text-muted small">₹{{ number_format($service['revenue'], 2) }}</span>
+                                                            <span class="text-muted small">{{ $dmcCurrency }} {{ number_format($service['revenue'], 2) }}</span>
                                                         </div>
                                                     @endforeach
                                                 </div>
@@ -371,7 +374,7 @@
                                                 <div class="d-flex justify-content-between align-items-center">
                                                     <span class="text-muted small">Total Revenue</span>
                                                     <div class="fs-5 fw-bold text-success">
-                                                        ₹{{ number_format($group['total_revenue'], 2) }}
+                                                        {{ $dmcCurrency }} {{ number_format($group['total_revenue'], 2) }}
                                                     </div>
                                                 </div>
                                             </div>
@@ -420,7 +423,7 @@
                         <th>Period</th>
                         <th>Agent Name</th>
                         <th>Service Type</th>
-                        <th style="text-align: right;">Total Revenue</th>
+                        <th style="text-align: right;">Total Revenue ({{ $dmcCurrency }})</th>
                     </tr>
                 </thead>
                 <tbody class="table-border-bottom-0">
@@ -431,7 +434,7 @@
                                 <td>{{ $group['period'] }}</td>
                                 <td>{{ $group['agent_name'] }}</td>
                                 <td>{{ $service['service_type'] }}</td>
-                                <td style="text-align: right;">{{ number_format($service['revenue'], 2) }}</td>
+                                <td style="text-align: right;">{{ $dmcCurrency }} {{ number_format($service['revenue'], 2) }}</td>
                             </tr>
                         @endforeach
                     @endforeach

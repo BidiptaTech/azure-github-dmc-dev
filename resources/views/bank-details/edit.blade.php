@@ -177,6 +177,20 @@
 
                     <div class="row">
                         <div class="col-md-6 mb-3">
+                            <label class="form-label">
+                                <i class="ri-price-tag-3-line me-2"></i>Account Type Label (e.g. SGD Accounts, USA Accounts)
+                            </label>
+                            <input type="text" name="bank_type" id="bank_type"
+                                   class="form-control @error('bank_type') is-invalid @enderror"
+                                   value="{{ old('bank_type', $bankDetail->bank_type ?? 'SGD Accounts') }}">
+                            @error('bank_type')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
                             <label for="ifsc" class="form-label">
                                 <i class="ri-building-line me-2"></i>IFSC (For India only)
                             </label>
@@ -244,6 +258,71 @@
                             <label class="form-check-label" for="is_active">
                                 <i class="ri-toggle-line me-2"></i>Active
                             </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            @php
+                $indiaBank = $bankDetail->india_bank_details ?? [];
+            @endphp
+
+            <!-- India / Second Bank Details Section (stored as JSON) -->
+            <div class="card modern-card mb-4">
+                <div class="section-header">
+                    <h5 class="mb-0"><i class="ri-bank-card-line me-2"></i>Second Bank Details (e.g. India / INR Accounts)</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">GST Registration Number</label>
+                            <input type="text" name="india_gst_number" class="form-control"
+                                   value="{{ old('india_gst_number', $indiaBank['gst_number'] ?? '') }}">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">PAN Number</label>
+                            <input type="text" name="india_pan_number" class="form-control"
+                                   value="{{ old('india_pan_number', $indiaBank['pan_number'] ?? '') }}">
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Account Name</label>
+                            <input type="text" name="india_account_name" class="form-control"
+                                   value="{{ old('india_account_name', $indiaBank['account_name'] ?? '') }}">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Account Number</label>
+                            <input type="text" name="india_account_number" class="form-control"
+                                   value="{{ old('india_account_number', $indiaBank['account_number'] ?? '') }}">
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Bank Name</label>
+                            <input type="text" name="india_bank_name" class="form-control"
+                                   value="{{ old('india_bank_name', $indiaBank['bank_name'] ?? '') }}">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">IFSC Code</label>
+                            <input type="text" name="india_ifsc" class="form-control"
+                                   value="{{ old('india_ifsc', $indiaBank['ifsc'] ?? '') }}">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Bank Address</label>
+                        <textarea name="india_bank_address" rows="3"
+                                  class="form-control">{{ old('india_bank_address', $indiaBank['bank_address'] ?? '') }}</textarea>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Account Type Label (e.g. INR Accounts)</label>
+                            <input type="text" name="india_bank_type" class="form-control"
+                                   value="{{ old('india_bank_type', $indiaBank['bank_type'] ?? 'INR Accounts') }}">
                         </div>
                     </div>
                 </div>
