@@ -1,0 +1,185 @@
+/* General container */
+.simple-passenger-container {
+  position: relative;
+  width: 100%;
+  isolation: isolate;
+  z-index: 1;
+}
+
+/* Card styling */
+.passenger-card {
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 12px;
+  cursor: pointer;
+  background-color: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.passenger-card:hover {
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+}
+
+.passenger-counts {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.passenger-count-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.capacity-indicator {
+  margin-left: auto;
+  color: #757575;
+}
+
+.capacity-indicator.at-capacity {
+  color: #d32f2f;
+}
+
+/* Dropdown styling */
+.passenger-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  width: 100%;
+  min-width: 300px;
+  background-color: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  padding: 20px;
+  z-index: 9999;
+  pointer-events: auto;
+}
+
+.passenger-dropdown::before {
+  content: '';
+  position: absolute;
+  top: -5px;
+  left: 20px;
+  width: 10px;
+  height: 10px;
+  background-color: #ffffff;
+  transform: rotate(45deg);
+  box-shadow: -2px -2px 5px rgba(0, 0, 0, 0.06);
+}
+
+.passenger-dropdown-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.passenger-dropdown-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.capacity-badge {
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+  color: #757575;
+}
+
+.capacity-badge.at-capacity {
+  color: #d32f2f;
+}
+
+.capacity-alert {
+  background-color: #fff3e0;
+  color: #e65100;
+  padding: 10px;
+  border-radius: 4px;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
+/* Counter styling */
+.counter-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.counter-label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.age-label {
+  font-size: 12px;
+  color: #757575;
+  margin-top: 2px;
+}
+
+.counter-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.counter-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  background-color: transparent;
+  color: #1976d2;
+  cursor: pointer;
+  border-radius: 50%;
+  transition: background-color 0.2s;
+}
+
+.counter-btn:hover:not(.disabled) {
+  background-color: rgba(25, 118, 210, 0.08);
+}
+
+.counter-btn.disabled {
+  color: #bdbdbd;
+  cursor: not-allowed;
+}
+
+.counter-value {
+  font-weight: bold;
+  font-size: 16px;
+  min-width: 20px;
+  text-align: center;
+}
+
+.capacity-note {
+  margin-top: 16px;
+  font-size: 12px;
+  color: #757575;
+}
+
+/* Done button */
+.done-btn {
+  width: 100%;
+  background-color: #1976d2;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 12px;
+  margin-top: 16px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.done-btn:hover {
+  background-color: #1565c0;
+} 
