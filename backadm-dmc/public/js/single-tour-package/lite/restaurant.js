@@ -609,7 +609,11 @@
         }
 
         var extras = Promise.all([
-            T.hydrateTransferExtras(root, PREFIX, row.transfer_options, stay),
+            T.hydrateTransferExtras(root, PREFIX, row.transfer_options, stay, {
+                adults: row.adults || 0,
+                children: row.children || 0,
+                infants: row.infants || 0
+            }),
             T.hydrateGuideExtras(root, PREFIX, row.guide_options, stay)
         ]).then(function () {
             if ((row.is_multi_restaurant || isMultiRestaurantValue(row.restaurantId)) && typeof T.applyMasterGuideVehicle === 'function') {

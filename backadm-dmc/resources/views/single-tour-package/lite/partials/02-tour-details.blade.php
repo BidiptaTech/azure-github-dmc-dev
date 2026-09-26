@@ -171,3 +171,4 @@
     </div>
 </div>
 {{-- === END 02-tour-details === --}}
+{{-- Modal is included from create/edit after the main form (must not nest forms) --}}

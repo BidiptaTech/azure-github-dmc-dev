@@ -40,6 +40,8 @@
             @include('single-tour-package.lite.partials.04-multi-country-planner')
             @include('single-tour-package.lite.partials.06-lead-guests')
         </form>
+
+        @include('single-tour-package.lite.partials.add-agency-contact-modal')
     </div>
 </div>
 @endsection

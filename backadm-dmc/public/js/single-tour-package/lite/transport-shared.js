@@ -1919,7 +1919,56 @@
         toggle();
     }
 
-    function hydrateTransferExtras(root, prefix, transferOptions, stay) {
+    function resolveTransferGuestCounts(root, prefix, transferOptions, guestCounts) {
+        if (guestCounts && typeof guestCounts === 'object') {
+            return {
+                adults: Math.max(0, parseInt(guestCounts.adults, 10) || 0),
+                children: Math.max(0, parseInt(guestCounts.children, 10) || 0),
+                infants: Math.max(0, parseInt(guestCounts.infants, 10) || 0)
+            };
+        }
+        if (transferOptions && typeof transferOptions === 'object') {
+            var ta = parseInt(transferOptions.adults, 10);
+            var tc = parseInt(transferOptions.children, 10);
+            var ti = parseInt(transferOptions.infants, 10);
+            if ((transferOptions.adults != null && transferOptions.adults !== '')
+                || (transferOptions.children != null && transferOptions.children !== '')
+                || (ta > 0 || tc > 0)) {
+                return {
+                    adults: Math.max(0, ta || 0),
+                    children: Math.max(0, tc || 0),
+                    infants: Math.max(0, ti || 0)
+                };
+            }
+        }
+        var aEl = root && root.querySelector('.' + prefix + '-adults');
+        var cEl = root && root.querySelector('.' + prefix + '-children');
+        var sEl = root && root.querySelector('.' + prefix + '-seniors');
+        var iEl = root && root.querySelector('.' + prefix + '-infants');
+        if (aEl || cEl || sEl || iEl) {
+            var adults = Math.max(0, parseInt((aEl && aEl.value) || '0', 10) || 0);
+            var seniors = Math.max(0, parseInt((sEl && sEl.value) || '0', 10) || 0);
+            // Attraction transfer treats seniors as adult pax for shared pricing
+            if (prefix === 'attraction') adults += seniors;
+            return {
+                adults: adults,
+                children: Math.max(0, parseInt((cEl && cEl.value) || '0', 10) || 0),
+                infants: Math.max(0, parseInt((iEl && iEl.value) || '0', 10) || 0)
+            };
+        }
+        try {
+            var tg = tourGuests() || {};
+            return {
+                adults: Math.max(0, parseInt(tg.adults, 10) || 0),
+                children: Math.max(0, parseInt(tg.children, 10) || 0),
+                infants: Math.max(0, parseInt(tg.infants, 10) || 0)
+            };
+        } catch (e) {
+            return { adults: 1, children: 0, infants: 0 };
+        }
+    }
+
+    function hydrateTransferExtras(root, prefix, transferOptions, stay, guestCounts) {
         var req = root.querySelector('.' + prefix + '-transfer-required');
         var card = root.querySelector('[data-' + prefix + '-transfer-card]');
         if (!transferOptions || !transferOptions.transfer_required) {
@@ -1941,27 +1990,54 @@
         var stayObj = stay || stayFromPanel(root, prefix) || {};
         var pickupId = transferOptions.pickup_location_id || '';
         var mapsMode = !zoneOnForStay(stayObj.cityName, stayObj.country, stayObj.dmcId);
+        var guestsFn = function () {
+            return resolveTransferGuestCounts(root, prefix, transferOptions, guestCounts);
+        };
 
         function afterVehicles() {
             var veh = root.querySelector('.' + prefix + '-transfer-vehicle');
             selectVehicleValue(veh, transferOptions.vehicle_id, (transferOptions.vehicle_details && transferOptions.vehicle_details.vehicle_name) || '');
             filterTransferVehiclesByType(veh, typeEl ? typeEl.value : '');
             var costEl = root.querySelector('.' + prefix + '-transfer-cost');
+            var g = guestsFn();
             if (mapsMode && costEl) {
                 var base = transferOptions.base_cost != null
                     ? Number(transferOptions.base_cost)
-                    : Number(transferOptions.cost || 0);
-                if (String(transferOptions.type || '').toLowerCase() === 'shared' && transferOptions.base_cost == null && base > 0) {
-                    costEl.value = base > 0 ? String(base) : '';
-                } else {
-                    costEl.value = base > 0 ? String(base) : '';
+                    : NaN;
+                // If only total cost was stored for Shared, derive per-pax car unit for the editable field
+                if (!(base > 0)) {
+                    var totalCost = Number(transferOptions.cost || 0);
+                    var pax = Math.max(1, (g.adults || 0) + (g.children || 0));
+                    if (String(transferOptions.type || '').toLowerCase() === 'shared' && totalCost > 0 && pax > 0) {
+                        base = totalCost / pax;
+                    } else {
+                        base = totalCost;
+                    }
+                }
+                costEl.value = base > 0 ? String(base) : '';
+            }
+            // Zone ON: seed ajax base from stored unit so Cost shows total immediately
+            if (!mapsMode && costEl) {
+                var unitSeed = Number(
+                    transferOptions.base_cost != null ? transferOptions.base_cost
+                        : (transferOptions.shared_price != null ? transferOptions.shared_price
+                            : (transferOptions.adult_price != null ? transferOptions.adult_price : 0))
+                ) || 0;
+                if (!(unitSeed > 0) && Number(transferOptions.cost || 0) > 0) {
+                    var paxSeed = Math.max(1, (g.adults || 0) + (g.children || 0));
+                    if (String(transferOptions.type || '').toLowerCase() === 'shared') {
+                        unitSeed = Number(transferOptions.cost) / paxSeed;
+                    } else {
+                        unitSeed = Number(transferOptions.cost);
+                    }
+                }
+                if (unitSeed > 0) {
+                    costEl.setAttribute('data-ajax-base-price', String(unitSeed));
                 }
             }
-            refreshTransferCostDisplay(root, prefix, 1, 0, 0);
+            refreshTransferCostDisplay(root, prefix, g.adults, g.children, g.infants);
             if (!mapsMode) {
-                fetchInlineTransferZonePrice(root, stayObj, prefix, function () {
-                    return { adults: 1, children: 0, infants: 0 };
-                });
+                fetchInlineTransferZonePrice(root, stayObj, prefix, guestsFn);
             }
         }
 
