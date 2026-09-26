@@ -305,12 +305,286 @@
         });
     }
 
+    function isAgentSelectLocked() {
+        var agentSelect = document.getElementById('agent_id');
+        return !!(agentSelect && agentSelect.hasAttribute('disabled'));
+    }
+
+    function renderAgentSelectAddContactButton() {
+        if (isAgentSelectLocked()) return;
+        var agencyId = $('#agency_id').val();
+        if (!agencyId) return;
+
+        var $agent = $('#agent_id');
+        var select2 = $agent.data('select2');
+        if (!select2 || !select2.$dropdown) return;
+
+        var $results = select2.$dropdown.find('.select2-results');
+        $results.find('.add-agency-contact-wrap').remove();
+
+        var $wrap = $('<div class="add-agency-contact-wrap border-bottom p-2"></div>');
+        var $btn = $('<button type="button" class="btn btn-sm w-100 add-agency-contact-btn"><i class="ri-user-add-line me-1"></i>Add Agency Contact</button>');
+        $wrap.css({ background: '#e8f7ff', borderBottom: '1px solid #b8e8ff' });
+        $btn.css({
+            color: '#ffffff',
+            background: '#18C1FF',
+            border: '1px solid #566f79',
+            borderRadius: '8px',
+            fontWeight: '600',
+            fontSize: '0.82rem'
+        });
+        $btn.on('mousedown', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            $agent.select2('close');
+            setTimeout(openAddAgencyContactModal, 0);
+        });
+        $wrap.append($btn);
+        $results.prepend($wrap);
+    }
+
+    function bindAgentSelectAddContactUi() {
+        var $agent = $('#agent_id');
+        $agent.off('select2:open.agentAdd select2:results:message.agentAdd select2:results:all.agentAdd')
+            .on('select2:open.agentAdd select2:results:message.agentAdd select2:results:all.agentAdd', function () {
+                setTimeout(renderAgentSelectAddContactButton, 0);
+            });
+    }
+
+    function initAgentSelect2() {
+        var $agent = $('#agent_id');
+        if (!$agent.length || !$.fn.select2) return;
+
+        if ($agent.hasClass('select2-hidden-accessible')) {
+            $agent.select2('destroy');
+        }
+
+        $agent.select2({
+            placeholder: 'Choose agency contact...',
+            allowClear: true,
+            width: '100%',
+            language: {
+                noResults: function () {
+                    return '';
+                }
+            },
+            escapeMarkup: function (markup) {
+                return markup;
+            }
+        });
+        bindAgentSelectAddContactUi();
+    }
+
+    function openAddAgencyContactModal() {
+        if (isAgentSelectLocked()) return;
+
+        var agencyId = $('#agency_id').val();
+        if (!agencyId) {
+            alert('Please select an agency company first.');
+            return;
+        }
+
+        var agencyName = $('#agency_id option:selected').text() || '';
+        var form = document.getElementById('addAgencyContactForm');
+        var errorsEl = document.getElementById('quickAgencyContactErrors');
+        if (form) form.reset();
+        if (errorsEl) {
+            errorsEl.innerHTML = '';
+            errorsEl.classList.add('d-none');
+        }
+
+        var agencyIdInput = document.getElementById('quickAgencyContactAgencyId');
+        var agencyNameEl = document.getElementById('quickAgencyContactAgencyName');
+        if (agencyIdInput) agencyIdInput.value = agencyId;
+        if (agencyNameEl) agencyNameEl.textContent = agencyName;
+
+        var modalEl = document.getElementById('addAgencyContactModal');
+        if (!modalEl) {
+            alert('Unable to open add contact form. Please refresh the page and try again.');
+            return;
+        }
+        if (window.bootstrap && bootstrap.Modal) {
+            bootstrap.Modal.getOrCreateInstance(modalEl).show();
+        } else if (window.jQuery && $(modalEl).modal) {
+            $(modalEl).modal('show');
+        }
+    }
+
+    function saveQuickAgencyContact() {
+        var form = document.getElementById('addAgencyContactForm');
+        var errorsEl = document.getElementById('quickAgencyContactErrors');
+        var saveBtn = document.getElementById('saveQuickAgencyContactBtn');
+        if (!form) {
+            alert('Contact form not found. Please refresh the page.');
+            return;
+        }
+
+        // HTML5 required checks (nested-form browsers may skip these)
+        if (typeof form.reportValidity === 'function' && !form.reportValidity()) {
+            return;
+        }
+
+        if (errorsEl) {
+            errorsEl.innerHTML = '';
+            errorsEl.classList.add('d-none');
+        }
+
+        var formData = new FormData(form);
+        var agencyId = formData.get('agency_id') || (document.getElementById('quickAgencyContactAgencyId') || {}).value || '';
+        if (!agencyId) {
+            // Re-read from agency select if hidden was cleared
+            agencyId = $('#agency_id').val() || '';
+            var agencyIdInput = document.getElementById('quickAgencyContactAgencyId');
+            if (agencyIdInput) agencyIdInput.value = agencyId;
+            formData.set('agency_id', agencyId);
+        }
+        if (!agencyId) {
+            alert('Please select an agency company first.');
+            return;
+        }
+
+        // Backend validates phone as numeric — strip spaces / symbols
+        var phoneRaw = String(formData.get('phone') || '');
+        var phoneDigits = phoneRaw.replace(/[^\d]/g, '');
+        if (phoneDigits) {
+            formData.set('phone', phoneDigits);
+            var phoneInput = form.querySelector('input[name="phone"]');
+            if (phoneInput) phoneInput.value = phoneDigits;
+        }
+
+        var url = (cfg().routes && cfg().routes.agentsQuickStore) || '';
+        if (!url) {
+            alert('Save contact route is not configured.');
+            return;
+        }
+
+        if (saveBtn) {
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Saving...';
+        }
+
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': cfg().csrfToken || (document.querySelector('meta[name="csrf-token"]') || {}).content || ''
+            },
+            body: formData
+        })
+            .then(function (response) {
+                return response.json().then(function (data) {
+                    return { ok: response.ok, status: response.status, data: data };
+                }).catch(function () {
+                    return { ok: false, status: response.status, data: { message: 'Invalid server response (' + response.status + ').' } };
+                });
+            })
+            .then(function (result) {
+                if (!result.ok || !result.data || !result.data.success) {
+                    var html = '';
+                    var errors = (result.data && result.data.errors) ? result.data.errors : null;
+                    if (errors) {
+                        Object.keys(errors).forEach(function (key) {
+                            (errors[key] || []).forEach(function (msg) {
+                                html += '<div>' + msg + '</div>';
+                            });
+                        });
+                    } else {
+                        html = '<div>' + ((result.data && result.data.message) ? result.data.message : 'Failed to add agency contact.') + '</div>';
+                    }
+                    if (errorsEl) {
+                        errorsEl.innerHTML = html;
+                        errorsEl.classList.remove('d-none');
+                    } else {
+                        alert(html.replace(/<[^>]+>/g, ' '));
+                    }
+                    return;
+                }
+
+                var modalEl = document.getElementById('addAgencyContactModal');
+                if (modalEl && window.bootstrap && bootstrap.Modal) {
+                    var modal = bootstrap.Modal.getInstance(modalEl);
+                    if (modal) modal.hide();
+                } else if (modalEl && window.jQuery && $(modalEl).modal) {
+                    $(modalEl).modal('hide');
+                }
+
+                var newAgentId = result.data.agent ? result.data.agent.agent_id : null;
+                return loadAgentsByAgencyId(agencyId, newAgentId);
+            })
+            .catch(function (err) {
+                console.error('saveQuickAgencyContact', err);
+                if (errorsEl) {
+                    errorsEl.innerHTML = '<div>Failed to add agency contact. Please try again.</div>';
+                    errorsEl.classList.remove('d-none');
+                } else {
+                    alert('Failed to add agency contact. Please try again.');
+                }
+            })
+            .finally(function () {
+                if (saveBtn) {
+                    saveBtn.disabled = false;
+                    saveBtn.innerHTML = '<i class="ri-save-line me-1"></i>Save Contact';
+                }
+            });
+    }
+
+    // Expose immediately so modal onclick works even before init()
+    window.saveQuickAgencyContact = saveQuickAgencyContact;
+    window.openAddAgencyContactModal = openAddAgencyContactModal;
+
+    function loadAgentsByAgencyId(agencyId, selectedAgentId) {
+        var agentSelect = document.getElementById('agent_id');
+        var $agent = $('#agent_id');
+        var locked = isAgentSelectLocked();
+        if (!agentSelect) return Promise.resolve();
+
+        var url = (cfg().routes && cfg().routes.fetchAgentsByAgency) || '';
+        if (!url) return Promise.resolve();
+
+        agentSelect.innerHTML = '<option value="">Loading agency contacts...</option>';
+        $agent.val(null).trigger('change');
+        if (!locked) $agent.prop('disabled', true);
+
+        return fetch(url + '?agency_id=' + encodeURIComponent(agencyId), {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': cfg().csrfToken || ''
+            }
+        })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                var html = '<option value="">Choose agency contact...</option>';
+                if (data.success && data.agents && data.agents.length) {
+                    data.agents.forEach(function (agent) {
+                        html += '<option value="' + agent.agent_id + '" data-agency="' + agencyId + '">'
+                            + (agent.name || '') + '</option>';
+                    });
+                }
+                if ($agent.hasClass('select2-hidden-accessible')) {
+                    $agent.select2('destroy');
+                }
+                $agent.html(html);
+                initAgentSelect2();
+                $agent.prop('disabled', !!locked);
+                if (selectedAgentId) {
+                    $agent.val(String(selectedAgentId)).trigger('change');
+                }
+            })
+            .catch(function () {
+                agentSelect.innerHTML = '<option value="">Error loading agency contacts</option>';
+                initAgentSelect2();
+                $agent.prop('disabled', !!locked);
+            });
+    }
+
     function initAgencyAgent() {
         var $agency = $('#agency_id');
         var $agent = $('#agent_id');
         if (!$agency.length || !$agent.length) return;
 
-        // Snapshot contacts from blade (data-agency) — filter locally, no AJAX
+        // Snapshot contacts from blade (data-agency) — filter locally until refresh
         var cache = [];
         $agent.find('option').each(function () {
             if (!this.value) return;
@@ -323,7 +597,6 @@
 
         if ($.fn.select2) {
             $agency.select2({ placeholder: 'Choose agency...', allowClear: true, width: '100%' });
-            $agent.select2({ placeholder: 'Choose agency contact...', allowClear: true, width: '100%' });
         }
 
         function fillAgents(agencyId, selectedId) {
@@ -333,16 +606,14 @@
             var html = '<option value="">Choose agency contact...</option>';
             cache.forEach(function (a) {
                 if (agencyId && a.agency === String(agencyId)) {
-                    html += '<option value="' + a.value + '">' + a.text + '</option>';
+                    html += '<option value="' + a.value + '" data-agency="' + a.agency + '">' + a.text + '</option>';
                 }
             });
             if ($agent.hasClass('select2-hidden-accessible')) {
                 $agent.select2('destroy');
             }
             $agent.html(html);
-            if ($.fn.select2) {
-                $agent.select2({ placeholder: 'Choose agency contact...', allowClear: true, width: '100%' });
-            }
+            initAgentSelect2();
             if (selectedId) {
                 $agent.val(String(selectedId)).trigger('change');
             } else {
@@ -350,12 +621,32 @@
             }
         }
 
-        $agency.on('change', function () {
+        $agency.off('change.liteAgency').on('change.liteAgency', function () {
             fillAgents($(this).val(), null);
         });
 
+        $('#saveQuickAgencyContactBtn').off('click.liteAgency').on('click.liteAgency', saveQuickAgencyContact);
+
+        $(document).off('mousedown.agentAdd', '.add-agency-contact-btn')
+            .on('mousedown.agentAdd', '.add-agency-contact-btn', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                $('#agent_id').select2('close');
+                setTimeout(openAddAgencyContactModal, 0);
+            });
+
+        $(document).off('input.agentAdd', '.select2-container--open .select2-search__field')
+            .on('input.agentAdd', '.select2-container--open .select2-search__field', function () {
+                if ($(this).closest('.select2-container').prev('#agent_id').length) {
+                    setTimeout(renderAgentSelectAddContactButton, 0);
+                }
+            });
+
         // Filter immediately (empty agency → placeholder only)
         fillAgents($agency.val() || '', $agent.val() || null);
+
+        window.openAddAgencyContactModal = openAddAgencyContactModal;
+        window.saveQuickAgencyContact = saveQuickAgencyContact;
     }
 
     function loadAgents(agencyId, selectedAgentId) {
@@ -363,9 +654,11 @@
         var $agent = $('#agent_id');
         if (!$agency.length || !$agent.length) return Promise.resolve();
         if (agencyId != null && String($agency.val()) !== String(agencyId)) {
-            $agency.val(agencyId);
+            $agency.val(agencyId).trigger('change.select2');
         }
-        // Re-run filter with optional preselect (init already bound fill via change)
+        if (agencyId) {
+            return loadAgentsByAgencyId(agencyId, selectedAgentId);
+        }
         $agency.trigger('change');
         if (selectedAgentId) {
             $agent.val(String(selectedAgentId)).trigger('change');
