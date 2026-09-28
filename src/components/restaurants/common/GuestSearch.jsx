@@ -69,7 +69,7 @@ const Counter = ({ name, value, minValue, maxValue, initialValue, onCounterChang
   );
 };
 
-const GuestSearch = ({ setGuestCounts }) => {
+const GuestSearch = ({ setGuestCounts, heroStyle = false }) => {
   const tourdetails = useSelector((state) => state.hotels.tourdetails);
 
   const defaultAdults = tourdetails?.adult > 0 ? tourdetails.adult : 1;
@@ -101,12 +101,30 @@ const GuestSearch = ({ setGuestCounts }) => {
         data-bs-offset="0,22"
       >
         <div className="d-flex">
-          <i className="icon-compass text-20 text-light-1 mt-5"></i>
+          <i
+            className={`${
+              heroStyle ? "icon-user-2" : "icon-compass"
+            } text-20 text-light-1 mt-5`}
+          ></i>
           <div className="ml-10">
             <h4 className="text-15 fw-500 ls-2 lh-16">Tour Type</h4>
             <div className="text-15 text-light-1 ls-2 lh-16">
-              <span className="js-count-adult">{guestCounts.Adults}</span> adults -{" "}
-              <span className="js-count-child">{guestCounts.Children}</span> children
+              {heroStyle ? (
+                <>
+                  <span className="js-count-adult">{guestCounts.Adults}</span>{" "}
+                  adults
+                  {" · "}
+                  <span className="js-count-child">{guestCounts.Children}</span>{" "}
+                  children
+                </>
+              ) : (
+                <>
+                  <span className="js-count-adult">{guestCounts.Adults}</span>{" "}
+                  adults -{" "}
+                  <span className="js-count-child">{guestCounts.Children}</span>{" "}
+                  children
+                </>
+              )}
             </div>
           </div>
         </div>

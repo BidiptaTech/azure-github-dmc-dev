@@ -192,32 +192,37 @@ const SearchBar = ({
   }, []);
 
   return (
-    <div className="searchMenu-loc px-30 lg:py-20 lg:px-0 js-form-dd js-liverSearch">
+    <div
+      className="searchMenu-loc pl-20 lg:py-20 lg:px-0 js-form-dd js-liverSearch position-relative"
+      ref={dropdownRef}
+    >
       <div>
-        <h4 className="text-15 fw-500 ls-2 lh-16">Location</h4>
-        <div className="text-15 text-light-1 ls-2 lh-16">
-          <input
-            autoComplete="off"
-            type="search"
-            placeholder="Where are you going?"
-            className={`js-search js-dd-focus ${hasError ? "border-red-500" : ""}`}
-            value={searchValue}
-            onChange={handleInputChange}
-            onClick={() => setIsDropdownOpen(true)}
-          />
-          {(hasError || validationError) && (
-            <div className="text-red-1 text-14 mt-5">
-              Please select a location from the dropdown
+        <div className="d-flex">
+          <i className="icon-location-2 text-20 text-light-1 mt-5"></i>
+          <div className="ml-10 flex-grow-1">
+            <h4 className="text-15 fw-500 ls-2 lh-16">City</h4>
+            <div className="text-15 text-light-1 ls-2 lh-16">
+              <input
+                autoComplete="off"
+                type="search"
+                placeholder="Where are you going?"
+                className={`js-search js-dd-focus ${hasError ? "border-red-500" : ""}`}
+                value={searchValue}
+                onChange={handleInputChange}
+                onClick={() => setIsDropdownOpen(true)}
+              />
+              {(hasError || validationError) && (
+                <div className="text-red-1 text-14 mt-5">
+                  Please select a location from the dropdown
+                </div>
+              )}
             </div>
-          )}
+          </div>
         </div>
       </div>
 
       {isDropdownOpen && filteredCities.length > 0 && (
-        <div
-          className="shadow-2 border-light rounded-4 bg-white position-absolute z-2 w-100 mt-2"
-          ref={dropdownRef}
-        >
+        <div className="shadow-2 border-light rounded-4 bg-white position-absolute z-2 w-100 mt-2">
           {filteredCities.map((item) => (
             <div
               key={item.id}
