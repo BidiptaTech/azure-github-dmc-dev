@@ -111,6 +111,10 @@
   gap: 0;
 }
 
+.hotel-list-search-card .hotel-list-main-search--cols-3 .button-grid {
+  grid-template-columns: minmax(180px, 1.1fr) minmax(220px, 1.2fr) auto !important;
+}
+
 .hotel-list-search-card .hotel-list-main-search .button-grid > * + * {
   border-left: 1px solid #eef0f6;
   border-top: 0 !important;
@@ -167,6 +171,30 @@
   font-size: 13px;
   height: auto;
   line-height: 1.25;
+}
+
+.hotel-list-search-card .searchMenu-date .MuiFormControl-root,
+.hotel-list-search-card .searchMenu-date .MuiInputBase-root {
+  width: 100%;
+  margin: 0;
+}
+
+.hotel-list-search-card .searchMenu-date .MuiOutlinedInput-root {
+  padding: 0;
+  background: transparent;
+}
+
+.hotel-list-search-card .searchMenu-date .MuiOutlinedInput-input {
+  padding: 0 !important;
+  font-weight: 600;
+  font-size: 13px;
+  color: #051036;
+  height: auto;
+  line-height: 1.25;
+}
+
+.hotel-list-search-card .searchMenu-date .MuiOutlinedInput-notchedOutline {
+  border: 0 !important;
 }
 
 .hotel-list-search-card .custom_input-picker {
@@ -597,7 +625,8 @@
     justify-content: flex-start;
   }
 
-  .hotel-list-search-card .hotel-list-main-search .button-grid {
+  .hotel-list-search-card .hotel-list-main-search .button-grid,
+  .hotel-list-search-card .hotel-list-main-search--cols-3 .button-grid {
     grid-template-columns: 1fr !important;
   }
 

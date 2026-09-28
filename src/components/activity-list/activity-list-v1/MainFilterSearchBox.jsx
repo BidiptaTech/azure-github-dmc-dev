@@ -19,7 +19,8 @@ import {
   normalizeYmd,
 } from "@/utils/cityWiseDates";
 
-const MainFilterSearchBox = () => {
+const MainFilterSearchBox = ({ layout = "default" }) => {
+  const isHeroLayout = layout === "hero";
   const dispatch = useDispatch();
 
   const tourdetails = useSelector((state) => state.hotels.tourdetails);
@@ -173,60 +174,108 @@ const MainFilterSearchBox = () => {
     [cityWiseDates, activeCityName, bookedGuides]
   );
 
-  return (
-    <>
+  const cityPills =
+    cityChipItems.length > 0 ? (
       <CityServiceChips
         items={cityChipItems}
         onCitySelect={handleCityChipClick}
+        variant={isHeroLayout ? "hero" : "default"}
+      />
+    ) : null;
+
+  const searchFields = (
+    <div className="button-grid items-center">
+      <LocationSearch
+        pickUpLocation={pickUpLocation}
+        setPickUpLocation={setPickUpLocation}
+        controlledCity={controlledCity}
+        onCitySelect={applyCityContext}
+        hasError={locationError}
+        setError={setLocationError}
       />
 
-      <div className="mainSearch -col-2 bg-white px-10 py-10 lg:px-20 lg:pt-5 lg:pb-20 rounded-4 mt-30">
-        <div className="button-grid items-center">
-          <LocationSearch
-            pickUpLocation={pickUpLocation}
-            setPickUpLocation={setPickUpLocation}
-            controlledCity={controlledCity}
-            onCitySelect={applyCityContext}
-            hasError={locationError}
-            setError={setLocationError}
-          />
-
-          <div className="searchMenu-date px-30 lg:py-20 lg:px-0 js-form-dd js-calendar">
-            <div className="d-flex">
-              <div className="ml-10">
-                <h4
-                  className="text-15 fw-500 ls-2 lh-16"
-                  style={{ marginTop: "10px" }}
+      <div className="searchMenu-date px-30 lg:py-20 lg:px-0 js-form-dd js-calendar">
+        <div>
+          <div className="d-flex">
+            <i
+              className={`${
+                isHeroLayout ? "icon-calendar mr-10" : "icon-calendar-2"
+              } text-20 text-light-1 mt-5`}
+            />
+            <div className={isHeroLayout ? "flex-grow-1" : "ml-10"}>
+              <h4 className="text-15 fw-500 ls-2 lh-16">Selected Date</h4>
+              <DateSearch
+                selectedDate={selectedDate}
+                setSelectedDate={setSelectedDate}
+                minDate={dateBounds.minDate}
+                maxDate={dateBounds.maxDate}
+                value={selectedDate}
+              />
+              {hasCityWiseDates && pickUpLocation && (
+                <div
+                  className={
+                    isHeroLayout
+                      ? "hotel-list-dates-locked"
+                      : "text-12 text-light-1 mt-5"
+                  }
                 >
-                  Pick Up Date
-                </h4>
-                <DateSearch
-                  selectedDate={selectedDate}
-                  setSelectedDate={setSelectedDate}
-                  minDate={dateBounds.minDate}
-                  maxDate={dateBounds.maxDate}
-                  value={selectedDate}
-                />
-                {hasCityWiseDates && pickUpLocation && (
-                  <div className="text-12 text-light-1 mt-5">
-                    Dates within {toCityOnly(pickUpLocation)} stay
-                  </div>
-                )}
-              </div>
+                  {isHeroLayout ? (
+                    <>
+                      <i className="icon-info-circle text-12" aria-hidden="true" />
+                      <span>Dates locked to {toCityOnly(pickUpLocation)}</span>
+                    </>
+                  ) : (
+                    <>Dates locked to {toCityOnly(pickUpLocation)}</>
+                  )}
+                </div>
+              )}
             </div>
-          </div>
-
-          <div className="button-item">
-            <button
-              className="mainSearch__submit button -dark-1 py-20 px-40 col-12 rounded-4 bg-blue-1 text-white"
-              onClick={buttonsearch}
-            >
-              <i className="icon-search text-20 mr-10" />
-              Search
-            </button>
           </div>
         </div>
       </div>
+
+      <div className="button-item h-full">
+        <button
+          className={`button -dark-1 py-15 px-40 h-full col-12 bg-blue-1 text-white ${
+            isHeroLayout ? "" : "rounded-0"
+          }`}
+          style={isHeroLayout ? { borderRadius: 14 } : undefined}
+          onClick={buttonsearch}
+        >
+          <i className="icon-search text-20 mr-10" />
+          {isHeroLayout ? "Search Guides" : "Search"}
+        </button>
+      </div>
+    </div>
+  );
+
+  const searchCard = isHeroLayout ? (
+    <div className="hotel-list-search-card">
+      <div className="mainSearch -col-2 hotel-list-main-search hotel-list-main-search--cols-3">
+        {searchFields}
+      </div>
+    </div>
+  ) : (
+    <div className="mainSearch -col-2 bg-white px-10 py-10 lg:px-20 lg:pt-5 lg:pb-20 rounded-4 mt-30">
+      {searchFields}
+    </div>
+  );
+
+  if (isHeroLayout) {
+    return (
+      <>
+        {cityPills ? (
+          <div className="hotel-list-hero__top">{cityPills}</div>
+        ) : null}
+        {searchCard}
+      </>
+    );
+  }
+
+  return (
+    <>
+      {cityPills}
+      {searchCard}
     </>
   );
 };

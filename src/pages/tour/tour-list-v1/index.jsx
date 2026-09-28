@@ -126,6 +126,7 @@ import Sidebar from "@/components/tour-list/tour-list-v1/Sidebar";
 import MetaComponent from "@/components/common/MetaComponent";
 import TourStatus from "@/components/common/sub_common/TourStatus";
 import CustomStepper from "@/components/common/sub_common/CustomStepper";
+import "@/styles/hotelListHero.css";
 
 const metadata = {
   title: "Attraction List || Travclicks - Travel Technology Transformed",
@@ -143,26 +144,25 @@ const TourListPage1 = () => {
     <>
       <MetaComponent meta={metadata} />
       <div className="header-margin">
-        <CustomStepper variant="lite" />
-        <TourStatus variant="lite" />
-      </div>
-
-      {/* <Header11 /> */}
-
-      <section className="pt-40 pb-40 bg-light-2">
         <div className="container">
-          <div className="row">
-            <div className="col-12">
-              <div className="text-center">
-                <h1 className="text-30 fw-600">Attraction & Experiences</h1>
-              </div>
-              <MainFilterSearchBox />
+          <div className="hotel-list-lite-stack">
+            <div className="hotel-list-lite-panel">
+              <CustomStepper variant="lite" />
+              <TourStatus variant="lite" />
             </div>
           </div>
         </div>
-      </section>
+      </div>
 
-      <section className="layout-pt-md layout-pb-lg">
+      <div className="hotel-list-top">
+        <div className="container">
+          <div className="hotel-list-hero">
+            <MainFilterSearchBox layout="hero" />
+          </div>
+        </div>
+      </div>
+
+      <section className="hotel-list-results layout-pb-lg">
         <div className="container">
           <div className="row y-gap-30">
             <div className="col-xl-3">
@@ -196,7 +196,7 @@ const TourListPage1 = () => {
             </div>
 
             <div className="col-xl-9">
-              <div style={{ marginTop: "0px", paddingLeft: "2rem" }}>
+              <div className="row y-gap-30">
                 <TourProperties />
               </div>
             </div>

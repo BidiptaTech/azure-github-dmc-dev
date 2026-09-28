@@ -6,6 +6,7 @@ const DateSearch = ({
   minDate = null,
   maxDate = null,
   value = null,
+  displayFormat = "DD/MM/YYYY",
 }) => {
   const resolvedMin = minDate instanceof DateObject ? minDate : null;
   const resolvedMax = maxDate instanceof DateObject ? maxDate : null;
@@ -30,7 +31,7 @@ const DateSearch = ({
           }}
           numberOfMonths={2}
           offsetY={10}
-          format="DD/MM/YYYY"
+          format={displayFormat}
           minDate={resolvedMin}
           maxDate={resolvedMax}
           editable={false}

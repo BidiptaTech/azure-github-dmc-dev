@@ -27,6 +27,7 @@ import {
 import MetaComponent from "@/components/common/MetaComponent";
 import CustomStepper from "@/components/common/sub_common/CustomStepper";
 import TourStatus from "@/components/common/sub_common/TourStatus";
+import "@/styles/hotelListHero.css";
 import { FaAngleUp, FaAngleDown } from "react-icons/fa";
 import { toCityOnly } from "@/utils/locationFormat";
 
@@ -301,23 +302,25 @@ const ActivityListPage1 = () => {
     <>
       <MetaComponent meta={metadata} />
       <div className="header-margin">
-        <CustomStepper variant="lite" />
-        <TourStatus variant="lite" />
-      </div>
-      {/* <Header11 /> */}
-      <section className="pt-40 pb-40 bg-light-2">
         <div className="container">
-          <div className="row">
-            <div className="col-12">
-              <div className="text-center">
-                <h1 className="text-30 fw-600">Tour Guide</h1>
-              </div>
-              <MainFilterSearchBox Location={Location} />
+          <div className="hotel-list-lite-stack">
+            <div className="hotel-list-lite-panel">
+              <CustomStepper variant="lite" />
+              <TourStatus variant="lite" />
             </div>
           </div>
         </div>
-      </section>
-      <section className="layout-pt-md layout-pb-lg">
+      </div>
+
+      <div className="hotel-list-top">
+        <div className="container">
+          <div className="hotel-list-hero">
+            <MainFilterSearchBox layout="hero" Location={Location} />
+          </div>
+        </div>
+      </div>
+
+      <section className="hotel-list-results layout-pb-lg">
         <div className="container">
           <div className="row y-gap-30">
             <div className="col-xl-3  d-xl-block">
