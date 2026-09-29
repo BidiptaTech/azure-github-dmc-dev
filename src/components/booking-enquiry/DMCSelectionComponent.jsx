@@ -34,7 +34,7 @@ import {
 
 // Styled components
 const DMCSelectionPanel = styled(Paper)(({ theme }) => ({
-  padding: theme.spacing(3),
+  padding: theme.spacing(1.5),
   height: 'fit-content',
   maxHeight: '80vh',
   overflowY: 'auto',
@@ -61,7 +61,7 @@ const DMCSelectionPanel = styled(Paper)(({ theme }) => ({
 }));
 
 const DMCCard = styled(Card)(({ theme, selected }) => ({
-  marginBottom: theme.spacing(1.5),
+  marginBottom: theme.spacing(1),
   border: selected ? '2px solid #667eea' : '1px solid #e0e3e8',
   backgroundColor: selected ? 'rgba(102, 126, 234, 0.05)' : 'white',
   cursor: 'pointer',
@@ -172,7 +172,7 @@ const DMCSelectionComponent = ({
                   selected={true}
                   sx={{ cursor: 'default', '&:hover': { transform: 'none' } }}
                 >
-                  <CardContent sx={{ p: 1.5 }}>
+                  <CardContent sx={{ p: 1, "&:last-child": { pb: 1 } }}>
                     <Box sx={{ display: 'flex', alignItems: 'center' }}>
                       {dmc.logo ? (
                         <Avatar
@@ -228,14 +228,14 @@ const DMCSelectionComponent = ({
     <DMCSelectionPanel elevation={3}>
       {/* Location Section */}
       {showLocationSection && (
-        <Box sx={{ mb: 3 }}>
-          <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600, color: '#333', fontSize: '0.9rem' }}>
+        <Box sx={{ mb: 1.5 }}>
+          <Typography variant="subtitle2" sx={{ mb: 0.75, fontWeight: 600, color: '#333', fontSize: '0.8rem' }}>
             📍 Destination
           </Typography>
           
           {activeLocation ? (
             <Box sx={{ 
-              p: 2, 
+              p: 1, 
               bgcolor: 'rgba(102, 126, 234, 0.08)', 
               borderRadius: 2, 
               border: '1px solid rgba(102, 126, 234, 0.2)',
@@ -268,9 +268,9 @@ const DMCSelectionComponent = ({
       )}
 
       {/* DMC Filter & Selection */}
-      <Box sx={{ mb: 3 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-          <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#333', fontSize: '0.9rem' }}>
+      <Box sx={{ mb: 1.5 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#333', fontSize: '0.8rem' }}>
             🏢 DMC Partners
           </Typography>
           {selectedDmcsData.length > 0 && (
@@ -289,7 +289,7 @@ const DMCSelectionComponent = ({
               startAdornment: <SearchIcon sx={{ color: '#999', mr: 0.5, fontSize: '1.2rem' }} />
             }}
             sx={{ 
-              mb: 2,
+              mb: 1,
               '& .MuiOutlinedInput-input': {
                 fontSize: '0.875rem'
               }
@@ -350,7 +350,7 @@ const DMCSelectionComponent = ({
             selected={isDMCSelected(dmc)}
             onClick={() => handleDMCCardClick(dmc)}
           >
-            <CardContent sx={{ p: 1.5 }}>
+            <CardContent sx={{ p: 1, "&:last-child": { pb: 1 } }}>
               <Box sx={{ display: 'flex', alignItems: 'center' }}>
                 {dmc.logo ? (
                   <Avatar
