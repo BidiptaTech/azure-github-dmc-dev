@@ -194,6 +194,7 @@ const Index = () => {
       case "bookingEnquiries":
         return (
           <div className="page-container">
+            <div className="container">
             <BookingEnquiries
               bookingOptions={bookingOptions}
               setBookingOptions={setBookingOptions}
@@ -208,6 +209,7 @@ const Index = () => {
                 <i className="icon-arrow-left text-20 mr-10"></i>
                 <span className="nav-button-text">Back to Search</span>
               </button>
+            </div>
             </div>
           </div>
         );
@@ -435,7 +437,7 @@ const Index = () => {
         position: "relative",
         minHeight: "100%",
         background: "#f4f6f8",
-        paddingTop: 8,
+        paddingTop: 50,
         paddingBottom: 24,
         overflow: "visible",
       }}
@@ -448,6 +450,13 @@ const Index = () => {
         delay={7}
       />
 
+      <style>{`
+        @media (max-width: 768px) {
+          .enquiry-corp-page {
+            padding-top: 100px !important;
+          }
+        }
+      `}</style>
       <style jsx>{`
         .page-container {
           padding: 0;
@@ -458,10 +467,7 @@ const Index = () => {
           display: flex;
           justify-content: flex-start;
           margin-top: 16px;
-          max-width: 1400px;
-          margin-left: auto;
-          margin-right: auto;
-          padding: 0 16px 16px;
+          padding: 0 0 16px;
         }
         .responsive-nav-button {
           transition: all 0.2s ease;

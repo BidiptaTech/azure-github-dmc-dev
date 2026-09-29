@@ -6,11 +6,11 @@ const Field = ({ label, primary, secondary }) => (
     className="enquiry-summary-field"
     style={{
       flex: "1 1 0",
-      minWidth: 150,
-      minHeight: 88,
+      minWidth: 140,
+      minHeight: 0,
       background: "#ffffff",
-      borderRadius: 10,
-      padding: "16px 18px",
+      borderRadius: 8,
+      padding: "8px 12px",
       border: "1px solid rgba(15, 23, 42, 0.08)",
       boxShadow: "0 1px 3px rgba(15, 23, 42, 0.08)",
       boxSizing: "border-box",
@@ -24,14 +24,14 @@ const Field = ({ label, primary, secondary }) => (
       className="enquiry-summary-label"
       style={{
         display: "block",
-        fontSize: 12,
+        fontSize: 11,
         fontWeight: 700,
-        letterSpacing: "0.08em",
+        letterSpacing: "0.06em",
         textTransform: "uppercase",
         color: "#64748b",
-        marginBottom: 8,
-        lineHeight: "16px",
-        minHeight: 16,
+        marginBottom: 2,
+        lineHeight: "14px",
+        minHeight: 0,
       }}
     >
       {label}
@@ -40,10 +40,10 @@ const Field = ({ label, primary, secondary }) => (
       className="enquiry-summary-primary"
       style={{
         display: "block",
-        fontSize: 17,
+        fontSize: 15,
         fontWeight: 700,
         color: "#0f172a",
-        lineHeight: "22px",
+        lineHeight: "20px",
       }}
     >
       {primary || "—"}
@@ -53,11 +53,11 @@ const Field = ({ label, primary, secondary }) => (
         className="enquiry-summary-secondary"
         style={{
           display: "block",
-          fontSize: 13,
+          fontSize: 12,
           fontWeight: 500,
           color: "#64748b",
-          marginTop: 4,
-          lineHeight: "18px",
+          marginTop: 1,
+          lineHeight: "16px",
         }}
       >
         {secondary}
@@ -142,19 +142,18 @@ const EnquirySearchSummaryBar = () => {
       style={{
         width: "100%",
         boxSizing: "border-box",
-        padding: "12px 16px 8px",
-        marginBottom: 12,
+        padding: "0 0 8px",
+        marginBottom: 0,
       }}
     >
       <div
         className="enquiry-summary-bar"
         style={{
           width: "100%",
-          maxWidth: 1400,
-          margin: "0 auto",
+          margin: 0,
           background: "linear-gradient(90deg, #3554D1 0%, #4c6fff 100%)",
-          padding: "20px 18px",
-          borderRadius: 14,
+          padding: "10px 12px",
+          borderRadius: 12,
           boxSizing: "border-box",
           overflow: "visible",
           boxShadow: "0 8px 24px rgba(53, 84, 209, 0.22)",
@@ -171,36 +170,36 @@ const EnquirySearchSummaryBar = () => {
           height: auto !important;
           max-height: none !important;
           overflow: visible !important;
-          font-size: 12px !important;
+          font-size: 11px !important;
           font-weight: 700 !important;
-          letter-spacing: 0.08em !important;
+          letter-spacing: 0.06em !important;
           text-transform: uppercase !important;
           color: #64748b !important;
-          margin: 0 0 8px 0 !important;
+          margin: 0 0 2px 0 !important;
           padding: 0 !important;
-          line-height: 16px !important;
-          min-height: 16px !important;
+          line-height: 14px !important;
+          min-height: 0 !important;
         }
         .enquiry-summary-bar .enquiry-summary-primary {
           display: block !important;
-          font-size: 17px !important;
+          font-size: 15px !important;
           font-weight: 700 !important;
           color: #0f172a !important;
-          line-height: 22px !important;
+          line-height: 20px !important;
         }
         .enquiry-summary-bar .enquiry-summary-secondary {
           display: block !important;
-          font-size: 13px !important;
+          font-size: 12px !important;
           font-weight: 500 !important;
           color: #64748b !important;
-          margin-top: 4px !important;
-          line-height: 18px !important;
+          margin-top: 1px !important;
+          line-height: 16px !important;
         }
         .enquiry-summary-fields {
           display: flex;
           flex-wrap: wrap;
           align-items: stretch;
-          gap: 14px;
+          gap: 8px;
         }
         .enquiry-summary-field {
           overflow: visible !important;
@@ -212,14 +211,14 @@ const EnquirySearchSummaryBar = () => {
         }
         @media (max-width: 899px) {
           .enquiry-summary-bar-wrap {
-            padding: 10px 12px 6px !important;
+            padding: 0 0 6px !important;
           }
           .enquiry-summary-bar {
-            padding: 16px 14px !important;
-            border-radius: 12px !important;
+            padding: 8px 10px !important;
+            border-radius: 10px !important;
           }
           .enquiry-summary-field {
-            min-width: calc(50% - 7px) !important;
+            min-width: calc(50% - 4px) !important;
           }
         }
       `}</style>
