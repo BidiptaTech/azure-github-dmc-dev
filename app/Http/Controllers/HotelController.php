@@ -1959,11 +1959,7 @@ class HotelController extends Controller
                 $dmcOwnerId = $this->resolveRoomPricingDmcUserId($auth_user) ?? $auth_user->userId;
 
                 // DMC / delegated roles: rooms are owned by parent DMC (created_by)
-                $dmcRoom = Room::where('hotel_id', $originalRoom->hotel_id)
-                              ->where('room_type', $originalRoom->room_type)
-                              ->where('created_by', $dmcOwnerId)
-                              ->where('dmc_base_room', 0)
-                              ->first();
+                $dmcRoom = $this->findDmcRoomCopy($originalRoom, $dmcOwnerId);
 
                 if ($dmcRoom) {
                     $room = $dmcRoom;
@@ -2090,6 +2086,7 @@ class HotelController extends Controller
     * Update Room Details .
     * Date 18-11-2024
     */
+
     public function updateroom(Request $request)
     {
         try {
@@ -2154,11 +2151,7 @@ class HotelController extends Controller
             } else {
                 $dmcOwnerId = $this->resolveRoomPricingDmcUserId($auth_user) ?? $auth_user->userId;
 
-                $dmcRoom = Room::where('hotel_id', $request->hotel_id)
-                              ->where('room_type', $originalRoom->room_type)
-                              ->where('created_by', $dmcOwnerId)
-                              ->where('dmc_base_room', 0)
-                              ->first();
+                $dmcRoom = $this->findDmcRoomCopy($originalRoom, $dmcOwnerId);
 
                 if ($dmcRoom) {
                     \Log::info("DMC updating existing room", ['dmc_room_id' => $dmcRoom->room_id]);
@@ -2700,6 +2693,7 @@ class HotelController extends Controller
                 'created_by' => $roomCreatedByDmcUserId,
                 'dmc_id' => $roomCreatedByDmcUserId,
                 'dmc_base_room' => 0, // This is DMC specific room, not admin base room
+                'cloned_from' => $originalRoom->room_id, // Admin room this DMC copy was created from
                 'base_room' => $isBaseRoom, // True if this is DMC's first/base room
                 'status' => $request->room_status == 1 ? 1 : 0,
                 'varient_price' => $varientPrice, // Store the variant price for future calculations
@@ -2746,6 +2740,45 @@ class HotelController extends Controller
         }
     }
 
+    /**
+     * Find this DMC's copy of an admin/base room.
+     * Prefers cloned_from = admin room_id; falls back to room_type for legacy rows.
+     */
+    private function findDmcRoomCopy(Room $originalRoom, int $dmcOwnerId): ?Room
+    {
+        // Already editing this DMC's own copy
+        if ((int) ($originalRoom->dmc_base_room ?? 1) === 0
+            && (int) ($originalRoom->created_by ?? 0) === $dmcOwnerId) {
+            return $originalRoom;
+        }
+
+        $hasClonedFrom = \Illuminate\Support\Facades\Schema::hasColumn('rooms', 'cloned_from');
+
+        if ($hasClonedFrom) {
+            $byClone = Room::where('hotel_id', $originalRoom->hotel_id)
+                ->where('created_by', $dmcOwnerId)
+                ->where('dmc_base_room', 0)
+                ->where('cloned_from', $originalRoom->room_id)
+                ->first();
+            if ($byClone) {
+                return $byClone;
+            }
+        }
+
+        // Legacy rows (no cloned_from yet): match by room_type for this DMC
+        return Room::where('hotel_id', $originalRoom->hotel_id)
+            ->where('created_by', $dmcOwnerId)
+            ->where('dmc_base_room', 0)
+            ->where('room_type', $originalRoom->room_type)
+            ->when($hasClonedFrom, function ($q) {
+                $q->where(function ($inner) {
+                    $inner->whereNull('cloned_from')
+                        ->orWhere('cloned_from', 0);
+                });
+            })
+            ->first();
+    }
+
     /*
     * Delete Room Details .
     * Date 18-11-2024
@@ -2756,6 +2789,10 @@ class HotelController extends Controller
             //     abort(403, 'You do not have permission to access this page.');
             // }
             $room = Room::where('room_id', $id)->first();
+            if (!$room) {
+                return redirect()->back()->with('error', 'Room not found.');
+            }
+
             $usedRooms = Bed::where('room_id', $id)
             ->exists();
 
@@ -2763,6 +2800,17 @@ class HotelController extends Controller
             // The restaurant is being used in the rooms table, so do not delete it
             return redirect()->route('hotels.createroom', ['id' => $room->hotel_id])
             ->with('error', 'This Room is in use, cannot be deleted!');
+            }
+
+            // Admin base rooms that DMCs have cloned cannot be deleted
+            if (\Illuminate\Support\Facades\Schema::hasColumn('rooms', 'cloned_from')) {
+                $hasDmcClones = Room::where('cloned_from', $room->room_id)
+                    ->where('dmc_base_room', 0)
+                    ->exists();
+                if ($hasDmcClones) {
+                    return redirect()->route('hotels.createroom', ['id' => $room->hotel_id])
+                        ->with('error', 'This room has been cloned by a DMC and cannot be deleted.');
+                }
             }
         
             // Delete room images from Azure before deleting the record
@@ -3092,6 +3140,7 @@ class HotelController extends Controller
     /** update bed */
 
     public function updatebed(Request $request){
+
         try {
             $auth_user = Auth::user();
             $bed = Bed::where('bed_id', $request->bed_id)->first();
@@ -3168,8 +3217,8 @@ class HotelController extends Controller
             $bedAvailable = Bed::where('room_id', $request->room_type)
             ->sum('no_of_rooms');
 
-            if($no_of_room <= ($bedAvailable - $bed->no_of_rooms) + $request->input('no_of_rooms')){
-                return redirect()->route('hotels.beds', $request->hotel_id)->with('error', 'You have already filled.');
+            if($no_of_room < ($bedAvailable - $bed->no_of_rooms) + $request->input('no_of_rooms')){
+                return redirect()->route('hotels.beds', $request->hotel_id)->with('error', 'You have exceeded the total number of rooms.');
             }
             $nameOfBedType = $bed->room_type;
             $bedmaster_det = null;

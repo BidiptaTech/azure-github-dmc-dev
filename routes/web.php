@@ -150,6 +150,8 @@ Route::get('/clear', function () {
             Route::get('/', function () {
                 return redirect()->route('dashboard'); // Redirects root to /index
             });
+            Route::post('/create-single-tour/old', [App\Http\Controllers\SingleTourPackageController::class, 'create'])->name('create.tour.old');
+            
             
             // Updated dashboard routes to use the controller
             Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');

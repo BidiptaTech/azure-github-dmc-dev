@@ -2873,23 +2873,40 @@ $(document).ready(function() {
             element.style.display = "block";
         });
 
-        if (typeInput) typeInput.required = isIncluded;
-        if (priceInput) priceInput.required = isIncluded;
         if (typeInput) {
-            typeInput.disabled = false;
-            typeInput.classList.remove('bg-light');
+            typeInput.required = isIncluded;
+            // <select> has no readonly — disable when meal is No
+            typeInput.disabled = !isIncluded;
+            typeInput.classList.toggle('bg-light', !isIncluded);
+            if (!isIncluded) {
+                typeInput.value = '';
+            }
         }
         if (priceInput) {
-            priceInput.disabled = false;
-            priceInput.classList.remove('bg-light');
+            priceInput.required = isIncluded;
+            priceInput.readOnly = !isIncluded;
+            priceInput.classList.toggle('bg-light', !isIncluded);
+            if (!isIncluded) {
+                priceInput.value = '0';
+            }
         }
         if (costInput) {
-            costInput.disabled = false;
-            costInput.classList.remove('bg-light');
+            costInput.readOnly = !isIncluded;
+            costInput.classList.toggle('bg-light', !isIncluded);
+            if (!isIncluded) {
+                costInput.value = '0';
+            }
         }
-        if (!isIncluded) {
-            if (costInput) costInput.value = '0';
-            if (priceInput) priceInput.value = '0';
+
+        // Comp. Breakfast sits outside .breakfast-options — lock it when Breakfast is No
+        if (mealType === 'breakfast') {
+            const compBreakfast = document.getElementById('supplementary_breakfast');
+            if (compBreakfast) {
+                compBreakfast.disabled = !isIncluded;
+                if (!isIncluded) {
+                    compBreakfast.checked = false;
+                }
+            }
         }
     }
     
