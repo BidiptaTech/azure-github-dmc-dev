@@ -23,6 +23,7 @@ import {
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 
 import MobileMenu from "../MobileMenu";
+import AgentProfileModal from "../AgentProfileModal";
 import SearchLocationModal from "../../common/SearchLocationModal";
 import DMCSelectionModal from "../../common/DMCSelectionModal";
 
@@ -37,6 +38,14 @@ const Header1 = ({ onViewProfile }) => {
   const agencyLogo = useSelector((state) => state.auth.agencyLogo);
   const username = useSelector((state) => state.auth.Username);
   const [userMenuAnchor, setUserMenuAnchor] = useState(null);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const isAgentUser =
+    userRole !== "Sales Head(DMC)" &&
+    userRole !== "Sales Manager (DMC)" &&
+    userRole !== "Assistant Manager (DMC)" &&
+    userRole !== "Operational Head(DMC)" &&
+    userRole !== "DMC Operational Manager" &&
+    userRole !== "DMC Assistant Operational Manager";
   const initials = (username || "Agent")
     .split(" ")
     .filter(Boolean)
@@ -161,6 +170,14 @@ const Header1 = ({ onViewProfile }) => {
     };
   }, []);
 
+  useEffect(() => {
+    const openProfileFromAnywhere = () => setProfileOpen(true);
+    window.addEventListener("open-agent-profile", openProfileFromAnywhere);
+    return () => {
+      window.removeEventListener("open-agent-profile", openProfileFromAnywhere);
+    };
+  }, []);
+
 
 
 
@@ -282,11 +299,11 @@ const Header1 = ({ onViewProfile }) => {
                       transformOrigin={{ horizontal: "right", vertical: "top" }}
                       PaperProps={{ sx: { mt: 1, minWidth: 180, borderRadius: "12px" } }}
                     >
-                      {onViewProfile && (
+                      {isAgentUser && (
                         <MenuItem
                           onClick={() => {
                             setUserMenuAnchor(null);
-                            onViewProfile();
+                            setProfileOpen(true);
                           }}
                         >
                           View profile
@@ -341,6 +358,7 @@ const Header1 = ({ onViewProfile }) => {
         </div>
         {/* End header_container */}
       </header>
+      <AgentProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} />
 
       {/* Modals - Outside the drawer to avoid z-index issues */}
       <SearchLocationModal
