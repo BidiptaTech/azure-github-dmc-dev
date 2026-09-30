@@ -21,7 +21,7 @@ const selectDmcId = (state) => state.dmc?.dmcId;
 export const fetchHotels = createAsyncThunk(
   "hotels/fetchHotels",
   async (params = {}, { getState, rejectWithValue }) => {
-    const { start, limit } = params;
+    const { start, limit, location: paramLocation } = params;
     try {
       const state = getState();
      const { location, ucheckIn, ucheckOut, guests } = state.hotels.searchState;
@@ -29,8 +29,13 @@ export const fetchHotels = createAsyncThunk(
 
      const { adults, children, infant } = guests;
 
+      // Prefer the city sent in params (zone / city select). Fall back to search state.
+      const locationSource =
+        paramLocation != null && paramLocation !== ""
+          ? paramLocation
+          : location;
       // Hotel /location API expects city only (not "City, Country")
-      let formattedLocation = extractCityNamesFromLocation(location);
+      let formattedLocation = extractCityNamesFromLocation(locationSource);
        const dateRange=[ucheckIn,ucheckOut]
      
    

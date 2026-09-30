@@ -26,9 +26,6 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import { useDispatch } from 'react-redux';
 import { useState } from 'react';
 import { fetchVehicleDetails } from '../../../slice/localtour/Localslice';
-// Import our new simplified components instead
-import SimplePassenger from './SimplePassenger';
-import SimpleHourlyPackage from './SimpleHourlyPackage';
 import HourlyPackage from './HourlyPackage';
 import Passenger from './Passenger';
 

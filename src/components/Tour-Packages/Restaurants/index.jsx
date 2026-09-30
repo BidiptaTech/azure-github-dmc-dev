@@ -41,7 +41,7 @@ import TimeSlotSelect from './TimeSlotSelect';
 import PaxSelector from './PaxSelector';
 import RestaurantBookingSummaryModal from './RestaurantBookingSummaryModal';
 import { setAllServices } from '../../../slice/tour-packages/tourPackageSlice';
-import { fetchRestaurants } from '../../../slice/restaurant/RestaurantsSlice';
+import { fetchRestaurants, fetchRestaurantsDetails } from '../../../slice/restaurant/RestaurantsSlice';
 import PortCity from './PortCity';
 import { shallowEqual } from 'react-redux';
 const initialFormState = {
@@ -983,6 +983,22 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
     return !tourDates.includes(normalizedBookingDate);
   };
 
+  // PackageData bookings: load restaurant details (mode always dmc) before editing meal/dish/time
+  const ensurePackageRestaurantDetails = useCallback((section) => {
+    if (!section?.originalData) return;
+
+    const od = section.originalData;
+    const restaurantId = od.restaurantId || section.restaurant;
+    const dmcId = od.dmc_id || od.dmc_Id;
+    if (!restaurantId) return;
+
+    dispatch(fetchRestaurantsDetails({
+      restaurantId,
+      price_mode: 'dmc',
+      dmc_id: dmcId,
+    }));
+  }, [dispatch]);
+
   const getSelectedRestaurant = (restaurantId, section) => {
     if (section?.originalData) {
       return {
@@ -1432,6 +1448,7 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
                                 onChange={(e) => handleFieldChange(sectionIndex, 'mealType', e.target.value)}
                                 restaurantDetails={restaurantDetails}
                                 disabled={!section.restaurant}
+                                onBeforeOpen={() => ensurePackageRestaurantDetails(section)}
                               />
                             </Box>
                           </Box>
@@ -1458,6 +1475,7 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
                                 selectedMealType={section.mealType}
                                 restaurantDetails={restaurantDetails}
                                 disabled={!section.restaurant || !section.mealType}
+                                onBeforeOpen={() => ensurePackageRestaurantDetails(section)}
                               />
                             </Box>
                           </Box>
@@ -1482,10 +1500,11 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
                                 value={section.timeSlot}
                                 onChange={(e) => handleFieldChange(sectionIndex, 'timeSlot', e.target.value)}
                                 selectedMealType={section.mealType}
-                                restaurantDetails={selectedRestaurantDetails}
+                                restaurantDetails={restaurantDetails}
                                 disabled={!section.restaurant || !section.mealType || !section.specificMeal}
                                 bookingDate={section.bookingDate}
                                 formSection={section}
+                                onBeforeOpen={() => ensurePackageRestaurantDetails(section)}
                               />
                             </Box>
                           </Box>

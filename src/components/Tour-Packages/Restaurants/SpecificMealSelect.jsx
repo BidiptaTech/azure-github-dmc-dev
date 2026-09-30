@@ -133,7 +133,7 @@ const MealDescription = ({ description, expanded, onToggle }) => {
   );
 };
 
-const SpecificMealSelect = ({ value, onChange, selectedMealType, restaurantDetails, disabled }) => {
+const SpecificMealSelect = ({ value, onChange, selectedMealType, restaurantDetails, disabled, onBeforeOpen }) => {
   const [openModal, setOpenModal] = useState(false);
   const [expandedDescriptions, setExpandedDescriptions] = useState({});
   const [specificMealType, setSpecificMealType] = useState("");
@@ -470,6 +470,9 @@ const SpecificMealSelect = ({ value, onChange, selectedMealType, restaurantDetai
         <Select
           value={specificMealType}
           label="Specific Meal Type"
+          onOpen={() => {
+            if (typeof onBeforeOpen === 'function') onBeforeOpen();
+          }}
           onChange={handleMealSelection}
           sx={{
             height: '42px',

@@ -28,7 +28,7 @@ const SearchBar1 = ({
   
   // Add reference to track if we're in the middle of a selection
   const isSelectingRef = useRef(false);
-
+ console.log(Location, 'Locationsing hour')
   // Keep input value in sync with state
   useEffect(() => {
     const inputElement = document.getElementById(pickupInputId);
