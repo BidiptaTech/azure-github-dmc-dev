@@ -17,7 +17,6 @@ import {
   AssessmentOutlined,
   MoreHoriz,
   EmailOutlined,
-  CardGiftcardOutlined,
   SupervisorAccount,
   ManageAccounts,
   Person,
@@ -170,9 +169,7 @@ const DashboardLayout = () => {
   };
 
   const handleViewProfile = () => {
-    setProfileModalOpen(true);
-    setPhoneNumber(phoneNo || ''); // Initialize with existing phone number or empty
-    setAddressInput(agent_address || ''); // Initialize with existing address or empty
+    window.dispatchEvent(new Event("open-agent-profile"));
     handleProfileClose();
   };
 
@@ -424,58 +421,6 @@ const DashboardLayout = () => {
 
   }, [dispatch])
 
-  // Handle profile update success/error
-  useEffect(() => {
-    if (profileSuccess && profileData) {
-      alert('Profile updated successfully!');
-      // console.log('Profile update successful! Response:', profileData);
-
-      // Update auth state with new profile data
-      if (profileData.data) {
-        // console.log('API Response Fields:');
-        // console.log('agent_image:', profileData.data.agent_image);
-        // console.log('image:', profileData.data.image);
-
-        const updateData = {};
-        if (profileData.data.phone) {
-          updateData.phone = profileData.data.phone;
-          setPhoneNumber(profileData.data.phone); // Update local state too
-        }
-        if (profileData.data.agent_address) {
-          updateData.agent_address = profileData.data.agent_address;
-          setAddressInput(profileData.data.agent_address); // Update local state too
-        }
-        // Prefer personal profile `image`; fallback to `agent_image` if needed
-        if (profileData.data.image) {
-          updateData.image = profileData.data.image;
-        } else if (profileData.data.agent_image) {
-          updateData.image = profileData.data.agent_image;
-        }
-
-        // console.log('Updating auth state with:', updateData);
-        dispatch(updateProfileData(updateData));
-      }
-
-      // Reset image upload state when successful
-      setSelectedProfileImage(null);
-      setPreviewImage(null);
-      setAdjustedImage(null);
-      setImageScale(1);
-      setImageRotation(0);
-      setImageOffsetX(0);
-      setImageOffsetY(0);
-
-       // Close the profile modal after successful image/profile update
-       setProfileModalOpen(false);
-
-      dispatch(resetProfileState());
-    }
-    if (profileError) {
-      alert(`Error updating profile: ${profileError}`);
-      console.error('Profile update error:', profileError);
-      dispatch(resetProfileState());
-    }
-  }, [profileSuccess, profileError, profileData, dispatch]);
 
   // Ensure dashboard content appears ONLY on the exact dashboard route
   const isDashboardPage = location.pathname === "/dashboard/db-dashboard";
@@ -484,6 +429,14 @@ const DashboardLayout = () => {
   const isBookTourHeroPage =
     location.pathname.includes("/home_1") ||
     location.pathname.includes("/home_2");
+
+  const isAgentDashboard =
+    userRole !== "Sales Head(DMC)" &&
+    userRole !== "Sales Manager (DMC)" &&
+    userRole !== "Assistant Manager (DMC)" &&
+    userRole !== "Operational Head(DMC)" &&
+    userRole !== "DMC Operational Manager" &&
+    userRole !== "DMC Assistant Operational Manager";
 
   // Leaving ProtectedRoutetour / booking module → clear session + Redux
   useEffect(() => {
@@ -520,7 +473,7 @@ const DashboardLayout = () => {
         label: "Quick Enquiries"
       },
       {
-        icon: <CardGiftcardOutlined />,
+        icon: <WorkOutline />,
         label: "Fixed Itinerary Packages"
       }
     ];
@@ -549,11 +502,19 @@ const DashboardLayout = () => {
             value={mainTabValue}
             onChange={handleMainTabChange}
             sx={{
-              borderBottom: 1,
-              borderColor: "divider",
               backgroundColor: "white",
-              borderRadius: "12px 12px 0 0",
-              boxShadow: "0 2px 10px rgba(0,0,0,0.05)",
+              borderRadius: "14px",
+              border: "1px solid #e8eef8",
+              boxShadow: "0 1px 2px rgba(15, 23, 42, 0.04)",
+              px: 1,
+              "& .MuiTabs-indicator": {
+                backgroundColor: "#3554d1",
+                height: 2,
+              },
+              "& .Mui-selected": {
+                color: "#3554d1 !important",
+                fontWeight: 700,
+              },
             }}
           >
             {tabContents}
@@ -566,7 +527,7 @@ const DashboardLayout = () => {
   return (
     <>
       <div className="header-margin"></div>
-      <Header1 />
+      <Header1 onViewProfile={isAgentDashboard ? handleViewProfile : undefined} />
       <main className={isBookTourHeroPage ? "main-search-hero" : undefined}>
         <Outlet /> {/* This renders the nested routes */}
         {isDashboardPage && (
@@ -576,12 +537,59 @@ const DashboardLayout = () => {
               style={{
                 backgroundColor: "#f9fafb",
                 minHeight: "calc(100vh - 200px)",
-                marginTop: "20px",
-                padding: "0 20px",
+                marginTop: "44px",
+                padding: "0 12px",
               }}
             >
               <Container maxWidth="xxl">
-                <div className="dashboard__main" style={{ padding: "30px 0" }}>
+                <div className="dashboard__main" style={{ padding: "8px 0" }}>
+                  {isAgentDashboard && (
+                    <>
+                    <Card
+                      elevation={0}
+                      sx={{
+                        mb: 1,
+                        borderRadius: "12px",
+                        border: "1px solid #e6eef8",
+                        background: "#fff",
+                        overflow: "hidden",
+                      }}
+                    >
+                      <CardContent sx={{ py: 1.25, px: { xs: 1.5, md: 2 }, "&:last-child": { pb: 1.25 } }}>
+                        <Stack direction="row" spacing={1.25} alignItems="center">
+                          <Avatar sx={{ width: 36, height: 36, bgcolor: "#eef3ff", color: "#3554d1" }}>
+                            <WorkOutline sx={{ fontSize: 18 }} />
+                          </Avatar>
+                          <Box>
+                            <Stack direction="row" spacing={0.75} alignItems="center">
+                              <Typography
+                                component="h1"
+                                sx={{ fontWeight: 700, fontSize: "1rem", color: "#0f172a", lineHeight: 1.2 }}
+                              >
+                                Agent Dashboard
+                              </Typography>
+                              <Chip
+                                label="Agent"
+                                size="small"
+                                sx={{
+                                  height: 20,
+                                  bgcolor: "#eef3ff",
+                                  color: "#3554d1",
+                                  fontWeight: 700,
+                                  fontSize: "0.68rem",
+                                }}
+                              />
+                            </Stack>
+                            <Typography sx={{ color: "#64748b", fontSize: "0.78rem", lineHeight: 1.3 }}>
+                              Booking management and client services
+                            </Typography>
+                          </Box>
+                        </Stack>
+                      </CardContent>
+                    </Card>
+                    </>
+                  )}
+                  <Box sx={{ display: isAgentDashboard ? "none" : "block" }}>
                   <AnimatedBox direction="left" delay={200}>
                     <Card
                       elevation={0}
@@ -1046,823 +1054,7 @@ const DashboardLayout = () => {
                       </CardContent>
                     </Card>
                   </AnimatedBox>
-
-                  {/* Profile Modal */}
-                  <Dialog
-                    open={profileModalOpen}
-                    onClose={handleCloseProfileModal}
-                    maxWidth="sm"
-                    fullWidth
-                    PaperProps={{
-                      sx: {
-                        borderRadius: "16px",
-                        overflow: "hidden",
-                        animation: profileModalOpen ? "slideInUp 0.4s ease-out" : "none",
-                        "@keyframes slideInUp": {
-                          "0%": {
-                            opacity: 0,
-                            transform: "translateY(30px) scale(0.95)",
-                          },
-                          "100%": {
-                            opacity: 1,
-                            transform: "translateY(0) scale(1)",
-                          },
-                        },
-                      }
-                    }}
-                  >
-                    <DialogTitle
-                      sx={{
-                        background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                        color: "white",
-                        p: 3,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                      }}
-                    >
-                      <Stack direction="row" alignItems="center" spacing={2}>
-                        <AccountCircleOutlined sx={{ fontSize: 28, color: "white" }} />
-                        <Typography variant="h5" fontWeight="bold">
-                          Agent Profile
-                        </Typography>
-                      </Stack>
-                      <IconButton
-                        onClick={handleCloseProfileModal}
-                        sx={{ color: "white" }}
-                      >
-                        <Close />
-                      </IconButton>
-                    </DialogTitle>
-
-                    <DialogContent sx={{ p: 0 }}>
-                      <Box sx={{ p: 4 }}>
-                        {/* Profile Picture Section */}
-                        <Stack alignItems="center" spacing={2} sx={{ mb: 4 }}>
-                          <Box sx={{ position: "relative" }}>
-                            <Avatar
-                              src={adjustedImage || previewImage || getProfilePictureUrl(profilePicture) || ""}
-                              sx={{
-                                width: 120,
-                                height: 120,
-                                border: "4px solid #667eea",
-                                fontSize: "3rem",
-                                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                                animation: "pulseGlow 2s ease-in-out infinite alternate",
-                                "@keyframes pulseGlow": {
-                                  "0%": {
-                                    boxShadow: "0 0 20px rgba(102, 126, 234, 0.3)",
-                                  },
-                                  "100%": {
-                                    boxShadow: "0 0 30px rgba(102, 126, 234, 0.6)",
-                                  },
-                                },
-                              }}
-                            >
-                              {!adjustedImage && !previewImage && !profilePicture && Username?.charAt(0)?.toUpperCase() || "A"}
-                            </Avatar>
-                            {/* <IconButton
-                              onClick={handleCameraIconClick}
-                              sx={{
-                                position: "absolute",
-                                bottom: 0,
-                                right: 0,
-                                background: "white",
-                                boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
-                                "&:hover": {
-                                  background: "#f5f5f5",
-                                  transform: "scale(1.1) rotate(5deg)",
-                                  transition: "all 0.2s ease",
-                                },
-                                transition: "all 0.2s ease",
-                                animation: "bounce 2s ease-in-out infinite",
-                                "@keyframes bounce": {
-                                  "0%, 20%, 50%, 80%, 100%": {
-                                    transform: "translateY(0)",
-                                  },
-                                  "40%": {
-                                    transform: "translateY(-3px)",
-                                  },
-                                  "60%": {
-                                    transform: "translateY(-1px)",
-                                  },
-                                },
-                              }}
-                            >
-                              <CameraAlt sx={{ fontSize: 20, color: "#667eea" }} />
-                            </IconButton> */}
-
-                            {/* Hidden file input */}
-                            <input
-                              ref={fileInputRef}
-                              type="file"
-                              accept="image/*"
-                              onChange={handleProfileImageChange}
-                              style={{ display: 'none' }}
-                            />
-                          </Box>
-
-                          {/* Show upload button if image is selected */}
-                          {(selectedProfileImage || adjustedImage) && !showImageAdjustment && (
-                            <Stack direction="row" spacing={2}>
-                              <Button
-                                variant="contained"
-                                size="small"
-                                onClick={handleUploadProfileImage}
-                                disabled={profileLoading}
-                                sx={{
-                                  borderRadius: "20px",
-                                  background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                                  "&:hover": {
-                                    background: "linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%)",
-                                    transform: "translateY(-2px)",
-                                    boxShadow: "0 4px 12px rgba(102, 126, 234, 0.4)",
-                                  },
-                                  transition: "all 0.3s ease",
-                                  animation: "slideInUp 0.6s ease-out",
-                                  "@keyframes slideInUp": {
-                                    "0%": {
-                                      opacity: 0,
-                                      transform: "translateY(20px)",
-                                    },
-                                    "100%": {
-                                      opacity: 1,
-                                      transform: "translateY(0)",
-                                    },
-                                  },
-                                }}
-                              >
-                                {profileLoading ? 'Uploading...' : 'Upload Image'}
-                              </Button>
-                              <Button
-                                variant="outlined"
-                                size="small"
-                                onClick={() => {
-                                  setSelectedProfileImage(null);
-                                  setPreviewImage(null);
-                                  setAdjustedImage(null);
-                                  setImageScale(1);
-                                  setImageRotation(0);
-                                  setImageOffsetX(0);
-                                  setImageOffsetY(0);
-                                }}
-                                sx={{
-                                  borderRadius: "20px",
-                                  transition: "all 0.3s ease",
-                                  animation: "slideInUp 0.6s ease-out 0.1s both",
-                                  "@keyframes slideInUp": {
-                                    "0%": {
-                                      opacity: 0,
-                                      transform: "translateY(20px)",
-                                    },
-                                    "100%": {
-                                      opacity: 1,
-                                      transform: "translateY(0)",
-                                    },
-                                  },
-                                }}
-                              >
-                                Cancel
-                              </Button>
-                            </Stack>
-                          )}
-
-                          {/* <Typography variant="h6" fontWeight="bold">
-                             {Username || "Agent Name"}
-                           </Typography> */}
-                          <Chip
-                            label={userRole || "Agent"}
-                            color="primary"
-                            size="small"
-                            sx={{ fontWeight: 600 }}
-                          />
-                        </Stack>
-
-                        {/* Profile Information */}
-                        <Stack spacing={3}>
-                          <TextField
-                            label="Full Name"
-                            value={Username || "N/A"}
-                            InputProps={{
-                              startAdornment: (
-                                <InputAdornment position="start">
-                                  <Person sx={{ color: "primary.main" }} />
-                                </InputAdornment>
-                              ),
-                              readOnly: true,
-                            }}
-                            variant="outlined"
-                            fullWidth
-                            sx={{
-                              "& .MuiOutlinedInput-root": {
-                                borderRadius: "10px",
-                                transition: "all 0.3s ease",
-                                "&:hover": {
-                                  boxShadow: "0 2px 8px rgba(102, 126, 234, 0.1)",
-                                  transform: "translateY(-1px)",
-                                },
-                              },
-                              animation: "fadeInUp 0.8s ease-out",
-                              "@keyframes fadeInUp": {
-                                "0%": {
-                                  opacity: 0,
-                                  transform: "translateY(15px)",
-                                },
-                                "100%": {
-                                  opacity: 1,
-                                  transform: "translateY(0)",
-                                },
-                              },
-                            }}
-                          />
-
-                          <TextField
-                            label="Email"
-                            value={Email || "N/A"}
-                            InputProps={{
-                              startAdornment: (
-                                <InputAdornment position="start">
-                                  <EmailOutlined sx={{ color: "primary.main" }} />
-                                </InputAdornment>
-                              ),
-                              readOnly: true,
-                            }}
-                            variant="outlined"
-                            fullWidth
-                            sx={{
-                              "& .MuiOutlinedInput-root": {
-                                borderRadius: "10px",
-                              }
-                            }}
-                          />
-
-                          <TextField
-                            label="Phone Number"
-                            value={phoneEditMode ? phoneNumber : (phoneNo || "Not provided")}
-                            onChange={(e) => setPhoneNumber(e.target.value)}
-                            InputProps={{
-                              startAdornment: (
-                                <InputAdornment position="start">
-                                  <Phone sx={{ color: "primary.main" }} />
-                                </InputAdornment>
-                              ),
-                              endAdornment: (
-                                <InputAdornment position="end">
-                                  {phoneEditMode ? (
-                                    <Stack direction="row" spacing={1}>
-                                      <IconButton
-                                        size="small"
-                                        onClick={handleSavePhoneNumber}
-                                        disabled={profileLoading || !phoneNumber.trim()}
-                                        sx={{ color: "success.main" }}
-                                      >
-                                        <Check />
-                                      </IconButton>
-                                      <IconButton
-                                        size="small"
-                                        onClick={() => {
-                                          setPhoneEditMode(false);
-                                          setPhoneNumber('');
-                                        }}
-                                        sx={{ color: "error.main" }}
-                                      >
-                                        <Close />
-                                      </IconButton>
-                                    </Stack>
-                                  ) : (
-                                    <IconButton
-                                      size="small"
-                                      onClick={() => setPhoneEditMode(true)}
-                                      sx={{ color: "primary.main" }}
-                                    >
-                                      <EditOutlined />
-                                    </IconButton>
-                                  )}
-                                </InputAdornment>
-                              ),
-                              readOnly: !phoneEditMode,
-                            }}
-                            variant="outlined"
-                            fullWidth
-                            placeholder={phoneEditMode ? "Enter phone number" : ""}
-                            sx={{
-                              "& .MuiOutlinedInput-root": {
-                                borderRadius: "10px",
-                              }
-                            }}
-                          />
-
-                          {/* <TextField
-                             label="Agent ID"
-                             value={agentId || "N/A"}
-                             InputProps={{
-                               startAdornment: (
-                                 <InputAdornment position="start">
-                                   <BadgeIcon sx={{ color: "primary.main" }} />
-                                 </InputAdornment>
-                               ),
-                               readOnly: true,
-                             }}
-                             variant="outlined"
-                             fullWidth
-                             sx={{
-                               "& .MuiOutlinedInput-root": {
-                                 borderRadius: "10px",
-                               }
-                             }}
-                           /> */}
-
-                          <TextField
-                            label="Address"
-                            value={addressEditMode ? addressInput : (agent_address || "Not provided")}
-                            onChange={(e) => setAddressInput(e.target.value)}
-                            InputProps={{
-                              startAdornment: (
-                                <InputAdornment position="start">
-                                  <LocationOn sx={{ color: "primary.main" }} />
-                                </InputAdornment>
-                              ),
-                              endAdornment: (
-                                <InputAdornment position="end">
-                                  {addressEditMode ? (
-                                    <Stack direction="row" spacing={1}>
-                                      <IconButton
-                                        size="small"
-                                        onClick={handleSaveAddress}
-                                        disabled={profileLoading || !addressInput.trim()}
-                                        sx={{ color: "success.main" }}
-                                      >
-                                        <Check />
-                                      </IconButton>
-                                      <IconButton
-                                        size="small"
-                                        onClick={() => {
-                                          setAddressEditMode(false);
-                                          setAddressInput('');
-                                        }}
-                                        sx={{ color: "error.main" }}
-                                      >
-                                        <Close />
-                                      </IconButton>
-                                    </Stack>
-                                  ) : (
-                                    <IconButton
-                                      size="small"
-                                      onClick={() => setAddressEditMode(true)}
-                                      sx={{ color: "primary.main" }}
-                                    >
-                                      <EditOutlined />
-                                    </IconButton>
-                                  )}
-                                </InputAdornment>
-                              ),
-                              readOnly: !addressEditMode,
-                            }}
-                            variant="outlined"
-                            fullWidth
-                            placeholder={addressEditMode ? "Enter your address" : ""}
-                            multiline
-                            rows={addressEditMode ? 2 : 1}
-                            sx={{
-                              "& .MuiOutlinedInput-root": {
-                                borderRadius: "10px",
-                              }
-                            }}
-                          />
-                        </Stack>
-
-                        {/* Password Change Section */}
-                        <Box sx={{ mt: 4 }}>
-                          <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 3 }}>
-                            <Stack direction="row" alignItems="center" spacing={1.5}>
-                              <Lock sx={{ fontSize: 24, color: "primary.main" }} />
-                              <Typography variant="h6" fontWeight="bold">
-                                Security
-                              </Typography>
-                            </Stack>
-                            <Button
-                              variant={passwordChangeMode ? "outlined" : "contained"}
-                              startIcon={<Lock />}
-                              onClick={() => setPasswordChangeMode(!passwordChangeMode)}
-                              sx={{
-                                borderRadius: "8px",
-                                transition: "all 0.3s ease",
-                                "&:hover": {
-                                  transform: "translateY(-2px)",
-                                  boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-                                },
-                                animation: "pulse 2s ease-in-out infinite",
-                                "@keyframes pulse": {
-                                  "0%": {
-                                    boxShadow: "0 0 0 0 rgba(102, 126, 234, 0.4)",
-                                  },
-                                  "70%": {
-                                    boxShadow: "0 0 0 10px rgba(102, 126, 234, 0)",
-                                  },
-                                  "100%": {
-                                    boxShadow: "0 0 0 0 rgba(102, 126, 234, 0)",
-                                  },
-                                },
-                              }}
-                            >
-                              {passwordChangeMode ? "Cancel" : "Change Password"}
-                            </Button>
-                          </Stack>
-
-                          {passwordChangeMode && (
-                            <Stack spacing={3}>
-                              <TextField
-                                label="Current Password"
-                                type={showCurrentPassword ? "text" : "password"}
-                                value={passwordData.currentPassword}
-                                onChange={(e) => handlePasswordChange('currentPassword', e.target.value)}
-                                autoComplete="new-password"
-                                name="manual-current-password"
-                                InputProps={{
-                                  startAdornment: (
-                                    <InputAdornment position="start">
-                                      <Lock sx={{ color: "primary.main" }} />
-                                    </InputAdornment>
-                                  ),
-                                  endAdornment: (
-                                    <InputAdornment position="end">
-                                      <IconButton
-                                        onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                                        edge="end"
-                                      >
-                                        {showCurrentPassword ? <VisibilityOff /> : <Visibility />}
-                                      </IconButton>
-                                    </InputAdornment>
-                                  ),
-                                }}
-                                variant="outlined"
-                                fullWidth
-                                sx={{
-                                  "& .MuiOutlinedInput-root": {
-                                    borderRadius: "10px",
-                                  }
-                                }}
-                              />
-
-                              <TextField
-                                label="New Password"
-                                type={showNewPassword ? "text" : "password"}
-                                value={passwordData.newPassword}
-                                onChange={(e) => handlePasswordChange('newPassword', e.target.value)}
-                                autoComplete="new-password"
-                                name="manual-new-password"
-                                InputProps={{
-                                  startAdornment: (
-                                    <InputAdornment position="start">
-                                      <Lock sx={{ color: "primary.main" }} />
-                                    </InputAdornment>
-                                  ),
-                                  endAdornment: (
-                                    <InputAdornment position="end">
-                                      <IconButton
-                                        onClick={() => setShowNewPassword(!showNewPassword)}
-                                        edge="end"
-                                      >
-                                        {showNewPassword ? <VisibilityOff /> : <Visibility />}
-                                      </IconButton>
-                                    </InputAdornment>
-                                  ),
-                                }}
-                                variant="outlined"
-                                fullWidth
-                                sx={{
-                                  "& .MuiOutlinedInput-root": {
-                                    borderRadius: "10px",
-                                  }
-                                }}
-                              />
-
-                              <TextField
-                                label="Confirm New Password"
-                                type={showConfirmPassword ? "text" : "password"}
-                                value={passwordData.confirmPassword}
-                                onChange={(e) => handlePasswordChange('confirmPassword', e.target.value)}
-                                autoComplete="new-password"
-                                name="manual-confirm-password"
-                                InputProps={{
-                                  startAdornment: (
-                                    <InputAdornment position="start">
-                                      <Lock sx={{ color: "primary.main" }} />
-                                    </InputAdornment>
-                                  ),
-                                  endAdornment: (
-                                    <InputAdornment position="end">
-                                      <IconButton
-                                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                                        edge="end"
-                                      >
-                                        {showConfirmPassword ? <VisibilityOff /> : <Visibility />}
-                                      </IconButton>
-                                    </InputAdornment>
-                                  ),
-                                }}
-                                variant="outlined"
-                                fullWidth
-                                sx={{
-                                  "& .MuiOutlinedInput-root": {
-                                    borderRadius: "10px",
-                                  }
-                                }}
-                              />
-
-                              <Button
-                                variant="contained"
-                                onClick={handleSavePassword}
-                                disabled={profileLoading || !passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword}
-                                sx={{
-                                  borderRadius: "8px",
-                                  py: 1.5,
-                                  background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                                  "&:hover": {
-                                    background: "linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%)",
-                                  }
-                                }}
-                              >
-                                {profileLoading ? 'Saving...' : 'Save New Password'}
-                              </Button>
-                            </Stack>
-                          )}
-                        </Box>
-                      </Box>
-                    </DialogContent>
-                  </Dialog>
-
-                  {/* Image Adjustment Modal */}
-                  <Dialog
-                    open={showImageAdjustment}
-                    onClose={handleImageAdjustmentCancel}
-                    maxWidth="md"
-                    fullWidth
-                    PaperProps={{
-                      sx: {
-                        borderRadius: "16px",
-                        overflow: "hidden",
-                      }
-                    }}
-                  >
-                    <DialogTitle
-                      sx={{
-                        background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                        color: "white",
-                        p: 3,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                      }}
-                    >
-                      <Typography variant="h6" fontWeight="bold">
-                        Adjust Profile Picture
-                      </Typography>
-                      <IconButton
-                        onClick={handleImageAdjustmentCancel}
-                        sx={{ color: "white" }}
-                      >
-                        <Close />
-                      </IconButton>
-                    </DialogTitle>
-
-                    <DialogContent sx={{ p: 4 }}>
-                      <Grid container spacing={3}>
-                        {/* Image Preview */}
-                        <Grid item xs={12} md={7}>
-                          <Paper
-                            elevation={3}
-                            sx={{
-                              p: 2,
-                              display: "flex",
-                              flexDirection: "column",
-                              alignItems: "center",
-                              backgroundColor: "#f5f5f5",
-                              borderRadius: "12px",
-                            }}
-                          >
-                            <Typography variant="subtitle1" gutterBottom>
-                              Preview
-                            </Typography>
-                            <Box
-                              sx={{
-                                width: 300,
-                                height: 300,
-                                border: "2px dashed #ccc",
-                                borderRadius: "12px",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                overflow: "hidden",
-                                backgroundColor: "white",
-                                position: "relative",
-                              }}
-                            >
-                              {previewImage && (
-                                <img
-                                  src={previewImage}
-                                  alt="Preview"
-                                  style={{
-                                    maxWidth: "100%",
-                                    maxHeight: "100%",
-                                    objectFit: "contain",
-                                    transform: `translate(${imageOffsetX}px, ${imageOffsetY}px) scale(${imageScale}) rotate(${imageRotation}deg)`,
-                                    transition: "transform 0.3s ease",
-                                  }}
-                                />
-                              )}
-
-                              {/* Crop overlay circle */}
-                              <Box
-                                sx={{
-                                  position: "absolute",
-                                  top: "50%",
-                                  left: "50%",
-                                  transform: "translate(-50%, -50%)",
-                                  width: 200,
-                                  height: 200,
-                                  borderRadius: "50%",
-                                  border: "2px solid #667eea",
-                                  backgroundColor: "rgba(102, 126, 234, 0.1)",
-                                  pointerEvents: "none",
-                                  zIndex: 1,
-                                }}
-                              />
-
-                              {/* Crop guide text */}
-                              <Typography
-                                variant="caption"
-                                sx={{
-                                  position: "absolute",
-                                  bottom: 8,
-                                  left: "50%",
-                                  transform: "translateX(-50%)",
-                                  backgroundColor: "rgba(0,0,0,0.7)",
-                                  color: "white",
-                                  px: 1,
-                                  py: 0.5,
-                                  borderRadius: 1,
-                                  fontSize: "0.7rem",
-                                  zIndex: 2,
-                                }}
-                              >
-                                Blue circle shows crop area
-                              </Typography>
-                            </Box>
-                          </Paper>
-                        </Grid>
-
-                        {/* Controls */}
-                        <Grid item xs={12} md={5}>
-                          <Stack spacing={4}>
-                            {/* Scale Control */}
-                            <Box>
-                              <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 2 }}>
-                                <ZoomOut />
-                                <Typography variant="body1" fontWeight="bold">
-                                  Scale
-                                </Typography>
-                                <ZoomIn />
-                              </Stack>
-                              <Slider
-                                value={imageScale}
-                                onChange={(_, value) => setImageScale(value)}
-                                min={0.5}
-                                max={2}
-                                step={0.1}
-                                valueLabelDisplay="on"
-                                sx={{ color: "#667eea" }}
-                              />
-                            </Box>
-
-                            {/* Rotation Control */}
-                            <Box>
-                              <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 2 }}>
-                                <RotateLeft />
-                                <Typography variant="body1" fontWeight="bold">
-                                  Rotation
-                                </Typography>
-                                <RotateRight />
-                              </Stack>
-                              <Slider
-                                value={imageRotation}
-                                onChange={(_, value) => setImageRotation(value)}
-                                min={-180}
-                                max={180}
-                                step={15}
-                                valueLabelDisplay="on"
-                                sx={{ color: "#667eea" }}
-                              />
-                            </Box>
-
-                            {/* Position Controls */}
-                            <Box>
-                              <Typography variant="body1" fontWeight="bold" sx={{ mb: 2 }}>
-                                Position
-                              </Typography>
-
-                              {/* Horizontal Position */}
-                              <Box sx={{ mb: 2 }}>
-                                <Typography variant="body2" sx={{ mb: 1 }}>
-                                  Horizontal
-                                </Typography>
-                                <Slider
-                                  value={imageOffsetX}
-                                  onChange={(_, value) => setImageOffsetX(value)}
-                                  min={-100}
-                                  max={100}
-                                  step={5}
-                                  valueLabelDisplay="on"
-                                  sx={{ color: "#667eea" }}
-                                />
-                              </Box>
-
-                              {/* Vertical Position */}
-                              <Box>
-                                <Typography variant="body2" sx={{ mb: 1 }}>
-                                  Vertical
-                                </Typography>
-                                <Slider
-                                  value={imageOffsetY}
-                                  onChange={(_, value) => setImageOffsetY(value)}
-                                  min={-100}
-                                  max={100}
-                                  step={5}
-                                  valueLabelDisplay="on"
-                                  sx={{ color: "#667eea" }}
-                                />
-                              </Box>
-                            </Box>
-
-                            {/* Quick Rotation Buttons */}
-                            <Stack direction="row" spacing={2} justifyContent="center">
-                              <IconButton
-                                onClick={() => setImageRotation(prev => prev - 90)}
-                                sx={{
-                                  backgroundColor: "#f0f0f0",
-                                  "&:hover": { backgroundColor: "#e0e0e0" },
-                                }}
-                              >
-                                <RotateLeft />
-                              </IconButton>
-                              <IconButton
-                                onClick={() => setImageRotation(prev => prev + 90)}
-                                sx={{
-                                  backgroundColor: "#f0f0f0",
-                                  "&:hover": { backgroundColor: "#e0e0e0" },
-                                }}
-                              >
-                                <RotateRight />
-                              </IconButton>
-                            </Stack>
-
-                            {/* Reset Button */}
-                            <Button
-                              variant="outlined"
-                              onClick={() => {
-                                setImageScale(1);
-                                setImageRotation(0);
-                                setImageOffsetX(0);
-                                setImageOffsetY(0);
-                              }}
-                              sx={{ borderRadius: "8px" }}
-                            >
-                              Reset
-                            </Button>
-                          </Stack>
-                        </Grid>
-                      </Grid>
-
-                      {/* Hidden Canvas for processing */}
-                      <canvas
-                        ref={canvasRef}
-                        style={{ display: "none" }}
-                      />
-                    </DialogContent>
-
-                    <DialogActions sx={{ p: 3 }}>
-                      <Button
-                        variant="outlined"
-                        onClick={handleImageAdjustmentCancel}
-                        sx={{ borderRadius: "8px" }}
-                      >
-                        Cancel
-                      </Button>
-                      <Button
-                        variant="contained"
-                        onClick={handleImageAdjustmentSave}
-                        sx={{
-                          borderRadius: "8px",
-                          background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                          "&:hover": {
-                            background: "linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%)",
-                          }
-                        }}
-                      >
-                        Apply Changes
-                      </Button>
-                    </DialogActions>
-                  </Dialog>
+                  </Box>
 
                   <AnimatedBox direction="up" delay={400}>
                     {/* Render dashboard content based on role */}

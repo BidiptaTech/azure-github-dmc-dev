@@ -28,7 +28,7 @@ function TabPanel(props) {
       id={`responsive-tabpanel-${index}`}
       aria-labelledby={`responsive-tab-${index}`}
       {...other}
-      style={{ padding: "20px 0" }}
+      style={{ padding: "8px 0 0" }}
     >
       {value === index && <Box>{children}</Box>}
     </div>
@@ -86,7 +86,7 @@ const ResponsiveTabs = ({
               textTransform: "none",
               fontWeight: 500,
               fontSize: { xs: "0.8rem", sm: "0.9rem", md: "0.95rem" },
-              minHeight: { xs: "48px", sm: "52px", md: "56px" },
+              minHeight: 40,
               display: "flex",
               flexDirection: "row",
               alignItems: "center",

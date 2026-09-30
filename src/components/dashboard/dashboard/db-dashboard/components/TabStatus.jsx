@@ -4,8 +4,6 @@ import { useSelector } from "react-redux";
 import {
   Box,
   Card,
-  Tabs,
-  Tab,
   useMediaQuery,
   useTheme,
   Menu,
@@ -28,7 +26,7 @@ import {
   Search,
   Clear,
   PersonOutline,
-  Public,
+  Business,
   CalendarMonth,
   FilterList,
 } from "@mui/icons-material";
@@ -52,13 +50,6 @@ function TabPanel(props) {
       {value === index && <Box sx={{ p: 0 }}>{children}</Box>}
     </div>
   );
-}
-
-function a11yProps(index) {
-  return {
-    id: `simple-tab-${index}`,
-    'aria-controls': `simple-tabpanel-${index}`,
-  };
 }
 
 export default function TabStatus() {
@@ -146,17 +137,23 @@ export default function TabStatus() {
   const FILTER_LABELS = {
     searchId: 'Booking ID',
     customerName: 'Customer',
-    country: 'Country',
+    country: 'Company',
     checkInDate: 'Check-in',
     checkOutDate: 'Check-out',
     status: 'Status',
   };
 
   // Tab configuration
+  const tabCounts = [
+    upcomingTours.length,
+    pendingTours.length,
+    lists.length,
+  ];
+
   const tabs = [
-    { icon: <DonutLarge />, label: 'Ongoing' },
-    { icon: <UpcomingIcon />, label: 'Upcoming' },
-    { icon: <History />, label: 'Past' }
+    { icon: <DonutLarge sx={{ fontSize: 18 }} />, label: 'Ongoing', count: tabCounts[0] },
+    { icon: <UpcomingIcon sx={{ fontSize: 18 }} />, label: 'Upcoming', count: tabCounts[1] },
+    { icon: <History sx={{ fontSize: 18 }} />, label: 'Past', count: tabCounts[2] },
   ];
 
   // Mobile Dropdown Menu Component
@@ -240,17 +237,17 @@ export default function TabStatus() {
       {/* Compact filter toolbar */}
       <Box
         sx={{
-          mb: 2.5,
-          borderRadius: 2,
-          border: '1px solid rgba(19, 53, 123, 0.1)',
-          backgroundColor: '#f8fafc',
+          mb: 1,
+          borderRadius: '14px',
+          border: '1px solid #e8eef8',
+          backgroundColor: '#fff',
           overflow: 'hidden',
         }}
       >
         <Box
           sx={{
-            px: { xs: 1.5, sm: 2 },
-            py: 1.25,
+            px: { xs: 1.25, sm: 1.5 },
+            py: 0.75,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -277,28 +274,37 @@ export default function TabStatus() {
               />
             )}
           </Box>
-          {hasActiveFilters && (
-            <Tooltip title="Clear all filters">
-              <IconButton
-                size="small"
-                onClick={handleClearFilters}
-                sx={{
-                  color: '#64748b',
-                  '&:hover': { color: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.08)' },
-                }}
-              >
-                <Clear fontSize="small" />
-              </IconButton>
-            </Tooltip>
-          )}
+          <Box
+            component="button"
+            type="button"
+            onClick={handleClearFilters}
+            sx={{
+              border: '1px solid #e2e8f0',
+              background: '#fff',
+              color: '#64748b',
+              borderRadius: '999px',
+              px: 1.25,
+              py: 0.4,
+              fontSize: '0.8rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 0.5,
+              '&:hover': { borderColor: '#cbd5e1', color: '#0f172a' },
+            }}
+          >
+            <Clear sx={{ fontSize: 16 }} />
+            Clear Filters
+          </Box>
         </Box>
 
         <Stack
           direction="row"
           flexWrap="wrap"
           useFlexGap
-          spacing={1.25}
-          sx={{ px: { xs: 1.5, sm: 2 }, py: 1.5 }}
+          spacing={1}
+          sx={{ px: { xs: 1.25, sm: 1.5 }, pb: 1.25, pt: 0.5 }}
         >
           <TextField
             name="searchId"
@@ -334,16 +340,16 @@ export default function TabStatus() {
           />
           <TextField
             name="country"
-            placeholder="Country"
+            placeholder="Company"
             variant="outlined"
             size="small"
             value={filters.country}
             onChange={handleFilterChange}
-            sx={{ ...filterFieldSx, flex: '1 1 130px', minWidth: 130 }}
+            sx={{ ...filterFieldSx, flex: '1 1 150px', minWidth: 150 }}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
-                  <Public sx={{ fontSize: '1.1rem', color: '#94a3b8' }} />
+                  <Business sx={{ fontSize: '1.1rem', color: '#94a3b8' }} />
                 </InputAdornment>
               ),
             }}
@@ -475,63 +481,81 @@ export default function TabStatus() {
 
       {/* Desktop Tabs */}
       {!isMobile && (
-        <Card sx={{ mb: 3, overflow: 'hidden' }}>
-          <Tabs
-            value={tabValue}
-            onChange={handleTabChange}
-            aria-label="status tabs"
-            indicatorColor="primary"
-            textColor="primary"
-            variant="fullWidth"
-            sx={{
-              background: 'linear-gradient(to right, #f5f7fa, #f9fcff)',
-              '& .MuiTab-root': {
-                fontWeight: 600,
-                py: 2.5,
-                textTransform: 'none',
-                fontSize: '0.95rem',
-                minHeight: '64px',
-                transition: 'all 0.2s',
-                '&:hover': {
-                  backgroundColor: 'rgba(67, 97, 238, 0.04)',
-                },
-                '&.Mui-selected': {
-                  color: '#4361ee',
+        <Box
+          sx={{
+            mb: 1,
+            display: 'grid',
+            gridTemplateColumns: 'repeat(3, 1fr)',
+            borderRadius: '14px',
+            border: '1px solid #e8eef8',
+            backgroundColor: '#fff',
+            overflow: 'hidden',
+          }}
+        >
+          {tabs.map((tab, index) => {
+            const selected = tabValue === index;
+            return (
+              <Box
+                key={tab.label}
+                component="button"
+                type="button"
+                onClick={(event) => handleTabChange(event, index)}
+                sx={{
+                  border: 'none',
+                  borderBottom: selected ? '2px solid #3554d1' : '2px solid transparent',
+                  background: selected ? '#f3f7ff' : '#fff',
+                  color: selected ? '#3554d1' : '#64748b',
+                  py: 0.85,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 0.75,
+                  cursor: 'pointer',
                   fontWeight: 700,
-                }
-              }
-            }}
-          >
-            {tabs.map((tab, index) => (
-              <Tab
-                key={index}
-                icon={tab.icon}
-                label={tab.label}
-                iconPosition="start"
-                {...a11yProps(index)}
-              />
-            ))}
-          </Tabs>
-        </Card>
+                  fontSize: '0.95rem',
+                  fontFamily: 'inherit',
+                }}
+              >
+                {tab.icon}
+                {tab.label}
+                <Box
+                  component="span"
+                  sx={{
+                    minWidth: 28,
+                    px: 0.75,
+                    py: 0.1,
+                    borderRadius: '999px',
+                    bgcolor: selected ? '#e7efff' : '#f1f5f9',
+                    color: selected ? '#3554d1' : '#64748b',
+                    fontSize: '0.8rem',
+                    fontWeight: 700,
+                  }}
+                >
+                  {tab.count}
+                </Box>
+              </Box>
+            );
+          })}
+        </Box>
       )}
 
       {/* Mobile Dropdown Menu */}
       {isMobile && <MobileDropdownMenu />}
 
       <TabPanel value={tabValue} index={0}>
-        <Card sx={{ mb: 3, p: 3, boxShadow: '0 2px 10px rgba(0,0,0,0.05)' }}>
+        <Card sx={{ mb: 1.5, p: 1.25, boxShadow: 'none', border: '1px solid #e8eef8', borderRadius: '14px' }}>
           <Upcoming filters={filters} />
         </Card>
       </TabPanel>
 
       <TabPanel value={tabValue} index={1}>
-        <Card sx={{ mb: 3, p: 3, boxShadow: '0 2px 10px rgba(0,0,0,0.05)' }}>
+        <Card sx={{ mb: 1.5, p: 1.25, boxShadow: 'none', border: '1px solid #e8eef8', borderRadius: '14px' }}>
           <Pending filters={filters} />
         </Card>
       </TabPanel>
 
       <TabPanel value={tabValue} index={2}>
-        <Card sx={{ mb: 3, p: 3, boxShadow: '0 2px 10px rgba(0,0,0,0.05)' }}>
+        <Card sx={{ mb: 1.5, p: 1.25, boxShadow: 'none', border: '1px solid #e8eef8', borderRadius: '14px' }}>
           <Deleted filters={filters} />
         </Card>
       </TabPanel>
