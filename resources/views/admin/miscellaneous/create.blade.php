@@ -92,14 +92,23 @@
                     <div class="col-md-6">
                         <div class="mb-3 misc-form-field">
                             <label for="country" class="form-label">Country <span class="text-danger">*</span></label>
+                            @php
+                                $scopedCountryNames = collect($countryNames ?? []);
+                                $preselectedCountry = old('country', $selectedCountry ?? '');
+                                if ($preselectedCountry === '' && $scopedCountryNames->count() === 1) {
+                                    $preselectedCountry = $scopedCountryNames->first();
+                                }
+                            @endphp
                             <select class="form-select misc-search-select @error('country') is-invalid @enderror"
                                     id="country"
                                     name="country"
                                     required
                                     data-placeholder="Search country...">
-                                <option value=""></option>
-                                @foreach(($countryNames ?? []) as $cName)
-                                    <option value="{{ $cName }}" {{ old('country') === $cName ? 'selected' : '' }}>{{ $cName }}</option>
+                                @if($scopedCountryNames->count() !== 1)
+                                    <option value=""></option>
+                                @endif
+                                @foreach($scopedCountryNames as $cName)
+                                    <option value="{{ $cName }}" {{ $preselectedCountry === $cName ? 'selected' : '' }}>{{ $cName }}</option>
                                 @endforeach
                             </select>
                             @error('country')
@@ -218,8 +227,8 @@ function populateMiscCities(country, selectedCity) {
 }
 
 $(function () {
-    // Empty first option helps Select2 placeholder
-    if (!$('#country option[value=""]').length) {
+    // Empty first option helps Select2 placeholder (skip when only one DMC base country)
+    if ($('#country option').length > 1 && !$('#country option[value=""]').length) {
         $('#country').prepend('<option value=""></option>');
     }
 

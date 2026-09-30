@@ -25,10 +25,25 @@ class MiscellaneousItemController extends Controller
     }
 
     /**
-     * Countries + cities for admin create/edit dropdowns.
+     * Countries + cities for create/edit dropdowns.
+     * DMC-scoped users: only users.country (DMC base). Admins: all countries with cities.
      */
     private function getAdminCountriesAndCities(): array
     {
+        $user = auth()->user();
+        $adminRoles = [1, 2, 3, 23];
+        $isAdmin = $user && in_array((int) ($user->role_id ?? 0), $adminRoles, true);
+
+        if (!$isAdmin && $user) {
+            $dmcId = $this->resolveDmcIdForUser($user);
+            $countryNames = $this->getAccessibleCountryNames((int) ($dmcId ?: 0), $user);
+            if (!empty($countryNames)) {
+                $citiesByCountry = $this->getCitiesGroupedByCountry($countryNames);
+
+                return [$countryNames, $citiesByCountry];
+            }
+        }
+
         $countryNames = City::query()
             ->whereNotNull('country')
             ->where('country', '!=', '')
@@ -52,8 +67,9 @@ class MiscellaneousItemController extends Controller
     public function create()
     {
         [$countryNames, $citiesByCountry] = $this->getAdminCountriesAndCities();
+        $selectedCountry = old('country', count($countryNames) === 1 ? ($countryNames[0] ?? '') : '');
 
-        return view('admin.miscellaneous.create', compact('countryNames', 'citiesByCountry'));
+        return view('admin.miscellaneous.create', compact('countryNames', 'citiesByCountry', 'selectedCountry'));
     }
 
     /**
@@ -101,8 +117,15 @@ class MiscellaneousItemController extends Controller
     {
         $item = MiscellaneousItem::where('mis_id', Crypt::decrypt($id))->firstOrFail();
         [$countryNames, $citiesByCountry] = $this->getAdminCountriesAndCities();
+        $selectedCountry = old('country', $item->country ?? (count($countryNames) === 1 ? ($countryNames[0] ?? '') : ''));
+        // Keep saved country in list if outside current scope
+        if (filled($selectedCountry) && !in_array($selectedCountry, $countryNames, true)) {
+            $countryNames[] = $selectedCountry;
+            sort($countryNames);
+            $citiesByCountry = $this->getCitiesGroupedByCountry($countryNames);
+        }
 
-        return view('admin.miscellaneous.edit', compact('item', 'countryNames', 'citiesByCountry'));
+        return view('admin.miscellaneous.edit', compact('item', 'countryNames', 'citiesByCountry', 'selectedCountry'));
     }
 
     /**
@@ -174,48 +197,34 @@ class MiscellaneousItemController extends Controller
         if (!$user) {
             return null;
         }
-        if ((int) $user->role_id === 11) {
+        $roleId = (int) ($user->role_id ?? 0);
+        if (in_array($roleId, [11, 20], true)) {
             return (int) $user->userId;
         }
-        if (in_array((int) $user->role_id, [35, 77, 78, 84, 130, 132, 133, 135, 136, 137, 138], true)) {
-            return (int) ($user->created_by ?: $user->userId);
+        if (in_array($roleId, [35, 77, 78, 84, 130, 132, 133, 135, 136, 137, 138], true)) {
+            return $user->created_by ? (int) $user->created_by : null;
         }
-        return (int) $user->userId;
+        if (in_array($roleId, [76, 139], true)) {
+            $productHead = User::where('userId', $user->created_by)->first();
+            return $productHead && $productHead->created_by ? (int) $productHead->created_by : null;
+        }
+        if (in_array($roleId, [111, 140], true)) {
+            $productManager = User::where('userId', $user->created_by)->first();
+            $productHead = $productManager ? User::where('userId', $productManager->created_by)->first() : null;
+            return $productHead && $productHead->created_by ? (int) $productHead->created_by : null;
+        }
+
+        return null;
     }
 
+    /**
+     * DMC base country names from users.country only (not master DMC countries).
+     */
     private function getAccessibleCountryNames(int $dmcId, \App\Models\User $user): array
     {
-        $dmcUser = \App\Models\User::where('userId', $dmcId)->first();
-        if ($dmcUser) {
-            $masterDmcId = $dmcUser->master_dmc_id ?? null;
-            if (empty($masterDmcId)) {
-                $visited = [];
-                $candidateId = $dmcUser->created_by ?? null;
-                $safety = 0;
-                while (!empty($candidateId) && $safety < 8 && !in_array($candidateId, $visited, true)) {
-                    $visited[] = $candidateId;
-                    $candidate = \App\Models\User::where('userId', $candidateId)->first();
-                    if (!$candidate) {
-                        break;
-                    }
-                    if ((int) ($candidate->role_id ?? 0) === 3) {
-                        $masterDmcId = $candidate->userId;
-                        break;
-                    }
-                    $candidateId = $candidate->created_by ?? null;
-                    $safety++;
-                }
-            }
-
-            $masterDmc = \App\Models\User::where('userId', $masterDmcId ?: $dmcId)->first();
-            if ($masterDmc && !empty($masterDmc->country)) {
-                return array_values(array_filter(array_map(
-                    static fn ($c) => trim($c),
-                    preg_split('/\s*,\s*/', (string) $masterDmc->country)
-                )));
-            }
-
-            if (!empty($dmcUser->country)) {
+        if ($dmcId > 0) {
+            $dmcUser = User::where('userId', $dmcId)->first();
+            if ($dmcUser && !empty($dmcUser->country)) {
                 return array_values(array_filter(array_map(
                     static fn ($c) => trim($c),
                     preg_split('/\s*,\s*/', (string) $dmcUser->country)
@@ -239,16 +248,40 @@ class MiscellaneousItemController extends Controller
             return [];
         }
 
-        $cities = \App\Models\City::whereIn('country', $countryNames)
+        $cities = City::where(function ($q) use ($countryNames) {
+            foreach ($countryNames as $name) {
+                $q->orWhereRaw('LOWER(TRIM(country)) = ?', [mb_strtolower(trim($name))]);
+            }
+        })
             ->orderBy('name')
             ->get(['name', 'country', 'city_id']);
 
         $grouped = [];
-        foreach ($cities as $city) {
-            $grouped[$city->country][] = [
+        $addCity = static function (array &$grouped, string $key, $city): void {
+            if ($key === '') {
+                return;
+            }
+            if (!isset($grouped[$key])) {
+                $grouped[$key] = [];
+            }
+            foreach ($grouped[$key] as $existing) {
+                if ((string) ($existing['name'] ?? '') === (string) $city->name) {
+                    return;
+                }
+            }
+            $grouped[$key][] = [
                 'name' => $city->name,
                 'city_id' => $city->city_id,
             ];
+        };
+
+        foreach ($cities as $city) {
+            $addCity($grouped, (string) $city->country, $city);
+            foreach ($countryNames as $accessibleName) {
+                if (strcasecmp(trim((string) $city->country), trim((string) $accessibleName)) === 0) {
+                    $addCity($grouped, (string) $accessibleName, $city);
+                }
+            }
         }
 
         return $grouped;
@@ -341,7 +374,7 @@ class MiscellaneousItemController extends Controller
         }
 
         $dmc_id = $this->resolveDmcIdForUser($user);
-        $countryNames = $this->getAccessibleCountryNames((int) $dmc_id, $user);
+        $countryNames = $this->getAccessibleCountryNames((int) ($dmc_id ?: 0), $user);
         $citiesByCountry = $this->getCitiesGroupedByCountry($countryNames);
 
         $priceRows = MiscellaneousPrice::where('dmc_id', $dmc_id)
@@ -363,29 +396,45 @@ class MiscellaneousItemController extends Controller
             ->values();
 
         $selectedItemIds = $selectedItems->pluck('mis_id')->toArray();
-        $availableItems = MiscellaneousItem::active()
+        $dmcBaseCountries = $countryNames; // before merging saved price countries
+        $availableItemsQuery = MiscellaneousItem::active()
             ->whereNotIn('mis_id', $selectedItemIds)
-            ->orderBy('item_name', 'asc')
-            ->get();
+            ->orderBy('item_name', 'asc');
 
-        // Ensure item countries appear in dropdowns even if outside master-DMC list
-        $extraCountries = $selectedItems->pluck('country')
-            ->merge($availableItems->pluck('country'))
+        // Available list: only items in DMC base country (users.country)
+        if (!empty($dmcBaseCountries)) {
+            $availableItemsQuery->where(function ($q) use ($dmcBaseCountries) {
+                foreach ($dmcBaseCountries as $name) {
+                    $q->orWhereRaw('LOWER(TRIM(COALESCE(country, \'\'))) = ?', [mb_strtolower(trim((string) $name))]);
+                }
+            });
+        } else {
+            // No DMC country configured — show nothing rather than all countries
+            $availableItemsQuery->whereRaw('0 = 1');
+        }
+
+        $availableItems = $availableItemsQuery->get();
+
+        // Keep already-saved price countries visible (readonly history), still DMC-base first
+        $savedPriceCountries = $priceRows
+            ->pluck('country')
             ->map(fn ($c) => trim((string) $c))
             ->filter()
             ->unique()
             ->values()
             ->all();
-        $countryNames = array_values(array_unique(array_merge($countryNames, $extraCountries)));
+        $countryNames = array_values(array_unique(array_merge($dmcBaseCountries, $savedPriceCountries)));
         sort($countryNames);
         $citiesByCountry = $this->getCitiesGroupedByCountry($countryNames);
+        $selectedCountry = count($dmcBaseCountries) === 1 ? ($dmcBaseCountries[0] ?? '') : '';
 
         return view('services.miscellaneous', compact(
             'availableItems',
             'selectedItems',
             'dmc_id',
             'countryNames',
-            'citiesByCountry'
+            'citiesByCountry',
+            'selectedCountry'
         ));
     }
 
@@ -471,6 +520,18 @@ class MiscellaneousItemController extends Controller
             $item = MiscellaneousItem::find($itemId);
             if (!$item) {
                 return response()->json(['success' => false, 'message' => 'Item not found'], 404);
+            }
+
+            $dmcBaseCountries = $this->getAccessibleCountryNames((int) ($dmc_id ?: 0), $user);
+            $itemCountry = $this->normalizeLocation($item->country ?? '');
+            $itemInScope = empty($dmcBaseCountries) ? false : collect($dmcBaseCountries)->contains(
+                fn ($c) => strcasecmp(trim((string) $c), $itemCountry) === 0
+            );
+            if (!$itemInScope) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'This item is outside your DMC base country and cannot be added.',
+                ], 422);
             }
 
             $locationsPayload = $request->input('locations');

@@ -11,11 +11,13 @@
     function cfg() { return window.STP_LITE_CONFIG || {}; }
 
     function guestCounts(root) {
+        var T = S();
+        var tour = (T.tourGuests && T.tourGuests()) || {};
         return {
             adults: parseInt((root.querySelector('.attraction-adults') || {}).value, 10) || 0,
             children: parseInt((root.querySelector('.attraction-children') || {}).value, 10) || 0,
             seniors: parseInt((root.querySelector('.attraction-seniors') || {}).value, 10) || 0,
-            infants: 0
+            infants: Math.max(0, parseInt(tour.infants, 10) || 0)
         };
     }
 
@@ -29,9 +31,9 @@
             '    <div class="col-md-3"><label class="stp-lite-label">City</label>' +
             '      <div class="stp-lite-city-static">' + T.esc(T.cityLabel(stay)) + '</div></div>' +
             '    <div class="col-md-3"><label class="stp-lite-label">Attraction</label>' +
-            '      <select class="form-select form-select-sm attraction-select" disabled><option value="">Loading…</option></select></div>' +
+            '      <select class="form-select form-select-sm attraction-select" disabled data-no-select2="true"><option value="">Loading…</option></select></div>' +
             '    <div class="col-md-3"><label class="stp-lite-label">Ticket</label>' +
-            '      <select class="form-select form-select-sm attraction-ticket" disabled><option value="">Select attraction</option></select></div>' +
+            '      <select class="form-select form-select-sm attraction-ticket" disabled data-no-select2="true"><option value="">Select attraction</option></select></div>' +
             '    <div class="col-md-3"><label class="stp-lite-label">Visit time</label>' +
             T.ampmTimeHtml('attraction', '') +
             '</div>' +
@@ -48,7 +50,7 @@
             '    <div class="col-md-2">' + T.transferRequiredSelectHtml(PREFIX) + '</div>' +
             '    <div class="col-md-2">' + T.guideRequiredSelectHtml(PREFIX) + '</div>' +
             '  </div>' +
-            T.transferExtrasHtml(PREFIX) +
+            T.transferExtrasHtml(PREFIX, stay) +
             T.guideExtrasHtml(PREFIX) +
             '  <div class="row g-2 mb-2">' +
             '    <div class="col-md-12 d-flex align-items-end gap-2 flex-wrap">' +
@@ -73,14 +75,7 @@
 
     function writeChunk(root, rows) {
         var T = S();
-        rows = (rows || []).map(function (r) {
-            if (!r || typeof r !== 'object') return r;
-            var display = typeof T.serviceRowDisplayTotal === 'function' ? T.serviceRowDisplayTotal(r) : Number(r.totalPrice || 0);
-            if (display > Number(r.totalPrice || 0)) {
-                r = Object.assign({}, r, { totalPrice: display, grand_total: display });
-            }
-            return r;
-        });
+        // Persist ticket-only totals; header/list compose ticket+xfer+guide via serviceRowDisplayTotal
         var el = root.querySelector('.attraction_data_chunk');
         if (el) el.value = JSON.stringify(rows || []);
         T.syncHiddenJson('attraction_data', '.attraction_data_chunk');
@@ -113,31 +108,124 @@
         if (add) add.disabled = true;
     }
 
+    function bundleIconUrl() {
+        return (cfg().bundleAttractionIcon)
+            || ((window.location && window.location.origin) ? (window.location.origin + '/assets/images/bundle-attraction-icon.png') : '');
+    }
+
+    function formatAttractionOption(option) {
+        if (!option.id) return option.text;
+        var el = option.element;
+        if (el && el.dataset && el.dataset.isBundle === '1') {
+            var icon = bundleIconUrl();
+            if (window.jQuery && icon) {
+                var $wrap = window.jQuery('<span class="stp-lite-bundle-opt"></span>');
+                $wrap.append(window.jQuery('<img>', {
+                    src: icon,
+                    alt: 'Bundle',
+                    class: 'stp-lite-bundle-opt__icon'
+                }));
+                $wrap.append(document.createTextNode(option.text || el.dataset.name || 'Bundle'));
+                return $wrap;
+            }
+            return '📦 ' + (option.text || 'Bundle');
+        }
+        return option.text;
+    }
+
+    function destroyAttractionSelect2(select) {
+        if (!select || typeof window.jQuery === 'undefined' || !window.jQuery.fn || !window.jQuery.fn.select2) return;
+        var $sel = window.jQuery(select);
+        if ($sel.hasClass('select2-hidden-accessible')) {
+            try { $sel.select2('destroy'); } catch (e) { /* ignore */ }
+        }
+    }
+
+    function initAttractionSelect2(select) {
+        if (!select || typeof window.jQuery === 'undefined' || !window.jQuery.fn || !window.jQuery.fn.select2) return;
+        var $sel = window.jQuery(select);
+        destroyAttractionSelect2(select);
+        $sel.select2({
+            placeholder: 'Select attraction',
+            allowClear: true,
+            width: '100%',
+            templateResult: formatAttractionOption,
+            templateSelection: formatAttractionOption
+        });
+    }
+
     function loadAttractions(root, stay) {
         var T = S();
         var select = root.querySelector('.attraction-select');
         if (!select) return Promise.resolve();
         var q = T.inv(stay.cityName, stay.country);
+        destroyAttractionSelect2(select);
         select.disabled = true;
         select.innerHTML = '<option value="">Loading attractions…</option>';
         return T.fetchJson((cfg().routes.fetchAttractionsByDmc || '') + '?' + q.qs)
             .then(function (res) {
                 var list = (res && res.attractions) || [];
+                var bundles = (res && res.bundles) || [];
                 root.__attractions = list;
+                root.__bundles = bundles;
                 select.innerHTML = '<option value="">Select attraction</option>';
                 list.forEach(function (a) {
                     var opt = document.createElement('option');
                     opt.value = a.attraction_id || a.id;
                     opt.textContent = a.name || a.attraction_name || 'Attraction';
                     opt.dataset.name = a.name || a.attraction_name || '';
+                    opt.dataset.isBundle = '0';
+                    select.appendChild(opt);
+                });
+                // Packaged attraction bundles — shown with bundle icon (classic parity)
+                bundles.forEach(function (b) {
+                    var opt = document.createElement('option');
+                    var pid = b.package_attraction_id || b.id;
+                    opt.value = 'bundle_' + pid;
+                    opt.textContent = b.name || 'Bundle';
+                    opt.dataset.name = b.name || 'Bundle';
+                    opt.dataset.isBundle = '1';
+                    opt.dataset.packageAttractionId = String(pid || '');
+                    opt.dataset.vehicleIncluded = b.vehicle_included ? '1' : '0';
+                    opt.dataset.guideIncluded = b.guide_included ? '1' : '0';
+                    opt.dataset.adultPrice = b.adult_price || 0;
+                    opt.dataset.childPrice = b.child_price || 0;
+                    opt.dataset.seniorPrice = b.senior_adult_price || b.senior_citizen_price || 0;
                     select.appendChild(opt);
                 });
                 select.disabled = false;
+                initAttractionSelect2(select);
             })
             .catch(function () {
                 select.innerHTML = '<option value="">Error loading</option>';
                 select.disabled = false;
+                initAttractionSelect2(select);
             });
+    }
+
+    function applyBundleSelection(root, stay, aOpt) {
+        var T = S();
+        var ticket = root.querySelector('.attraction-ticket');
+        if (!ticket || !aOpt) return;
+        ticket.innerHTML = '<option value="">Select ticket</option>';
+        var opt = document.createElement('option');
+        opt.value = aOpt.value;
+        opt.textContent = (aOpt.dataset.name || aOpt.textContent || 'Bundle') + ' (Bundle)';
+        opt.dataset.name = aOpt.dataset.name || '';
+        opt.dataset.adultPrice = aOpt.dataset.adultPrice || 0;
+        opt.dataset.childPrice = aOpt.dataset.childPrice || 0;
+        opt.dataset.seniorPrice = aOpt.dataset.seniorPrice || 0;
+        ticket.appendChild(opt);
+        ticket.value = opt.value;
+        ticket.disabled = false;
+
+        T.applyMasterGuideVehicle(
+            root,
+            PREFIX,
+            aOpt.dataset.vehicleIncluded === '1',
+            aOpt.dataset.guideIncluded === '1',
+            { preserve: !!root.__hydrating }
+        );
     }
 
     function loadTickets(root, stay, attractionId) {
@@ -147,7 +235,20 @@
         if (!attractionId) {
             ticket.innerHTML = '<option value="">Select attraction</option>';
             ticket.disabled = true;
+            if (typeof T.unlockMasterGuideVehicle === 'function' && !root.__hydrating) {
+                T.unlockMasterGuideVehicle(root, PREFIX);
+            }
             return Promise.resolve();
+        }
+        // Bundle: no ticket API — use package prices as a single ticket option
+        var attr = root.querySelector('.attraction-select');
+        var aOpt = attr && attr.options[attr.selectedIndex];
+        if (aOpt && aOpt.dataset.isBundle === '1') {
+            applyBundleSelection(root, stay, aOpt);
+            return Promise.resolve();
+        }
+        if (typeof T.unlockMasterGuideVehicle === 'function' && !root.__hydrating) {
+            T.unlockMasterGuideVehicle(root, PREFIX);
         }
         var q = T.inv(stay.cityName, stay.country);
         ticket.disabled = true;
@@ -197,13 +298,42 @@
         var xfer = T.calcInlineTransferPrice(root, PREFIX, g.adults + g.seniors, g.children, g.infants);
         T.refreshTransferCostDisplay(root, PREFIX, g.adults + g.seniors, g.children, g.infants);
         var guide = T.calcInlineGuidePrice(root, PREFIX);
-        // Always compose ticket + transfer + guide (top grid must include extras)
         var total = ticketTotal + (Number(xfer) || 0) + (Number(guide.total) || 0);
-        var parts = [g.adults + '×' + adultP.toFixed(2)];
-        if (g.children) parts.push(g.children + '×' + childP.toFixed(2));
-        if (g.seniors) parts.push(g.seniors + '×' + seniorP.toFixed(2));
-        if (xfer) parts.push('xfer ' + Number(xfer).toFixed(2));
-        if (guide.total) parts.push('guide ' + Number(guide.total).toFixed(2));
+        var cur = root.getAttribute('data-currency') || 'SGD';
+        var xferOpts = (Number(xfer) > 0 && typeof T.collectTransferOptions === 'function')
+            ? T.collectTransferOptions(root, PREFIX, g.adults + g.seniors, g.children, g.infants)
+            : null;
+        var transferHtml = (xferOpts && typeof T.transferPriceDetailHtml === 'function')
+            ? T.transferPriceDetailHtml(xferOpts, g.adults + g.seniors, g.children, g.infants, cur)
+            : '';
+        if (!transferHtml && xfer && typeof T.priceFormulaRowHtml === 'function') {
+            transferHtml = T.priceFormulaRowHtml(
+                '<strong>Transfer</strong>',
+                cur + ' ' + Number(xfer).toFixed(2)
+            );
+        }
+        var guideHtml = '';
+        if (guide.total && typeof T.priceFormulaRowHtml === 'function') {
+            guideHtml = T.priceFormulaRowHtml(
+                '<strong>Guide</strong>',
+                cur + ' ' + Number(guide.total).toFixed(2)
+            );
+        }
+        var breakdownHtml = typeof T.paxPriceLinesHtml === 'function'
+            ? T.paxPriceLinesHtml({
+                currency: cur,
+                metaHtml: '<div class="small text-muted mb-1">' + T.esc((opt.dataset.name || opt.textContent || 'Ticket')) + '</div>',
+                adults: g.adults,
+                children: g.children,
+                seniors: g.seniors,
+                infants: g.infants,
+                adultPrice: adultP,
+                childPrice: childP,
+                seniorPrice: seniorP,
+                infantPrice: 0,
+                extraHtml: (transferHtml || '') + guideHtml
+            })
+            : '';
         root.__lastPrice = {
             total: total,
             ticketTotal: ticketTotal,
@@ -212,15 +342,19 @@
             adultPrice: adultP,
             childPrice: childP,
             seniorPrice: seniorP,
-            breakdown: parts.join(' + ')
+            infantPrice: 0,
+            adults: g.adults,
+            children: g.children,
+            seniors: g.seniors,
+            infants: g.infants,
+            breakdown: breakdownHtml
         };
-        var cur = root.getAttribute('data-currency') || 'SGD';
         var panel = root.querySelector('[data-attraction-price-panel]');
         var totalEl = root.querySelector('.attraction-price-total');
         var detail = root.querySelector('.attraction-price-detail');
         if (panel) panel.classList.remove('d-none');
         if (totalEl) totalEl.textContent = cur + ' ' + total.toFixed(2);
-        if (detail) detail.textContent = root.__lastPrice.breakdown;
+        if (detail) detail.innerHTML = breakdownHtml;
         var add = root.querySelector('.attraction-add-btn');
         if (add) add.disabled = false;
     }
@@ -239,12 +373,10 @@
         var xferGuests = g.adults + g.seniors;
         var transferOptions = T.collectTransferOptions(root, PREFIX, xferGuests, g.children, g.infants);
         var guideOptions = T.collectGuideOptions(root, PREFIX);
-        var xferCost = transferOptions ? (Number(transferOptions.cost) || 0) : 0;
-        var guideCost = guideOptions ? (Number(guideOptions.total_price) || 0) : 0;
-        // Recompute on Add so total never stays ticket-only when guide/vehicle selected
-        var total = ticketTotal + xferCost + guideCost;
-        if (root.__lastPrice && Number(root.__lastPrice.total) > total) {
-            total = Number(root.__lastPrice.total) || total;
+        // Store ticket-only; transfer/guide costs live in nested options (classic parity)
+        var total = ticketTotal;
+        if (root.__lastPrice && root.__lastPrice.ticketTotal != null) {
+            total = Number(root.__lastPrice.ticketTotal) || total;
         }
         var supplement = T.autoSupplement(g.adults + g.seniors);
         var visitTime = T.readAmPmValue(root, 'attraction');
@@ -262,8 +394,10 @@
             adultCount: g.adults,
             childCount: g.children,
             seniorCount: g.seniors,
+            infantCount: g.infants,
             adults: g.adults,
             children: g.children,
+            infants: g.infants,
             visitTime: visitTime,
             bookingDate: (root.querySelector('.attraction-date') || {}).value || stay.start || '',
             totalPrice: total,
@@ -272,11 +406,18 @@
             is_supplement: !!supplement,
             transfer_options: transferOptions,
             guide_options: guideOptions,
+            is_bundle: !!(aOpt && aOpt.dataset.isBundle === '1'),
+            package_attraction_id: (aOpt && aOpt.dataset.isBundle === '1')
+                ? (aOpt.dataset.packageAttractionId || String(attr.value || '').replace(/^bundle_/, ''))
+                : null,
+            vehicle_included: !!(aOpt && aOpt.dataset.vehicleIncluded === '1'),
+            guide_included: !!(aOpt && aOpt.dataset.guideIncluded === '1'),
             city: stay.cityName || '',
             country: stay.country || '',
             currency: stay.currency || '',
             plan_index: stay.planIndex || '',
-            remarks: ''
+            remarks: '',
+            bookingType: T.resolveRowBookingType ? T.resolveRowBookingType(null) : 'enquiry'
         };
     }
 
@@ -342,16 +483,15 @@
         function afterTickets() {
             var ticket = root.querySelector('.attraction-ticket');
             if (ticket && row.ticketId) ticket.value = String(row.ticketId);
+            var ticketOnly = Number(row.totalPrice != null ? row.totalPrice : (row.grand_total || 0)) || 0;
             var displayTotal = typeof T.serviceRowDisplayTotal === 'function'
                 ? T.serviceRowDisplayTotal(row)
-                : (row.totalPrice || 0);
-            // Keep stored row total in sync when classic data was ticket-only
-            if (displayTotal > Number(row.totalPrice || 0)) {
-                row.totalPrice = displayTotal;
-                row.grand_total = displayTotal;
-            }
+                : ticketOnly;
             root.__lastPrice = {
                 total: displayTotal,
+                ticketTotal: ticketOnly,
+                transferTotal: (row.transfer_options && Number(row.transfer_options.cost)) || 0,
+                guideTotal: (row.guide_options && Number(row.guide_options.total_price)) || 0,
                 breakdown: (row.ticket_details
                     ? ((row.adultCount || 0) + '×' + Number((row.ticket_details || {}).adult_price || 0).toFixed(2))
                     : '')
@@ -367,13 +507,31 @@
         }
 
         var extras = Promise.all([
-            T.hydrateTransferExtras(root, PREFIX, row.transfer_options, stay),
+            T.hydrateTransferExtras(root, PREFIX, row.transfer_options, stay, {
+                adults: (row.adultCount || 0) + (row.seniorCount || 0),
+                children: row.childCount || 0,
+                infants: row.infantCount || 0
+            }),
             T.hydrateGuideExtras(root, PREFIX, row.guide_options, stay)
-        ]);
+        ]).then(function () {
+            var opt = attr && attr.options[attr.selectedIndex];
+            var vehicleYes = row.vehicle_included || (opt && opt.dataset && opt.dataset.vehicleIncluded === '1');
+            var guideYes = row.guide_included || (opt && opt.dataset && opt.dataset.guideIncluded === '1');
+            if ((row.is_bundle || row.package_attraction_id) && typeof T.applyMasterGuideVehicle === 'function') {
+                T.applyMasterGuideVehicle(root, PREFIX, vehicleYes, guideYes, { preserve: true });
+            }
+        });
 
         if (attr && row.AttractionId) {
-            attr.value = String(row.AttractionId);
-            Promise.all([loadTickets(root, stay, row.AttractionId), extras]).then(afterTickets);
+            var attrVal = String(row.AttractionId);
+            if ((row.is_bundle || row.package_attraction_id) && attrVal.indexOf('bundle_') !== 0) {
+                attrVal = 'bundle_' + (row.package_attraction_id || attrVal);
+            }
+            attr.value = attrVal;
+            if (window.jQuery && window.jQuery(attr).data('select2')) {
+                window.jQuery(attr).val(attrVal).trigger('change.select2');
+            }
+            Promise.all([loadTickets(root, stay, attrVal), extras]).then(afterTickets);
         } else {
             extras.then(afterTickets);
         }
@@ -383,9 +541,13 @@
         if (!root.__lastPrice) { alert('Please Get Price first.'); return; }
         var rows = readChunk(root);
         var payload = collectPayload(root, stay);
+        var T = S();
         if (root.__editingIdx != null && root.__editingIdx >= 0 && root.__editingIdx < rows.length) {
             payload.supplement = rows[root.__editingIdx].supplement;
             payload.is_supplement = rows[root.__editingIdx].is_supplement;
+            payload.bookingType = T.resolveRowBookingType
+                ? T.resolveRowBookingType(rows[root.__editingIdx])
+                : (rows[root.__editingIdx].bookingType || payload.bookingType);
             rows[root.__editingIdx] = payload;
             root.__editingIdx = null;
             setAddMode(root, false);
@@ -429,10 +591,16 @@
 
         var attr = root.querySelector('.attraction-select');
         if (attr) {
-            attr.addEventListener('change', function () {
+            // Native + Select2 both fire change
+            var onAttrChange = function () {
                 if (!root.__hydrating) invalidate(root);
                 loadTickets(root, stay, attr.value);
-            });
+            };
+            attr.addEventListener('change', onAttrChange);
+            if (window.jQuery) {
+                window.jQuery(attr).off('select2:select.stpBundle select2:clear.stpBundle')
+                    .on('select2:select.stpBundle select2:clear.stpBundle', onAttrChange);
+            }
         }
 
         root.querySelector('.attraction-get-price-btn').addEventListener('click', function () { getPrice(root); });
@@ -495,17 +663,57 @@
                 var td = r.ticket_details || {};
                 var xfer = r.transfer_options || {};
                 var guide = r.guide_options || {};
+                var cur = r.currency || root.getAttribute('data-currency') || 'SGD';
+                var infants = Math.max(0, parseInt(r.infantCount != null ? r.infantCount : r.infants, 10) || 0);
+                if (infants <= 0 && T.tourGuests) {
+                    infants = Math.max(0, parseInt((T.tourGuests() || {}).infants, 10) || 0);
+                }
+                var adultsXfer = Math.max(0, parseInt(r.adultCount != null ? r.adultCount : r.adults, 10) || 0)
+                    + Math.max(0, parseInt(r.seniorCount, 10) || 0);
+                var childrenXfer = Math.max(0, parseInt(r.childCount != null ? r.childCount : r.children, 10) || 0);
+                var transferHtml = (xfer.transfer_required && typeof T.transferPriceDetailHtml === 'function')
+                    ? T.transferPriceDetailHtml(
+                        xfer,
+                        xfer.adults != null ? xfer.adults : adultsXfer,
+                        xfer.children != null ? xfer.children : childrenXfer,
+                        xfer.infants != null ? xfer.infants : infants,
+                        cur
+                    )
+                    : '';
+                if (!transferHtml && xfer.transfer_required && typeof T.priceFormulaRowHtml === 'function') {
+                    transferHtml = T.priceFormulaRowHtml(
+                        '<strong>Transfer</strong> (' + T.esc(xfer.type || '') + ')',
+                        cur + ' ' + Number(xfer.cost || 0).toFixed(2)
+                    );
+                }
+                var guideHtml = '';
+                if (guide.guide_required && typeof T.priceFormulaRowHtml === 'function') {
+                    guideHtml = T.priceFormulaRowHtml(
+                        '<strong>Guide</strong>',
+                        cur + ' ' + Number(guide.total_price || 0).toFixed(2)
+                    );
+                }
+                var detailHtml = typeof T.paxPriceLinesHtml === 'function'
+                    ? T.paxPriceLinesHtml({
+                        currency: cur,
+                        metaHtml: '<div class="small text-muted mb-1">' + T.esc(r.ticketName || '') +
+                            (r.visitTime ? ' · ' + T.esc(r.visitTime) : '') + '</div>',
+                        adults: r.adultCount || r.adults || 0,
+                        children: r.childCount || r.children || 0,
+                        seniors: r.seniorCount || 0,
+                        infants: infants,
+                        adultPrice: Number(td.adult_price || 0),
+                        childPrice: Number(td.child_price || 0),
+                        seniorPrice: Number(td.senior_adult_price || 0),
+                        infantPrice: 0,
+                        extraHtml: (transferHtml || '') + guideHtml
+                    })
+                    : '';
                 T.showPriceBreakdownModal(
                     r.AttractionName || 'Attraction',
-                    r.currency || root.getAttribute('data-currency'),
+                    cur,
                     (typeof T.serviceRowDisplayTotal === 'function' ? T.serviceRowDisplayTotal(r) : r.totalPrice),
-                    '<div class="small text-muted">' + T.esc(r.ticketName || '') +
-                    '<br>' + T.esc(r.adultCount || 0) + 'A × ' + Number(td.adult_price || 0).toFixed(2) +
-                    (r.childCount ? ' · ' + T.esc(r.childCount) + 'C × ' + Number(td.child_price || 0).toFixed(2) : '') +
-                    (r.seniorCount ? ' · ' + T.esc(r.seniorCount) + 'S × ' + Number(td.senior_adult_price || 0).toFixed(2) : '') +
-                    (xfer.transfer_required ? '<br>Transfer (' + T.esc(xfer.type || '') + '): ' + Number(xfer.cost || 0).toFixed(2) : '') +
-                    (guide.guide_required ? '<br>Guide: ' + Number(guide.total_price || 0).toFixed(2) : '') +
-                    (r.visitTime ? '<br>Time: ' + T.esc(r.visitTime) : '') + '</div>'
+                    detailHtml
                 );
             }
         });

@@ -918,7 +918,6 @@ class JobSheetController extends Controller
     {
         $user = auth()->user();
         $dmcs = [];
-
         if ($user->role_id == 10) {
             $dmc_ids = User::where('master_dmc_id', $user->userId)->where('role_id', 11)->get()->pluck('userId')->toArray();
             $dmcs = User::wherein('userId', $dmc_ids)->get();
@@ -940,8 +939,6 @@ class JobSheetController extends Controller
             $dmc_ids = User::where('master_dmc_id', $master_dmc_id)->where('role_id', 11)->get()->pluck('userId')->toArray();
             $dmcs = User::wherein('userId', $dmc_ids)->get();
         }
-
-
         $dmcGuides = [];
         if(in_array($user->role_id, [11, 34, 66, 108, 128, 131, 132, 134, 135, 137, 138])){
             if($user->role_id == 11 || $user->role_id == 20){
@@ -966,7 +963,6 @@ class JobSheetController extends Controller
                 $dmcGuides = Guide::orderBy('updated_at', 'desc')->where('dmc_id', $resolvedDmcId)->with('languages')->get();
             }
         }
-
         return view('jobSheet.guide-jobs', compact('dmcs', 'dmcGuides'));
     }
 
@@ -992,8 +988,6 @@ class JobSheetController extends Controller
             ], 500);
         }
     }
-
-
     /**
      * Get Guide Schedule from orders
      */

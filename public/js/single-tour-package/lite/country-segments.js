@@ -463,9 +463,58 @@
         syncStayDatesWithTourWindow();
         collectPlans();
         updateServicesGate();
+        applyRestrictedStayLocks();
         if (!window.__stpLiteSkipCountrySections) {
             scheduleRenderCountrySections();
         }
+    }
+
+    function applyRestrictedStayLocks() {
+        if (!window.isRestrictedThirdParty || !window.isRestrictedThirdParty()) return;
+        document.querySelectorAll('#segmentsWrapper .segment').forEach(function (row) {
+            var country = String(row.getAttribute('data-country') || '').trim();
+            if (!country && window.resolveCountryForCity) {
+                country = String(window.resolveCountryForCity(row.getAttribute('data-city-name') || '') || '').trim();
+            }
+            var locked = window.isForeignLockedCountry && window.isForeignLockedCountry(country);
+            row.classList.toggle('is-tp-blocked', !!locked);
+            row.querySelectorAll('.start-date, .end-date, .city-return-toggle').forEach(function (el) {
+                el.disabled = !!locked;
+                if (locked) {
+                    el.title = 'Cannot change another country stay';
+                }
+            });
+        });
+    }
+
+    function applyRestrictedCountrySectionLocks() {
+        if (!window.isRestrictedThirdParty || !window.isRestrictedThirdParty()) return;
+        document.querySelectorAll('.stp-lite-country-section').forEach(function (section) {
+            var country = String(section.getAttribute('data-country') || '').trim();
+            if (!country && window.resolveCountryForCity) {
+                country = String(window.resolveCountryForCity(section.getAttribute('data-city-name') || '') || '').trim();
+            }
+            var locked = window.isForeignLockedCountry && window.isForeignLockedCountry(country);
+            section.classList.toggle('is-tp-blocked', !!locked);
+            section.querySelectorAll('.stp-lite-country-body input, .stp-lite-country-body select, .stp-lite-country-body textarea, .stp-lite-country-body button, .stp-lite-country-body a').forEach(function (el) {
+                if (el.type === 'hidden') return;
+                if (locked) {
+                    el.disabled = true;
+                    el.setAttribute('tabindex', '-1');
+                }
+            });
+            var header = section.querySelector('.stp-lite-country-header');
+            if (!header) return;
+            var note = header.querySelector('.stp-lite-tp-lock-note');
+            if (locked && !note) {
+                note = document.createElement('div');
+                note.className = 'stp-lite-tp-lock-note';
+                note.textContent = 'Other country — view only. You cannot change these services.';
+                header.appendChild(note);
+            } else if (!locked && note) {
+                note.remove();
+            }
+        });
     }
 
     function formatStayRange(start, end) {
@@ -488,13 +537,28 @@
 
         return sorted.map(function (p, idx) {
             var country = p.country || 'Unknown';
+            var dmcId = (window.StpLiteGeo && typeof window.StpLiteGeo.resolveDmcIdForCity === 'function')
+                ? window.StpLiteGeo.resolveDmcIdForCity(p.cityName, country)
+                : ((window.StpLiteGeo && typeof window.StpLiteGeo.resolveSiblingDmcId === 'function')
+                    ? window.StpLiteGeo.resolveSiblingDmcId(country)
+                    : (cfg().dmcId || ''));
+            var zoneMap = (window.STP_LITE_CONFIG && window.STP_LITE_CONFIG.siblingDmcZoneOnMap) || {};
+            var zoneId = dmcId != null && dmcId !== '' ? String(dmcId) : '';
+            var zoneOn = 0;
+            if (zoneId && (zoneMap[zoneId] != null || zoneMap[parseInt(zoneId, 10)] != null)) {
+                var zFlag = zoneMap[zoneId] != null ? zoneMap[zoneId] : zoneMap[parseInt(zoneId, 10)];
+                zoneOn = parseInt(zFlag, 10) === 1 ? 1 : 0;
+            } else {
+                zoneOn = parseInt((window.STP_LITE_CONFIG && window.STP_LITE_CONFIG.zoneOn) || 0, 10) === 1 ? 1 : 0;
+            }
             return {
                 sectionKey: 'stay_' + String(p.index || idx) + (p.isReturn ? '_ret' : ''),
                 country: country,
                 cityId: p.cityId || '',
                 cityName: p.cityName || '',
                 currency: p.currency || window.getCurrencyForCountryName(country) || cfg().dmcCurrency || 'SGD',
-                dmcId: window.StpLiteGeo.resolveSiblingDmcId(country),
+                dmcId: dmcId,
+                zoneOn: zoneOn,
                 planIndex: p.index || '',
                 isReturn: !!p.isReturn,
                 start: p.start || '',
@@ -534,6 +598,7 @@
                 '         data-country="' + esc(country) + '"' +
                 '         data-currency="' + esc(currency) + '"' +
                 '         data-dmc-id="' + esc(section.dmcId || '') + '"' +
+                '         data-zone-on="' + esc(section.zoneOn != null ? section.zoneOn : '') + '"' +
                 '         data-city-id="' + esc(section.cityId || '') + '"' +
                 '         data-city-name="' + esc(section.cityName || '') + '"' +
                 '         data-plan-index="' + esc(section.planIndex || '') + '"' +
@@ -566,7 +631,7 @@
 
         // Skip remount if stays unchanged (stops hotel "Loading…" storm)
         var key = groups.map(function (g) {
-            return [g.planIndex, g.cityName, g.country, g.start, g.end, g.isReturn ? 1 : 0, g.dmcId, g.currency].join('|');
+            return [g.planIndex, g.cityName, g.country, g.start, g.end, g.isReturn ? 1 : 0, g.dmcId, g.zoneOn, g.currency].join('|');
         }).join('||');
         if (key && key === window.__stpLiteSectionsKey && host.querySelector('.stp-lite-country-section')) {
             updateServicesGate();
@@ -591,6 +656,7 @@
                 ' data-stay-end="' + esc(g.end || '') + '"' +
                 ' data-currency="' + esc(g.currency) + '"' +
                 ' data-dmc-id="' + esc(g.dmcId) + '"' +
+                ' data-zone-on="' + esc(g.zoneOn != null ? g.zoneOn : '') + '"' +
                 ' data-tint="' + g.tintIndex + '">' +
                 '  <header class="stp-lite-country-header">' +
                 '    <div>' +
@@ -612,6 +678,7 @@
 
         // Lazy-mount each service when its accordion opens (hotels/rooms load only then)
         wireLazyServiceMounts(host);
+        applyRestrictedCountrySectionLocks();
 
         if (window.StpLiteGuestCaps && typeof window.StpLiteGuestCaps.refreshGuestDependentUI === 'function') {
             window.StpLiteGuestCaps.refreshGuestDependentUI();

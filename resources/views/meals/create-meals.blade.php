@@ -302,14 +302,23 @@
                         </div>
                     </div>
 
-                    <!-- Status -->
+                    <!-- Status (must be turned on) -->
                     <div class="row">
                         <div class="col-md-12">
                             <div class="form-check form-switch">
                                 <input type="hidden" name="meal_status" value="0">
-                                <input class="form-check-input" name="meal_status" type="checkbox" id="meal_status" value="1">
-                                <label for="meal_status" class="form-check-label"><strong>Status</strong></label>
+                                <input class="form-check-input" name="meal_status" type="checkbox" id="meal_status" value="1"
+                                    required
+                                    title="Please turn on Status before submitting"
+                                    oninvalid="this.setCustomValidity('Please turn on Status before submitting')"
+                                    oninput="this.setCustomValidity('')"
+                                    {{ old('meal_status') == '1' ? 'checked' : '' }}>
+                                <label for="meal_status" class="form-check-label"><strong>Status</strong><span class="text-danger">*</span></label>
                             </div>
+                            <small class="text-muted">Turn on to set this meal as Active.</small>
+                            @error('meal_status')
+                                <div class="text-danger mt-1">{{ $message }}</div>
+                            @enderror
                         </div>
                     </div>
                 </fieldset>

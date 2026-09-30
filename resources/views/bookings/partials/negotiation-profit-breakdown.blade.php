@@ -388,23 +388,32 @@
     }
 </style>
 <script>
-    /** Hotel sell vs other-service sell for split markup. */
+    /** Hotel sell vs other-service sell for split markup — prefer service SELL rows (margin view source of truth). */
     window.negotiationHotelOtherGross = function (group) {
         group = group || {};
-        let hotel = Number(group.hotel_gross);
-        let other = Number(group.other_gross);
-        if ((!Number.isFinite(hotel) || hotel < 0 || !Number.isFinite(other) || other < 0) && Array.isArray(group.services)) {
-            hotel = 0;
-            other = 0;
+        let hotel = 0;
+        let other = 0;
+        if (Array.isArray(group.services) && group.services.length) {
             group.services.forEach(function (service) {
                 const sell = Number(service && service.sell ? service.sell : 0);
+                if (!Number.isFinite(sell) || sell <= 0) return;
                 if (String(service && service.type ? service.type : '').toLowerCase() === 'hotel') {
                     hotel += sell;
                 } else {
                     other += sell;
                 }
             });
+            if (hotel > 0.009 || other > 0.009) {
+                return {
+                    hotelGross: hotel,
+                    otherGross: other,
+                    hasHotel: hotel > 0.009,
+                    hasOther: other > 0.009
+                };
+            }
         }
+        hotel = Number(group.hotel_gross);
+        other = Number(group.other_gross);
         hotel = Number.isFinite(hotel) && hotel > 0 ? hotel : 0;
         other = Number.isFinite(other) && other > 0 ? other : 0;
         return {

@@ -70,6 +70,8 @@
     if ($editAgencyId === '' && !empty($tour->agent_id)) {
         $editAgencyId = (string) (optional(\App\Models\Agent::where('agent_id', $tour->agent_id)->first())->agency_id ?? '');
     }
+    $tourStatusNorm = strtolower(trim((string) ($tour->tour_status ?? '')));
+    $showAppPassword = in_array($tourStatusNorm, ['definite', 'actual'], true);
 @endphp
 
 @push('css')
@@ -112,6 +114,8 @@
             @include('single-tour-package.lite.partials.04-multi-country-planner')
             @include('single-tour-package.lite.partials.06-lead-guests')
         </form>
+
+        @include('single-tour-package.lite.partials.add-agency-contact-modal')
     </div>
 </div>
 @endsection
@@ -128,6 +132,8 @@
 window.STP_LITE_EDIT = {
     tourId: @json((int) ($tour->tour_id ?? 0)),
     displayId: @json($tour->display_id ?? ''),
+    tourStatus: @json($tour->tour_status ?? ''),
+    showAppPassword: @json($showAppPassword),
     startDate: @json($startYmd),
     endDate: @json($endYmd),
     datesDisplay: @json($datesDisplay),
@@ -152,6 +158,7 @@ window.STP_LITE_EDIT = {
 if (window.STP_LITE_CONFIG) {
     window.STP_LITE_CONFIG.mode = 'edit';
     window.STP_LITE_CONFIG.tourId = window.STP_LITE_EDIT.tourId;
+    window.STP_LITE_CONFIG.tourStatus = window.STP_LITE_EDIT.tourStatus;
     window.STP_LITE_CONFIG.edit = window.STP_LITE_EDIT;
 }
 </script>
@@ -175,6 +182,7 @@ if (window.STP_LITE_CONFIG) {
 <script src="{{ asset('js/single-tour-package/lite/miscellaneous.js') }}?v={{ filemtime(public_path('js/single-tour-package/lite/miscellaneous.js')) }}"></script>
 <script src="{{ asset('js/single-tour-package/lite/country-segments.js') }}?v={{ filemtime(public_path('js/single-tour-package/lite/country-segments.js')) }}"></script>
 <script src="{{ asset('js/single-tour-package/lite/guests.js') }}?v={{ filemtime(public_path('js/single-tour-package/lite/guests.js')) }}"></script>
+<script src="{{ asset('js/single-tour-package/lite/city-markup.js') }}?v={{ filemtime(public_path('js/single-tour-package/lite/city-markup.js')) }}"></script>
 <script src="{{ asset('js/single-tour-package/lite/submit.js') }}?v={{ filemtime(public_path('js/single-tour-package/lite/submit.js')) }}"></script>
 <script src="{{ asset('js/single-tour-package/lite/hydrate-edit.js') }}?v={{ filemtime(public_path('js/single-tour-package/lite/hydrate-edit.js')) }}"></script>
 <script src="{{ asset('js/single-tour-package/lite/main.js') }}?v={{ filemtime(public_path('js/single-tour-package/lite/main.js')) }}"></script>
