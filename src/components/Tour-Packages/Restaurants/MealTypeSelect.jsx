@@ -13,7 +13,7 @@ import WbSunnyIcon from '@mui/icons-material/WbSunny';
 import WbTwilightIcon from '@mui/icons-material/WbTwilight';
 import NightsStayIcon from '@mui/icons-material/NightsStay';
 
-const MealTypeSelect = ({ value, onChange, restaurantDetails, disabled }) => {
+const MealTypeSelect = ({ value, onChange, restaurantDetails, disabled, onBeforeOpen }) => {
   // Get available meal types from restaurant details
   const availableMealTypes = {
     Breakfast: restaurantDetails?.breakfast_available === 1,
@@ -61,6 +61,9 @@ const MealTypeSelect = ({ value, onChange, restaurantDetails, disabled }) => {
       <Select
         value={value}
         label="Meal Type"
+        onOpen={() => {
+          if (typeof onBeforeOpen === 'function') onBeforeOpen();
+        }}
         onChange={onChange}
         sx={{
           height: '42px',

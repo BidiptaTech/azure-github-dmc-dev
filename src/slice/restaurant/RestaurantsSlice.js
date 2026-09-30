@@ -93,8 +93,8 @@ export const fetchRestaurantsDetails = createAsyncThunk(
       const state = getState();
       const selectedDmcId = selectDmcId(state);
       
-      // Use selected DMC ID from Redux if available, otherwise use the passed dmc_id
-      const finalDmcId = selectedDmcId || dmc_id;
+      // Prefer the dmc_id passed by the caller (package booking / listing), then Redux
+      const finalDmcId = dmc_id || selectedDmcId;
       
       // Construct the API URL with the mode and dmc_id parameters
       const mode = price_mode || "dmc";

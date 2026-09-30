@@ -40,6 +40,7 @@ import {
   setZonetype,
   setSearchDayIndex,
   clearSearchDayIndex,
+  setHourlyCity,
 } from "@/slice/localtour/Localslice";
 import SearchBar1 from "./LocationSearch1";
 import DateSearch1 from "@/components/activity-list/activity-list-v3/DateSearch1";
@@ -50,6 +51,7 @@ import { useSelector } from "react-redux";
 import SearchZone from "@/components/Tour-Packages/Local-Transport/LocationZoneSearch";
 import Pickuptimezone from "@/components/activity-list/activity-list-v3/Pickuptimezone";
 import DateSearchZone from "@/components/activity-list/activity-list-v3/DateSearchZone";
+import CityLocation from "@/components/activity-list/activity-list-v3/CityLocation";
 import DisabledStateLayout from '../common/DisabledStateLayout';
 import PickupDropDisabledLayout from '../common/PickupDropDisabledLayout';
 
@@ -117,6 +119,9 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
  
   
   const selectedPort = useSelector((state) => state.localtour.selectedPort);
+  const [hourlyCityName, setHourlyCityName] = useState("");
+  const [hourlyCityAddress, setHourlyCityAddress] = useState("");
+  const [hourlyCityError, setHourlyCityError] = useState(false);
   const [pickUpLatLng, setPickupLatLng] = useState(reduxPickUpLatLng);
   const [dropOffLatLng, setDropoffLatLng] = useState(reduxDropOffLatLng);
   const [entryytime, setentryytime] = useState(reduxEntryTime);
@@ -155,21 +160,18 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
   useEffect(() => {
     // Only set default selectedPort once on initial load if none is selected
     // Check for all valid transport types to avoid overriding user selections
-    const validPorts = ["Point To Point", "Hourly", "Local Transfer"];
-    const currentSelectedPort = selectedPort; // Capture current value at mount time
-    const currentHasVehicles = hasVehicles; // Capture current vehicles state at mount time
+    const validPorts = ["Hourly", "Local Transfer"];
+    const currentSelectedPort = selectedPort;
+    const currentHasVehicles = hasVehicles;
     const hasValidSelection = currentSelectedPort && validPorts.includes(currentSelectedPort);
     
-    // Additional check: if vehicles are already loaded, user has likely made a selection
     const shouldNotOverride = hasValidSelection || currentHasVehicles;
     
-    if (!hasSetInitialPort.current && !shouldNotOverride) {
-      
-      dispatch(setSelectedPort("Point To Point"));
+    if (!hasSetInitialPort.current && (!shouldNotOverride || currentSelectedPort === "Point To Point")) {
+      dispatch(setSelectedPort("Hourly"));
       hasSetInitialPort.current = true;
     } else if (shouldNotOverride) {
-      
-      hasSetInitialPort.current = true; // Mark as initialized to prevent future overrides
+      hasSetInitialPort.current = true;
     }
   }, [dispatch, dayIndex]); // Keep dependencies minimal
 
@@ -332,40 +334,6 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
     }, 300); // 300ms debounce
   }, [dispatch, reduxPickUpLocation, reduxDropOffLocation, reduxExitPickUpLocation, reduxPickUpZone, reduxDropOffZone, reduxEntryTime, reduxEntryTime1, reduxEntryTimeZone, reduxDropType, reduxPickupDate, reduxPickupDate1]);
 
-  // Single effect to handle all local state changes and dispatch to Redux
-  useEffect(() => {
-    const updates = {};
-    
-    if (pickUpLocation) updates.pickUpLocation = pickUpLocation;
-    if (dropOffLocation) updates.dropOffLocation = dropOffLocation;
-    if (exitpickUpLocation) updates.exitpickUpLocation = exitpickUpLocation;
-    if (pickUpZone) {
-      updates.pickUpZone = pickUpZone;
-    }
-    if (dropOffzone) updates.dropOffZone = dropOffzone;
-    if (entryytime) updates.entryytime = entryytime;
-    if (entryytime1) updates.entryytime1 = entryytime1;
-    if (entryytimezone) updates.entryytimezone = entryytimezone;
-    if (droptype) updates.droptype = droptype;
-    if (selectedDate) updates.selectedDate = selectedDate;
-    if (selectedDate1) updates.selectedDate1 = selectedDate1;
-    if (selectedDateZone) updates.selectedDateZone = selectedDateZone;
-    if (pickUpLatLng && Object.keys(pickUpLatLng).length > 0 && pickUpLatLng.lat !== undefined && pickUpLatLng.lng !== undefined) {
-      updates.pickUpLatLng = pickUpLatLng;
-    }
-    if (dropOffLatLng && Object.keys(dropOffLatLng).length > 0 && dropOffLatLng.lat !== undefined && dropOffLatLng.lng !== undefined) {
-      updates.dropOffLatLng = dropOffLatLng;
-    }
-    
-    if (Object.keys(updates).length > 0) {
-      dispatchToRedux(updates);
-    }
-  }, [
-    pickUpLocation, dropOffLocation, exitpickUpLocation, pickUpZone, dropOffzone,
-    entryytime, entryytime1, entryytimezone, droptype, selectedDate, selectedDate1, 
-    selectedDateZone, pickUpLatLng, dropOffLatLng, dispatchToRedux
-  ]);
-  
   // Custom handler for time selection
   const handleTimeSelection = (value) => {
     if(selectedPort === "Point To Point"){
@@ -459,16 +427,16 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
         });
       }
     } else if (selectedPort === "Hourly") {
-      // Only proceed if pickup location is selected from autocomplete
       const locationValid = exitPickupFromAutocomplete;
+      const cityName =
+        hourlyCityName ||
+        String(hourlyCityAddress || "")
+          .split(",")[0]
+          .trim();
+      const cityValid = Boolean(cityName);
 
-      // Ensure the date is properly formatted
       const formattedDate = handleDateSelection(selectedDate1);
-     
 
-     
-
-      // Dispatch all necessary data
       const updates = {
         exitpickUpLocation,
         entryytime1,
@@ -476,23 +444,28 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
       };
       
       dispatchToRedux(updates);
+      dispatch(setHourlyCity(cityName));
+      dispatch(setpickdate(formattedDate));
+      dispatch(setentrytime(entryytime1));
+      dispatch(setentrytime1(entryytime1));
+      dispatch(setPickupPlaceid(pickUpLatLng));
       dispatch(setSelectionType(selectedPort));
-      dispatch(setSearchDayIndex(dayIndex));
-      
-      // Check if pickUpLatLng has valid values
+      dispatch(setDropoffPlaceid(null));
+      dispatch(setZonetype(""));
+
+      if (!cityValid) {
+        setHourlyCityError(true);
+        return;
+      }
+
       if (!pickUpLatLng || !pickUpLatLng.lat || !pickUpLatLng.lng) {
         console.error("Invalid pickup location coordinates for Hourly mode. Please select a location from the dropdown.");
         setExitPickupFromAutocomplete(false);
         return;
       }
       
-      // If we have valid coordinates, consider the location as valid from autocomplete
       setExitPickupFromAutocomplete(true);
-      
-      dispatch(setDropoffPlaceid(null));
-      dispatch(setZonetype(""));
 
-      // Check if time is selected and valid
       if (!entryytime1) {
         console.error("Please select a pickup time for Hourly mode");
         setTime1(false);
@@ -501,17 +474,16 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
         setTime1(true);
       }
 
-      // Only fetch vehicles if location and time are valid
-      if (pickUpLatLng && pickUpLatLng.lat && pickUpLatLng.lng && entryytime1) {
-       
+      if (cityValid && pickUpLatLng?.lat && pickUpLatLng?.lng && entryytime1) {
         setTimeout(() => {
-          dispatch(fetchVehicles());
+          dispatch(setSearchDayIndex(dayIndex));
+          dispatch(fetchVehicles({ city: cityName }));
         }, 500);
       } else {
         console.error("Cannot fetch vehicles for Hourly mode: missing required fields", {
+          cityValid,
+          locationValid,
           pickUpLatLng: !!pickUpLatLng,
-          "pickUpLatLng.lat": pickUpLatLng?.lat,
-          "pickUpLatLng.lng": pickUpLatLng?.lng,
           entryytime1: !!entryytime1
         });
       }
@@ -532,9 +504,10 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
      
       dispatchToRedux(updates);
       dispatch(setSelectionType(selectedPort));
-      dispatch(setSearchDayIndex(dayIndex));
       dispatch(setentrypickup(pickUpLatLng));
       dispatch(setentrydropoff(dropOffLatLng));
+      dispatch(setpickdate(formattedDate));
+      dispatch(setentrytime(entryytimezone));
       dispatch(setZonetype("zone"));
 
      
@@ -549,6 +522,7 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
       ) {
        
         setTimeout(() => {
+          dispatch(setSearchDayIndex(dayIndex));
           dispatch(fetchZoneVehicles());
         }, 500);
       } else {
@@ -596,50 +570,20 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
               onChange={(e) => {
                 dispatch(setSelectedPort(e.target.value));
                 dispatch(resetVehicles1());
-                dispatch(clearSearchDayIndex()); // Clear day index on service type change
+                dispatch(clearSearchDayIndex());
                 setValidationTriggered(false);
+                setHourlyCityName("");
+                setHourlyCityAddress("");
+                setHourlyCityError(false);
               }}
               sx={{ gap: 1.5 }}
             >
+              {/* Point To Point is not used
               <FormControlLabel
                 value="Point To Point"
-                control={
-                  <Radio
-                    sx={{
-                      color: '#e0e0e0',
-                      '&.Mui-checked': {
-                        color: '#ff6b6b',
-                      },
-                      '& .MuiSvgIcon-root': {
-                        fontSize: '18px',
-                      },
-                    }}
-                  />
-                }
-                label={
-                  <Typography 
-                    variant="body2" 
-                    fontWeight={selectedPort === "Point To Point" ? 600 : 400}
-                    color={selectedPort === "Point To Point" ? '#ff6b6b' : 'text.primary'}
-                    sx={{ fontSize: '0.8rem' }}
-                  >
-                    Point To Point
-                  </Typography>
-                }
-                sx={{
-                  border: `1px solid ${selectedPort === "Point To Point" ? '#ff6b6b' : '#e0e0e0'}`,
-                  borderRadius: 1,
-                  px: 1,
-                  py: 0.3,
-                  m: 0,
-                  bgcolor: selectedPort === "Point To Point" ? alpha('#ff6b6b', 0.05) : 'transparent',
-                  '&:hover': {
-                    borderColor: '#ff6b6b',
-                    bgcolor: alpha('#ff6b6b', 0.05),
-                  },
-                  transition: 'all 0.3s ease',
-                }}
+                ...
               />
+              */}
               <FormControlLabel
                 value="Hourly"
                 control={
@@ -728,8 +672,36 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
           <>
             {/* Form Fields Row */}
             <Grid container spacing={{ xs: 1.5, sm: 1.5, md: 1.5 }} alignItems="flex-end" sx={{ mb: 2 }}>
+              {selectedPort === "Hourly" && (
+                <Grid item xs={12} sm={6} md={3}>
+                  <CityLocation
+                    label="City"
+                    setPickUpLocation={(address) => {
+                      setHourlyCityAddress(address || "");
+                      const name = String(address || "")
+                        .split(",")[0]
+                        .trim();
+                      setHourlyCityName(name);
+                      setHourlyCityError(false);
+                    }}
+                    pickUpLocation={hourlyCityAddress}
+                    onCitySelect={(item) => {
+                      const name = item?.name || "";
+                      setHourlyCityName(name);
+                      setHourlyCityAddress(item?.address || name);
+                      setHourlyCityError(false);
+                    }}
+                    hasError={
+                      validationTriggered &&
+                      !hourlyCityName &&
+                      !String(hourlyCityAddress || "").trim()
+                    }
+                    setError={setHourlyCityError}
+                  />
+                </Grid>
+              )}
               {/* Location Search */}
-              <Grid item xs={12} sm={12} md={selectedPort === "Point To Point" ? 8 : selectedPort === "Local Transfer" ? 8 : 6}>
+              <Grid item xs={12} sm={12} md={selectedPort === "Point To Point" ? 8 : selectedPort === "Local Transfer" ? 8 : selectedPort === "Hourly" ? 5 : 6}>
                 <Box>
                   {selectedPort === "Point To Point" ? (
                     <LocationSearch

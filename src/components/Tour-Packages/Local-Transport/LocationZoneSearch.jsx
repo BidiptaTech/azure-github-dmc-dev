@@ -373,123 +373,73 @@ const SearchZone = ({
   const [cityError, setCityError] = useState(false);
   const [isCityEnabled, setIsCityEnabled] = useState(true);
   const [isPickupLocationEnabled, setIsPickupLocationEnabled] = useState(false);
-  
-  // Get additional selectors
-  const country = useSelector((state) => state.tourPackages.searchCriteria.country);
+
   const tour = useSelector((state) => state.hotels.tourdetails);
-  
-  console.log("tour", tour);
-  
-  // Reset pickup location state when city changes or component mounts
+
   useEffect(() => {
     if (!selectedCity) {
       setIsPickupLocationEnabled(false);
     }
   }, [selectedCity]);
 
-  // Debug effect to track isPickupLocationEnabled changes
-  useEffect(() => {
-    console.log("isPickupLocationEnabled changed to:", isPickupLocationEnabled);
-  }, [isPickupLocationEnabled]);
-
-  // Handle city selection
   const handleCitySelect = (city) => {
-    console.log("City selected:", city);
-    console.log("Current isPickupLocationEnabled:", isPickupLocationEnabled);
     setSelectedCity(city);
-    
-    if (city) {
-      setCityError(false);
-      // Disable pickup location until all API calls are successful
-      console.log("Disabling pickup location - waiting for API responses");
+
+    if (!city) {
       setIsPickupLocationEnabled(false);
-      
-      // Get search criteria for API calls
-      const searchCriteria = {
-        checkIn: "01/01/2024", // Default dates - you may want to get these from props or state
-        checkOut: "02/01/2024",
-        guests: {
-          adults: 1,
-          children: 0,
-          infant: 0
-        }
-      };
-      
-      // Dispatch all three API calls simultaneously
-      console.log("Dispatching all three APIs with params:", {
-        city: `${city.name}, (${country})`,
-        searchCriteria
-      });
-      
-      const hotelPromise = dispatch(fetchHotels({ 
-        location: `${city.name}, (${country})`, 
-        ucheckIn: searchCriteria.checkIn,
-        ucheckOut: searchCriteria.checkOut,
-        guests: searchCriteria.guests
-      }));
-      
-      const attractionPromise = dispatch(fetchAttractions({ 
-        city: `${city.name}, (${country})`, 
-        date: searchCriteria.checkIn,
-        adults: searchCriteria.guests.adults,
-        children: searchCriteria.guests.children,
-        tour_id: tour?.tour_id || 0,
-        selectedDate: searchCriteria.checkIn,
-        fromMainSearch: false
-      }));
-      
-      const restaurantPromise = dispatch(fetchRestaurants({ 
-        city: `${city.name}, (${country})`, 
-        date: searchCriteria.checkIn,
-        adults: searchCriteria.guests.adults,
-        children: searchCriteria.guests.children,
-        tour_id: tour?.tour_id || 0,
-        selectedDate: searchCriteria.checkIn,
-        fromMainSearch: false
-      }));
-      
-      // Wait for all three API calls to complete
-      Promise.allSettled([hotelPromise, attractionPromise, restaurantPromise])
-        .then((results) => {
-          console.log("All API results:", results);
-          
-          const hotelResult = results[0];
-          const attractionResult = results[1];
-          const restaurantResult = results[2];
-          
-          const hotelSuccess = hotelResult.status === 'fulfilled' && !hotelResult.value.error;
-          const attractionSuccess = attractionResult.status === 'fulfilled' && !attractionResult.value.error;
-          const restaurantSuccess = restaurantResult.status === 'fulfilled' && !restaurantResult.value.error;
-          
-          console.log("API Success Status:", {
-            hotels: hotelSuccess,
-            attractions: attractionSuccess,
-            restaurants: restaurantSuccess
-          });
-          
-          if (hotelSuccess && attractionSuccess && restaurantSuccess) {
-            console.log("All APIs succeeded - enabling pickup location");
-            setIsPickupLocationEnabled(true);
-          } else {
-            console.log("One or more APIs failed - keeping pickup location disabled");
-            console.error("Failed APIs:", {
-              hotels: hotelResult.status === 'rejected' ? hotelResult.reason : hotelResult.value.error,
-              attractions: attractionResult.status === 'rejected' ? attractionResult.reason : attractionResult.value.error,
-              restaurants: restaurantResult.status === 'rejected' ? restaurantResult.reason : restaurantResult.value.error
-            });
-            setIsPickupLocationEnabled(false);
-          }
-        })
-        .catch((error) => {
-          console.error("Error in Promise.allSettled:", error);
-          console.log("Promise.allSettled failed - keeping pickup location disabled");
-          setIsPickupLocationEnabled(false);
-        });
-    } else {
-      // If no city selected, disable pickup location
-      console.log("No city selected - disabling pickup location");
-      setIsPickupLocationEnabled(false);
+      return;
     }
+
+    setCityError(false);
+    setIsPickupLocationEnabled(false);
+
+    const searchCriteria = {
+      checkIn: "01/01/2024",
+      checkOut: "02/01/2024",
+      guests: {
+        adults: 1,
+        children: 0,
+        infant: 0,
+      },
+    };
+
+    const hotelPromise = dispatch(fetchHotels({
+      location: `${city.name}, (${city.country})`,
+      ucheckIn: searchCriteria.checkIn,
+      ucheckOut: searchCriteria.checkOut,
+      guests: searchCriteria.guests,
+    }));
+
+    const attractionPromise = dispatch(fetchAttractions({
+      city: `${city.name}, (${city.country})`,
+      date: searchCriteria.checkIn,
+      adults: searchCriteria.guests.adults,
+      children: searchCriteria.guests.children,
+      tour_id: tour?.tour_id || 0,
+      selectedDate: searchCriteria.checkIn,
+      fromMainSearch: false,
+    }));
+
+    const restaurantPromise = dispatch(fetchRestaurants({
+      city: `${city.name}, (${city.country})`,
+      date: searchCriteria.checkIn,
+      adults: searchCriteria.guests.adults,
+      children: searchCriteria.guests.children,
+      tour_id: tour?.tour_id || 0,
+      selectedDate: searchCriteria.checkIn,
+      fromMainSearch: false,
+    }));
+
+    Promise.allSettled([hotelPromise, attractionPromise, restaurantPromise])
+      .then((results) => {
+        const allSucceeded = results.every(
+          (result) => result.status === "fulfilled" && !result.value?.error
+        );
+        setIsPickupLocationEnabled(allSucceeded);
+      })
+      .catch(() => {
+        setIsPickupLocationEnabled(false);
+      });
   };
   
   useEffect(() => {

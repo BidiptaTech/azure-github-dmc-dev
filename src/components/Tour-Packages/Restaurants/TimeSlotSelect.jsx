@@ -9,7 +9,7 @@ import {
 } from '@mui/material';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 
-const TimeSlotSelect = ({ value, onChange, selectedMealType, restaurantDetails, disabled, bookingDate, formSection }) => {
+const TimeSlotSelect = ({ value, onChange, selectedMealType, restaurantDetails, disabled, bookingDate, formSection, onBeforeOpen }) => {
   // Get booking date from section if not provided as prop
   const sectionBookingDate = formSection?.bookingDate || formSection?.date;
   const effectiveBookingDate = bookingDate || sectionBookingDate || new Date().toISOString().split('T')[0];
@@ -118,6 +118,9 @@ const TimeSlotSelect = ({ value, onChange, selectedMealType, restaurantDetails, 
       <Select
         value={value}
         label="Time Slot"
+        onOpen={() => {
+          if (typeof onBeforeOpen === 'function') onBeforeOpen();
+        }}
         onChange={handleTimeSlotChange}
         sx={{
           height: '42px',

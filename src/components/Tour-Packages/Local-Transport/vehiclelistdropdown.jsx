@@ -24,7 +24,6 @@ import { useDispatch } from 'react-redux';
 import { useState } from 'react';
 import { fetchVehicleDetails } from '../../../slice/localtour/Localslice';
 import Passenger from './Passenger';
-import HourlyPackage from './HourlyPackage';
 import PeopleIcon from '@mui/icons-material/People';
 import LocalOfferIcon from '@mui/icons-material/LocalOffer';
 

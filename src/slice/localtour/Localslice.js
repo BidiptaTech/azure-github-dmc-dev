@@ -45,9 +45,13 @@ export const fetchVehicles = createAsyncThunk(
         time: JSON.stringify(entrytime),
         date: travelDate, // ✅ Include formatted date
         dmc_id: selectedDmcId,
-        start: (params1 && params1.start) || undefined,
-        limit: (params1 && params1.limit) || undefined,
       };
+      if (params1?.start !== undefined && params1?.start !== null) {
+        params.start = params1.start;
+      }
+      if (params1?.limit !== undefined && params1?.limit !== null) {
+        params.limit = params1.limit;
+      }
 
       // if (DropoffPlaceid) {
       //   params.dropoff = JSON.stringify(DropoffPlaceid);
@@ -122,9 +126,13 @@ export const fetchZoneVehicles = createAsyncThunk(
         pickup_type: picktype,
         drop_type: droptype, // Set default to 'hotel' if droptype is missing
         dmc_id: selectedDmcId,
-        start: (params1 && params1.start) || undefined,
-        limit: (params1 && params1.limit) || undefined,
       };
+      if (params1?.start !== undefined && params1?.start !== null) {
+        params.start = params1.start;
+      }
+      if (params1?.limit !== undefined && params1?.limit !== null) {
+        params.limit = params1.limit;
+      }
 
      
 
@@ -928,9 +936,13 @@ const LocalSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      .addCase(fetchVehicles.pending, (state) => {
+      .addCase(fetchVehicles.pending, (state, action) => {
         state.status = "loading";
         state.error = null;
+        const start = action.meta?.arg?.start;
+        if (start === undefined || start === 0) {
+          state.vehicles = [];
+        }
       })
       .addCase(fetchVehicles.fulfilled, (state, action) => {
         state.status = "succeeded";
@@ -967,9 +979,13 @@ const LocalSlice = createSlice({
       });
 
     builder
-      .addCase(fetchZoneVehicles.pending, (state) => {
+      .addCase(fetchZoneVehicles.pending, (state, action) => {
         state.status = "loading";
         state.error = null;
+        const start = action.meta?.arg?.start;
+        if (start === undefined || start === 0) {
+          state.vehicles = [];
+        }
       })
       .addCase(fetchZoneVehicles.fulfilled, (state, action) => {
         state.status = "succeeded";

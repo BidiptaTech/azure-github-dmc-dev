@@ -560,14 +560,38 @@ export default function SearchForm({ onNext, setActiveTab, packageData: propPack
     dispatch(clearPackages());
   };
 
+  const parseCodeList = (value) => {
+    if (Array.isArray(value)) {
+      return value
+        .flatMap((item) => String(item ?? "").split(","))
+        .map((code) => code.trim())
+        .filter(Boolean);
+    }
+    if (value == null || value === "") return [];
+    return String(value)
+      .split(",")
+      .map((code) => code.trim())
+      .filter(Boolean);
+  };
+
   const resolveSelectedLocation = (location = selectedLocation) => {
     const destinationCountries = getTourDestinationCountries();
+    const shortCodes = parseCodeList(
+      location?.short_code ??
+        packageData?.tour?.short_code ??
+        enquirydetail?.short_code
+    );
     const rawCities = Array.isArray(location?.cities) ? location.cities : [];
     const cities = rawCities.map((item, index) => ({
       ...item,
       country:
         item?.country ||
         destinationCountries[index] ||
+        null,
+      country_code:
+        item?.country_code ||
+        item?.countryCode ||
+        shortCodes[index] ||
         null,
     }));
     const citiesArray = cities
@@ -586,11 +610,13 @@ export default function SearchForm({ onNext, setActiveTab, packageData: propPack
         destinationCountries[index] ||
         "",
       city_id: item?.city_id || null,
-      country_code: item?.country_code || null,
+      country_code: item?.country_code || shortCodes[index] || null,
     })).filter((item) => item.city);
-    const countryCodes = locations
+    const countryCodesFromCities = locations
       .map((item) => item.country_code)
       .filter(Boolean);
+    const countryCodes =
+      countryCodesFromCities.length > 0 ? countryCodesFromCities : shortCodes;
     const primary = locations[0] || null;
 
     return {
@@ -607,11 +633,12 @@ export default function SearchForm({ onNext, setActiveTab, packageData: propPack
             packageData?.tour?.destination ||
             enquirydetail?.country ||
             null,
-      countryCode: location?.countryCode || primary?.country_code || null,
-      countryCodes:
-        countryCodes.length > 0
-          ? countryCodes
-          : countriesArray,
+      countryCode:
+        countryCodes[0] ||
+        location?.countryCode ||
+        primary?.country_code ||
+        null,
+      countryCodes,
       cityCode: location?.cityCode || primary?.city_id || null,
     };
   };
@@ -983,6 +1010,8 @@ dispatch(fetchHotels());
       ...dataSource,
       destination: locations,
       cityWiseDates: getCityWiseDatesPayload(),
+      short_code: countryCodes.join(", "),
+      searchLocation: countryCodes,
     }));
 
     
@@ -1646,6 +1675,8 @@ dispatch(fetchHotels());
       ...dataSource,
       destination: locations,
       cityWiseDates: getCityWiseDatesPayload(),
+      short_code: countryCodes.join(", "),
+      searchLocation: countryCodes,
     }));
 
     

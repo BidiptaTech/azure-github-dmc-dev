@@ -26,7 +26,6 @@ import { useDispatch } from 'react-redux';
 import { useState } from 'react';
 import { fetchVehicleDetails } from '../../../slice/localtour/Localslice';
 import Passenger from './Passenger';
-import HourlyPackage from './HourlyPackage';
 
 // Custom styled tooltip
 const CustomTooltip = styled(({ className, ...props }) => (
