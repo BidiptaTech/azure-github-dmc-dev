@@ -269,8 +269,10 @@ const CartPage = () => {
       sx={{
         minHeight: "100vh",
         background: "linear-gradient(180deg, #f5f7fb 0%, #ffffff 60%)",
-        py: { xs: 3, md: 5 },
-        px: { xs: 2, md: 4 },
+        // header-margin is 50px; the fixed navbar is 90px, so extra top space keeps Clear Cart in view
+        pt: { xs: 3, md: 6 },
+        pb: { xs: 1.5, md: 2 },
+        px: { xs: 1.5, md: 2 },
       }}
     >
       <Box sx={{ maxWidth: 1100, mx: "auto" }}>
@@ -278,14 +280,14 @@ const CartPage = () => {
           direction={{ xs: "column", sm: "row" }}
           justifyContent="space-between"
           alignItems={{ xs: "flex-start", sm: "center" }}
-          spacing={2}
-          mb={3}
+          spacing={1}
+          mb={1.5}
         >
           <Box>
-            <Typography variant="h4" fontWeight={800} color="#0f172a">
+            <Typography variant="h5" fontWeight={800} color="#0f172a" lineHeight={1.2}>
               Cart
             </Typography>
-            <Typography color="text.secondary" mt={0.5}>
+            <Typography variant="body2" color="text.secondary">
               {totals.itemCount} item{totals.itemCount === 1 ? "" : "s"} in cart
             </Typography>
           </Box>
@@ -293,17 +295,18 @@ const CartPage = () => {
             <Button
               variant="outlined"
               color="error"
+              size="small"
               onClick={() => dispatch(clearCart())}
-              sx={{ textTransform: "none", borderRadius: 2 }}
+              sx={{ textTransform: "none", borderRadius: 1.5, py: 0.4 }}
             >
               Clear Cart
             </Button>
           </Stack>
         </Stack>
 
-        <Grid container spacing={3}>
+        <Grid container spacing={2}>
           <Grid item xs={12} md={8}>
-            <Stack spacing={3}>
+            <Stack spacing={1.5}>
               {trips.map((trip, tripIndex) => {
                 const tripTotal = trip.bookings.reduce(
                   (sum, item) => sum + (Number(item.totalPrice) || 0),
@@ -318,15 +321,15 @@ const CartPage = () => {
                     key={trip.tripId || tripIndex}
                     elevation={0}
                     sx={{
-                      borderRadius: 3,
+                      borderRadius: 2,
                       border: "1px solid #e8ecf4",
                       overflow: "hidden",
                     }}
                   >
                     <Box
                       sx={{
-                        px: 2.5,
-                        py: 1.75,
+                        px: 1.5,
+                        py: 1,
                         background:
                           "linear-gradient(90deg, #3554d1 0%, #4c6fff 100%)",
                         color: "#fff",
@@ -336,19 +339,19 @@ const CartPage = () => {
                         direction={{ xs: "column", sm: "row" }}
                         justifyContent="space-between"
                         alignItems={{ xs: "flex-start", sm: "center" }}
-                        spacing={1.5}
+                        spacing={1}
                       >
-                        <Stack direction="row" spacing={1.5} alignItems="flex-start">
-                          <FlightTakeoffOutlinedIcon sx={{ mt: 0.3 }} />
+                        <Stack direction="row" spacing={1} alignItems="flex-start">
+                          <FlightTakeoffOutlinedIcon sx={{ mt: 0.2, fontSize: 18 }} />
                           <Box>
-                            <Typography fontWeight={700} color="#ffffff">
+                            <Typography fontWeight={700} fontSize="0.95rem" lineHeight={1.3} color="#ffffff">
                               Trip City:{""}
                               {formatDestination(trip.destination)}
                             </Typography>
-                            <Typography variant="body2" sx={{ opacity: 0.95 ,color: "#ffffff"}}>
+                            <Typography variant="body2" sx={{ opacity: 0.95, color: "#ffffff", lineHeight: 1.3 }}>
                               {trip.check_in || "—"} → {trip.check_out || "—"}
                             </Typography>
-                            <Typography variant="caption" sx={{ opacity: 0.9 ,color: "#ffffff"}}>
+                            <Typography variant="caption" sx={{ opacity: 0.9, color: "#ffffff", lineHeight: 1.3 }}>
                               {trip.adult || 0} adults · {trip.child || 0}{" "}
                               children · {trip.infant || 0} infants ·{" "}
                               {trip.bookings.length} booking
@@ -360,7 +363,7 @@ const CartPage = () => {
                                 spacing={0.75}
                                 flexWrap="wrap"
                                 useFlexGap
-                                mt={1}
+                                mt={0.5}
                               >
                                 {cityWiseDates.map((cityDate, idx) => (
                                   <Chip
@@ -381,17 +384,19 @@ const CartPage = () => {
                         </Stack>
                         <Stack
                           direction="row"
-                          spacing={1}
+                          spacing={0.75}
                           alignItems="center"
                           flexWrap="wrap"
                           useFlexGap
                         >
                           <Chip
                             label={formatPrice(tripTotal)}
+                            size="small"
                             sx={{
                               bgcolor: "rgba(255,255,255,0.2)",
                               color: "#fff",
                               fontWeight: 700,
+                              height: 26,
                             }}
                           />
                           <Button
@@ -435,13 +440,14 @@ const CartPage = () => {
                       {trip.bookings.map((item, index) => (
                         <Box key={item.cartItemId}>
                           {index > 0 && <Divider />}
-                          <Box sx={{ p: 2.5 }}>
+                          <Box sx={{ p: 1.5 }}>
                             <Stack
                               direction={{ xs: "column", sm: "row" }}
-                              spacing={2}
+                              spacing={1.25}
                               justifyContent="space-between"
+                              alignItems={{ sm: "center" }}
                             >
-                              <Stack direction="row" spacing={2} flex={1}>
+                              <Stack direction="row" spacing={1.25} flex={1} alignItems="flex-start">
                                 <Avatar
                                   variant="rounded"
                                   src={item.image}
@@ -453,8 +459,8 @@ const CartPage = () => {
                                     item.vehicles_name
                                   }
                                   sx={{
-                                    width: 72,
-                                    height: 72,
+                                    width: 52,
+                                    height: 52,
                                     bgcolor: "#eef2ff",
                                     borderRadius: 2,
                                   }}
@@ -477,7 +483,7 @@ const CartPage = () => {
                                     spacing={1}
                                     alignItems="center"
                                     flexWrap="wrap"
-                                    mb={0.75}
+                                    mb={0.25}
                                   >
                                     <Typography fontWeight={700} color="#0f172a">
                                       {item.type === "hotel"
@@ -518,7 +524,7 @@ const CartPage = () => {
                                   </Stack>
 
                                   {item.type === "hotel" ? (
-                                    <Stack spacing={0.75}>
+                                    <Stack spacing={0.35}>
                                       <Stack
                                         direction="row"
                                         spacing={1}
@@ -540,8 +546,9 @@ const CartPage = () => {
                                       </Stack>
                                       <Stack
                                         direction="row"
-                                        spacing={2}
+                                        spacing={1.25}
                                         flexWrap="wrap"
+                                        useFlexGap
                                       >
                                         <Stack
                                           direction="row"
@@ -597,7 +604,7 @@ const CartPage = () => {
                                       </Stack>
                                     </Stack>
                                   ) : item.type === "attraction" ? (
-                                    <Stack spacing={0.75}>
+                                    <Stack spacing={0.35}>
                                       <Stack
                                         direction="row"
                                         spacing={1}
@@ -622,8 +629,9 @@ const CartPage = () => {
                                       </Stack>
                                       <Stack
                                         direction="row"
-                                        spacing={2}
+                                        spacing={1.25}
                                         flexWrap="wrap"
+                                        useFlexGap
                                       >
                                         <Stack
                                           direction="row"
@@ -677,7 +685,7 @@ const CartPage = () => {
                                       </Stack>
                                     </Stack>
                                   ) : item.type === "restaurant" ? (
-                                    <Stack spacing={0.75}>
+                                    <Stack spacing={0.35}>
                                       <Stack
                                         direction="row"
                                         spacing={1}
@@ -702,8 +710,9 @@ const CartPage = () => {
                                       </Stack>
                                       <Stack
                                         direction="row"
-                                        spacing={2}
+                                        spacing={1.25}
                                         flexWrap="wrap"
+                                        useFlexGap
                                       >
                                         <Stack
                                           direction="row"
@@ -754,7 +763,7 @@ const CartPage = () => {
                                       </Stack>
                                     </Stack>
                                   ) : item.type === "guide" ? (
-                                    <Stack spacing={0.75}>
+                                    <Stack spacing={0.35}>
                                       <Stack
                                         direction="row"
                                         spacing={1}
@@ -780,8 +789,9 @@ const CartPage = () => {
                                       </Stack>
                                       <Stack
                                         direction="row"
-                                        spacing={2}
+                                        spacing={1.25}
                                         flexWrap="wrap"
+                                        useFlexGap
                                       >
                                         <Stack
                                           direction="row"
@@ -832,7 +842,7 @@ const CartPage = () => {
                                       </Stack>
                                     </Stack>
                                   ) : (
-                                  <Stack spacing={0.75}>
+                                  <Stack spacing={0.35}>
                                     <Stack
                                       direction="row"
                                       spacing={1}
@@ -857,7 +867,7 @@ const CartPage = () => {
                                     </Stack>
                                     <Stack
                                       direction="row"
-                                      spacing={2}
+                                      spacing={1.25}
                                       flexWrap="wrap"
                                     >
                                       <Stack
@@ -921,7 +931,8 @@ const CartPage = () => {
                                 <Typography
                                   fontWeight={800}
                                   color="#3554d1"
-                                  fontSize={18}
+                                  fontSize={16}
+                                  lineHeight={1.2}
                                 >
                                   {formatPrice(item.totalPrice)}
                                 </Typography>
@@ -930,6 +941,7 @@ const CartPage = () => {
                                   onClick={() =>
                                     handleRemove(trip.tripId, item.cartItemId)
                                   }
+                                  size="small"
                                   sx={{
                                     color: "#ef4444",
                                     bgcolor: "#fef2f2",
@@ -947,11 +959,12 @@ const CartPage = () => {
                       <Divider />
                       <Box
                         sx={{
-                          p: 2,
+                          px: 1.5,
+                          py: 1,
                           bgcolor: "#f8fafc",
                           display: "flex",
                           flexDirection: { xs: "column", sm: "row" },
-                          gap: 1.5,
+                          gap: 1,
                           justifyContent: "flex-end",
                           alignItems: { xs: "stretch", sm: "center" },
                         }}
@@ -965,20 +978,23 @@ const CartPage = () => {
                         </Typography>
                         <Button
                           variant="outlined"
+                          size="small"
                           startIcon={<EditOutlinedIcon />}
                           onClick={() => handleEditTrip(trip)}
-                          sx={{ textTransform: "none", borderRadius: 2 }}
+                          sx={{ textTransform: "none", borderRadius: 1.5, py: 0.5 }}
                         >
                           Add more products
                         </Button>
                         <Button
                           variant="contained"
+                          size="small"
                           onClick={() => handleTripCheckout(trip)}
                           sx={{
                             bgcolor: "#3554d1",
                             textTransform: "none",
-                            borderRadius: 2,
+                            borderRadius: 1.5,
                             fontWeight: 700,
+                            py: 0.5,
                             "&:hover": { bgcolor: "#2a43b0" },
                           }}
                         >
@@ -996,20 +1012,20 @@ const CartPage = () => {
             <Card
               elevation={0}
               sx={{
-                borderRadius: 3,
+                borderRadius: 2,
                 border: "1px solid #e8ecf4",
                 position: { md: "sticky" },
                 top: { md: 100 },
               }}
             >
-              <CardContent sx={{ p: 3 }}>
-                <Typography variant="h6" fontWeight={700} mb={1}>
+              <CardContent sx={{ p: 1.75, "&:last-child": { pb: 1.75 } }}>
+                <Typography variant="subtitle1" fontWeight={700} mb={0.25} lineHeight={1.3}>
                   Order Summary
                 </Typography>
-                <Typography variant="body2" color="text.secondary" mb={2}>
+                <Typography variant="caption" color="text.secondary" display="block" mb={1.25}>
                   Checkout is tour-wise — choose a trip below to continue.
                 </Typography>
-                <Stack spacing={2} mb={2}>
+                <Stack spacing={1} mb={1.25}>
                   {trips.map((trip, index) => {
                     const sectionTotal = trip.bookings.reduce(
                       (sum, item) => sum + (Number(item.totalPrice) || 0),
@@ -1019,8 +1035,8 @@ const CartPage = () => {
                       <Box
                         key={trip.tripId || index}
                         sx={{
-                          p: 1.5,
-                          borderRadius: 2,
+                          p: 1,
+                          borderRadius: 1.5,
                           border: "1px solid #e8ecf4",
                           bgcolor: "#fafbff",
                         }}
@@ -1030,7 +1046,7 @@ const CartPage = () => {
                           justifyContent="space-between"
                           alignItems="flex-start"
                           spacing={1}
-                          mb={1}
+                          mb={0.75}
                         >
                           <Box>
                             <Typography variant="body2" fontWeight={700}>
@@ -1063,15 +1079,15 @@ const CartPage = () => {
                     );
                   })}
                 </Stack>
-                <Divider sx={{ my: 2 }} />
+                <Divider sx={{ my: 1.25 }} />
                 <Stack
                   direction="row"
                   justifyContent="space-between"
                   alignItems="center"
-                  mb={2}
+                  mb={0.5}
                 >
-                  <Typography fontWeight={700}>Cart total</Typography>
-                  <Typography fontWeight={800} color="#3554d1" fontSize={22}>
+                  <Typography fontWeight={700} fontSize="0.95rem">Cart total</Typography>
+                  <Typography fontWeight={800} color="#3554d1" fontSize={18}>
                     {formatPrice(totals.amount)}
                   </Typography>
                 </Stack>

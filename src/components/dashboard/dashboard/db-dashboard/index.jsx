@@ -17,7 +17,6 @@ import {
   AssessmentOutlined,
   MoreHoriz,
   EmailOutlined,
-  CardGiftcardOutlined,
   SupervisorAccount,
   ManageAccounts,
   Person,
@@ -485,6 +484,14 @@ const DashboardLayout = () => {
     location.pathname.includes("/home_1") ||
     location.pathname.includes("/home_2");
 
+  const isAgentDashboard =
+    userRole !== "Sales Head(DMC)" &&
+    userRole !== "Sales Manager (DMC)" &&
+    userRole !== "Assistant Manager (DMC)" &&
+    userRole !== "Operational Head(DMC)" &&
+    userRole !== "DMC Operational Manager" &&
+    userRole !== "DMC Assistant Operational Manager";
+
   // Leaving ProtectedRoutetour / booking module → clear session + Redux
   useEffect(() => {
     const path = location.pathname || "";
@@ -520,7 +527,7 @@ const DashboardLayout = () => {
         label: "Quick Enquiries"
       },
       {
-        icon: <CardGiftcardOutlined />,
+        icon: <WorkOutline />,
         label: "Fixed Itinerary Packages"
       }
     ];
@@ -549,11 +556,19 @@ const DashboardLayout = () => {
             value={mainTabValue}
             onChange={handleMainTabChange}
             sx={{
-              borderBottom: 1,
-              borderColor: "divider",
               backgroundColor: "white",
-              borderRadius: "12px 12px 0 0",
-              boxShadow: "0 2px 10px rgba(0,0,0,0.05)",
+              borderRadius: "14px",
+              border: "1px solid #e8eef8",
+              boxShadow: "0 1px 2px rgba(15, 23, 42, 0.04)",
+              px: 1,
+              "& .MuiTabs-indicator": {
+                backgroundColor: "#3554d1",
+                height: 2,
+              },
+              "& .Mui-selected": {
+                color: "#3554d1 !important",
+                fontWeight: 700,
+              },
             }}
           >
             {tabContents}
@@ -566,7 +581,7 @@ const DashboardLayout = () => {
   return (
     <>
       <div className="header-margin"></div>
-      <Header1 />
+      <Header1 onViewProfile={isAgentDashboard ? handleViewProfile : undefined} />
       <main className={isBookTourHeroPage ? "main-search-hero" : undefined}>
         <Outlet /> {/* This renders the nested routes */}
         {isDashboardPage && (
@@ -576,12 +591,59 @@ const DashboardLayout = () => {
               style={{
                 backgroundColor: "#f9fafb",
                 minHeight: "calc(100vh - 200px)",
-                marginTop: "20px",
-                padding: "0 20px",
+                marginTop: "44px",
+                padding: "0 12px",
               }}
             >
               <Container maxWidth="xxl">
-                <div className="dashboard__main" style={{ padding: "30px 0" }}>
+                <div className="dashboard__main" style={{ padding: "8px 0" }}>
+                  {isAgentDashboard && (
+                    <>
+                    <Card
+                      elevation={0}
+                      sx={{
+                        mb: 1,
+                        borderRadius: "12px",
+                        border: "1px solid #e6eef8",
+                        background: "#fff",
+                        overflow: "hidden",
+                      }}
+                    >
+                      <CardContent sx={{ py: 1.25, px: { xs: 1.5, md: 2 }, "&:last-child": { pb: 1.25 } }}>
+                        <Stack direction="row" spacing={1.25} alignItems="center">
+                          <Avatar sx={{ width: 36, height: 36, bgcolor: "#eef3ff", color: "#3554d1" }}>
+                            <WorkOutline sx={{ fontSize: 18 }} />
+                          </Avatar>
+                          <Box>
+                            <Stack direction="row" spacing={0.75} alignItems="center">
+                              <Typography
+                                component="h1"
+                                sx={{ fontWeight: 700, fontSize: "1rem", color: "#0f172a", lineHeight: 1.2 }}
+                              >
+                                Agent Dashboard
+                              </Typography>
+                              <Chip
+                                label="Agent"
+                                size="small"
+                                sx={{
+                                  height: 20,
+                                  bgcolor: "#eef3ff",
+                                  color: "#3554d1",
+                                  fontWeight: 700,
+                                  fontSize: "0.68rem",
+                                }}
+                              />
+                            </Stack>
+                            <Typography sx={{ color: "#64748b", fontSize: "0.78rem", lineHeight: 1.3 }}>
+                              Booking management and client services
+                            </Typography>
+                          </Box>
+                        </Stack>
+                      </CardContent>
+                    </Card>
+                    </>
+                  )}
+                  <Box sx={{ display: isAgentDashboard ? "none" : "block" }}>
                   <AnimatedBox direction="left" delay={200}>
                     <Card
                       elevation={0}
@@ -1046,16 +1108,17 @@ const DashboardLayout = () => {
                       </CardContent>
                     </Card>
                   </AnimatedBox>
+                  </Box>
 
                   {/* Profile Modal */}
                   <Dialog
                     open={profileModalOpen}
                     onClose={handleCloseProfileModal}
-                    maxWidth="sm"
+                    maxWidth="xs"
                     fullWidth
                     PaperProps={{
                       sx: {
-                        borderRadius: "16px",
+                        borderRadius: "12px",
                         overflow: "hidden",
                         animation: profileModalOpen ? "slideInUp 0.4s ease-out" : "none",
                         "@keyframes slideInUp": {
@@ -1075,15 +1138,16 @@ const DashboardLayout = () => {
                       sx={{
                         background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
                         color: "white",
-                        p: 3,
+                        px: 2,
+                        py: 1.25,
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "space-between",
                       }}
                     >
-                      <Stack direction="row" alignItems="center" spacing={2}>
-                        <AccountCircleOutlined sx={{ fontSize: 28, color: "white" }} />
-                        <Typography variant="h5" fontWeight="bold">
+                      <Stack direction="row" alignItems="center" spacing={1}>
+                        <AccountCircleOutlined sx={{ fontSize: 20, color: "white" }} />
+                        <Typography variant="subtitle1" fontWeight="bold" sx={{ fontSize: "1rem" }}>
                           Agent Profile
                         </Typography>
                       </Stack>
@@ -1096,17 +1160,17 @@ const DashboardLayout = () => {
                     </DialogTitle>
 
                     <DialogContent sx={{ p: 0 }}>
-                      <Box sx={{ p: 4 }}>
+                      <Box sx={{ px: 2, py: 1.5, "& .MuiInputBase-input": { py: "8.5px" }, "& .MuiInputLabel-root": { fontSize: "0.85rem" } }}>
                         {/* Profile Picture Section */}
-                        <Stack alignItems="center" spacing={2} sx={{ mb: 4 }}>
+                        <Stack alignItems="center" spacing={0.75} sx={{ mb: 1.5 }}>
                           <Box sx={{ position: "relative" }}>
                             <Avatar
                               src={adjustedImage || previewImage || getProfilePictureUrl(profilePicture) || ""}
                               sx={{
-                                width: 120,
-                                height: 120,
-                                border: "4px solid #667eea",
-                                fontSize: "3rem",
+                                width: 64,
+                                height: 64,
+                                border: "2px solid #667eea",
+                                fontSize: "1.4rem",
                                 background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
                                 animation: "pulseGlow 2s ease-in-out infinite alternate",
                                 "@keyframes pulseGlow": {
@@ -1239,8 +1303,9 @@ const DashboardLayout = () => {
                         </Stack>
 
                         {/* Profile Information */}
-                        <Stack spacing={3}>
+                        <Stack spacing={1.25}>
                           <TextField
+                            size="small"
                             label="Full Name"
                             value={Username || "N/A"}
                             InputProps={{
@@ -1470,7 +1535,7 @@ const DashboardLayout = () => {
                           </Stack>
 
                           {passwordChangeMode && (
-                            <Stack spacing={3}>
+                            <Stack spacing={1.25}>
                               <TextField
                                 label="Current Password"
                                 type={showCurrentPassword ? "text" : "password"}

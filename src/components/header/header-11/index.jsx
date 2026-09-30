@@ -9,27 +9,24 @@ import { useDispatch, useSelector } from "react-redux";
 import { logout, logoutUser } from "@/slice/common/authSlices";
 import { resetPackages } from "@/slice/tour-packages/prePackagesSlice";
 import { clearSelectedDmc } from "@/slice/dmc/dmcSlice";
-import LogoutIcon from '@mui/icons-material/Logout';
 import MenuIcon from '@mui/icons-material/Menu';
 import { setAgentId as setAgentIdEdit } from "@/slice/common/EditSlice";
 import { 
   Drawer, 
-  List, 
-  ListItem, 
-  ListItemButton, 
-  ListItemIcon, 
-  ListItemText, 
   IconButton,
   Box,
   Typography,
-  Divider
+  Avatar,
+  Menu,
+  MenuItem,
 } from '@mui/material';
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 
 import MobileMenu from "../MobileMenu";
 import SearchLocationModal from "../../common/SearchLocationModal";
 import DMCSelectionModal from "../../common/DMCSelectionModal";
 
-const Header1 = () => {
+const Header1 = ({ onViewProfile }) => {
   const [navbar, setNavbar] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const isAuthenticated = useSelector((state) => state.auth.isAuthenticated);
@@ -38,6 +35,14 @@ const Header1 = () => {
   const dispatch = useDispatch();
   const dmcLogo = useSelector((state) => state.auth.dmcLogo);
   const agencyLogo = useSelector((state) => state.auth.agencyLogo);
+  const username = useSelector((state) => state.auth.Username);
+  const [userMenuAnchor, setUserMenuAnchor] = useState(null);
+  const initials = (username || "Agent")
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("") || "A";
 
   // Modal states for mobile menu
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
@@ -161,99 +166,151 @@ const Header1 = () => {
 
   return (
     <>
-      <header className={`header bg-dark-3 ${navbar ? "is-sticky" : ""}`} style={{ padding: "5px 0" }}>
-        <div className="header__container px-30 sm:px-20">
-          <div className="row justify-between items-center" style={{ position: "relative" }}>
-            <div className="col-auto" style={{ width: "85%", marginRight: "auto" }}>
-              <div className="d-flex items-center">
-                <Link to="/dashboard/db-dashboard" className="header-logo mr-25">
-                  <div
+      <header
+        className={`header header-lite ${navbar ? "is-sticky" : ""}`}
+        style={{
+          padding: 0,
+          background: "linear-gradient(135deg, #0f1f4b 0%, #1e3a8a 55%, #243b7a 100%)",
+          height: 88,
+        }}
+      >
+        <style>{`
+          .header.header-lite {
+            height: 88px !important;
+            background: linear-gradient(135deg, #0f1f4b 0%, #1e3a8a 55%, #243b7a 100%) !important;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.18);
+          }
+          .header.header-lite .menu__nav > li {
+            padding: 0 !important;
+          }
+          .header.header-lite .menu__nav a {
+            padding: 8px 14px !important;
+            border-radius: 999px;
+            text-decoration: none !important;
+            transition: background 0.2s ease, color 0.2s ease;
+          }
+          .header.header-lite .menu__nav a:hover,
+          .header.header-lite .menu__nav a:focus {
+            background: rgba(255, 255, 255, 0.14) !important;
+            color: #ffffff !important;
+            text-decoration: none !important;
+            outline: none;
+          }
+          .header.header-lite .menu__nav li.current > a,
+          .header.header-lite .menu__nav li.current > a:hover,
+          .header.header-lite .menu__nav li.current > a:focus {
+            background: #ffffff !important;
+            color: #0f1f4b !important;
+            box-shadow: 0 4px 12px rgba(8, 18, 48, 0.22);
+          }
+          .header.header-lite .header-logo {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            height: 72px;
+            padding: 4px 10px;
+            background: #ffffff;
+            border-radius: 14px;
+            box-shadow: 0 6px 16px rgba(8, 18, 48, 0.28);
+            overflow: hidden;
+            line-height: 0;
+          }
+          .header.header-lite .header-logo img {
+            width: auto !important;
+            height: 64px !important;
+            max-width: 220px;
+            object-fit: contain;
+          }
+        `}</style>
+        <div className="header__container" style={{ width: "100%" }}>
+          <div style={{ display: "flex", alignItems: "center", width: "100%", maxWidth: 1400, margin: "0 auto", height: 88, padding: "0 28px", gap: 28 }}>
+            <div style={{ display: "flex", alignItems: "center", minWidth: 220, flexShrink: 0 }}>
+                <Link to="/dashboard/db-dashboard" className="header-logo">
+                  <img
+                    src={isAuthenticated && userRole == "Agent" ? agencyLogo : dmcLogo}
+                    alt="logo icon"
                     style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      borderRadius: "8px",
-                      background: "rgba(255, 255, 255, 0.1)",
-                      backdropFilter: "blur(10px)",
-                      border: "1px solid rgba(255, 255, 255, 0.2)",
-                      transition: "all 0.3s ease",
-                      height: "50px",
-                      width: "100%",
-                      minHeight: "45px",
-                      minWidth: "140px",
+                      height: 64,
+                      width: "auto",
+                      maxWidth: 220,
+                      objectFit: "contain",
+                      display: "block",
                     }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = "rgba(255, 255, 255, 0.15)";
-                      e.currentTarget.style.border = "1px solid rgba(255, 255, 255, 0.3)";
-                      e.currentTarget.style.transform = "translateY(-1px)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
-                      e.currentTarget.style.border = "1px solid rgba(255, 255, 255, 0.2)";
-                      e.currentTarget.style.transform = "translateY(0)";
-                    }}
-                  >
-                    <img
-                      src={isAuthenticated && userRole == "Agent" ? agencyLogo : dmcLogo}  
-                      alt="logo icon"
-                      style={{
-                        width: "100%",
-                        height: "50px",
-                        objectFit: "cover",
-                        transition: "all 0.3s ease",
-                        display: "block",
-                        filter: "brightness(1.05) contrast(1.05)",
-                        borderRadius: "6px",
-                      }}
-                      onLoad={(e) => {
-                        e.target.style.opacity = "0";
-                        setTimeout(() => {
-                          e.target.style.transition = "opacity 0.4s ease";
-                          e.target.style.opacity = "1";
-                        }, 50);
-                      }}
-                    />
-                  </div>
+                  />
                 </Link>
-                {/* End logo */}
-
-                <div className="header-menu" style={{ marginTop: "5px" }}>
-                  <div className="header-menu__content">
-                    <MainMenu style="text-white" />
-                  </div>
-                </div>
-                {/* End header-menu */}
-              </div>
-              {/* End d-flex */}
             </div>
-            {/* End col */}
 
-            <div className="col-auto" style={{ position: "absolute", right: "10px", top: "50%", transform: "translateY(-50%)" }}>
-              <div className="d-flex items-center">
+            <div className="header-menu" style={{ flex: 1, display: "flex", justifyContent: "center" }}>
+              <div className="header-menu__content">
+                <MainMenu style="text-dark-1" onDark />
+              </div>
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", minWidth: 150 }}>
                 {/* Logout button positioned to the far right */}
-                {isAuthenticated && userRole !== "Agent" && (
-                  <div className="d-flex items-center mr-15">
-                    <Link
-                      onClick={handleLogout}
-                      className="button px-15 fw-500 text-14 border-white -outline-white h-40 text-white hover:bg-white hover:text-dark-1 flex items-center gap-2"
-                      style={{
-                        borderRadius: "6px",
+                {isAuthenticated && (
+                  <>
+                    <Box
+                      onClick={(event) => setUserMenuAnchor(event.currentTarget)}
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 1.25,
+                        px: 1.25,
+                        py: 0.6,
+                        borderRadius: "999px",
+                        border: "1px solid #e8eef5",
+                        cursor: "pointer",
+                        bgcolor: "#fff",
+                        "&:hover": { bgcolor: "#f8fafc" },
                       }}
                     >
-                      <LogoutIcon className="text-18" />
-                      <span>Logout</span>
-                    </Link>
-                  </div>
+                      <Avatar sx={{ width: 38, height: 38, bgcolor: "#3554d1", fontSize: 13, fontWeight: 700 }}>
+                        {initials}
+                      </Avatar>
+                      <Typography sx={{ fontSize: 14, fontWeight: 600, color: "#0f172a", display: { xs: "none", md: "block" } }}>
+                        {username || "Agent"}
+                      </Typography>
+                      <KeyboardArrowDownIcon sx={{ fontSize: 18, color: "#64748b" }} />
+                    </Box>
+                    <Menu
+                      anchorEl={userMenuAnchor}
+                      open={Boolean(userMenuAnchor)}
+                      onClose={() => setUserMenuAnchor(null)}
+                      anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
+                      transformOrigin={{ horizontal: "right", vertical: "top" }}
+                      PaperProps={{ sx: { mt: 1, minWidth: 180, borderRadius: "12px" } }}
+                    >
+                      {onViewProfile && (
+                        <MenuItem
+                          onClick={() => {
+                            setUserMenuAnchor(null);
+                            onViewProfile();
+                          }}
+                        >
+                          View profile
+                        </MenuItem>
+                      )}
+                      <MenuItem
+                        onClick={() => {
+                          setUserMenuAnchor(null);
+                          handleLogout();
+                        }}
+                      >
+                        Sign out
+                      </MenuItem>
+                    </Menu>
+                  </>
                 )}
-
                 {/* Start mobile menu icon */}
                 <div className="d-none xl:d-flex x-gap-20 items-center text-white">
                   <IconButton
                     onClick={handleMobileMenuToggle}
                     sx={{ 
-                      color: 'white',
+                      color: '#ffffff',
                       '&:hover': {
-                        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                        backgroundColor: 'rgba(255, 255, 255, 0.12)',
                       }
                     }}
                   >
@@ -280,10 +337,7 @@ const Header1 = () => {
                 </div>
                 {/* End mobile menu icon */}
               </div>
-            </div>
-            {/* End col-auto */}
           </div>
-          {/* End .row */}
         </div>
         {/* End header_container */}
       </header>

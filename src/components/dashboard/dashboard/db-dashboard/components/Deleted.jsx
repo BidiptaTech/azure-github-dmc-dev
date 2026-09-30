@@ -1397,7 +1397,7 @@ export default function Pending({ filters = {} }) {
               boxShadow: "0 4px 12px rgba(0,0,0,0.05)",
               overflow: "hidden",
               backgroundColor: "white",
-              border: "1px solid #e0e6ed",
+              border: "1px solid #e5e7eb",
             }}
           >
             <div className="responsive-table-container">
@@ -1406,7 +1406,7 @@ export default function Pending({ filters = {} }) {
                   <tr>
                     <th
                       style={{
-                        backgroundColor: "#f5f7fc",
+                        backgroundColor: "#ffffff",
                         padding: "14px 20px",
                         fontWeight: "600",
                         color: "#3554D1",
@@ -1415,12 +1415,12 @@ export default function Pending({ filters = {} }) {
                         whiteSpace: "nowrap",
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = "#e6eafb";
+                        e.currentTarget.style.backgroundColor = "#f7f7f7";
                         e.currentTarget.querySelector("i").style.transform =
                           "rotate(90deg)";
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = "#f5f7fc";
+                        e.currentTarget.style.backgroundColor = "#ffffff";
                         e.currentTarget.querySelector("i").style.transform =
                           "rotate(0deg)";
                       }}
@@ -1448,7 +1448,7 @@ export default function Pending({ filters = {} }) {
                     </th>
                     <th
                       style={{
-                        backgroundColor: "#f5f7fc",
+                        backgroundColor: "#ffffff",
                         padding: "14px 20px",
                         fontWeight: "600",
                         color: "#3554D1",
@@ -1458,10 +1458,10 @@ export default function Pending({ filters = {} }) {
                       }}
                       onClick={() => handleColumnSort("id")}
                       onMouseEnter={(e) =>
-                        (e.currentTarget.style.backgroundColor = "#e6eafb")
+                        (e.currentTarget.style.backgroundColor = "#f7f7f7")
                       }
                       onMouseLeave={(e) =>
-                        (e.currentTarget.style.backgroundColor = "#f5f7fc")
+                        (e.currentTarget.style.backgroundColor = "#ffffff")
                       }
                       title={`Sort by Booking ID (${
                         sortColumn === "id"
@@ -1506,7 +1506,7 @@ export default function Pending({ filters = {} }) {
                     <th
                       className="tour-details-column"
                       style={{
-                        backgroundColor: "#f5f7fc",
+                        backgroundColor: "#ffffff",
                         padding: "8px 12px",
                         fontWeight: "600",
                         color: "#3554D1",
@@ -1515,8 +1515,8 @@ export default function Pending({ filters = {} }) {
                         textAlign: "left",
                       }}
                       onClick={() => handleColumnSort("startDate")}
-                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#e6eafb")}
-                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#f5f7fc")}
+                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#f7f7f7")}
+                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#ffffff")}
                       title={`Sort by Start Date (${
                         sortColumn === "startDate"
                           ? order === "asc"
@@ -1559,7 +1559,7 @@ export default function Pending({ filters = {} }) {
                     </th>
                     <th
                       style={{
-                        backgroundColor: "#f5f7fc",
+                        backgroundColor: "#ffffff",
                         padding: "14px 20px",
                         fontWeight: "600",
                         color: "#3554D1",
@@ -1568,12 +1568,12 @@ export default function Pending({ filters = {} }) {
                       }}
                       onClick={() => handleColumnSort("status")}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = "#e6eafb";
+                        e.currentTarget.style.backgroundColor = "#f7f7f7";
                         e.currentTarget.querySelector("i").style.transform =
                           "scale(1.2)";
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = "#f5f7fc";
+                        e.currentTarget.style.backgroundColor = "#ffffff";
                         e.currentTarget.querySelector("i").style.transform =
                           "scale(1)";
                       }}
@@ -1600,7 +1600,7 @@ export default function Pending({ filters = {} }) {
                     </th>
                     <th
                       style={{
-                        backgroundColor: "#f5f7fc",
+                        backgroundColor: "#ffffff",
                         padding: "14px 20px",
                         fontWeight: "600",
                         color: "#3554D1",
@@ -1613,12 +1613,12 @@ export default function Pending({ filters = {} }) {
                       }}
                       // onClick={() => handleColumnSort("status")}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = "#e6eafb";
+                        e.currentTarget.style.backgroundColor = "#f7f7f7";
                         e.currentTarget.querySelector("i").style.transform =
                           "scale(1.2)";
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = "#f5f7fc";
+                        e.currentTarget.style.backgroundColor = "#ffffff";
                         e.currentTarget.querySelector("i").style.transform =
                           "scale(1)";
                       }}
@@ -1645,7 +1645,7 @@ export default function Pending({ filters = {} }) {
                     </th>
                     <th
                       style={{
-                        backgroundColor: "#f5f7fc",
+                        backgroundColor: "#ffffff",
                         padding: "8px 12px",
                         fontWeight: "600",
                         color: "#3554D1",
@@ -2007,19 +2007,19 @@ export default function Pending({ filters = {} }) {
                               style={{
                                 borderRadius: "8px",
                                 padding: "10px 12px",
-                                backgroundColor: "rgba(225, 245, 255, 0.9)",
-                                border: "1px solid rgba(33, 150, 243, 0.2)",
-                                boxShadow: "0 2px 8px rgba(33, 150, 243, 0.15)",
+                                backgroundColor: "#ffffff",
+                                border: "1px solid #e5e7eb",
+                                boxShadow: "0 1px 3px rgba(0, 0, 0, 0.06)",
                                 transition: "all 0.3s ease",
                                 cursor: "pointer",
                               }}
                               onMouseEnter={(e) => {
                                 e.currentTarget.style.transform = "translateY(-2px)";
-                                e.currentTarget.style.boxShadow = "0 4px 12px rgba(33, 150, 243, 0.25)";
+                                e.currentTarget.style.boxShadow = "0 2px 6px rgba(0, 0, 0, 0.08)";
                               }}
                               onMouseLeave={(e) => {
                                 e.currentTarget.style.transform = "translateY(0)";
-                                e.currentTarget.style.boxShadow = "0 2px 8px rgba(33, 150, 243, 0.15)";
+                                e.currentTarget.style.boxShadow = "0 1px 3px rgba(0, 0, 0, 0.06)";
                               }}
                             >
                               {/* Original Amount (from API, no tax) */}

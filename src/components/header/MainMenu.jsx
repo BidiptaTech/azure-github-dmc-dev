@@ -4,7 +4,7 @@ import {
   FaChartLine,
   FaCompass,
   FaEnvelopeOpenText,
-  FaBoxOpen,
+  // FaBoxOpen,
   FaShoppingCart,
 } from "react-icons/fa";
 import { useSelector, useDispatch } from "react-redux";
@@ -71,7 +71,7 @@ const StyledDialogTitle = styled(DialogTitle)(({ theme }) => ({
   },
 }));
 
-const MainMenu = ({ style = "" }) => {
+const MainMenu = ({ style = "", onDark = false }) => {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -131,8 +131,32 @@ const MainMenu = ({ style = "" }) => {
 
   // Common style for menu items
   const menuItemStyle = {
-    marginRight: "40px",
+    marginRight: 0,
   };
+
+  const pillStyle = (active) => ({
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 8,
+    padding: "8px 14px",
+    borderRadius: 999,
+    background: active
+      ? onDark
+        ? "#ffffff"
+        : "#eef3ff"
+      : "transparent",
+    color: onDark
+      ? active
+        ? "#0f1f4b"
+        : "rgba(255,255,255,0.92)"
+      : active
+        ? "#3554d1"
+        : "#475569",
+    fontWeight: 600,
+    fontSize: 14,
+    lineHeight: 1.2,
+    textDecoration: "none",
+  });
 
   // === Book Tour Handlers (Single DMC Selection) ===
   const handleBookTourClick = (e) => {
@@ -226,7 +250,7 @@ const MainMenu = ({ style = "" }) => {
   return (
     <>
     <nav className="menu js-navList  lg:d-block">
-      <ul className={`menu__nav ${style} -is-active`} style={{ display: "flex" }}>
+      <ul className={`menu__nav ${style} -is-active`} style={{ display: "flex", alignItems: "center", gap: 22 }}>
         <li
           className={`menu-item ${
             pathname === "/dashboard/db-dashboard" ? "current" : ""
@@ -235,29 +259,11 @@ const MainMenu = ({ style = "" }) => {
         >
                      <Link
              to="/dashboard/db-dashboard"
-             className="d-flex items-center px-20 py-15 text-decoration-none hover:bg-green-1/5 rounded-4 transition-all"
-             style={{ flexDirection: "column", alignItems: "flex-start" }}
-            
+             className="d-flex items-center text-decoration-none"
+             style={pillStyle(pathname === "/dashboard/db-dashboard")}
            >
-             
-              
-                 
-            <div style={{ display: "flex", alignItems: "center" }}>
-                <FaChartLine 
-                  className="text-28 text-green-1" 
-                  style={{ marginRight: "12px" }} 
-                  title="Manage Your Experience"
-                />
-                <span
-                  className={`fw-700 text-18 ${
-                    pathname === "/dashboard/db-dashboard" ? "text-green-1" : ""
-                  }`}
-                  title="Manage Your Experience"
-                >
-                  Dashboard
-                </span>
-              </div>
-            
+                <FaChartLine style={{ fontSize: 15 }} />
+                <span>Dashboard</span>
            </Link>
         </li>
 
@@ -271,27 +277,11 @@ const MainMenu = ({ style = "" }) => {
                              <a
                  href="#"
                  onClick={handleBookTourClick}
-               className="d-flex items-center px-20 py-15 text-decoration-none hover:bg-green-1/5 rounded-4 transition-all"
-               style={{ flexDirection: "column", alignItems: "flex-start" }}
-              
+               className="d-flex items-center text-decoration-none"
+               style={pillStyle(pathname === "/dashboard/db-dashboard/home_1")}
              >
-                  <div style={{ display: "flex", alignItems: "center" }}>
-                  <FaCompass 
-                    className="text-28 text-green-1" 
-                    style={{ marginRight: "12px" }} 
-                    title="Discover Your Dream Destinations"
-                  />
-                  <span
-                    className={`fw-700 text-18 ${
-                      pathname === "/dashboard/db-dashboard/home_1"
-                        ? "text-green-1"
-                        : ""
-                    }`}
-                    title="Discover Your Dream Destinations"
-                  >
-                    Book Tour
-                  </span> 
-                </div>
+                  <FaCompass style={{ fontSize: 15 }} />
+                  <span>Book Tour</span>
                </a>
           </li>
         )}
@@ -306,61 +296,35 @@ const MainMenu = ({ style = "" }) => {
                              <a
                  href="#"
                  onClick={handleBookEnquiryClick}
-               className="d-flex items-center px-20 py-15 text-decoration-none hover:bg-green-1/5 rounded-4 transition-all"
-               style={{ flexDirection: "column", alignItems: "flex-start" }}
+               className="d-flex items-center text-decoration-none"
+               style={pillStyle(pathname === "/dashboard/db-dashboard/home_2")}
              >
-                               <div style={{ display: "flex", alignItems: "center" }}>
-                  <FaEnvelopeOpenText 
-                    className="text-28 text-green-1" 
-                    style={{ marginRight: "12px" }} 
-                    title="Reach Out for Custom Requests"
-                  />
-                  <span
-                    className={`fw-700 text-18 ${
-                      pathname === "/dashboard/db-dashboard/home_2"
-                        ? "text-green-1"
-                        : ""
-                    }`}
-                    title="Reach Out for Custom Requests"
-                  >
-                    Quick Enquiry
-                  </span>
-                </div>
+                  <FaEnvelopeOpenText style={{ fontSize: 15 }} />
+                  <span>Quick Enquiry</span>
                </a>
           </li>
         )}
 
-        {/* {!(userRole === "Operational Head(DMC)" || userRole === "DMC Operational Manager" || userRole === "DMC Assistant Operational Manager") && (
+        {/* Packages menu item hidden for now
+        {!isManagerOrSalesHead && (
           <li
             className={`menu-item ${
               pathname === packagesPath ? "current" : ""
             }`}
             style={menuItemStyle}
           >
-                       <a
-               href="#"
-               onClick={handlePackagesClick}
-               className="d-flex items-center px-20 py-15 text-decoration-none hover:bg-green-1/5 rounded-4 transition-all"
-               style={{ flexDirection: "column", alignItems: "flex-start" }}
-             >
-                             <div style={{ display: "flex", alignItems: "center" }}>
-                  <FaBoxOpen 
-                    className="text-28 text-green-1" 
-                    style={{ marginRight: "12px" }} 
-                    title="Custom Travel Bundles"
-                  />
-                  <span
-                    className={`fw-700 text-18 ${
-                      pathname === packagesPath ? "text-green-1" : ""
-                    }`}
-                    title="Custom Travel Bundles"
-                  >
-                    Packages
-                  </span>
-                </div>
-             </a>
+            <a
+              href="#"
+              onClick={handlePackagesClick}
+              className="d-flex items-center text-decoration-none"
+              style={pillStyle(pathname === packagesPath)}
+            >
+              <FaBoxOpen style={{ fontSize: 15 }} />
+              <span>Packages</span>
+            </a>
           </li>
-        )} */}
+        )}
+        */}
 
         {!isManagerOrSalesHead && (
           <li
@@ -371,42 +335,36 @@ const MainMenu = ({ style = "" }) => {
             <a
               href="#"
               onClick={handleCartClick}
-              className="d-flex items-center px-20 py-15 text-decoration-none hover:bg-green-1/5 rounded-4 transition-all"
-              style={{ flexDirection: "column", alignItems: "flex-start" }}
+              className="d-flex items-center text-decoration-none"
+              style={pillStyle(pathname === "/dashboard/db-dashboard/cart")}
               title="View Cart"
             >
-              <div style={{ display: "flex", alignItems: "center" }}>
-                <Badge
-                  badgeContent={cartItemCount}
-                  color="error"
-                  max={99}
-                  overlap="circular"
-                  sx={{
-                    mr: 1.5,
-                    "& .MuiBadge-badge": {
-                      fontSize: "0.65rem",
-                      minWidth: 18,
-                      height: 18,
-                      fontWeight: 700,
-                    },
-                  }}
-                >
-                  <FaShoppingCart
-                    className="text-28 text-green-1"
-                    title="View Cart"
-                  />
-                </Badge>
-                <span
-                  className={`fw-700 text-18 ${
-                    pathname === "/dashboard/db-dashboard/cart"
-                      ? "text-green-1"
-                      : ""
-                  }`}
-                  title="View Cart"
-                >
-                  Cart
-                </span>
-              </div>
+              <Badge
+                badgeContent={cartItemCount}
+                max={99}
+                overlap="circular"
+                sx={{
+                  "& .MuiBadge-badge": {
+                    fontSize: "0.65rem",
+                    minWidth: 16,
+                    height: 16,
+                    fontWeight: 700,
+                    bgcolor: onDark
+                      ? pathname === "/dashboard/db-dashboard/cart"
+                        ? "#0f1f4b"
+                        : "#ffffff"
+                      : "#3554d1",
+                    color: onDark
+                      ? pathname === "/dashboard/db-dashboard/cart"
+                        ? "#ffffff"
+                        : "#0f1f4b"
+                      : "#fff",
+                  },
+                }}
+              >
+                <FaShoppingCart style={{ fontSize: 15 }} />
+              </Badge>
+              <span>Cart</span>
             </a>
           </li>
         )}
