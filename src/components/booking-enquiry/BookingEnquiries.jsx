@@ -181,9 +181,9 @@ const CategoryBadge = styled(Chip)(({ theme, serviceType }) => {
   const colorScheme = serviceColors[serviceType] || serviceColors.hotel;
 
   return {
-    position: "absolute",
-    top: 10,
-    right: 10,
+    position: "relative",
+    top: 0,
+    right: 0,
     fontSize: "10px",
     textTransform: "uppercase",
     backgroundColor: colorScheme.bg || "#edf2ff",
@@ -218,8 +218,8 @@ const DetailsToggleButton = styled(Button)(({ theme, serviceType }) => {
     alignItems: "center",
     justifyContent: "center",
     width: "100%",
-    padding: theme.spacing(1.5),
-    marginTop: theme.spacing(2.5),
+    padding: theme.spacing(0.75),
+    marginTop: 0,
     backgroundColor: "transparent",
     border: "none",
     borderTop: "1px solid #f0f0f0",
@@ -1826,16 +1826,9 @@ const BookingEnquiries = ({
     <Box sx={{ width: "100%" }}>
       <EnquirySearchSummaryBar />
 
-      <Box
-        sx={{
-          maxWidth: "1400px",
-          margin: "0 auto",
-          px: { xs: 1, sm: 2, md: 3 },
-          pb: { xs: 1, sm: 2, md: 3 },
-        }}
-      >
+      <Box sx={{ width: "100%", pb: { xs: 1, sm: 1.5 } }}>
       {/* Main Grid Layout */}
-      <Grid container spacing={{ xs: 2, sm: 3, md: 4 }}>
+      <Grid container spacing={{ xs: 1.5, sm: 2, md: 2 }}>
         {/* Left Column - DMC Selection */}
         <Grid item xs={12} md={4} lg={3}>
           {/* Required indicator for DMC selection */}
@@ -1858,17 +1851,17 @@ const BookingEnquiries = ({
             <Paper
               elevation={2}
               sx={{
-                mb: 3,
-                p: 3,
+                mb: 1.5,
+                p: 1.5,
                 background: "linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)",
                 borderRadius: 2,
                 border: "1px solid rgba(14, 165, 233, 0.2)",
               }}
             >
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                  <CheckCircleIcon sx={{ fontSize: 24, color: '#0ea5e9', mr: 1 }} />
-                  <Typography variant="h6" sx={{ fontWeight: 600, color: '#0c4a6e' }}>
+                  <CheckCircleIcon sx={{ fontSize: 18, color: '#0ea5e9', mr: 0.75 }} />
+                  <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#0c4a6e', fontSize: '0.95rem' }}>
                     Selected DMC Partners ({selectedDmcsData.length})
                   </Typography>
                 </Box>
@@ -1911,7 +1904,7 @@ const BookingEnquiries = ({
             </Alert>
           )}
 
-          <Grid container spacing={{ xs: 1, sm: 2, md: 3 }} alignItems="flex-start">
+          <Grid container spacing={{ xs: 1, sm: 1.5, md: 1.5 }} alignItems="flex-start">
             {Object.keys(bookingOptions)
               // Local Tour & Tour Guide temporarily hidden (commented out of bookingOptions)
               .filter((option) => option !== "localTour" && option !== "tourGuide")
@@ -1921,18 +1914,7 @@ const BookingEnquiries = ({
                 selected={bookingOptions[option]}
                 serviceType={option}
               >
-                <Tooltip
-                  title={getServiceDescription(option)}
-                  arrow
-                  placement="top"
-                  TransitionComponent={Zoom}
-                >
-                  <CategoryBadge
-                    label={getCategoryLabel(option)}
-                    serviceType={option}
-                  />
-                </Tooltip>
-                <CardContent sx={{ flexGrow: 1, p: { xs: 1, sm: 2, md: 3 } }}>
+                <CardContent sx={{ flexGrow: 1, p: { xs: 1.25, sm: 1.5 }, "&:last-child": { pb: { xs: 1.25, sm: 1.5 } } }}>
                   <Box
                     sx={{
                       display: "flex",
@@ -1965,7 +1947,7 @@ const BookingEnquiries = ({
                         component="h4"
                         sx={{ 
                           fontWeight: 600,
-                          fontSize: { xs: '0.875rem', sm: '1rem', md: '1.25rem' },
+                          fontSize: { xs: '0.875rem', sm: '1rem' },
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
                           whiteSpace: 'nowrap',
@@ -1983,9 +1965,22 @@ const BookingEnquiries = ({
                         </Tooltip>
                       </Typography>
                     </Box>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flexShrink: 0 }}>
+                    <Tooltip
+                      title={getServiceDescription(option)}
+                      arrow
+                      placement="top"
+                      TransitionComponent={Zoom}
+                    >
+                      <CategoryBadge
+                        label={getCategoryLabel(option)}
+                        serviceType={option}
+                      />
+                    </Tooltip>
                     <FormControlLabel
                       sx={{
-                        mt: { xs: 0, sm: 0 },
+                        mt: 0,
+                        mr: 0,
                         flexShrink: 0
                       }}
                       control={
@@ -2014,13 +2009,14 @@ const BookingEnquiries = ({
                         </Typography>
                       }
                     />
+                    </Box>
                   </Box>
 
                   {bookingOptions[option] && expandedSections[option] && (
                     <Box
                       sx={{
-                        mt: { xs: 1, sm: 1.5, md: 2.5 },
-                        pt: { xs: 1, sm: 1.5, md: 2.5 },
+                        mt: 1.25,
+                        pt: 1.25,
                         borderTop: "1px solid #f0f0f0",
                         animation: "fadeIn 0.4s ease-in-out",
                         "@keyframes fadeIn": {
@@ -2861,8 +2857,8 @@ const BookingEnquiries = ({
           <Paper
             elevation={2}
             sx={{
-              mt: 5,
-              p: 3,
+              mt: 2,
+              p: 2,
               background: "linear-gradient(135deg, #f5f8fe, #edf2ff)",
               borderRadius: 2,
               transition: "all 0.3s ease",

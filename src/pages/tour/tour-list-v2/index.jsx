@@ -9,6 +9,7 @@ import MainFilterSearchBox from "@/components/restaurants/tour-list-v1/MainFilte
 import MetaComponent from "@/components/common/MetaComponent";
 import TourStatus from "@/components/common/sub_common/TourStatus";
 import CustomStepper from "@/components/common/sub_common/CustomStepper";
+import "@/styles/hotelListHero.css";
 
 const metadata = {
   title: "Restaurant List || Travclicks - Travel Technology Transformed",
@@ -22,30 +23,25 @@ const TourListPage2 = () => {
       {/* End Page Title */}
 
       <div className="header-margin">
-        <CustomStepper variant="lite" />
-        <TourStatus variant="lite" />
-      </div>
-      {/* header top margin */}
-
-      {/* <Header11 /> */}
-
-      {/* End Header 1 */}
-      <section className="pt-40 pb-40 bg-light-2">
         <div className="container">
-          <div className="row">
-            <div className="col-12">
-              <div className="text-center">
-                <h1 className="text-30 fw-600">Restaurants</h1>
-              </div>
-              {/* End text-center */}
-              <MainFilterSearchBox />
+          <div className="hotel-list-lite-stack">
+            <div className="hotel-list-lite-panel">
+              <CustomStepper variant="lite" />
+              <TourStatus variant="lite" />
             </div>
-            {/* End col-12 */}
           </div>
         </div>
-      </section>
+      </div>
 
-      <section className="layout-pt-md layout-pb-lg">
+      <div className="hotel-list-top">
+        <div className="container">
+          <div className="hotel-list-hero">
+            <MainFilterSearchBox layout="hero" />
+          </div>
+        </div>
+      </div>
+
+      <section className="hotel-list-results layout-pb-lg">
         <div className="container">
           <div className="row y-gap-30">
             <div className="col-xl-3">
@@ -90,7 +86,7 @@ const TourListPage2 = () => {
               {/* <TopHeaderFilter /> */}
               {/* <div className="mt-30"></div> */}
               {/* End mt--30 */}
-              <div className="row y-gap-30" style={{ marginTop: "0px", paddingLeft: "2rem" }}>
+              <div className="row y-gap-30">
                 <TourProperties />
               </div>
               {/* End .row */}

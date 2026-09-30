@@ -18,7 +18,8 @@ import {
   isCityServiceBooked,
 } from "@/utils/cityWiseDates";
 
-const MainFilterSearchBox = () => {
+const MainFilterSearchBox = ({ layout = "default" }) => {
+  const isHeroLayout = layout === "hero";
   const dispatch = useDispatch();
 
   const tourdetails = useSelector((state) => state.hotels.tourdetails);
@@ -212,58 +213,114 @@ const MainFilterSearchBox = () => {
     [cityWiseDates, activeCityName, attractionServices]
   );
 
-  return (
-    <>
+  const cityPills =
+    cityChipItems.length > 0 ? (
       <CityServiceChips
         items={cityChipItems}
         onCitySelect={handleCityChipClick}
+        variant={isHeroLayout ? "hero" : "default"}
+      />
+    ) : null;
+
+  const searchFields = (
+    <div className="button-grid items-center">
+      <LocationSearch
+        onLocationSelect={handleLocationSelect}
+        hasError={locationError}
+        setError={setLocationError}
+        controlledCity={selectedLocation}
       />
 
-      <div className="mainSearch -col-3-big bg-white px-10 py-10 lg:px-20 lg:pt-5 lg:pb-20 rounded-4 mt-30">
-        <div className="button-grid items-center">
-          <LocationSearch
-            onLocationSelect={handleLocationSelect}
-            hasError={locationError}
-            setError={setLocationError}
-            controlledCity={selectedLocation}
-          />
-
-          <div className="searchMenu-date px-30 lg:py-20 sm:px-20 js-form-dd js-calendar">
-            <div className="d-flex">
-              <i className="icon-calendar-2 text-20 text-light-1 mt-5"></i>
-              <div className="ml-10">
-                <h4 className="text-15 fw-500 ls-2 lh-16">Select Date</h4>
-                <DateSearch
-                  onDateSelect={handleDateSelect}
-                  minDate={dateBounds.minDate}
-                  maxDate={dateBounds.maxDate}
-                  value={selectedDate}
-                />
-                {hasCityWiseDates && selectedLocation && (
-                  <div className="text-12 text-light-1 mt-5">
-                    Dates within {toCityOnly(selectedLocation)} stay
-                  </div>
-                )}
-              </div>
+      <div className="searchMenu-date px-30 lg:py-20 sm:px-20 js-form-dd js-calendar">
+        <div>
+          <div className="d-flex">
+            <i
+              className={`${
+                isHeroLayout ? "icon-calendar mr-10" : "icon-calendar-2"
+              } text-20 text-light-1 mt-5`}
+            />
+            <div className={isHeroLayout ? "flex-grow-1" : "ml-10"}>
+              <h4 className="text-15 fw-500 ls-2 lh-16">Selected Date</h4>
+              <DateSearch
+                onDateSelect={handleDateSelect}
+                minDate={dateBounds.minDate}
+                maxDate={dateBounds.maxDate}
+                value={selectedDate}
+                displayFormat={isHeroLayout ? "MMM DD, YYYY" : "DD/MM/YYYY"}
+              />
+              {hasCityWiseDates && selectedLocation && (
+                <div
+                  className={
+                    isHeroLayout
+                      ? "hotel-list-dates-locked"
+                      : "text-12 text-light-1 mt-5"
+                  }
+                >
+                  {isHeroLayout ? (
+                    <>
+                      <i className="icon-info-circle text-12" aria-hidden="true" />
+                      <span>
+                        Dates locked to {toCityOnly(selectedLocation)}
+                      </span>
+                    </>
+                  ) : (
+                    <>Dates locked to {toCityOnly(selectedLocation)}</>
+                  )}
+                </div>
+              )}
             </div>
-          </div>
-
-          <GuestSearch
-            guestCounts={guestCounts}
-            setGuestCounts={setGuestCounts}
-          />
-
-          <div className="button-item h-full">
-            <button
-              className="button -dark-1 py-15 px-40 h-full col-12 rounded-0 bg-blue-1 text-white"
-              onClick={handleSearch}
-            >
-              <i className="icon-search text-20 mr-10" />
-              Search
-            </button>
           </div>
         </div>
       </div>
+
+      <GuestSearch
+        guestCounts={guestCounts}
+        setGuestCounts={setGuestCounts}
+        heroStyle={isHeroLayout}
+      />
+
+      <div className="button-item h-full">
+        <button
+          className={`button -dark-1 py-15 px-40 h-full col-12 bg-blue-1 text-white ${
+            isHeroLayout ? "" : "rounded-0"
+          }`}
+          style={isHeroLayout ? { borderRadius: 14 } : undefined}
+          onClick={handleSearch}
+        >
+          <i className="icon-search text-20 mr-10" />
+          {isHeroLayout ? "Search Attractions" : "Search"}
+        </button>
+      </div>
+    </div>
+  );
+
+  const searchCard = isHeroLayout ? (
+    <div className="hotel-list-search-card">
+      <div className="mainSearch -col-3-big hotel-list-main-search">
+        {searchFields}
+      </div>
+    </div>
+  ) : (
+    <div className="mainSearch -col-3-big bg-white px-10 py-10 lg:px-20 lg:pt-5 lg:pb-20 rounded-4 mt-30">
+      {searchFields}
+    </div>
+  );
+
+  if (isHeroLayout) {
+    return (
+      <>
+        {cityPills ? (
+          <div className="hotel-list-hero__top">{cityPills}</div>
+        ) : null}
+        {searchCard}
+      </>
+    );
+  }
+
+  return (
+    <>
+      {cityPills}
+      {searchCard}
     </>
   );
 };
