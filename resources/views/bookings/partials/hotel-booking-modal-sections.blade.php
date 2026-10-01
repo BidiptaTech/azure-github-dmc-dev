@@ -21,9 +21,45 @@
         || (float)($extraBedModal['price_per_night'] ?? 0) > 0
     ));
 
-    $hasCwbModal = isset($booking['child_with_bed']['enabled']) && $booking['child_with_bed']['enabled'];
-    $hasCnbModal = isset($booking['child_without_bed']['enabled']) && $booking['child_without_bed']['enabled'];
-    $showAddonsSection = $hasCwbModal || $hasCnbModal || $extraBedShowModal;
+    $hasCwbModal = isset($booking['child_with_bed']) && is_array($booking['child_with_bed'])
+        && (
+            (int) ($booking['child_with_bed']['children'] ?? 0) > 0
+            || (float) ($booking['child_with_bed']['total_cost'] ?? 0) > 0
+        );
+    $hasCnbModal = isset($booking['child_without_bed']) && is_array($booking['child_without_bed'])
+        && (
+            (int) ($booking['child_without_bed']['children'] ?? 0) > 0
+            || (float) ($booking['child_without_bed']['total_cost'] ?? 0) > 0
+        );
+
+    // Baby cot / infant (Lite + Pro): beds[].baby_cot or top-level baby_cot / hasInfant
+    $firstBedCotModal = [];
+    if (!empty($booking['rooms'][0]['beds'][0]) && is_array($booking['rooms'][0]['beds'][0])) {
+        $firstBedCotModal = $booking['rooms'][0]['beds'][0];
+    }
+    $babyCotEnabledModal = (int) ($firstBedCotModal['baby_cot'] ?? $booking['baby_cot'] ?? 0) === 1
+        || !empty($booking['hasInfant'])
+        || !empty($booking['has_infant']);
+    $babyCotUnitModal = (float) ($booking['baby_cot_price'] ?? $firstBedCotModal['baby_cot_price'] ?? 0);
+    $babyCotInfantsModal = max(0, (int) (
+        $booking['selected_infants']
+        ?? $booking['infants']
+        ?? $booking['infant']
+        ?? $booking['infantQty']
+        ?? 0
+    ));
+    if ($babyCotEnabledModal && $babyCotInfantsModal <= 0) {
+        $babyCotInfantsModal = 1;
+    }
+    $babyCotRoomsModal = max(1, (int) ($booking['rooms'][0]['number_of_rooms'] ?? $booking['number_of_rooms'] ?? 1));
+    $babyCotNightsModal = max(1, $hotelNightsModal);
+    $babyCotTotalModal = (float) ($booking['baby_cot_cost'] ?? $firstBedCotModal['baby_cot_cost'] ?? 0);
+    if ($babyCotTotalModal <= 0 && $babyCotUnitModal > 0 && $babyCotEnabledModal) {
+        $babyCotTotalModal = $babyCotUnitModal * $babyCotInfantsModal * $babyCotRoomsModal * $babyCotNightsModal;
+    }
+    $showBabyCotModal = $babyCotEnabledModal && ($babyCotUnitModal > 0 || $babyCotTotalModal > 0);
+
+    $showAddonsSection = $hasCwbModal || $hasCnbModal || $extraBedShowModal || $showBabyCotModal;
 @endphp
 
 @if(isset($booking['rooms']) && is_array($booking['rooms']) && count($booking['rooms']) > 0)
@@ -304,6 +340,16 @@
                         </div>
                     @endif
                 @endif
+                @if($showBabyCotModal)
+                    <div class="svc-dl-row">
+                        <span class="svc-dl-label">Baby Cot</span>
+                        <span class="svc-dl-value">{{ $babyCotInfantsModal }} infant(s) · {{ $babyCotRoomsModal }} room(s) · {{ $currency }} {{ number_format($babyCotUnitModal, 2) }}/night</span>
+                    </div>
+                    <div class="svc-dl-row full">
+                        <span class="svc-dl-label">Calc</span>
+                        <span class="svc-dl-value">{{ $currency }} {{ number_format($babyCotUnitModal, 2) }} × {{ $babyCotInfantsModal }} × {{ $babyCotRoomsModal }} × {{ $babyCotNightsModal }} night(s) = <span class="svc-amount" style="color:var(--svc-accent);">{{ $currency }} {{ number_format($babyCotTotalModal, 2) }}</span></span>
+                    </div>
+                @endif
             </div>
         </div>
     @else
@@ -401,6 +447,22 @@
                         </div>
                     </div>
                 @endif
+            @endif
+
+            @if($showBabyCotModal)
+                <div class="col-md-4">
+                    <div class="bg-white rounded p-2 border h-100" style="border-color: #74b9ff !important;">
+                        <div class="fw-bold text-dark mb-1" style="font-size: 0.85rem;"><i class="ri-parent-line me-1" style="font-size: 0.8rem;"></i>Baby Cot</div>
+                        <div class="row g-1">
+                            <div class="col-6"><small class="text-muted" style="font-size: 0.65rem;">Status</small><div class="fw-medium text-success" style="font-size: 0.75rem;">Yes</div></div>
+                            <div class="col-6"><small class="text-muted" style="font-size: 0.65rem;">Price/Night</small><div class="fw-medium" style="font-size: 0.75rem;">{{ $currency }} {{ number_format($babyCotUnitModal, 2) }}</div></div>
+                            <div class="col-6"><small class="text-muted" style="font-size: 0.65rem;">Infants</small><div class="fw-medium" style="font-size: 0.75rem;">{{ $babyCotInfantsModal }}</div></div>
+                            <div class="col-6"><small class="text-muted" style="font-size: 0.65rem;">Rooms</small><div class="fw-medium" style="font-size: 0.75rem;">{{ $babyCotRoomsModal }}</div></div>
+                            <div class="col-6"><small class="text-muted" style="font-size: 0.65rem;">Nights</small><div class="fw-medium" style="font-size: 0.75rem;">{{ $babyCotNightsModal }}</div></div>
+                            <div class="col-12 pt-1 border-top mt-1"><small class="text-muted" style="font-size: 0.65rem;">Total (Price × Infants × Rooms × Nights)</small><div class="fw-bold text-success" style="font-size: 0.9rem;">{{ $currency }} {{ number_format($babyCotTotalModal, 2) }}</div></div>
+                        </div>
+                    </div>
+                </div>
             @endif
         </div>
     </div>

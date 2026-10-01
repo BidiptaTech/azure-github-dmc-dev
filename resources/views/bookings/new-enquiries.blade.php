@@ -1166,12 +1166,21 @@
                                                 
                                                 // For hotel: pickup total only - do NOT add transfer (transport added automatically)
                                                 $transferPrice = 0;
-                                                if ($orderType !== 'hotel' && isset($item['transfer_options']['cost']) && $item['transfer_options']['cost'] > 0) {
-                                                    // PRO tours: prefer totalPrice (base × pax) when available
-                                                    if ($tour->is_pro == 1 && isset($item['transfer_options']['totalPrice'])) {
-                                                        $transferPrice = (float) $item['transfer_options']['totalPrice'];
+                                                if ($orderType !== 'hotel' && isset($item['transfer_options']) && is_array($item['transfer_options'])) {
+                                                    $to = $item['transfer_options'];
+                                                    $vehSell = 0.0;
+                                                    if (!empty($to['vehicles']) && is_array($to['vehicles'])) {
+                                                        foreach ($to['vehicles'] as $_v) {
+                                                            if (!is_array($_v)) continue;
+                                                            $vehSell += (float) ($_v['lineSell'] ?? $_v['line_sell'] ?? $_v['totalPrice'] ?? $_v['sell'] ?? 0);
+                                                        }
+                                                    }
+                                                    if ($vehSell > 0) {
+                                                        $transferPrice = $vehSell;
+                                                    } elseif ((int) ($tour->is_pro ?? 0) === 1) {
+                                                        $transferPrice = (float) ($to['totalPrice'] ?? $to['sell'] ?? $to['cost'] ?? 0);
                                                     } else {
-                                                        $transferPrice = (float) $item['transfer_options']['cost'];
+                                                        $transferPrice = (float) ($to['cost'] ?? $to['totalPrice'] ?? 0);
                                                     }
                                                 }
                                                 

@@ -1025,6 +1025,14 @@
         });
     };
 
+    /** Re-paint open monthly calendar when selected room/meal combo changes. */
+    window.enquiryProRefreshFullStayCalendarIfOpen = function () {
+        const modalEl = document.getElementById('epFullStayCalendarModal');
+        if (!modalEl || !modalEl.classList.contains('show')) return;
+        if (!window._epFullCalView) return;
+        epFullCalRenderAndTooltips(window._epFullCalView.year, window._epFullCalView.month);
+    };
+
     function epFullCalNavigateMonth(delta) {
         let { year, month } = window._epFullCalView || {};
         month += delta;

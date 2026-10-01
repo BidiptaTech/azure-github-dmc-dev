@@ -248,15 +248,36 @@
                                                                 </div>
                                                                 @endif
                                                                 @php
-                                                                    // For PRO tours, show total transfer price (base × pax) when available
-                                                                    $attractionTransferCostDisplay = $booking['transfer_options']['cost'] ?? 0;
-                                                                    if (isset($tour) && $tour->is_pro == 1 && isset($booking['transfer_options']['totalPrice'])) {
-                                                                        $attractionTransferCostDisplay = $booking['transfer_options']['totalPrice'];
+                                                                    $isProAttrModal = isset($tour) && (int) ($tour->is_pro ?? 0) === 1;
+                                                                    $tfModal = $booking['transfer_options'] ?? [];
+                                                                    $attractionTransferSell = 0.0;
+                                                                    $attractionTransferCost = 0.0;
+                                                                    if (!empty($tfModal['vehicles']) && is_array($tfModal['vehicles'])) {
+                                                                        foreach ($tfModal['vehicles'] as $_v) {
+                                                                            if (!is_array($_v)) continue;
+                                                                            $attractionTransferSell += (float) ($_v['lineSell'] ?? $_v['line_sell'] ?? $_v['totalPrice'] ?? $_v['sell'] ?? 0);
+                                                                            $attractionTransferCost += (float) ($_v['lineCost'] ?? $_v['line_cost'] ?? $_v['cost'] ?? 0);
+                                                                        }
                                                                     }
+                                                                    if ($attractionTransferSell <= 0) {
+                                                                        $attractionTransferSell = $isProAttrModal
+                                                                            ? (float) ($tfModal['totalPrice'] ?? $tfModal['sell'] ?? $tfModal['cost'] ?? 0)
+                                                                            : (float) ($tfModal['cost'] ?? $tfModal['totalPrice'] ?? 0);
+                                                                    }
+                                                                    if ($attractionTransferCost <= 0) {
+                                                                        $attractionTransferCost = (float) ($tfModal['cost'] ?? 0);
+                                                                    }
+                                                                    $attractionTransferCostDisplay = $isProAttrModal ? $attractionTransferSell : $attractionTransferCost;
                                                                 @endphp
+                                                                @if($isProAttrModal && $attractionTransferCost > 0)
+                                                                <div class="col-12">
+                                                                    <small class="text-muted d-block" style="font-size: 0.65rem;">Transfer Cost</small>
+                                                                    <div class="fw-medium text-muted" style="font-size: 0.75rem;">{{ $currency }} {{ number_format((float)$attractionTransferCost, 2) }}</div>
+                                                                </div>
+                                                                @endif
                                                                 @if($attractionTransferCostDisplay > 0)
                                                                 <div class="col-12">
-                                                                    <small class="text-muted d-block" style="font-size: 0.65rem;">Cost</small>
+                                                                    <small class="text-muted d-block" style="font-size: 0.65rem;">{{ $isProAttrModal ? 'Transfer Sell' : 'Cost' }}</small>
                                                                     <div class="fw-bold text-success" style="font-size: 0.8rem;">{{ $currency }} {{ number_format((float)$attractionTransferCostDisplay, 2) }}</div>
                                                                 </div>
                                                                 @endif
