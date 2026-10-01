@@ -75,6 +75,7 @@
                         @endphp
 
                         @if(is_array($payload))
+                            @php $bookingLoopIndex = 0; @endphp
                             @foreach($payload as $booking)
                                 @if(!is_array($booking))
                                     @continue
@@ -98,6 +99,14 @@
                                         'orderCountry' => $orderCountry,
                                         'index' => $index,
                                     ])
+                                    @if(!empty($showBookingActions))
+                                        @include('bookings.partials.attraction-booking-actions', [
+                                            'tour' => $tour,
+                                            'attractionOrder' => $serviceOrder,
+                                            'index' => $index,
+                                            'bookingIndex' => $bookingLoopIndex,
+                                        ])
+                                    @endif
                                 @elseif($serviceKey === 'restaurant')
                                     @include('bookings.partials.enquiry-service-cards.restaurant', [
                                         'tour' => $tour,
@@ -116,6 +125,7 @@
                                     ])
                                 @endif
                                 </div>
+                                @php $bookingLoopIndex++; @endphp
                             @endforeach
                         @endif
                     @endforeach
