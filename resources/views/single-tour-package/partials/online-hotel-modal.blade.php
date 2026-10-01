@@ -713,6 +713,27 @@
             }
         }
 
+        // Optional host override (STP Lite per-city stay → city / check-in / check-out)
+        if (typeof window.getOnlineHotelSearchDefaults === 'function') {
+            try {
+                const d = window.getOnlineHotelSearchDefaults() || {};
+                if (onlineCity && d.city) {
+                    const cityVal = String(d.city);
+                    const cityLabel = String(d.cityLabel || d.city);
+                    let hasOpt = Array.from(onlineCity.options).some(function (o) { return o.value === cityVal; });
+                    if (!hasOpt) {
+                        const o = document.createElement('option');
+                        o.value = cityVal;
+                        o.textContent = cityLabel;
+                        onlineCity.appendChild(o);
+                    }
+                    onlineCity.value = cityVal;
+                }
+                if (checkInEl && d.checkIn) checkInEl.value = d.checkIn;
+                if (checkOutEl && d.checkOut) checkOutEl.value = d.checkOut;
+            } catch (e) { /* ignore host override errors */ }
+        }
+
         onlineHotelLastSearch = {
             checkIn: checkInEl?.value || '',
             checkOut: checkOutEl?.value || '',

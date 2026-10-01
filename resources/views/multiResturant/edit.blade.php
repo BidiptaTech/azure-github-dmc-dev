@@ -199,11 +199,38 @@
                             <strong>Price</strong><span class="text-danger">*</span>
                         </label>
                         <div class="input-group">
-                            <span class="input-group-text">$</span>
+                            <span class="input-group-text">{{ $dmcCurrency ?? '$' }}</span>
                             <input type="number" step="0.01" class="form-control" id="price"
-                                   name="price" placeholder="0.00" value="{{ old('price', $multiRestaurant->price) }}" required>
+                                   name="price" placeholder="0.00" value="{{ old('price', $multiRestaurant->adult_price ?? $multiRestaurant->price) }}" required>
                         </div>
                         @error('price')
+                            <div class="text-danger mt-1">{{ $message }}</div>
+                        @enderror
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="vehicle" name="vehicle" value="1"
+                                   {{ old('vehicle', $multiRestaurant->vehicle) ? 'checked' : '' }}>
+                            <label class="form-check-label" for="vehicle">
+                                <strong>Vehicle Included</strong>
+                            </label>
+                        </div>
+                        @error('vehicle')
+                            <div class="text-danger mt-1">{{ $message }}</div>
+                        @enderror
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="guide" name="guide" value="1"
+                                   {{ old('guide', $multiRestaurant->guide) ? 'checked' : '' }}>
+                            <label class="form-check-label" for="guide">
+                                <strong>Guide Included</strong>
+                            </label>
+                        </div>
+                        @error('guide')
                             <div class="text-danger mt-1">{{ $message }}</div>
                         @enderror
                     </div>

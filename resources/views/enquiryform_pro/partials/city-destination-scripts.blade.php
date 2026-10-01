@@ -1310,7 +1310,12 @@
             const visible = !noCitiesSelected && !!match;
             setOptionCityVisibility(option, visible);
             if (!visible && option.value === currentValue) {
-                select.value = '';
+                // Keep saved port/destination while restoring Edit Arrival/Departure
+                if (window._populatingArrDepEdit || window.isEditingArrivalDeparture) {
+                    setOptionCityVisibility(option, true);
+                } else {
+                    select.value = '';
+                }
             }
         });
 
@@ -1687,6 +1692,18 @@
      * City-filter Arrival/Departure guide dropdowns and auto-select city default guide.
      */
     function applyDefaultArrivalDepartureGuides(preferredCity) {
+        // Never auto-check city default guide while restoring Edit Arrival/Departure (or Accommodation edit populate)
+        if (window._populatingArrDepEdit || window.isEditingArrivalDeparture) {
+            const city = (typeof getArrivalDepartureServiceCity === 'function')
+                ? getArrivalDepartureServiceCity(preferredCity)
+                : String(preferredCity || '').trim();
+            if (typeof filterGuideSelectByCity === 'function') {
+                filterGuideSelectByCity(document.getElementById('arrivalGuide'), city);
+                filterGuideSelectByCity(document.getElementById('departureGuide'), city);
+            }
+            return;
+        }
+
         const city = (typeof getArrivalDepartureServiceCity === 'function')
             ? getArrivalDepartureServiceCity(preferredCity)
             : String(preferredCity || '').trim();
@@ -2525,8 +2542,10 @@
             filterPortsBySelectedCountries(city);
         }
 
-        // Mark city so vehicle filters force re-pick defaults
-        window._arrDepVehicleForceCity = city;
+        // Mark city so vehicle filters force re-pick defaults (ADD only — never while editing restore)
+        if (!opts.skipDefaults) {
+            window._arrDepVehicleForceCity = city;
+        }
 
         if (typeof filterArrivalVehiclesByServiceType === 'function') {
             filterArrivalVehiclesByServiceType(city);
@@ -2544,8 +2563,15 @@
                     window._applyingArrDepCityDefaults = false;
                 }
             }
-        } else if (city && typeof applyDefaultArrivalDepartureGuides === 'function') {
-            applyDefaultArrivalDepartureGuides(city);
+        } else if (city) {
+            // Edit / restore: city-filter guide dropdowns only — never auto-check default guide
+            if (typeof filterGuideSelectByCity === 'function') {
+                filterGuideSelectByCity(document.getElementById('arrivalGuide'), city);
+                filterGuideSelectByCity(document.getElementById('departureGuide'), city);
+            }
+            if (!opts.skipDefaults && !opts.skipGuideDefault && typeof applyDefaultArrivalDepartureGuides === 'function') {
+                applyDefaultArrivalDepartureGuides(city);
+            }
         }
 
         window._arrDepVehicleForceCity = '';

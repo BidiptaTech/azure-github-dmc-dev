@@ -83,7 +83,6 @@
     /* ---------- Single / Multi Country (auto, read-only) ---------- */
     function setCityMode(mode) {
         var next = String(mode || 'single').toLowerCase() === 'multi' ? 'multi' : 'single';
-        if (cfg().isThirdPartyDmc) next = 'single';
 
         var single = document.getElementById('city_mode_single');
         var multi = document.getElementById('city_mode_multi');

@@ -1962,7 +1962,7 @@
                                                         <th scope="col">City</th>
                                                         <th scope="col" class="enquiry-md-th-markup">Markup type</th>
                                                         <th scope="col" class="enquiry-md-th-markup">Hotel markup</th>
-                                                        <th scope="col" class="enquiry-md-th-markup">Other markup</th>
+                                                        <th scope="col" class="enquiry-md-th-markup">Other Service(s) markup</th>
                                                         <th scope="col" class="enquiry-md-th-discount">Disc type</th>
                                                         <th scope="col" class="enquiry-md-th-discount">Disc value</th>
                                                     </tr>

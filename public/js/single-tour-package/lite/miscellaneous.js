@@ -396,7 +396,7 @@
         });
     }
 
-    function buildPayloadFromCard(card, stay, dateVal, existingId) {
+    function buildPayloadFromCard(card, stay, dateVal, existingId, existingRow) {
         var itemId = card.getAttribute('data-item-id') || '';
         var itemName = card.getAttribute('data-item-name') || '';
         var adultsQty = parseInt((card.querySelector('.misc-adult-qty') || {}).value, 10) || 0;
@@ -410,6 +410,9 @@
         var country = stay.country || '';
         var total = rowTotal(adultsQty, adultSell, childQty, childSell, infantQty, infantSell, foc);
         var qty = adultsQty + childQty + infantQty;
+        var bookingType = (window.StpLiteTransportShared && window.StpLiteTransportShared.resolveRowBookingType)
+            ? window.StpLiteTransportShared.resolveRowBookingType(existingRow || null)
+            : 'enquiry';
 
         return {
             id: existingId || uid(),
@@ -436,7 +439,7 @@
             foc_service_discount: foc,
             totalPrice: total,
             dmc_id: stay.dmcId || cfg().dmcId || '',
-            bookingType: 'enquiry'
+            bookingType: bookingType
         };
     }
 
@@ -463,14 +466,14 @@
 
         if (editing) {
             var existing = rows[root.__editingIdx] || {};
-            rows[root.__editingIdx] = buildPayloadFromCard(card, stay, dateVal, existing.id);
+            rows[root.__editingIdx] = buildPayloadFromCard(card, stay, dateVal, existing.id, existing);
             root.__editingIdx = null;
         } else {
             if (itemId && rows.some(function (r) { return String(r.itemId || r.mis_id || '') === itemId; })) {
                 window.alert('This item is already added. Remove or modify it from the list below.');
                 return;
             }
-            rows.push(buildPayloadFromCard(card, stay, dateVal, null));
+            rows.push(buildPayloadFromCard(card, stay, dateVal, null, null));
         }
 
         writeChunk(root, rows);

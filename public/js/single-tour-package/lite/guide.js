@@ -282,7 +282,8 @@
             country: stay.country || '',
             currency: stay.currency || '',
             plan_index: stay.planIndex || '',
-            remarks: ''
+            remarks: '',
+            bookingType: T.resolveRowBookingType ? T.resolveRowBookingType(null) : 'enquiry'
         };
     }
 
@@ -373,9 +374,13 @@
         if (!root.__lastPrice) { alert('Please Get Price first.'); return; }
         var rows = readChunk(root);
         var payload = collectPayload(root, stay);
+        var T = S();
         if (root.__editingIdx != null && root.__editingIdx >= 0 && root.__editingIdx < rows.length) {
             payload.supplement = rows[root.__editingIdx].supplement;
             payload.is_supplement = rows[root.__editingIdx].is_supplement;
+            payload.bookingType = T.resolveRowBookingType
+                ? T.resolveRowBookingType(rows[root.__editingIdx])
+                : (rows[root.__editingIdx].bookingType || payload.bookingType);
             rows[root.__editingIdx] = payload;
             root.__editingIdx = null;
             setAddMode(root, false);
@@ -465,14 +470,24 @@
                 var r = readChunk(root)[parseInt(viewBtn.getAttribute('data-idx'), 10) || 0];
                 if (!r) return;
                 var cur = r.currency || root.getAttribute('data-currency') || 'SGD';
+                var detailRows = '';
+                detailRows += '<div class="small text-muted mb-1">' + T.esc(r.hours || 0) + 'h package'
+                    + (r.entrytime ? ' · ' + T.esc(r.entrytime) : '') + '</div>';
+                detailRows += T.priceFormulaRowHtml(
+                    '<strong>Package</strong> ' + Number(r.basePrice || 0).toFixed(2),
+                    cur + ' ' + Number(r.basePrice || 0).toFixed(2)
+                );
+                if (Number(r.surcharge || 0) > 0) {
+                    detailRows += T.priceFormulaRowHtml(
+                        '<strong>Night surcharge</strong>',
+                        cur + ' ' + Number(r.surcharge || 0).toFixed(2)
+                    );
+                }
                 T.showPriceBreakdownModal(
                     r.guide_name || 'Guide',
                     cur,
                     r.totalPrice,
-                    '<div class="small text-muted">' + T.esc(r.hours || 0) + 'h package · ' +
-                    cur + ' ' + Number(r.basePrice || 0).toFixed(2) +
-                    (r.surcharge ? '<br>Night surcharge · ' + cur + ' ' + Number(r.surcharge || 0).toFixed(2) : '') +
-                    (r.entrytime ? '<br>Time: ' + T.esc(r.entrytime) : '') + '</div>'
+                    detailRows
                 );
             }
         });

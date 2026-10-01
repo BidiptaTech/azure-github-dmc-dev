@@ -823,10 +823,14 @@
         return rooms[0];
     }
 
-    /** Attach live room prices + season/fair/blackout rates so View details / avg cost≠sell work on edit. */
+    /** Attach live room prices + season/fair/blackout rates so View details / avg cost≠sell work on edit.
+     *  options.preserveStoredPricing: attach catalog only — do NOT overwrite hotel.cost/sell from live rates
+     *  (edit load must keep the same Single/Twin/Triple matrix as create-at-save). */
     window.enquiryProEnrichHotelCatalogPricing = async function (hotel, options) {
         const opts = options || {};
         if (!hotel) return hotel;
+        const preserveStored = opts.preserveStoredPricing === true
+            || !!(hotel.orderId || hotel.bookingId || hotel.savedSelectedMeals || hotel.savedTotalPrice);
         const needs = enquiryProHotelNeedsCatalogEnrich(hotel);
         if (!needs && !opts.force) return hotel;
 
@@ -864,7 +868,8 @@
             }
         }
 
-        if (typeof enquiryProAvgLodgingForStay === 'function') {
+        // Keep create-at-save avg sell for existing orders; only full-reprice when user picks a new room.
+        if (!preserveStored && typeof enquiryProAvgLodgingForStay === 'function') {
             const costNight = enquiryProAvgLodgingForStay(hotel, true);
             const sellNight = enquiryProAvgLodgingForStay(hotel, false);
             if (Number.isFinite(costNight) && costNight > 0) {
@@ -874,19 +879,116 @@
             if (Number.isFinite(sellNight) && sellNight > 0) {
                 hotel.sell = sellNight;
             }
+            hotel.savedSelectedMeals = null;
+            hotel.savedTotalPrice = null;
+        } else if (preserveStored && typeof enquiryProAvgLodgingForStay === 'function') {
+            // Sell always from JSON (beds.price). Cost always from same Avg Cost formula as create
+            // (room + meal unit rates for stay dates) — never lodging_cost_snapshot stay totals.
+            const storedSell = parseFloat(hotel.sell || hotel.roomPrice || hotel.avgSell);
+            const costNight = enquiryProAvgLodgingForStay(hotel, true);
+            if (Number.isFinite(costNight) && costNight > 0) {
+                hotel.cost = costNight;
+                hotel.avgCost = costNight;
+            }
+            if (Number.isFinite(storedSell) && storedSell > 0) {
+                hotel.sell = storedSell;
+                hotel.avgSell = storedSell;
+                hotel.roomPrice = storedSell;
+            }
         }
-        // Fresh catalog → recalculate meal/lodging totals on next save (same as create).
-        hotel.savedSelectedMeals = null;
-        hotel.savedTotalPrice = null;
         return hotel;
     };
 
-    window.enquiryProEnrichAllAccommodationCatalog = async function () {
+    window.enquiryProEnrichAllAccommodationCatalog = async function (options) {
         const list = (typeof accommodationList !== 'undefined') ? accommodationList : [];
         if (!list.length) return;
-        await Promise.all(list.map(h => enquiryProEnrichHotelCatalogPricing(h)));
+        const opts = options || { preserveStoredPricing: true };
+        await Promise.all(list.map(h => enquiryProEnrichHotelCatalogPricing(h, opts)));
         if (typeof updateAccommodationTable === 'function') updateAccommodationTable();
         if (typeof recalculateTotals === 'function') recalculateTotals();
+    };
+
+    /**
+     * Resolve per-night Avg Cost / Sell from saved hotel order JSON (same basis as create listing).
+     * - Sell: beds.price / avgSell (per-night)
+     * - Cost: avgCost / beds.cost only (per-night). Never use lodging_cost_snapshot
+     *   (different basis than create Avg Cost and produced wrong values like 492.50 / 946.67).
+     * - Only divide when value is clearly a stay total (~ avg × nights × rooms).
+     */
+    window.enquiryProResolveStoredHotelAvgCostSell = function (data, firstBed, nights, numberOfRooms) {
+        const bed = firstBed && typeof firstBed === 'object' ? firstBed : {};
+        const src = data && typeof data === 'object' ? data : {};
+        const n = Math.max(1, parseInt(nights, 10) || 1);
+        const r = Math.max(1, parseInt(numberOfRooms, 10) || 1);
+        const stayFactor = n * r;
+        const round2 = function (v) { return Math.round((Number(v) || 0) * 100) / 100; };
+
+        const pickPositive = function (candidates) {
+            for (let i = 0; i < candidates.length; i++) {
+                const v = parseFloat(candidates[i]);
+                if (Number.isFinite(v) && v > 0) return v;
+            }
+            return 0;
+        };
+
+        // --- Sell: explicit per-night fields from create (beds.price / avgSell) ---
+        let sell = pickPositive([
+            bed.avgSell, bed.sell, bed.price,
+            src.avgSell, src.sell
+        ]);
+        const totalPrice = parseFloat(src.totalPrice || 0) || 0;
+        // top-level price/totalPrice are stay totals
+        if (!sell && totalPrice > 0) {
+            sell = round2(totalPrice / stayFactor);
+        } else if (sell && totalPrice > 0 && Math.abs(sell - totalPrice) < 0.02) {
+            sell = round2(totalPrice / stayFactor);
+        }
+        sell = round2(sell);
+
+        // Stay total only when value ≈ per-night × nights × rooms (not a slightly-high per-night avg)
+        const looksLikeStayTotal = function (v, perNightRef) {
+            if (!Number.isFinite(v) || v <= 0 || stayFactor <= 1) return false;
+            const ref = perNightRef > 0 ? perNightRef : sell;
+            if (!(ref > 0)) {
+                return totalPrice > 0 && Math.abs(v - totalPrice) < 1;
+            }
+            const stayEst = ref * stayFactor;
+            // Strong match to estimated stay total (cost stay is often ~75–100% of sell stay)
+            if (v >= stayEst * 0.75 && v <= stayEst * 1.25) return true;
+            // Or clearly multi-night total: > 3× per-night ref, and divided value still looks like an avg
+            if (v > ref * 3) {
+                const perNight = v / stayFactor;
+                if (perNight >= ref * 0.25 && perNight <= ref * 1.2) return true;
+            }
+            return false;
+        };
+
+        const asPerNight = function (raw, perNightRef) {
+            const v = parseFloat(raw);
+            if (!Number.isFinite(v) || v <= 0) return 0;
+            if (looksLikeStayTotal(v, perNightRef)) return round2(v / stayFactor);
+            return round2(v);
+        };
+
+        // --- Cost: only explicit per-night avg fields (never snapshot) ---
+        let cost = 0;
+        const explicitAvg = pickPositive([bed.avgCost, src.avgCost]);
+        if (explicitAvg > 0) {
+            // avgCost is always meant to be per-night — never divide unless clearly stay-sized vs sell
+            cost = looksLikeStayTotal(explicitAvg, sell) ? round2(explicitAvg / stayFactor) : round2(explicitAvg);
+        }
+        if (!cost) {
+            const bedCost = pickPositive([bed.cost]);
+            if (bedCost > 0) cost = asPerNight(bedCost, sell || bedCost);
+        }
+        if (!cost) {
+            // data.cost may be stay total (legacy) or per-night
+            const dataCost = pickPositive([src.cost]);
+            if (dataCost > 0) cost = asPerNight(dataCost, sell || dataCost);
+        }
+        // Do NOT use lodging_cost_snapshot / totalCost — wrong basis vs create Avg Cost
+
+        return { cost: cost, sell: sell || 0 };
     };
 
     window.enquiryProOpenHotelPriceDetails = async function (index) {
@@ -898,7 +1000,7 @@
         }
         enquiryProShowPriceDetailsModal();
         try {
-            await enquiryProEnrichHotelCatalogPricing(hotel);
+            await enquiryProEnrichHotelCatalogPricing(hotel, { preserveStoredPricing: true });
             if (typeof updateAccommodationTable === 'function') updateAccommodationTable();
             if (body) body.innerHTML = enquiryProRenderHotelPriceDetailsHtml(hotel);
         } catch (e) {

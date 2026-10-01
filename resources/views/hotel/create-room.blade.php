@@ -656,53 +656,46 @@
                     <div class="col-md-3 mb-3" id="base_room_type">
                         <label for="base_room_type_input" class="form-label"><strong>Base Room
                                 Category</strong><span class="text-danger">*</span></label>
-                        <input id="base_room_type_input" type="text" name="base_room_type" class="form-control"
-                            placeholder="Enter Base Room Category" required>
-                        @error('base_room_type')
-                        <div class="text-danger mt-1">{{ $message }}</div>
-                        @enderror
+                        <input id="base_room_type_input" type="text" name="base_room_type" class="form-control @error('base_room_type') is-invalid @enderror"
+                            placeholder="Enter Base Room Category" value="{{ old('base_room_type') }}" required>
+                        <div class="invalid-feedback js-field-error @error('base_room_type') d-block @enderror" id="base_room_type_input-error">@error('base_room_type'){{ $message }}@enderror</div>
                     </div>
 
                     <!-- Room Category -->
                     <div class="col-md-3 mb-3" id="room_type" style="display: none;">
                         <label for="room_type_input" class="form-label"><strong>Room Category</strong><span
                                 class="text-danger">*</span></label>
-                        <input id="room_type_input" name="room_type" class="form-control" placeholder="Enter Room Category">
+                        <input id="room_type_input" name="room_type" class="form-control @error('room_type') is-invalid @enderror" placeholder="Enter Room Category" value="{{ old('room_type') }}">
                         <div class="form-text">Enter name for this room variant (e.g. Deluxe, Premium)</div>
-                        @error('room_type')
-                        <div class="text-danger mt-1">{{ $message }}</div>
-                        @enderror
+                        <div class="invalid-feedback js-field-error @error('room_type') d-block @enderror" id="room_type_input-error">@error('room_type'){{ $message }}@enderror</div>
                     </div>
 
                     <!-- varient_price -->
                     <div class="col-md-3 mb-3" id="varient_price" style="display: none;">
                         <label for="varient_price_input" class="form-label"><strong>Room Rate
                                 Variant</strong><span class="text-danger">*</span></label>
-                        <input name="varient_price" id="varient_price_input" class="form-control" type="number" step="0.01"
-                            placeholder="Enter Variant Price (e.g. 1 for +1, -5 for -5)">
+                        <input name="varient_price" id="varient_price_input" class="form-control @error('varient_price') is-invalid @enderror" type="number" step="0.01"
+                            placeholder="Enter Variant Price (e.g. 1 for +1, -5 for -5)" value="{{ old('varient_price') }}">
                         <div class="form-text">Price difference from base room (Example: Base 1 + Variant 1 = Final 2)</div>
-                        @error('varient_price')
-                        <div class="text-danger mt-1">{{ $message }}</div>
-                        @enderror
+                        <div class="invalid-feedback js-field-error @error('varient_price') d-block @enderror" id="varient_price_input-error">@error('varient_price'){{ $message }}@enderror</div>
                     </div>
 
                     <!-- Number of Rooms -->
                     <div class="col-md-3 mb-3">
                         <label for="total_rooms" class="form-label"><strong>Total No of Rooms</strong><span
                                 class="text-danger">*</span></label>
-                <input type="text" class="form-control" name="total_no_of_room" id="total_rooms"
-                    placeholder="Enter Number of Rooms" oninput="validateTotalRooms(this)">
-                        <small class="validation-message text-danger" id="total_rooms-validation-message" required></small>
-                        @error('total_no_of_room')
-                        <div class="text-danger mt-1">{{ $message }}</div>
-                        @enderror
+                <input type="text" class="form-control @error('total_no_of_room') is-invalid @enderror" name="total_no_of_room" id="total_rooms"
+                    placeholder="Enter Number of Rooms" value="{{ old('total_no_of_room') !== null && old('total_no_of_room') !== '' ? (int) old('total_no_of_room') : '' }}" inputmode="numeric" oninput="validateTotalRooms(this)">
+                        <small class="validation-message text-danger" id="total_rooms-validation-message"></small>
+                        <div class="invalid-feedback js-field-error @error('total_no_of_room') d-block @enderror" id="total_rooms-error">@error('total_no_of_room'){{ $message }}@enderror</div>
                     </div>
                     <!-- dimension -->
                     <div class="mb-3 col-md-3" id="dimension">
-                        <label for="dimension_input" class="form-label"><strong>Dimension(sq.m)</strong></label>
-                        <input type="number" name="dimension" id="dimension_input" class="form-control"
-                    placeholder="Enter Dimension">
+                        <label for="dimension_input" class="form-label"><strong>Dimension(sq.m)</strong><span class="text-danger">*</span></label>
+                        <input type="number" name="dimension" id="dimension_input" class="form-control @error('dimension') is-invalid @enderror"
+                    placeholder="Enter Dimension" value="{{ old('dimension') }}" min="0" step="0.01" required oninput="validateDimension(this)">
                         <small class="validation-message text-danger" id="dimension_input-validation-message"></small>
+                        <div class="invalid-feedback js-field-error @error('dimension') d-block @enderror" id="dimension_input-error">@error('dimension'){{ $message }}@enderror</div>
                     </div>
                 </div>
 
@@ -863,28 +856,34 @@
                                         <label for="baseSingleWeekdayCostPrice">Base Weekday Price(Cost)</label>
                                     </div>
                                     <div class="col-md-6 form-floating">
-                                <input type="text" id="weekdayPrice" name="baseSingleWeekdayPrice" class="form-control js-room-sell"
-                                    placeholder=" " onkeyup="calculatePrice()">
+                                <input type="text" id="weekdayPrice" name="baseSingleWeekdayPrice" class="form-control js-room-sell @error('baseSingleWeekdayPrice') is-invalid @enderror"
+                                    placeholder=" " onkeyup="calculatePrice()" value="{{ old('baseSingleWeekdayPrice') }}">
                                         <label for="weekdayPrice">Base Weekday Price(Sell)</label>
                                         @if(!empty($show_dmc_room_pricing_hints))
                                 <span class="text-primary">Your calculated price: <span
                                         id="totalWeekdayPrice">0</span></span>
                                         @endif
                                     </div>
+                                    @error('baseSingleWeekdayPrice')
+                                    <div class="col-12"><div class="invalid-feedback d-block js-field-error">{{ $message }}</div></div>
+                                    @enderror
                                     <div class="col-md-6 form-floating">
                                         <input type="text" id="baseSingleWeekendCostPrice" name="baseSingleWeekendCostPrice" class="form-control js-room-cost"
                                             data-sell-target="weekendPrice" placeholder=" ">
                                         <label for="baseSingleWeekendCostPrice">Base Weekend Price(Cost)</label>
                                     </div>
                                     <div class="col-md-6 form-floating">
-                                <input type="text" id="weekendPrice" name="baseSingleWeekendPrice" class="form-control js-room-sell"
-                                    placeholder=" " onkeyup="calculatePrice()">
+                                <input type="text" id="weekendPrice" name="baseSingleWeekendPrice" class="form-control js-room-sell @error('baseSingleWeekendPrice') is-invalid @enderror"
+                                    placeholder=" " onkeyup="calculatePrice()" value="{{ old('baseSingleWeekendPrice') }}">
                                         <label for="weekendPrice">Base Weekend Price(Sell)</label>
                                         @if(!empty($show_dmc_room_pricing_hints))
                                 <span class="text-primary">Your calculated price: <span
                                         id="totalWeekendPrice">0</span></span>
                                         @endif
                                     </div>
+                                    @error('baseSingleWeekendPrice')
+                                    <div class="col-12"><div class="invalid-feedback d-block js-field-error">{{ $message }}</div></div>
+                                    @enderror
                                 </div>
                             </fieldset>
                         </div>
@@ -1035,7 +1034,7 @@
                     <input type="file" id="master_image" name="master_image" accept="image/jpeg,image/png,image/webp,image/gif" style="display: none;">
                             </div>
                             <div id="image-warning" class="text-danger mt-1" style="display: none;">
-                                Please upload an image before submitting.
+                                Master image is required. Please upload a JPEG, PNG, WEBP or GIF image.
                             </div>
                             @error('master_image')
                             <div class="text-danger mt-1">{{ $message }}</div>
@@ -2327,47 +2326,129 @@ $(document).ready(function() {
     setupFormFields();
 
     // Form validation before submission
+    function clearRoomFieldError(el) {
+        if (!el) return;
+        var $el = $(el);
+        $el.removeClass('is-invalid');
+        var errId = el.id ? ('#' + el.id + '-error') : null;
+        if (errId && $(errId).length) {
+            $(errId).text('').hide();
+        }
+        $el.siblings('.js-field-error').filter(function () {
+            return !this.id || this.id.indexOf('-error') === -1 || !$(this).text().trim();
+        }).remove();
+        var $float = $el.closest('.form-floating');
+        if ($float.length) {
+            $float.next('.js-field-error').filter(function () { return !this.id; }).remove();
+        }
+        var msgEl = el.id ? document.getElementById(el.id + '-validation-message') : null;
+        if (msgEl && !$el.hasClass('is-invalid')) {
+            // keep live validateTotalRooms messages; only clear empty shell
+        }
+    }
+
+    function setRoomFieldError(el, message) {
+        if (!el) return;
+        var $el = $(el);
+        $el.addClass('is-invalid').removeClass('is-valid');
+        var errId = el.id ? (el.id + '-error') : null;
+        var $err = errId ? $('#' + errId) : $();
+        if ($err.length) {
+            $err.text(message).show().addClass('d-block');
+            return;
+        }
+        var msgSlot = el.id ? document.getElementById(el.id + '-validation-message') : null;
+        if (msgSlot) {
+            msgSlot.innerHTML = '<div class="invalid-feedback d-block"><i class="fas fa-exclamation-circle"></i> ' + message + '</div>';
+            return;
+        }
+        var $host = $el.closest('.form-floating').length ? $el.closest('.form-floating') : $el;
+        $host.siblings('.js-field-error').remove();
+        $('<div class="invalid-feedback d-block js-field-error"></div>').text(message).insertAfter($host);
+    }
+
     $('#roomCategoryForm').on('submit', function(e) {
         let isValid = true;
-        
-        // Validate required fields depending on room type
+        let firstInvalid = null;
+
+        function markInvalid(el, message) {
+            setRoomFieldError(el, message);
+            if (!firstInvalid) firstInvalid = el;
+            isValid = false;
+        }
+
+        // Clear previous client errors on known fields
+        [
+            '#base_room_type_input', '#room_type_input', '#varient_price_input',
+            '#total_rooms', '#dimension_input', '#weekdayPrice', '#weekendPrice'
+        ].forEach(function (sel) {
+            clearRoomFieldError($(sel)[0]);
+        });
+
         const isBaseRoomInputVisible = $('#base_room_type').is(':visible');
-        
+
         if (isBaseRoomInputVisible) {
             if (!$('#base_room_type_input').val().trim()) {
-                $('#base_room_type_input').addClass('is-invalid');
-                isValid = false;
+                markInvalid($('#base_room_type_input')[0], 'Base room category is required.');
             }
-            
             if (!$('#weekdayPrice').val().trim()) {
-                $('#weekdayPrice').addClass('is-invalid');
-                isValid = false;
+                markInvalid($('#weekdayPrice')[0], 'Base weekday sell price is required.');
+            } else if (isNaN(Number($('#weekdayPrice').val())) || Number($('#weekdayPrice').val()) < 0) {
+                markInvalid($('#weekdayPrice')[0], 'Enter a valid weekday sell price (0 or greater).');
             }
-            
             if (!$('#weekendPrice').val().trim()) {
-                $('#weekendPrice').addClass('is-invalid');
-                isValid = false;
+                markInvalid($('#weekendPrice')[0], 'Base weekend sell price is required.');
+            } else if (isNaN(Number($('#weekendPrice').val())) || Number($('#weekendPrice').val()) < 0) {
+                markInvalid($('#weekendPrice')[0], 'Enter a valid weekend sell price (0 or greater).');
             }
         } else {
             if (!$('#room_type_input').val().trim()) {
-                $('#room_type_input').addClass('is-invalid');
-                isValid = false;
+                markInvalid($('#room_type_input')[0], 'Room category is required.');
             }
-            
-            if (!$('#varient_price_input').val().trim()) {
-                $('#varient_price_input').addClass('is-invalid');
-                isValid = false;
+            if ($('#varient_price_input').val() === '' || $('#varient_price_input').val() === null) {
+                markInvalid($('#varient_price_input')[0], 'Room rate variant is required.');
+            } else if (isNaN(Number($('#varient_price_input').val()))) {
+                markInvalid($('#varient_price_input')[0], 'Enter a valid variant price (e.g. 1 or -5).');
             }
         }
-        
-        // For all rooms, require total rooms
-        if (!$('#total_rooms').val().trim()) {
-            $('#total_rooms').addClass('is-invalid');
+
+        const totalRoomsVal = (function () {
+            var el = document.getElementById('total_rooms');
+            if (el) validateTotalRooms(el);
+            return ($('#total_rooms').val() || '').trim();
+        })();
+        if (!totalRoomsVal) {
+            markInvalid($('#total_rooms')[0], 'Total number of rooms is required.');
+        } else if (!/^[1-9][0-9]{0,3}$/.test(totalRoomsVal)) {
+            markInvalid($('#total_rooms')[0], 'Enter a whole number between 1 and 9999.');
+        }
+
+        const dimVal = ($('#dimension_input').val() || '').trim();
+        if (!dimVal) {
+            markInvalid($('#dimension_input')[0], 'Dimension is required.');
+        } else if (isNaN(Number(dimVal)) || Number(dimVal) < 0) {
+            markInvalid($('#dimension_input')[0], 'Dimension must be a number 0 or greater.');
+        }
+
+        const masterInput = document.getElementById('master_image');
+        const imageWarning = document.getElementById('image-warning');
+        if (!masterInput || !masterInput.files || !masterInput.files.length) {
+            if (imageWarning) {
+                imageWarning.style.display = 'block';
+                imageWarning.textContent = 'Master image is required. Please upload a JPEG, PNG, WEBP or GIF image.';
+            }
+            if (!firstInvalid) firstInvalid = masterInput || imageWarning;
             isValid = false;
+        } else if (imageWarning) {
+            imageWarning.style.display = 'none';
         }
 
         if (!isValid) {
             e.preventDefault();
+            e.stopImmediatePropagation();
+            if (firstInvalid && typeof firstInvalid.scrollIntoView === 'function') {
+                firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
             return false;
         }
     });
@@ -2458,25 +2539,51 @@ $(document).ready(function() {
     }
 
     function validateTotalRooms(input) {
-        // Force numeric input by immediately replacing non-numeric characters
-        input.value = input.value.replace(/[^0-9]/g, '');
-        
+        // Keep whole numbers only — "100.00" → "100" (not "10000")
+        var raw = String(input.value || '').trim();
+        if (raw.indexOf('.') !== -1 || raw.indexOf(',') !== -1) {
+            var asNum = parseFloat(raw.replace(',', '.'));
+            raw = isNaN(asNum) ? '' : String(Math.floor(Math.abs(asNum)));
+        }
+        input.value = String(raw).replace(/[^0-9]/g, '');
+
         const value = input.value.trim();
         const roomsRegex = /^[1-9][0-9]{0,3}$/;  // 1-9999 rooms
-        
+        const errEl = document.getElementById('total_rooms-error');
+
         if (value === '') {
-            showValidationMessage(input, false, 'Total number of rooms is required');
+            showValidationMessage(input, false, 'Total number of rooms is required.');
+            if (errEl) { errEl.textContent = 'Total number of rooms is required.'; errEl.style.display = 'block'; }
         } else if (!roomsRegex.test(value)) {
-            showValidationMessage(input, false, `
-                Please enter a valid number of rooms:
-                <ul class="mt-1 mb-0">
-                    <li>Must be a positive number (1-9999)</li>
-                    <li>No decimal places allowed</li>
-                    <li>No leading zeros</li>
-                </ul>
-            `);
+            const msg = 'Enter a whole number between 1 and 9999 (no decimals).';
+            showValidationMessage(input, false, msg);
+            if (errEl) { errEl.textContent = msg; errEl.style.display = 'block'; }
         } else {
             showValidationMessage(input, true, '');
+            if (errEl) { errEl.textContent = ''; errEl.style.display = 'none'; }
+            input.classList.remove('is-invalid');
+        }
+    }
+
+    function validateDimension(input) {
+        const value = String(input.value || '').trim();
+        const errEl = document.getElementById('dimension_input-error');
+        const msgSlot = document.getElementById('dimension_input-validation-message');
+        if (value === '') {
+            const msg = 'Dimension is required.';
+            showValidationMessage(input, false, msg);
+            if (errEl) { errEl.textContent = msg; errEl.style.display = 'block'; }
+            return;
+        }
+        const num = Number(value);
+        if (isNaN(num) || num < 0) {
+            const msg = 'Dimension must be a number 0 or greater.';
+            showValidationMessage(input, false, msg);
+            if (errEl) { errEl.textContent = msg; errEl.style.display = 'block'; }
+        } else {
+            showValidationMessage(input, true, '');
+            if (errEl) { errEl.textContent = ''; errEl.style.display = 'none'; }
+            input.classList.remove('is-invalid');
         }
     }
 

@@ -8,10 +8,25 @@
 
     var S = function () { return window.StpLiteTransportShared || {}; };
 
+    /** Use inventory (sibling) DMC zone_on for this stay — not Master's login flag. */
+    function stayZoneOn(T, stay) {
+        if (stay && stay.zoneOn != null && stay.zoneOn !== '') {
+            return parseInt(stay.zoneOn, 10) === 1;
+        }
+        if (T.zoneOnForStay) {
+            return !!T.zoneOnForStay(
+                stay && stay.cityName,
+                stay && stay.country,
+                stay && stay.dmcId
+            );
+        }
+        return !!(T.zoneOn && T.zoneOn());
+    }
+
     function shellHtml(stay) {
         var T = S();
         var cur = stay.currency || 'SGD';
-        var zone = T.zoneOn && T.zoneOn();
+        var zone = stayZoneOn(T, stay);
         return (
             '<div class="stp-lite-svc stp-lite-departure" data-currency="' + T.esc(cur) + '">' +
             '  <div class="row g-2 mb-2">' +
@@ -45,6 +60,8 @@
             '    <div class="col-md-2"><label class="stp-lite-label">Service</label>' +
             '      <select class="form-select form-select-sm departure-service-type">' +
             '        <option value="private">Private</option><option value="shared">Shared</option></select></div>' +
+            '    <div class="col-md-2"><label class="stp-lite-label">No. of Vehicles</label>' +
+            '      <input type="number" min="1" step="1" class="form-control form-control-sm stp-lite-int departure-vehicle-count" value="1"></div>' +
             '    <div class="col-md-2"><label class="stp-lite-label">Adults</label>' +
             '      <input type="number" min="1" class="form-control form-control-sm stp-lite-int departure-adults" data-guest-cap="adults" value="1"></div>' +
             '    <div class="col-md-2" data-guest-child-ui><label class="stp-lite-label">Children</label>' +
@@ -80,6 +97,20 @@
         S().updateServiceHeaderTotal(root, 'departure');
     }
 
+    function readVehicleCount(root, selector) {
+        var n = parseInt((root.querySelector(selector) || {}).value, 10);
+        return n > 0 ? n : 1;
+    }
+
+    function applyPrivateVehicleCount(priced, count) {
+        if (!priced) return priced;
+        var n = count > 0 ? count : 1;
+        if (String(priced.mode || '').toLowerCase() === 'private' && n > 1) {
+            return Object.assign({}, priced, { total: Number(priced.total || 0) * n, vehicle_count: n });
+        }
+        return Object.assign({}, priced, { vehicle_count: n });
+    }
+
     function invalidate(root) {
         root.__lastPrice = null;
         var panel = root.querySelector('[data-departure-price-panel]');
@@ -88,11 +119,25 @@
         if (add) add.disabled = true;
     }
 
+    /** Pickup/dropoff changed → vehicle list is invalid until Search Vehicles again. */
+    function clearVehicleOnRouteChange(root) {
+        root.__preferredVehicleId = '';
+        root.__preferredVehicleName = '';
+        var vehicle = root.querySelector('.departure-vehicle');
+        if (vehicle) {
+            vehicle.innerHTML = '<option value="">Click Search Vehicles</option>';
+            vehicle.disabled = true;
+        }
+        var getBtn = root.querySelector('.departure-get-price-btn');
+        if (getBtn) getBtn.disabled = true;
+        invalidate(root);
+    }
+
     function loadPickupDropoff(root, stay) {
         var T = S();
         var pickup = root.querySelector('.departure-pickup');
         var dropoff = root.querySelector('.departure-dropoff');
-        if (!T.zoneOn || !T.zoneOn()) return Promise.resolve();
+        if (!stayZoneOn(T, stay)) return Promise.resolve();
 
         // Backup: pickup = hotels + attractions + restaurants (+ ports); dropoff = ports by country
         return Promise.all([
@@ -149,6 +194,7 @@
                 });
                 dropoff.disabled = false;
             }
+            if (T.applyBookedHotelsToArrivalDeparture) T.applyBookedHotelsToArrivalDeparture();
         }).catch(function () {
             if (pickup) { pickup.innerHTML = '<option value="">Error loading</option>'; pickup.disabled = false; }
             if (dropoff) { dropoff.innerHTML = '<option value="">Error loading ports</option>'; dropoff.disabled = false; }
@@ -170,7 +216,7 @@
         }
 
         var promise;
-        if (T.zoneOn && T.zoneOn()) {
+        if (stayZoneOn(T, stay)) {
             var pickup = root.querySelector('.departure-pickup');
             var dropoff = root.querySelector('.departure-dropoff');
             var pOpt = pickup && pickup.options[pickup.selectedIndex];
@@ -192,7 +238,7 @@
                 dmc_id: q.dmc_id
             });
         } else {
-            promise = T.fetchVehiclesByCity(stay.cityName, stay.country, true);
+            promise = T.fetchVehiclesByCity(stay.cityName, stay.country, false);
         }
 
         return promise.then(function (res) {
@@ -214,8 +260,9 @@
         });
     }
 
-    function getPrice(root) {
+    function getPrice(root, stay) {
         var T = S();
+        stay = stay || (T.stayFromPanel && T.stayFromPanel(root, 'departure')) || {};
         var vehicle = root.querySelector('.departure-vehicle');
         var typeEl = root.querySelector('.departure-service-type');
         var adultsEl = root.querySelector('.departure-adults');
@@ -226,7 +273,8 @@
             return;
         }
         var priced;
-        if (!T.zoneOn || !T.zoneOn()) {
+        var svc = typeEl ? typeEl.value : 'private';
+        if (!stayZoneOn(T, stay)) {
             var customEl = root.querySelector('.departure-custom-price');
             var car = parseFloat((customEl && customEl.value) || '0') || 0;
             if (car <= 0) {
@@ -235,21 +283,30 @@
             }
             priced = T.calcManualCarTotal(
                 car,
-                typeEl ? typeEl.value : 'private',
+                svc,
                 adultsEl ? adultsEl.value : 1,
                 childrenEl ? childrenEl.value : 0,
                 0
             );
         } else {
+            // Zone ON: sell from zone mapping private_price / shared_price only (not vehicle base_price)
             priced = T.calcVehiclePrice(
                 opt,
-                typeEl ? typeEl.value : 'private',
+                svc,
                 adultsEl ? adultsEl.value : 1,
                 childrenEl ? childrenEl.value : 0,
                 0,
                 0
             );
+            if (!(priced && priced.total > 0)) {
+                alert(svc === 'shared'
+                    ? 'No zone shared price for this route/vehicle. Check vehicle zone mapping.'
+                    : 'No zone private price for this route/vehicle. Check vehicle zone mapping.');
+                return;
+            }
         }
+        var vehCount = readVehicleCount(root, '.departure-vehicle-count');
+        priced = applyPrivateVehicleCount(priced, vehCount);
         root.__lastPrice = priced;
         var cur = root.getAttribute('data-currency') || 'SGD';
         var panel = root.querySelector('[data-departure-price-panel]');
@@ -257,7 +314,28 @@
         var detail = root.querySelector('.departure-price-detail');
         if (panel) panel.classList.remove('d-none');
         if (totalEl) totalEl.textContent = cur + ' ' + Number(priced.total || 0).toFixed(2);
-        if (detail) detail.textContent = (priced.mode || 'private') + ' · ' + (opt.dataset.vehicleName || opt.textContent);
+        if (detail) {
+            var curLabel = cur;
+            if (String(svc).toLowerCase() === 'shared' && typeof T.vehiclePriceDetailHtml === 'function') {
+                detail.innerHTML = T.vehiclePriceDetailHtml({
+                    type: 'shared',
+                    mode: priced.mode || 'shared',
+                    adults: adultsEl ? adultsEl.value : 1,
+                    children: childrenEl ? childrenEl.value : 0,
+                    adultUnit: priced.adultUnit,
+                    childUnit: priced.childUnit,
+                    shared_price: opt.dataset.sharedPrice,
+                    unit: priced.unit,
+                    total: priced.total,
+                    vehicle_count: vehCount
+                }, curLabel);
+            } else {
+                var src = priced.source === 'zone' ? 'Zone price' : (priced.source === 'base' ? 'Base price' : '');
+                detail.textContent = (priced.mode || svc) + (src ? ' · ' + src : '') +
+                    (vehCount > 1 ? ' · ' + vehCount + ' vehicles' : '') +
+                    ' · ' + (opt.dataset.vehicleName || opt.textContent);
+            }
+        }
         var add = root.querySelector('.departure-add-btn');
         if (add) add.disabled = false;
     }
@@ -278,12 +356,15 @@
         var total = root.__lastPrice ? Number(root.__lastPrice.total || 0) : 0;
         var supplement = T.autoSupplement(adults);
         var exittime = T.readAmPmValue(root, 'departure');
+        var vehicleCount = readVehicleCount(root, '.departure-vehicle-count');
 
         return {
             travel_type: 'exit_port',
             vehicles_id: opt ? opt.value : '',
             vehicles_name: opt ? (opt.dataset.vehicleName || opt.textContent) : '',
             type: typeEl ? typeEl.value : 'private',
+            vehicle_count: vehicleCount,
+            booked_vehicles: vehicleCount,
             exitpickup: pickupText,
             exitdropoff: dropoffText,
             exitpickup_zone_id: pOpt ? (pOpt.dataset.zoneId || pickup.value) : '',
@@ -306,10 +387,19 @@
             city: stay.cityName || '',
             country: stay.country || '',
             currency: stay.currency || '',
+            dmc_id: parseInt((T.inv(stay.cityName, stay.country).dmc_id || stay.dmcId || (window.STP_LITE_CONFIG || {}).dmcId || 0), 10) || 0,
             plan_index: stay.planIndex || '',
             private_price: opt ? (opt.dataset.privatePrice || '') : '',
             shared_price: opt ? (opt.dataset.sharedPrice || '') : '',
-            remarks: ''
+            adult_price: opt ? (opt.dataset.adultPrice || opt.dataset.sharedPrice || '') : '',
+            child_price: opt ? (opt.dataset.childPrice || opt.dataset.sharedPrice || '') : '',
+            private_cost_price: opt ? (opt.dataset.privateCost || '') : '',
+            shared_cost_price: opt ? (opt.dataset.sharedCost || '') : '',
+            zonePrivateCostPrice: opt ? (opt.dataset.privateCost || '') : '',
+            zoneSharedCostPrice: opt ? (opt.dataset.sharedCost || '') : '',
+            mapping_id: opt ? (opt.dataset.mappingId || '') : '',
+            remarks: '',
+            bookingType: T.resolveRowBookingType ? T.resolveRowBookingType(null) : 'enquiry'
         };
     }
 
@@ -335,7 +425,9 @@
             var editing = root.__editingIdx === idx;
             html += '<tr class="' + (editing ? 'is-editing' : '') + '" data-idx="' + idx + '">' +
                 '<td><div class="fw-semibold">' + T.esc(row.vehicles_name || 'Vehicle') + '</div>' +
-                '<small class="text-muted">' + T.esc(row.type || '') + '</small>' +
+                '<small class="text-muted">' + T.esc(row.type || '') +
+                ((row.vehicle_count || row.booked_vehicles) ? ' · ' + T.esc(row.vehicle_count || row.booked_vehicles) + ' veh' : '') +
+                '</small>' +
                 T.editingMarkHtml(editing) + '</td>' +
                 '<td><small>' + T.esc(row.exitpickup || '—') + ' → ' + T.esc(row.exitdropoff || '—') + '</small></td>' +
                 '<td><small>' + T.esc(row.adults || 0) + 'A / ' + T.esc(row.children || 0) + 'C</small></td>' +
@@ -358,11 +450,13 @@
         var adultsEl = root.querySelector('.departure-adults');
         var childrenEl = root.querySelector('.departure-children');
         var typeEl = root.querySelector('.departure-service-type');
+        var countEl = root.querySelector('.departure-vehicle-count');
         if (flight) flight.value = row.departure_flight_no || '';
         if (dateEl) dateEl.value = row.exitpickupdate || row.pickupdate || stay.end || stay.start || '';
         if (adultsEl) adultsEl.value = String(row.adults || 1);
         if (childrenEl) childrenEl.value = String(row.children || 0);
         if (typeEl) typeEl.value = row.type || 'private';
+        if (countEl) countEl.value = String(row.vehicle_count || row.booked_vehicles || 1);
         S().setAmPmValue(root, 'departure', row.exittime || '');
         var pickup = root.querySelector('.departure-pickup');
         var dropoff = root.querySelector('.departure-dropoff');
@@ -390,9 +484,13 @@
         if (!root.__lastPrice) { alert('Please Get Price first.'); return; }
         var rows = readChunk(root);
         var payload = collectPayload(root, stay);
+        var T = S();
         if (root.__editingIdx != null && root.__editingIdx >= 0 && root.__editingIdx < rows.length) {
             payload.supplement = rows[root.__editingIdx].supplement;
             payload.is_supplement = rows[root.__editingIdx].is_supplement;
+            payload.bookingType = T.resolveRowBookingType
+                ? T.resolveRowBookingType(rows[root.__editingIdx])
+                : (rows[root.__editingIdx].bookingType || payload.bookingType);
             rows[root.__editingIdx] = payload;
             root.__editingIdx = null;
             setAddMode(root, false);
@@ -404,7 +502,6 @@
         invalidate(root);
         root.__preferredVehicleId = '';
         root.__preferredVehicleName = '';
-        var T = S();
         var vehicle = root.querySelector('.departure-vehicle');
         if (vehicle) {
             vehicle.innerHTML = '<option value="">Click Search Vehicles</option>';
@@ -417,6 +514,7 @@
         T.clearSelectOrInput(root.querySelector('.departure-dropoff-text'), '');
         T.clearSelectOrInput(root.querySelector('.departure-flight-no'), '');
         T.clearSelectOrInput(root.querySelector('.departure-custom-price'), '');
+        T.clearSelectOrInput(root.querySelector('.departure-vehicle-count'), '1');
         T.setAmPmValue(root, 'departure', '');
         var getBtn = root.querySelector('.departure-get-price-btn');
         if (getBtn) getBtn.disabled = true;
@@ -440,15 +538,22 @@
         T.bindStayDate(root.querySelector('.departure-date'), stay, function () { invalidate(root); });
         T.bindGuestCaps(root);
         loadPickupDropoff(root, stay);
-        if ((!T.zoneOn || !T.zoneOn()) && window.StpLiteMaps) {
+        if (!stayZoneOn(T, stay) && window.StpLiteMaps) {
             window.StpLiteMaps.initIn(root, stay.country, stay.cityName);
+        }
+        if (T.applyBookedHotelsToArrivalDeparture) {
+            setTimeout(function () { T.applyBookedHotelsToArrivalDeparture(); }, 0);
         }
 
         root.querySelector('.departure-search-btn').addEventListener('click', function () { searchVehicles(root, stay); });
-        root.querySelector('.departure-get-price-btn').addEventListener('click', function () { getPrice(root); });
+        root.querySelector('.departure-get-price-btn').addEventListener('click', function () { getPrice(root, stay); });
         root.querySelector('.departure-add-btn').addEventListener('click', function () { addRow(root, stay); });
 
-        root.querySelectorAll('.departure-vehicle, .departure-service-type, .departure-adults, .departure-children, .departure-pickup, .departure-dropoff, .departure-pickup-text, .departure-dropoff-text, .departure-custom-price').forEach(function (el) {
+        root.querySelectorAll('.departure-pickup, .departure-dropoff, .departure-pickup-text, .departure-dropoff-text').forEach(function (el) {
+            el.addEventListener('change', function () { if (!root.__hydrating) clearVehicleOnRouteChange(root); });
+            el.addEventListener('input', function () { if (!root.__hydrating) clearVehicleOnRouteChange(root); });
+        });
+        root.querySelectorAll('.departure-vehicle, .departure-service-type, .departure-vehicle-count, .departure-adults, .departure-children, .departure-custom-price').forEach(function (el) {
             el.addEventListener('change', function () { if (!root.__hydrating) invalidate(root); });
             el.addEventListener('input', function () { if (!root.__hydrating) invalidate(root); });
         });
@@ -498,10 +603,11 @@
                     r.vehicles_name || 'Departure',
                     r.currency || root.getAttribute('data-currency'),
                     r.totalPrice,
-                    '<div class="small text-muted">' + T.esc(r.type || '') + ' · ' +
-                    T.esc(r.exitpickup || '') + ' → ' + T.esc(r.exitdropoff || '') +
-                    '<br>' + T.esc(r.adults || 0) + 'A / ' + T.esc(r.children || 0) + 'C' +
-                    (r.exittime ? '<br>Time: ' + T.esc(r.exittime) : '') + '</div>'
+                    (typeof T.vehiclePriceDetailHtml === 'function'
+                        ? T.vehiclePriceDetailHtml(r, r.currency || root.getAttribute('data-currency'))
+                        : ('<div class="small text-muted">' + T.esc(r.type || '') + ' · ' +
+                            T.esc(r.exitpickup || '') + ' → ' + T.esc(r.exitdropoff || '') +
+                            '<br>' + T.esc(r.adults || 0) + 'A / ' + T.esc(r.children || 0) + 'C</div>'))
                 );
             }
         });

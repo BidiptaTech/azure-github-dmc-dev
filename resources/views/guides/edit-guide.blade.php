@@ -1,24 +1,48 @@
 @extends('layouts.layout')
 @section('content')
 <style>
+    /* Compact form layout (aligned with create-guide) */
+    .guide-form-compact .form-label { margin-bottom: 0.2rem; font-size: 0.8125rem; }
+    .guide-form-compact .section-title {
+        font-size: 0.9375rem;
+        font-weight: 600;
+        color: #405189;
+        margin-bottom: 0.5rem;
+        padding-bottom: 0.25rem;
+        border-bottom: 1px solid #e9ecef;
+    }
+    .guide-price-table { font-size: 0.8125rem; margin-bottom: 0; }
+    .guide-price-table th,
+    .guide-price-table td { padding: 0.35rem 0.5rem; vertical-align: middle; }
+    .guide-price-table thead th { font-size: 0.75rem; font-weight: 600; white-space: nowrap; }
+    .guide-price-table .form-control { max-width: 100%; }
+    .guide-price-table .charge-badge { font-size: 0.7rem; padding: 0.2em 0.45em; }
+    .guide-price-table .visitor-group {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        color: #6c757d;
+    }
+    .guide-form-compact .form-control-sm,
+    .guide-form-compact .form-select-sm { font-size: 0.8125rem; }
+    .guide-form-compact textarea.form-control { min-height: auto; }
+
     .flatpickr-time {
-        height: 38px; /* match Bootstrap input height */
-        line-height: 38px;
+        height: 31px;
+        line-height: 31px;
     }
 
-    /* Reduce width of the time dropdown */
     .flatpickr-calendar.open {
         width: auto !important;
         min-width: 120px;
     }
 
-    /* Make time inputs (hour & minute) smaller */
     .flatpickr-time input {
         width: 40px;
-        height: 30px;
+        height: 28px;
         padding: 0;
         text-align: center;
-        font-size: 14px;
+        font-size: 13px;
     }
 
     .flatpickr-input:hover {
@@ -36,9 +60,9 @@
         top: 15%;
         left: 50%;
         transform: translate(-50%, -50%);
-        background-color: rgba(255, 0, 0, 0.85); /* Softer red */
+        background-color: rgba(255, 0, 0, 0.85);
         color: white;
-        padding: 10px 20px; /* Adjust padding for better appearance */
+        padding: 10px 20px;
         border-radius: 4px;
         font-size: 12px;
         font-weight: bold;
@@ -47,10 +71,9 @@
         z-index: 9999;
         box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
         animation: fadeIn 0.3s ease-in-out, fadeOut 0.5s ease-in-out 2.5s;
-        width: 250px; /* Set a specific width for the popup */
+        width: 250px;
     }
 
-    /* Fade-in and fade-out animation */
     @keyframes fadeIn {
         from { opacity: 0; transform: translate(-50%, -55%); }
         to { opacity: 1; transform: translate(-50%, -50%); }
@@ -62,42 +85,69 @@
     }
 
     .time-error-popup i {
-    margin-right: 8px; /* Space between icon and text */
-    color: yellow; /* Warning color */
-    font-size: 14px; /* Adjust icon size */
-    }
-
-    .select2-container .select2-selection--single {
-        height: 100% !important;
-        line-height: 100% !important;
-        padding: 8px 12px;
-    }
-    .select2-container .select2-results__option {
-        padding: 12px 10px;
-    }
-
-    .field-info-message {
-        margin-top: 8px;
-        padding: 8px 12px;
-        border-left: 4px solid #696cff;
-        background-color: #f5f5ff;
-        border-radius: 4px;
-        display: flex;
-        align-items: center;
-        font-size: 13px;
-        box-shadow: 0 2px 6px rgba(105, 108, 255, 0.15);
-        animation: fadeInMessage 0.4s ease-in-out;
-    }
-
-    .field-info-message i {
-        font-size: 16px;
         margin-right: 8px;
-        color: #696cff;
+        color: yellow;
+        font-size: 14px;
     }
 
-    @keyframes fadeInMessage {
-        from { opacity: 0; transform: translateY(-5px); }
-        to { opacity: 1; transform: translateY(0); }
+    .guide-form-compact .select2-container--default .select2-selection--single {
+        height: 31px !important;
+        border: 1px solid #d9dee3 !important;
+        border-radius: 0.375rem !important;
+        padding: 0.2rem 0.5rem !important;
+        display: flex !important;
+        align-items: center !important;
+    }
+
+    .guide-form-compact .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: 24px !important;
+        padding: 0 !important;
+        color: #697a8d !important;
+        font-size: 0.8125rem !important;
+    }
+
+    .guide-form-compact .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 28px !important;
+        right: 5px !important;
+    }
+
+    .select2-container {
+        width: 100% !important;
+    }
+
+    .select2-container .select2-results__option {
+        padding: 8px 12px;
+    }
+
+    .guide-form-compact #language-container .proficiency-select,
+    .guide-form-compact #language-container .language-select,
+    .guide-form-compact .language-row .form-control,
+    .guide-form-compact .language-row .form-select {
+        height: 31px;
+        font-size: 0.8125rem;
+    }
+
+    .guide-form-compact .language-row .remove-language,
+    .guide-form-compact #addmore {
+        height: 31px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.8125rem;
+        padding: 0.2rem 0.5rem;
+    }
+
+    .form-check-input[type="checkbox"] {
+        background-color: rgb(246, 249, 253);
+        border-color: rgb(192, 199, 207);
+        transition: all 0.3s ease;
+    }
+    .form-check-input:checked[type="checkbox"] {
+        background-color: #28a745;
+        border-color: #28a745;
+    }
+    .form-check-input:focus {
+        box-shadow: 0 0 0 0.25rem rgba(40, 167, 69, 0.25);
     }
 
     .readonly-field-styling {
@@ -105,7 +155,6 @@
         border: 1px solid #dfe3e7 !important;
         color: #6e7781 !important;
         cursor: default !important;
-        position: relative;
         box-shadow: none !important;
     }
 
@@ -128,37 +177,20 @@
         top: 50%;
         transform: translateY(-50%);
         color: #adb5bd;
-        font-size: 14px;
+        font-size: 12px;
         pointer-events: none;
     }
 
-    .readonly-field-container input:hover {
-        border-color: #dfe3e7 !important;
-    }
-
-    /* Auto-update animation for zero value fields */
     .zero-value-updated {
         animation: zeroValueUpdate 1s ease-in-out;
         border-left: 3px solid #28a745 !important;
     }
 
     @keyframes zeroValueUpdate {
-        0% { 
-            background-color: #d4edda; 
-            border-left-color: #28a745;
-            transform: scale(1.02);
-        }
-        50% { 
-            background-color: #f8f9fa; 
-            border-left-color: #17a2b8;
-        }
-        100% { 
-            background-color: #fff; 
-            border-left-color: #ced4da;
-            transform: scale(1);
-        }
+        0% { background-color: #d4edda; border-left-color: #28a745; transform: scale(1.02); }
+        50% { background-color: #f8f9fa; border-left-color: #17a2b8; }
+        100% { background-color: #fff; border-left-color: #ced4da; transform: scale(1); }
     }
-
 </style>
 <link href="https://cdn.jsdelivr.net/npm/summernote@0.9.0/dist/summernote.min.css" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
@@ -167,14 +199,20 @@
 <div class="content-wrapper">
     <div class="container-xxl flex-grow-1 container-p-y">
         <div class="card mb-6">
-            <h5 class="card-header d-flex justify-content-between align-items-center">
-                <span class="d-flex align-items-center flex-wrap gap-2">
-                    Edit Guide Details
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center flex-wrap gap-2">
+                    <h4 class="card-title mb-0">Edit Guide Details</h4>
                     @php
                         $guideNoteCountry = trim((string) ($guide->country ?? $selectedCountry ?? ''));
                         $guideNoteCurrency = $guideNoteCountry !== ''
                             ? \App\Models\Country::whereRaw('LOWER(TRIM(name)) = ?', [strtolower($guideNoteCountry)])->value('currency')
                             : null;
+                        $guidePrice = static function ($value) {
+                            if ($value === null || $value === '') {
+                                return '';
+                            }
+                            return number_format((float) $value, 2, '.', '');
+                        };
                     @endphp
                     <x-currency-price-note
                         :country="$guideNoteCountry !== '' ? $guideNoteCountry : null"
@@ -182,20 +220,20 @@
                         :watch-country="true"
                         country-select-id="country"
                     />
-                </span>
+                </div>
                 <a href="{{ route('guide.index') }}" class="btn btn-sm btn-outline-danger">
                     <i class="mdi mdi-arrow-left"></i> Back
                 </a>
-            </h5>
+            </div>
             @if ($errors->any())
-                <div class="alert alert-danger border-0 border-start border-5 border-danger-subtle shadow-sm px-4 py-3 rounded-3">
+                <div id="guide-validation-summary" class="alert alert-danger border-0 border-start border-5 border-danger-subtle shadow-sm px-4 py-3 rounded-3">
                     <div class="d-flex align-items-start gap-2">
                         <i class="bi bi-exclamation-triangle-fill fs-4 text-danger"></i>
                         <div>
                             <h6 class="mb-2 fw-semibold text-danger">Please fix the following errors:</h6>
                             <ul class="mb-0 ps-3">
                                 @foreach ($errors->all() as $error)
-                                    <li class="small">{{ $error }}</li>
+                                    <li class="small" data-server-error-text="{{ $error }}">{{ $error }}</li>
                                 @endforeach
                             </ul>
                         </div>
@@ -203,123 +241,98 @@
                 </div>
             @endif
 
-            <form id="guideForm" method="POST" action="{{ route('guide.update',Crypt::encrypt($guide->guide_id)) }}"
-                enctype="multipart/form-data" class="card-body">
+            <form id="guideForm" method="POST" action="{{ route('guide.update', Crypt::encrypt($guide->guide_id)) }}"
+                enctype="multipart/form-data" class="card-body guide-form-compact">
                 @csrf
                 @method('PUT')
-                <!-- Hidden Fields -->
-
                 <div id="guideDetailsContainer">
                     <div class="guide-form">
-                        <div class="row">
-                        @if(auth()->user()->role_id == 1 || auth()->user()->role_id == 23 || auth()->user()->role_id == 25 || auth()->user()->role_id == 45 || auth()->user()->role_id == 61 || auth()->user()->role_id == 100 || auth()->user()->role_id == 101)
-                            <div class="mb-3 col-md-3" id="dmc-container">
-                                <label for="dmc" class="form-label"><strong>DMC</strong><span style="color: red; font-weight: bold;">*</span></label>
-                                <select id="dmc" class="form-control" disabled>
+                        <div class="row g-2">
+                            <div class="col-12 mt-1 mb-1">
+                                <div class="section-title"><i class="ri-user-line me-1"></i> Guide Info</div>
+                            </div>
+
+                            @if(auth()->user()->role_id == 1 || auth()->user()->role_id == 23 || auth()->user()->role_id == 25 || auth()->user()->role_id == 45 || auth()->user()->role_id == 61 || auth()->user()->role_id == 100 || auth()->user()->role_id == 101)
+                            <div class="col-md-3 mb-2" id="dmc-container">
+                                <label for="dmc" class="form-label"><strong>Select DMC</strong><span class="text-danger">*</span></label>
+                                <select id="dmc" class="form-control form-control-sm" disabled>
                                     <option value="">Select DMC</option>
                                     @foreach ($dmcs as $dmc)
                                         <option value="{{ $dmc->userId }}" {{ $guide->dmc_id == $dmc->userId ? 'selected' : '' }}>{{ $dmc->company_name }}</option>
                                     @endforeach
                                 </select>
                                 <input type="hidden" name="dmc_id" value="{{ $guide->dmc_id }}">
-                                {{-- <div class="field-info-message">
-                                    <i class="fas fa-lock"></i> This DMC selection cannot be changed.
-                                </div> --}}
                             </div>
                             @endif
-                            <!-- Guide Salutation -->
-                            <div class="col-md-3 mb-3">
+
+                            <div class="col-md-2 mb-2">
                                 <label for="salutation" class="form-label"><strong>Salutation</strong><span class="text-danger">*</span></label>
-                                <select class="form-control" name="salutation" required>
-                                    <option value="">Select Salutation</option>
+                                <select class="form-control form-control-sm" name="salutation" required>
+                                    <option value="">Select</option>
                                     <option value="Mr" {{ old('salutation', $guide->salutation ?? '') == 'Mr' ? 'selected' : '' }}>Mr.</option>
                                     <option value="Mrs" {{ old('salutation', $guide->salutation ?? '') == 'Mrs' ? 'selected' : '' }}>Mrs.</option>
                                     <option value="Miss" {{ old('salutation', $guide->salutation ?? '') == 'Miss' ? 'selected' : '' }}>Ms.</option>
                                     <option value="Dear" {{ old('salutation', $guide->salutation ?? '') == 'Dear' ? 'selected' : '' }}>Dear</option>
                                 </select>
-                                @error('salutation')
-                                <div class="text-danger mt-1">{{ $message }}</div>
-                                @enderror
+                                @error('salutation')<div class="text-danger small">{{ $message }}</div>@enderror
                             </div>
 
-                            <div class="mb-3 col-md-3">
-                                <label for="guide_gender" class="form-label"><strong>Guide Gender</strong><span class="text-danger">*</span></label>
-                                <select class="form-control" name="guide_gender" required>
-                                    <option value="">Select Salutation</option>
+                            <div class="col-md-2 mb-2">
+                                <label for="guide_gender" class="form-label"><strong>Gender</strong><span class="text-danger">*</span></label>
+                                <select class="form-control form-control-sm" name="guide_gender" id="guide_gender" required>
+                                    <option value="">Select</option>
                                     <option value="Male" {{ old('guide_gender', $guide->guide_gender ?? '') == 'Male' ? 'selected' : '' }}>Male</option>
                                     <option value="Female" {{ old('guide_gender', $guide->guide_gender ?? '') == 'Female' ? 'selected' : '' }}>Female</option>
                                     <option value="Other" {{ old('guide_gender', $guide->guide_gender ?? '') == 'Other' ? 'selected' : '' }}>Other</option>
                                 </select>
-                                @error('guide_gender')
-                                <div class="text-danger mt-1">{{ $message }}</div>
-                                @enderror
+                                @error('guide_gender')<div class="text-danger small">{{ $message }}</div>@enderror
                             </div>
 
-                            <!-- guide Name -->
-                            <div class="col-md-3 mb-3">
-                                <label for="name" class="form-label"><strong>Guide Name</strong><span
-                                    class="text-danger">*</span></label>
-                                <input value="{{$guide->name}}" type="text" class="form-control" name="name"
-                                    placeholder="Enter Guide Name" required>
-                                @error('name')
-                                <div class="text-danger mt-1">{{ $message }}</div>
-                                @enderror
+                            <div class="col-md-3 mb-2">
+                                <label for="name" class="form-label"><strong>Guide Name</strong><span class="text-danger">*</span></label>
+                                <input type="text" class="form-control form-control-sm" name="name" placeholder="Enter Guide Name"
+                                    value="{{ old('name', $guide->name) }}" required>
+                                @error('name')<div class="text-danger small">{{ $message }}</div>@enderror
                             </div>
 
-                            <!-- Contact No -->
-                            <div class="col-md-3 mb-3">
-                                <label for="contact_no" class="form-label">
-                                    <strong>Contact No</strong><span class="text-danger">*</span>
-                                </label>
-                                <input value="{{$guide->contact_no}}" name="contact_no" type="text" id="contact_no"
-                                    class="form-control" placeholder="Enter Contact No" required
+                            <div class="col-md-3 mb-2">
+                                <label for="contact_no" class="form-label"><strong>Contact No</strong><span class="text-danger">*</span></label>
+                                <input name="contact_no" type="text" id="contact_no" class="form-control form-control-sm"
+                                    placeholder="Enter Contact No" value="{{ old('contact_no', $guide->contact_no) }}" required
                                     oninput="validatePhoneNumber(this)">
                                 <small class="validation-message text-danger" id="contact_no-validation-message"></small>
-                                @error('contact_no')
-                                <div class="text-danger mt-1">{{ $message }}</div>
-                                @enderror
+                                @error('contact_no')<div class="text-danger small">{{ $message }}</div>@enderror
                             </div>
 
-                            <!-- email -->
-                            <div class="col-md-3 mb-3">
-                                <label for="email" class="form-label"><strong>Email</strong><span
-                                        class="text-danger">*</span></label>
-                                <input value="{{$guide->email}}" type="text" class="form-control" id="email" name="email"
-                                    placeholder="Enter Email..." required
+                            <div class="col-md-3 mb-2">
+                                <label for="email" class="form-label"><strong>Email</strong><span class="text-danger">*</span></label>
+                                <input type="text" class="form-control form-control-sm" id="email" name="email"
+                                    placeholder="Enter Email..." value="{{ old('email', $guide->email) }}" required
                                     oninput="validateEmail(this)">
                                 <small class="validation-message text-danger" id="email-validation-message"></small>
-                                @error('email')
-                                <div class="text-danger mt-1">{{ $message }}</div>
-                                @enderror
+                                @error('email')<div class="text-danger small">{{ $message }}</div>@enderror
                             </div>
 
-                            <!-- App Password -->
-                            <div class="col-md-3 mb-3">
+                            <div class="col-md-3 mb-2">
                                 <label for="app_password" class="form-label"><strong>App Password</strong></label>
-                                <div class="input-group">
-                                    <input type="password" class="form-control" id="app_password" name="app_password" 
+                                <div class="input-group input-group-sm">
+                                    <input type="password" class="form-control form-control-sm" id="app_password" name="app_password"
                                         value="" placeholder="Enter app password" autocomplete="new-password">
                                     <button class="btn btn-outline-secondary" type="button" id="toggleAppPassword">
                                         <i class="ri-eye-off-line" id="appPasswordIcon"></i>
                                     </button>
                                 </div>
-                                @error('app_password')
-                                <div class="text-danger mt-1">{{ $message }}</div>
-                                @enderror
+                                @error('app_password')<div class="text-danger small">{{ $message }}</div>@enderror
                             </div>
-                            
-                            <!-- Country (DMC base country from users.country) -->
-                            <div class="mb-3 col-md-3">
-                                <label for="country" class="form-label"><strong>Country</strong>
-                                    <span style="color: red; font-weight: bold;">*</span>
-                                </label>
+
+                            <div class="col-md-3 mb-2">
+                                <label for="country" class="form-label"><strong>Country</strong><span class="text-danger">*</span></label>
                                 @php
                                     $scopedCountries = collect($dmcBaseCountries ?? $masterDmcCountries ?? $country ?? []);
                                     $editSelectedCountry = old('country', $selectedCountry ?? $guide->country ?? '');
                                     if ($editSelectedCountry === '' && $scopedCountries->count() === 1) {
                                         $editSelectedCountry = $scopedCountries->first()->name ?? '';
                                     }
-                                    // Ensure the guide's saved country is always available in the select.
                                     if (filled($editSelectedCountry) && !$scopedCountries->contains(function ($c) use ($editSelectedCountry) {
                                         return strcasecmp(trim((string) ($c->name ?? '')), trim((string) $editSelectedCountry)) === 0;
                                     })) {
@@ -329,7 +342,7 @@
                                         }
                                     }
                                 @endphp
-                                <select class="form-control" id="country" name="country" required onchange="validateDriverAge(document.getElementById('driver_age'))">
+                                <select class="form-control form-control-sm" id="country" name="country" required onchange="validateDriverAge(document.getElementById('guide_age'))">
                                     @if($scopedCountries->count() !== 1)
                                         <option value="">Select Country</option>
                                     @endif
@@ -340,79 +353,279 @@
                                         </option>
                                     @endforeach
                                 </select>
-                                @error('country')
-                                    <div class="text-danger mt-1">{{ $message }}</div>
-                                @enderror
+                                @error('country')<div class="text-danger small">{{ $message }}</div>@enderror
                             </div>
 
-                            <!-- City -->
-                            <div class="col-md-3 mb-3">
+                            <div class="col-md-3 mb-2">
                                 <label for="city" class="form-label"><strong>City</strong><span class="text-danger">*</span></label>
-                                <select name="city" id="citySelect" class="form-control" required>
+                                <select name="city" id="citySelect" class="form-control form-control-sm" required>
                                     <option value="">Select City</option>
                                     @foreach($city as $c)
                                         <option value="{{ $c->name }}" {{ old('city', $guide->city) == $c->name ? 'selected' : '' }}>{{ $c->name }}</option>
                                     @endforeach
                                 </select>
-                                @error('city')
-                                    <div class="text-danger mt-1">{{ $message }}</div>
-                                @enderror
+                                @error('city')<div class="text-danger small">{{ $message }}</div>@enderror
                             </div>
 
-                            <!-- Service Type -->
-                            <div class="col-md-3 mb-3">
+                            <div class="col-md-2 mb-2">
                                 <label for="service_type" class="form-label"><strong>Service Type</strong><span class="text-danger">*</span></label>
-                                <select id="service_type" type="text" class="form-select" name="service_type"
-                                    placeholder="Enter service type..." required>
+                                <select id="service_type" class="form-select form-select-sm" name="service_type" required>
                                     <option value="">Select</option>
-                                    <option {{$guide->service_type == 1 ? 'selected' : ''}} value="1">Private</option>
-                                    <option {{$guide->service_type == 2 ? 'selected' : ''}} value="2">Shared</option>
-                                    <option {{$guide->service_type == 3 ? 'selected' : ''}} value="3">Both</option>
+                                    <option value="1" {{ old('service_type', $guide->service_type) == 1 ? 'selected' : '' }}>Private</option>
+                                    <option value="2" {{ old('service_type', $guide->service_type) == 2 ? 'selected' : '' }}>Shared</option>
+                                    <option value="3" {{ old('service_type', $guide->service_type) == 3 ? 'selected' : '' }}>Both</option>
                                 </select>
-                                @error('service_type')
-                                <div class="text-danger mt-1">{{ $message }}</div>
-                                @enderror
+                                @error('service_type')<div class="text-danger small">{{ $message }}</div>@enderror
                             </div>
 
-                            <!-- Driver Age -->
-                            <div class="col-md-3 mb-3">
-                                <label for="guide_age" class="form-label"><strong>Guide Age</strong><span class="text-danger">*</span></label>
-                                <input value="{{$guide->guide_age}}" id="guide_age" type="number" class="form-control" name="guide_age" placeholder="Enter Driver Age" oninput="validateDriverAge(this)">
+                            <div class="col-md-2 mb-2">
+                                <label for="guide_age" class="form-label"><strong>Age</strong><span class="text-danger">*</span></label>
+                                <input id="guide_age" type="number" class="form-control form-control-sm" name="guide_age"
+                                    value="{{ old('guide_age', $guide->guide_age) }}" placeholder="Age" oninput="validateDriverAge(this)">
                                 <small class="validation-message text-danger" id="guide_age-validation-message"></small>
-                                @error('guide_age')
-                                    <div class="text-danger mt-1">{{ $message }}</div>
-                                @enderror
+                                @error('guide_age')<div class="text-danger small">{{ $message }}</div>@enderror
                             </div>
 
-                            <!-- WP Number -->
-                            <div class="col-md-3 mb-3">
+                            <div class="col-md-3 mb-2">
                                 <label for="wp_number" class="form-label"><strong>Whatsapp Number</strong><span class="text-danger">*</span></label>
-                                <input value="{{$guide->wp_number}}" type="text" id="wp_number" class="form-control" name="wp_number" placeholder="Enter Whatsapp Number" required>
-                                @error('wp_number')
-                                <div class="text-danger mt-1">{{ $message }}</div>
-                                @enderror
+                                <input type="text" id="wp_number" class="form-control form-control-sm" name="wp_number"
+                                    placeholder="Enter Whatsapp Number" value="{{ old('wp_number', $guide->wp_number) }}" required>
+                                @error('wp_number')<div class="text-danger small">{{ $message }}</div>@enderror
                             </div>
-                            <!-- Guide image -->
-                            <div class="col-md-3 mb-3">
-                                <div>
-                                    <label for="master_image" class="form-label"><strong>Master
-                                            Image</strong><span class="text-danger">*</span></label>
-                                    <div id="master-drop-area" class="form-control"
-                                        style="padding: 20px; border: 2px dashed #007bff; text-align: center; height: 80px;">
-                                        Drag & Drop your files here or click to upload.
-                                        <input type="file" id="master_image" name="master_image" multiple
-                                            style="display: none;">
+
+                            <div class="col-12 mt-2 mb-1" id="guide_language">
+                                <div class="section-title"><i class="ri-translate-2 me-1"></i> Languages & Proficiency</div>
+                            </div>
+                            <div class="col-12 mb-2">
+                                @if($languages)
+                                    @foreach($languages as $language)
+                                        <div class="language-row row g-2 mb-2 align-items-end">
+                                            <div class="col-md-5">
+                                                <label class="form-label"><strong>Languages</strong><span class="text-danger">*</span></label>
+                                                <select class="form-control form-control-sm language-select" name="languages[]" required>
+                                                    <option value="">Select Language</option>
+                                                    @foreach($languagesname as $c)
+                                                        <option value="{{ $c->name }}" @if(old('languagesname', $language->language ?? '') == $c->name) selected @endif>
+                                                            {{ $c->name }}
+                                                        </option>
+                                                    @endforeach
+                                                </select>
+                                            </div>
+                                            <div class="col-md-5">
+                                                <label class="form-label"><strong>Proficiency</strong><span class="text-danger">*</span></label>
+                                                <select class="form-select form-select-sm proficiency-select" name="language_proficiency[]" required>
+                                                    <option value="">Select</option>
+                                                    <option value="Beginner" {{ $language->proficiency == 'Beginner' ? 'selected' : '' }}>Beginner</option>
+                                                    <option value="Intermediate" {{ $language->proficiency == 'Intermediate' ? 'selected' : '' }}>Intermediate</option>
+                                                    <option value="Fluent" {{ $language->proficiency == 'Fluent' ? 'selected' : '' }}>Fluent</option>
+                                                    <option value="Expert" {{ $language->proficiency == 'Expert' ? 'selected' : '' }}>Expert</option>
+                                                    <option value="Mother Tongue" {{ $language->proficiency == 'Mother Tongue' ? 'selected' : '' }}>Mother Tongue</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-2 d-flex align-items-end">
+                                                <button type="button" class="btn btn-sm btn-danger remove-language">Remove</button>
+                                            </div>
+                                        </div>
+                                    @endforeach
+                                @endif
+
+                                <div id="language-container">
+                                    <div class="language-row row g-2 mb-2 align-items-end">
+                                        @if(!$languages)
+                                        <div class="col-md-5">
+                                            <label class="form-label"><strong>Languages</strong><span class="text-danger">*</span></label>
+                                            <select class="form-control form-control-sm language-select" name="languages[]" required>
+                                                <option value="">Select Language</option>
+                                                @foreach($languagesname as $c)
+                                                    <option value="{{ $c->name }}">{{ $c->name }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                        <div class="col-md-5">
+                                            <label class="form-label"><strong>Proficiency</strong></label>
+                                            <select class="form-select form-select-sm proficiency-select" name="language_proficiency[]">
+                                                <option value="">Select</option>
+                                                <option value="Beginner">Beginner</option>
+                                                <option value="Intermediate">Intermediate</option>
+                                                <option value="Fluent">Fluent</option>
+                                                <option value="Expert">Expert</option>
+                                                <option value="Mother Tongue">Mother Tongue</option>
+                                            </select>
+                                        </div>
+                                        @endif
+                                        <div class="col-md-2 d-flex align-items-end">
+                                            <button type="button" id="addmore" class="btn btn-sm btn-primary">Add More</button>
+                                        </div>
                                     </div>
                                 </div>
-                                <div id="master-preview-container" class="mb-3 mt-3 d-flex flex-wrap gap-2"
-                                    style="max-width: 30%; overflow-x: auto; white-space: nowrap;"></div>
+                            </div>
 
-                                @if($guide->image)
-                                <div class="image-preview-container d-flex flex-wrap gap-2">
-                                    <div class="image-preview-wrapper position-relative">
-                                        <img src="{{$guide->image}}" alt="Room Master Image"
+                            <div class="col-12 mt-2 mb-1" id="License">
+                                <div class="section-title"><i class="ri-id-card-line me-1"></i> License</div>
+                            </div>
+
+                            <div class="col-md-3 mb-2">
+                                <label for="license_no" class="form-label"><strong>Gov. License No</strong><span class="text-danger">*</span></label>
+                                <div class="readonly-field-container">
+                                    <input type="text" class="form-control form-control-sm readonly-field-styling" name="license_no"
+                                        value="{{ old('license_no', $guide->government_license_no) }}" readonly>
+                                </div>
+                                <small class="text-muted d-block" style="font-size: 9px;"><i class="fas fa-lock"></i> Locked — cannot be edited.</small>
+                                @error('license_no')<div class="text-danger small">{{ $message }}</div>@enderror
+                            </div>
+                            <div class="col-md-3 mb-2">
+                                <label for="license_exp_date" class="form-label"><strong>License Expiry</strong><span class="text-danger">*</span></label>
+                                <input type="date" class="form-control form-control-sm" name="license_exp_date"
+                                    value="{{ old('license_exp_date', $guide->license_exp_date) }}" required>
+                                @error('license_exp_date')<div class="text-danger small">{{ $message }}</div>@enderror
+                            </div>
+                            <div class="col-md-2 mb-2">
+                                <label for="experience" class="form-label"><strong>Experience (Yrs)</strong><span class="text-danger">*</span></label>
+                                <input type="text" class="form-control form-control-sm" id="experience" name="experience"
+                                    placeholder="Years" value="{{ old('experience', $guide->experience_years) }}" required
+                                    oninput="validateNumericPrice(this)">
+                                <small class="validation-message text-danger" id="experience-validation-message"></small>
+                                @error('experience')<div class="text-danger small">{{ $message }}</div>@enderror
+                            </div>
+                            <div class="col-md-4 mb-2">
+                                <label for="license_image" class="form-label"><strong>License Image</strong></label>
+                                <div id="license-drop-area" class="form-control form-control-sm"
+                                    style="padding: 12px; border: 2px dashed #007bff; text-align: center; cursor: pointer;">
+                                    Drag & Drop or click to upload
+                                    <input type="file" id="license_image" name="license_image" multiple style="display: none;">
+                                </div>
+                                <div id="license-preview-container" class="mt-1 d-flex flex-wrap gap-2"
+                                    style="max-width: 100%; overflow-x: auto; white-space: nowrap;"></div>
+                                @if($guide->license_image)
+                                <div class="license-image-preview-container d-flex flex-wrap gap-2 mt-2">
+                                    <div class="license-image-preview-wrapper position-relative">
+                                        <img src="{{ $guide->license_image }}" alt="License Image"
                                             style="max-width: 100px; height: 100px; object-fit: cover; border: 1px solid #ddd; border-radius: 5px;">
-                                        <button
+                                        <button type="button"
+                                            class="delete-license-image-btn position-absolute top-0 end-0 btn btn-sm btn-danger"
+                                            data-image="{{ $guide->license_image }}"
+                                            style="width: 20px; height: 20px; line-height: 18px; padding: 0; text-align: center; font-size: 14px; z-index: 1;">
+                                            &times;
+                                        </button>
+                                    </div>
+                                </div>
+                                @endif
+                            </div>
+
+                            <div class="col-12 mt-2 mb-1" id="rate">
+                                <div class="section-title"><i class="ri-percent-line me-1"></i> Profit <small class="text-muted fw-normal">(helper only — auto-fills Sell from Cost · not saved)</small></div>
+                            </div>
+                            <div class="col-md-3 mb-2">
+                                <label for="guide_profit_margin" class="form-label"><strong>Profit Type</strong></label>
+                                <select id="guide_profit_margin" class="form-select form-select-sm js-guide-profit-type">
+                                    <option value="percentage" selected>%</option>
+                                    <option value="flat">Flat</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3 mb-2">
+                                <label for="guide_profit_amount" class="form-label"><strong>Profit Amount</strong></label>
+                                <input type="number" id="guide_profit_amount" class="form-control form-control-sm js-guide-profit-amount"
+                                       value="0" min="0" step="0.01" placeholder="0.00">
+                            </div>
+                            <div class="col-md-2 mb-2">
+                                <label for="night_surcharge" class="form-label"><strong>Night Surcharge</strong><span class="text-danger">*</span></label>
+                                <input type="text" class="form-control form-control-sm" id="night_surcharge" name="night_surcharge"
+                                    placeholder="0.00" value="{{ $guidePrice(old('night_surcharge', $guide->night_surcharge)) }}" required
+                                    oninput="validateNumericPrice(this)">
+                                <small class="validation-message text-danger" id="night_surcharge-validation-message"></small>
+                                @error('night_surcharge')<div class="text-danger small">{{ $message }}</div>@enderror
+                            </div>
+                            <div class="col-md-2 mb-2">
+                                <label for="night_start_time" class="form-label"><strong>Night Start</strong><span class="text-danger">*</span></label>
+                                <input type="text" class="form-control form-control-sm" id="night_start_time" name="night_start_time"
+                                    placeholder="Start time" value="{{ old('night_start_time', $guide->night_start_time) }}">
+                                @error('night_start_time')<div class="text-danger small">{{ $message }}</div>@enderror
+                            </div>
+                            <div class="col-md-2 mb-2">
+                                <label for="night_end_time" class="form-label"><strong>Night End</strong><span class="text-danger">*</span></label>
+                                <input type="text" class="form-control form-control-sm" id="night_end_time" name="night_end_time"
+                                    placeholder="End time" value="{{ old('night_end_time', $guide->night_end_time) }}">
+                                @error('night_end_time')<div class="text-danger small">{{ $message }}</div>@enderror
+                            </div>
+
+                            <div class="col-12 mt-2 mb-2">
+                                <div class="section-title">
+                                    <i class="ri-money-dollar-circle-line me-1"></i> Pricing
+                                    <small class="text-muted fw-normal">(Cost = supplier fee · Sell = customer pays · multi-hour auto-calcs from Minimum)</small>
+                                </div>
+                                <div class="table-responsive">
+                                    <table class="table table-bordered table-sm guide-price-table">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th style="width:18%">Charge</th>
+                                                <th class="text-center visitor-group" style="width:41%">Cost <span class="text-danger">*</span></th>
+                                                <th class="text-center visitor-group" style="width:41%">Sell <span class="text-danger">*</span></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @php
+                                                $priceRows = [
+                                                    ['Minimum', 'minimum_cost_price', 'day_rate', false, 'calculateEditHourlyCostRates(); applyGuideProfitToSells(true);', 'calculateEditHourlyRates();'],
+                                                    ['1 Hr', 'hourly_cost_price', 'hourly_price', true, 'applyGuideProfitToSells(true);', ''],
+                                                    ['2 Hr', 'two_hour_cost_price', 'two_hour_price', true, 'applyGuideProfitToSells(true);', ''],
+                                                    ['4 Hr', 'four_hour_cost_price', 'four_hour_price', true, 'applyGuideProfitToSells(true);', ''],
+                                                    ['6 Hr', 'six_hour_cost_price', 'six_hour_price', true, 'applyGuideProfitToSells(true);', ''],
+                                                    ['8 Hr', 'eight_hour_cost_price', 'eight_hour_price', true, 'applyGuideProfitToSells(true);', ''],
+                                                    ['10 Hr', 'ten_hour_cost_price', 'ten_hour_price', true, 'applyGuideProfitToSells(true);', ''],
+                                                    ['12 Hr', 'twelve_hour_cost_price', 'twelve_hour_price', true, 'applyGuideProfitToSells(true);', ''],
+                                                ];
+                                            @endphp
+                                            @foreach($priceRows as [$label, $costField, $sellField, $auto, $costExtra, $sellExtra])
+                                            <tr>
+                                                <td>
+                                                    <span class="badge {{ $label === 'Minimum' ? 'bg-primary-subtle text-primary' : 'bg-info-subtle text-info' }} charge-badge">{{ $label }}</span>
+                                                </td>
+                                                <td>
+                                                    <input type="text"
+                                                        class="form-control form-control-sm js-guide-cost{{ $auto ? ' auto-calculated-cost' : '' }}"
+                                                        id="{{ $costField }}" name="{{ $costField }}" data-sell-target="{{ $sellField }}"
+                                                        placeholder="{{ $auto ? 'Auto' : '0.00' }}"
+                                                        value="{{ $guidePrice(old($costField, $guide->{$costField})) }}" required
+                                                        oninput="validateNumericPrice(this); {{ $costExtra }}">
+                                                    <small class="validation-message text-danger" id="{{ $costField }}-validation-message"></small>
+                                                    @error($costField)<div class="text-danger small">{{ $message }}</div>@enderror
+                                                </td>
+                                                <td>
+                                                    <input type="text"
+                                                        class="form-control form-control-sm js-guide-sell{{ $auto ? ' auto-calculated-sell' : '' }}"
+                                                        id="{{ $sellField }}" name="{{ $sellField }}"
+                                                        placeholder="{{ $auto ? 'Auto' : '0.00' }}"
+                                                        value="{{ $guidePrice(old($sellField, $guide->{$sellField})) }}" required
+                                                        oninput="validateNumericPrice(this); {{ $sellExtra }}">
+                                                    <small class="validation-message text-danger" id="{{ $sellField }}-validation-message"></small>
+                                                    @error($sellField)<div class="text-danger small">{{ $message }}</div>@enderror
+                                                </td>
+                                            </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <div class="col-12 mt-2 mb-1">
+                                <div class="section-title"><i class="ri-file-text-line me-1"></i> Details</div>
+                            </div>
+
+                            <div class="col-md-4 mb-2">
+                                <label for="master_image" class="form-label"><strong>Profile Image</strong></label>
+                                <div id="master-drop-area" class="form-control form-control-sm"
+                                    style="padding: 16px; border: 2px dashed #007bff; text-align: center; cursor: pointer;">
+                                    Drag & Drop or click to upload
+                                    <input type="file" id="master_image" name="master_image" multiple style="display: none;">
+                                </div>
+                                <div id="master-preview-container" class="mt-2 d-flex flex-wrap gap-2"
+                                    style="max-width: 100%; overflow-x: auto; white-space: nowrap;"></div>
+                                @if($guide->image)
+                                <div class="image-preview-container d-flex flex-wrap gap-2 mt-2">
+                                    <div class="image-preview-wrapper position-relative">
+                                        <img src="{{ $guide->image }}" alt="Guide Image"
+                                            style="max-width: 100px; height: 100px; object-fit: cover; border: 1px solid #ddd; border-radius: 5px;">
+                                        <button type="button"
                                             class="delete-image-btn position-absolute top-0 end-0 btn btn-sm btn-danger"
                                             data-image="{{ $guide->image }}"
                                             style="width: 20px; height: 20px; line-height: 18px; padding: 0; text-align: center; font-size: 14px; z-index: 1;">
@@ -422,409 +635,31 @@
                                 </div>
                                 @endif
                             </div>
-                                <div id="guide_language" class="col-md-12 mb-3">
-                                    <fieldset>
-                                        <h5 class="card-title mb-3">Languages & Proficiency</h5>
-                                    
-                                        @if($languages)
-                                            @foreach($languages as $language)
-                                                <div class="row language-row mb-3">
-                                                    <!-- Language -->
-                                                    <div class="col-md-5">
-                                                        <label for="languages" class="form-label"><strong>Languages</strong><span class="text-danger">*</span></label>
-                                                        <select class="form-control" name="languages[]" required>
-                                                            <option value="">Select Language</option>
-                                                            @foreach($languagesname as $c)
-                                                                <option value="{{ $c->name }}" @if(old('languagesname', $language->language ?? '') == $c->name) selected @endif>
-                                                                    {{ $c->name }}
-                                                                </option>
-                                                            @endforeach
-                                                        </select>
-                                                    </div>
-                                    
-                                                    <!-- Language Proficiency -->
-                                                    <div class="col-md-5">
-                                                        <label for="language_proficiency" class="form-label"><strong>Languages Proficiency</strong><span class="text-danger">*</span></label>
-                                                        <select class="form-select" name="language_proficiency[]" required>
-                                                            <option value="">Select</option>
-                                                            <option {{ $language->proficiency == "Beginner" ? 'selected' : '' }} value="Beginner">Beginner</option>
-                                                            <option {{ $language->proficiency == "Intermediate" ? 'selected' : '' }} value="Intermediate">Intermediate</option>
-                                                            <option {{ $language->proficiency == "Fluent" ? 'selected' : '' }} value="Fluent">Fluent</option>
-                                                            <option {{ $language->proficiency == "Expert" ? 'selected' : '' }} value="Expert">Expert</option>
-                                                            <option {{ $language->proficiency == "Mother Tongue" ? 'selected' : '' }} value="Mother Tongue">Mother Tongue</option>
-                                                        </select>
-                                                    </div>
-                                    
-                                                    <!-- Remove Button -->
-                                                    <div class="col-md-2 mb-2 d-flex align-items-end">
-                                                        <button type="button" class="btn btn-danger remove-language">Remove</button>
-                                                    </div>
-                                                </div>
-                                            @endforeach
-                                        @endif
-                                    
-                                        <div id="language-container">
-                                            <div class="row language-row mb-3">
-                                                <!-- Language -->
-                                                @if(!$languages)
-                                                <div class="col-md-5">
-                                                    <label for="languages" class="form-label"><strong>Languages</strong><span class="text-danger">*</span></label>
-                                                    <select class="form-control language-select" name="languages[]" required>
-                                                        <option value="">Select Language</option>
-                                                        @foreach($languagesname as $c)
-                                                            <option value="{{ $c->name }}">{{ $c->name }}</option>
-                                                        @endforeach
-                                                    </select>
-                                                </div>
-                                    
-                                                <!-- Language Proficiency -->
-                                                <div class="col-md-5">
-                                                    <label for="language_proficiency" class="form-label"><strong>Languages Proficiency</strong></label>
-                                                    <select class="form-select" name="language_proficiency[]">
-                                                        <option value="">Select</option>
-                                                        <option value="Beginner">Beginner</option>
-                                                        <option value="Intermediate">Intermediate</option>
-                                                        <option value="Fluent">Fluent</option>
-                                                        <option value="Expert">Expert</option>
-                                                        <option value="Mother Tongue">Mother Tongue</option>
-                                                    </select>
-                                                </div>
-                                                @endif
-                                    
-                                                <!-- Add More Button -->
 
-                                                <div class="col-md-2 mb-2 d-flex align-items-end">
-                                                    <button type="button" id="addmore" class="btn btn-primary">Add More</button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </fieldset>                                    
-
-
-                            <!-- License -->
-                            <fieldset id="License" class="border p-4 rounded mb-4">
-                                <h5 class="card-title mb-3">License</h5>
-                                <div class="row">
-
-                                    <!-- Government License No -->
-                                    <div class="col-md-3">
-                                        <label for="license_no" class="form-label"><strong>Government License No</strong><span class="text-danger">*</span></label>
-                                        {{-- <input value="{{$guide->government_license_no}}" type="text" step="0.1"
-                                            class="form-control" name="license_no" placeholder="Enter Gov. License No"
-                                            readonly> --}}
-                                            <div class="readonly-field-container">
-                                                <input value="{{$guide->government_license_no}}" type="text"
-                                                    class="form-control readonly-field-styling" name="license_no" placeholder="Enter Gov. License No"
-                                                    readonly>
-                                            </div>
-
-                                            <div class="field-info-message">
-                                                <i class="fas fa-lock"></i> Government license number is locked and cannot be edited.
-                                            </div>
-
-                                            @error('license_no')
-                                            <div class="text-danger mt-1">{{ $message }}</div>
-                                            @enderror
-                                    </div>
-                                    <!-- license_exp_date -->
-                                    <div class="col-md-3">
-                                        <label for="license_exp_date" class="form-label"><strong>License Expiry
-                                                Date</strong><span class="text-danger">*</span></label>
-                                        <input value="{{$guide->license_exp_date}}" type="date" step="0.01" class="form-control" name="license_exp_date" placeholder="Enter Cost"
-                                            required>
-                                        @error('license_exp_date')
-                                        <div class="text-danger mt-1">{{ $message }}</div>
-                                        @enderror
-                                    </div>
-
-                                    <!-- Experience -->
-                                    <div class="col-md-2">
-                                        <label for="experience" class="form-label"><strong>Experience (In Years)</strong><span class="text-danger">*</span></label>
-                                        <input value="{{$guide->experience_years}}" type="text" id="experience"
-                                            class="form-control" name="experience" placeholder="Enter Experience"
-                                            required oninput="validateNumericPrice(this)">
-                                        <small class="validation-message text-danger" id="experience-validation-message"></small>
-                                        @error('experience')
-                                        <div class="text-danger mt-1">{{ $message }}</div>
-                                        @enderror
-                                    </div>
-
-                                    <!-- Guide license image -->
-                                    <div class="mt-3 mb-3 col-md-4">
-                                        <div>
-                                            <label for="license_image" class="form-label"><strong>Upload Licence</strong></label>
-                                            <div id="license-drop-area" class="form-control"
-                                                style="padding: 20px; border: 2px dashed #007bff; text-align: center; height: 80px;">
-                                                Drag & Drop your files here or click to upload.
-                                                <input type="file" id="license_image" name="license_image" multiple
-                                                    style="display: none;">
-                                            </div>
-                                        </div>
-                                        <div id="license-preview-container" class="mb-3 mt-3 d-flex flex-wrap gap-2"
-                                            style="max-width: 30%; overflow-x: auto; white-space: nowrap;"></div>
-
-                                        @if($guide->license_image)
-                                        <div class="license-image-preview-container d-flex flex-wrap gap-2">
-                                            <div class="license-image-preview-wrapper position-relative">
-                                                <img src="{{$guide->license_image}}" alt="License Image"
-                                                    style="max-width: 100px; height: 100px; object-fit: cover; border: 1px solid #ddd; border-radius: 5px;">
-                                                <button
-                                                    class="delete-license-image-btn position-absolute top-0 end-0 btn btn-sm btn-danger"
-                                                    data-image="{{ $guide->license_image }}"
-                                                    style="width: 20px; height: 20px; line-height: 18px; padding: 0; text-align: center; font-size: 14px; z-index: 1;">
-                                                    &times;
-                                                </button>
-                                            </div>
-                                        </div>
-                                        @endif
-                                    </div>
-
-
-                                </div>
-                            </fieldset>
-
-                            <!-- Rate -->
-                            <fieldset id="rate" class="border p-4 rounded mb-4">
-                                <h5 class="card-title mb-3">Rates</h5>
-                                <div class="row">
-                                    <div class="col-md-3 mb-3">
-                                        <label for="guide_profit_margin" class="form-label"><strong>Profit (margin)</strong></label>
-                                        <select id="guide_profit_margin" class="form-select js-guide-profit-type">
-                                            <option value="percentage" selected>%</option>
-                                            <option value="flat">Flat</option>
-                                        </select>
-                                        <small class="text-muted">Helper only — not saved</small>
-                                    </div>
-                                    <div class="col-md-3 mb-3">
-                                        <label for="guide_profit_amount" class="form-label"><strong>Profit amount</strong></label>
-                                        <input type="number" id="guide_profit_amount" class="form-control js-guide-profit-amount"
-                                               value="0" min="0" step="0.01" placeholder="Enter profit amount">
-                                        <small class="text-muted">Auto-fills Sell from Cost</small>
-                                    </div>
-
-                                    <!-- Minimum Cost then Sell -->
-                                    <div class="col-md-3">
-                                        <label for="minimum_cost_price" class="form-label"><strong>Minimum Cost Price</strong><span
-                                                class="text-danger">*</span></label>
-                                        <input value="{{ old('minimum_cost_price', $guide->minimum_cost_price) }}" type="text" id="minimum_cost_price"
-                                            class="form-control js-guide-cost" name="minimum_cost_price" data-sell-target="day_rate"
-                                            placeholder="Enter Minimum Cost Price" required
-                                            oninput="validateNumericPrice(this); calculateEditHourlyCostRates(); applyGuideProfitToSells(true);">
-                                        <small class="validation-message text-danger" id="minimum_cost_price-validation-message"></small>
-                                        @error('minimum_cost_price')
-                                        <div class="text-danger mt-1">{{ $message }}</div>
-                                        @enderror
-                                    </div>
-                                    <div class="col-md-3">
-                                        <label for="day_rate" class="form-label"><strong>Minimum Sell Price</strong><span
-                                                class="text-danger">*</span></label>
-                                        <input value="{{$guide->day_rate}}" type="text" id="day_rate"
-                                            class="form-control js-guide-sell" name="day_rate" placeholder="Enter Minimum Sell Price" required
-                                            oninput="validateNumericPrice(this); calculateEditHourlyRates();">
-                                        <small class="validation-message text-danger" id="day_rate-validation-message"></small>
-                                        <small class="text-muted">This is the hourly rate - will auto-calculate multi-hour prices below</small>
-                                        @error('day_rate')
-                                        <div class="text-danger mt-1">{{ $message }}</div>
-                                        @enderror
-                                    </div>
-
-                                    <!-- night_surcharge -->
-                                    <div class="col-md-3">
-                                        <label for="night_surcharge" class="form-label"><strong>Night
-                                                Surcharge</strong><span class="text-danger">*</span></label>
-                                        <input value="{{$guide->night_surcharge}}" type="text" id="night_surcharge"
-                                            class="form-control" name="night_surcharge"
-                                            placeholder="Enter Night Surcharge" required
-                                            oninput="validateNumericPrice(this)">
-                                        <small class="validation-message text-danger" id="night_surcharge-validation-message"></small>
-                                        @error('night_surcharge')
-                                        <div class="text-danger mt-1">{{ $message }}</div>
-                                        @enderror
-                                    </div>
-
-                                    <!-- Night Start Time -->
-                                    <div class="col-md-2">
-                                        <label for="night_start_time" class="form-label"><strong>Night Start
-                                                Time</strong><span class="text-danger">*</span></label>
-                                        <input value="{{$guide->night_start_time}}" id="night_start_time" type="text" class="form-control"
-                                            name="night_start_time" placeholder="Select start time">
-                                        @error('night_start_time')
-                                        <div class="text-danger mt-1">{{ $message }}</div>
-                                        @enderror
-                                    </div>
-
-                                    <!-- Night End Time -->
-                                    <div class="col-md-2">
-                                        <label for="night_end_time" class="form-label"><strong>Night End
-                                                Time</strong><span class="text-danger">*</span></label>
-                                        <input value="{{$guide->night_end_time}}" id="night_end_time" type="text" class="form-control"
-                                            name="night_end_time" placeholder="Select end time">
-                                        @error('night_end_time')
-                                        <div class="text-danger mt-1">{{ $message }}</div>
-                                        @enderror
-                                    </div>
-
-                                    <!-- Hourly Cost then Sell -->
-                                    <div class="col-md-3 mb-3">
-                                        <label for="hourly_cost_price" class="form-label"><strong>Hourly Cost Price</strong><span class="text-danger">*</span></label>
-                                        <input value="{{ old('hourly_cost_price', $guide->hourly_cost_price) }}" type="text" id="hourly_cost_price"
-                                            class="form-control js-guide-cost" name="hourly_cost_price" data-sell-target="hourly_price"
-                                            placeholder="Enter Hourly Cost Price"
-                                            required oninput="validateNumericPrice(this); applyGuideProfitToSells(true);">
-                                        <small class="validation-message text-danger" id="hourly_cost_price-validation-message"></small>
-                                        @error('hourly_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                    </div>
-                                    <div class="col-md-3 mb-3">
-                                        <label for="hourly_price" class="form-label"><strong>Hourly Sell Price</strong><span class="text-danger">*</span></label>
-                                        <input value="{{ old('hourly_price', $guide->hourly_price) }}" type="text" id="hourly_price"
-                                            class="form-control js-guide-sell" name="hourly_price" placeholder="Enter Hourly Sell Price"
-                                            required oninput="validateNumericPrice(this)">
-                                        <small class="validation-message text-danger" id="hourly_price-validation-message"></small>
-                                        @error('hourly_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                    </div>
-
-                                    <!-- Two Hour Cost then Sell -->
-                                    <div class="col-md-3 mb-3">
-                                        <label for="two_hour_cost_price" class="form-label"><strong>Two Hour Cost Price</strong><span class="text-danger">*</span></label>
-                                        <input value="{{ old('two_hour_cost_price', $guide->two_hour_cost_price) }}" type="text" id="two_hour_cost_price"
-                                            class="form-control js-guide-cost" name="two_hour_cost_price" data-sell-target="two_hour_price"
-                                            placeholder="Enter Two Hour Cost Price" required
-                                            oninput="validateNumericPrice(this); applyGuideProfitToSells(true);">
-                                        <small class="validation-message text-danger" id="two_hour_cost_price-validation-message"></small>
-                                        @error('two_hour_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                    </div>
-                                    <div class="col-md-3 mb-3">
-                                        <label for="two_hour_price" class="form-label"><strong>Two Hour Sell Price</strong><span class="text-danger">*</span></label>
-                                        <input value="{{ old('two_hour_price', $guide->two_hour_price) }}" type="text" id="two_hour_price"
-                                            class="form-control js-guide-sell" name="two_hour_price" placeholder="Enter Two Hour Sell Price" required
-                                            oninput="validateNumericPrice(this)">
-                                        <small class="validation-message text-danger" id="two_hour_price-validation-message"></small>
-                                        @error('two_hour_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                    </div>
-
-                                    <!-- Four Hour Cost then Sell -->
-                                    <div class="col-md-3 mb-3">
-                                        <label for="four_hour_cost_price" class="form-label"><strong>Four Hour Cost Price</strong><span class="text-danger">*</span></label>
-                                        <input value="{{ old('four_hour_cost_price', $guide->four_hour_cost_price) }}" type="text" id="four_hour_cost_price"
-                                            class="form-control js-guide-cost" name="four_hour_cost_price" data-sell-target="four_hour_price"
-                                            placeholder="Enter Four Hour Cost Price" required
-                                            oninput="validateNumericPrice(this); applyGuideProfitToSells(true);">
-                                        <small class="validation-message text-danger" id="four_hour_cost_price-validation-message"></small>
-                                        @error('four_hour_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                    </div>
-                                    <div class="col-md-3 mb-3">
-                                        <label for="four_hour_price" class="form-label"><strong>Four Hour Sell Price</strong><span class="text-danger">*</span></label>
-                                        <input value="{{ old('four_hour_price', $guide->four_hour_price) }}" type="text" id="four_hour_price"
-                                            class="form-control js-guide-sell" name="four_hour_price" placeholder="Enter Four Hour Sell Price" required
-                                            oninput="validateNumericPrice(this)">
-                                        <small class="validation-message text-danger" id="four_hour_price-validation-message"></small>
-                                        @error('four_hour_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                    </div>
-
-                                    <!-- Six Hour Cost then Sell -->
-                                    <div class="col-md-3 mb-3">
-                                        <label for="six_hour_cost_price" class="form-label"><strong>Six Hour Cost Price</strong><span class="text-danger">*</span></label>
-                                        <input value="{{ old('six_hour_cost_price', $guide->six_hour_cost_price) }}" type="text" id="six_hour_cost_price"
-                                            class="form-control js-guide-cost" name="six_hour_cost_price" data-sell-target="six_hour_price"
-                                            placeholder="Enter Six Hour Cost Price" required
-                                            oninput="validateNumericPrice(this); applyGuideProfitToSells(true);">
-                                        <small class="validation-message text-danger" id="six_hour_cost_price-validation-message"></small>
-                                        @error('six_hour_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                    </div>
-                                    <div class="col-md-3 mb-3">
-                                        <label for="six_hour_price" class="form-label"><strong>Six Hour Sell Price</strong><span class="text-danger">*</span></label>
-                                        <input value="{{ old('six_hour_price', $guide->six_hour_price) }}" type="text" id="six_hour_price"
-                                            class="form-control js-guide-sell" name="six_hour_price" placeholder="Enter Six Hour Sell Price" required
-                                            oninput="validateNumericPrice(this)">
-                                        <small class="validation-message text-danger" id="six_hour_price-validation-message"></small>
-                                        @error('six_hour_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                    </div>
-
-                                    <!-- Eight Hour Cost then Sell -->
-                                    <div class="col-md-3 mb-3">
-                                        <label for="eight_hour_cost_price" class="form-label"><strong>Eight Hour Cost Price</strong><span class="text-danger">*</span></label>
-                                        <input value="{{ old('eight_hour_cost_price', $guide->eight_hour_cost_price) }}" type="text" id="eight_hour_cost_price"
-                                            class="form-control js-guide-cost" name="eight_hour_cost_price" data-sell-target="eight_hour_price"
-                                            placeholder="Enter Eight Hour Cost Price" required
-                                            oninput="validateNumericPrice(this); applyGuideProfitToSells(true);">
-                                        <small class="validation-message text-danger" id="eight_hour_cost_price-validation-message"></small>
-                                        @error('eight_hour_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                    </div>
-                                    <div class="col-md-3 mb-3">
-                                        <label for="eight_hour_price" class="form-label"><strong>Eight Hour Sell Price</strong><span class="text-danger">*</span></label>
-                                        <input value="{{ old('eight_hour_price', $guide->eight_hour_price) }}" type="text" id="eight_hour_price"
-                                            class="form-control js-guide-sell" name="eight_hour_price" placeholder="Enter Eight Hour Sell Price" required
-                                            oninput="validateNumericPrice(this)">
-                                        <small class="validation-message text-danger" id="eight_hour_price-validation-message"></small>
-                                        @error('eight_hour_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                    </div>
-
-                                    <!-- Ten Hour Cost then Sell -->
-                                    <div class="col-md-3 mb-3">
-                                        <label for="ten_hour_cost_price" class="form-label"><strong>Ten Hour Cost Price</strong><span class="text-danger">*</span></label>
-                                        <input value="{{ old('ten_hour_cost_price', $guide->ten_hour_cost_price) }}" type="text" id="ten_hour_cost_price"
-                                            class="form-control js-guide-cost" name="ten_hour_cost_price" data-sell-target="ten_hour_price"
-                                            placeholder="Enter Ten Hour Cost Price" required
-                                            oninput="validateNumericPrice(this); applyGuideProfitToSells(true);">
-                                        <small class="validation-message text-danger" id="ten_hour_cost_price-validation-message"></small>
-                                        @error('ten_hour_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                    </div>
-                                    <div class="col-md-3 mb-3">
-                                        <label for="ten_hour_price" class="form-label"><strong>Ten Hour Sell Price</strong><span class="text-danger">*</span></label>
-                                        <input value="{{ old('ten_hour_price', $guide->ten_hour_price) }}" type="text" id="ten_hour_price"
-                                            class="form-control js-guide-sell" name="ten_hour_price" placeholder="Enter Ten Hour Sell Price" required
-                                            oninput="validateNumericPrice(this)">
-                                        <small class="validation-message text-danger" id="ten_hour_price-validation-message"></small>
-                                        @error('ten_hour_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                    </div>
-
-                                    <!-- Twelve Hour Cost then Sell -->
-                                    <div class="col-md-3 mb-3">
-                                        <label for="twelve_hour_cost_price" class="form-label"><strong>Twelve Hour Cost Price</strong><span class="text-danger">*</span></label>
-                                        <input value="{{ old('twelve_hour_cost_price', $guide->twelve_hour_cost_price) }}" type="text" id="twelve_hour_cost_price"
-                                            class="form-control js-guide-cost" name="twelve_hour_cost_price" data-sell-target="twelve_hour_price"
-                                            placeholder="Enter Twelve Hour Cost Price" required
-                                            oninput="validateNumericPrice(this); applyGuideProfitToSells(true);">
-                                        <small class="validation-message text-danger" id="twelve_hour_cost_price-validation-message"></small>
-                                        @error('twelve_hour_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                    </div>
-                                    <div class="col-md-3 mb-3">
-                                        <label for="twelve_hour_price" class="form-label"><strong>Twelve Hour Sell Price</strong><span class="text-danger">*</span></label>
-                                        <input value="{{ old('twelve_hour_price', $guide->twelve_hour_price) }}" type="text" id="twelve_hour_price"
-                                            class="form-control js-guide-sell" name="twelve_hour_price" placeholder="Enter Twelve Hour Sell Price" required
-                                            oninput="validateNumericPrice(this)">
-                                        <small class="validation-message text-danger" id="twelve_hour_price-validation-message"></small>
-                                        @error('twelve_hour_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                    </div>
-                                </div>
-                            </fieldset>
-
-                            <!-- about -->
-                            <div class="col-md-12 mb-3">
+                            <div class="col-md-8 mb-2">
                                 <label for="about" class="form-label"><strong>About</strong><span class="text-danger">*</span></label>
-                                <textarea
-                                id="summernote" name="about" class="form-control" rows="10" placeholder="Write About Guide..." required>{{old('about', htmlspecialchars_decode($guide->description))}}</textarea>
+                                <textarea id="summernote" name="about" class="form-control form-control-sm" rows="4"
+                                    placeholder="Write About Guide..." required>{{ old('about', htmlspecialchars_decode($guide->description)) }}</textarea>
                                 <div id="about_error" class="text-danger small mt-1 d-none"></div>
-                                @error('about')
-                                    <div class="text-danger mt-1">{{ $message }}</div>
-                                @enderror
+                                @error('about')<div class="text-danger small">{{ $message }}</div>@enderror
+                            </div>
+
+                            <div class="col-md-4 mb-2">
+                                <div class="form-check form-switch mt-1">
+                                    <input type="hidden" name="guide_status" value="0">
+                                    <input class="form-check-input" name="guide_status" type="checkbox" id="guide_status" value="1"
+                                        {{ old('guide_status', $guide->is_active) == 1 ? 'checked' : '' }}>
+                                    <label for="guide_status" class="form-check-label"><strong>Active</strong></label>
+                                </div>
                             </div>
                         </div>
-
-                        <!-- Status -->
-                        <div class="form-check form-switch">
-                            <label for="guide_status" class="form-label"><strong>Status</strong></label>
-                            {{-- Hidden 0 + optional checkbox: unchecked = inactive. Do NOT use required (blocks inactive save). --}}
-                            <input type="hidden" name="guide_status" value="0">
-                            <input {{$guide->is_active == 1 ? 'checked' : ''}} class="form-check-input" name="guide_status" type="checkbox" id="guide_status" value="1">
-                            <label class="form-check-label"></label>
-                        </div>
                     </div>
 
-                    <!-- Submit Buttons -->
-                    <div class="d-flex gap-3 mt-4">
+                    <div class="d-flex gap-2 mt-3">
                         <button type="submit" class="btn btn-primary px-4">Update</button>
+                        <a href="{{ route('guide.index') }}" class="btn btn-secondary">Cancel</a>
                     </div>
+                </div>
             </form>
         </div>
     </div>
@@ -1429,12 +1264,12 @@
     // Function to create a new language row
     function createLanguageRow() {
         const newRow = document.createElement("div");
-        newRow.classList.add("row", "language-row", "mb-3");
+        newRow.classList.add("row", "language-row", "g-2", "mb-2", "align-items-end");
 
         newRow.innerHTML = `
             <div class="col-md-5">
-                <label for="languages" class="form-label"><strong>Languages</strong><span class="text-danger">*</span></label>
-                <select class="form-control language-select" name="languages[]" required>
+                <label class="form-label"><strong>Languages</strong><span class="text-danger">*</span></label>
+                <select class="form-control form-control-sm language-select" name="languages[]" required>
                     <option value="">Select Language</option>
                     @foreach($languagesname as $c)
                         <option value="{{ $c->name }}">{{ $c->name }}</option>
@@ -1443,8 +1278,8 @@
             </div>
 
             <div class="col-md-5">
-                <label for="language_proficiency" class="form-label"><strong>Languages Proficiency</strong></label>
-                <select class="form-select proficiency-select" name="language_proficiency[]" required>
+                <label class="form-label"><strong>Proficiency</strong></label>
+                <select class="form-select form-select-sm proficiency-select" name="language_proficiency[]" required>
                     <option value="">Select</option>
                     <option value="Beginner">Beginner</option>
                     <option value="Intermediate">Intermediate</option>
@@ -1454,8 +1289,8 @@
                 </select>
             </div>
 
-            <div class="col-md-1 mb-2 d-flex align-items-end">
-                <button type="button" class="btn btn-danger remove-language">Remove</button>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="button" class="btn btn-sm btn-danger remove-language">Remove</button>
             </div>
         `;
 
@@ -1508,13 +1343,9 @@
         if (!messageElement) return;
         
         if (isValid) {
-            messageElement.innerHTML = `
-                <div class="valid-feedback d-block">
-                    <i class="fas fa-check-circle text-success"></i> 
-                    Looks good!
-                </div>`;
-            inputElement.classList.remove('is-invalid');
-            inputElement.classList.add('is-valid');
+            // Keep valid fields clean — no green border / "Looks good!" clutter
+            messageElement.innerHTML = '';
+            inputElement.classList.remove('is-invalid', 'is-valid');
         } else {
             messageElement.innerHTML = `
                 <div class="invalid-feedback d-block">
@@ -1611,9 +1442,13 @@
 
 
     function validateDriverAge(input) {
-        const value = parseInt(input.value);
-        const country = document.getElementById('country').value;
-        const messageElement = document.getElementById(`${input.id}-validation-message`);
+        if (!input) {
+            return;
+        }
+
+        const value = parseInt(input.value, 10);
+        const countryEl = document.getElementById('country');
+        const country = countryEl ? countryEl.value : '';
 
         if (isNaN(value)) {
             showValidationMessage(input, false, 'Please enter a valid age');
@@ -1639,133 +1474,60 @@
     // Add CSS for validation messages and input styles
     document.head.insertAdjacentHTML('beforeend', `
         <style>
-            /* Base validation message styles */
             .validation-message {
-                margin-top: 0.5rem;
-                font-size: 0.85rem;
-                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+                margin-top: 0.25rem;
+                font-size: 0.75rem;
             }
-    
-            /* Error state styles */
+
             .validation-message .invalid-feedback {
                 display: block;
-                color: #e74c3c;
-                background-color: #fef5f5;
-                border-left: 3px solid #e74c3c;
-                padding: 0.75rem 1rem;
-                border-radius: 4px;
-                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-                animation: slideIn 0.3s ease-in-out;
+                color: #dc3545;
+                padding: 0;
+                margin: 0;
+                background: none;
+                border: none;
+                box-shadow: none;
             }
-    
-            /* Success state styles */
-            .validation-message .valid-feedback {
-                display: block;
-                color: #2ecc71;
-                background-color: #f4fff6;
-                border-left: 3px solid #2ecc71;
-                padding: 0.75rem 1rem;
-                border-radius: 4px;
-                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-                animation: slideIn 0.3s ease-in-out;
-            }
-    
-            /* List styles within validation messages */
+
             .validation-message ul {
-                margin: 0.5rem 0 0 0;
-                padding-left: 1.5rem;
-                list-style-type: none;
+                margin: 0.25rem 0 0 0;
+                padding-left: 1.25rem;
+                list-style-type: disc;
             }
-    
+
             .validation-message ul li {
-                position: relative;
-                padding: 0.2rem 0;
-                color: #666;
+                padding: 0.1rem 0;
+                color: #6c757d;
             }
-    
-            .validation-message ul li::before {
-                content: "•";
-                color: #e74c3c;
-                font-weight: bold;
-                position: absolute;
-                left: -1rem;
-            }
-    
-            /* Icon styles */
+
             .validation-message i {
-                margin-right: 0.5rem;
-                font-size: 1rem;
+                margin-right: 0.35rem;
+                font-size: 0.8rem;
             }
-    
-            /* Input field styles with validation icons */
-            .form-control.is-valid {
-                border-color: #2ecc71 !important;
+
+            .form-control.is-valid,
+            .form-select.is-valid {
+                border-color: #d9dee3 !important;
+                background-image: none !important;
+                padding-right: 0.75rem !important;
+            }
+
+            .form-control.is-invalid,
+            .form-select.is-invalid {
+                border-color: #dc3545 !important;
                 background-color: #fff !important;
-                padding-right: calc(1.5em + 0.75rem);
-                background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3e%3cpath fill='%232ecc71' d='M2.3 6.73L.6 4.53c-.4-1.04.46-1.4 1.1-.8l1.1 1.4 3.4-3.8c.6-.63 1.6-.27 1.2.7l-4 4.6c-.43.5-.8.4-1.1.1z'/%3e%3c/svg%3e");
-                background-repeat: no-repeat;
-                background-position: right calc(0.375em + 0.1875rem) center;
-                background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);
             }
-    
-            .form-control.is-invalid {
-                border-color: #e74c3c !important;
-                background-color: #fff !important;
-                padding-right: calc(1.5em + 0.75rem);
-                background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' width='12' height='12' fill='none' stroke='%23e74c3c'%3e%3ccircle cx='6' cy='6' r='4.5'/%3e%3cpath stroke-linejoin='round' d='M5.8 3.6h.4L6 6.5z'/%3e%3ccircle cx='6' cy='8.2' r='.6' fill='%23e74c3c' stroke='none'/%3e%3c/svg%3e");
-                background-repeat: no-repeat;
-                background-position: right calc(0.375em + 0.1875rem) center;
-                background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);
+
+            .form-control:focus,
+            .form-select:focus {
+                border-color: #696cff !important;
+                box-shadow: 0 0 0 0.2rem rgba(105, 108, 255, 0.15) !important;
             }
-    
-            /* Animation for validation messages */
-            @keyframes slideIn {
-                from {
-                    opacity: 0;
-                    transform: translateY(-10px);
-                }
-                to {
-                    opacity: 1;
-                    transform: translateY(0);
-                }
-            }
-    
-            /* Hover effect for validation messages */
-            .validation-message .invalid-feedback:hover,
-            .validation-message .valid-feedback:hover {
-                transform: translateY(-1px);
-                box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
-                transition: all 0.3s ease;
-            }
-    
-            /* Required field indicator */
-            .required-field::after {
-                content: "*";
-                color: #e74c3c;
-                margin-left: 4px;
-            }
-    
-            /* Responsive adjustments */
-            @media (max-width: 768px) {
-                .validation-message {
-                    font-size: 0.8rem;
-                }
-                
-                .validation-message .invalid-feedback,
-                .validation-message .valid-feedback {
-                    padding: 0.5rem 0.75rem;
-                }
-            }
-    
-            /* Focus state styles */
-            .form-control:focus {
-                box-shadow: 0 0 0 0.2rem rgba(46, 204, 113, 0.25);
-                border-color: #2ecc71;
-            }
-    
-            .form-control.is-invalid:focus {
-                box-shadow: 0 0 0 0.2rem rgba(231, 76, 60, 0.25);
-                border-color: #e74c3c;
+
+            .form-control.is-invalid:focus,
+            .form-select.is-invalid:focus {
+                border-color: #dc3545 !important;
+                box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.15) !important;
             }
         </style>
     `);
@@ -1924,5 +1686,84 @@
         el.addEventListener('change', function () { applyGuideProfitToSells(true); });
     });
     </script>
+
+{{-- Clear Laravel / server field errors as soon as the user edits that field --}}
+<script>
+(function () {
+    const form = document.getElementById('guideForm');
+    if (!form) return;
+
+    function markServerFieldErrors() {
+        form.querySelectorAll('div.text-danger.mt-1, div.text-danger.small.mt-1').forEach(function (el) {
+            if (el.closest('label')) return;
+            if (el.classList.contains('validation-message')) return;
+            el.classList.add('js-server-field-error');
+        });
+    }
+
+    function refreshSummaryAlert() {
+        const summary = document.getElementById('guide-validation-summary');
+        if (!summary) return;
+
+        const remainingFieldErrors = form.querySelectorAll('.js-server-field-error');
+        const list = summary.querySelector('ul');
+
+        if (remainingFieldErrors.length === 0) {
+            summary.remove();
+            return;
+        }
+
+        if (!list) return;
+
+        const remainingTexts = Array.from(remainingFieldErrors).map(function (el) {
+            return (el.textContent || '').trim().toLowerCase();
+        });
+
+        list.querySelectorAll('li').forEach(function (li) {
+            const text = (li.getAttribute('data-server-error-text') || li.textContent || '').trim().toLowerCase();
+            if (text && !remainingTexts.includes(text)) {
+                li.remove();
+            }
+        });
+
+        if (!list.querySelector('li')) {
+            summary.remove();
+        }
+    }
+
+    function clearServerErrorForField(field) {
+        if (!field || !field.name) return;
+
+        const wrap = field.closest('.mb-3, .mb-4, [class*="col-"]') || field.parentElement;
+        if (!wrap) return;
+
+        wrap.querySelectorAll('.js-server-field-error').forEach(function (el) {
+            el.remove();
+        });
+
+        wrap.querySelectorAll(':scope > div.text-danger.mt-1, :scope > div.text-danger.small').forEach(function (el) {
+            if (el.closest('label')) return;
+            el.remove();
+        });
+
+        field.classList.remove('is-invalid');
+        refreshSummaryAlert();
+    }
+
+    markServerFieldErrors();
+
+    form.addEventListener('input', function (e) {
+        const t = e.target;
+        if (!t || !['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName)) return;
+        clearServerErrorForField(t);
+    });
+
+    form.addEventListener('change', function (e) {
+        const t = e.target;
+        if (!t || !['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName)) return;
+        clearServerErrorForField(t);
+    });
+})();
+</script>
     
 @endsection

@@ -2,6 +2,7 @@
  * Depends: geo.buildInventoryDmcQuery, country-segments, guest-caps, STP_LITE_CONFIG.routes
  * Owns: hotel / room type (names only) / bed type / meal plan — same APIs as backup
  * Routes: fetch-hotels-by-dmc, fetch-rooms-by-hotel, fetch-beds-by-room
+ * Online: reuses partials/online-hotel-modal.blade.php (fetch-online-hotels / rooms)
  * === */
 (function (window, document) {
     'use strict';
@@ -9,6 +10,13 @@
     function cfg() {
         return window.STP_LITE_CONFIG || {};
     }
+
+    function onlineApiEnabled() {
+        return !!cfg().onlineHotelApiEnabled && !!document.getElementById('onlineHotelModal');
+    }
+
+    /** Active city root when Online Hotels modal is open. */
+    var onlineTargetRoot = null;
 
     function esc(s) {
         return String(s || '')
@@ -53,16 +61,64 @@
         });
 
         if (!hasRoomsOnly && !hasComplementary) plans.push(roomText + ' only');
-        if (hasBreakfast) plans.push(roomText + ' with ' + bfPhrase);
+        if (hasBreakfast) {
+            // Paid breakfast (not complementary) — show as add-on, not "included"
+            plans.push(hasComplementary
+                ? (roomText + ' with ' + bfPhrase)
+                : 'Room + Breakfast Add-on');
+        }
         if (hasLunch) plans.push(roomText + ' with lunch');
         if (hasDinner) plans.push(roomText + ' with dinner');
-        if (hasBreakfast && hasLunch) plans.push(roomText + ' with ' + bfPhrase + ' + lunch');
-        if (hasBreakfast && hasDinner) plans.push(roomText + ' with ' + bfPhrase + ' + dinner');
+        if (hasBreakfast && hasLunch) {
+            plans.push(hasComplementary
+                ? (roomText + ' with ' + bfPhrase + ' + lunch')
+                : 'Room + Breakfast Add-on + lunch');
+        }
+        if (hasBreakfast && hasDinner) {
+            plans.push(hasComplementary
+                ? (roomText + ' with ' + bfPhrase + ' + dinner')
+                : 'Room + Breakfast Add-on + dinner');
+        }
         if (hasLunch && hasDinner) plans.push(roomText + ' with lunch + dinner');
         if (hasBreakfast && hasLunch && hasDinner) {
-            plans.push(roomText + ' with all meals (' + bfPhrase + ' + lunch + dinner)');
+            plans.push(hasComplementary
+                ? (roomText + ' with all meals (' + bfPhrase + ' + lunch + dinner)')
+                : 'Room + Breakfast Add-on + lunch + dinner');
         }
         return plans;
+    }
+
+    function hotelSourceToggleHtml(stay) {
+        if (!onlineApiEnabled()) return '';
+        var key = String(stay.planIndex || '0') + '_' +
+            String(stay.cityId || stay.cityName || 'city').replace(/[^\w\-]+/g, '_');
+        var name = 'hotelSourceType_' + key;
+        return (
+            '  <div class="row g-2 mb-2">' +
+            '    <div class="col-12 stp-lite-hotel-source">' +
+            '      <label class="stp-lite-label mb-1"><i class="ri-toggle-line me-1"></i>Hotel Source</label>' +
+            '      <div class="d-flex flex-wrap gap-3">' +
+            '        <div class="form-check">' +
+            '          <input class="form-check-input hotel-source-type" type="radio" name="' + esc(name) + '"' +
+            '            id="hotelSourceOffline_' + esc(key) + '" value="offline" checked>' +
+            '          <label class="form-check-label" for="hotelSourceOffline_' + esc(key) + '" style="font-size:0.85rem;">' +
+            '            <i class="ri-database-2-line me-1"></i> Offline Hotels' +
+            '          </label>' +
+            '        </div>' +
+            '        <div class="form-check">' +
+            '          <input class="form-check-input hotel-source-type" type="radio" name="' + esc(name) + '"' +
+            '            id="hotelSourceOnline_' + esc(key) + '" value="online">' +
+            '          <label class="form-check-label" for="hotelSourceOnline_' + esc(key) + '" style="font-size:0.85rem;">' +
+            '            <i class="ri-global-line me-1"></i> Online Hotels' +
+            '          </label>' +
+            '        </div>' +
+            '      </div>' +
+            '      <small class="text-muted d-block mt-1" style="font-size:0.75rem;">' +
+            '        Offline uses DMC inventory. Online opens live API search.' +
+            '      </small>' +
+            '    </div>' +
+            '  </div>'
+        );
     }
 
     function shellHtml(country, currency, stay) {
@@ -73,6 +129,7 @@
             cityLabel += ' · ' + moment(stay.start, 'YYYY-MM-DD').format('MMM D') + '–' +
                 moment(stay.end, 'YYYY-MM-DD').format('MMM D');
         }
+        var onlineOn = onlineApiEnabled();
         return (
             '<div class="stp-lite-hotel" data-country="' + esc(country) + '" data-currency="' + esc(currency) + '"' +
             ' data-city-id="' + esc(stay.cityId || '') + '"' +
@@ -81,6 +138,8 @@
             ' data-is-return="' + (stay.isReturn ? '1' : '0') + '"' +
             ' data-stay-start="' + esc(stay.start || '') + '"' +
             ' data-stay-end="' + esc(stay.end || '') + '">' +
+            hotelSourceToggleHtml(stay) +
+            (onlineOn ? '  <div class="offline-hotel-panel">' : '') +
             '  <div class="row g-2 mb-2">' +
             '    <div class="col-md-3">' +
             '      <label class="stp-lite-label">City</label>' +
@@ -224,7 +283,7 @@
             '            <div class="hotel-adhoc-price-wrap d-none">' +
             '              <input type="text" inputmode="decimal" autocomplete="off"' +
             '                class="form-control form-control-sm hotel-adhoc-price"' +
-            '                placeholder="Room / night" value="" title="Manual Room rate (per night)">' +
+            '                placeholder="Rate / night" value="" title="Manual Room rate (per night)">' +
             '            </div>' +
             '          </div>' +
             '        </div>' +
@@ -246,7 +305,7 @@
             '    <div class="stp-lite-hotel-breakup-card">' +
             '      <div class="stp-lite-hotel-breakup-head">' +
             '        <div>' +
-            '          <div class="stp-lite-hotel-breakup-title">Price calculation</div>' +
+            '          <div class="stp-lite-hotel-breakup-title"><i class="ri-hotel-line me-1"></i>Hotel Pricing Details</div>' +
             '          <div class="stp-lite-hotel-breakup-sub text-muted">Auto-updated after Get Price · ' + esc(currency) + '</div>' +
             '        </div>' +
             '        <button type="button" class="btn btn-sm btn-light hotel-breakup-close" title="Hide calculation">' +
@@ -256,12 +315,13 @@
             '      <div class="stp-lite-hotel-breakup-body" data-hotel-breakup-body>' +
             '        <div class="hotel-breakup-grid"></div>' +
             '        <div class="stp-lite-hotel-breakup-total">' +
-            '          <span>Grand total</span>' +
+            '          <span><strong>Total:</strong></span>' +
             '          <strong class="hotel-breakup-grand">' + esc(currency) + ' 0.00</strong>' +
             '        </div>' +
             '      </div>' +
             '    </div>' +
             '  </div>' +
+            (onlineOn ? '  </div><!-- /.offline-hotel-panel -->' : '') +
             '  <div class="stp-lite-hotel-added mt-2" data-hotel-added-list></div>' +
             '  <input type="hidden" class="hotel_data_chunk" value="[]">' +
             '</div>'
@@ -1147,10 +1207,25 @@
         btn.disabled = !isAdHocPriceReady(root);
     }
 
+    function moneyTxt(cur, amount) {
+        return esc(cur) + ' ' + Number(amount || 0).toFixed(2);
+    }
+
+    function roomsSuffix(rooms) {
+        rooms = parseInt(rooms, 10) || 1;
+        return ' × ' + rooms + ' room' + (rooms > 1 ? 's' : '');
+    }
+
+    function nightsSuffix(nights) {
+        nights = parseInt(nights, 10) || 1;
+        return ' × ' + nights + ' night' + (nights > 1 ? 's' : '');
+    }
+
     /**
      * Get Price result stays intact — only room_price / room_total are replaced
      * with the AdHoc Manual Room rate. Breakfast / lunch / dinner from the API
      * are never modified (complementary breakfast already has no meal charge).
+     * Original inventory room rates are kept for strikethrough display.
      */
     function applyAdHocToPriceData(data, adhocPerNight) {
         if (!data || adhocPerNight == null || !isFinite(adhocPerNight)) return data;
@@ -1166,6 +1241,8 @@
         var out = Object.assign({}, data, {
             is_adhoc: true,
             adhoc_price: Number(adhocPerNight),
+            original_room_total: Number(data.room_total || 0),
+            original_fair_charge_total: Number(data.fair_charge_total || 0),
             room_total: roomTotal,
             // Fair surcharge is part of inventory room pricing; AdHoc is a flat room rate.
             fair_charge_total: 0,
@@ -1176,7 +1253,12 @@
         if (Array.isArray(data.breakdown) && data.breakdown.length) {
             out.breakdown = data.breakdown.map(function (n) {
                 var mealPrice = Number(n.meal_price || 0);
+                var origBase = Number(n.room_base != null ? n.room_base : (n.room_price || 0));
+                var origPrice = Number(n.room_price != null ? n.room_price : origBase);
                 return Object.assign({}, n, {
+                    original_room_price: origPrice,
+                    original_room_base: origBase,
+                    original_surcharge: Number(n.surcharge || 0),
                     room_price: Number(adhocPerNight),
                     room_base: Number(adhocPerNight),
                     surcharge: 0,
@@ -1193,36 +1275,82 @@
     function formatNightCutHtml(n, cur, rooms, mealPlanLabel, nightIndex) {
         rooms = parseInt(rooms, 10) || 1;
         var isAdHoc = String(n.source || '') === 'AdHoc' || n.is_adhoc;
-        var roomAmt = Number(n.room_price != null ? n.room_price : (n.room_base || 0)) * rooms;
-        var mealAmt = Number(n.meal_price || 0) * rooms;
+        var roomBase = Number(n.room_base != null ? n.room_base : (n.room_price || 0));
+        var fair = Number(n.surcharge || 0);
+        var variant = Number(n.variant_price || 0);
+        var extraBed = Number(n.extra_bed_total || 0);
+        var bf = Number(n.breakfast_meal || 0);
+        var ln = Number(n.lunch_meal || 0);
+        var dn = Number(n.dinner_meal || 0);
+        var meal = Number(n.meal_price || 0);
         var nightTotal = Number(n.night_total || 0) * rooms;
-        var planLabel = String(mealPlanLabel || '').trim() || 'Room';
-        var nightLabel = nightIndex != null ? ('Night ' + nightIndex) : '';
-        var bits;
+        var dateLabel = String(n.date || '').trim();
+        var dayLabel = String(n.day || '').trim();
+        var evtType = String(n.event_type || n.eventType || '').trim();
+        var evtBadge = evtType
+            ? (' <span class="stp-lite-night-event">(' + esc(evtType) + ')</span>')
+            : '';
+        var roomUnitLabel = roomsSuffix(rooms);
+
+        var formulaParts = [];
         if (isAdHoc) {
-            // Keep room vs meals visually separate (AdHoc never absorbs breakfast/lunch/dinner).
-            bits = 'Manual Room rate ' + cur + ' ' + roomAmt.toFixed(2);
-            if (mealAmt > 0) {
-                var mealBits = [];
-                if (Number(n.breakfast_meal || 0) > 0) mealBits.push('Breakfast');
-                if (Number(n.lunch_meal || 0) > 0) mealBits.push('Lunch');
-                if (Number(n.dinner_meal || 0) > 0) mealBits.push('Dinner');
-                bits += ' + ' + (mealBits.length ? mealBits.join('/') : 'Meals') +
-                    ' ' + cur + ' ' + mealAmt.toFixed(2);
-            } else if (n.breakfast_complementary) {
-                bits += ' · Breakfast Incl.';
+            var adhocRate = Number(n.room_price != null ? n.room_price : roomBase);
+            var origRate = Number(n.original_room_base != null
+                ? n.original_room_base
+                : (n.original_room_price != null ? n.original_room_price : 0));
+            var roomFormula = 'AdHoc room rate ';
+            if (origRate > 0 && Math.abs(origRate - adhocRate) > 0.0001) {
+                roomFormula += '<span class="stp-lite-strike">' + moneyTxt(cur, origRate) + '/night</span> ';
+            }
+            roomFormula += moneyTxt(cur, adhocRate) + '/night' + roomUnitLabel;
+            formulaParts.push(roomFormula);
+            if (bf > 0) formulaParts.push('Breakfast ' + moneyTxt(cur, bf) + '/night' + roomUnitLabel);
+            if (ln > 0) formulaParts.push('Lunch ' + moneyTxt(cur, ln) + '/night' + roomUnitLabel);
+            if (dn > 0) formulaParts.push('Dinner ' + moneyTxt(cur, dn) + '/night' + roomUnitLabel);
+            if (meal > 0 && bf <= 0 && ln <= 0 && dn <= 0) {
+                formulaParts.push('Meals ' + moneyTxt(cur, meal) + '/night' + roomUnitLabel);
             }
         } else {
-            bits = planLabel;
+            if (roomBase > 0) formulaParts.push('Room ' + moneyTxt(cur, roomBase) + '/night' + roomUnitLabel);
+            if (fair > 0) formulaParts.push('Fair ' + moneyTxt(cur, fair) + '/night' + roomUnitLabel);
+            if (variant > 0) formulaParts.push('Variant ' + moneyTxt(cur, variant) + '/night' + roomUnitLabel);
+            if (extraBed > 0) formulaParts.push('Extra bed ' + moneyTxt(cur, extraBed) + '/night' + roomUnitLabel);
+            if (bf > 0) formulaParts.push('Breakfast ' + moneyTxt(cur, bf) + '/night' + roomUnitLabel);
+            if (ln > 0) formulaParts.push('Lunch ' + moneyTxt(cur, ln) + '/night' + roomUnitLabel);
+            if (dn > 0) formulaParts.push('Dinner ' + moneyTxt(cur, dn) + '/night' + roomUnitLabel);
+            if (meal > 0 && bf <= 0 && ln <= 0 && dn <= 0) {
+                formulaParts.push('Meals ' + moneyTxt(cur, meal) + '/night' + roomUnitLabel);
+            }
         }
+
+        var title = dateLabel
+            ? (dateLabel + (dayLabel ? ' (' + dayLabel + ')' : ''))
+            : (nightIndex != null ? ('Night ' + nightIndex) : 'Night');
+        var cutLine = formulaParts.length
+            ? formulaParts.join(' + ')
+            : esc(String(mealPlanLabel || '').trim() || 'Night total');
+
         return (
-            '<div class="stp-lite-night-row">' +
-            '  <div class="stp-lite-night-row__left">' +
-            (nightLabel ? ('    <span class="stp-lite-night-row__date">' + esc(nightLabel) + '</span>') : '') +
-            '    <span class="stp-lite-night-row__bits">' + esc(bits) + '</span>' +
+            '<div class="stp-lite-night-row is-cut">' +
+            '  <div class="stp-lite-night-row__main">' +
+            '    <div class="stp-lite-night-row__left">' +
+            '      <i class="ri-calendar-line stp-lite-night-cal" aria-hidden="true"></i>' +
+            '      <div class="stp-lite-night-row__meta">' +
+            '        <div class="stp-lite-night-row__date">' + esc(title) + evtBadge + '</div>' +
+            '        <div class="stp-lite-night-row__bits">' + cutLine + '</div>' +
+            '      </div>' +
+            '    </div>' +
+            '    <div class="stp-lite-night-row__amt">' + moneyTxt(cur, nightTotal) + '</div>' +
             '  </div>' +
-            '  <div class="stp-lite-night-row__amt">' + cur + ' ' + nightTotal.toFixed(2) + '</div>' +
             '</div>'
+        );
+    }
+
+    function summaryRowHtml(labelHtml, amountHtml, extraClass) {
+        return (
+            '<div class="stp-lite-summary-row' + (extraClass ? ' ' + extraClass : '') + '">' +
+            '<span class="stp-lite-summary-row__left">' + labelHtml + '</span>' +
+            '<strong class="stp-lite-summary-row__amt">' + amountHtml + '</strong></div>'
         );
     }
 
@@ -1264,9 +1392,22 @@
         var cot = opts.babyCot || { enabled: false, total: 0, perNight: 0 };
         if (cot.enabled && cot.total > 0) grand += cot.total;
         var html = '';
+        var perNightRoom = nights > 0 ? (roomBase / nights / rooms) : roomBase;
+        // Prefer first-night inventory rate when AdHoc so strike matches Get Price
+        var origPerNight = 0;
+        if (isAdHoc && Array.isArray(data.breakdown) && data.breakdown.length) {
+            var n0 = data.breakdown[0] || {};
+            origPerNight = Number(n0.original_room_base != null
+                ? n0.original_room_base
+                : (n0.original_room_price != null ? n0.original_room_price : 0));
+        }
+        if (!origPerNight && isAdHoc && Number(data.original_room_total || 0) > 0) {
+            var origFair = Number(data.original_fair_charge_total || 0);
+            origPerNight = (Number(data.original_room_total) - origFair) / nights;
+        }
 
         if (Array.isArray(data.breakdown) && data.breakdown.length) {
-            html += '<div class="stp-lite-breakup-section-label">Nights</div>';
+            html += '<div class="stp-lite-breakup-section-label">Room Rate/Night</div>';
             html += '<div class="stp-lite-night-list">';
             data.breakdown.forEach(function (n, idx) {
                 html += formatNightCutHtml(n, cur, rooms, mealPlanLabel, idx + 1);
@@ -1277,43 +1418,136 @@
         html += '<div class="stp-lite-breakup-section-label">Summary</div>';
         html += '<div class="stp-lite-summary-list">';
         // AdHoc replaces room only — never merge breakfast/lunch/dinner into this line.
-        var roomLabel = isAdHoc
-            ? ('Manual Room rate' + (rooms > 1 ? ' ×' + rooms : ''))
-            : ('Room' + (rooms > 1 ? ' ×' + rooms : ''));
-        html += '<div class="stp-lite-summary-row' + (isAdHoc ? ' is-adhoc' : '') + '"><span>' + roomLabel + '</span><strong>' + cur + ' ' + roomBase.toFixed(2) + '</strong></div>';
-        if (fairCharge > 0 && !isAdHoc) {
-            html += '<div class="stp-lite-summary-row is-fair"><span>Fair</span><strong>' + cur + ' ' + fairCharge.toFixed(2) + '</strong></div>';
+        var roomFormula = '<strong>' + (isAdHoc ? 'AdHoc Room rate' : 'Room Cost') + '</strong> ';
+        if (isAdHoc && origPerNight > 0 && Math.abs(origPerNight - perNightRoom) > 0.0001) {
+            roomFormula += '<span class="stp-lite-strike">' + moneyTxt(cur, origPerNight) + '/night</span> ';
         }
-        [['breakfast_total', 'Breakfast'], ['lunch_total', 'Lunch'], ['dinner_total', 'Dinner']].forEach(function (pair) {
+        roomFormula += moneyTxt(cur, perNightRoom) + '/night'
+            + nightsSuffix(nights)
+            + roomsSuffix(rooms);
+        html += summaryRowHtml(roomFormula, moneyTxt(cur, roomBase), isAdHoc ? 'is-adhoc' : '');
+        if (fairCharge > 0 && !isAdHoc) {
+            var fairPerNight = nights > 0 ? (fairCharge / nights / rooms) : fairCharge;
+            html += summaryRowHtml(
+                '<strong>Fair Charge</strong> ' + moneyTxt(cur, fairPerNight) + '/night'
+                    + nightsSuffix(nights) + roomsSuffix(rooms),
+                moneyTxt(cur, fairCharge),
+                'is-fair'
+            );
+        }
+        if (data.breakfast_complementary && data.meals && data.meals.breakfast) {
+            html += summaryRowHtml('<strong>Breakfast (Meal)</strong>', 'Included (complementary)', 'is-ok');
+        } else if (Number(data.breakfast_total || 0) > 0) {
+            var bfAmt = Number(data.breakfast_total) * rooms;
+            var bfUnit = nights > 0 ? (bfAmt / nights / rooms) : bfAmt;
+            html += summaryRowHtml(
+                '<strong>Breakfast (Meal)</strong> ' + moneyTxt(cur, bfUnit) + '/night'
+                    + nightsSuffix(nights) + roomsSuffix(rooms),
+                moneyTxt(cur, bfAmt)
+            );
+        }
+        [['lunch_total', 'Lunch'], ['dinner_total', 'Dinner']].forEach(function (pair) {
             var amt = Number(data[pair[0]] || 0) * rooms;
-            // Complementary breakfast: no separate price (included in room rate from Get Price).
-            if (pair[0] === 'breakfast_total' && data.breakfast_complementary && data.meals && data.meals.breakfast) {
-                html += '<div class="stp-lite-summary-row is-ok"><span>Breakfast</span><strong>Incl.</strong></div>';
-                return;
-            }
             if (amt <= 0) return;
-            html += '<div class="stp-lite-summary-row"><span>' + pair[1] + '</span><strong>' + cur + ' ' + amt.toFixed(2) + '</strong></div>';
+            var unit = nights > 0 ? (amt / nights / rooms) : amt;
+            html += summaryRowHtml(
+                '<strong>' + pair[1] + '</strong> ' + moneyTxt(cur, unit) + '/night'
+                    + nightsSuffix(nights) + roomsSuffix(rooms),
+                moneyTxt(cur, amt)
+            );
         });
-        if (mealTotal > 0 && !Number(data.breakfast_total) && !Number(data.lunch_total) && !Number(data.dinner_total)) {
-            html += '<div class="stp-lite-summary-row"><span>Meals</span><strong>' + cur + ' ' + mealTotal.toFixed(2) + '</strong></div>';
+        if (mealTotal > 0
+            && !Number(data.breakfast_total)
+            && !Number(data.lunch_total)
+            && !Number(data.dinner_total)
+            && !(data.breakfast_complementary && data.meals && data.meals.breakfast)) {
+            var mealUnit = nights > 0 ? (mealTotal / nights / rooms) : mealTotal;
+            html += summaryRowHtml(
+                '<strong>Meals</strong> ' + moneyTxt(cur, mealUnit) + '/night'
+                    + nightsSuffix(nights) + roomsSuffix(rooms),
+                moneyTxt(cur, mealTotal)
+            );
+        }
+        if (data.extra_bed && Number(data.extra_bed) > 0) {
+            html += summaryRowHtml(
+                '<strong>Extra bed(s)</strong> <small class="text-muted">(incl. in room)</small> '
+                    + Number(data.extra_bed) + ' × ' + moneyTxt(cur, Number(data.extra_bed_price || 0)),
+                moneyTxt(cur, Number(data.extra_bed) * Number(data.extra_bed_price || 0) * rooms)
+            );
+        } else {
+            // Aggregate extra bed from nightly breakdown when helper top-level fields are missing
+            var xbNights = 0;
+            var xbUnit = 0;
+            if (Array.isArray(data.breakdown)) {
+                data.breakdown.forEach(function (n) {
+                    var xb = Number(n.extra_bed_total || 0);
+                    if (xb > 0) {
+                        xbNights += 1;
+                        if (!xbUnit) xbUnit = xb;
+                    }
+                });
+            }
+            if (xbNights > 0) {
+                html += summaryRowHtml(
+                    '<strong>Extra bed(s)</strong> <small class="text-muted">(incl. in room)</small> '
+                        + moneyTxt(cur, xbUnit) + '/night × ' + xbNights + ' night'
+                        + (xbNights > 1 ? 's' : '') + roomsSuffix(rooms),
+                    moneyTxt(cur, xbUnit * xbNights * rooms)
+                );
+            }
         }
         var cwb = data.child_with_bed || null;
         var cnb = data.child_without_bed || null;
         var cwbTotal = cwb ? Number(cwb.total || 0) * rooms : 0;
         var cnbTotal = cnb ? Number(cnb.total || 0) * rooms : 0;
         if (cwbTotal > 0) {
-            html += '<div class="stp-lite-summary-row"><span>Child with Bed</span><strong>' + cur + ' ' + cwbTotal.toFixed(2) + '</strong></div>';
+            var cwbUnit = nights > 0 ? (cwbTotal / nights / rooms) : cwbTotal;
+            var cwbCount = cwb && cwb.count != null ? Number(cwb.count) : 0;
+            html += summaryRowHtml(
+                '<strong>Child with Bed</strong> ' + moneyTxt(cur, cwbUnit) + '/night'
+                    + nightsSuffix(nights) + roomsSuffix(rooms)
+                    + (cwbCount > 0 ? ' × ' + cwbCount + ' child' + (cwbCount > 1 ? 'ren' : '') : ''),
+                moneyTxt(cur, cwbTotal)
+            );
         }
         if (cnbTotal > 0) {
-            html += '<div class="stp-lite-summary-row"><span>Child without Bed</span><strong>' + cur + ' ' + cnbTotal.toFixed(2) + '</strong></div>';
+            var cnbUnit = nights > 0 ? (cnbTotal / nights / rooms) : cnbTotal;
+            var cnbCount = cnb && cnb.count != null ? Number(cnb.count) : 0;
+            html += summaryRowHtml(
+                '<strong>Child without Bed</strong> ' + moneyTxt(cur, cnbUnit) + '/night'
+                    + nightsSuffix(nights) + roomsSuffix(rooms)
+                    + (cnbCount > 0 ? ' × ' + cnbCount + ' child' + (cnbCount > 1 ? 'ren' : '') : ''),
+                moneyTxt(cur, cnbTotal)
+            );
         }
         if (cot.enabled && cot.total > 0) {
-            html += '<div class="stp-lite-summary-row"><span>Baby cot' +
-                (cot.infants > 1 ? ' ×' + cot.infants : '') +
-                (nights > 1 ? ' · ' + nights + 'n' : '') +
-                '</span><strong>' + cur + ' ' + Number(cot.total).toFixed(2) + '</strong></div>';
+            var cotUnit = Number(cot.unit || 0);
+            var cotInfants = Math.max(1, parseInt(cot.infants, 10) || 1);
+            html += summaryRowHtml(
+                '<strong>Baby cot</strong> ' + moneyTxt(cur, cotUnit) + '/night'
+                    + nightsSuffix(nights)
+                    + (cotInfants > 1 ? ' × ' + cotInfants + ' infants' : '')
+                    + roomsSuffix(rooms),
+                moneyTxt(cur, Number(cot.total))
+            );
         } else if (cot.enabled && Number(cot.unit || 0) <= 0) {
-            html += '<div class="stp-lite-summary-row is-ok"><span>Baby cot</span><strong>Incl.</strong></div>';
+            html += summaryRowHtml('<strong>Baby cot</strong>', 'Incl.', 'is-ok');
+        }
+        // Tour/hotel infants always shown at 0 — never added to Total
+        var infantN = Math.max(0, parseInt(opts.infants, 10) || 0);
+        if (infantN <= 0) {
+            try {
+                var tourCaps = (window.StpLiteGuestCaps && window.StpLiteGuestCaps.getCaps)
+                    ? window.StpLiteGuestCaps.getCaps()
+                    : null;
+                infantN = Math.max(0, parseInt((tourCaps && tourCaps.infants) || (document.getElementById('infants') || {}).value || 0, 10) || 0);
+            } catch (eInf) { infantN = 0; }
+        }
+        if (infantN > 0) {
+            html += summaryRowHtml(
+                '<strong>Infant</strong> × ' + infantN,
+                moneyTxt(cur, 0)
+            );
         }
         html += '</div>';
         return { html: html, grand: grand, babyCot: cot };
@@ -1355,7 +1589,8 @@
         var built = buildBreakdownHtml(data, rooms, cur, {
             mealPlan: mealPlan,
             babyCot: babyCot,
-            isAdHoc: !!(data.is_adhoc)
+            isAdHoc: !!(data.is_adhoc),
+            infants: selectedInfantsCount(root)
         });
         grid.innerHTML = built.html || '<div class="text-muted" style="font-size:0.72rem;">No breakdown returned.</div>';
         if (grandEl) grandEl.textContent = cur + ' ' + Number(built.grand || 0).toFixed(2);
@@ -1585,14 +1820,15 @@
 
             var built = buildBreakdownHtml(helper, rooms, cur, {
                 mealPlan: row.meal_plan || helper.meal_plan || '',
-                isAdHoc: !!(helper.is_adhoc || isAdHocRow(row))
+                isAdHoc: !!(helper.is_adhoc || isAdHocRow(row)),
+                infants: savedInfantsFromRow(row)
             });
             bodyEl.innerHTML =
                 '<div class="stp-lite-hotel-breakup-card is-modal">' +
                 '  <div class="stp-lite-hotel-breakup-body p-2">' +
                 (built.html || '<div class="text-muted text-center py-2" style="font-size:0.75rem;">No night breakdown available</div>') +
                 '    <div class="stp-lite-hotel-breakup-total">' +
-                '      <span>Total</span><strong>' + cur + ' ' + Number(built.grand || 0).toFixed(2) + '</strong>' +
+                '      <span><strong>Total:</strong></span><strong>' + cur + ' ' + Number(built.grand || 0).toFixed(2) + '</strong>' +
                 '    </div>' +
                 '  </div>' +
                 '</div>';
@@ -1694,10 +1930,12 @@
             var bed0 = (Array.isArray(r0.beds) && r0.beds[0]) ? r0.beds[0] : {};
             if (bed0.baby_cot || row.baby_cot) childBits.push('Baby cot');
             var isAdHocRowFlag = isAdHocRow(row);
+            var isOnlineRow = !!(row.isOnlineHotel || row.hotelSourceType === 'online');
             html +=
                 '<tr class="' + (editing ? 'is-editing' : '') + '" data-added-idx="' + idx + '">' +
                 '  <td>' +
                 '    <div class="fw-semibold">' + esc(hotelName) +
+                (isOnlineRow ? ' <span class="stp-lite-adhoc-badge" title="Online supplier hotel">Online</span>' : '') +
                 (isAdHocRowFlag ? ' <span class="stp-lite-adhoc-badge" title="Manual Room rate">AdHoc</span>' : '') +
                 '</div>' +
                 (row.is_return ? ' <span class="stp-lite-return-badge">Return</span>' : '') +
@@ -1725,9 +1963,11 @@
                 '      <button type="button" class="btn btn-sm btn-outline-primary hotel-view-breakup" data-idx="' + idx + '" title="Price breakdown">' +
                 '        <i class="ri-file-list-3-line me-1"></i>Price breakdown' +
                 '      </button>' +
-                '      <button type="button" class="btn btn-sm btn-outline-secondary hotel-edit-added" data-idx="' + idx + '" title="Modify">' +
-                '        <i class="ri-pencil-line me-1"></i>Modify' +
-                '      </button>' +
+                (isOnlineRow
+                    ? ''
+                    : ('      <button type="button" class="btn btn-sm btn-outline-secondary hotel-edit-added" data-idx="' + idx + '" title="Modify">' +
+                       '        <i class="ri-pencil-line me-1"></i>Modify' +
+                       '      </button>')) +
                 '      <button type="button" class="btn btn-sm btn-outline-danger hotel-remove-added" data-idx="' + idx + '" title="Remove">' +
                 '        <i class="ri-delete-bin-line"></i>' +
                 '      </button>' +
@@ -1777,25 +2017,55 @@
         var apiCnb = priceData.child_without_bed || null;
         var cwbObj = null;
         var cnbObj = null;
-        if (kidsWithBed > 0 && unitCwb > 0) {
-            var cwbTotal = apiCwb && Number(apiCwb.total) > 0
-                ? Number(apiCwb.total) * rooms
-                : unitCwb * kidsWithBed * nights * rooms;
+        // Resolve total extra-bed sell (Get Price bakes this into room_total; also store on bed)
+        var xbSellTotal = Number(priceData.extra_bed_total || 0);
+        if (!(xbSellTotal > 0) && Array.isArray(priceData.breakdown)) {
+            priceData.breakdown.forEach(function (n) {
+                xbSellTotal += Number(n.extra_bed_total || 0);
+            });
+        }
+        if (!(xbSellTotal > 0)) {
+            xbSellTotal = Number(priceData.extra_bed_price || 0)
+                * (Number(priceData.extra_bed || 0) || 0)
+                * nights;
+        }
+        if (kidsWithBed > 0) {
+            var cwbTotal = 0;
+            var cwbUnit = unitCwb;
+            // Prefer Get Price child_with_bed total (even when room dataset unit is 0)
+            if (apiCwb && Number(apiCwb.total) > 0) {
+                cwbTotal = Number(apiCwb.total) * rooms;
+                if (!(cwbUnit > 0)) {
+                    cwbUnit = Number(apiCwb.unit_price || apiCwb.price || 0) || 0;
+                }
+            } else if (unitCwb > 0) {
+                cwbTotal = unitCwb * kidsWithBed * nights * rooms;
+            }
+            // Do NOT copy extra-bed into child_with_bed.total_cost — it is already in
+            // room/grand total. Quotation pulls extra-bed via beds.extra_bed_cost when CWB.
             cwbObj = {
                 enabled: true,
-                price: unitCwb,
+                price: cwbUnit,
                 children: kidsWithBed,
                 total_cost: cwbTotal,
                 total: cwbTotal
             };
         }
-        if (kidsNoBed > 0 && unitCnb > 0) {
-            var cnbTotal = apiCnb && Number(apiCnb.total) > 0
-                ? Number(apiCnb.total) * rooms
-                : unitCnb * kidsNoBed * nights * rooms;
+        // Child without bed: keep enabled (count) even when unit price is 0 — quotation must not show a child price
+        if (kidsNoBed > 0) {
+            var cnbTotal = 0;
+            var cnbUnit = unitCnb;
+            if (apiCnb && Number(apiCnb.total) > 0) {
+                cnbTotal = Number(apiCnb.total) * rooms;
+                if (!(cnbUnit > 0)) {
+                    cnbUnit = Number(apiCnb.unit_price || apiCnb.price || 0) || 0;
+                }
+            } else if (unitCnb > 0) {
+                cnbTotal = unitCnb * kidsNoBed * nights * rooms;
+            }
             cnbObj = {
                 enabled: true,
-                price: unitCnb,
+                price: cnbUnit,
                 children: kidsNoBed,
                 total_cost: cnbTotal,
                 total: cnbTotal
@@ -1834,7 +2104,9 @@
             zip: customer.zip,
             specialRequests: customer.specialRequests,
             id: null,
-            bookingType: 'enquiry',
+            bookingType: (window.StpLiteTransportShared && window.StpLiteTransportShared.defaultBookingType)
+                ? window.StpLiteTransportShared.defaultBookingType()
+                : 'enquiry',
             bookingDate: [checkIn, checkOut],
             city: stay.cityName || '',
             country: stay.country || '',
@@ -1878,8 +2150,8 @@
                     head_count: persons,
                     max_occupancy: occInfo.maxOccupancy || persons,
                     extra_bed: extraBedOn ? 1 : 0,
-                    extra_bed_price: occInfo.extraBedPrice || 0,
-                    extra_bed_cost: extraBedOn ? Number(priceData.extra_bed_total || 0) * rooms : 0,
+                    extra_bed_price: occInfo.extraBedPrice || Number(priceData.extra_bed_price || 0) || 0,
+                    extra_bed_cost: extraBedOn ? (xbSellTotal * rooms) : 0,
                     price: Number(priceData.room_total || 0),
                     mealTypes: [mealVal],
                     meal_plan: mealVal
@@ -1945,6 +2217,10 @@
         var rows = readHotelChunk(root);
         var payload = collectAddPayload(root, root.__lastHotelPrice);
         if (root.__editingIdx != null && root.__editingIdx >= 0 && root.__editingIdx < rows.length) {
+            var prevHotel = rows[root.__editingIdx] || {};
+            payload.bookingType = (window.StpLiteTransportShared && window.StpLiteTransportShared.resolveRowBookingType)
+                ? window.StpLiteTransportShared.resolveRowBookingType(prevHotel)
+                : (prevHotel.bookingType || payload.bookingType);
             rows[root.__editingIdx] = payload;
             root.__editingIdx = null;
         } else {
@@ -1979,6 +2255,10 @@
         var rows = readHotelChunk(root);
         var row = rows[idx];
         if (!row) return;
+        if (row.isOnlineHotel || row.hotelSourceType === 'online') {
+            alert('Online hotels cannot be modified here. Remove and add again from Online Hotels.');
+            return;
+        }
 
         root.__editingIdx = idx;
         setAddButtonMode(root, true);
@@ -2649,7 +2929,9 @@
                         var adultN = parseInt(bed.adult_count, 10) || 0;
                         var childN = parseInt(bed.child_count, 10) || 0;
                         var acMax = adultN + childN;
-                        // Label shows total capacity (with extra bed), not the reduced base.
+                        // Label Max = total capacity. When extra_bed is on, DB max_occupancy
+                        // already includes that slot — say "extra bed included" (not "+ Extra Bed",
+                        // which wrongly suggests capacity beyond Max).
                         var displayMax = bed.extra_bed
                             ? Math.max(rawMax, acMax, baseMax + 1)
                             : Math.max(rawMax, acMax);
@@ -2657,7 +2939,7 @@
                         if (bed.adult_count != null || bed.child_count != null) {
                             if (adultN || childN) text += ' (' + adultN + 'A+' + childN + 'C)';
                         }
-                        if (bed.extra_bed) text += ' + Extra Bed';
+                        if (bed.extra_bed) text += ' · Extra bed included';
                         if (bed.baby_cot) text += ' + Baby Cot';
 
                         var opt = document.createElement('option');
@@ -2687,9 +2969,328 @@
             });
     }
 
+    function nightsBetweenYmd(start, end) {
+        if (!start || !end || typeof moment === 'undefined') return 0;
+        var a = moment(start, 'YYYY-MM-DD');
+        var b = moment(end, 'YYYY-MM-DD');
+        if (!a.isValid() || !b.isValid()) return 0;
+        return Math.max(0, b.diff(a, 'days'));
+    }
+
+    function setHotelSourceUi(root, isOnline) {
+        if (!root) return;
+        var panel = root.querySelector('.offline-hotel-panel');
+        if (panel) panel.style.display = isOnline ? 'none' : '';
+    }
+
+    function resetHotelSourceToOffline(root) {
+        if (!root) return;
+        var offlineRadio = root.querySelector('.hotel-source-type[value="offline"]');
+        if (offlineRadio) offlineRadio.checked = true;
+        setHotelSourceUi(root, false);
+    }
+
+    function bindOnlineSearchDefaultsForRoot(root) {
+        window.getOnlineHotelSearchDefaults = function () {
+            var stay = stayContextFromRoot(root) || {};
+            var checkIn = stay.start || root.getAttribute('data-stay-start') ||
+                (document.getElementById('start_date') || {}).value || '';
+            var checkOut = stay.end || root.getAttribute('data-stay-end') ||
+                (document.getElementById('end_date') || {}).value || '';
+            var cityName = stay.cityName || root.getAttribute('data-city-name') || '';
+            return {
+                city: cityName,
+                cityLabel: cityName + (stay.isReturn ? ' (Return)' : ''),
+                checkIn: checkIn,
+                checkOut: checkOut
+            };
+        };
+        window.getHotelNightPlanStart = function () {
+            var stay = stayContextFromRoot(root) || {};
+            return stay.start || root.getAttribute('data-stay-start') ||
+                (document.getElementById('start_date') || {}).value || '';
+        };
+        window.getHotelNightPlanNightCount = function () {
+            var stay = stayContextFromRoot(root) || {};
+            var start = stay.start || root.getAttribute('data-stay-start') || '';
+            var end = stay.end || root.getAttribute('data-stay-end') || '';
+            var n = nightsBetweenYmd(start, end);
+            return n > 0 ? n : 1;
+        };
+    }
+
+    function ensureLiteHotelCitySelect(root) {
+        var stay = stayContextFromRoot(root) || {};
+        var cityName = stay.cityName || root.getAttribute('data-city-name') || '';
+        if (!cityName) return;
+        var el = document.getElementById('hotelCitySelect');
+        if (!el) {
+            el = document.createElement('select');
+            el.id = 'hotelCitySelect';
+            el.className = 'd-none';
+            el.setAttribute('aria-hidden', 'true');
+            document.body.appendChild(el);
+        }
+        el.innerHTML = '';
+        var opt = document.createElement('option');
+        opt.value = cityName;
+        opt.textContent = cityName + (stay.isReturn ? ' (Return)' : '');
+        opt.selected = true;
+        el.appendChild(opt);
+        el.value = cityName;
+    }
+
+    function openOnlineHotelForRoot(root) {
+        if (!onlineApiEnabled()) return;
+        onlineTargetRoot = root;
+        window.__stpLiteOnlineHotelRoot = root;
+        ensureLiteHotelCitySelect(root);
+        bindOnlineSearchDefaultsForRoot(root);
+        setHotelSourceUi(root, true);
+        if (typeof window.openOnlineHotelModal === 'function') {
+            window.openOnlineHotelModal();
+        } else {
+            alert('Online hotel modal is not available. Reload the page.');
+            resetHotelSourceToOffline(root);
+        }
+    }
+
+    function resolveOnlineStayDates(hotelData, root) {
+        var booking = hotelData && hotelData.onlineHotelBooking ? hotelData.onlineHotelBooking : {};
+        var sel = booking.selection || {};
+        var stay = stayContextFromRoot(root) || {};
+        var checkIn = sel.stay_check_in || booking.check_in || '';
+        var checkOut = sel.stay_check_out || booking.check_out || '';
+        if ((!checkIn || !checkOut) && Array.isArray(hotelData.nights) && hotelData.nights.length && stay.start) {
+            var nums = hotelData.nights.slice().map(Number).filter(function (n) { return isFinite(n) && n > 0; }).sort(function (a, b) { return a - b; });
+            if (nums.length && typeof moment !== 'undefined') {
+                checkIn = moment(stay.start, 'YYYY-MM-DD').add(nums[0] - 1, 'days').format('YYYY-MM-DD');
+                checkOut = moment(stay.start, 'YYYY-MM-DD').add(nums[nums.length - 1], 'days').format('YYYY-MM-DD');
+            }
+        }
+        if (!checkIn) checkIn = stay.start || '';
+        if (!checkOut) checkOut = stay.end || '';
+        return { checkIn: checkIn, checkOut: checkOut };
+    }
+
+    function mapOnlineHotelToLiteRow(root, hotelData) {
+        var stay = stayContextFromRoot(root) || {};
+        var dates = resolveOnlineStayDates(hotelData, root);
+        var checkIn = dates.checkIn;
+        var checkOut = dates.checkOut;
+        var nights = nightsBetweenYmd(checkIn, checkOut) ||
+            (Array.isArray(hotelData.nights) ? hotelData.nights.length : 0) || 1;
+        var price = Number(hotelData.price || hotelData.combinedRoomTotal || 0) || 0;
+        var persons = parseInt(hotelData.selectedPersons, 10) || 1;
+        var rooms = parseInt(hotelData.numberOfRooms, 10) || 1;
+        var roomType = hotelData.roomType || hotelData.room_type || '';
+        var bedType = hotelData.bedType || hotelData.bed_type || '';
+        var mealPlan = hotelData.mealPlan || hotelData.meal_plan || '';
+        var hotelId = hotelData.id || '';
+        var hotelName = hotelData.name || '';
+        var onlineBooking = hotelData.onlineHotelBooking || null;
+        var onlineHotel = (onlineBooking && onlineBooking.hotel) || {};
+        var customer = (window.StpLiteGuests && window.StpLiteGuests.getCustomerDataForServices)
+            ? window.StpLiteGuests.getCustomerDataForServices()
+            : { fullName: '', email: '', phone: '', countryCode: '', address1: '', address2: null, state: null, zip: '', specialRequests: null };
+        var adults = parseInt((document.getElementById('adults') || {}).value || '1', 10) || 1;
+        var children = parseInt((document.getElementById('children') || {}).value || '0', 10) || 0;
+        var infants = parseInt((document.getElementById('infants') || {}).value || '0', 10) || 0;
+        var stayLabel = '';
+        if (checkIn && checkOut && typeof moment !== 'undefined') {
+            stayLabel = moment(checkIn, 'YYYY-MM-DD').format('MMM D') + ' → ' +
+                moment(checkOut, 'YYYY-MM-DD').format('MMM D, YYYY');
+        }
+        var pricePayload = {
+            room_total: price,
+            meal_total: 0,
+            grand_total: price,
+            nights: nights,
+            currency: currencyLabel(root),
+            is_online: true,
+            breakdown: []
+        };
+
+        return {
+            fullName: customer.fullName,
+            email: customer.email,
+            phone: customer.phone,
+            countryCode: customer.countryCode,
+            address1: customer.address1,
+            address2: customer.address2,
+            state: customer.state,
+            zip: customer.zip,
+            specialRequests: customer.specialRequests,
+            id: null,
+            bookingType: (window.StpLiteTransportShared && window.StpLiteTransportShared.defaultBookingType)
+                ? window.StpLiteTransportShared.defaultBookingType()
+                : 'enquiry',
+            bookingDate: [checkIn, checkOut],
+            city: hotelData.city || stay.cityName || '',
+            country: stay.country || root.getAttribute('data-country') || '',
+            hotelDetails: {
+                hotel_id: hotelId,
+                hotel_name: hotelName,
+                image: onlineHotel.image || '',
+                location: hotelData.city || stay.cityName || onlineHotel.address || '',
+                country: stay.country || root.getAttribute('data-country') || '',
+                city: hotelData.city || stay.cityName || '',
+                checkInTime: onlineHotel.check_in_time || '',
+                checkOutTime: onlineHotel.check_out_time || '',
+                cancellation_charge: null
+            },
+            priceMode: 'online',
+            priceModeId: parseInt(cfg().dmcId, 10) || 0,
+            is_adhoc: false,
+            adhoc_price: null,
+            rooms: [{
+                room_id: hotelData.roomId || (onlineBooking && onlineBooking.room && onlineBooking.room.code) || ('online-room-' + Date.now()),
+                room_type: roomType,
+                occupancy: persons <= 1 ? 'single' : 'double',
+                selected_persons: persons,
+                selected_adults: adults,
+                selected_children: children,
+                selected_children_no_bed: 0,
+                selected_children_with_bed: 0,
+                selected_infants: infants,
+                number_of_rooms: rooms,
+                breakfast_included: 0,
+                supplement_breakfast_included: 0,
+                beds: [{
+                    bed_id: hotelData.bedId || ('online-bed-' + Date.now()),
+                    bed_type: bedType,
+                    baby_cot: 0,
+                    baby_cot_price: 0,
+                    baby_cot_cost: 0,
+                    head_count: persons,
+                    max_occupancy: persons,
+                    extra_bed: 0,
+                    extra_bed_price: 0,
+                    extra_bed_cost: 0,
+                    price: price,
+                    mealTypes: [mealPlan],
+                    meal_plan: mealPlan
+                }]
+            }],
+            totalPrice: price,
+            price: price,
+            transfer_options: null,
+            child_with_bed: null,
+            child_without_bed: null,
+            children: children,
+            selected_children_no_bed: 0,
+            selected_children_with_bed: 0,
+            infants: infants,
+            selected_adults: adults,
+            selected_children: children,
+            selected_infants: infants,
+            supplement: false,
+            is_supplement: false,
+            remarks: hotelData.remarks || '',
+            currency: currencyLabel(root),
+            hotel_unique_id: hotelId,
+            hotel_name: hotelName,
+            hotel_id: hotelId,
+            room_type: roomType,
+            bed_id: hotelData.bedId || '',
+            bed_label: bedType,
+            meal_plan: mealPlan,
+            number_of_rooms: rooms,
+            selected_persons: persons,
+            occupancy: persons <= 1 ? 'single' : 'double',
+            childWithBedEnabled: false,
+            childWithoutBedEnabled: false,
+            plan_index: stay.planIndex || '',
+            is_return: !!stay.isReturn,
+            stay_start: checkIn,
+            stay_end: checkOut,
+            stay_label: stayLabel,
+            room_total: price,
+            meal_total: 0,
+            grand_total: price,
+            price_payload: pricePayload,
+            helperPriceResult: pricePayload,
+            isOnlineHotel: true,
+            hotelSourceType: 'online',
+            onlineHotelSource: hotelData.onlineHotelSource || null,
+            onlineHotelBooking: onlineBooking,
+            onlineHotelRaw: hotelData.onlineHotelRaw || null,
+            api_environment: hotelData.api_environment || (onlineBooking && onlineBooking.api_environment) || ''
+        };
+    }
+
+    function pushSelectedHotelLite(hotelData) {
+        var root = onlineTargetRoot || window.__stpLiteOnlineHotelRoot || null;
+        if (!root || !document.contains(root)) {
+            console.warn('STP Lite: no active hotel section for online hotel add');
+            return;
+        }
+        var row = mapOnlineHotelToLiteRow(root, hotelData || {});
+        var rows = readHotelChunk(root);
+        rows.push(row);
+        writeHotelChunk(root, rows);
+        renderAddedHotels(root);
+        resetHotelSourceToOffline(root);
+        onlineTargetRoot = null;
+    }
+
+    function bindHotelSourceToggle(root) {
+        if (!onlineApiEnabled() || !root) return;
+        root.querySelectorAll('.hotel-source-type').forEach(function (radio) {
+            radio.addEventListener('change', function () {
+                if (!this.checked) return;
+                if (this.value === 'online') {
+                    openOnlineHotelForRoot(root);
+                } else {
+                    setHotelSourceUi(root, false);
+                    if (onlineTargetRoot === root) onlineTargetRoot = null;
+                    var modalEl = document.getElementById('onlineHotelModal');
+                    if (modalEl && window.bootstrap) {
+                        var inst = bootstrap.Modal.getInstance(modalEl);
+                        if (inst) inst.hide();
+                    }
+                }
+            });
+        });
+    }
+
+    function ensureOnlineHotelModalHooks() {
+        if (!onlineApiEnabled() || window.__stpLiteOnlineHotelHooks) return;
+        window.__stpLiteOnlineHotelHooks = true;
+
+        // Same contract as classic create.blade.php — modal Add Hotel calls this.
+        window.pushSelectedHotel = function (hotelData) {
+            pushSelectedHotelLite(hotelData);
+        };
+        // Modal also calls this after classic selectedHotels push.
+        window.updateHotelDataField = function () {
+            syncHotelDataHidden();
+        };
+
+        document.addEventListener('hidden.bs.modal', function (e) {
+            if (!e.target || e.target.id !== 'onlineHotelModal') return;
+            if (onlineTargetRoot) {
+                resetHotelSourceToOffline(onlineTargetRoot);
+                onlineTargetRoot = null;
+            }
+            document.querySelectorAll('.stp-lite-hotel .hotel-source-type[value="online"]').forEach(function (r) {
+                if (r.checked) {
+                    var offline = r.closest('.stp-lite-hotel') &&
+                        r.closest('.stp-lite-hotel').querySelector('.hotel-source-type[value="offline"]');
+                    if (offline) offline.checked = true;
+                    var root = r.closest('.stp-lite-hotel');
+                    setHotelSourceUi(root, false);
+                }
+            });
+        });
+    }
+
     function bindShell(root) {
         if (!root || root.__stpHotelBound) return;
         root.__stpHotelBound = true;
+
+        ensureOnlineHotelModalHooks();
+        bindHotelSourceToggle(root);
 
         var stay = stayContextFromRoot(root);
         var country = (stay && stay.country) || root.getAttribute('data-country') || '';
@@ -2768,8 +3369,43 @@
             roomType.addEventListener('change', function () {
                 invalidatePriceState(root);
                 updateHotelChildPricingVisibility(root);
+                var roomsEl = root.querySelector('.hotel-rooms');
+                if (roomsEl) {
+                    var rv = parseInt(roomsEl.value, 10);
+                    if (!rv || rv < 1) roomsEl.value = '1';
+                }
                 loadBedsForRoomType(root, roomType.value).then(function () {
                     updatePersonSelector(root);
+                    // Default: first bed type + first meal plan, then auto Get Price
+                    var bedType = root.querySelector('.hotel-bed-type');
+                    if (bedType && !bedType.value) {
+                        for (var bi = 0; bi < bedType.options.length; bi++) {
+                            if (bedType.options[bi].value) {
+                                bedType.value = bedType.options[bi].value;
+                                break;
+                            }
+                        }
+                        updatePersonSelector(root);
+                    }
+                    var mealPlan = root.querySelector('.hotel-meal-plan');
+                    if (mealPlan) {
+                        var firstMeal = '';
+                        for (var mi = 0; mi < mealPlan.options.length; mi++) {
+                            if (mealPlan.options[mi].value) {
+                                firstMeal = mealPlan.options[mi].value;
+                                break;
+                            }
+                        }
+                        if (firstMeal) mealPlan.value = firstMeal;
+                    }
+                    // Auto-click Get Price when room category changes and meal is ready
+                    if (roomType.value
+                        && bedType && bedType.value
+                        && mealPlan && mealPlan.value
+                        && !root.__hydrating
+                        && isAdHocPriceReady(root)) {
+                        fetchHotelPrice(root);
+                    }
                 });
             });
         }
@@ -2972,6 +3608,7 @@
         loadHotelsForCity: loadHotelsForCity,
         syncHotelDataHidden: syncHotelDataHidden,
         updateHotelChildPricingVisibility: updateHotelChildPricingVisibility,
+        openOnlineHotelForRoot: openOnlineHotelForRoot,
         seedAdded: function (root, rows) {
             if (!root) return;
             writeHotelChunk(root, rows || []);
