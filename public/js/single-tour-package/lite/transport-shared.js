@@ -1031,12 +1031,16 @@
             '      <div class="col-auto stp-lite-xfer-cost"><label class="stp-lite-label">' + (maps ? 'Car cost' : 'Cost') + '</label>' +
             costHtml +
             '</div>' +
+            '      <div class="col-auto stp-lite-xfer-veh-count" data-' + prefix + '-vehicle-counts>' +
+            '        <label class="stp-lite-label">No. of Vehicles</label>' +
+            '        <input type="number" min="1" step="1" class="form-control form-control-sm stp-lite-int ' + prefix + '-vehicle-count" value="1">' +
+            '      </div>' +
             '    </div>' +
             (maps
                 ? ('    <div class="text-muted mt-1 ' + prefix + '-transfer-cost-hint" style="font-size:0.7rem;">' +
-                   'Private = car cost · Shared = car cost × pax</div>')
+                   'Private = car × vehicles · Shared = car × pax</div>')
                 : ('    <div class="text-muted mt-1 ' + prefix + '-transfer-cost-hint" style="font-size:0.7rem;">' +
-                   'Vehicles &amp; price from zone mapping for selected pickup</div>')) +
+                   'Vehicles &amp; price from zone mapping · Private × vehicle count</div>')) +
             '  </div>' +
             '</div>'
         );
@@ -1103,6 +1107,26 @@
     function toggleVehicleCountRow(root, prefix, show) {
         var row = root.querySelector('[data-' + prefix + '-vehicle-counts]');
         if (row) row.classList.toggle('d-none', !show);
+    }
+
+    /** Attraction / restaurant transfer: No. of Vehicles (same idea as arrival/departure). */
+    function readTransferVehicleCount(root, prefix) {
+        var el = root.querySelector('.' + prefix + '-vehicle-count')
+            || root.querySelector('.' + prefix + '-arrival-vehicle-count')
+            || root.querySelector('.' + prefix + '-departure-vehicle-count');
+        var n = parseInt((el || {}).value, 10);
+        return n > 0 ? n : 1;
+    }
+
+    function setTransferVehicleCount(root, prefix, count) {
+        var n = Math.max(1, parseInt(String(count != null ? count : 1), 10) || 1);
+        var el = root.querySelector('.' + prefix + '-vehicle-count');
+        if (el) el.value = String(n);
+        var arr = root.querySelector('.' + prefix + '-arrival-vehicle-count');
+        var dep = root.querySelector('.' + prefix + '-departure-vehicle-count');
+        if (arr) arr.value = String(n);
+        if (dep) dep.value = String(n);
+        return n;
     }
 
     /**
@@ -1240,6 +1264,7 @@
         var type = typeEl ? String(typeEl.value).toLowerCase() : '';
         // Infants excluded from shared transfer pricing
         var guests = Math.max(1, (parseInt(adults, 10) || 0) + (parseInt(children, 10) || 0));
+        var vehCount = readTransferVehicleCount(root, prefix);
         var costEl = root.querySelector('.' + prefix + '-transfer-cost');
         var stay = stayFromPanel(root, prefix) || {};
         var useZone = zoneOnForStay(stay.cityName, stay.country, stay.dmcId);
@@ -1247,7 +1272,7 @@
         if (!useZone) {
             var car = parseManualCarCost(costEl);
             if (car <= 0 || !type) return 0;
-            return type === 'shared' ? (car * guests) : car;
+            return type === 'shared' ? (car * guests) : (car * vehCount);
         }
 
         if (!type) return 0;
@@ -1255,7 +1280,7 @@
         // Prefer zone-mapping AJAX base when available
         var ajaxBase = costEl ? parseFloat(costEl.getAttribute('data-ajax-base-price') || '') : NaN;
         if (!isNaN(ajaxBase) && ajaxBase > 0) {
-            return type === 'shared' ? (ajaxBase * guests) : ajaxBase;
+            return type === 'shared' ? (ajaxBase * guests) : (ajaxBase * vehCount);
         }
 
         var veh = root.querySelector('.' + prefix + '-transfer-vehicle');
@@ -1268,7 +1293,7 @@
             var unit = sharedP > 0 ? sharedP : privateP;
             return unit * guests;
         }
-        return privateP > 0 ? privateP : sharedP;
+        return (privateP > 0 ? privateP : sharedP) * vehCount;
     }
 
     function refreshTransferCostDisplay(root, prefix, adults, children, infants) {
@@ -1283,10 +1308,13 @@
         if (!useZone || costEl.getAttribute('data-zone-off-cost') === '1') {
             if (hint) {
                 var car = parseManualCarCost(costEl);
+                var vc = readTransferVehicleCount(root, prefix);
                 if (car > 0 && total > 0) {
-                    hint.textContent = 'Total transfer: ' + cur + ' ' + total.toFixed(2) + ' (Private = car · Shared = car × pax)';
+                    hint.textContent = 'Total transfer: ' + cur + ' ' + total.toFixed(2)
+                        + (vc > 1 ? ' · ' + vc + ' vehicles' : '')
+                        + ' (Private = car × vehicles · Shared = car × pax)';
                 } else {
-                    hint.textContent = 'Private = car cost · Shared = car cost × pax';
+                    hint.textContent = 'Private = car × vehicles · Shared = car × pax';
                 }
             }
             return total;
@@ -1473,6 +1501,18 @@
             pickupName = pOpt ? (pOpt.dataset.label || pOpt.textContent || '') : '';
             pickupType = pOpt ? (pOpt.dataset.type || '') : '';
         }
+        var vehCount = readTransferVehicleCount(root, prefix);
+        // Prefer unit base for private (cost may already be × vehicle count)
+        var unitBase = baseCost;
+        if (!useZone) {
+            unitBase = parseManualCarCost(root.querySelector('.' + prefix + '-transfer-cost'));
+        } else {
+            var ajaxUnit = parseFloat((root.querySelector('.' + prefix + '-transfer-cost') || {}).getAttribute('data-ajax-base-price') || '');
+            if (!isNaN(ajaxUnit) && ajaxUnit > 0) unitBase = ajaxUnit;
+            else if (String(type).toLowerCase() === 'private' && vehCount > 1 && cost > 0) {
+                unitBase = cost / vehCount;
+            }
+        }
         return {
             transfer_required: true,
             type: type,
@@ -1480,7 +1520,7 @@
             vehicle_id: opt ? opt.value : '',
             vehicle_details: vehicleDetails,
             cost: cost,
-            base_cost: baseCost,
+            base_cost: unitBase,
             zone_pricing: useZone ? 1 : 0,
             shared_price: sharedUnit,
             private_price: privateUnit,
@@ -1494,8 +1534,10 @@
             pickup_location_name: pickupName,
             pickup_location_type: pickupType,
             pickup_time: readAmPmValue(root, prefix + '-xfer'),
-            arrival_vehicle_count: parseInt((root.querySelector('.' + prefix + '-arrival-vehicle-count') || {}).value, 10) || 0,
-            departure_vehicle_count: parseInt((root.querySelector('.' + prefix + '-departure-vehicle-count') || {}).value, 10) || 0
+            vehicle_count: vehCount,
+            booked_vehicles: vehCount,
+            arrival_vehicle_count: vehCount,
+            departure_vehicle_count: vehCount
         };
     }
 
@@ -1862,11 +1904,11 @@
             pickupText.addEventListener('change', function () { if (typeof onChange === 'function') onChange(); });
             pickupText.addEventListener('input', function () { if (typeof onChange === 'function') onChange(); });
         }
-        ['.' + prefix + '-arrival-vehicle-count', '.' + prefix + '-departure-vehicle-count'].forEach(function (sel) {
+        ['.' + prefix + '-vehicle-count', '.' + prefix + '-arrival-vehicle-count', '.' + prefix + '-departure-vehicle-count'].forEach(function (sel) {
             var countEl = root.querySelector(sel);
             if (!countEl) return;
-            countEl.addEventListener('change', function () { if (typeof onChange === 'function') onChange(); });
-            countEl.addEventListener('input', function () { if (typeof onChange === 'function') onChange(); });
+            countEl.addEventListener('change', function () { refresh(); });
+            countEl.addEventListener('input', function () { refresh(); });
         });
         var serviceSel = root.querySelector('.' + prefix + '-select');
         if (serviceSel && !mapsMode) {
@@ -1980,10 +2022,10 @@
         if (req) req.value = 'Yes';
         if (card) card.classList.remove('d-none');
         toggleVehicleCountRow(root, prefix, true);
-        var arrCount = root.querySelector('.' + prefix + '-arrival-vehicle-count');
-        var depCount = root.querySelector('.' + prefix + '-departure-vehicle-count');
-        if (arrCount) arrCount.value = String(transferOptions.arrival_vehicle_count != null ? transferOptions.arrival_vehicle_count : 0);
-        if (depCount) depCount.value = String(transferOptions.departure_vehicle_count != null ? transferOptions.departure_vehicle_count : 0);
+        var savedCount = transferOptions.vehicle_count != null ? transferOptions.vehicle_count
+            : (transferOptions.booked_vehicles != null ? transferOptions.booked_vehicles
+                : (transferOptions.arrival_vehicle_count || transferOptions.departure_vehicle_count || 1));
+        setTransferVehicleCount(root, prefix, savedCount);
         var typeEl = root.querySelector('.' + prefix + '-transfer-type');
         if (typeEl) typeEl.value = transferOptions.type || '';
         setAmPmValue(root, prefix + '-xfer', transferOptions.pickup_time || '');
@@ -2000,6 +2042,7 @@
             filterTransferVehiclesByType(veh, typeEl ? typeEl.value : '');
             var costEl = root.querySelector('.' + prefix + '-transfer-cost');
             var g = guestsFn();
+            var vehCount = readTransferVehicleCount(root, prefix);
             if (mapsMode && costEl) {
                 var base = transferOptions.base_cost != null
                     ? Number(transferOptions.base_cost)
@@ -2010,6 +2053,8 @@
                     var pax = Math.max(1, (g.adults || 0) + (g.children || 0));
                     if (String(transferOptions.type || '').toLowerCase() === 'shared' && totalCost > 0 && pax > 0) {
                         base = totalCost / pax;
+                    } else if (String(transferOptions.type || '').toLowerCase() === 'private' && totalCost > 0 && vehCount > 0) {
+                        base = totalCost / vehCount;
                     } else {
                         base = totalCost;
                     }
@@ -2028,7 +2073,7 @@
                     if (String(transferOptions.type || '').toLowerCase() === 'shared') {
                         unitSeed = Number(transferOptions.cost) / paxSeed;
                     } else {
-                        unitSeed = Number(transferOptions.cost);
+                        unitSeed = Number(transferOptions.cost) / Math.max(1, vehCount);
                     }
                 }
                 if (unitSeed > 0) {
@@ -2419,10 +2464,7 @@
         }
         var typeEl = root.querySelector('.' + prefix + '-transfer-type');
         if (typeEl) typeEl.value = '';
-        var arrCount = root.querySelector('.' + prefix + '-arrival-vehicle-count');
-        var depCount = root.querySelector('.' + prefix + '-departure-vehicle-count');
-        if (arrCount) arrCount.value = '0';
-        if (depCount) depCount.value = '0';
+        setTransferVehicleCount(root, prefix, 1);
         toggleVehicleCountRow(root, prefix, false);
         setAmPmValue(root, prefix + '-xfer', '');
         setAmPmValue(root, prefix + '-guide', '');
@@ -2549,6 +2591,8 @@
         calcInlineTransferPrice: calcInlineTransferPrice,
         refreshTransferCostDisplay: refreshTransferCostDisplay,
         collectTransferOptions: collectTransferOptions,
+        readTransferVehicleCount: readTransferVehicleCount,
+        setTransferVehicleCount: setTransferVehicleCount,
         hourPriceFromGuide: hourPriceFromGuide,
         availableGuidePackages: availableGuidePackages,
         fillInlineGuideHours: fillInlineGuideHours,
