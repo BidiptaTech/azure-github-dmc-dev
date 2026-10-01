@@ -545,7 +545,13 @@
             var mealLabel = row.mealTypeLabel || row.mealType || '';
             var xferNote = '';
             var extras = [];
-            if (row.transfer_options && row.transfer_options.transfer_required) extras.push('Transfer');
+            if (row.transfer_options && row.transfer_options.transfer_required) {
+                var vc = row.transfer_options.vehicle_count
+                    || row.transfer_options.booked_vehicles
+                    || row.transfer_options.arrival_vehicle_count
+                    || row.transfer_options.departure_vehicle_count;
+                extras.push(vc && Number(vc) > 1 ? ('Transfer ×' + vc) : 'Transfer');
+            }
             if (row.guide_options && row.guide_options.guide_required) extras.push('Guide');
             if (extras.length) xferNote = ' · ' + extras.join(' + ');
             var rowTotal = typeof T.serviceRowDisplayTotal === 'function'

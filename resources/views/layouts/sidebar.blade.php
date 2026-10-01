@@ -2887,8 +2887,8 @@
         ctpSyncTourTypeFromPax();
         const ctpLeadGuestRules = {
             name: {
-                strip: /[^\p{L}\s\-]/gu,
-                valid: /^[\p{L}\s\-]*$/u,
+                strip: /[^a-zA-Z\u00C0-\u024F\s\-]/g,
+                valid: /^[a-zA-Z\u00C0-\u024F\s\-]*$/,
                 error: 'Only letters are allowed. Quotes and special characters are not permitted.',
                 blockKeys: ["'", '"', '`']
             },
@@ -2917,14 +2917,14 @@
                 error: 'Special requests cannot contain unsafe characters such as < > { } [ ] \\ ` $ * = ~ |'
             },
             email: {
-                strip: /[<>"'\\\s]/g,
+                strip: /[<>"\\\s]/g,
                 valid: /^[A-Za-z0-9._%+\-@]*$/,
                 format: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
                 error: 'Enter a valid email address without spaces or special characters, or leave it blank.'
             },
             address: {
-                strip: /[^\p{L}0-9\s.,#'\-\/]/gu,
-                valid: /^[\p{L}0-9\s.,#'\-\/]*$/u,
+                strip: /[^a-zA-Z\u00C0-\u024F0-9\s.,#\-\/]/g,
+                valid: /^[a-zA-Z\u00C0-\u024F0-9\s.,#\-\/]*$/,
                 error: 'Address can only contain letters, numbers and common punctuation ( , . # - / ).'
             }
         };
