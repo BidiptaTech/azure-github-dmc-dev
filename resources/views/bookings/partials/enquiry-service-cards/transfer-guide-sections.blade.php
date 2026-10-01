@@ -1,6 +1,7 @@
 {{--
   Shared Transfer (vehicle + price) + Guide (details + price) for enquiry modals.
   Expects: $booking, $currency, optional $tour
+  Pro: show cost + sell; totals use sell (totalPrice / sell / vehicles[].lineSell).
 --}}
 @php
     $tf = (isset($booking['transfer_options']) && is_array($booking['transfer_options']))
@@ -10,12 +11,15 @@
         ? $booking['guide_options']
         : ((isset($booking['guideOptions']) && is_array($booking['guideOptions'])) ? $booking['guideOptions'] : []);
 
+    $vehList = (isset($tf['vehicles']) && is_array($tf['vehicles'])) ? array_values(array_filter($tf['vehicles'], 'is_array')) : [];
+
     $hasTransfer = !empty($tf) && (
         in_array($tf['transfer_required'] ?? null, [true, 'true', 'Yes', 1, '1'], true)
+        || !empty($vehList)
         || !empty($tf['vehicle_details'])
         || !empty($tf['vehicle_id'])
         || !empty($tf['type'])
-        || ((float) ($tf['totalPrice'] ?? $tf['cost'] ?? 0) > 0)
+        || ((float) ($tf['totalPrice'] ?? $tf['sell'] ?? $tf['cost'] ?? 0) > 0)
     );
 
     $hasGuide = !empty($go) && (
@@ -29,12 +33,27 @@
     );
 
     $isPro = (int) ($tour->is_pro ?? 0) === 1;
+    $transferSell = 0.0;
     $transferCost = 0.0;
     if ($hasTransfer) {
-        $transferCost = $isPro
-            ? (float) ($tf['totalPrice'] ?? $tf['cost'] ?? 0)
-            : (float) ($tf['cost'] ?? $tf['totalPrice'] ?? 0);
+        if (!empty($vehList)) {
+            foreach ($vehList as $v) {
+                $transferSell += (float) ($v['lineSell'] ?? $v['line_sell'] ?? $v['totalPrice'] ?? $v['sell'] ?? 0);
+                $transferCost += (float) ($v['lineCost'] ?? $v['line_cost'] ?? $v['cost'] ?? 0);
+            }
+        }
+        if ($transferSell <= 0) {
+            $transferSell = $isPro
+                ? (float) ($tf['totalPrice'] ?? $tf['sell'] ?? $tf['lineSell'] ?? 0)
+                : (float) ($tf['cost'] ?? $tf['totalPrice'] ?? $tf['sell'] ?? 0);
+        }
+        if ($transferCost <= 0) {
+            $transferCost = (float) ($tf['cost'] ?? $tf['lineCost'] ?? 0);
+        }
     }
+    // Display total always prefers sell for Pro; legacy uses cost
+    $transferDisplayTotal = $isPro ? $transferSell : (float) ($tf['cost'] ?? $tf['totalPrice'] ?? $transferSell);
+
     $vehicleName = $tf['vehicle_details']['vehicle_name']
         ?? $tf['vehicle_details']['name']
         ?? $tf['vehicle_name']
@@ -76,7 +95,50 @@
             <span class="svc-dl-value">{{ $tf['pickup_location_name'] }}</span>
         </div>
         @endif
-        @if(!empty($vehicleName))
+
+        @if(!empty($vehList))
+            @foreach($vehList as $vi => $v)
+                @php
+                    $vName = $v['vehicle_name'] ?? $v['vehicleName'] ?? $v['name'] ?? ('Vehicle ' . ($vi + 1));
+                    $vType = $v['type'] ?? $v['transferType'] ?? $v['transfer_type'] ?? '';
+                    $vQty = (int) ($v['qty'] ?? $v['quantity'] ?? 1);
+                    $vAdults = (int) ($v['adults'] ?? $v['adultsQty'] ?? 0);
+                    $vChild = (int) ($v['child'] ?? $v['childQty'] ?? $v['children'] ?? 0);
+                    $vInfant = (int) ($v['infant'] ?? $v['infantQty'] ?? $v['infants'] ?? 0);
+                    $vLineSell = (float) ($v['lineSell'] ?? $v['line_sell'] ?? $v['totalPrice'] ?? $v['sell'] ?? 0);
+                    $vLineCost = (float) ($v['lineCost'] ?? $v['line_cost'] ?? $v['cost'] ?? 0);
+                    $vPaxLabel = $vAdults . 'A / ' . $vChild . 'C';
+                    if ($vInfant > 0) {
+                        $vPaxLabel .= ' / ' . $vInfant . 'I';
+                    }
+                @endphp
+                <div class="svc-dl-row full">
+                    <span class="svc-dl-label">Vehicle {{ $vi + 1 }}</span>
+                    <span class="svc-dl-value">
+                        {{ $vName }}
+                        @if($vType !== '')
+                            <span class="text-muted">({{ $vType }})</span>
+                        @endif
+                        @if($vQty > 1)
+                            × {{ $vQty }}
+                        @endif
+                        @if($vAdults + $vChild + $vInfant > 0)
+                            <span class="text-muted">— {{ $vPaxLabel }}</span>
+                        @endif
+                    </span>
+                </div>
+                @if($isPro && $vLineCost > 0)
+                <div class="svc-dl-row">
+                    <span class="svc-dl-label">Line Cost</span>
+                    <span class="svc-dl-value svc-amount">{{ $currency }} {{ number_format($vLineCost, 2) }}</span>
+                </div>
+                @endif
+                <div class="svc-dl-row">
+                    <span class="svc-dl-label">{{ $isPro ? 'Line Sell' : 'Line Price' }}</span>
+                    <span class="svc-dl-value svc-amount">{{ $currency }} {{ number_format($vLineSell > 0 ? $vLineSell : ($isPro ? 0 : $vLineCost), 2) }}</span>
+                </div>
+            @endforeach
+        @elseif(!empty($vehicleName))
         <div class="svc-dl-row">
             <span class="svc-dl-label">Vehicle</span>
             <span class="svc-dl-value">
@@ -87,10 +149,17 @@
             </span>
         </div>
         @endif
+
+        @if($isPro && $transferCost > 0)
         <div class="svc-dl-row">
-            <span class="svc-dl-label">Transfer Price</span>
+            <span class="svc-dl-label">Transfer Cost</span>
+            <span class="svc-dl-value svc-amount">{{ $currency }} {{ number_format($transferCost, 2) }}</span>
+        </div>
+        @endif
+        <div class="svc-dl-row">
+            <span class="svc-dl-label">{{ $isPro ? 'Transfer Sell' : 'Transfer Price' }}</span>
             <span class="svc-dl-value svc-amount" style="color:var(--svc-accent);">
-                {{ $currency }} {{ number_format($transferCost, 2) }}
+                {{ $currency }} {{ number_format($transferDisplayTotal, 2) }}
             </span>
         </div>
     </div>

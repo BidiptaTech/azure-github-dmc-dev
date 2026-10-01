@@ -1136,33 +1136,39 @@
 
     /**
      * Combo used for calendar cell prices.
-     * When the hotel has multiple rooms, prefer the DMC base room (rooms.base_room)
-     * so calendar matches base pricing; keep the checked meal plan on that room when possible.
+     * Prefer the currently selected room+meal row (same as AVG COST / View details).
+     * If nothing is selected, fall back to DMC base room then first combo.
      */
     window.enquiryProCurrentCalendarCombo = function () {
         const combos = window.currentRoomCombinations || [];
-        let checked = null;
-        const checkedEl = document.querySelector('.room-combination-checkbox:checked');
-        if (checkedEl) {
-            const id = checkedEl.getAttribute('data-combo-id');
-            checked = combos.find(c => String(c.id) === String(id)) || null;
-        }
+        if (!combos.length) return null;
 
-        const baseCombos = combos.filter(c => enquiryProIsDmcBaseRoomCombo(c));
         let found = null;
 
-        if (baseCombos.length && combos.length > 1) {
-            if (checked && enquiryProIsDmcBaseRoomCombo(checked)) {
-                found = checked;
-            } else if (checked) {
-                found = baseCombos.find(c => String(c.mealPlan) === String(checked.mealPlan))
-                    || baseCombos.find(c => String(c.bedId || c.roomId) === String(checked.bedId || checked.roomId))
-                    || baseCombos[0];
-            } else {
-                found = baseCombos[0];
+        // 1) Most recently selected checked combo (matches listing / price breakdown)
+        const order = Array.isArray(window.selectedRoomComboOrder) ? window.selectedRoomComboOrder : [];
+        for (let i = order.length - 1; i >= 0; i--) {
+            const id = order[i];
+            const cb = document.querySelector('.room-combination-checkbox[data-combo-id="' + id + '"]');
+            if (cb && cb.checked) {
+                found = combos.find(c => String(c.id) === String(id)) || null;
+                if (found) break;
             }
-        } else {
-            found = checked || baseCombos[0] || combos[0] || null;
+        }
+
+        // 2) Any checked checkbox (first in DOM)
+        if (!found) {
+            const checkedEl = document.querySelector('.room-combination-checkbox:checked');
+            if (checkedEl) {
+                const id = checkedEl.getAttribute('data-combo-id');
+                found = combos.find(c => String(c.id) === String(id)) || null;
+            }
+        }
+
+        // 3) Nothing selected yet → default base room (or first combo)
+        if (!found) {
+            const baseCombos = combos.filter(c => enquiryProIsDmcBaseRoomCombo(c));
+            found = baseCombos[0] || combos[0] || null;
         }
 
         if (found) {

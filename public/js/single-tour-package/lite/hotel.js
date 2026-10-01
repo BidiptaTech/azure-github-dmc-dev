@@ -561,6 +561,7 @@
         var extraBedPrice = opt ? (parseFloat(opt.dataset.extraBedPrice) || 0) : 0;
         var babyCotAvailable = !!(opt && (opt.dataset.babyCot === '1' || (parseFloat(opt.dataset.babyCotPrice) || 0) > 0));
         var babyCotPrice = opt ? (parseFloat(opt.dataset.babyCotPrice) || 0) : 0;
+        var babyCotCostPrice = opt ? (parseFloat(opt.dataset.babyCotCostPrice) || 0) : 0;
         return {
             maxOccupancy: maxOccupancy,
             bedMaxAdults: bedMaxAdults,
@@ -569,6 +570,7 @@
             extraBedPrice: extraBedPrice,
             babyCotAvailable: babyCotAvailable,
             babyCotPrice: babyCotPrice,
+            babyCotCostPrice: babyCotCostPrice,
             maxRoomOccupancy: extraBedAvailable ? maxOccupancy + 1 : maxOccupancy
         };
     }
@@ -1557,6 +1559,16 @@
             baby_cot: babyCot.enabled ? 1 : 0,
             baby_cot_price: babyCot.unit || 0,
             baby_cot_cost: babyCot.total || 0,
+            baby_cot_cost_price: (function () {
+                var occ = bedOccupancyInfo(root);
+                return babyCot.enabled ? (Number(occ.babyCotCostPrice || 0) || 0) : 0;
+            })(),
+            baby_cot_cost_total: (function () {
+                var occ = bedOccupancyInfo(root);
+                var unitCost = Number(occ.babyCotCostPrice || 0) || 0;
+                if (!babyCot.enabled || unitCost <= 0) return 0;
+                return unitCost * Math.max(1, babyCot.infants || 1) * Math.max(1, nights) * Math.max(1, rooms);
+            })(),
             grand_total_with_cot: built.grand,
             is_adhoc: !!data.is_adhoc,
             adhoc_price: data.adhoc_price != null ? Number(data.adhoc_price) : null
@@ -2023,7 +2035,11 @@
             };
         }
         var babyCotPrice = occInfo.babyCotPrice || 0;
+        var babyCotUnitCost = occInfo.babyCotCostPrice || 0;
         var babyCotCost = (cotEnabled && babyCotPrice > 0) ? (babyCotPrice * Math.max(1, infants) * nights * rooms) : 0;
+        var babyCotCostTotal = (cotEnabled && babyCotUnitCost > 0)
+            ? (babyCotUnitCost * Math.max(1, infants) * nights * rooms)
+            : 0;
         if (cotEnabled && babyCotCost > 0 && priceData.grand_total_with_cot == null) grand += babyCotCost;
 
         var customer = (window.StpLiteGuests && window.StpLiteGuests.getCustomerDataForServices)
@@ -2098,6 +2114,7 @@
                     baby_cot: cotEnabled ? 1 : 0,
                     baby_cot_price: babyCotPrice,
                     baby_cot_cost: babyCotCost,
+                    baby_cot_cost_price: cotEnabled ? babyCotUnitCost : 0,
                     head_count: persons,
                     max_occupancy: occInfo.maxOccupancy || persons,
                     extra_bed: extraBedOn ? 1 : 0,
@@ -2110,6 +2127,12 @@
             }],
             totalPrice: grand,
             price: grand,
+            baby_cot: cotEnabled ? 1 : 0,
+            baby_cot_price: cotEnabled ? babyCotPrice : 0,
+            baby_cot_cost: cotEnabled ? babyCotCost : 0,
+            baby_cot_cost_price: cotEnabled ? babyCotUnitCost : 0,
+            baby_cot_cost_total: cotEnabled ? babyCotCostTotal : 0,
+            grand_total_with_cot: grand,
             transfer_options: null,
             child_with_bed: cwbObj,
             child_without_bed: cnbObj,
@@ -2901,6 +2924,7 @@
                         opt.dataset.extraBedPrice = bed.extra_bed_price || '';
                         opt.dataset.babyCot = bed.baby_cot ? '1' : '0';
                         opt.dataset.babyCotPrice = bed.baby_cot_price || '';
+                        opt.dataset.babyCotCostPrice = bed.baby_cot_cost_price || '';
                         bedType.appendChild(opt);
                     });
                 } else {

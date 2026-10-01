@@ -3804,7 +3804,8 @@ class SingleTourPackageController extends Controller
             $beds = \App\Models\Bed::where('room_id', $roomId)
                 ->where('is_active', 1)
                 ->select('bed_id', 'room_type', 'no_of_rooms', 'max_occupancy', 'adult_count', 'child_count', 
-                        'extra_bed', 'extra_bed_price', 'extra_bed_cost_price', 'extra_bed_type', 'baby_cot', 'baby_cot_price')
+                        'extra_bed', 'extra_bed_price', 'extra_bed_cost_price', 'extra_bed_type',
+                        'baby_cot', 'baby_cot_price', 'baby_cot_cost_price')
                 ->orderBy('room_type')
                 ->get();
             return response()->json([
