@@ -35,11 +35,54 @@ return [
         'key' => env('FREECURRENCYAPI_KEY'),
     ],
 
+    'stripe' => [
+        'key' => env('STRIPE_PUBLIC_KEY'),
+        'secret' => env('STRIPE_SECRET_KEY'),
+        'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
+    ],
+
     'azure' => [
-    'vault' => env('AZURE_KEYVAULT_NAME'),
-    'client_id' => env('AZURE_CLIENT_ID'),
-    'client_secret' => env('AZURE_CLIENT_SECRET'),
-    'tenant_id' => env('AZURE_TENANT_ID'),
+        'vault' => env('AZURE_KEYVAULT_NAME'),
+        'client_id' => env('AZURE_CLIENT_ID'),
+        'client_secret' => env('AZURE_CLIENT_SECRET'),
+        'tenant_id' => env('AZURE_TENANT_ID'),
+    ],
+
+    /*
+    | Azure AI Search — day-level JSON indexer.
+    | Fill these so delete removes index docs, then reset+run refreshes from current blobs.
+    */
+    'azure_search' => [
+        'endpoint' => rtrim((string) env('AZURE_SEARCH_ENDPOINT', ''), '/'),
+        'admin_key' => env('AZURE_SEARCH_ADMIN_KEY', ''),
+        'index' => env('AZURE_SEARCH_INDEX_NAME', ''),
+        'indexer' => env('AZURE_SEARCH_INDEXER_NAME', ''),
+        'key_field' => env('AZURE_SEARCH_KEY_FIELD', 'id'),
+        'api_version' => env('AZURE_SEARCH_API_VERSION', '2024-07-01'),
+    ],
+
+    'tiniva' => [
+        'base_url' => env('TINIVA_API_BASE_URL', ''),
+        'api_key' => env('TINIVA_API_KEY', ''),
+        'jwt' => env('TINIVA_JWT', ''),
+        'entity_id' => env('TINIVA_ENTITY_ID', ''),
+        'timeout' => (int) env('TINIVA_API_TIMEOUT', 30),
+    ],
+
+    'sg_attractions' => [
+        'base_url' => env('SG_ATTRACTIONS_API_BASE_URL', 'https://tdpapi.attractionsg.com'),
+        'api_key' => env('SG_ATTRACTIONS_API_KEY', ''),
+        'secret_key' => env('SG_ATTRACTIONS_SECRET_KEY', ''),
+        'bearer_token' => env('SG_ATTRACTIONS_BEARER_TOKEN', ''),
+        'api_version' => env('SG_ATTRACTIONS_API_VERSION', 'v1.10'),
+        'timeout' => (int) env('SG_ATTRACTIONS_TIMEOUT', 60),
+    ],
+
+    'hotelbeds' => [
+        'base_url' => env('HOTELBEDS_API_BASE_URL', 'https://api.test.hotelbeds.com'),
+        'api_key' => env('HOTELBEDS_API_KEY', ''),
+        'api_secret' => env('HOTELBEDS_API_SECRET', ''),
+        'timeout' => (int) env('HOTELBEDS_API_TIMEOUT', 30),
     ],
 
 

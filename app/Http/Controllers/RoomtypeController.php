@@ -168,18 +168,33 @@ public function updateBaseRoom(Request $request)
         if (!$room) {
             return response()->json(['success' => false, 'message' => 'Room not found'], 404);
         }
-        
-        // If setting as base room, unset all other rooms for this hotel
-        if ($request->base_room) {
-            // Find all rooms in the same hotel and set base_room to false
+
+        $ownerId = $room->created_by;
+
+        if (!$request->boolean('base_room')) {
+            $hasOtherBase = Room::where('hotel_id', $room->hotel_id)
+                ->where('created_by', $ownerId)
+                ->where('room_id', '!=', $room->room_id)
+                ->where('base_room', true)
+                ->exists();
+
+            if (!$hasOtherBase) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'At least one base room is required. Turn on another room as base to switch.',
+                ], 422);
+            }
+        }
+
+        if ($request->boolean('base_room')) {
             Room::where('hotel_id', $room->hotel_id)
                 ->where('room_id', '!=', $room->room_id)
-                ->where('created_by', $auth_user->userId)
-                ->update(['base_room' => false]);
+                ->where('created_by', $ownerId)
+                ->update(['base_room' => 0]);
         }
-        
-        // Update the current room
-        $room->base_room = $request->base_room;
+
+        // Persist as 0/1 (column may be decimal; avoid "0.00" truthy-string bugs in the UI)
+        $room->base_room = $request->boolean('base_room') ? 1 : 0;
         $room->save();
         
         return response()->json([

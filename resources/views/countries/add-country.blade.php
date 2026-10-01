@@ -17,14 +17,8 @@
                     <!-- Country Name -->
                     <div class="col-md-4 mb-3">
                         <label for="name" class="form-label"><strong>Country Name</strong><span class="text-danger">*</span></label>
-                        <select class="form-control @error('name') is-invalid @enderror" name="name" id="countrySelect" required>
-                            <option value="">Select Country</option>
-                            @foreach($countries as $country)
-                                <option value="{{ $country['name'] }}" data-code="{{ $country['country_code'] }}" data-currency="{{ $country['currency'] }}">
-                                    {{ $country['name'] }}
-                                </option>
-                            @endforeach
-                        </select>
+                        <input type="text" class="form-control @error('name') is-invalid @enderror" name="name" id="name" value="{{ old('name') }}" placeholder="Enter country name" required>
+                        <small class="text-muted">Type the new country name manually.</small>
                         @error('name')
                             <div class="text-danger mt-1">{{ $message }}</div>
                         @enderror
@@ -33,7 +27,7 @@
                     <!-- Country Code -->
                     <div class="col-md-4 mb-3">
                         <label for="country_code" class="form-label"><strong>Country Code (Dialing Code)</strong><span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="countryCode" name="country_code" readonly required>
+                        <input type="text" class="form-control @error('country_code') is-invalid @enderror" id="countryCode" name="country_code" value="{{ old('country_code') }}" placeholder="Enter dialing code" required>
                         @error('country_code')
                             <div class="text-danger mt-1">{{ $message }}</div>
                         @enderror
@@ -42,7 +36,7 @@
                     <!-- Card Name -->
                     <div class="col-md-4 mb-3">
                         <label for="card_type" class="form-label"><strong>Card Name</strong><span class="text-danger">*</span></label>
-                        <input type="text" class="form-control @error('card_type') is-invalid @enderror" name="card_type" placeholder="Enter Card Name" required>
+                        <input type="text" class="form-control @error('card_type') is-invalid @enderror" name="card_type" placeholder="Enter Card Name" value="{{ old('card_type') }}" required>
                         @error('card_type')
                             <div class="text-danger mt-1">{{ $message }}</div>
                         @enderror
@@ -53,7 +47,7 @@
                     <!-- Card Length -->
                     <div class="col-md-4 mb-3">
                         <label for="card_length" class="form-label"><strong>Card Length</strong><span class="text-danger">*</span></label>
-                        <input type="number" class="form-control @error('card_length') is-invalid @enderror" name="card_length" placeholder="Enter Card Length" required>
+                        <input type="number" class="form-control @error('card_length') is-invalid @enderror" name="card_length" placeholder="Enter Card Length" value="{{ old('card_length') }}" required>
                         @error('card_length')
                             <div class="text-danger mt-1">{{ $message }}</div>
                         @enderror
@@ -62,7 +56,7 @@
                     <!-- Min Dial Length -->
                     <div class="col-md-4 mb-3">
                         <label for="min_length" class="form-label"><strong>Min Dial Length</strong><span class="text-danger">*</span></label>
-                        <input type="number" class="form-control @error('min_length') is-invalid @enderror" name="min_length" placeholder="Enter Min Dial Length" required>
+                        <input type="number" class="form-control @error('min_length') is-invalid @enderror" name="min_length" placeholder="Enter Min Dial Length" value="{{ old('min_length') }}" required>
                         @error('min_length')
                             <div class="text-danger mt-1">{{ $message }}</div>
                         @enderror
@@ -71,7 +65,7 @@
                     <!-- Max Dial Length -->
                     <div class="col-md-4 mb-3">
                         <label for="max_length" class="form-label"><strong>Max Dial Length</strong><span class="text-danger">*</span></label>
-                        <input type="number" class="form-control @error('max_length') is-invalid @enderror" name="max_length" placeholder="Enter Max Dial Length" required>
+                        <input type="number" class="form-control @error('max_length') is-invalid @enderror" name="max_length" placeholder="Enter Max Dial Length" value="{{ old('max_length') }}" required>
                         @error('max_length')
                             <div class="text-danger mt-1">{{ $message }}</div>
                         @enderror
@@ -82,7 +76,7 @@
                     <!-- Tax Percentage -->
                     <div class="col-md-6 mb-3">
                         <label for="tax_percentage" class="form-label"><strong>Tax Percentage (%)</strong><span class="text-danger">*</span></label>
-                        <input type="number" step="0.01" class="form-control @error('tax_percentage') is-invalid @enderror" name="tax_percentage" placeholder="Enter Tax Percentage" required>
+                        <input type="number" step="0.01" class="form-control @error('tax_percentage') is-invalid @enderror" name="tax_percentage" placeholder="Enter Tax Percentage" value="{{ old('tax_percentage') }}" required>
                         @error('tax_percentage')
                             <div class="text-danger mt-1">{{ $message }}</div>
                         @enderror
@@ -91,7 +85,7 @@
                     <!-- Currency -->
                     <div class="col-md-6 mb-3">
                         <label for="currency" class="form-label"><strong>Currency</strong><span class="text-danger">*</span></label>
-                        <input type="text" class="form-control @error('currency') is-invalid @enderror" name="currency" id="currency" required>
+                        <input type="text" class="form-control @error('currency') is-invalid @enderror" name="currency" id="currency" value="{{ old('currency') }}" placeholder="Enter currency" required>
                         @error('currency')
                             <div class="text-danger mt-1">{{ $message }}</div>
                         @enderror
@@ -102,7 +96,7 @@
                      <!-- Gateway Percentage -->
                      <div class="col-md-6 mb-3">
                         <label for="gateway_percentage" class="form-label"><strong>Gateway Percentage (%)</strong><span class="text-danger">*</span></label>
-                        <input type="number" step="0.01" class="form-control @error('gateway_percentage') is-invalid @enderror" name="gateway_percentage" placeholder="Enter Gateway Percentage" required>
+                        <input type="number" step="0.01" class="form-control @error('gateway_percentage') is-invalid @enderror" name="gateway_percentage" placeholder="Enter Gateway Percentage" value="{{ old('gateway_percentage') }}" required>
                         @error('gateway_percentage')
                             <div class="text-danger mt-1">{{ $message }}</div>
                         @enderror
@@ -111,7 +105,7 @@
                     <!-- Commission Percentage -->
                     <div class="col-md-6 mb-3">
                         <label for="commission_percentage" class="form-label"><strong>Commission Percentage (%)</strong><span class="text-danger">*</span></label>
-                        <input type="number" step="0.01" class="form-control @error('commission_percentage') is-invalid @enderror" name="commission_percentage" placeholder="Enter Commission Percentage" required>
+                        <input type="number" step="0.01" class="form-control @error('commission_percentage') is-invalid @enderror" name="commission_percentage" placeholder="Enter Commission Percentage" value="{{ old('commission_percentage') }}" required>
                         @error('commission_percentage')
                             <div class="text-danger mt-1">{{ $message }}</div>
                         @enderror
@@ -151,17 +145,4 @@
         </div>
     </div>
 </div>
-@endsection
-
-@section('scripts')
-<script>
-    document.getElementById('countrySelect').addEventListener('change', function() {
-        let selectedOption = this.options[this.selectedIndex];
-        let countryCode = selectedOption.getAttribute('data-code');
-        let currency = selectedOption.getAttribute('data-currency');
-
-        document.getElementById('countryCode').value = countryCode || '';
-        document.getElementById('currency').value = currency || '';
-    });
-</script>
 @endsection

@@ -99,6 +99,9 @@ class UploadHistory extends Model
 
     /**
      * Create upload history record
+     *
+     * @param  array|null  $errors  Flat list of error strings, or structured:
+     *                              ['messages' => [...], 'created_count' => int, 'updated_count' => int]
      */
     public static function createRecord($uploadType, $fileName, $originalFileName, $totalRecords, $successCount, $errorCount, $errors, $uploadedBy, $hotelId = null)
     {
@@ -124,6 +127,48 @@ class UploadHistory extends Model
             'status' => $status,
             'uploaded_by' => $uploadedBy
         ]);
+    }
+
+    /**
+     * Error message list (supports structured errors payload used by beds upsert).
+     */
+    public function getErrorMessagesAttribute()
+    {
+        $errors = $this->errors;
+        if (!is_array($errors)) {
+            return [];
+        }
+        if (array_key_exists('messages', $errors)) {
+            return is_array($errors['messages']) ? $errors['messages'] : [];
+        }
+        // Legacy flat list — ignore non-string meta keys if any
+        return array_values(array_filter($errors, function ($item) {
+            return is_string($item);
+        }));
+    }
+
+    /**
+     * Created count from structured errors meta (beds upsert), if present.
+     */
+    public function getCreatedCountMetaAttribute()
+    {
+        $errors = $this->errors;
+        if (is_array($errors) && array_key_exists('created_count', $errors)) {
+            return (int) $errors['created_count'];
+        }
+        return null;
+    }
+
+    /**
+     * Updated count from structured errors meta (beds upsert), if present.
+     */
+    public function getUpdatedCountMetaAttribute()
+    {
+        $errors = $this->errors;
+        if (is_array($errors) && array_key_exists('updated_count', $errors)) {
+            return (int) $errors['updated_count'];
+        }
+        return null;
     }
 
     /**

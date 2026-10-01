@@ -4,7 +4,6 @@ namespace App\Imports;
 
 use App\Models\Agency;
 use App\Models\Country;
-use App\Helpers\CommonHelper;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
@@ -171,36 +170,26 @@ class AgenciesImport
             $this->errors[] = "Row {$rowNumber}: Email '{$email}' already exists and agency is active. Skipped.";
             
         } else {
-            // Generate unique agency_id
-            $lastAgency = Agency::withTrashed()->orderBy('created_at', 'desc')->first();
-            $agency_max_id = $lastAgency->agency_id ?? 1;
-            $agencyId = CommonHelper::createId($agency_max_id);
-            
-            while (Agency::where('agency_id', $agencyId)->exists()) {
-                $agencyId = CommonHelper::createId($agencyId);
-            }
-
-            // Create new agency
-            $agency = new Agency([
-                'agency_id' => $agencyId,
-                'agency_name' => $agencyName,
-                'email' => $email,
-                'phone' => $phone,
-                'country' => $country,
-                'city' => $city,
-                'contact_person' => $contactPerson,
-                'address' => $address,
-                'postal_code' => $postalCode,
-                'id_card_type' => $idCardType,
-                'card_number' => null,
-                'branches' => [],
-                'logo' => null,
-                'status' => 1,
-                'created_by' => Auth::user()->userId,
-                'dmc_id' => is_array($this->dmc_id) ? $this->dmc_id : [$this->dmc_id],
-            ]);
+            // Create new agency — agency_id is assigned by DB sequence on save (same as AgencyController::store)
+            $agency = new Agency();
+            $agency->agency_name = $agencyName;
+            $agency->email = $email;
+            $agency->phone = $phone !== '' ? $phone : '';
+            $agency->country = $country;
+            $agency->city = $city;
+            $agency->contact_person = $contactPerson;
+            $agency->address = $address !== '' ? $address : '';
+            $agency->postal_code = $postalCode !== '' ? $postalCode : null;
+            $agency->id_card_type = $idCardType;
+            $agency->card_number = null;
+            $agency->branches = [];
+            $agency->logo = null;
+            $agency->status = 1;
+            $agency->created_by = Auth::user()->userId;
+            $agency->dmc_id = is_array($this->dmc_id) ? $this->dmc_id : [$this->dmc_id];
 
             $agency->save();
+            $agency->refresh();
             $this->successCount++;
         }
     }
