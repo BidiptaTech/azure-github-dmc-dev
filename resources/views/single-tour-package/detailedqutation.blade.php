@@ -477,11 +477,25 @@
 
                 $itemPrice = (float) ($item['totalPrice'] ?? $item['price'] ?? 0);
                 $transferPrice = 0.0;
-                if ($orderType !== 'hotel' && isset($item['transfer_options']['cost']) && $item['transfer_options']['cost'] > 0) {
-                    if ($isProTour && isset($item['transfer_options']['totalPrice'])) {
-                        $transferPrice = (float) $item['transfer_options']['totalPrice'];
-                    } else {
-                        $transferPrice = (float) $item['transfer_options']['cost'];
+                if ($orderType !== 'hotel' && isset($item['transfer_options']) && is_array($item['transfer_options'])) {
+                    $to = $item['transfer_options'];
+                    $vehSellSum = 0.0;
+                    if (! empty($to['vehicles']) && is_array($to['vehicles'])) {
+                        foreach ($to['vehicles'] as $v) {
+                            if (! is_array($v)) {
+                                continue;
+                            }
+                            $vehSellSum += (float) ($v['lineSell'] ?? $v['line_sell'] ?? $v['totalPrice'] ?? $v['sell'] ?? 0);
+                        }
+                    }
+                    if ($vehSellSum > 0) {
+                        $transferPrice = $vehSellSum;
+                    } elseif ($isProTour && isset($to['totalPrice'])) {
+                        $transferPrice = (float) $to['totalPrice'];
+                    } elseif (isset($to['sell']) && (float) $to['sell'] > 0) {
+                        $transferPrice = (float) $to['sell'];
+                    } elseif (isset($to['cost']) && (float) $to['cost'] > 0) {
+                        $transferPrice = (float) $to['cost'];
                     }
                 }
 
@@ -1457,12 +1471,12 @@
                     if ($cwbKids > 0) {
                         $occupancyBits[] = $cwbKids . ' Child with Bed';
                     } else {
-                        $occupancyBits[] = 'Child with Bed';
+                    $occupancyBits[] = 'Child with Bed';
                     }
                     if ($cnbKids > 0) {
                         $occupancyBits[] = $cnbKids . ' Child with no Bed';
                     } else {
-                        $occupancyBits[] = 'Child with no Bed';
+                    $occupancyBits[] = 'Child with no Bed';
                     }
                 } elseif ($hasCwb) {
                     $n = $cwbKids > 0 ? $cwbKids : $childLabelCount;
@@ -1772,9 +1786,9 @@
                 $countryMeta
             )
             : $sortCountryKeys(
-                array_values(array_unique(array_merge(array_keys($hotelsByCountry), array_keys($otherByCountry)))),
-                $countryMeta
-            );
+            array_values(array_unique(array_merge(array_keys($hotelsByCountry), array_keys($otherByCountry)))),
+            $countryMeta
+        );
 
         $formatNativeMoney = function ($amount, $currency) {
             $currency = strtoupper(trim((string)$currency));
@@ -1931,45 +1945,45 @@
                     <div class="country-box-body">
 
                         <div class="country-stack-section">
-                            <div class="country-col-label">Hotels</div>
-                            @if(!empty($countryHotels))
-                                <ul class="inclusion-list">
-                                    @foreach($countryHotels as $h)
-                                        @php
-                                            $hName = trim((string) ($h['hotel_name'] ?? 'Hotel'));
-                                            $hRoom = trim((string) ($h['room_category'] ?? 'Room'));
-                                            $hPax = max(1, (int) ($h['total_pax'] ?? $h['selected_persons'] ?? 1));
-                                            $hRoomCount = max(1, (int) ($h['room_count'] ?? 1));
-                                            $hRoomLabel = $hRoomCount . ' ' . $hRoom . ($hRoomCount > 1 ? ' Rooms' : ' Room');
-                                            $hBits = is_array($h['occupancy_bits'] ?? null) ? $h['occupancy_bits'] : [];
-                                        @endphp
-                                        <li class="inclusion">
+                                <div class="country-col-label">Hotels</div>
+                                @if(!empty($countryHotels))
+                                    <ul class="inclusion-list">
+                                        @foreach($countryHotels as $h)
+                                            @php
+                                                $hName = trim((string) ($h['hotel_name'] ?? 'Hotel'));
+                                                $hRoom = trim((string) ($h['room_category'] ?? 'Room'));
+                                                $hPax = max(1, (int) ($h['total_pax'] ?? $h['selected_persons'] ?? 1));
+                                                $hRoomCount = max(1, (int) ($h['room_count'] ?? 1));
+                                                $hRoomLabel = $hRoomCount . ' ' . $hRoom . ($hRoomCount > 1 ? ' Rooms' : ' Room');
+                                                $hBits = is_array($h['occupancy_bits'] ?? null) ? $h['occupancy_bits'] : [];
+                                            @endphp
+                                            <li class="inclusion">
                                             <span class="bold">{{ strtoupper($hName) }}</span> — {{ strtoupper($hRoom) }}, {{ $hRoomLabel }} ({{ $hPax }} Pax)
                                             @if(!empty($h['date_range']))
                                                 <span class="svc-inline"> · Stay: {{ $h['date_range'] }}</span>
                                             @endif
-                                            @if(!empty($hBits))
+                                                @if(!empty($hBits))
                                                 <span class="svc-inline"> · {{ implode(' · ', $hBits) }}</span>
-                                            @endif
-                                        </li>
-                                    @endforeach
-                                </ul>
-                            @else
-                                <div class="inclusion">No hotels booked</div>
-                            @endif
-                        </div>
+                                                @endif
+                                            </li>
+                                        @endforeach
+                                    </ul>
+                                @else
+                                    <div class="inclusion">No hotels booked</div>
+                                @endif
+                                </div>
 
                         <div class="country-stack-section">
-                            <div class="country-col-label">Other Services</div>
-                            @if($hasOther)
-                                <ul class="inclusion-list">
+                                <div class="country-col-label">Other Services</div>
+                                @if($hasOther)
+                                    <ul class="inclusion-list">
                                     @foreach($sortedOtherServices as $svcItem)
                                         @php
                                             $svcKind = (string) ($svcItem['kind'] ?? '');
                                             $svcCard = $svcItem['card'] ?? null;
                                             $svcLabel = (string) ($svcItem['label'] ?? '');
                                             $svcPlain = (string) ($svcItem['plain'] ?? '');
-                                        @endphp
+                                            @endphp
                                         @if($svcKind === 'attraction')
                                             @include('single-tour-package.partials.quotation-service-detail', [
                                                 'kind' => 'attraction',
@@ -1996,15 +2010,15 @@
                                                 ])
                                             @else
                                                 <li class="inclusion"><span class="bold">{{ $svcLabel !== '' ? $svcLabel : 'Transfer' }}:</span> {{ $svcPlain }}</li>
-                                            @endif
+                                                            @endif
                                         @elseif($svcKind === 'guide')
                                             <li class="inclusion"><span class="bold">Guide:</span> {{ $svcPlain }}</li>
-                                        @endif
-                                    @endforeach
-                                </ul>
-                            @else
-                                <div class="inclusion">No other services booked</div>
-                            @endif
+                                                                @endif
+                                        @endforeach
+                                    </ul>
+                                @else
+                                    <div class="inclusion">No other services booked</div>
+                                @endif
                         </div>
                     </div>
                     @endif
@@ -2606,9 +2620,9 @@
                         ($childBedNative > 0 || $otherChildNative > 0) ? max(1, $overallChildCount) : 0
                     )
                     : max(
-                        (int) ($countryChildCounts[$shareChildKey] ?? 0),
-                        $overallChildCount
-                    );
+                    (int) ($countryChildCounts[$shareChildKey] ?? 0),
+                    $overallChildCount
+                );
                 if (($childBedNative > 0 || $otherChildNative > 0) && $cityChildCount <= 0) {
                     $cityChildCount = 1;
                 }
@@ -2819,17 +2833,17 @@
             if ((float) ($markupDiscountDisplayAmount ?? 0) > 0) {
                 $overallDiscountShown = (float) $markupDiscountDisplayAmount;
             } else {
-                foreach ($cityMarkupIndex as $mInfo) {
-                    $dRaw = (float) ($mInfo['discount_value'] ?? 0);
-                    if ($dRaw <= 0) {
-                        continue;
-                    }
-                    if (($mInfo['discount_type'] ?? 'flat') === 'percentage') {
-                        $overallDiscountShown += $overallLinesSubtotal * $dRaw / 100.0;
-                    } else {
-                        $overallDiscountShown += $convertToOverall($dRaw, $mInfo['currency'] ?? $overallTargetCurrency);
-                    }
+            foreach ($cityMarkupIndex as $mInfo) {
+                $dRaw = (float) ($mInfo['discount_value'] ?? 0);
+                if ($dRaw <= 0) {
+                    continue;
                 }
+                if (($mInfo['discount_type'] ?? 'flat') === 'percentage') {
+                    $overallDiscountShown += $overallLinesSubtotal * $dRaw / 100.0;
+                } else {
+                    $overallDiscountShown += $convertToOverall($dRaw, $mInfo['currency'] ?? $overallTargetCurrency);
+                }
+            }
             }
 
             $overallMarkupShown = 0.0; // never show markup to customer
@@ -2919,21 +2933,21 @@
                         <div class="country-stack-section">
                             <div class="country-col-label">Hotel-Accommodation &amp; Other Services (per pax)</div>
                             <table class="price-grid">
-                                <thead>
-                                    <tr>
+                            <thead>
+                                <tr>
                                         <th style="width: 33.33%;">Single</th>
                                         <th style="width: 33.33%;">Double</th>
                                         <th style="width: 33.33%;">Triple</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
                                         <td>{!! $shareCellSingle !!}</td>
                                         <td>{!! $shareCellDouble !!}</td>
                                         <td>{!! $shareCellTriple !!}</td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                                </tr>
+                            </tbody>
+                        </table>
                         </div>
                     </div>
                 </div>
@@ -2978,21 +2992,21 @@
                                 <tr>
                                     @if($svcIdx === 0)
                                         <td class="city-cell" rowspan="{{ $svcCount }}">{{ $cityName }}</td>
-                                    @endif
+                                @endif
                                     <td class="svc-cell">{{ $svcName }}</td>
                                     <td class="pax-cell">{{ $paxLabel }}</td>
                                     <td class="amt-cell">{{ $fmtOverallAmt($svc['total'] ?? 0) }}</td>
-                                </tr>
+                        </tr>
                             @endforeach
                         @elseif($rowKind === 'city_total')
                             {{-- skipped — city totals roll into TOTAL COST --}}
                         @else
-                            <tr>
+                        <tr>
                                 <td class="city-cell">—</td>
                                 <td class="svc-cell">{{ $row['name'] ?? '' }}</td>
                                 <td class="pax-cell">{{ max(1, (int) ($row['multiplier'] ?? 1)) }}</td>
                                 <td class="amt-cell">{{ $fmtOverallAmt($row['total'] ?? ($row['price'] ?? 0)) }}</td>
-                            </tr>
+                        </tr>
                         @endif
                     @endforeach
                     @if(!$hasAnyPackageRow)
@@ -3010,8 +3024,8 @@
                             <tr>
                                 <td style="text-align: right;" colspan="3">Discount</td>
                                 <td class="amt-cell">{{ $fmtOverallAmt($overallDiscountShown) }}</td>
-                            </tr>
-                        @endif
+                        </tr>
+                    @endif
                         @if((float) $overallTaxShown > 0)
                             <tr>
                                 <td style="text-align: right;" colspan="3">
@@ -3021,7 +3035,7 @@
                                     @endif
                                 </td>
                                 <td class="amt-cell">{{ $fmtOverallAmt($overallTaxShown) }}</td>
-                            </tr>
+                        </tr>
                         @endif
                     @endif
                     <tr>

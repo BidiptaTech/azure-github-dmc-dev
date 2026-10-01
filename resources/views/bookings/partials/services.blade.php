@@ -505,7 +505,11 @@
     }
 
     function hasChildBlock(obj) {
-        return !!(obj && (obj.enabled || obj.price > 0 || obj.children > 0));
+        if (!obj) return false;
+        var children = parseInt(obj.children || 0, 10) || 0;
+        var total = parseFloat(obj.total_cost != null ? obj.total_cost : (obj.totalCost || 0)) || 0;
+        // Price/catalog alone does not mean selected — need children qty or a positive line total
+        return children > 0 || total > 0;
     }
 
     function nightsNum(hotelBooking) {
@@ -605,6 +609,37 @@
             childHtml = section('Child Accommodation', childRows);
         }
 
+        var babyCotHtml = '';
+        var babyCotEnabled = !!(
+            hotelBooking.hasInfant === true
+            || hotelBooking.has_infant === true
+            || hotelBooking.has_infant === 1
+            || parseInt(hotelBooking.baby_cot || hotelBooking.babyCot || 0, 10) === 1
+        );
+        var babyCotUnit = parseFloat(hotelBooking.baby_cot_price != null ? hotelBooking.baby_cot_price : (hotelBooking.babyCotPrice || 0)) || 0;
+        var babyCotTotalStored = parseFloat(hotelBooking.baby_cot_cost != null ? hotelBooking.baby_cot_cost : (hotelBooking.babyCotCost || 0)) || 0;
+        var babyCotInfants = parseInt(
+            hotelBooking.selected_infants != null ? hotelBooking.selected_infants
+                : (hotelBooking.infants != null ? hotelBooking.infants : (hotelBooking.infant || 0)),
+            10
+        ) || 0;
+        if (babyCotEnabled && babyCotInfants <= 0) babyCotInfants = 1;
+        var babyCotRooms = Math.max(1, parseInt(hotelBooking.number_of_rooms != null ? hotelBooking.number_of_rooms : (hotelBooking.rooms || 1), 10) || 1);
+        var babyCotNights = Math.max(1, nightsNum(hotelBooking) || 1);
+        if (babyCotTotalStored <= 0 && babyCotUnit > 0 && babyCotEnabled) {
+            babyCotTotalStored = babyCotUnit * babyCotInfants * babyCotRooms * babyCotNights;
+        }
+        if (babyCotEnabled && (babyCotUnit > 0 || babyCotTotalStored > 0)) {
+            babyCotHtml = section('Baby Cot',
+                dlRow('Baby cot', 'Yes') +
+                dlRow('Infants', w.escapeServiceHtml(babyCotInfants)) +
+                dlRow('Rooms', w.escapeServiceHtml(babyCotRooms)) +
+                dlRow('Nights', w.escapeServiceHtml(babyCotNights)) +
+                dlRow('Price / night', '<span class="svc-amount">' + money(babyCotUnit) + '</span>') +
+                dlRow('Line total', '<span class="svc-amount">' + money(babyCotTotalStored) + '</span>', true)
+            );
+        }
+
         return '' +
             '<div class="svc-panel">' +
                 '<div class="svc-panel-head">' +
@@ -641,6 +676,7 @@
 
             transferHtml +
             childHtml +
+            babyCotHtml +
 
             section('Pricing',
                 dlRow('Hotel total', '<span class="svc-amount">' + money(hotelBooking.totalPrice || 0) + '</span>', true) +
@@ -654,6 +690,249 @@
                 '<h6 class="svc-section-title">Actions</h6>' +
                 '<div class="svc-actions" id="hotel_buttons_' + tourId + '_' + hotelOrderIndex + '_' + bookingIndex + '"></div>' +
             '</div>';
+    };
+
+    /**
+     * Professional attraction details body (matches enquiry-service-cards/attraction).
+     * booking: mapped attractionBooking from get-attraction-data OR raw order JSON item
+     * opts: { tourId, attractionOrderIndex, bookingIndex, currency, isPro, actionsHostId, subtitle }
+     */
+    w.renderProfessionalAttractionContent = function (booking, opts) {
+        opts = opts || {};
+        booking = booking || {};
+        var details = booking.attraction_details || booking.attractionDetails || {};
+        var td = booking.ticketDetails || booking.ticket_details || details.ticket_details || {};
+        var tf = booking.transferOptions || booking.transfer_options || details.transfer_options || null;
+        var go = booking.guideOptions || booking.guide_options || details.guide_options || null;
+
+        var currency = w.resolveServiceDisplayCurrency(
+            booking.currency || opts.currency || details.currency,
+            w.bookingCurrency
+        );
+        var money = function (n) {
+            return w.escapeServiceHtml(w.serviceMoney(n, currency));
+        };
+        var isPro = parseInt(opts.isPro != null ? opts.isPro : (booking.isPro || 0), 10) === 1;
+
+        var name = w.escapeServiceHtml(
+            booking.attractionName || booking.AttractionName || details.AttractionName || 'Attraction Booking'
+        );
+        var ticketName = w.escapeServiceHtml(
+            booking.ticketName || booking.ticket_name || details.ticketName || 'Standard Ticket'
+        );
+        var subtitle = w.escapeServiceHtml(opts.subtitle || (ticketName + ' • Individual Booking'));
+
+        var adults = parseInt(booking.adultCount != null ? booking.adultCount : (details.adultCount || 0), 10) || 0;
+        var children = parseInt(booking.childCount != null ? booking.childCount : (details.childCount || 0), 10) || 0;
+        var seniors = parseInt(booking.seniorCount != null ? booking.seniorCount : (details.seniorCount || 0), 10) || 0;
+        var infants = parseInt(
+            booking.infantQty != null ? booking.infantQty : (details.infantQty || details.infants || 0),
+            10
+        ) || 0;
+        var guests = adults + children + seniors + infants;
+
+        var adultSell = parseFloat(
+            td.adult_sell != null ? td.adult_sell : (td.adult_price != null ? td.adult_price : (booking.adultSell || details.adultSell || 0))
+        ) || 0;
+        var adultCost = parseFloat(
+            td.adult_cost != null ? td.adult_cost : (booking.adultCost || details.adultCost || 0)
+        ) || 0;
+        var childSell = parseFloat(
+            td.child_sell != null ? td.child_sell : (td.child_price != null ? td.child_price : (booking.childSell || details.childSell || 0))
+        ) || 0;
+        var childCost = parseFloat(
+            td.child_cost != null ? td.child_cost : (booking.childCost || details.childCost || 0)
+        ) || 0;
+        var seniorSell = parseFloat(td.senior_price || 0) || 0;
+
+        var ticketSell = parseFloat(
+            booking.totalPrice != null ? booking.totalPrice : (booking.total_price != null ? booking.total_price : (details.totalPrice || details.sell || 0))
+        ) || 0;
+        if (ticketSell <= 0) {
+            ticketSell = (adultSell * adults) + (childSell * children) + (seniorSell * seniors);
+        }
+        // If unit sells missing but ticket total exists, leave units at 0 — still show ticket total (sell)
+
+        var transferSell = 0;
+        var transferCost = 0;
+        var vehiclesHtml = '';
+        if (tf && typeof tf === 'object') {
+            var vehicles = Array.isArray(tf.vehicles) ? tf.vehicles : [];
+            vehicles.forEach(function (v, i) {
+                if (!v || typeof v !== 'object') return;
+                var vName = v.vehicle_name || v.vehicleName || v.name || ('Vehicle ' + (i + 1));
+                var vType = v.type || v.transferType || '';
+                var vQty = parseInt(v.qty != null ? v.qty : (v.quantity || 1), 10) || 1;
+                var vAdults = parseInt(v.adults != null ? v.adults : (v.adultsQty || 0), 10) || 0;
+                var vChild = parseInt(v.child != null ? v.child : (v.childQty || v.children || 0), 10) || 0;
+                var vInfant = parseInt(v.infant != null ? v.infant : (v.infantQty || v.infants || 0), 10) || 0;
+                var lineSell = parseFloat(v.lineSell != null ? v.lineSell : (v.line_sell != null ? v.line_sell : (v.totalPrice != null ? v.totalPrice : (v.sell || 0)))) || 0;
+                var lineCost = parseFloat(v.lineCost != null ? v.lineCost : (v.line_cost != null ? v.line_cost : (v.cost || 0))) || 0;
+                transferSell += lineSell;
+                transferCost += lineCost;
+                var paxLabel = vAdults + 'A / ' + vChild + 'C';
+                if (vInfant > 0) paxLabel += ' / ' + vInfant + 'I';
+                vehiclesHtml +=
+                    dlRow(
+                        'Vehicle ' + (i + 1),
+                        w.escapeServiceHtml(vName) +
+                            (vType ? ' <span class="text-muted">(' + w.escapeServiceHtml(vType) + ')</span>' : '') +
+                            (vQty > 1 ? ' × ' + vQty : '') +
+                            ((vAdults + vChild + vInfant) > 0 ? ' <span class="text-muted">— ' + w.escapeServiceHtml(paxLabel) + '</span>' : ''),
+                        true
+                    );
+                if (isPro && lineCost > 0) {
+                    vehiclesHtml += dlRow('Line Cost', '<span class="svc-amount">' + money(lineCost) + '</span>');
+                }
+                vehiclesHtml += dlRow(
+                    isPro ? 'Line Sell' : 'Line Price',
+                    '<span class="svc-amount">' + money(lineSell > 0 ? lineSell : lineCost) + '</span>'
+                );
+            });
+            if (transferSell <= 0) {
+                transferSell = isPro
+                    ? (parseFloat(tf.totalPrice != null ? tf.totalPrice : (tf.sell != null ? tf.sell : (tf.cost || 0))) || 0)
+                    : (parseFloat(tf.cost != null ? tf.cost : (tf.totalPrice || 0)) || 0);
+            }
+            if (transferCost <= 0) {
+                transferCost = parseFloat(tf.cost || tf.lineCost || 0) || 0;
+            }
+        }
+        var transferDisplay = isPro ? transferSell : (tf ? (parseFloat(tf.cost != null ? tf.cost : transferSell) || 0) : 0);
+
+        var guideTotal = 0;
+        if (go && typeof go === 'object') {
+            guideTotal = parseFloat(
+                go.total_price != null ? go.total_price : (go.sell != null ? go.sell : (go.Sell != null ? go.Sell : (go.cost || go.Cost || 0)))
+            ) || 0;
+        }
+        var grand = ticketSell + transferDisplay + guideTotal;
+
+        var visitDate = booking.bookingDate || booking.booking_date || details.bookingDate || 'N/A';
+        try {
+            if (visitDate && visitDate !== 'N/A') {
+                visitDate = new Date(visitDate).toLocaleDateString('en-US', {
+                    weekday: 'short', year: 'numeric', month: 'short', day: 'numeric'
+                });
+            }
+        } catch (e) { /* keep raw */ }
+        var visitTime = booking.visitTime || booking.visit_time || details.visitTime || 'Full Day';
+        var selection = booking.selection || booking.Selection || details.Selection || 'Standard';
+        var country = booking.country || details.country || 'N/A';
+
+        var hasTransfer = !!(tf && (
+            tf.transfer_required === true || tf.transfer_required === 'true' || tf.transfer_required === 'Yes' ||
+            tf.transfer_required === 1 || (Array.isArray(tf.vehicles) && tf.vehicles.length) ||
+            transferDisplay > 0 || transferCost > 0 || tf.vehicle_details || tf.vehicle_id
+        ));
+
+        var transferSection = '';
+        if (hasTransfer) {
+            var vehicleFallback = '';
+            if (!vehiclesHtml) {
+                var vName = (tf.vehicle_details && (tf.vehicle_details.vehicle_name || tf.vehicle_details.name))
+                    || tf.vehicle_name || tf.vehicle_id || '—';
+                vehicleFallback = dlRow('Vehicle', w.escapeServiceHtml(String(vName)), true);
+            }
+            transferSection = section('Transfer / Vehicle',
+                dlRow('Type', w.escapeServiceHtml(tf.type || 'N/A')) +
+                dlRow('Way', w.escapeServiceHtml(tf.way || 'N/A')) +
+                (tf.destination_name ? dlRow('Destination', w.escapeServiceHtml(tf.destination_name), true) : '') +
+                (tf.pickup_location_name ? dlRow('Pickup', w.escapeServiceHtml(tf.pickup_location_name), true) : '') +
+                vehiclesHtml +
+                vehicleFallback +
+                (isPro && transferCost > 0 ? dlRow('Transfer Cost', '<span class="svc-amount">' + money(transferCost) + '</span>') : '') +
+                dlRow(isPro ? 'Transfer Sell' : 'Transfer Price', '<span class="svc-amount">' + money(transferDisplay) + '</span>')
+            );
+        }
+
+        var guideSection = '';
+        if (go && (
+            go.guide_required === true || go.guide_required === 'true' || go.guide_required === 'Yes' ||
+            go.guide_name || go.guideName || guideTotal > 0
+        )) {
+            guideSection = section('Guide Details',
+                dlRow('Guide', w.escapeServiceHtml(go.guide_name || go.guideName || go.name || 'Assigned Guide')) +
+                ((go.package_hours || go.hours) ? dlRow('Duration', w.escapeServiceHtml(String(go.package_hours || go.hours)) + ' H') : '') +
+                (go.pickup_time ? dlRow('Pickup Time', w.escapeServiceHtml(go.pickup_time)) : '') +
+                ((parseFloat(go.base_price || 0) > 0) ? dlRow('Base Price', '<span class="svc-amount">' + money(go.base_price) + '</span>') : '') +
+                dlRow('Guide Price', '<span class="svc-amount">' + money(guideTotal) + '</span>')
+            );
+        }
+
+        var ticketRows =
+            dlRow('Adult Sell', '<span class="svc-amount">' + money(adultSell) + '</span>') +
+            (isPro ? dlRow('Adult Cost', '<span class="svc-amount">' + money(adultCost) + '</span>') : '') +
+            dlRow('Child Sell', '<span class="svc-amount">' + money(childSell) + '</span>') +
+            (isPro ? dlRow('Child Cost', '<span class="svc-amount">' + money(childCost) + '</span>') : '') +
+            ((seniorSell > 0 || seniors > 0) ? dlRow('Senior', '<span class="svc-amount">' + money(seniorSell) + '</span>') : '') +
+            dlRow('Ticket Total', '<span class="svc-amount">' + money(ticketSell) + '</span>');
+
+        var summaryRows =
+            dlRow('Tickets', '<span class="svc-amount">' + money(ticketSell) + '</span>');
+        if (isPro && transferCost > 0) {
+            summaryRows += dlRow('Transfer Cost', '<span class="svc-amount">' + money(transferCost) + '</span>');
+        }
+        if (transferDisplay > 0) {
+            summaryRows += dlRow(isPro ? 'Transfer Sell' : 'Transfer', '<span class="svc-amount">' + money(transferDisplay) + '</span>');
+        }
+        if (guideTotal > 0) {
+            summaryRows += dlRow('Guide', '<span class="svc-amount">' + money(guideTotal) + '</span>');
+        }
+        summaryRows += dlRow('Grand Total', '<span class="svc-amount" style="color:var(--svc-accent);">' + money(grand) + '</span>', true);
+
+        var actionsHostId = opts.actionsHostId || '';
+        var actionsHtml = opts.actionsHtml || '';
+        if (!actionsHtml && actionsHostId) {
+            actionsHtml = '<div class="d-flex gap-1 flex-wrap" id="' + w.escapeServiceHtml(actionsHostId) + '"></div>';
+        }
+
+        var special = booking.specialRequests || booking.special_requests || details.specialRequests || '';
+
+        return '' +
+            '<div class="svc-panel">' +
+                '<div class="svc-panel-head">' +
+                    '<div class="svc-panel-head-main">' +
+                        '<div class="svc-thumb svc-thumb-fallback"><i class="ri-building-2-line"></i></div>' +
+                        '<div style="min-width:0;">' +
+                            '<p class="svc-title">' + name + '</p>' +
+                            '<p class="svc-subtitle">' + subtitle + '</p>' +
+                        '</div>' +
+                    '</div>' +
+                    '<div class="svc-price">' + money(grand) + '</div>' +
+                '</div>' +
+            '</div>' +
+
+            section('Visit Schedule',
+                dlRow('Visit Date', w.escapeServiceHtml(visitDate)) +
+                dlRow('Visit Time', w.escapeServiceHtml(visitTime)) +
+                dlRow('Selection', w.escapeServiceHtml(String(selection).charAt(0).toUpperCase() + String(selection).slice(1))) +
+                dlRow('Country', w.escapeServiceHtml(country))
+            ) +
+
+            '<div class="svc-section">' +
+                '<h6 class="svc-section-title">Guest Information</h6>' +
+                '<div class="svc-guest-grid" style="grid-template-columns:repeat(' + (infants > 0 ? 4 : 3) + ',1fr);">' +
+                    '<div class="svc-guest-box"><div class="num">' + adults + '</div><div class="lbl">Adults</div></div>' +
+                    '<div class="svc-guest-box"><div class="num">' + children + '</div><div class="lbl">Children</div></div>' +
+                    '<div class="svc-guest-box"><div class="num">' + seniors + '</div><div class="lbl">Seniors</div></div>' +
+                    (infants > 0 ? '<div class="svc-guest-box"><div class="num">' + infants + '</div><div class="lbl">Infants</div></div>' : '') +
+                '</div>' +
+                '<div class="svc-total-bar">Total: ' + guests + ' Guest' + (guests === 1 ? '' : 's') + '</div>' +
+            '</div>' +
+
+            section('Ticket & Pricing', ticketRows) +
+            transferSection +
+            guideSection +
+            ((transferDisplay > 0 || guideTotal > 0) ? section('Price Summary', summaryRows) : '') +
+            (special ? section('Special Requests', '<div class="svc-dl-row full"><span class="svc-dl-value">' + w.escapeServiceHtml(special) + '</span></div>') : '') +
+
+            (actionsHtml
+                ? ('<div class="svc-section">' +
+                    '<h6 class="svc-section-title">Booking Actions</h6>' +
+                    '<div class="svc-actions">' + actionsHtml + '</div>' +
+                   '</div>')
+                : '');
     };
 
     /**

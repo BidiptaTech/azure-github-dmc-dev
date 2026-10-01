@@ -1778,8 +1778,9 @@ class EnquiryFormPro extends Controller
         $attractionIds = $attractions->pluck('id')->toArray();
         $tickets = \App\Models\Ticket::whereIn('attraction_id', $attractionIds)
             ->where('dmc_id', $dmc_id)
-            ->select('ticket_id', 'attraction_id', 'name', 'child_price', 'adult_price', 
-                     'senior_adult_price', 'description')
+            ->select('ticket_id', 'attraction_id', 'name', 'child_price', 'adult_price',
+                     'senior_adult_price', 'adult_cost_price', 'child_cost_price',
+                     'adult_cost_price_nri', 'child_cost_price_nri', 'description')
             ->get();
         
         // Group tickets by attraction_id
