@@ -20,6 +20,13 @@
     function isCountryAllowed(name) {
         var n = String(name || '').trim().toLowerCase();
         if (!n) return false;
+        if (cfg().isRestrictedThirdParty) {
+            var own = cfg().ownDmcCountries || [];
+            if (!own.length) return false;
+            return own.some(function (a) {
+                return String(a || '').trim().toLowerCase() === n;
+            });
+        }
         return allowedCountries().some(function (a) {
             return a.toLowerCase() === n;
         });
@@ -108,10 +115,6 @@
     function setCityMode(mode) {
         var next = String(mode || 'single').toLowerCase() === 'multi' ? 'multi' : 'single';
 
-        if (cfg().isThirdPartyDmc) {
-            next = 'single';
-        }
-
         var prev = '';
         var cityTypeHidden = document.getElementById('city_type_value');
         if (cityTypeHidden) prev = String(cityTypeHidden.value || 'single');
@@ -142,8 +145,8 @@
 
         var hint = document.getElementById('countryModeAutoHint');
         if (hint) {
-            if (cfg().isThirdPartyDmc) {
-                hint.textContent = '3rd party DMC: Multi Country is locked to Single Country.';
+            if (cfg().isRestrictedThirdParty) {
+                hint.textContent = '3rd party access off: you can only use this DMC country.';
             } else {
                 var cityCount = 0;
                 var tc = document.getElementById('tour_cities');

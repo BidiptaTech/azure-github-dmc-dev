@@ -15,6 +15,7 @@ use App\Models\GuideLanguage;
 use App\Models\Agency;
 use App\Helpers\CommonHelper;
 use App\Models\Tax;
+use App\Models\Country;
 use App\Helpers\TaxHelper;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
@@ -608,6 +609,14 @@ class PackageController extends Controller
         }
         $tour->setAttribute('cityWiseDates', $cityWiseDates);
         $tour->makeHidden(['city']);
+
+        $countryArray = array_values(array_filter(array_map('trim', explode(',', (string) $tour->destination))));
+        $shortCodes = Country::whereIn('name', $countryArray)->pluck('short_code', 'name');
+        $short_code = collect($countryArray)
+            ->map(fn ($name) => $shortCodes[$name] ?? null)
+            ->filter()
+            ->implode(', ');
+        $tour->setAttribute('short_code', $short_code);
 
         return response()->json([
             'tour' => $tour,

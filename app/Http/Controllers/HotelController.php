@@ -1292,12 +1292,18 @@ class HotelController extends Controller
             $this->sanitizeRoomMasterUpload($request);
 
             $request->validate([
-                'room_type' => 'nullable',
-                'total_no_of_room' => 'nullable|integer',
-                'singleWeekdayPrice' => 'nullable|numeric',
-                'singleWeekendPrice' => 'nullable|numeric',
-                'doubleWeekdayPrice' => 'nullable|numeric',
-                'doubleWeekendPrice' => 'nullable|numeric',
+                'hotel_id' => 'required',
+                'base_room_type' => 'nullable|string|max:255',
+                'room_type' => 'nullable|string|max:255',
+                'varient_price' => 'nullable|numeric',
+                'total_no_of_room' => 'required|integer|min:1|max:9999',
+                'dimension' => 'required|numeric|min:0',
+                'baseSingleWeekdayPrice' => 'nullable|numeric|min:0',
+                'baseSingleWeekendPrice' => 'nullable|numeric|min:0',
+                'singleWeekdayPrice' => 'nullable|numeric|min:0',
+                'singleWeekendPrice' => 'nullable|numeric|min:0',
+                'doubleWeekdayPrice' => 'nullable|numeric|min:0',
+                'doubleWeekendPrice' => 'nullable|numeric|min:0',
                 'children_price' => 'nullable|numeric|min:0',
                 'master_image' => $request->hasFile('master_image')
                     ? ['required', 'file', 'max:5120']
@@ -1316,10 +1322,64 @@ class HotelController extends Controller
                 'lunch_cost_price' => 'nullable|numeric|min:0',
                 'dinner_cost_price' => 'nullable|numeric|min:0',
             ], [
-                'master_image.required' => 'Please upload a master image.',
-                'master_image.file' => 'Please upload a master image.',
+                'hotel_id.required' => 'Hotel is required.',
+                'total_no_of_room.required' => 'Total number of rooms is required.',
+                'total_no_of_room.integer' => 'Total number of rooms must be a whole number.',
+                'total_no_of_room.min' => 'Total number of rooms must be at least 1.',
+                'total_no_of_room.max' => 'Total number of rooms cannot exceed 9999.',
+                'dimension.required' => 'Dimension is required.',
+                'dimension.numeric' => 'Dimension must be a valid number.',
+                'dimension.min' => 'Dimension cannot be negative.',
+                'varient_price.numeric' => 'Room rate variant must be a valid number.',
+                'baseSingleWeekdayPrice.numeric' => 'Base weekday sell price must be a valid number.',
+                'baseSingleWeekendPrice.numeric' => 'Base weekend sell price must be a valid number.',
+                'master_image.required' => 'Master image is required. Please upload a JPEG, PNG, WEBP or GIF image.',
+                'master_image.file' => 'Master image must be a valid image file.',
                 'master_image.max' => 'Master image must not exceed 5 MB.',
+                'all_images.*.image' => 'Each additional image must be a JPEG, PNG, WEBP or GIF.',
+                'all_images.*.max' => 'Each additional image must not exceed 5 MB.',
             ]);
+
+            $baseRoomType = trim((string) $request->input('base_room_type', ''));
+            $roomType = trim((string) $request->input('room_type', ''));
+            if ($baseRoomType === '' && $roomType === '') {
+                return redirect()->back()
+                    ->withInput()
+                    ->withErrors([
+                        'base_room_type' => 'Room category is required.',
+                        'room_type' => 'Room category is required.',
+                    ])
+                    ->with('error', 'Room category is required.');
+            }
+
+            // Base room (first room): weekday/weekend sell prices required
+            if ($baseRoomType !== '' && $roomType === '') {
+                $weekday = $request->input('baseSingleWeekdayPrice');
+                $weekend = $request->input('baseSingleWeekendPrice');
+                $priceErrors = [];
+                if ($weekday === null || $weekday === '') {
+                    $priceErrors['baseSingleWeekdayPrice'] = 'Base weekday sell price is required.';
+                }
+                if ($weekend === null || $weekend === '') {
+                    $priceErrors['baseSingleWeekendPrice'] = 'Base weekend sell price is required.';
+                }
+                if (!empty($priceErrors)) {
+                    return redirect()->back()
+                        ->withInput()
+                        ->withErrors($priceErrors)
+                        ->with('error', collect($priceErrors)->first());
+                }
+            }
+
+            // Variant room: variant price required
+            if ($roomType !== '' && $baseRoomType === '') {
+                if ($request->input('varient_price') === null || $request->input('varient_price') === '') {
+                    return redirect()->back()
+                        ->withInput()
+                        ->withErrors(['varient_price' => 'Room rate variant is required.'])
+                        ->with('error', 'Room rate variant is required.');
+                }
+            }
 
             if ($request->hasFile('master_image') && !$this->isUploadedImageFile($request->file('master_image'))) {
                 return redirect()->back()
@@ -1959,11 +2019,7 @@ class HotelController extends Controller
                 $dmcOwnerId = $this->resolveRoomPricingDmcUserId($auth_user) ?? $auth_user->userId;
 
                 // DMC / delegated roles: rooms are owned by parent DMC (created_by)
-                $dmcRoom = Room::where('hotel_id', $originalRoom->hotel_id)
-                              ->where('room_type', $originalRoom->room_type)
-                              ->where('created_by', $dmcOwnerId)
-                              ->where('dmc_base_room', 0)
-                              ->first();
+                $dmcRoom = $this->findDmcRoomCopy($originalRoom, $dmcOwnerId);
 
                 if ($dmcRoom) {
                     $room = $dmcRoom;
@@ -2090,6 +2146,7 @@ class HotelController extends Controller
     * Update Room Details .
     * Date 18-11-2024
     */
+
     public function updateroom(Request $request)
     {
         try {
@@ -2098,12 +2155,18 @@ class HotelController extends Controller
             $this->sanitizeRoomMasterUpload($request);
 
             $request->validate([
-                'no_of_room' => 'nullable|numeric',
-                'total_no_of_room' => 'nullable|numeric',
-                'single_weekday_price' => 'nullable|numeric',
-                'single_weekend_price' => 'nullable|numeric',
-                'double_weekday_price' => 'nullable|numeric',
-                'double_weekend_price' => 'nullable|numeric',
+                'hotel_id' => 'required',
+                'room_id' => 'required',
+                'base_room_type' => 'nullable|string|max:255',
+                'room_type' => 'nullable|string|max:255',
+                'varient_price' => 'nullable|numeric',
+                'no_of_room' => 'nullable|numeric|min:1|max:9999',
+                'total_no_of_room' => 'required|integer|min:1|max:9999',
+                'dimension' => 'required|numeric|min:0',
+                'single_weekday_price' => 'nullable|numeric|min:0',
+                'single_weekend_price' => 'nullable|numeric|min:0',
+                'double_weekday_price' => 'nullable|numeric|min:0',
+                'double_weekend_price' => 'nullable|numeric|min:0',
                 'children_price' => 'nullable|numeric|min:0',
                 'master_image' => $request->hasFile('master_image')
                     ? ['nullable', 'file', 'max:5120']
@@ -2122,8 +2185,20 @@ class HotelController extends Controller
                 'lunch_cost_price' => 'nullable|numeric|min:0',
                 'dinner_cost_price' => 'nullable|numeric|min:0',
             ], [
-                'master_image.file' => 'Please upload a master image.',
+                'hotel_id.required' => 'Hotel is required.',
+                'room_id.required' => 'Room is required.',
+                'total_no_of_room.required' => 'Total number of rooms is required.',
+                'total_no_of_room.integer' => 'Total number of rooms must be a whole number.',
+                'total_no_of_room.min' => 'Total number of rooms must be at least 1.',
+                'total_no_of_room.max' => 'Total number of rooms cannot exceed 9999.',
+                'dimension.required' => 'Dimension is required.',
+                'dimension.numeric' => 'Dimension must be a valid number.',
+                'dimension.min' => 'Dimension cannot be negative.',
+                'varient_price.numeric' => 'Room rate variant must be a valid number.',
+                'master_image.file' => 'Please upload a valid master image.',
                 'master_image.max' => 'Master image must not exceed 5 MB.',
+                'all_images.*.image' => 'Each additional image must be a JPEG, PNG, WEBP or GIF.',
+                'all_images.*.max' => 'Each additional image must not exceed 5 MB.',
             ]);
 
             if ($request->hasFile('master_image') && !$this->isUploadedImageFile($request->file('master_image'))) {
@@ -2154,11 +2229,7 @@ class HotelController extends Controller
             } else {
                 $dmcOwnerId = $this->resolveRoomPricingDmcUserId($auth_user) ?? $auth_user->userId;
 
-                $dmcRoom = Room::where('hotel_id', $request->hotel_id)
-                              ->where('room_type', $originalRoom->room_type)
-                              ->where('created_by', $dmcOwnerId)
-                              ->where('dmc_base_room', 0)
-                              ->first();
+                $dmcRoom = $this->findDmcRoomCopy($originalRoom, $dmcOwnerId);
 
                 if ($dmcRoom) {
                     \Log::info("DMC updating existing room", ['dmc_room_id' => $dmcRoom->room_id]);
@@ -2700,6 +2771,7 @@ class HotelController extends Controller
                 'created_by' => $roomCreatedByDmcUserId,
                 'dmc_id' => $roomCreatedByDmcUserId,
                 'dmc_base_room' => 0, // This is DMC specific room, not admin base room
+                'cloned_from' => $originalRoom->room_id, // Admin room this DMC copy was created from
                 'base_room' => $isBaseRoom, // True if this is DMC's first/base room
                 'status' => $request->room_status == 1 ? 1 : 0,
                 'varient_price' => $varientPrice, // Store the variant price for future calculations
@@ -2746,6 +2818,45 @@ class HotelController extends Controller
         }
     }
 
+    /**
+     * Find this DMC's copy of an admin/base room.
+     * Prefers cloned_from = admin room_id; falls back to room_type for legacy rows.
+     */
+    private function findDmcRoomCopy(Room $originalRoom, int $dmcOwnerId): ?Room
+    {
+        // Already editing this DMC's own copy
+        if ((int) ($originalRoom->dmc_base_room ?? 1) === 0
+            && (int) ($originalRoom->created_by ?? 0) === $dmcOwnerId) {
+            return $originalRoom;
+        }
+
+        $hasClonedFrom = \Illuminate\Support\Facades\Schema::hasColumn('rooms', 'cloned_from');
+
+        if ($hasClonedFrom) {
+            $byClone = Room::where('hotel_id', $originalRoom->hotel_id)
+                ->where('created_by', $dmcOwnerId)
+                ->where('dmc_base_room', 0)
+                ->where('cloned_from', $originalRoom->room_id)
+                ->first();
+            if ($byClone) {
+                return $byClone;
+            }
+        }
+
+        // Legacy rows (no cloned_from yet): match by room_type for this DMC
+        return Room::where('hotel_id', $originalRoom->hotel_id)
+            ->where('created_by', $dmcOwnerId)
+            ->where('dmc_base_room', 0)
+            ->where('room_type', $originalRoom->room_type)
+            ->when($hasClonedFrom, function ($q) {
+                $q->where(function ($inner) {
+                    $inner->whereNull('cloned_from')
+                        ->orWhere('cloned_from', 0);
+                });
+            })
+            ->first();
+    }
+
     /*
     * Delete Room Details .
     * Date 18-11-2024
@@ -2756,6 +2867,10 @@ class HotelController extends Controller
             //     abort(403, 'You do not have permission to access this page.');
             // }
             $room = Room::where('room_id', $id)->first();
+            if (!$room) {
+                return redirect()->back()->with('error', 'Room not found.');
+            }
+
             $usedRooms = Bed::where('room_id', $id)
             ->exists();
 
@@ -2763,6 +2878,17 @@ class HotelController extends Controller
             // The restaurant is being used in the rooms table, so do not delete it
             return redirect()->route('hotels.createroom', ['id' => $room->hotel_id])
             ->with('error', 'This Room is in use, cannot be deleted!');
+            }
+
+            // Admin base rooms that DMCs have cloned cannot be deleted
+            if (\Illuminate\Support\Facades\Schema::hasColumn('rooms', 'cloned_from')) {
+                $hasDmcClones = Room::where('cloned_from', $room->room_id)
+                    ->where('dmc_base_room', 0)
+                    ->exists();
+                if ($hasDmcClones) {
+                    return redirect()->route('hotels.createroom', ['id' => $room->hotel_id])
+                        ->with('error', 'This room has been cloned by a DMC and cannot be deleted.');
+                }
             }
         
             // Delete room images from Azure before deleting the record
@@ -2887,7 +3013,7 @@ class HotelController extends Controller
                 });
             }
         
-            $beds = BedMaster::where('hotel_id', $id)->get();
+            $beds = BedMaster::where('hotel_id', $id)->where('is_active', 1)->get();
             $canManageBedConfig = in_array((int) $auth_user->role_id, [1, 20], true);
         
             return view('hotel.beds', compact('hotel','rooms','beds','bedsData','auth_user','dmcUsers','canManageBedConfig'));
@@ -3064,10 +3190,17 @@ class HotelController extends Controller
             $auth_user = Auth::user();
             $bedId = Crypt::decrypt($id);
             $hotel = Hotel::where('hotel_unique_id', $hotelId)->first();
-            $beds = BedMaster::where('hotel_id', $hotelId)->get();
             $dmcId = CommonHelper::getDmcId($auth_user);
             $rooms = Room::where('hotel_id',$hotelId)->where('created_by', $dmcId)->get();
             $hotelBed = Bed::with('room')->where('bed_id', $bedId)->first();
+            $beds = BedMaster::where('hotel_id', $hotelId)
+                ->where(function ($query) use ($hotelBed) {
+                    $query->where('is_active', 1);
+                    if ($hotelBed && $hotelBed->bed_master_id) {
+                        $query->orWhere('bedId', $hotelBed->bed_master_id);
+                    }
+                })
+                ->get();
             $room = Room::where('room_id', $hotelBed->room_id)->first();
             if ($hotelBed && $hotelBed->room && !$rooms->contains('room_id', $hotelBed->room_id)) {
                 $rooms->push($hotelBed->room);
@@ -3092,6 +3225,7 @@ class HotelController extends Controller
     /** update bed */
 
     public function updatebed(Request $request){
+
         try {
             $auth_user = Auth::user();
             $bed = Bed::where('bed_id', $request->bed_id)->first();
@@ -3168,8 +3302,8 @@ class HotelController extends Controller
             $bedAvailable = Bed::where('room_id', $request->room_type)
             ->sum('no_of_rooms');
 
-            if($no_of_room <= ($bedAvailable - $bed->no_of_rooms) + $request->input('no_of_rooms')){
-                return redirect()->route('hotels.beds', $request->hotel_id)->with('error', 'You have already filled.');
+            if($no_of_room < ($bedAvailable - $bed->no_of_rooms) + $request->input('no_of_rooms')){
+                return redirect()->route('hotels.beds', $request->hotel_id)->with('error', 'You have exceeded the total number of rooms.');
             }
             $nameOfBedType = $bed->room_type;
             $bedmaster_det = null;

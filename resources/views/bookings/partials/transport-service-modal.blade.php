@@ -90,16 +90,44 @@
                                     $children = (int) ($booking['children'] ?? 0);
                                     $guestTotal = $adults + $children;
 
-                                    $transferPrice = (float) ($booking['totalPrice'] ?? 0);
-                                    $guideCost = 0.0;
+                                    // Vehicle: keep cost and sell separate (do NOT fall back sell→cost)
+                                    $vehicleCost = (float) (
+                                        $booking['cost']
+                                        ?? $booking['adultCost']
+                                        ?? $booking['lineCost']
+                                        ?? $booking['Cost']
+                                        ?? 0
+                                    );
+                                    if ($vehicleCost <= 0 && isset($transportOrder->cost_price) && (float) $transportOrder->cost_price > 0) {
+                                        $vehicleCost = (float) $transportOrder->cost_price;
+                                    }
+                                    $vehicleSell = (float) (
+                                        $booking['totalPrice']
+                                        ?? $booking['sell']
+                                        ?? $booking['adultSell']
+                                        ?? $booking['lineSell']
+                                        ?? $booking['basePrice']
+                                        ?? $booking['base_price']
+                                        ?? $booking['price']
+                                        ?? $booking['Sell']
+                                        ?? 0
+                                    );
+
                                     $go = (isset($booking['guide_options']) && is_array($booking['guide_options'])) ? $booking['guide_options'] : [];
-                                    if (!empty($go)) {
-                                        $guideCost = (float) ($go['cost'] ?? $go['Cost'] ?? $go['sell'] ?? $go['Sell'] ?? $go['total_price'] ?? 0);
-                                    }
-                                    $cardTotal = $transferPrice;
-                                    if ((int) ($tour->is_pro ?? 0) === 1 && $guideCost > 0) {
-                                        $cardTotal += $guideCost;
-                                    }
+                                    // Guide: never pick cost into the sell column
+                                    $guideCost = !empty($go)
+                                        ? (float) ($go['cost'] ?? $go['Cost'] ?? $go['adultCost'] ?? 0)
+                                        : 0.0;
+                                    $guideSell = !empty($go)
+                                        ? (float) ($go['sell'] ?? $go['Sell'] ?? $go['adultSell'] ?? $go['total_price'] ?? 0)
+                                        : 0.0;
+
+                                    $includeGuideInTotals = ((int) ($tour->is_pro ?? 0) === 1);
+                                    $cardCostTotal = $vehicleCost + ($includeGuideInTotals ? $guideCost : 0.0);
+                                    $cardSellTotal = $vehicleSell + ($includeGuideInTotals ? $guideSell : 0.0);
+                                    // Header / primary total = sell (what the enquiry charged)
+                                    $cardTotal = $cardSellTotal > 0 ? $cardSellTotal : $cardCostTotal;
+                                    $transferPrice = $vehicleSell;
 
                                     $bookingDateRaw = $booking['bookingDate'] ?? null;
                                     try {
@@ -159,7 +187,8 @@
                                         !empty($go['guideName']) ||
                                         !empty($go['guide_name']) ||
                                         !empty($go['name']) ||
-                                        $guideCost > 0
+                                        $guideCost > 0 ||
+                                        $guideSell > 0
                                     );
                                     $guideName = $go['guideName'] ?? ($go['guide_name'] ?? ($go['name'] ?? 'N/A'));
                                     if (is_array($guideName)) {
@@ -296,12 +325,6 @@
                                                 <span class="svc-dl-value">{{ $guideActivity }}</span>
                                             </div>
                                             @endif
-                                            @if($guideCost > 0)
-                                            <div class="svc-dl-row full">
-                                                <span class="svc-dl-label">Guide Cost</span>
-                                                <span class="svc-dl-value svc-amount">{{ $currency }} {{ number_format($guideCost, 2) }}</span>
-                                            </div>
-                                            @endif
                                         </div>
                                     </div>
                                     @endif
@@ -331,8 +354,38 @@
                                                 <span class="svc-dl-value">{{ $booking['Night_Start_Time'] }} – {{ $booking['Night_End_Time'] }}</span>
                                             </div>
                                             @endif
+                                        </div>
+                                    </div>
+
+                                    <div class="svc-section mb-0" style="border:0;border-radius:0;border-top:1px solid var(--svc-line);">
+                                        <p class="svc-section-title">Pricing</p>
+                                        <div class="svc-dl">
+                                            <div class="svc-dl-row">
+                                                <span class="svc-dl-label">Vehicle Cost</span>
+                                                <span class="svc-dl-value svc-amount">{{ $currency }} {{ number_format($vehicleCost, 2) }}</span>
+                                            </div>
+                                            <div class="svc-dl-row">
+                                                <span class="svc-dl-label">Vehicle Sell</span>
+                                                <span class="svc-dl-value svc-amount" style="color:var(--svc-accent);">{{ $currency }} {{ number_format($vehicleSell, 2) }}</span>
+                                            </div>
+                                            @if($hasGuide && ($guideCost > 0 || $guideSell > 0))
+                                            <div class="svc-dl-row">
+                                                <span class="svc-dl-label">Guide Cost</span>
+                                                <span class="svc-dl-value svc-amount">{{ $currency }} {{ number_format($guideCost, 2) }}</span>
+                                            </div>
+                                            <div class="svc-dl-row">
+                                                <span class="svc-dl-label">Guide Sell</span>
+                                                <span class="svc-dl-value svc-amount" style="color:var(--svc-accent);">{{ $currency }} {{ number_format($guideSell, 2) }}</span>
+                                            </div>
+                                            @endif
+                                            @if($cardCostTotal > 0)
+                                            <div class="svc-dl-row">
+                                                <span class="svc-dl-label">Total Cost</span>
+                                                <span class="svc-dl-value svc-amount">{{ $currency }} {{ number_format($cardCostTotal, 2) }}</span>
+                                            </div>
+                                            @endif
                                             <div class="svc-dl-row full">
-                                                <span class="svc-dl-label">Total Price</span>
+                                                <span class="svc-dl-label">Total Sell</span>
                                                 <span class="svc-dl-value svc-amount" style="color:var(--svc-accent);">{{ $currency }} {{ number_format($cardTotal, 2) }}</span>
                                             </div>
                                         </div>

@@ -1,23 +1,25 @@
 @extends('layouts.layout')
 
-@section('title', 'Day Level Details')
+@section('title', 'AI Definition Details')
 
 @push('css')
 <style>
     :root {
-        --dl-brand: #696cff;
-        --dl-header-bg: linear-gradient(135deg, #696cff 0%, #845ef7 100%);
+        --dl-brand: #2563eb;
+        --dl-header-bg: linear-gradient(135deg, #1e40af 0%, #2563eb 100%);
     }
     .dl-summary-card {
         border: 0;
-        box-shadow: 0 2px 6px rgba(67, 89, 113, 0.08);
-        border-radius: 0.75rem;
+        box-shadow: 0 2px 10px rgba(15, 23, 42, 0.08);
+        border-radius: 0.65rem;
         overflow: hidden;
+        border: 1px solid #dbe3ef;
     }
     .dl-summary-head {
         background: var(--dl-header-bg);
         color: #fff !important;
-        padding: 1rem 1.25rem;
+        padding: 0.75rem 1rem;
+        border-bottom: none;
     }
     .dl-summary-head .dl-summary-head-label {
         font-size: 0.72rem;
@@ -131,7 +133,7 @@
     <div class="container-xxl flex-grow-1 container-p-y">
         <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
             <div>
-                <h4 class="mb-0">Day Level Details</h4>
+                <h4 class="mb-0">AI Definition Details</h4>
             </div>
             <div class="d-flex gap-2">
                 <a href="{{ route('day-level.index') }}" class="btn btn-outline-secondary">Back to list</a>

@@ -484,7 +484,7 @@ class DriverController extends Controller
                         'night_start_time' => $night_start_time,
                         'night_end_time' => $night_end_time,
                         'city' => $vehicle->city,
-                        'country' => $country,
+                        'country' => $vehicle->country,
                         'tax_percentage' => $country_tax,
                         'created_at' => $vehicle->created_at,
                     ];

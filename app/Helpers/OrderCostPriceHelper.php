@@ -6,6 +6,8 @@ use App\Models\Bed;
 use App\Models\Guide;
 use App\Models\Hotel;
 use App\Models\Meal;
+use App\Models\MiscellaneousItem;
+use App\Models\MiscellaneousPrice;
 use App\Models\Order;
 use App\Models\Rate;
 use App\Models\Room;
@@ -53,7 +55,7 @@ class OrderCostPriceHelper
                 'restaurant' => self::buildRestaurantCost($item),
                 'guide' => self::buildGuideCost($item),
                 'entry_port', 'exit_port', 'travel_hourly', 'travel_point', 'local_transport' => self::buildTransportCost($item, $type),
-                'miscellaneous' => self::buildGenericItemCost($item, 'miscellaneous'),
+                'miscellaneous' => self::buildMiscellaneousCost($item),
                 default => self::buildGenericItemCost($item, $type ?: 'service'),
             };
 
@@ -467,6 +469,77 @@ class OrderCostPriceHelper
             }
         }
 
+        // Baby cot / infant: unit cost × infants × rooms × nights
+        if (! $hasComponentKey($components, 'baby_cot')) {
+            $firstBedRow = (! empty($rooms[0]['beds'][0]) && is_array($rooms[0]['beds'][0]))
+                ? $rooms[0]['beds'][0]
+                : [];
+            $cotEnabled = (int) ($firstBedRow['baby_cot'] ?? $item['baby_cot'] ?? 0) === 1
+                || ! empty($item['hasInfant'])
+                || ! empty($item['has_infant']);
+            if ($cotEnabled) {
+                $numberOfRoomsCot = max(1, (int) ($rooms[0]['number_of_rooms'] ?? $item['number_of_rooms'] ?? 1));
+                $infants = self::qtyFromItem($item, ['selected_infants', 'infants', 'infant', 'infantQty']);
+                if ($infants <= 0) {
+                    $infants = 1;
+                }
+                $unitCost = 0.0;
+                $cotSource = 'payload';
+                $firstBedId = $firstBedRow['bed_id'] ?? null;
+                $firstRoomId = (int) (($rooms[0]['room_id'] ?? 0));
+                if ($firstBedId && Schema::hasColumn('beds', 'baby_cot_cost_price')) {
+                    $bedQuery = Bed::query();
+                    if (is_numeric($firstBedId)) {
+                        $bedQuery->where('bed_id', $firstBedId);
+                    } else {
+                        $bedQuery->where('bed_id', (string) $firstBedId);
+                    }
+                    $bed = $bedQuery->first();
+                    if (! $bed && $firstRoomId > 0) {
+                        $bed = Bed::query()->where('room_id', $firstRoomId)->first();
+                    }
+                    if ($bed && is_numeric($bed->baby_cot_cost_price ?? null)) {
+                        $unitCost = (float) $bed->baby_cot_cost_price;
+                        $cotSource = 'database';
+                    }
+                }
+                if ($unitCost <= 0) {
+                    $unitCost = self::firstNumeric($firstBedRow, ['baby_cot_cost_price', 'baby_cot_cost_price_unit']);
+                }
+                if ($unitCost <= 0) {
+                    $unitCost = self::firstNumeric($item, [
+                        'baby_cot_cost_price', 'infantCostPrice', 'infant_cost_price', 'babyCotCostPrice',
+                    ]);
+                }
+                $cotTotal = $unitCost > 0
+                    ? ($unitCost * $infants * $numberOfRoomsCot * max(1, $nights))
+                    : 0.0;
+                // Prefer explicit cost total from payload when present (not sell baby_cot_cost)
+                $payloadCostTotal = self::firstNumeric($item, ['baby_cot_cost_total']);
+                if ($payloadCostTotal > 0 && $unitCost <= 0) {
+                    $cotTotal = $payloadCostTotal;
+                    $cotSource = 'payload';
+                }
+                if ($cotTotal > 0) {
+                    $components[] = [
+                        'key' => 'baby_cot',
+                        'label' => 'Baby Cot',
+                        'cost' => round($cotTotal, 2),
+                        'meta' => [
+                            'quantity' => $infants,
+                            'unit_cost' => $unitCost,
+                            'nights' => max(1, $nights),
+                            'number_of_rooms' => $numberOfRoomsCot,
+                            'source' => $cotSource,
+                        ],
+                    ];
+                    if ($cotSource === 'database') {
+                        $source = $source === 'payload' ? 'database' : $source;
+                    }
+                }
+            }
+        }
+
         // Transfer cost (prefer explicit cost fields; do not treat sell as cost unless only cost exists)
         $transfer = is_array($item['transfer_options'] ?? null) ? $item['transfer_options'] : null;
         if ($transfer && (! empty($transfer['transfer_required']) || self::firstNumeric($transfer, ['cost', 'total_cost', 'cost_price']) > 0)) {
@@ -503,6 +576,7 @@ class OrderCostPriceHelper
 
         $adults = self::qtyFromItem($item, ['adultCount', 'adultsQty', 'adults', 'adult']);
         $children = self::qtyFromItem($item, ['childCount', 'childQty', 'children', 'child']);
+        $infants = self::qtyFromItem($item, ['infantQty', 'infants', 'infant', 'infantCount']);
         $seniors = self::qtyFromItem($item, ['seniorCount', 'seniorQty', 'seniors', 'senior']);
         $isNri = self::isNriItem($item);
 
@@ -519,6 +593,7 @@ class OrderCostPriceHelper
 
         $adultUnit = 0.0;
         $childUnit = 0.0;
+        $infantUnit = 0.0;
         $seniorUnit = 0.0;
 
         if ($ticket) {
@@ -526,27 +601,39 @@ class OrderCostPriceHelper
             if ($isNri) {
                 $adultUnit = (float) ($ticket->adult_cost_price_nri ?? $ticket->adult_cost_price ?? 0);
                 $childUnit = (float) ($ticket->child_cost_price_nri ?? $ticket->child_cost_price ?? 0);
+                $infantUnit = (float) ($ticket->infant_cost_price_nri ?? $ticket->infant_cost_price ?? 0);
                 $seniorUnit = (float) ($ticket->senior_adult_cost_price_nri ?? $ticket->senior_adult_cost_price ?? 0);
             } else {
                 $adultUnit = (float) ($ticket->adult_cost_price ?? 0);
                 $childUnit = (float) ($ticket->child_cost_price ?? 0);
+                $infantUnit = (float) ($ticket->infant_cost_price ?? 0);
                 $seniorUnit = (float) ($ticket->senior_adult_cost_price ?? 0);
             }
         }
 
-        if ($adultUnit <= 0 && $childUnit <= 0 && $seniorUnit <= 0) {
+        if ($adultUnit <= 0 && $childUnit <= 0 && $infantUnit <= 0 && $seniorUnit <= 0) {
             $ticketDetails = is_array($item['ticket_details'] ?? null) ? $item['ticket_details'] : [];
             $adultUnit = self::firstNumeric($ticketDetails, ['adult_cost', 'adult_cost_price', 'adultCost'])
                 ?: self::firstNumeric($item, ['adultCost', 'adult_cost', 'adult_cost_price']);
             $childUnit = self::firstNumeric($ticketDetails, ['child_cost', 'child_cost_price', 'childCost'])
                 ?: self::firstNumeric($item, ['childCost', 'child_cost', 'child_cost_price']);
+            $infantUnit = self::firstNumeric($ticketDetails, ['infant_cost', 'infant_cost_price', 'infantCost'])
+                ?: self::firstNumeric($item, ['infantCost', 'infant_cost', 'infant_cost_price']);
             $seniorUnit = self::firstNumeric($ticketDetails, ['senior_cost', 'senior_adult_cost_price', 'seniorCost'])
                 ?: self::firstNumeric($item, ['seniorCost', 'senior_cost']);
         }
 
-        $ticketCost = ($adultUnit * $adults) + ($childUnit * $children) + ($seniorUnit * $seniors);
+        $ticketCost = ($adultUnit * $adults) + ($childUnit * $children) + ($infantUnit * $infants) + ($seniorUnit * $seniors);
         if ($ticketCost <= 0) {
-            $ticketCost = self::firstNumeric($item, ['total_cost', 'cost', 'Cost']);
+            $sellTotal = self::firstNumeric($item, ['sell', 'totalPrice']);
+            $maybeCost = self::firstNumeric($item, ['total_cost']);
+            $topCost = self::firstNumeric($item, ['cost', 'Cost']);
+            // Do not treat ticket sell total as cost
+            if ($maybeCost > 0) {
+                $ticketCost = $maybeCost;
+            } elseif ($topCost > 0 && abs($topCost - $sellTotal) > 0.009) {
+                $ticketCost = $topCost;
+            }
         }
 
         if ($ticketCost > 0) {
@@ -559,9 +646,11 @@ class OrderCostPriceHelper
                     'attraction_id' => $item['attraction_id'] ?? $item['AttractionId'] ?? null,
                     'adults' => $adults,
                     'children' => $children,
+                    'infants' => $infants,
                     'seniors' => $seniors,
                     'adult_unit_cost' => $adultUnit,
                     'child_unit_cost' => $childUnit,
+                    'infant_unit_cost' => $infantUnit,
                     'senior_unit_cost' => $seniorUnit,
                     'nri' => $isNri,
                 ],
@@ -713,34 +802,69 @@ class OrderCostPriceHelper
         $components = [];
         $source = 'payload';
 
+        $guideOptions = is_array($item['guide_options'] ?? null) ? $item['guide_options'] : null;
+
         $guideId = $item['guide_id'] ?? $item['guideId'] ?? null;
         $hours = (int) ($item['hours'] ?? $item['entrytime'] ?? $item['service_hours'] ?? 0);
-        if ($hours <= 0 && isset($item['guide_options']) && is_array($item['guide_options'])) {
-            $hours = (int) ($item['guide_options']['hours'] ?? $item['guide_options']['package_hours'] ?? 0);
-            $guideId = $guideId ?: ($item['guide_options']['guide_id'] ?? $item['guide_options']['guideId'] ?? null);
+        $guideName = trim((string) ($item['guide_name'] ?? $item['guideName'] ?? $item['name'] ?? ''));
+
+        if ($guideOptions) {
+            if ($hours <= 0) {
+                $hours = (int) ($guideOptions['hours'] ?? $guideOptions['service_hours'] ?? $guideOptions['package_hours'] ?? 0);
+            }
+            $guideId = $guideId
+                ?: ($guideOptions['guide_id'] ?? $guideOptions['guideId'] ?? null);
+            if ($guideName === '') {
+                $guideName = trim((string) (
+                    $guideOptions['guide_name']
+                    ?? $guideOptions['guideName']
+                    ?? $guideOptions['name']
+                    ?? ''
+                ));
+            }
+        }
+
+        // Empty string / "0" are not valid guide_ids (arrival/exit used to send "").
+        if ($guideId === '' || $guideId === '0' || $guideId === 0) {
+            $guideId = null;
+        }
+
+        // Pro entry/exit always book 12h; default when hours missing.
+        if ($hours <= 0) {
+            $hours = 12;
         }
 
         $guideCost = 0.0;
         $matchedTier = null;
+        $guide = null;
         if (! empty($guideId)) {
             $guide = Guide::query()->where('guide_id', $guideId)->first();
+        }
+        // Fallback: resolve by name when id was missing from payload (legacy arrival/exit).
+        if (! $guide && $guideName !== '') {
+            $guide = Guide::query()->where('name', $guideName)->first();
             if ($guide) {
-                $resolved = self::resolveGuideHourlyCost($guide, max(1, $hours ?: 12));
-                $guideCost = (float) ($resolved['cost'] ?? 0);
-                $matchedTier = $resolved['tier'] ?? null;
-                if ($guideCost > 0) {
-                    $source = 'database';
-                }
+                $guideId = $guide->guide_id;
             }
         }
 
+        if ($guide) {
+            $resolved = self::resolveGuideHourlyCost($guide, max(1, $hours));
+            $guideCost = (float) ($resolved['cost'] ?? 0);
+            $matchedTier = $resolved['tier'] ?? null;
+            if ($guideCost > 0) {
+                $source = 'database';
+            }
+        }
+
+        // Last resort only — prefer never using sell figures for cost_price.
         if ($guideCost <= 0) {
             $guideCost = self::firstNumeric($item, [
-                'total_cost', 'cost', 'Cost', 'adultCost', 'adult_cost', 'basePrice', 'base_price',
+                'total_cost', 'cost_price', 'adult_cost_price', 'base_cost', 'baseCost',
             ]);
-            if ($guideCost <= 0 && isset($item['guide_options']) && is_array($item['guide_options'])) {
-                $guideCost = self::firstNumeric($item['guide_options'], [
-                    'total_cost', 'total_price', 'cost', 'Cost', 'base_price', 'adult_cost', 'adultCost',
+            if ($guideCost <= 0 && $guideOptions) {
+                $guideCost = self::firstNumeric($guideOptions, [
+                    'total_cost', 'cost_price', 'adult_cost_price', 'base_cost', 'baseCost',
                 ]);
             }
         }
@@ -748,11 +872,11 @@ class OrderCostPriceHelper
         if ($guideCost > 0) {
             $components[] = [
                 'key' => 'guide',
-                'label' => trim((string) ($item['guide_name'] ?? $item['guideName'] ?? 'Guide')),
+                'label' => $guideName !== '' ? $guideName : 'Guide',
                 'cost' => round($guideCost, 2),
                 'meta' => [
                     'guide_id' => $guideId,
-                    'hours' => $hours ?: null,
+                    'hours' => $hours,
                     'tier' => $matchedTier,
                 ],
             ];
@@ -819,32 +943,210 @@ class OrderCostPriceHelper
         ];
     }
 
+    /**
+     * Shared = unit × pax; Private = unit × vehicle qty (same as enquiry Pro sell / lineCost).
+     * Payload `cost` may be way-applied; zone unit costs are per way.
+     *
+     * @return array{cost: float, meta: array}|null
+     */
+    private static function resolveTransferOptionsCost(array $item, array $transfer): ?array
+    {
+        $transferTypeRaw = strtolower(trim((string) (
+            $transfer['type']
+            ?? $transfer['transferType']
+            ?? $transfer['transfer_type']
+            ?? ''
+        )));
+        $isShared = in_array($transferTypeRaw, ['s', 'shared', 'sic'], true);
+
+        $wayRaw = strtolower(trim((string) ($transfer['way'] ?? $transfer['transferWay'] ?? '')));
+        $isBothWay = in_array($wayRaw, ['both-way', 'both way', 'both', 'two-way', 'return', '2way'], true);
+        $wayMultiplier = $isBothWay ? 2 : 1;
+
+        $adults = self::qtyFromItem($transfer, ['adults', 'adultsQty', 'adult_qty', 'Adults']);
+        if ($adults <= 0) {
+            $adults = self::qtyFromItem($item, ['adults', 'adultsQty', 'adultCount', 'adult']);
+        }
+        $children = self::qtyFromItem($transfer, ['children', 'child', 'childQty', 'child_qty', 'Children']);
+        if ($children <= 0) {
+            $children = self::qtyFromItem($item, ['children', 'child', 'childQty', 'childCount']);
+        }
+        $pax = max(0, $adults + $children);
+
+        $vehicleQty = self::qtyFromItem($transfer, ['qty', 'quantity', 'vehicle_qty', 'vehicleQty', 'booked_vehicles']);
+        if ($vehicleQty <= 0) {
+            $vehicleQty = self::qtyFromItem($item, ['vehicle_qty', 'vehicleQty', 'booked_vehicles', 'qty', 'quantity']);
+        }
+        if ($vehicleQty <= 0) {
+            $vehicleQty = 1;
+        }
+
+        // Prefer summed multi-vehicle line COSTS when vehicles[] is present
+        $vehicles = is_array($transfer['vehicles'] ?? null) ? $transfer['vehicles'] : [];
+        $vehiclesLineSum = 0.0;
+        if (count($vehicles) > 0) {
+            foreach ($vehicles as $v) {
+                if (! is_array($v)) {
+                    continue;
+                }
+                $vTypeRaw = strtolower(trim((string) (
+                    $v['type'] ?? $v['transferType'] ?? $v['transfer_type'] ?? ''
+                )));
+                $vShared = in_array($vTypeRaw, ['s', 'shared', 'sic'], true)
+                    || (! in_array($vTypeRaw, ['p', 'private'], true) && $isShared);
+                $vAdults = self::qtyFromItem($v, ['adults', 'adultsQty', 'adult_qty']);
+                $vChild = self::qtyFromItem($v, ['children', 'child', 'childQty', 'child_qty']);
+                $vPax = max(0, $vAdults + $vChild);
+                $vQty = self::qtyFromItem($v, ['qty', 'quantity', 'vehicle_qty', 'vehicleQty']);
+                if ($vQty <= 0) {
+                    $vQty = 1;
+                }
+                $vWayRaw = strtolower(trim((string) ($v['way'] ?? $transfer['way'] ?? '')));
+                $vBoth = in_array($vWayRaw, ['both-way', 'both way', 'both', 'two-way', 'return', '2way'], true);
+                $vWayMul = $vBoth ? 2 : 1;
+
+                $line = self::firstNumeric($v, ['lineCost', 'line_cost']);
+                if ($line <= 0) {
+                    $zoneUnit = $vShared
+                        ? self::firstNumeric($v, ['zoneSharedCostPrice', 'zone_shared_cost_price', 'shared_cost_price'])
+                        : self::firstNumeric($v, ['zonePrivateCostPrice', 'zone_private_cost_price', 'private_cost_price']);
+                    $unit = self::firstNumeric($v, ['unitCost', 'unit_cost']);
+                    if ($zoneUnit > 0) {
+                        $line = $vShared
+                            ? ($zoneUnit * $vWayMul * max(1, $vPax > 0 ? $vPax : $pax))
+                            : ($zoneUnit * $vWayMul * $vQty);
+                    } elseif ($unit > 0) {
+                        // unitCost already includes way
+                        $line = $vShared ? ($unit * max(1, $vPax > 0 ? $vPax : $pax)) : ($unit * $vQty);
+                    }
+                }
+                $vehiclesLineSum += max(0, $line);
+            }
+        }
+
+        if ($vehiclesLineSum > 0) {
+            return [
+                'cost' => round($vehiclesLineSum, 2),
+                'meta' => [
+                    'type' => 'multi-vehicle',
+                    'way' => $transfer['way'] ?? null,
+                    'vehicle_count' => count($vehicles),
+                    'adults' => $adults,
+                    'children' => $children,
+                    'pax' => $pax,
+                    'formula' => 'sum(vehicle line_cost): shared = zone_cost × way × (adults+child); private = zone_cost × way × qty',
+                ],
+            ];
+        }
+
+        $explicitLine = self::firstNumeric($transfer, ['lineCost', 'line_cost']);
+        $payloadCost = self::firstNumeric($transfer, [
+            'cost', 'Cost', 'adult_cost', 'adultCost', 'base_cost', 'baseCost', 'cost_price',
+        ]);
+
+        $zoneSharedUnit = self::firstNumeric($transfer, [
+            'zoneSharedCostPrice', 'shared_cost_price', 'sharedCostPrice', 'unitCost', 'unit_cost',
+        ]);
+        $zonePrivateUnit = self::firstNumeric($transfer, [
+            'zonePrivateCostPrice', 'private_cost_price', 'privateCostPrice', 'unitCost', 'unit_cost',
+        ]);
+
+        $unitCost = 0.0;
+        $transferCost = 0.0;
+
+        if ($explicitLine > 0) {
+            $transferCost = $explicitLine;
+            $unitCost = $isShared && $pax > 0
+                ? ($explicitLine / max(1, $pax))
+                : ($explicitLine / max(1, $vehicleQty));
+        } elseif ($isShared) {
+            if ($zoneSharedUnit > 0) {
+                $unitCost = $zoneSharedUnit * $wayMultiplier;
+            } elseif ($payloadCost > 0) {
+                $unitCost = $payloadCost;
+            }
+            if ($unitCost > 0) {
+                $transferCost = $unitCost * max(1, $pax);
+            }
+        } else {
+            if ($zonePrivateUnit > 0) {
+                $unitCost = $zonePrivateUnit * $wayMultiplier;
+            } elseif ($payloadCost > 0) {
+                $unitCost = $payloadCost;
+            }
+            $transferCost = $unitCost * max(1, $vehicleQty);
+        }
+
+        if ($transferCost <= 0) {
+            return null;
+        }
+
+        return [
+            'cost' => round($transferCost, 2),
+            'meta' => [
+                'type' => $isShared ? 'Shared' : 'Private',
+                'way' => $transfer['way'] ?? null,
+                'transfer_type' => $isShared ? 'shared' : 'private',
+                'adults' => $adults,
+                'children' => $children,
+                'pax' => $pax,
+                'vehicle_qty' => $vehicleQty,
+                'unit_cost' => round($unitCost, 2),
+                'formula' => $isShared ? 'unit_cost × pax' : 'unit_cost × qty',
+            ],
+        ];
+    }
+
     private static function appendTransferAndGuideComponents(array $item, array &$components, string &$source): void
     {
         $transfer = is_array($item['transfer_options'] ?? null) ? $item['transfer_options'] : null;
-        if ($transfer && (! empty($transfer['transfer_required']) || self::firstNumeric($transfer, ['cost', 'total_cost', 'cost_price']) > 0)) {
-            $transferCost = self::firstNumeric($transfer, [
-                'total_cost', 'cost_price', 'cost', 'Cost', 'adult_cost', 'adultCost', 'base_cost', 'baseCost',
-            ]);
-            if ($transferCost > 0) {
+        if (! $transfer && is_array($item['transferInfo'] ?? null)) {
+            $transfer = $item['transferInfo'];
+        }
+
+        $hasTransfer = $transfer && (
+            ! empty($transfer['transfer_required'])
+            || ! empty($transfer['vehicle_id'])
+            || ! empty($transfer['vehicleId'])
+            || (is_array($transfer['vehicles'] ?? null) && count($transfer['vehicles']) > 0)
+            || self::firstNumeric($transfer, [
+                'cost', 'total_cost', 'cost_price', 'sell', 'totalPrice', 'lineCost', 'line_cost',
+                'zoneSharedCostPrice', 'zonePrivateCostPrice', 'shared_cost_price', 'private_cost_price',
+            ]) > 0
+        );
+
+        if ($hasTransfer) {
+            $resolved = self::resolveTransferOptionsCost($item, $transfer);
+            if ($resolved) {
                 $components[] = [
                     'key' => 'transfer',
                     'label' => 'Transfer',
-                    'cost' => round($transferCost, 2),
-                    'meta' => [
-                        'type' => $transfer['type'] ?? null,
-                        'way' => $transfer['way'] ?? null,
-                    ],
+                    'cost' => $resolved['cost'],
+                    'meta' => $resolved['meta'],
                 ];
             }
         }
 
         $guideOptions = is_array($item['guide_options'] ?? null) ? $item['guide_options'] : null;
-        if ($guideOptions && (! empty($guideOptions['guide_required']) || ! empty($guideOptions['guide_id']))) {
+        $hasGuide = $guideOptions && (
+            ! empty($guideOptions['guide_required'])
+            || ! empty($guideOptions['guide_id'])
+            || ! empty($guideOptions['guideId'])
+            || ! empty($guideOptions['guide_name'])
+            || ! empty($guideOptions['guideName'])
+            || ! empty($guideOptions['name'])
+        );
+        if ($hasGuide) {
             $guideBuilt = self::buildGuideCost(array_merge($item, [
                 'guide_id' => $guideOptions['guide_id'] ?? $guideOptions['guideId'] ?? null,
-                'guide_name' => $guideOptions['guide_name'] ?? $guideOptions['guideName'] ?? 'Guide',
-                'hours' => $guideOptions['hours'] ?? $guideOptions['package_hours'] ?? ($item['hours'] ?? 0),
+                'guide_name' => $guideOptions['guide_name']
+                    ?? $guideOptions['guideName']
+                    ?? $guideOptions['name']
+                    ?? 'Guide',
+                'hours' => $guideOptions['hours']
+                    ?? $guideOptions['service_hours']
+                    ?? $guideOptions['package_hours']
+                    ?? ($item['hours'] ?? 0),
                 'guide_options' => $guideOptions,
             ]));
             foreach ($guideBuilt['components'] as $component) {
@@ -877,44 +1179,348 @@ class OrderCostPriceHelper
     private static function buildTransportCost(array $item, string $type): array
     {
         $components = [];
-        $cost = self::firstNumeric($item, [
-            'total_cost', 'cost_price', 'cost', 'Cost', 'adult_cost', 'adultCost', 'base_cost', 'baseCost',
+        $source = 'payload';
+
+        // Match enquiry Pro sell logic:
+        // Shared: zone/unit cost × pax (adults + children); qty is coverage only.
+        // Private: zone/unit cost × vehicle quantity.
+        $transferTypeRaw = strtolower(trim((string) (
+            $item['transferType']
+            ?? $item['transfer_type']
+            ?? $item['type']
+            ?? ''
+        )));
+        $isShared = in_array($transferTypeRaw, ['s', 'shared', 'sic'], true);
+
+        $adults = self::qtyFromItem($item, ['adults', 'adultsQty', 'adult_qty', 'Adults']);
+        $children = self::qtyFromItem($item, ['children', 'child', 'childQty', 'child_qty', 'Children']);
+        $pax = max(0, $adults + $children);
+
+        $vehicleQty = self::qtyFromItem($item, [
+            'vehicle_qty', 'vehicleQty', 'booked_vehicles', 'quantity', 'qty',
         ]);
-        if ($cost <= 0) {
-            // Many transport payloads store supplier cost under cost and sell separately.
-            $cost = self::firstNumeric($item, ['sell', 'Sell', 'totalPrice', 'price']);
+        if ($vehicleQty <= 0) {
+            $vehicleQty = 1;
         }
-        if ($cost > 0) {
+        // Prefer per-vehicle qty from vehicles[] when present
+        $vehicles = is_array($item['vehicles'] ?? null) ? $item['vehicles'] : [];
+        $primaryVehicle = is_array($vehicles[0] ?? null) ? $vehicles[0] : [];
+        if ($primaryVehicle) {
+            $vQty = self::qtyFromItem($primaryVehicle, ['qty', 'quantity', 'vehicle_qty', 'vehicleQty']);
+            if ($vQty > 0) {
+                $vehicleQty = $vQty;
+            }
+            $vAdults = self::qtyFromItem($primaryVehicle, ['adults', 'adultsQty', 'adult_qty']);
+            $vChild = self::qtyFromItem($primaryVehicle, ['children', 'child', 'childQty', 'child_qty']);
+            if (($vAdults + $vChild) > 0) {
+                $adults = $vAdults;
+                $children = $vChild;
+                $pax = $adults + $children;
+            }
+        }
+
+        // Resolve UNIT cost only (never treat line totals as unit).
+        $unitCost = 0.0;
+        if ($isShared) {
+            $unitCost = self::firstNumeric($item, [
+                'zoneSharedCostPrice', 'shared_cost_price', 'sharedCostPrice', 'unitCost', 'unit_cost',
+            ]);
+            if ($unitCost <= 0 && $primaryVehicle) {
+                $unitCost = self::firstNumeric($primaryVehicle, [
+                    'zoneSharedCostPrice', 'shared_cost_price', 'sharedCostPrice', 'unitCost', 'unit_cost',
+                ]);
+            }
+        } else {
+            $unitCost = self::firstNumeric($item, [
+                'zonePrivateCostPrice', 'private_cost_price', 'privateCostPrice', 'unitCost', 'unit_cost',
+            ]);
+            if ($unitCost <= 0 && $primaryVehicle) {
+                $unitCost = self::firstNumeric($primaryVehicle, [
+                    'zonePrivateCostPrice', 'private_cost_price', 'privateCostPrice', 'unitCost', 'unit_cost',
+                ]);
+            }
+        }
+
+        // Derive unit from lineCost when unit missing (lineCost already matches sell formula)
+        if ($unitCost <= 0) {
+            $lineCost = self::firstNumeric($item, ['lineCost', 'line_cost']);
+            if ($lineCost <= 0 && $primaryVehicle) {
+                $lineCost = self::firstNumeric($primaryVehicle, ['lineCost', 'line_cost']);
+            }
+            if ($lineCost > 0) {
+                if ($isShared && $pax > 0) {
+                    $unitCost = $lineCost / $pax;
+                } elseif (! $isShared && $vehicleQty > 0) {
+                    $unitCost = $lineCost / $vehicleQty;
+                }
+            }
+        }
+
+        // Last resort: adultCost/cost may be unit (legacy) — only when no line/unit/zone present
+        if ($unitCost <= 0) {
+            $unitCost = self::firstNumeric($item, [
+                'adult_cost', 'adultCost', 'cost_price', 'base_cost', 'baseCost',
+            ]);
+            // If `cost` equals line total for shared (≈ unit×pax), peel pax; else treat as unit
+            $payloadCost = self::firstNumeric($item, ['cost', 'Cost']);
+            if ($unitCost <= 0 && $payloadCost > 0) {
+                if ($isShared && $pax > 1 && abs($payloadCost - ($payloadCost / $pax) * $pax) < 0.01) {
+                    // Prefer peeling when cost looks like a line total vs tiny unit
+                    $maybeUnit = $payloadCost / $pax;
+                    // Heuristic: if vehicles also have unitCost use that; else if cost >> typical unit use peel
+                    $unitCost = $maybeUnit > 0 ? $maybeUnit : $payloadCost;
+                } else {
+                    $unitCost = $payloadCost;
+                }
+            }
+        }
+
+        $vehicleCost = 0.0;
+        if ($unitCost > 0) {
+            if ($isShared) {
+                $vehicleCost = $unitCost * max(1, $pax);
+            } else {
+                $vehicleCost = $unitCost * max(1, $vehicleQty);
+            }
+        }
+
+        // Prefer explicit lineCost from payload when it already matches the sell-side total
+        $explicitLine = self::firstNumeric($item, ['lineCost', 'line_cost']);
+        if ($explicitLine <= 0 && $primaryVehicle) {
+            $explicitLine = self::firstNumeric($primaryVehicle, ['lineCost', 'line_cost']);
+        }
+        if ($explicitLine > 0) {
+            $vehicleCost = $explicitLine;
+        }
+
+        if ($vehicleCost > 0) {
             $components[] = [
                 'key' => $type,
                 'label' => ucfirst(str_replace('_', ' ', $type)),
-                'cost' => round($cost, 2),
+                'cost' => round($vehicleCost, 2),
                 'meta' => [
-                    'vehicle' => $item['vehicles_name'] ?? $item['vehicle_name'] ?? null,
+                    'vehicle' => $item['vehicles_name'] ?? $item['vehicle_name'] ?? $item['vehicleName']
+                        ?? ($primaryVehicle['vehicleName'] ?? $primaryVehicle['vehicle_name'] ?? null),
+                    'transfer_type' => $isShared ? 'shared' : 'private',
+                    'adults' => $adults,
+                    'children' => $children,
+                    'pax' => $pax,
+                    'vehicle_qty' => $vehicleQty,
+                    'unit_cost' => round($unitCost, 2),
+                    'formula' => $isShared ? 'unit_cost × pax' : 'unit_cost × qty',
                 ],
             ];
         }
 
-        if (isset($item['guide_options']) && is_array($item['guide_options'])) {
-            $guideCost = self::firstNumeric($item['guide_options'], [
-                'total_cost', 'cost_price', 'cost', 'Cost', 'adult_cost', 'adultCost',
-            ]);
-            if ($guideCost > 0) {
-                $components[] = [
-                    'key' => 'guide',
-                    'label' => 'Guide',
-                    'cost' => round($guideCost, 2),
-                    'meta' => [
-                        'guide_name' => $item['guide_options']['guide_name'] ?? $item['guide_options']['guideName'] ?? null,
-                    ],
-                ];
+        // Guide: always resolve from guides.*_cost_price tiers (never guide_options sell).
+        $guideOptions = is_array($item['guide_options'] ?? null) ? $item['guide_options'] : null;
+        if ($guideOptions && (
+            ! empty($guideOptions['guide_required'])
+            || ! empty($guideOptions['guide_id'])
+            || ! empty($guideOptions['guideId'])
+        )) {
+            $guideBuilt = self::buildGuideCost(array_merge($item, [
+                'guide_id' => $guideOptions['guide_id'] ?? $guideOptions['guideId'] ?? null,
+                'guide_name' => $guideOptions['guide_name'] ?? $guideOptions['guideName'] ?? $guideOptions['name'] ?? 'Guide',
+                'hours' => $guideOptions['hours']
+                    ?? $guideOptions['service_hours']
+                    ?? $guideOptions['package_hours']
+                    ?? ($item['hours'] ?? 12),
+                'guide_options' => $guideOptions,
+            ]));
+            foreach ($guideBuilt['components'] as $component) {
+                $components[] = $component;
+            }
+            if (($guideBuilt['source'] ?? '') === 'database') {
+                $source = $vehicleCost > 0 ? 'mixed' : 'database';
             }
         }
 
         return [
             'components' => $components,
-            'source' => 'payload',
+            'source' => $source,
         ];
+    }
+
+    /**
+     * Miscellaneous: unit cost × pax (adult / child / infant).
+     * Prefer payload unit costs (what the Pro form showed) so multi-item saves
+     * stay correct; fall back to miscellaneous_prices only when payload units are absent.
+     */
+    private static function buildMiscellaneousCost(array $item): array
+    {
+        $components = [];
+        $source = 'payload';
+
+        $adults = self::qtyFromItem($item, ['adultsQty', 'adults', 'adult', 'adultCount']);
+        $children = self::qtyFromItem($item, ['childQty', 'children', 'child', 'childCount']);
+        $infants = self::qtyFromItem($item, ['infantQty', 'infants', 'infant', 'infantCount']);
+
+        $misId = $item['mis_id'] ?? $item['misId'] ?? null;
+        if ($misId === null || $misId === '') {
+            $rawItemId = (string) ($item['itemId'] ?? $item['item_id'] ?? '');
+            if (preg_match('/(\d+)\s*$/', $rawItemId, $m)) {
+                $misId = (int) $m[1];
+            }
+        } else {
+            $misId = (int) $misId;
+        }
+
+        $dmcId = $item['dmc_id'] ?? $item['dmcId'] ?? null;
+        $city = trim((string) ($item['city'] ?? $item['destination'] ?? ''));
+        if (str_contains($city, ',')) {
+            $city = trim(explode(',', $city)[0]);
+        }
+
+        $payloadAdult = self::firstNumericIfPresent($item, ['adultCost', 'adult_cost', 'adult_cost_price']);
+        $payloadChild = self::firstNumericIfPresent($item, ['childCost', 'child_cost', 'child_cost_price']);
+        $payloadInfant = self::firstNumericIfPresent($item, ['infantCost', 'infant_cost', 'infant_cost_price']);
+        $hasPayloadUnits = $payloadAdult !== null || $payloadChild !== null || $payloadInfant !== null;
+
+        $adultUnit = 0.0;
+        $childUnit = 0.0;
+        $infantUnit = 0.0;
+
+        // Form payload wins whenever unit cost keys were sent (including legitimate 0).
+        if ($hasPayloadUnits) {
+            $adultUnit = (float) ($payloadAdult ?? 0);
+            $childUnit = (float) ($payloadChild ?? 0);
+            $infantUnit = (float) ($payloadInfant ?? 0);
+            $source = 'payload';
+        }
+
+        // Fill any missing unit from DB (or all units when payload had none).
+        $needDb = ! $hasPayloadUnits
+            || ($payloadAdult === null && $payloadChild === null && $payloadInfant === null);
+        // Also fill individual nulls when only some payload keys existed.
+        $fillAdultFromDb = ! $hasPayloadUnits || $payloadAdult === null;
+        $fillChildFromDb = ! $hasPayloadUnits || $payloadChild === null;
+        $fillInfantFromDb = ! $hasPayloadUnits || $payloadInfant === null;
+
+        if ($misId > 0 && ($fillAdultFromDb || $fillChildFromDb || $fillInfantFromDb || $needDb)) {
+            $priceQuery = MiscellaneousPrice::query()
+                ->where('mis_id', $misId)
+                ->where('status', 1);
+            if ($dmcId !== null && $dmcId !== '') {
+                $priceQuery->where('dmc_id', $dmcId);
+            }
+            $prices = $priceQuery->get();
+
+            // If DMC filter yielded nothing useful for this city, retry city match without DMC.
+            $price = self::pickMiscellaneousPriceRow($prices, $city);
+            if (! $price && $dmcId !== null && $dmcId !== '' && $city !== '') {
+                $pricesAny = MiscellaneousPrice::query()
+                    ->where('mis_id', $misId)
+                    ->where('status', 1)
+                    ->get();
+                $price = self::pickMiscellaneousPriceRow($pricesAny, $city, true);
+            }
+
+            if ($price) {
+                if ($fillAdultFromDb) {
+                    $adultUnit = (float) ($price->adult_cost ?? 0);
+                }
+                if ($fillChildFromDb) {
+                    $childUnit = (float) ($price->child_cost ?? 0);
+                }
+                if ($fillInfantFromDb) {
+                    $infantUnit = (float) ($price->infant_cost ?? 0);
+                }
+                $source = $hasPayloadUnits ? 'mixed' : 'database';
+            }
+        }
+
+        $total = ($adultUnit * max(0, $adults))
+            + ($childUnit * max(0, $children))
+            + ($infantUnit * max(0, $infants));
+
+        if ($total <= 0) {
+            // Explicit line total cost if provided (never use sell/totalPrice).
+            $total = self::firstNumeric($item, ['total_cost', 'cost_price', 'cost', 'Cost']);
+        }
+
+        if ($total > 0) {
+            $label = trim((string) (
+                $item['itemName']
+                ?? $item['item_name']
+                ?? $item['name']
+                ?? 'Miscellaneous'
+            ));
+            if ($label === '' && $misId > 0) {
+                $dbItem = MiscellaneousItem::query()->where('mis_id', $misId)->first();
+                $label = $dbItem->item_name ?? 'Miscellaneous';
+            }
+
+            $components[] = [
+                'key' => 'miscellaneous',
+                'label' => $label !== '' ? $label : 'Miscellaneous',
+                'cost' => round($total, 2),
+                'meta' => [
+                    'mis_id' => $misId ?: null,
+                    'adults' => $adults,
+                    'children' => $children,
+                    'infants' => $infants,
+                    'adult_unit_cost' => $adultUnit,
+                    'child_unit_cost' => $childUnit,
+                    'infant_unit_cost' => $infantUnit,
+                ],
+            ];
+        }
+
+        return [
+            'components' => $components,
+            'source' => $source,
+        ];
+    }
+
+    /**
+     * Pick best miscellaneous_prices row for a city (exact city first; optional blank-city fallback).
+     *
+     * @param  \Illuminate\Support\Collection<int, mixed>  $prices
+     */
+    private static function pickMiscellaneousPriceRow($prices, string $city, bool $exactCityOnly = false)
+    {
+        if ($prices === null || $prices->isEmpty()) {
+            return null;
+        }
+        if ($city !== '') {
+            $exact = $prices->first(function ($p) use ($city) {
+                return strcasecmp(trim((string) ($p->city ?? '')), $city) === 0;
+            });
+            if ($exact) {
+                return $exact;
+            }
+            if ($exactCityOnly) {
+                return null;
+            }
+        }
+        if ($exactCityOnly) {
+            return null;
+        }
+
+        return $prices->first(function ($p) {
+            return trim((string) ($p->city ?? '')) === '';
+        }) ?: $prices->first();
+    }
+
+    /**
+     * Like firstNumeric, but returns null when none of the keys are present (so 0 can still win).
+     *
+     * @param  array<string, mixed>  $source
+     * @param  list<string>  $keys
+     */
+    private static function firstNumericIfPresent(array $source, array $keys): ?float
+    {
+        foreach ($keys as $key) {
+            if (! array_key_exists($key, $source)) {
+                continue;
+            }
+            if (is_numeric($source[$key])) {
+                return (float) $source[$key];
+            }
+        }
+
+        return null;
     }
 
     private static function buildGenericItemCost(array $item, string $type): array
@@ -1329,10 +1935,369 @@ class OrderCostPriceHelper
                     'nights' => $nightCount,
                     'source' => $unit > 0 ? 'database' : 'view_details',
                 ];
+                continue;
+            }
+
+            if ($key === 'baby_cot') {
+                $qty = max(1, (int) ($meta['quantity'] ?? $meta['infants'] ?? 1));
+                $roomsCot = max(1, (int) ($meta['number_of_rooms'] ?? $numberOfRooms));
+                $unit = 0.0;
+                if ($bedId && Schema::hasColumn('beds', 'baby_cot_cost_price')) {
+                    $bed = Bed::query()->where('bed_id', $bedId)->first();
+                    if ($bed && is_numeric($bed->baby_cot_cost_price ?? null)) {
+                        $unit = (float) $bed->baby_cot_cost_price;
+                    }
+                }
+                $nightCount = max(1, (int) ($meta['nights'] ?? $nights));
+                $component['cost'] = round($unit * $qty * $roomsCot * $nightCount, 2);
+                $component['meta'] = [
+                    'quantity' => $qty,
+                    'unit_cost' => $unit,
+                    'nights' => $nightCount,
+                    'number_of_rooms' => $roomsCot,
+                    'source' => $unit > 0 ? 'database' : 'view_details',
+                ];
             }
         }
         unset($component);
 
         return $components;
+    }
+
+    /**
+     * Sum order booking totalPrice values country-wise for a tour.
+     * actual_price = sum of totalPrice for bookings in that country
+     * (attraction/restaurant also include transfer_options.cost + guide_options.total_price).
+     * current_price = actual_price after applying currency_markups discount_type/discount_value
+     * (markup row matched by booking city, then country, then currency — applied once per country).
+     *
+     * @param  int|string  $tourId
+     * @return array<string, array{
+     *   country: string,
+     *   actual_price: float,
+     *   current_price: float,
+     *   currency: string|null,
+     *   discount_type: string|null,
+     *   discount_value: float
+     * }>
+     */
+    public static function getCountryWiseTotalPrice($tourId): array
+    {
+        $tourId = trim((string) $tourId);
+        if ($tourId === '') {
+            return [];
+        }
+
+        $tour = \App\Models\Tour::where('tour_id', $tourId)->first();
+        $markups = [];
+        if ($tour) {
+            $raw = $tour->currency_markups ?? null;
+            if (is_string($raw)) {
+                $decoded = json_decode($raw, true);
+                $markups = (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) ? $decoded : [];
+            } elseif (is_array($raw)) {
+                $markups = $raw;
+            }
+        }
+
+        $destinationCountries = self::parseDestinationCountries($tour?->destination ?? null);
+
+        $orders = Order::query()
+            ->where('tour_id', $tourId)
+            ->get(['booking_id', 'tour_id', 'type', 'data', 'country', 'city', 'currency']);
+
+        // country => ['actual' => float, 'city_totals' => [city => float], 'currency' => ?string]
+        $buckets = [];
+
+        foreach ($destinationCountries as $countryName) {
+            $key = mb_strtolower($countryName);
+            $buckets[$key] = [
+                'country' => $countryName,
+                'actual' => 0.0,
+                'city_totals' => [],
+                'currency' => null,
+            ];
+        }
+
+        foreach ($orders as $order) {
+            $data = is_string($order->data) ? json_decode($order->data, true) : $order->data;
+            if (! is_array($data)) {
+                continue;
+            }
+
+            $items = (isset($data[0]) && is_array($data[0])) ? $data : [$data];
+            $orderType = strtolower(trim((string) ($order->type ?? '')));
+            $orderCountry = trim((string) ($order->country ?? ''));
+            $orderCity = trim((string) ($order->city ?? ''));
+            $orderCurrency = strtoupper(trim((string) ($order->currency ?? '')));
+
+            foreach ($items as $item) {
+                if (! is_array($item)) {
+                    continue;
+                }
+
+                $country = trim((string) ($item['country'] ?? $orderCountry));
+                $city = trim((string) ($item['city'] ?? $orderCity));
+                $currency = strtoupper(trim((string) ($item['currency'] ?? $orderCurrency)));
+                $price = self::bookingItemSellTotal($item, $orderType);
+
+                if ($country === '') {
+                    continue;
+                }
+
+                $key = mb_strtolower($country);
+                if (! isset($buckets[$key])) {
+                    $buckets[$key] = [
+                        'country' => $country,
+                        'actual' => 0.0,
+                        'city_totals' => [],
+                        'currency' => null,
+                    ];
+                }
+
+                $buckets[$key]['actual'] += $price;
+
+                $cityKey = $city !== '' ? $city : '_';
+                if (! isset($buckets[$key]['city_totals'][$cityKey])) {
+                    $buckets[$key]['city_totals'][$cityKey] = 0.0;
+                }
+                $buckets[$key]['city_totals'][$cityKey] += $price;
+
+                if (($buckets[$key]['currency'] === null || $buckets[$key]['currency'] === '') && $currency !== '') {
+                    $buckets[$key]['currency'] = $currency;
+                }
+            }
+        }
+
+        $result = [];
+        foreach ($buckets as $key => $bucket) {
+            $actual = round((float) $bucket['actual'], 2);
+            $discountMeta = self::resolveCountryDiscountMeta(
+                (string) $bucket['country'],
+                is_array($bucket['city_totals']) ? $bucket['city_totals'] : [],
+                $bucket['currency'] ?? null,
+                $markups
+            );
+            $current = self::applyDiscountAmount(
+                (float) $bucket['actual'],
+                $discountMeta['discount_type'],
+                (float) $discountMeta['discount_value']
+            );
+
+            $result[$bucket['country']] = [
+                'country' => $bucket['country'],
+                'actual_price' => $actual,
+                'current_price' => round(max(0, $current), 2),
+                'currency' => $bucket['currency'],
+                'discount_type' => $discountMeta['discount_type'],
+                'discount_value' => $discountMeta['discount_value'],
+            ];
+        }
+
+        return $result;
+    }
+
+    /**
+     * Sell total for one booking line: totalPrice plus attraction/restaurant
+     * transfer_options.cost and guide_options.total_price when present.
+     *
+     * @param  array<string, mixed>  $item
+     */
+    private static function bookingItemSellTotal(array $item, string $orderType): float
+    {
+        $price = (float) ($item['totalPrice'] ?? $item['price'] ?? 0);
+
+        $isAttractionOrRestaurant = in_array($orderType, [
+            'attraction',
+            'attractions',
+            'restaurant',
+            'restaurants',
+            'restaurent', // legacy typo used elsewhere in codebase
+        ], true);
+
+        // Also detect from payload when order.type is missing/generic
+        if (! $isAttractionOrRestaurant) {
+            $isAttractionOrRestaurant = isset($item['AttractionId'])
+                || isset($item['AttractionName'])
+                || isset($item['restaurantId'])
+                || isset($item['restaurantName']);
+        }
+
+        if (! $isAttractionOrRestaurant) {
+            return $price;
+        }
+
+        $transfer = 0.0;
+        if (isset($item['transfer_options']) && is_array($item['transfer_options'])) {
+            $to = $item['transfer_options'];
+            // Prefer sell-side line totals; fall back to cost when sell missing
+            $transfer = (float) ($to['totalPrice']
+                ?? $to['lineSell']
+                ?? $to['line_sell']
+                ?? $to['sell']
+                ?? $to['totalSell']
+                ?? $to['cost']
+                ?? 0);
+            // Multi-vehicle: sum vehicle lineSell when top-level sell looks like listing unit storage
+            $vehicles = is_array($to['vehicles'] ?? null) ? $to['vehicles'] : [];
+            if (count($vehicles) > 0) {
+                $vehSellSum = 0.0;
+                foreach ($vehicles as $v) {
+                    if (! is_array($v)) {
+                        continue;
+                    }
+                    $vehSellSum += (float) ($v['lineSell'] ?? $v['line_sell'] ?? $v['totalPrice'] ?? $v['sell'] ?? 0);
+                }
+                if ($vehSellSum > 0) {
+                    $transfer = $vehSellSum;
+                }
+            }
+        }
+
+        $guide = 0.0;
+        if (isset($item['guide_options']) && is_array($item['guide_options'])) {
+            $guide = (float) ($item['guide_options']['total_price']
+                ?? $item['guide_options']['cost']
+                ?? $item['guide_options']['Cost']
+                ?? 0);
+        }
+
+        return $price + max(0, $transfer) + max(0, $guide);
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private static function parseDestinationCountries(?string $destination): array
+    {
+        if (! is_string($destination) || trim($destination) === '') {
+            return [];
+        }
+
+        $parts = preg_split('/\s*,\s*/', $destination) ?: [];
+        $names = [];
+        foreach ($parts as $part) {
+            $name = trim((string) $part);
+            if ($name !== '') {
+                $names[] = $name;
+            }
+        }
+
+        return array_values(array_unique($names));
+    }
+
+    /**
+     * Resolve discount for a country: prefer a markup row whose city appears in this
+     * country's bookings, else match by country, else by currency.
+     *
+     * @param  array<string, float>  $cityTotals
+     * @param  array<int, array<string, mixed>>  $markups
+     * @return array{discount_type: string|null, discount_value: float}
+     */
+    private static function resolveCountryDiscountMeta(
+        string $country,
+        array $cityTotals,
+        ?string $currency,
+        array $markups
+    ): array {
+        $row = null;
+
+        foreach (array_keys($cityTotals) as $cityKey) {
+            if ($cityKey === '_') {
+                continue;
+            }
+            $row = self::lookupCurrencyMarkupRow($markups, (string) $cityKey, '', '');
+            if ($row) {
+                break;
+            }
+        }
+
+        if (! $row) {
+            $row = self::lookupCurrencyMarkupRow(
+                $markups,
+                '',
+                $country,
+                (string) ($currency ?? '')
+            );
+        }
+
+        $type = isset($row['discount_type']) ? strtolower(trim((string) $row['discount_type'])) : '';
+        if ($type === 'fixed') {
+            $type = 'flat';
+        }
+
+        return [
+            'discount_type' => in_array($type, ['percentage', 'flat', 'foc'], true) ? $type : null,
+            'discount_value' => (float) ($row['discount_value'] ?? 0),
+        ];
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $markups
+     * @return array<string, mixed>|null
+     */
+    private static function lookupCurrencyMarkupRow(
+        array $markups,
+        string $city,
+        string $country,
+        string $currency
+    ): ?array {
+        $city = trim($city);
+        if ($city !== '') {
+            foreach ($markups as $row) {
+                if (! is_array($row)) {
+                    continue;
+                }
+                if (strcasecmp((string) ($row['city'] ?? ''), $city) === 0) {
+                    return $row;
+                }
+            }
+        }
+
+        $country = trim($country);
+        if ($country !== '') {
+            foreach ($markups as $row) {
+                if (! is_array($row)) {
+                    continue;
+                }
+                if (strcasecmp((string) ($row['country'] ?? ''), $country) === 0) {
+                    return $row;
+                }
+            }
+        }
+
+        $currency = strtoupper(trim($currency));
+        if ($currency !== '') {
+            foreach ($markups as $row) {
+                if (! is_array($row)) {
+                    continue;
+                }
+                if (strtoupper(trim((string) ($row['currency'] ?? ''))) === $currency) {
+                    return $row;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * current = actual - discount (percentage / flat / foc). Never below zero.
+     */
+    private static function applyDiscountAmount(float $actual, ?string $discountType, float $discountValue): float
+    {
+        $type = strtolower(trim((string) $discountType));
+        if ($type === 'fixed') {
+            $type = 'flat';
+        }
+
+        $discountMoney = 0.0;
+        if ($type === 'percentage' && $discountValue > 0) {
+            $discountMoney = $actual * $discountValue / 100;
+        } elseif (in_array($type, ['flat', 'foc'], true) && $discountValue > 0) {
+            $discountMoney = $discountValue;
+        }
+
+        return max(0, $actual - $discountMoney);
     }
 }

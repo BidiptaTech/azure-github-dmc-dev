@@ -21,8 +21,8 @@
             </div>
 
             <div style="min-width: 230px;">
-                <div class="stp-lite-toggle country-mode is-locked{{ !empty($isThirdPartyDmc) ? ' is-thirdparty-disabled' : '' }}"
-                     title="{{ !empty($isThirdPartyDmc) ? 'Multi Country locked for 3rd party DMC' : 'Auto from selected countries' }}">
+                <div class="stp-lite-toggle country-mode is-locked{{ !empty($isRestrictedThirdParty) ? ' is-thirdparty-disabled' : '' }}"
+                     title="{{ !empty($isRestrictedThirdParty) ? 'Restricted 3rd party DMC: only this DMC country' : 'Auto from selected countries' }}">
                     <input type="radio" name="city_mode_ui" id="city_mode_single" value="single" checked disabled>
                     <label for="city_mode_single">Single Country</label>
                     <input type="radio" name="city_mode_ui" id="city_mode_multi" value="multi" disabled>

@@ -566,7 +566,22 @@ class GuideController extends Controller
                 'twelve_hour_cost_price' => 'nullable|numeric',
                 'languages' => 'required|array',
                 'language_proficiency' => 'required|array',
+                'country' => 'required|string|max:255',
+                'city' => 'required|string|max:255',
             ]);
+
+            $cityBelongsToCountry = City::query()
+                ->whereRaw('LOWER(name) = ?', [strtolower(trim((string) $request->input('city')))])
+                ->whereRaw('LOWER(country) = ?', [strtolower(trim((string) $request->input('country')))])
+                ->exists();
+
+            if (! $cityBelongsToCountry) {
+                return redirect()->back()
+                    ->withInput()
+                    ->withErrors([
+                        'city' => 'The selected city does not belong to the selected country. Please choose the country again, then pick a city.',
+                    ]);
+            }
     
             return DB::transaction(function () use ($request, $validated, $auth_user) {
                 // Generate unique guide ID
