@@ -1737,6 +1737,9 @@
                             <th>Child Qty</th>
                             <th>Cost/Pax</th>
                             <th>Sell/Pax</th>
+                            <th>Infant Qty</th>
+                            <th>Cost/Pax</th>
+                            <th>Sell/Pax</th>
                             <th class="group-foc-outside-discount-ui">FOC</th>
                             <th>Supplement</th>
                         </tr>
@@ -1768,6 +1771,9 @@
                             <th>Cost/Pax</th>
                             <th>Sell/Pax</th>
                             <th>Child Qty</th>
+                            <th>Cost/Pax</th>
+                            <th>Sell/Pax</th>
+                            <th>Infant Qty</th>
                             <th>Cost/Pax</th>
                             <th>Sell/Pax</th>
                             <th class="group-foc-outside-discount-ui">FOC</th>
@@ -1803,6 +1809,7 @@
                             <th>Way</th>
                             <th>Adults</th>
                             <th>Child</th>
+                            <th>Infant</th>
                             <th>Cost</th>
                             <th>Sell</th>
                             <th class="group-foc-outside-discount-ui">FOC</th>
@@ -1836,6 +1843,7 @@
                             <th>Guide Name</th>
                             <th>Adult Qty</th>
                             <th>Child Qty</th>
+                            <th>Infant Qty</th>
                             <th>Cost</th>
                             <th>Sell</th>
                             <th class="group-foc-outside-discount-ui">FOC</th>
@@ -1873,6 +1881,7 @@
                             <th>Vehicle Type</th>
                             <th>Adults</th>
                             <th>Child</th>
+                            <th>Infant</th>
                             <th class="group-foc-outside-discount-ui">FOC</th>
                             <th>Supplement</th>
                         </tr>
@@ -3053,9 +3062,6 @@
                                 <th style="width: 80px; padding: 4px 8px; text-align: center;">Transfer</th>
                                 <th style="width: 150px; padding: 4px 8px;">Dropoff</th>
                                 <th style="width: 80px; padding: 4px 8px; text-align: center;">Is PickUp?</th>
-                                <th style="width: 120px; padding: 4px 8px;">Vehicle</th>
-                                <th style="width: 100px; padding: 4px 8px;">Way</th>
-                                <th style="width: 120px; padding: 4px 8px;">Type</th>
                                 <th style="width: 80px; padding: 4px 8px; text-align: center;">Guide</th>
                                 <th style="padding: 4px 8px;">Select Guide</th>
                                 <th style="width: 50px; padding: 4px 8px; text-align: center;">Qty.</th>
@@ -3125,41 +3131,6 @@
                                 </td>
                                 <td style="padding: 2px 8px; text-align: center;">
                                     <input type="checkbox" class="form-check-input attraction-is-pickup" data-attr-id="{{ $attr->id }}" {{ !$isAttraction ? 'checked' : '' }}>
-                                </td>
-                                <td style="padding: 2px 8px;">
-                                    <select class="form-select form-select-sm attraction-vehicle-type" data-attr-id="{{ $attr->id }}" style="font-size: 10px; padding: 2px 4px;">
-                                        <option value="">Select Vehicle</option>
-                                        @php
-                                            $vehicleTypes = $vehicles->groupBy('vehicle_type');
-                                        @endphp
-                                        @foreach($vehicleTypes as $type => $typeVehicles)
-                                            <optgroup label="{{ ucfirst($type) }}">
-                                                @foreach($typeVehicles as $vehicle)
-                                                    <option value="{{ $vehicle->vehicle_id }}" 
-                                                        data-type="{{ $vehicle->vehicle_type }}"
-                                                        data-seating="{{ $vehicle->seating_capacity }}"
-                                                        data-base-price="{{ $vehicle->base_price ?? 0 }}"
-                                                        data-sharable-price="{{ $vehicle->sharable_base_price ?? 0 }}"
-                                                        data-sharable="{{ $vehicle->sharable ?? 3 }}"
-                                                        data-city="{{ $vehicle->city ?? '' }}">
-                                                        {{ $vehicle->vehicle_name }} ({{ $vehicle->seating_capacity }} seats)
-                                                    </option>
-                                                @endforeach
-                                            </optgroup>
-                                        @endforeach
-                                    </select>
-                                </td>
-                                <td style="padding: 2px 8px;">
-                                    <select class="form-select form-select-sm attraction-transfer-way" data-attr-id="{{ $attr->id }}" style="font-size: 10px; padding: 2px 4px;">
-                                        <option value="one-way">1-Way</option>
-                                        <option value="both-way" selected>2-Way</option>
-                                    </select>
-                                </td>
-                                <td style="padding: 2px 8px;">
-                                    <select class="form-select form-select-sm attraction-transfer-type" data-attr-id="{{ $attr->id }}" style="font-size: 10px; padding: 2px 4px;" onchange="filterAttractionVehiclesByServiceType(this)">
-                                        <option value="P">Private</option>
-                                        <option value="S" selected>Shared</option>
-                                    </select>
                                 </td>
                                 <td style="padding: 2px 8px; text-align: center;">
                                     <input type="checkbox" class="form-check-input attraction-guide-checkbox" data-attr-id="{{ $attr->id }}">
@@ -5857,12 +5828,35 @@
     // ========== Accommodation A/D multi-vehicle (qty + coverage) ==========
 
     function getArrDepHeaderPax(side) {
-        if (side === 'local') {
+        if (typeof side === 'string' && side.indexOf('attr:') === 0) {
+            const uid = side.slice(5);
+            const row = document.querySelector(
+                '#attractionsTableBody tr.attraction-row .attraction-checkbox[data-unique-id="' + uid + '"]'
+            )?.closest('tr.attraction-row')
+                || document.querySelector('#attractionsTableBody tr.attraction-row[data-unique-id="' + uid + '"]');
+            if (row) {
+                return {
+                    adults: Math.max(0, parseInt(row.querySelector('.attraction-adult-qty')?.value || '0', 10) || 0),
+                    child: Math.max(0, parseInt(row.querySelector('.attraction-child-qty')?.value || '0', 10) || 0),
+                    infant: Math.max(0, parseInt(row.querySelector('.attraction-infant-qty')?.value || '0', 10) || 0)
+                };
+            }
             return {
-                adults: Math.max(0, parseInt(document.getElementById('localAdults')?.value || '0', 10) || 0),
-                child: Math.max(0, parseInt(document.getElementById('localChild')?.value || '0', 10) || 0),
-                infant: 0
+                adults: Math.max(0, parseInt(document.getElementById('adultCountInput')?.value || '0', 10) || 0),
+                child: Math.max(0, parseInt(document.getElementById('childCountInput')?.value || '0', 10) || 0),
+                infant: Math.max(0, parseInt(document.getElementById('infantCountInput')?.value || '0', 10) || 0)
             };
+        }
+        if (side === 'local') {
+            let adults = Math.max(0, parseInt(document.getElementById('localAdults')?.value || '0', 10) || 0);
+            let child = Math.max(0, parseInt(document.getElementById('localChild')?.value || '0', 10) || 0);
+            let infant = Math.max(0, parseInt(document.getElementById('localInfant')?.value || '0', 10) || 0);
+            if (adults + child + infant === 0) {
+                adults = Math.max(0, parseInt(document.getElementById('adultCountInput')?.value || '0', 10) || 0);
+                child = Math.max(0, parseInt(document.getElementById('childCountInput')?.value || '0', 10) || 0);
+                infant = Math.max(0, parseInt(document.getElementById('infantCountInput')?.value || '0', 10) || 0);
+            }
+            return { adults, child, infant };
         }
         const isArr = side === 'arrival';
         return {
@@ -5872,11 +5866,113 @@
         };
     }
 
+    /**
+     * Remaining adults/child/infant this vehicle row may still take,
+     * after other selected vehicles in the same section have claimed theirs.
+     * Shared by attraction, arrival, departure, and local transfer.
+     */
+    function getMultiVehicleRemainingPax(side, excludeRow) {
+        const budget = (typeof getArrDepHeaderPax === 'function')
+            ? getArrDepHeaderPax(side)
+            : { adults: 0, child: 0, infant: 0 };
+        const rows = (typeof collectArrDepVehicleRows === 'function') ? collectArrDepVehicleRows(side) : [];
+        let usedA = 0, usedC = 0, usedI = 0;
+        rows.forEach(function (r) {
+            if (!r || r.row === excludeRow) return;
+            if (!r.vehicleId) return;
+            usedA += r.adults || 0;
+            usedC += r.child || 0;
+            usedI += r.infant || 0;
+        });
+        return {
+            adults: Math.max(0, (budget.adults || 0) - usedA),
+            child: Math.max(0, (budget.child || 0) - usedC),
+            infant: Math.max(0, (budget.infant || 0) - usedI),
+            budget: budget,
+            used: { adults: usedA, child: usedC, infant: usedI }
+        };
+    }
+
+    /** Set max on Adults/Child/Infant inputs from remaining pax + seat capacity. */
+    function syncMultiVehiclePaxInputLimits(side, row) {
+        if (!row || side == null) return;
+        const rem = getMultiVehicleRemainingPax(side, row);
+        const cap = (typeof getArrDepRowSeatCapacity === 'function') ? getArrDepRowSeatCapacity(row) : 0;
+        const aEl = row.querySelector('.arr-dep-vehicle-adults');
+        const cEl = row.querySelector('.arr-dep-vehicle-child');
+        const iEl = row.querySelector('.arr-dep-vehicle-infant');
+        const maxA = cap > 0 ? Math.min(rem.adults, cap) : rem.adults;
+        const maxC = cap > 0 ? Math.min(rem.child, cap) : rem.child;
+        if (aEl) { aEl.setAttribute('max', String(Math.max(0, maxA))); aEl.max = String(Math.max(0, maxA)); }
+        if (cEl) { cEl.setAttribute('max', String(Math.max(0, maxC))); cEl.max = String(Math.max(0, maxC)); }
+        if (iEl) { iEl.setAttribute('max', String(Math.max(0, rem.infant))); iEl.max = String(Math.max(0, rem.infant)); }
+    }
+
+    function syncAllMultiVehiclePaxLimits(side) {
+        const container = (typeof getArrDepVehicleRowsContainer === 'function')
+            ? getArrDepVehicleRowsContainer(side) : null;
+        if (!container) return;
+        Array.from(container.querySelectorAll('.arr-dep-vehicle-row')).forEach(function (row) {
+            syncMultiVehiclePaxInputLimits(side, row);
+        });
+    }
+
+    /**
+     * Re-apply remaining-pax caps to every vehicle row in DOM order
+     * (first vehicle keeps its claim; later rows get what is left).
+     * Call when section adults/child/infant header changes.
+     */
+    function reclampAllMultiVehicleRowsPax(side) {
+        const container = (typeof getArrDepVehicleRowsContainer === 'function')
+            ? getArrDepVehicleRowsContainer(side) : null;
+        if (!container) return;
+        const budget = (typeof getArrDepHeaderPax === 'function')
+            ? getArrDepHeaderPax(side)
+            : { adults: 0, child: 0, infant: 0 };
+        let usedA = 0, usedC = 0, usedI = 0;
+        Array.from(container.querySelectorAll('.arr-dep-vehicle-row')).forEach(function (row) {
+            let { adults, child, infant } = readArrDepRowPaxInputs(row);
+            adults = Math.min(adults, Math.max(0, (budget.adults || 0) - usedA));
+            child = Math.min(child, Math.max(0, (budget.child || 0) - usedC));
+            infant = Math.min(infant, Math.max(0, (budget.infant || 0) - usedI));
+            writeArrDepRowPaxInputs(row, adults, child, infant);
+            // Seat clamp only (budget already applied sequentially)
+            const cap = getArrDepRowSeatCapacity(row);
+            let p = readArrDepRowPaxInputs(row);
+            if (cap > 0 && p.adults + p.child > cap) {
+                const overflow = p.adults + p.child - cap;
+                const cutChild = Math.min(p.child, overflow);
+                p.child -= cutChild;
+                p.adults = Math.max(0, p.adults - (overflow - cutChild));
+                writeArrDepRowPaxInputs(row, p.adults, p.child, p.infant);
+                p = readArrDepRowPaxInputs(row);
+            }
+            const hasVehicle = !!(row.querySelector('.arr-dep-vehicle-select')?.value);
+            if (hasVehicle) {
+                usedA += p.adults || 0;
+                usedC += p.child || 0;
+                usedI += p.infant || 0;
+            }
+        });
+        syncAllMultiVehiclePaxLimits(side);
+    }
+
     function getArrDepRowSeatCapacity(row) {
         if (!row) return 0;
         const sel = row.querySelector('.arr-dep-vehicle-select');
         const opt = sel?.selectedOptions?.[0];
-        const seats = parseInt(opt?.getAttribute('data-seating') || opt?.dataset?.seating || '0', 10) || 0;
+        let seats = parseInt(
+            opt?.getAttribute('data-seating')
+            || opt?.getAttribute('data-city-tour-seating')
+            || opt?.dataset?.seating
+            || '0',
+            10
+        ) || 0;
+        // Fallback: parse "(N seats)" from option label (attraction vehicle options)
+        if (!seats && opt) {
+            const m = String(opt.textContent || opt.text || '').match(/\((\d+)\s*seats?\)/i);
+            if (m) seats = parseInt(m[1], 10) || 0;
+        }
         const qty = Math.max(1, parseInt(row.querySelector('.arr-dep-vehicle-qty')?.value || '1', 10) || 1);
         return Math.max(0, seats * qty);
     }
@@ -5899,17 +5995,31 @@
         if (iEl) iEl.value = String(Math.max(0, parseInt(infant, 10) || 0));
     }
 
-    /** Adults+Child must fit seats×qty. Infant does not consume seats. */
-    function clampArrDepRowPaxToCapacity(row) {
-        const cap = getArrDepRowSeatCapacity(row);
+    /**
+     * Clamp vehicle-row pax to:
+     *  1) remaining section budget (adults/child/infant not taken by other vehicles)
+     *  2) seat capacity (adults+child ≤ seats×qty; infant free)
+     * Pass `side` (arrival|departure|local|attr:uid) so remaining-pax applies.
+     */
+    function clampArrDepRowPaxToCapacity(row, side) {
         let { adults, child, infant } = readArrDepRowPaxInputs(row);
-        if (adults + child > cap) {
+        if (side != null && side !== '') {
+            const rem = getMultiVehicleRemainingPax(side, row);
+            adults = Math.min(adults, rem.adults);
+            child = Math.min(child, rem.child);
+            infant = Math.min(infant, rem.infant);
+        }
+        const cap = getArrDepRowSeatCapacity(row);
+        if (cap > 0 && adults + child > cap) {
             const overflow = adults + child - cap;
             const cutChild = Math.min(child, overflow);
             child -= cutChild;
             adults = Math.max(0, adults - (overflow - cutChild));
         }
         writeArrDepRowPaxInputs(row, adults, child, infant);
+        if (side != null && side !== '') {
+            syncMultiVehiclePaxInputLimits(side, row);
+        }
         return { adults, child, infant, capacity: cap, billedPax: adults + child };
     }
 
@@ -5919,26 +6029,17 @@
         const sel = row.querySelector('.arr-dep-vehicle-select');
         if (!sel || !sel.value) {
             writeArrDepRowPaxInputs(row, 0, 0, 0);
+            if (side != null) syncAllMultiVehiclePaxLimits(side);
             return;
         }
-        const header = getArrDepHeaderPax(side);
-        const rows = (typeof collectArrDepVehicleRows === 'function') ? collectArrDepVehicleRows(side) : [];
-        let usedA = 0, usedC = 0, usedI = 0;
-        rows.forEach(function (r) {
-            if (!r.vehicleId || r.row === row) return;
-            usedA += r.adults || 0;
-            usedC += r.child || 0;
-            usedI += r.infant || 0;
-        });
-        const remA = Math.max(0, header.adults - usedA);
-        const remC = Math.max(0, header.child - usedC);
-        const remI = Math.max(0, header.infant - usedI);
+        const rem = getMultiVehicleRemainingPax(side, row);
         const cap = getArrDepRowSeatCapacity(row);
-        let adults = Math.min(remA, cap);
-        let child = Math.min(remC, Math.max(0, cap - adults));
-        let infant = remI;
+        let adults = Math.min(rem.adults, cap > 0 ? cap : rem.adults);
+        let child = Math.min(rem.child, Math.max(0, (cap > 0 ? cap : rem.child) - adults));
+        let infant = rem.infant;
         writeArrDepRowPaxInputs(row, adults, child, infant);
-        clampArrDepRowPaxToCapacity(row);
+        clampArrDepRowPaxToCapacity(row, side);
+        syncAllMultiVehiclePaxLimits(side);
     }
 
     function redistributeArrDepVehiclePax(side) {
@@ -5951,6 +6052,10 @@
     }
 
     function getArrDepTourPax(side) {
+        if (typeof side === 'string' && side.indexOf('attr:') === 0) {
+            const p = getArrDepHeaderPax(side);
+            return Math.max(0, (p.adults || 0) + (p.child || 0));
+        }
         const isArr = side === 'arrival';
         const adults = parseInt(document.getElementById(isArr ? 'arrivalAdults' : 'departureAdults')?.value
             || document.getElementById('adultCountInput')?.value || '0', 10) || 0;
@@ -5960,11 +6065,17 @@
     }
 
     function getArrDepVehicleMasterSelect(side) {
+        if (typeof side === 'string' && side.indexOf('attr:') === 0) {
+            return document.getElementById('attractionVehicleMaster_' + side.slice(5));
+        }
         if (side === 'local') return document.getElementById('localVehicleType');
         return document.getElementById(side === 'arrival' ? 'arrivalVehicleType' : 'departureVehicleType');
     }
 
     function getArrDepVehicleRowsContainer(side) {
+        if (typeof side === 'string' && side.indexOf('attr:') === 0) {
+            return document.getElementById('attractionVehicleRows_' + side.slice(5));
+        }
         if (side === 'local') return document.getElementById('localVehicleRows');
         return document.getElementById(side === 'arrival' ? 'arrivalVehicleRows' : 'departureVehicleRows');
     }
@@ -6197,9 +6308,14 @@
             const sel = row.querySelector('.arr-dep-vehicle-select');
             const qtyEl = row.querySelector('.arr-dep-vehicle-qty');
             const typeEl = row.querySelector('.arr-dep-vehicle-xfer-type');
+            const wayEl = row.querySelector('.arr-dep-vehicle-way');
             const opt = sel?.selectedOptions?.[0] || null;
             const vehicleId = String(sel?.value || '').trim();
-            const seats = parseInt(opt?.getAttribute('data-seating') || opt?.dataset?.seating || '0', 10) || 0;
+            let seats = parseInt(opt?.getAttribute('data-seating') || opt?.getAttribute('data-city-tour-seating') || opt?.dataset?.seating || '0', 10) || 0;
+            if (!seats && opt) {
+                const m = String(opt.textContent || opt.text || '').match(/\((\d+)\s*seats?\)/i);
+                if (m) seats = parseInt(m[1], 10) || 0;
+            }
             let qty = parseInt(qtyEl?.value || '1', 10);
             if (!Number.isFinite(qty) || qty < 1) qty = 1;
             const transferType = (typeof normalizeTransferTypePS === 'function')
@@ -6220,6 +6336,7 @@
                 qty: qty,
                 transferType: transferType,
                 type: transferType,
+                way: wayEl?.value || null,
                 adults: pax.adults,
                 child: pax.child,
                 infant: pax.infant,
@@ -6245,6 +6362,7 @@
                 quantity: r.qty,
                 transferType: r.transferType || 'S',
                 type: r.transferType || 'S',
+                way: r.way || (r.row && r.row.querySelector('.arr-dep-vehicle-way')?.value) || null,
                 adults: r.adults || 0,
                 child: r.child || 0,
                 infant: r.infant || 0,
@@ -6278,6 +6396,7 @@
                     qty: qty,
                     transferType: t,
                     type: t,
+                    way: v.way || entry.way || 'both-way',
                     adults: adults,
                     child: child,
                     infant: infant,
@@ -6310,6 +6429,7 @@
             qty: qty,
             transferType: entryType,
             type: entryType,
+            way: entry.way || 'both-way',
             adults: adults,
             child: child,
             infant: infant,
@@ -6320,6 +6440,63 @@
     }
 
         function updateArrDepVehicleCoverage(side) {
+        if (typeof side === 'string' && side.indexOf('attr:') === 0) {
+            const uid = side.slice(5);
+            const wrap = document.getElementById('attractionVehicleCoverage_' + uid);
+            if (!wrap) return;
+            const tourPax = getArrDepTourPax(side);
+            const rows = collectArrDepVehicleRows(side).filter(r => r.vehicleId);
+            let covered = 0;
+            let seatCap = 0;
+            rows.forEach(r => {
+                covered += (r.adults || 0) + (r.child || 0);
+                seatCap += (r.seats * r.qty);
+            });
+            // Attraction MV: trust assigned adults/child only (do not invent coverage from seats)
+            const remaining = Math.max(0, tourPax - covered);
+            const totalEl = wrap.querySelector('[data-mv-total]');
+            const coveredEl = wrap.querySelector('[data-mv-covered]');
+            const remainEl = wrap.querySelector('[data-mv-remaining]');
+            const banner = wrap.querySelector('[data-mv-banner]');
+            const coveredCard = wrap.querySelector('[data-mv-card="covered"]');
+            const remainCard = wrap.querySelector('[data-mv-card="remaining"]');
+            if (totalEl) totalEl.textContent = String(tourPax);
+            if (coveredEl) coveredEl.textContent = String(covered);
+            if (remainEl) remainEl.textContent = String(remaining);
+            if (coveredCard) coveredCard.classList.toggle('is-ok', covered >= tourPax && rows.length > 0);
+            if (remainCard) {
+                remainCard.classList.toggle('is-warn', remaining > 0);
+                remainCard.classList.toggle('is-ok', remaining === 0 && rows.length > 0);
+            }
+            wrap.style.display = '';
+            if (banner) {
+                banner.className = 'mv-coverage-banner';
+                if (!rows.length) {
+                    banner.classList.add('is-muted');
+                    banner.innerHTML = '<i class="ri-information-line"></i> Select a vehicle to cover guests.';
+                } else if (remaining > 0) {
+                    banner.classList.add('is-warn');
+                    banner.innerHTML = '<i class="ri-error-warning-line"></i> ' + remaining
+                        + ' guest' + (remaining === 1 ? '' : 's') + ' remaining. Add another vehicle or increase the quantity.';
+                } else {
+                    banner.classList.add('is-ok');
+                    banner.innerHTML = '<i class="ri-checkbox-circle-line"></i> All guests are covered.';
+                }
+            }
+            const container = getArrDepVehicleRowsContainer(side);
+            if (container) {
+                Array.from(container.querySelectorAll('.arr-dep-vehicle-row')).forEach(function (row, idx) {
+                    const idxEl = row.querySelector('.mv-row-index');
+                    if (idxEl) idxEl.textContent = String(idx + 1);
+                    const seatsEl = row.querySelector('.arr-dep-vehicle-seats');
+                    if (seatsEl && typeof getArrDepRowSeatCapacity === 'function') {
+                        seatsEl.textContent = String(getArrDepRowSeatCapacity(row));
+                    }
+                    if (typeof recalcArrDepVehicleRowTotals === 'function') recalcArrDepVehicleRowTotals(side, row);
+                });
+            }
+            return;
+        }
         const wrap = document.getElementById(side === 'arrival' ? 'arrivalVehicleCoverage'
             : (side === 'departure' ? 'departureVehicleCoverage' : 'localVehicleCoverage'));
         if (!wrap) return;
@@ -6379,9 +6556,20 @@
                 if (idxEl) idxEl.textContent = String(idx + 1);
                 const sel = row.querySelector('.arr-dep-vehicle-select');
                 const opt = sel?.selectedOptions?.[0];
-                const seats = parseInt(opt?.getAttribute('data-seating') || '0', 10) || 0;
                 const seatsEl = row.querySelector('.arr-dep-vehicle-seats');
-                if (seatsEl) seatsEl.textContent = String(seats);
+                if (seatsEl) {
+                    let displaySeats = parseInt(
+                        opt?.getAttribute('data-seating')
+                        || opt?.getAttribute('data-city-tour-seating')
+                        || '0',
+                        10
+                    ) || 0;
+                    if (!displaySeats && opt) {
+                        const m = String(opt.textContent || opt.text || '').match(/\((\d+)\s*seats?\)/i);
+                        if (m) displaySeats = parseInt(m[1], 10) || 0;
+                    }
+                    seatsEl.textContent = String(displaySeats);
+                }
                 if (typeof recalcArrDepVehicleRowTotals === 'function') {
                     recalcArrDepVehicleRowTotals(side, row);
                 }
@@ -6390,6 +6578,17 @@
     }
 
     function getArrDepTransferType(side) {
+        if (typeof side === 'string' && side.indexOf('attr:') === 0) {
+            const uid = side.slice(5);
+            const row = document.querySelector(
+                '#attractionsTableBody tr.attraction-row .attraction-checkbox[data-unique-id="' + uid + '"]'
+            )?.closest('tr.attraction-row')
+                || document.querySelector('#attractionsTableBody tr.attraction-row[data-unique-id="' + uid + '"]');
+            const sel = row?.querySelector('.attraction-transfer-type')
+                || document.querySelector('.attraction-transfer-type[data-unique-id="' + uid + '"]');
+            const raw = sel?.value || 'S';
+            return (typeof normalizeTransferTypePS === 'function') ? normalizeTransferTypePS(raw) : raw;
+        }
         if (side === 'local') return document.getElementById('localType')?.value || 'S';
         return document.getElementById(side === 'arrival' ? 'arrivalTransferType' : 'departureTransferType')?.value || 'S';
     }
@@ -6408,6 +6607,17 @@
             const allSame = types.every(function (t) { return t === types[0]; });
             master = allSame ? types[0] : types[0];
         }
+        if (typeof side === 'string' && side.indexOf('attr:') === 0) {
+            const uid = side.slice(5);
+            const row = document.querySelector(
+                '#attractionsTableBody tr.attraction-row .attraction-checkbox[data-unique-id="' + uid + '"]'
+            )?.closest('tr.attraction-row')
+                || document.querySelector('#attractionsTableBody tr.attraction-row[data-unique-id="' + uid + '"]');
+            const el = row?.querySelector('.attraction-transfer-type')
+                || document.querySelector('.attraction-transfer-type[data-unique-id="' + uid + '"]');
+            if (el) el.value = master;
+            return master;
+        }
         const id = side === 'local' ? 'localType'
             : (side === 'arrival' ? 'arrivalTransferType' : 'departureTransferType');
         const el = document.getElementById(id);
@@ -6423,7 +6633,7 @@
             ? normalizeTransferTypePS(row.querySelector('.arr-dep-vehicle-xfer-type')?.value || getArrDepTransferType(side))
             : (row.querySelector('.arr-dep-vehicle-xfer-type')?.value || getArrDepTransferType(side));
         const isShared = transferType === 'S';
-        if (typeof clampArrDepRowPaxToCapacity === 'function') clampArrDepRowPaxToCapacity(row);
+        if (typeof clampArrDepRowPaxToCapacity === 'function') clampArrDepRowPaxToCapacity(row, side);
         const paxIn = (typeof readArrDepRowPaxInputs === 'function')
             ? readArrDepRowPaxInputs(row)
             : { adults: 0, child: 0, infant: 0 };
@@ -6535,8 +6745,9 @@
             onChange();
         };
         const onPaxEdit = function () {
-            if (typeof clampArrDepRowPaxToCapacity === 'function') clampArrDepRowPaxToCapacity(row);
-            // Do NOT autoFill — preserve user-entered adults/child/infant
+            if (typeof clampArrDepRowPaxToCapacity === 'function') clampArrDepRowPaxToCapacity(row, side);
+            if (typeof syncAllMultiVehiclePaxLimits === 'function') syncAllMultiVehiclePaxLimits(side);
+            // Do NOT autoFill — preserve user-entered adults/child/infant (within remaining budget)
             refreshPricingAfterVehicleChange();
         };
         const adultsEl = row.querySelector('.arr-dep-vehicle-adults');
@@ -6574,12 +6785,18 @@
                 if (qty) qty.value = '1';
                 if (unitCost) unitCost.value = '0';
                 if (unitSell) unitSell.value = '0';
+                if (typeof writeArrDepRowPaxInputs === 'function') writeArrDepRowPaxInputs(row, 0, 0, 0);
                 onChange();
+                if (typeof syncAllMultiVehiclePaxLimits === 'function') syncAllMultiVehiclePaxLimits(side);
                 return;
             }
             row.remove();
-            onChange();
+            if (typeof syncAllMultiVehiclePaxLimits === 'function') syncAllMultiVehiclePaxLimits(side);
+            updateArrDepVehicleCoverage(side);
+            refreshPricingAfterVehicleChange();
         });
+        // Apply remaining-pax max on Adults/Child/Infant as soon as the row is wired
+        if (typeof syncAllMultiVehiclePaxLimits === 'function') syncAllMultiVehiclePaxLimits(side);
     }
 
     function applyArrDepRowTotalsToHidden(side) {
@@ -6674,7 +6891,8 @@
         bindArrDepVehicleRowEvents(side, row);
         if (paxOpts && (paxOpts.adults != null || paxOpts.child != null || paxOpts.infant != null)) {
             writeArrDepRowPaxInputs(row, paxOpts.adults, paxOpts.child, paxOpts.infant);
-            if (typeof clampArrDepRowPaxToCapacity === 'function') clampArrDepRowPaxToCapacity(row);
+            if (typeof clampArrDepRowPaxToCapacity === 'function') clampArrDepRowPaxToCapacity(row, side);
+            if (typeof syncAllMultiVehiclePaxLimits === 'function') syncAllMultiVehiclePaxLimits(side);
         } else if (selectedId && typeof autoFillArrDepRowPax === 'function') {
             autoFillArrDepRowPax(side, row);
         }
@@ -6698,7 +6916,8 @@
                 {
                     adults: v.adults ?? v.adultsQty,
                     child: v.child ?? v.childQty,
-                    infant: v.infant ?? v.infantQty
+                    infant: v.infant ?? v.infantQty,
+                    way: v.way || null
                 }
             );
         });
@@ -6894,24 +7113,42 @@
 
     // ========== end multi-vehicle helpers ==========
 
+    // Expose shared remaining-pax helpers for attraction MV partial + external callers
+    window.getMultiVehicleRemainingPax = getMultiVehicleRemainingPax;
+    window.syncMultiVehiclePaxInputLimits = syncMultiVehiclePaxInputLimits;
+    window.syncAllMultiVehiclePaxLimits = syncAllMultiVehiclePaxLimits;
+    window.reclampAllMultiVehicleRowsPax = reclampAllMultiVehicleRowsPax;
+    window.clampArrDepRowPaxToCapacity = clampArrDepRowPaxToCapacity;
+    window.autoFillArrDepRowPax = autoFillArrDepRowPax;
+    window.bindArrDepVehicleRowEvents = bindArrDepVehicleRowEvents;
+    window.addArrDepVehicleRow = addArrDepVehicleRow;
+    window.getArrDepVehicleRowsContainer = getArrDepVehicleRowsContainer;
+    window.getArrDepHeaderPax = getArrDepHeaderPax;
+
+    @include('enquiryform_pro.partials.attraction-multi-vehicle-js')
+
     // Init multi-vehicle rows when accommodation modal opens / transfer shown
     document.addEventListener('DOMContentLoaded', function () {
         if (typeof initArrDepMultiVehicleUI === 'function') initArrDepMultiVehicleUI();
         ['arrivalAdults', 'arrivalChild', 'arrivalInfant'].forEach(function (id) {
             document.getElementById(id)?.addEventListener('change', function () {
-                if (typeof redistributeArrDepVehiclePax === 'function') redistributeArrDepVehiclePax('arrival');
+                if (typeof reclampAllMultiVehicleRowsPax === 'function') reclampAllMultiVehicleRowsPax('arrival');
+                else if (typeof redistributeArrDepVehiclePax === 'function') redistributeArrDepVehiclePax('arrival');
                 if (typeof scheduleArrivalZonePriceRefresh === 'function') scheduleArrivalZonePriceRefresh();
             });
         });
         ['departureAdults', 'departureChild', 'departureInfant'].forEach(function (id) {
             document.getElementById(id)?.addEventListener('change', function () {
-                if (typeof redistributeArrDepVehiclePax === 'function') redistributeArrDepVehiclePax('departure');
+                if (typeof reclampAllMultiVehicleRowsPax === 'function') reclampAllMultiVehicleRowsPax('departure');
+                else if (typeof redistributeArrDepVehiclePax === 'function') redistributeArrDepVehiclePax('departure');
                 if (typeof scheduleDepartureZonePriceRefresh === 'function') scheduleDepartureZonePriceRefresh();
             });
         });
-        ['localAdults', 'localChild'].forEach(function (id) {
+        ['localAdults', 'localChild', 'localInfant'].forEach(function (id) {
             document.getElementById(id)?.addEventListener('change', function () {
-                if (typeof redistributeArrDepVehiclePax === 'function') redistributeArrDepVehiclePax('local');
+                if (typeof reclampAllMultiVehicleRowsPax === 'function') reclampAllMultiVehicleRowsPax('local');
+                else if (typeof redistributeArrDepVehiclePax === 'function') redistributeArrDepVehiclePax('local');
+                if (typeof scheduleLocalMultiVehiclePriceRefresh === 'function') scheduleLocalMultiVehiclePriceRefresh();
             });
         });
     });
@@ -7487,15 +7724,25 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
         console.log('Filtered attraction vehicles for service type:', serviceType === 'P' ? 'Private' : 'Shared', 'attrId:', attrId, 'matching:', matchingVehicles.length);
     }
     
-    // Handler for attraction transfer checkbox change - auto-select vehicle when checked
+    // Handler for attraction transfer checkbox — show A/D-style multi-vehicle panel
     function onAttractionTransferCheckboxChange(checkbox) {
         if (!checkbox) return;
-        
+
+        if (checkbox.checked) {
+            const row = checkbox.closest('tr.attraction-row');
+            const sel = row?.querySelector('.attraction-checkbox');
+            if (sel && !sel.checked) {
+                sel.checked = true;
+            }
+        }
+
+        if (typeof toggleAttractionTransferPanel === 'function') {
+            toggleAttractionTransferPanel(checkbox);
+        }
+
         if (checkbox.checked) {
             const attrId = checkbox.getAttribute('data-attr-id');
             const uniqueId = checkbox.getAttribute('data-unique-id');
-            
-            // Find the transfer type select for this attraction - prefer unique-id for dynamic rows
             let transferTypeSelect;
             if (uniqueId) {
                 transferTypeSelect = document.querySelector(`.attraction-transfer-type[data-unique-id="${uniqueId}"]`);
@@ -7503,7 +7750,6 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
             if (!transferTypeSelect) {
                 transferTypeSelect = document.querySelector(`.attraction-transfer-type[data-attr-id="${attrId}"]`);
             }
-            
             if (transferTypeSelect) {
                 setTimeout(() => {
                     filterAttractionVehiclesByServiceType(transferTypeSelect);
@@ -8045,7 +8291,7 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
         };
     }
 
-    // Tour sites / attractions: adult & child qty follow header pax.
+    // Tour sites / attractions: adult, child & infant qty follow header pax.
     // If that pax type is present, minimum selectable is 1 (cannot stay 0).
     function getTourSitePaxBounds() {
         const header = typeof getHeaderValues === 'function' ? getHeaderValues() : {};
@@ -8053,13 +8299,17 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
         const children = Math.max(0, typeof getHeaderChildCount === 'function'
             ? getHeaderChildCount()
             : (parseInt(header.children, 10) || 0));
+        const infants = Math.max(0, parseInt(header.infants, 10) || 0);
         return {
             adults: adults,
             children: children,
+            infants: infants,
             adultMin: adults > 0 ? 1 : 0,
             adultMax: adults,
             childMin: children > 0 ? 1 : 0,
-            childMax: children
+            childMax: children,
+            infantMin: infants > 0 ? 1 : 0,
+            infantMax: infants
         };
     }
 
@@ -8071,6 +8321,11 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
             if (isNaN(raw) || raw <= 0) return bounds.children;
             return Math.min(bounds.childMax, Math.max(bounds.childMin, raw));
         }
+        if (kind === 'infant') {
+            if (bounds.infants <= 0) return 0;
+            if (isNaN(raw) || raw <= 0) return bounds.infants;
+            return Math.min(bounds.infantMax, Math.max(bounds.infantMin, raw));
+        }
         if (bounds.adults <= 0) return 0;
         if (isNaN(raw) || raw <= 0) return bounds.adults;
         return Math.min(bounds.adultMax, Math.max(bounds.adultMin, raw));
@@ -8079,10 +8334,14 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
     function applyTourSitePaxQtyToInput(input, kind, forceValue) {
         if (!input) return 0;
         const bounds = getTourSitePaxBounds();
-        const isChild = kind === 'child';
-        const min = isChild ? bounds.childMin : bounds.adultMin;
-        const max = isChild ? bounds.childMax : bounds.adultMax;
-        const parent = isChild ? bounds.children : bounds.adults;
+        let min, max, parent;
+        if (kind === 'child') {
+            min = bounds.childMin; max = bounds.childMax; parent = bounds.children;
+        } else if (kind === 'infant') {
+            min = bounds.infantMin; max = bounds.infantMax; parent = bounds.infants;
+        } else {
+            min = bounds.adultMin; max = bounds.adultMax; parent = bounds.adults;
+        }
         input.min = String(min);
         input.max = String(max);
         if (parent <= 0) {
@@ -8125,6 +8384,10 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
             applyTourSitePaxQtyToInput(input, 'child', forceValue);
             bindTourSitePaxQtyInput(input, 'child');
         });
+        document.querySelectorAll('.attraction-infant-qty').forEach(function (input) {
+            applyTourSitePaxQtyToInput(input, 'infant', forceValue);
+            bindTourSitePaxQtyInput(input, 'infant');
+        });
     }
 
     function syncTourListPaxQtyFromHeader(forceValue) {
@@ -8132,6 +8395,8 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
         tourList.forEach(function (tour) {
             tour.adultsQty = clampTourSitePaxQty(forceValue === true ? 0 : tour.adultsQty, 'adult');
             tour.childQty = clampTourSitePaxQty(forceValue === true ? 0 : tour.childQty, 'child');
+            tour.infantQty = clampTourSitePaxQty(forceValue === true ? 0 : (tour.infantQty ?? tour.infant), 'infant');
+            tour.infant = tour.infantQty;
         });
     }
 
@@ -8153,6 +8418,8 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
         mealList.forEach(function (meal) {
             meal.adultsQty = clampTourSitePaxQty(forceValue === true ? 0 : meal.adultsQty, 'adult');
             meal.childQty = clampTourSitePaxQty(forceValue === true ? 0 : meal.childQty, 'child');
+            meal.infantQty = clampTourSitePaxQty(forceValue === true ? 0 : (meal.infantQty ?? meal.infant), 'infant');
+            meal.infant = meal.infantQty;
         });
     }
 
@@ -8167,10 +8434,16 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                 forceValue === true ? 0 : (transfer.child ?? transfer.childQty),
                 'child'
             );
+            const infants = clampTourSitePaxQty(
+                forceValue === true ? 0 : (transfer.infant ?? transfer.infantQty),
+                'infant'
+            );
             transfer.adults = adults;
             transfer.adultsQty = adults;
             transfer.child = children;
             transfer.childQty = children;
+            transfer.infant = infants;
+            transfer.infantQty = infants;
         });
     }
 
@@ -8190,11 +8463,14 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
         guideList.forEach(function (guide) {
             const adults = clampTourSitePaxQty(forceValue === true ? 0 : (guide.adultsQty ?? guide.adults), 'adult');
             const children = clampTourSitePaxQty(forceValue === true ? 0 : (guide.childQty ?? guide.children ?? guide.child), 'child');
+            const infants = clampTourSitePaxQty(forceValue === true ? 0 : (guide.infantQty ?? guide.infant), 'infant');
             guide.adultsQty = adults;
             guide.adults = adults;
             guide.childQty = children;
             guide.children = children;
             guide.child = children;
+            guide.infantQty = infants;
+            guide.infant = infants;
         });
     }
 
@@ -8214,6 +8490,8 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
         miscList.forEach(function (item) {
             item.adultsQty = clampTourSitePaxQty(forceValue === true ? 0 : item.adultsQty, 'adult');
             item.childQty = clampTourSitePaxQty(forceValue === true ? 0 : item.childQty, 'child');
+            item.infantQty = clampTourSitePaxQty(forceValue === true ? 0 : (item.infantQty ?? item.infant), 'infant');
+            item.infant = item.infantQty;
         });
     }
     
@@ -8981,6 +9259,9 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
         const stayDates = getStayDateStrings();
 
         renderAccommodationSeasonDateLegend();
+        if (typeof enquiryProRefreshFullStayCalendarIfOpen === 'function') {
+            enquiryProRefreshFullStayCalendarIfOpen();
+        }
 
         if (!hotelRates.length || !stayDates.length || !getSelectedHotelUniqueId()) {
             el.classList.add('d-none');
@@ -9650,6 +9931,8 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                         this.value = headerValues.adults;
                         alert(`Adults cannot exceed ${headerValues.adults} (header value)`);
                     }
+                    if (typeof reclampAllMultiVehicleRowsPax === 'function') reclampAllMultiVehicleRowsPax('local');
+                    if (typeof scheduleLocalMultiVehiclePriceRefresh === 'function') scheduleLocalMultiVehiclePriceRefresh();
                 });
             }
             if (localChild) {
@@ -9660,6 +9943,8 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                         this.value = headerValues.children;
                         alert(`Children cannot exceed ${headerValues.children} (header value)`);
                     }
+                    if (typeof reclampAllMultiVehicleRowsPax === 'function') reclampAllMultiVehicleRowsPax('local');
+                    if (typeof scheduleLocalMultiVehiclePriceRefresh === 'function') scheduleLocalMultiVehiclePriceRefresh();
                 });
             }
             if (localInfant) {
@@ -9670,6 +9955,8 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                         this.value = headerValues.infants;
                         alert(`Infants cannot exceed ${headerValues.infants} (header value)`);
                     }
+                    if (typeof reclampAllMultiVehicleRowsPax === 'function') reclampAllMultiVehicleRowsPax('local');
+                    if (typeof scheduleLocalMultiVehiclePriceRefresh === 'function') scheduleLocalMultiVehiclePriceRefresh();
                 });
             }
             
@@ -13229,6 +13516,7 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                                 child_without_bed_cost: firstRoom.child_without_bed_cost,
                                 // Baby cot / infant price from bed data
                                 baby_cot_price: bed.baby_cot_price || 0,
+                                baby_cot_cost_price: bed.baby_cot_cost_price || 0,
                                 breakfast_included: firstRoom.breakfast_included,
                                 max_occupancy: bed.max_occupancy || firstRoom.max_occupancy || 2,
                                 room_type: firstRoom.room_type,
@@ -13252,6 +13540,7 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                                 extraBedPrice: bed.extra_bed_price || firstRoom.extra_bed_price || 0,
                                 extraBedCostPrice: bed.extra_bed_cost_price || firstRoom.extra_bed_cost_price || 0,
                                 babyCotPrice: bed.baby_cot_price || 0,
+                                babyCotCostPrice: bed.baby_cot_cost_price || 0,
                                 extraBedAvailable: !!(bed.extra_bed == 1 || bed.extra_bed === true),
                                 babyCotAvailable: bed.baby_cot || false,
                                 weekendDays: weekendDays || [],
@@ -14315,6 +14604,12 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                 const cnbPrice = parseFloat(combo.roomData?.child_without_bed || combo.roomData?.childWithoutBed || combo.roomData?.cnb_price || 0);
                 const cnbCostPrice = parseFloat(combo.cnbCostPrice ?? combo.roomData?.child_without_bed_cost ?? 0) || 0;
                 const infantPrice = parseFloat(combo.babyCotPrice || combo.roomData?.baby_cot_price || combo.bedData?.baby_cot_price || 0);
+                const infantCostPrice = parseFloat(
+                    combo.babyCotCostPrice
+                    ?? combo.roomData?.baby_cot_cost_price
+                    ?? combo.bedData?.baby_cot_cost_price
+                    ?? 0
+                ) || 0;
 
                 const priceFromInput = parseFloat(priceInput?.value);
                 const finalPrice = Number.isFinite(priceFromInput) && priceFromInput > 0
@@ -14352,6 +14647,8 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                     cnbCostPrice: cnbCostPrice,
                     hasInfant: infantCheck?.checked || false,
                     infantPrice: infantPrice, // Always store price, checkbox controls usage
+                    infantCostPrice: infantCostPrice,
+                    babyCotCostPrice: infantCostPrice,
                     supplement: supplementCheck?.checked || false,
                     childWithBed: cwbOn ? roomsCount : (parseInt(childWithBedInput?.value || 0, 10) || 0),
                     childWithoutBed: cnbOn ? roomsCount : (parseInt(childWithoutBedInput?.value || 0, 10) || 0)
@@ -14465,6 +14762,11 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
             cnbPrice: combo.cnbPrice || 0,
             cnbCostPrice: combo.cnbCostPrice ?? combo.roomData?.child_without_bed_cost ?? 0,
             infantPrice: combo.infantPrice || 0,
+            infantCostPrice: combo.infantCostPrice
+                ?? combo.babyCotCostPrice
+                ?? combo.bedData?.baby_cot_cost_price
+                ?? combo.roomData?.baby_cot_cost_price
+                ?? 0,
             // Child with bed / without bed counts for JSON payload (= rooms when enabled)
             childWithBed: combo.hasCwb ? (Math.max(1, parseInt(combo.rooms, 10) || 1)) : (combo.childWithBed || 0),
             childWithoutBed: combo.hasCnb ? (Math.max(1, parseInt(combo.rooms, 10) || 1)) : (combo.childWithoutBed || 0),
@@ -19042,6 +19344,7 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                 let vehicleTypeDisplay;
                 let adAdults;
                 let adChild;
+                let adInfant;
                 if (vehicleSlice) {
                     let vName = String(vehicleSlice.vehicleName || vehicleSlice.vehicle_name || 'Vehicle')
                         .replace(/\s*\(\d+\s*seats?\)\s*$/i, '')
@@ -19053,6 +19356,7 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                         : (((vehicleSlice.transferType || vehicleSlice.type || item.transferType) === 'P') ? 'Private' : 'Shared');
                     adAdults = Math.max(0, parseInt(vehicleSlice.adults ?? vehicleSlice.adultsQty ?? 0, 10) || 0);
                     adChild = Math.max(0, parseInt(vehicleSlice.child ?? vehicleSlice.childQty ?? 0, 10) || 0);
+                    adInfant = Math.max(0, parseInt(vehicleSlice.infant ?? vehicleSlice.infantQty ?? 0, 10) || 0);
                 } else {
                     vehicleTypeDisplay = (typeof formatMultiVehicleTypeDisplay === 'function')
                         ? formatMultiVehicleTypeDisplay(item)
@@ -19062,6 +19366,7 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                         : (item.vehicleName || '-');
                     adAdults = parseInt(item.adultsQty ?? item.adults ?? 0, 10) || 0;
                     adChild = parseInt(item.childQty ?? item.child ?? 0, 10) || 0;
+                    adInfant = parseInt(item.infantQty ?? item.infant ?? 0, 10) || 0;
                 }
                 return `
             <tr>
@@ -19080,6 +19385,7 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                 <td style="text-align: center; vertical-align: middle;">${vehicleTypeDisplay}</td>
                 <td style="text-align: center; vertical-align: middle;">${adAdults}</td>
                 <td style="text-align: center; vertical-align: middle;">${adChild}</td>
+                <td style="text-align: center; vertical-align: middle;">${adInfant}</td>
                 ${buildOutsideFocCellHtml(isServiceFocChecked(item, false), `updateArrivalDepartureField(${item.originalIndex}, 'focServiceDiscount', this.checked)`)}
                 <td style="text-align: center;"><input type="checkbox" ${item.supplement ? 'checked' : ''} onchange="updateArrivalDepartureSupplement(${item.originalIndex}, this.checked)"></td>
             </tr>
@@ -20020,6 +20326,7 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
         }
         
         // Coverage uses seats × qty (no blocking capacity alert)
+        if (typeof reclampAllMultiVehicleRowsPax === 'function') reclampAllMultiVehicleRowsPax('arrival');
         if (typeof updateArrDepVehicleCoverage === 'function') updateArrDepVehicleCoverage('arrival');
         if (typeof scheduleArrivalZonePriceRefresh === 'function') scheduleArrivalZonePriceRefresh();
         
@@ -20068,6 +20375,7 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
         }
         
         // Coverage uses seats × qty (no blocking capacity alert)
+        if (typeof reclampAllMultiVehicleRowsPax === 'function') reclampAllMultiVehicleRowsPax('departure');
         if (typeof updateArrDepVehicleCoverage === 'function') updateArrDepVehicleCoverage('departure');
         if (typeof scheduleDepartureZonePriceRefresh === 'function') scheduleDepartureZonePriceRefresh();
         
@@ -20934,6 +21242,57 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
         `;
     }
     
+    /**
+     * Auto-select only the attraction/ticket configured in Default Settings for this
+     * destination city (+ DMC). Never pre-select other Tour Site tickets.
+     * Transfer/Pickup are enabled only on that default row (Tour Sites).
+     */
+    function applyDefaultAttractionSelection(tbody, destination) {
+        if (!tbody) return;
+        const city = String(destination || '').trim();
+        const byCity = window.defaultValuesByCity || {};
+        const cityDefaults = (city && byCity[city]) ? byCity[city] : null;
+        let defaultAttractionId = '';
+        if (cityDefaults && cityDefaults.attraction != null && String(cityDefaults.attraction).trim() !== '') {
+            defaultAttractionId = String(cityDefaults.attraction).trim();
+        } else {
+            // Global (no-city) DMC default from controller — not another city's leftover
+            const globalDefaults = window.defaultValuesGlobal || {};
+            if (globalDefaults.attraction != null && String(globalDefaults.attraction).trim() !== '') {
+                defaultAttractionId = String(globalDefaults.attraction).trim();
+            }
+        }
+        if (!defaultAttractionId) return;
+
+        // Must exist in the loaded list for this destination/DMC
+        const matches = Array.from(tbody.querySelectorAll('.attraction-checkbox')).filter(function (cb) {
+            return String(cb.getAttribute('data-attr-id') || '') === defaultAttractionId;
+        });
+        if (!matches.length) {
+            console.log('Default attraction', defaultAttractionId, 'not in loaded list for', city, '— skip auto-select');
+            return;
+        }
+
+        // Defaults store attraction_id; select the first ticket row for that attraction
+        const attrCheckbox = matches[0];
+        const row = attrCheckbox.closest('tr.attraction-row');
+        attrCheckbox.checked = true;
+
+        const attractionType = parseInt(row?.getAttribute('data-attraction-type') || '1', 10) || 1;
+        const isTourSite = attractionType !== 2;
+        const xfer = row?.querySelector('.attraction-transfer-checkbox');
+        const pickup = row?.querySelector('.attraction-is-pickup');
+        if (isTourSite) {
+            if (xfer) xfer.checked = true;
+            if (pickup) pickup.checked = true;
+        }
+
+        attrCheckbox.dispatchEvent(new Event('change', { bubbles: true }));
+        if (xfer && xfer.checked && typeof onAttractionTransferCheckboxChange === 'function') {
+            onAttractionTransferCheckboxChange(xfer);
+        }
+    }
+
     // Load attractions by destination
     function loadAttractionsByDestination() {
         const destination = document.getElementById('tourDestination').value;
@@ -20998,7 +21357,7 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                                 const uniqueId = `${attr.id}_${ticket.ticket_id}`;
                                 
                                 html += `
-                                    <tr class="attraction-row" data-attraction-id="${attr.id}" data-attraction-name="${attr.name}" data-ticket-id="${ticket.ticket_id}" data-ticket-name="${ticket.name}" data-attraction-type="${attractionType}">
+                                    <tr class="attraction-row" data-attraction-id="${attr.id}" data-attraction-name="${attr.name}" data-ticket-id="${ticket.ticket_id}" data-ticket-name="${ticket.name}" data-attraction-type="${attractionType}" data-adult-cost="${parseFloat(ticket.adult_cost_price || 0)}" data-child-cost="${parseFloat(ticket.child_cost_price || 0)}" data-infant-cost="${parseFloat(ticket.infant_cost_price || 0)}">
                                         <td style="padding: 2px 8px; text-align: center;">
                                             <input type="checkbox" class="attraction-checkbox" data-attr-id="${attr.id}" data-ticket-id="${ticket.ticket_id}" data-unique-id="${uniqueId}">
                                         </td>
@@ -21022,7 +21381,7 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                                             <input type="number" class="form-control form-control-sm attraction-infant-qty" data-attr-id="${attr.id}" data-ticket-id="${ticket.ticket_id}" data-unique-id="${uniqueId}" value="${headerValues.infants || 0}" min="0" style="font-size: 10px; padding: 2px 4px; text-align: center;">
                                         </td>
                                         <td style="padding: 2px 8px;">
-                                            <input type="text" class="form-control form-control-sm attraction-infant-charge" data-attr-id="${attr.id}" data-ticket-id="${ticket.ticket_id}" data-unique-id="${uniqueId}" value="0.00" style="font-size: 10px; padding: 2px 4px;">
+                                            <input type="text" class="form-control form-control-sm attraction-infant-charge" data-attr-id="${attr.id}" data-ticket-id="${ticket.ticket_id}" data-unique-id="${uniqueId}" value="${parseFloat(ticket.infant_price || 0).toFixed(2)}" style="font-size: 10px; padding: 2px 4px;">
                                         </td>
                                         <td style="padding: 2px 8px; text-align: center;">
                                             <input type="checkbox" class="form-check-input attraction-transfer-checkbox" data-attr-id="${attr.id}" data-ticket-id="${ticket.ticket_id}" data-unique-id="${uniqueId}" ${!isAttraction ? 'checked' : ''} onchange="onAttractionTransferCheckboxChange(this)">
@@ -21035,24 +21394,6 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                                         </td>
                                         <td style="padding: 2px 8px; text-align: center;">
                                             <input type="checkbox" class="form-check-input attraction-is-pickup" data-attr-id="${attr.id}" data-ticket-id="${ticket.ticket_id}" data-unique-id="${uniqueId}" ${!isAttraction ? 'checked' : ''}>
-                                        </td>
-                                        <td style="padding: 2px 8px;">
-                                            <select class="form-select form-select-sm attraction-vehicle-type" data-attr-id="${attr.id}" data-ticket-id="${ticket.ticket_id}" data-unique-id="${uniqueId}" style="font-size: 10px; padding: 2px 4px;">
-                                                <option value="">Select Vehicle</option>
-                                                ${getVehicleOptionsHTML()}
-                                            </select>
-                                        </td>
-                                        <td style="padding: 2px 8px;">
-                                            <select class="form-select form-select-sm attraction-transfer-way" data-attr-id="${attr.id}" data-ticket-id="${ticket.ticket_id}" data-unique-id="${uniqueId}" style="font-size: 10px; padding: 2px 4px;">
-                                                <option value="one-way">1-Way</option>
-                                                <option value="both-way" selected>2-Way</option>
-                                            </select>
-                                        </td>
-                                        <td style="padding: 2px 8px;">
-                                            <select class="form-select form-select-sm attraction-transfer-type" data-attr-id="${attr.id}" data-ticket-id="${ticket.ticket_id}" data-unique-id="${uniqueId}" style="font-size: 10px; padding: 2px 4px;" onchange="filterAttractionVehiclesByServiceType(this)">
-                                                <option value="P">Private</option>
-                                                <option value="S" selected>Shared</option>
-                                            </select>
                                         </td>
                                         <td style="padding: 2px 8px; text-align: center;">
                                             <input type="checkbox" class="form-check-input attraction-guide-checkbox" data-attr-id="${attr.id}" data-ticket-id="${ticket.ticket_id}" data-unique-id="${uniqueId}">
@@ -21113,24 +21454,6 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                                     <td style="padding: 2px 8px; text-align: center;">
                                         <input type="checkbox" class="form-check-input attraction-is-pickup" data-attr-id="${attr.id}" data-ticket-id="0" data-unique-id="${attr.id}_0" ${!isAttraction ? 'checked' : ''}>
                                     </td>
-                                    <td style="padding: 2px 8px;">
-                                        <select class="form-select form-select-sm attraction-vehicle-type" data-attr-id="${attr.id}" data-ticket-id="0" data-unique-id="${attr.id}_0" style="font-size: 10px; padding: 2px 4px;">
-                                            <option value="">Select Vehicle</option>
-                                            ${getVehicleOptionsHTML()}
-                                        </select>
-                                    </td>
-                                    <td style="padding: 2px 8px;">
-                                        <select class="form-select form-select-sm attraction-transfer-way" data-attr-id="${attr.id}" data-ticket-id="0" data-unique-id="${attr.id}_0" style="font-size: 10px; padding: 2px 4px;">
-                                            <option value="one-way">1-Way</option>
-                                            <option value="both-way" selected>2-Way</option>
-                                        </select>
-                                    </td>
-                                    <td style="padding: 2px 8px;">
-                                        <select class="form-select form-select-sm attraction-transfer-type" data-attr-id="${attr.id}" data-ticket-id="0" data-unique-id="${attr.id}_0" style="font-size: 10px; padding: 2px 4px;" onchange="filterAttractionVehiclesByServiceType(this)">
-                                            <option value="P">Private</option>
-                                            <option value="S" selected>Shared</option>
-                                        </select>
-                                    </td>
                                     <td style="padding: 2px 8px; text-align: center;">
                                         <input type="checkbox" class="form-check-input attraction-guide-checkbox" data-attr-id="${attr.id}" data-ticket-id="0" data-unique-id="${attr.id}_0">
                                     </td>
@@ -21181,18 +21504,9 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                     const isEditingTour = window.editingTourIndex !== undefined && window.editingTourIndex !== null
                         && tourList[window.editingTourIndex];
 
-                    // Auto-check default attraction for this city (new add only)
-                    if (!isEditingTour && window.defaultValues && window.defaultValues.attraction) {
-                        const defaultAttractionId = String(window.defaultValues.attraction);
-                        const attrCheckbox = tbody.querySelector(
-                            `.attraction-checkbox[data-attr-id="${defaultAttractionId}"]`
-                        ) || tbody.querySelector(
-                            `tr.attraction-row[data-attraction-id="${defaultAttractionId}"] .attraction-checkbox`
-                        );
-                        if (attrCheckbox) {
-                            attrCheckbox.checked = true;
-                            attrCheckbox.dispatchEvent(new Event('change', { bubbles: true }));
-                        }
+                    // Only auto-check the attraction configured in Default Settings for this city/DMC
+                    if (!isEditingTour && typeof applyDefaultAttractionSelection === 'function') {
+                        applyDefaultAttractionSelection(tbody, destination);
                     }
 
                     if (isEditingTour) {
@@ -21200,6 +21514,9 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                         populateEditingTourAttractionRow(tourList[window.editingTourIndex]);
                         if (typeof applyTourSitePaxQtyToModal === 'function') {
                             applyTourSitePaxQtyToModal(false);
+                        }
+                        if (typeof initAttractionTransferPanelsInTable === 'function') {
+                            initAttractionTransferPanelsInTable();
                         }
                     } else {
                         document.querySelectorAll('.attraction-transfer-destination').forEach(function (destSelect) {
@@ -21213,6 +21530,9 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                                 filterAttractionVehiclesByServiceType(transferTypeSelect);
                             });
                             filterAttractionsByType();
+                            if (typeof initAttractionTransferPanelsInTable === 'function') {
+                                initAttractionTransferPanelsInTable();
+                            }
                         }, 100);
                     }
                 } else {
@@ -21235,21 +21555,21 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
         
         const rows = document.querySelectorAll('.attraction-row');
         
-        if (type === 'all') {
-            rows.forEach(row => row.style.display = '');
-        } else if (type === 'attraction') {
-            // Show only attractions (attraction_type = 2)
-            rows.forEach(row => {
-                const rowType = parseInt(row.getAttribute('data-attraction-type')) || 1;
-                row.style.display = (rowType === 2) ? '' : 'none';
-            });
-        } else if (type === 'toursite') {
-            // Show only tour sites (attraction_type = 1)
-            rows.forEach(row => {
-                const rowType = parseInt(row.getAttribute('data-attraction-type')) || 1;
-                row.style.display = (rowType === 1) ? '' : 'none';
-            });
-        }
+        rows.forEach(row => {
+            const rowType = parseInt(row.getAttribute('data-attraction-type')) || 1;
+            let show = true;
+            if (type === 'attraction') show = (rowType === 2);
+            else if (type === 'toursite') show = (rowType === 1);
+            row.style.display = show ? '' : 'none';
+            const panel = row.nextElementSibling;
+            if (panel && panel.classList.contains('attraction-transfer-panel-row')) {
+                if (!show) {
+                    panel.style.display = 'none';
+                } else if (row.querySelector('.attraction-transfer-checkbox')?.checked) {
+                    panel.style.display = 'table-row';
+                }
+            }
+        });
     }
     
     // Toggle select all attractions
@@ -21317,8 +21637,10 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
             const vehicleType = vehicleOption?.getAttribute('data-type') || 'sedan';
             const vehicleName = vehicleOption?.text || '';
             const vehicleCapacity = parseInt(vehicleOption?.getAttribute('data-seating')) || 0;
-            const transferWay = row.querySelector('.attraction-transfer-way').value;
-            const transferType = row.querySelector('.attraction-transfer-type').value;
+            const transferWay = row.querySelector('.attraction-transfer-way')?.value || 'both-way';
+            const transferType = row.querySelector('.attraction-transfer-type')?.value
+                || row.querySelector('.arr-dep-vehicle-xfer-type')?.value
+                || 'S';
             const guideChecked = row.querySelector('.attraction-guide-checkbox').checked;
             const guideSelect = row.querySelector('.attraction-guide-select');
             const guideId = guideSelect?.value || '';
@@ -21330,13 +21652,20 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                 return;
             }
             
-            // Parse charges
-            const adultCost = parseFloat(adultCharge.replace(/[^0-9.]/g, '')) || 0;
-            const adultSell = adultCost;
-            const childCost = parseFloat(childCharge.replace(/[^0-9.]/g, '')) || 0;
-            const childSell = childCost;
-            const infantCost = parseFloat(infantCharge.replace(/[^0-9.]/g, '')) || 0;
-            const infantSell = infantCost;
+            // Charge fields are SELL. Ticket master cost_price lives on the row.
+            const ticketCostSell = (typeof readAttractionTicketCostSell === 'function')
+                ? readAttractionTicketCostSell(row)
+                : {
+                    adultSell: parseFloat(String(adultCharge).replace(/[^0-9.]/g, '')) || 0,
+                    childSell: parseFloat(String(childCharge).replace(/[^0-9.]/g, '')) || 0,
+                    infantSell: parseFloat(String(infantCharge).replace(/[^0-9.]/g, '')) || 0
+                };
+            const adultSell = ticketCostSell.adultSell;
+            const childSell = ticketCostSell.childSell;
+            const infantSell = ticketCostSell.infantSell;
+            const adultCost = ticketCostSell.adultCost || adultSell;
+            const childCost = ticketCostSell.childCost || childSell;
+            const infantCost = ticketCostSell.infantCost || infantSell;
             
             // Remove old transfer and guide if exists
             const oldTour = tourList[window.editingTourIndex];
@@ -21355,6 +21684,29 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
             let transferInfo = null;
             
             if (transferChecked && transferDestination) {
+                // Prefer A/D-style multi-vehicle transfer payload when panel is available
+                if (typeof buildAttractionTransferInfoFromRow === 'function') {
+                    try {
+                        transferInfo = await buildAttractionTransferInfoFromRow({
+                            row: row,
+                            transferId: transferId || generateId('transfer'),
+                            dateTime: dateTime,
+                            adultsQty: adultsQty,
+                            childQty: childQty,
+                            infantQty: infantQty,
+                            tourId: tourId
+                        });
+                        if (transferInfo) {
+                            transferId = transferInfo.id;
+                            transferList.push(transferInfo);
+                        }
+                    } catch (e) {
+                        console.warn('Attraction multi-vehicle transfer build failed, falling back', e);
+                        transferInfo = null;
+                    }
+                }
+
+                if (!transferInfo) {
                 // Use existing transfer ID or generate new one
                 if (!transferId) {
                     transferId = generateId('transfer');
@@ -21473,6 +21825,7 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                 };
                 
                 transferList.push(transferInfo);
+                } // end legacy single-vehicle fallback
             } else {
                 // Transfer unchecked, clear the ID
                 transferId = null;
@@ -21672,8 +22025,10 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
             const vehicleType = vehicleOption?.getAttribute('data-type') || 'sedan';
             const vehicleName = vehicleOption?.text || '';
             const vehicleCapacity = parseInt(vehicleOption?.getAttribute('data-seating')) || 0;
-            const transferWay = row.querySelector('.attraction-transfer-way').value;
-            const transferType = row.querySelector('.attraction-transfer-type').value;
+            const transferWay = row.querySelector('.attraction-transfer-way')?.value || 'both-way';
+            const transferType = row.querySelector('.attraction-transfer-type')?.value
+                || row.querySelector('.arr-dep-vehicle-xfer-type')?.value
+                || 'S';
             const guideChecked = row.querySelector('.attraction-guide-checkbox').checked;
             const guideSelect = row.querySelector('.attraction-guide-select');
             const guideId = guideSelect?.value || '';
@@ -21684,13 +22039,20 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                 return;
             }
             
-            // Parse charges
-            const adultCost = parseFloat(adultCharge.replace(/[^0-9.]/g, '')) || 0;
-            const adultSell = adultCost;
-            const childCost = parseFloat(childCharge.replace(/[^0-9.]/g, '')) || 0;
-            const childSell = childCost;
-            const infantCost = parseFloat(infantCharge.replace(/[^0-9.]/g, '')) || 0;
-            const infantSell = infantCost;
+            // Charge fields are SELL. Ticket master cost_price lives on the row.
+            const ticketCostSell = (typeof readAttractionTicketCostSell === 'function')
+                ? readAttractionTicketCostSell(row)
+                : {
+                    adultSell: parseFloat(String(adultCharge).replace(/[^0-9.]/g, '')) || 0,
+                    childSell: parseFloat(String(childCharge).replace(/[^0-9.]/g, '')) || 0,
+                    infantSell: parseFloat(String(infantCharge).replace(/[^0-9.]/g, '')) || 0
+                };
+            const adultSell = ticketCostSell.adultSell;
+            const childSell = ticketCostSell.childSell;
+            const infantSell = ticketCostSell.infantSell;
+            const adultCost = ticketCostSell.adultCost || adultSell;
+            const childCost = ticketCostSell.childCost || childSell;
+            const infantCost = ticketCostSell.infantCost || infantSell;
             
             // Create tour ID first
             const tourId = generateId('tour');
@@ -21700,6 +22062,29 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
             let transferId = null;
             
             if (transferChecked && transferDestination) {
+                // Prefer A/D-style multi-vehicle transfer payload when panel is available
+                if (typeof buildAttractionTransferInfoFromRow === 'function') {
+                    try {
+                        transferInfo = await buildAttractionTransferInfoFromRow({
+                            row: row,
+                            transferId: generateId('transfer'),
+                            dateTime: dateTime,
+                            adultsQty: adultsQty,
+                            childQty: childQty,
+                            infantQty: infantQty,
+                            tourId: tourId
+                        });
+                        if (transferInfo) {
+                            transferId = transferInfo.id;
+                            transferList.push(transferInfo);
+                        }
+                    } catch (e) {
+                        console.warn('Attraction multi-vehicle transfer build failed, falling back', e);
+                        transferInfo = null;
+                    }
+                }
+
+                if (!transferInfo) {
                 transferId = generateId('transfer');
                 
                 // Get "Is PickUp?" checkbox state
@@ -21815,6 +22200,7 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                 };
                 
                 transferList.push(transferInfo);
+                } // end legacy single-vehicle fallback
             }
             
             // Get guide info if selected
@@ -22167,7 +22553,7 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
         }
         const tourPaxBounds = typeof getTourSitePaxBounds === 'function'
             ? getTourSitePaxBounds()
-            : { adults: 0, children: 0, adultMin: 0, adultMax: 0, childMin: 0, childMax: 0 };
+            : { adults: 0, children: 0, infants: 0, adultMin: 0, adultMax: 0, childMin: 0, childMax: 0, infantMin: 0, infantMax: 0 };
 
         tbody.innerHTML = tourList.map((tour, index) => {
             // Ensure dateTime has time component, if not add default time 10:00
@@ -22193,6 +22579,9 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                 <td><input type="number" value="${tour.childQty}" min="${tourPaxBounds.childMin}" max="${tourPaxBounds.childMax}" ${tourPaxBounds.children <= 0 ? 'disabled' : ''} onchange="updateTourField(${index}, 'childQty', this.value); this.value = tourList[${index}].childQty;" ${tourPaxBounds.children <= 0 ? 'style="background-color: #f5f5f5; cursor: not-allowed;"' : ''}></td>
                 <td><input type="text" value="${parseFloat(String(tour.childCost).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" readonly style="background-color: #f5f5f5;"></td>
                 <td><input type="number" value="${parseFloat(String(tour.childSell).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" onchange="updateTourField(${index}, 'childSell', this.value)" step="1"></td>
+                <td><input type="number" value="${tour.infantQty || 0}" min="${tourPaxBounds.infantMin || 0}" max="${tourPaxBounds.infantMax || 0}" ${(tourPaxBounds.infants || 0) <= 0 ? 'disabled' : ''} onchange="updateTourField(${index}, 'infantQty', this.value); this.value = tourList[${index}].infantQty;" ${(tourPaxBounds.infants || 0) <= 0 ? 'style="background-color: #f5f5f5; cursor: not-allowed;"' : ''}></td>
+                <td><input type="text" value="${parseFloat(String(tour.infantCost || 0).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" readonly style="background-color: #f5f5f5;"></td>
+                <td><input type="number" value="${parseFloat(String(tour.infantSell || 0).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" onchange="updateTourField(${index}, 'infantSell', this.value)" step="1"></td>
                 ${buildOutsideFocCellHtml(isServiceFocChecked(tour, false), `updateTourField(${index}, 'focServiceDiscount', this.checked)`)}
                 <td style="text-align: center;"><input type="checkbox" ${tour.supplement ? 'checked' : ''} onchange="updateTourField(${index}, 'supplement', this.checked)"></td>
             </tr>
@@ -22284,17 +22673,20 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
             ? clampTourSitePaxQty(tour.adultsQty, 'adult')
             : (tour.adultsQty || 0);
         const adultCharge = matchRow.querySelector('.attraction-adult-charge');
-        if (adultCharge) adultCharge.value = `${parseFloat(String(tour.adultCost || 0).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}`;
+        if (adultCharge) adultCharge.value = `${parseFloat(String(tour.adultSell || tour.adultCost || 0).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}`;
+        matchRow.setAttribute('data-adult-cost', String(parseFloat(tour.adultCost || 0) || 0));
+        matchRow.setAttribute('data-child-cost', String(parseFloat(tour.childCost || 0) || 0));
+        matchRow.setAttribute('data-infant-cost', String(parseFloat(tour.infantCost || 0) || 0));
         const childQty = matchRow.querySelector('.attraction-child-qty');
         if (childQty) childQty.value = typeof clampTourSitePaxQty === 'function'
             ? clampTourSitePaxQty(tour.childQty, 'child')
             : (tour.childQty || 0);
         const childCharge = matchRow.querySelector('.attraction-child-charge');
-        if (childCharge) childCharge.value = `${parseFloat(String(tour.childCost || 0).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}`;
+        if (childCharge) childCharge.value = `${parseFloat(String(tour.childSell || tour.childCost || 0).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}`;
         const infantQty = matchRow.querySelector('.attraction-infant-qty');
         if (infantQty) infantQty.value = tour.infantQty || 0;
         const infantCharge = matchRow.querySelector('.attraction-infant-charge');
-        if (infantCharge) infantCharge.value = `${parseFloat(String(tour.infantCost || 0).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}`;
+        if (infantCharge) infantCharge.value = `${parseFloat(String(tour.infantSell || tour.infantCost || 0).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}`;
 
         const transferCheckbox = matchRow.querySelector('.attraction-transfer-checkbox');
         if (tour.transferInfo) {
@@ -22343,8 +22735,31 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
             if (waySelect && tour.transferInfo.way) {
                 waySelect.value = tour.transferInfo.way;
             }
+
+            // Restore A/D-style multi-vehicle panel for this attraction transfer
+            if (typeof ensureAttractionTransferPanelAfterRow === 'function') {
+                const vehicles = Array.isArray(tour.transferInfo.vehicles) && tour.transferInfo.vehicles.length
+                    ? tour.transferInfo.vehicles
+                    : (tour.transferInfo.vehicleId ? [{
+                        vehicleId: tour.transferInfo.vehicleId,
+                        qty: tour.transferInfo.vehicleQty || 1,
+                        transferType: tour.transferInfo.type || tour.transferInfo.transferType || 'S',
+                        adults: tour.transferInfo.adults || tour.adultsQty || 0,
+                        child: tour.transferInfo.child || tour.childQty || 0,
+                        infant: 0
+                    }] : [{ vehicleId: '', qty: 1, transferType: 'S' }]);
+                ensureAttractionTransferPanelAfterRow(matchRow, vehicles);
+                if (typeof toggleAttractionTransferPanel === 'function') {
+                    toggleAttractionTransferPanel(transferCheckbox, true);
+                }
+            } else if (typeof toggleAttractionTransferPanel === 'function') {
+                toggleAttractionTransferPanel(transferCheckbox, true);
+            }
         } else if (transferCheckbox) {
             transferCheckbox.checked = false;
+            if (typeof toggleAttractionTransferPanel === 'function') {
+                toggleAttractionTransferPanel(transferCheckbox, false);
+            }
         }
 
         const guideCheckbox = matchRow.querySelector('.attraction-guide-checkbox');
@@ -22376,9 +22791,13 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
             if (field === 'childQty' && typeof clampTourSitePaxQty === 'function') {
                 value = clampTourSitePaxQty(value, 'child');
             }
+            if (field === 'infantQty' && typeof clampTourSitePaxQty === 'function') {
+                value = clampTourSitePaxQty(value, 'infant');
+            }
             tour[field] = value;
+            if (field === 'infantQty') tour.infant = value;
             
-            if (field === 'supplement' || field === 'focServiceDiscount' || field === 'adultsQty' || field === 'childQty') {
+            if (field === 'supplement' || field === 'focServiceDiscount' || field === 'adultsQty' || field === 'childQty' || field === 'infantQty') {
                 recalculateTotals();
             }
             
@@ -23058,7 +23477,7 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
         }
         const guidePaxBounds = typeof getTourSitePaxBounds === 'function'
             ? getTourSitePaxBounds()
-            : { adults: 0, children: 0, adultMin: 0, adultMax: 0, childMin: 0, childMax: 0 };
+            : { adults: 0, children: 0, infants: 0, adultMin: 0, adultMax: 0, childMin: 0, childMax: 0, infantMin: 0, infantMax: 0 };
         
         tbody.innerHTML = guideList.map((guide, index) => {
             // Ensure dateTime has time component, if not add default time 09:00
@@ -23091,6 +23510,7 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                 <td><input type="text" value="${guide.guideName || guide.name || ''}" onchange="updateGuideField(${index}, 'guideName', this.value)" style="width: 100px;"></td>
                 <td><input type="number" value="${guide.adultsQty || 0}" min="${guidePaxBounds.adultMin}" max="${guidePaxBounds.adultMax}" ${guidePaxBounds.adults <= 0 ? 'disabled' : ''} onchange="updateGuideField(${index}, 'adultsQty', this.value); this.value = guideList[${index}].adultsQty;" step="1" ${guidePaxBounds.adults <= 0 ? 'style="width: 70px; text-align: center; background-color: #f5f5f5; cursor: not-allowed;"' : 'style="width: 70px; text-align: center;"'}></td>
                 <td><input type="number" value="${guide.childQty || 0}" min="${guidePaxBounds.childMin}" max="${guidePaxBounds.childMax}" ${guidePaxBounds.children <= 0 ? 'disabled' : ''} onchange="updateGuideField(${index}, 'childQty', this.value); this.value = guideList[${index}].childQty;" step="1" ${guidePaxBounds.children <= 0 ? 'style="width: 70px; text-align: center; background-color: #f5f5f5; cursor: not-allowed;"' : 'style="width: 70px; text-align: center;"'}></td>
+                <td><input type="number" value="${guide.infantQty || 0}" min="${guidePaxBounds.infantMin || 0}" max="${guidePaxBounds.infantMax || 0}" ${(guidePaxBounds.infants || 0) <= 0 ? 'disabled' : ''} onchange="updateGuideField(${index}, 'infantQty', this.value); this.value = guideList[${index}].infantQty;" step="1" ${(guidePaxBounds.infants || 0) <= 0 ? 'style="width: 70px; text-align: center; background-color: #f5f5f5; cursor: not-allowed;"' : 'style="width: 70px; text-align: center;"'}></td>
                 <td><input type="text" class="guide-cost-input" value="${guide.cost}" readonly style="background-color: #f5f5f5;"></td>
                 <td><input type="number" class="guide-sell-input" value="${guide.sell}" onchange="updateGuideField(${index}, 'sell', this.value)" step="1"></td>
                 ${buildOutsideFocCellHtml(isServiceFocChecked(guide, false), `updateGuideField(${index}, 'focServiceDiscount', this.checked)`)}
@@ -23332,7 +23752,11 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
             if (field === 'childQty' && typeof clampTourSitePaxQty === 'function') {
                 value = clampTourSitePaxQty(value, 'child');
             }
+            if (field === 'infantQty' && typeof clampTourSitePaxQty === 'function') {
+                value = clampTourSitePaxQty(value, 'infant');
+            }
             guide[field] = value;
+            if (field === 'infantQty') guide.infant = value;
             
             // If dateTime field is changed, update linked tour date and expand header dates
             if (field === 'dateTime' && value) {
@@ -26034,7 +26458,7 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
         }
         const mealPaxBounds = typeof getTourSitePaxBounds === 'function'
             ? getTourSitePaxBounds()
-            : { adults: 0, children: 0, adultMin: 0, adultMax: 0, childMin: 0, childMax: 0 };
+            : { adults: 0, children: 0, infants: 0, adultMin: 0, adultMax: 0, childMin: 0, childMax: 0, infantMin: 0, infantMax: 0 };
         
         tbody.innerHTML = mealList.map((meal, index) => {
             const mealType = (meal.mealType || '').toLowerCase();
@@ -26082,6 +26506,9 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                 <td><input type="number" value="${meal.childQty}" min="${mealPaxBounds.childMin}" max="${mealPaxBounds.childMax}" ${mealPaxBounds.children <= 0 ? 'disabled' : ''} onchange="updateMealField(${index}, 'childQty', this.value); this.value = mealList[${index}].childQty;" ${mealPaxBounds.children <= 0 ? 'style="background-color: #f5f5f5; cursor: not-allowed;"' : ''}></td>
                 <td><input type="text" value="${parseFloat(String(meal.childCost).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" readonly style="background-color: #f5f5f5;"></td>
                 <td><input type="number" value="${parseFloat(String(meal.childSell).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" onchange="updateMealField(${index}, 'childSell', this.value)" step="1"></td>
+                <td><input type="number" value="${meal.infantQty || 0}" min="${mealPaxBounds.infantMin || 0}" max="${mealPaxBounds.infantMax || 0}" ${(mealPaxBounds.infants || 0) <= 0 ? 'disabled' : ''} onchange="updateMealField(${index}, 'infantQty', this.value); this.value = mealList[${index}].infantQty;" ${(mealPaxBounds.infants || 0) <= 0 ? 'style="background-color: #f5f5f5; cursor: not-allowed;"' : ''}></td>
+                <td><input type="text" value="${parseFloat(String(meal.infantCost || 0).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" readonly style="background-color: #f5f5f5;"></td>
+                <td><input type="number" value="${parseFloat(String(meal.infantSell || 0).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" onchange="updateMealField(${index}, 'infantSell', this.value)" step="1"></td>
                 ${buildOutsideFocCellHtml(isServiceFocChecked(meal, false), `updateMealField(${index}, 'focServiceDiscount', this.checked)`)}
                 <td style="text-align: center;"><input type="checkbox" ${meal.supplement ? 'checked' : ''} onchange="updateMealSupplement(${index}, this.checked)"></td>
             </tr>
@@ -26577,7 +27004,11 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
             if (field === 'childQty' && typeof clampTourSitePaxQty === 'function') {
                 value = clampTourSitePaxQty(value, 'child');
             }
+            if (field === 'infantQty' && typeof clampTourSitePaxQty === 'function') {
+                value = clampTourSitePaxQty(value, 'infant');
+            }
             meal[field] = value;
+            if (field === 'infantQty') meal.infant = value;
             
             // If supplement is changed, do NOT sync with linked services
             
@@ -26815,11 +27246,12 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
             // Get adult and child values from parent header (min 1 when that pax type exists)
             const transferPaxBounds = typeof getTourSitePaxBounds === 'function'
                 ? getTourSitePaxBounds()
-                : { adults: 0, children: 0, adultMin: 0, adultMax: 0, childMin: 0, childMax: 0 };
-            let adults, child;
+                : { adults: 0, children: 0, infants: 0, adultMin: 0, adultMax: 0, childMin: 0, childMax: 0, infantMin: 0, infantMax: 0 };
+            let adults, child, infant;
             if (vehicleSlice) {
                 adults = Math.max(0, parseInt(vehicleSlice.adults ?? vehicleSlice.adultsQty ?? 0, 10) || 0);
                 child = Math.max(0, parseInt(vehicleSlice.child ?? vehicleSlice.childQty ?? 0, 10) || 0);
+                infant = Math.max(0, parseInt(vehicleSlice.infant ?? vehicleSlice.infantQty ?? 0, 10) || 0);
             } else {
                 adults = typeof clampTourSitePaxQty === 'function'
                     ? clampTourSitePaxQty(transfer.adults ?? transfer.adultsQty, 'adult')
@@ -26827,10 +27259,15 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                 child = typeof clampTourSitePaxQty === 'function'
                     ? clampTourSitePaxQty(transfer.child ?? transfer.childQty, 'child')
                     : (transfer.child || transfer.childQty || 0);
+                infant = typeof clampTourSitePaxQty === 'function'
+                    ? clampTourSitePaxQty(transfer.infant ?? transfer.infantQty, 'infant')
+                    : (transfer.infant || transfer.infantQty || 0);
                 transfer.adults = adults;
                 transfer.adultsQty = adults;
                 transfer.child = child;
                 transfer.childQty = child;
+                transfer.infant = infant;
+                transfer.infantQty = infant;
             }
             
             // Determine supplement checkbox display - show checkbox for linked transfers too
@@ -26877,18 +27314,21 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                 const sliceUnitSell = parseFloat(vehicleSlice.unitSell);
                 if (Number.isFinite(sliceUnitCost) && sliceUnitCost > 0) unitCost = sliceUnitCost;
                 if (Number.isFinite(sliceUnitSell) && sliceUnitSell > 0) unitSell = sliceUnitSell;
-                // 2) Per-vehicle zone fields only (not parent transfer)
+                // 2) Per-vehicle zone fields only (not parent transfer) — apply Way multiplier
+                const sliceWay = vehicleSlice.way || transfer.way || 'one-way';
+                const sliceWayMult = (sliceWay === 'both-way' || sliceWay === 'Both Way' || sliceWay === 'both'
+                    || sliceWay === 'two-way' || sliceWay === 'return' || sliceWay === '2way') ? 2 : 1;
                 if (!Number.isFinite(unitCost) || unitCost < 0) {
                     const zCost = parseFloat(rowIsShared
                         ? vehicleSlice.zoneSharedCostPrice
                         : vehicleSlice.zonePrivateCostPrice);
-                    if (Number.isFinite(zCost) && zCost > 0) unitCost = zCost;
+                    if (Number.isFinite(zCost) && zCost > 0) unitCost = zCost * sliceWayMult;
                 }
                 if (!Number.isFinite(unitSell) || unitSell < 0) {
                     const zSell = parseFloat(rowIsShared
                         ? vehicleSlice.zoneSharedPrice
                         : vehicleSlice.zonePrivatePrice);
-                    if (Number.isFinite(zSell) && zSell > 0) unitSell = zSell;
+                    if (Number.isFinite(zSell) && zSell > 0) unitSell = zSell * sliceWayMult;
                 }
                 // 3) Derive base from line totals (Shared: ÷ pax, Private: ÷ qty)
                 if (!Number.isFinite(unitCost) || unitCost < 0 || !Number.isFinite(unitSell) || unitSell < 0) {
@@ -26948,18 +27388,24 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                 }
             }
             
-            // Get current type and way for dropdowns
-            const currentType = transfer.type || 'S';
-            const currentWay = transfer.way || 'one-way';
+            // Per-vehicle type/way when listing is expanded to vehicle slices
+            const vIdx = (rowView.vehicleIndex != null && rowView.vehicleIndex !== undefined) ? rowView.vehicleIndex : null;
+            const currentType = vehicleSlice
+                ? (vehicleSlice.transferType || vehicleSlice.type || transfer.type || 'S')
+                : (transfer.type || 'S');
+            const currentWay = vehicleSlice
+                ? (vehicleSlice.way || transfer.way || 'one-way')
+                : (transfer.way || 'one-way');
             
             // Arrival and Departure: show Type and Way as read-only (user can see but not edit)
             const isArrivalOrDeparture = (transfer.sourceType === 'arrival' || transfer.sourceType === 'Arrival' || 
                 transfer.sourceType === 'departure' || transfer.sourceType === 'Departure') ||
                 (transfer.destination && (String(transfer.destination).indexOf('Arrival:') === 0 || String(transfer.destination).indexOf('Departure:') === 0));
             
+            const vIdxArg = (vIdx === null || vIdx === undefined) ? 'null' : String(vIdx);
             // Create type dropdown (only for local transfers; read-only for Arrival/Departure)
             const typeDropdown = (transfer.transportMode === 'local' || !transfer.transportMode) && !isArrivalOrDeparture
-                ? `<select onchange="updateTransferField(${index}, 'type', this.value)" style="width: 70px; font-size: 11px; padding: 2px 4px;">
+                ? `<select onchange="updateTransferField(${index}, 'type', this.value, ${vIdxArg})" style="width: 70px; font-size: 11px; padding: 2px 4px;">
                     <option value="S" ${(currentType === 'S' || currentType === 'sic' || currentType === 'Shared') ? 'selected' : ''}>Shared</option>
                     <option value="P" ${(currentType === 'P' || currentType === 'private' || currentType === 'Private') ? 'selected' : ''}>Private</option>
                    </select>`
@@ -26967,7 +27413,7 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
             
             // Create way dropdown (only for local transfers; read-only for Arrival/Departure)
             const wayDropdown = (transfer.transportMode === 'local' || !transfer.transportMode) && !isArrivalOrDeparture
-                ? `<select onchange="updateTransferField(${index}, 'way', this.value)" style="width: 80px; font-size: 11px; padding: 2px 4px;">
+                ? `<select onchange="updateTransferField(${index}, 'way', this.value, ${vIdxArg})" style="width: 80px; font-size: 11px; padding: 2px 4px;">
                     <option value="one-way" ${(currentWay === 'one-way' || currentWay === 'One Way') ? 'selected' : ''}>One Way</option>
                     <option value="both-way" ${(currentWay === 'both-way' || currentWay === 'Both Way' || currentWay === 'both' || currentWay === 'two-way' || currentWay === 'return' || currentWay === '2way') ? 'selected' : ''}>Both Way</option>
                    </select>`
@@ -26984,10 +27430,11 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                 <td style="font-size: 11px; max-width: 220px;">${vehicleLabel || getVehicleType(transfer)}</td>
                 <td>${typeDropdown}</td>
                 <td>${wayDropdown}</td>
-                <td><input type="number" value="${adults}" min="${transferPaxBounds.adultMin}" max="${transferPaxBounds.adultMax}" ${transferPaxBounds.adults <= 0 ? 'disabled' : ''} onchange="updateTransferField(${index}, 'adults', this.value); this.value = transferList[${index}].adults;" ${transferPaxBounds.adults <= 0 ? 'style="width: 50px; background-color: #f5f5f5; cursor: not-allowed;"' : 'style="width: 50px;"'}></td>
-                <td><input type="number" value="${child}" min="${transferPaxBounds.childMin}" max="${transferPaxBounds.childMax}" ${transferPaxBounds.children <= 0 ? 'disabled' : ''} onchange="updateTransferField(${index}, 'child', this.value); this.value = transferList[${index}].child;" ${transferPaxBounds.children <= 0 ? 'style="width: 50px; background-color: #f5f5f5; cursor: not-allowed;"' : 'style="width: 50px;"'}></td>
-                <td><input type="text" value="${displayCost}" readonly style="width: 70px; background-color: #f5f5f5;"></td>
-                <td><input type="number" value="${displaySell}" ${vehicleCount > 1 ? 'readonly' : `onchange="updateTransferField(${index}, 'sell', this.value)"`} step="1" style="width: 70px;${vehicleCount > 1 ? ' background-color: #f5f5f5;' : ''}"></td>
+                <td><input type="number" value="${adults}" min="${transferPaxBounds.adultMin}" max="${transferPaxBounds.adultMax}" ${transferPaxBounds.adults <= 0 ? 'disabled' : ''} onchange="updateTransferField(${index}, 'adults', this.value, ${vIdxArg}); this.value = (transferList[${index}].vehicles && transferList[${index}].vehicles[${vIdxArg}] ? transferList[${index}].vehicles[${vIdxArg}].adults : transferList[${index}].adults);" ${transferPaxBounds.adults <= 0 ? 'style="width: 50px; background-color: #f5f5f5; cursor: not-allowed;"' : 'style="width: 50px;"'}></td>
+                <td><input type="number" value="${child}" min="${transferPaxBounds.childMin}" max="${transferPaxBounds.childMax}" ${transferPaxBounds.children <= 0 ? 'disabled' : ''} onchange="updateTransferField(${index}, 'child', this.value, ${vIdxArg}); this.value = (transferList[${index}].vehicles && transferList[${index}].vehicles[${vIdxArg}] ? transferList[${index}].vehicles[${vIdxArg}].child : transferList[${index}].child);" ${transferPaxBounds.children <= 0 ? 'style="width: 50px; background-color: #f5f5f5; cursor: not-allowed;"' : 'style="width: 50px;"'}></td>
+                <td><input type="number" value="${infant}" min="${transferPaxBounds.infantMin || 0}" max="${transferPaxBounds.infantMax || 0}" ${(transferPaxBounds.infants || 0) <= 0 ? 'disabled' : ''} onchange="updateTransferField(${index}, 'infant', this.value, ${vIdxArg}); this.value = (transferList[${index}].vehicles && transferList[${index}].vehicles[${vIdxArg}] ? (transferList[${index}].vehicles[${vIdxArg}].infant ?? transferList[${index}].vehicles[${vIdxArg}].infantQty) : transferList[${index}].infant);" ${(transferPaxBounds.infants || 0) <= 0 ? 'style="width: 50px; background-color: #f5f5f5; cursor: not-allowed;"' : 'style="width: 50px;"'}></td>
+                <td><input type="text" class="transfer-cost-input" value="${displayCost}" readonly style="width: 70px; background-color: #f5f5f5;"></td>
+                <td><input type="number" class="transfer-sell-input" value="${displaySell}" ${vehicleCount > 1 ? 'readonly' : `onchange="updateTransferField(${index}, 'sell', this.value)"`} step="1" style="width: 70px;${vehicleCount > 1 ? ' background-color: #f5f5f5;' : ''}"></td>
                 ${buildOutsideFocCellHtml(isServiceFocChecked(transfer, false), `updateTransferField(${index}, 'focServiceDiscount', this.checked)`)}
                 <td style="text-align: center;">${supplementCheckboxHtml}</td>
             </tr>
@@ -27000,8 +27447,194 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
         recalculateTotals();
     }
     
-    // Update transfer field
-    async function updateTransferField(index, field, value) {
+
+    /** Recalc one vehicle slice (or whole transfer) after type/way/pax change on Local Transfer listing. */
+    async function recalculateLocalTransferSlicePricing(transfer, vehicleIndex) {
+        if (!transfer) return;
+        const loc = (typeof resolveTransferLocationIdsForZoneFetch === 'function')
+            ? resolveTransferLocationIdsForZoneFetch(transfer)
+            : {
+                pickupId: transfer.pickupId || transfer.fromZoneId || '',
+                dropId: transfer.dropId || transfer.dropoffId || transfer.toZoneId || '',
+                pickupType: transfer.pickupType || 'hotel',
+                dropType: transfer.dropType || transfer.dropoffType || 'hotel'
+            };
+        const dmcId = '{{ $dmc_id ?? "" }}';
+
+        async function priceVehicle(v) {
+            if (!v) return;
+            const vehicleId = String(v.vehicleId || v.vehicle_id || transfer.vehicleId || '');
+            let zonePrivatePrice = parseFloat(v.zonePrivatePrice) || parseFloat(transfer.zonePrivatePrice) || 0;
+            let zoneSharedPrice = parseFloat(v.zoneSharedPrice) || parseFloat(transfer.zoneSharedPrice) || 0;
+            let zonePrivateCostPrice = parseFloat(v.zonePrivateCostPrice) || parseFloat(transfer.zonePrivateCostPrice) || 0;
+            let zoneSharedCostPrice = parseFloat(v.zoneSharedCostPrice) || parseFloat(transfer.zoneSharedCostPrice) || 0;
+            const prevUnitCost = parseFloat(v.unitCost) || 0;
+            const prevUnitSell = parseFloat(v.unitSell) || 0;
+            if (vehicleId && loc.pickupId && loc.dropId && dmcId && typeof fetchZonePrice === 'function') {
+                try {
+                    const zonePrice = await fetchZonePrice(
+                        vehicleId, loc.pickupId, loc.pickupType, loc.dropId, loc.dropType, dmcId
+                    );
+                    zonePrivatePrice = parseFloat(zonePrice.private_price) || zonePrivatePrice;
+                    zoneSharedPrice = parseFloat(zonePrice.shared_price) || zoneSharedPrice;
+                    zonePrivateCostPrice = parseFloat(zonePrice.private_cost_price) || zonePrivateCostPrice;
+                    zoneSharedCostPrice = parseFloat(zonePrice.shared_cost_price) || zoneSharedCostPrice;
+                    v.zonePrivatePrice = zonePrivatePrice;
+                    v.zoneSharedPrice = zoneSharedPrice;
+                    v.zonePrivateCostPrice = zonePrivateCostPrice;
+                    v.zoneSharedCostPrice = zoneSharedCostPrice;
+                } catch (err) {
+                    console.warn('Vehicle slice zone price fetch failed', err);
+                }
+            }
+            const rowType = (typeof normalizeTransferTypePS === 'function')
+                ? normalizeTransferTypePS(v.transferType || v.type || transfer.type || 'S')
+                : (v.transferType || v.type || transfer.type || 'S');
+            const way = v.way || transfer.way || 'one-way';
+            const adults = Math.max(0, parseInt(v.adults ?? v.adultsQty ?? transfer.adults ?? 0, 10) || 0);
+            const child = Math.max(0, parseInt(v.child ?? v.childQty ?? transfer.child ?? 0, 10) || 0);
+            const qty = Math.max(1, parseInt(v.qty || v.quantity || 1, 10) || 1);
+            const hasZone = zonePrivatePrice > 0 || zoneSharedPrice > 0
+                || zonePrivateCostPrice > 0 || zoneSharedCostPrice > 0;
+            let unitCost = 0;
+            let unitSell = 0;
+            if (hasZone && typeof calculateTransferPrice === 'function') {
+                const unit = calculateTransferPrice({
+                    private_price: zonePrivatePrice,
+                    shared_price: zoneSharedPrice,
+                    private_cost_price: zonePrivateCostPrice,
+                    shared_cost_price: zoneSharedCostPrice
+                }, rowType, way, adults, child);
+                unitCost = parseFloat(unit.cost) || 0;
+                unitSell = parseFloat(unit.sell) || 0;
+            }
+            // Never wipe existing prices with zeros when zone mapping is missing
+            if (unitCost <= 0 && unitSell <= 0) {
+                if (prevUnitCost > 0 || prevUnitSell > 0) {
+                    // Re-apply way multiplier against previous one-way base when possible
+                    const prevWay = v._lastWay || transfer.way || way;
+                    const prevBoth = prevWay === 'both-way' || prevWay === 'Both Way' || prevWay === 'both'
+                        || prevWay === 'two-way' || prevWay === 'return' || prevWay === '2way';
+                    const nextBoth = way === 'both-way' || way === 'Both Way' || way === 'both'
+                        || way === 'two-way' || way === 'return' || way === '2way';
+                    const prevMult = prevBoth ? 2 : 1;
+                    const nextMult = nextBoth ? 2 : 1;
+                    const baseCost = prevUnitCost > 0 ? (prevUnitCost / prevMult) : 0;
+                    const baseSell = prevUnitSell > 0 ? (prevUnitSell / prevMult) : baseCost;
+                    unitCost = baseCost * nextMult;
+                    unitSell = baseSell * nextMult;
+                } else {
+                    return;
+                }
+            }
+            const rowShared = rowType === 'S';
+            const billPax = Math.max(0, adults + child);
+            v.transferType = rowType;
+            v.type = rowType;
+            v.way = way;
+            v._lastWay = way;
+            v.unitCost = unitCost;
+            v.unitSell = unitSell;
+            v.lineCost = rowShared ? unitCost * billPax : unitCost * qty;
+            v.lineSell = rowShared ? unitSell * billPax : unitSell * qty;
+            v.adultCost = rowShared ? unitCost : (unitCost * qty);
+            v.adultSell = rowShared ? unitSell : (unitSell * qty);
+            v.adults = adults;
+            v.child = child;
+            v.adultsQty = adults;
+            v.childQty = child;
+        }
+
+        // Coerce vehicleIndex from listing onchange strings
+        if (vehicleIndex === '' || vehicleIndex === 'null' || vehicleIndex === undefined) vehicleIndex = null;
+        if (vehicleIndex != null) vehicleIndex = parseInt(vehicleIndex, 10);
+        if (!Number.isFinite(vehicleIndex)) vehicleIndex = null;
+
+        if (Array.isArray(transfer.vehicles) && transfer.vehicles.length) {
+            if (vehicleIndex != null && transfer.vehicles[vehicleIndex]) {
+                await priceVehicle(transfer.vehicles[vehicleIndex]);
+            } else {
+                for (let i = 0; i < transfer.vehicles.length; i++) {
+                    await priceVehicle(transfer.vehicles[i]);
+                }
+            }
+            let totalCost = 0, totalSell = 0, storedCost = 0, storedSell = 0;
+            transfer.vehicles.forEach(function (v) {
+                const rowType = (typeof normalizeTransferTypePS === 'function')
+                    ? normalizeTransferTypePS(v.transferType || v.type || 'S')
+                    : (v.transferType || 'S');
+                const qty = Math.max(1, parseInt(v.qty || 1, 10) || 1);
+                const unitCost = parseFloat(v.unitCost) || 0;
+                const unitSell = parseFloat(v.unitSell) || 0;
+                totalCost += parseFloat(v.lineCost) || 0;
+                totalSell += parseFloat(v.lineSell) || 0;
+                if (rowType === 'S') {
+                    storedCost += unitCost * qty;
+                    storedSell += unitSell * qty;
+                } else {
+                    storedCost += parseFloat(v.lineCost) || 0;
+                    storedSell += parseFloat(v.lineSell) || 0;
+                }
+            });
+            const primary = transfer.vehicles[0] || {};
+            transfer.cost = storedCost;
+            transfer.sell = storedSell;
+            transfer.lineCost = totalCost;
+            transfer.lineSell = totalSell;
+            transfer.type = primary.transferType || primary.type || transfer.type;
+            transfer.transferType = transfer.type;
+            transfer.way = primary.way || transfer.way;
+            transfer.vehicleId = primary.vehicleId || transfer.vehicleId;
+            transfer.vehicleName = primary.vehicleName || transfer.vehicleName;
+            transfer.zonePrivatePrice = primary.zonePrivatePrice || transfer.zonePrivatePrice;
+            transfer.zoneSharedPrice = primary.zoneSharedPrice || transfer.zoneSharedPrice;
+            transfer.zonePrivateCostPrice = primary.zonePrivateCostPrice || transfer.zonePrivateCostPrice;
+            transfer.zoneSharedCostPrice = primary.zoneSharedCostPrice || transfer.zoneSharedCostPrice;
+            return;
+        }
+
+        // Single-vehicle / legacy transfer
+        let zonePrivatePrice = parseFloat(transfer.zonePrivatePrice) || 0;
+        let zoneSharedPrice = parseFloat(transfer.zoneSharedPrice) || 0;
+        let zonePrivateCostPrice = parseFloat(transfer.zonePrivateCostPrice) || 0;
+        let zoneSharedCostPrice = parseFloat(transfer.zoneSharedCostPrice) || 0;
+        if ((zonePrivateCostPrice === 0 && zoneSharedCostPrice === 0)
+            && transfer.vehicleId && loc.pickupId && loc.dropId && typeof fetchZonePrice === 'function') {
+            try {
+                const zonePrice = await fetchZonePrice(
+                    transfer.vehicleId, loc.pickupId, loc.pickupType, loc.dropId, loc.dropType, dmcId
+                );
+                zonePrivatePrice = parseFloat(zonePrice.private_price) || zonePrivatePrice;
+                zoneSharedPrice = parseFloat(zonePrice.shared_price) || zoneSharedPrice;
+                zonePrivateCostPrice = parseFloat(zonePrice.private_cost_price) || 0;
+                zoneSharedCostPrice = parseFloat(zonePrice.shared_cost_price) || 0;
+                transfer.zonePrivatePrice = zonePrivatePrice;
+                transfer.zoneSharedPrice = zoneSharedPrice;
+                transfer.zonePrivateCostPrice = zonePrivateCostPrice;
+                transfer.zoneSharedCostPrice = zoneSharedCostPrice;
+            } catch (err) {
+                console.warn('Could not fetch zone price for transfer recalculation:', err);
+            }
+        }
+        const prices = calculateTransferPrice(
+            {
+                private_price: zonePrivatePrice,
+                shared_price: zoneSharedPrice,
+                private_cost_price: zonePrivateCostPrice,
+                shared_cost_price: zoneSharedCostPrice
+            },
+            transfer.type || 'P',
+            transfer.way || 'one-way',
+            transfer.adults || transfer.adultsQty || 0,
+            transfer.child || transfer.childQty || 0
+        );
+        transfer.cost = prices.cost;
+        transfer.sell = prices.sell;
+    }
+
+
+    // Update transfer field (vehicleIndex = slice in transfer.vehicles[] when multi-vehicle listing)
+    async function updateTransferField(index, field, value, vehicleIndex) {
         if (transferList[index]) {
             const transfer = transferList[index];
             if (field === 'adults' && typeof clampTourSitePaxQty === 'function') {
@@ -27010,13 +27643,53 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
             if (field === 'child' && typeof clampTourSitePaxQty === 'function') {
                 value = clampTourSitePaxQty(value, 'child');
             }
-            transfer[field] = value;
-            
-            // Also update alternate field names for consistency
-            if (field === 'adults') {
-                transfer.adultsQty = value;
-            } else if (field === 'child') {
-                transfer.childQty = value;
+            if (field === 'infant' && typeof clampTourSitePaxQty === 'function') {
+                value = clampTourSitePaxQty(value, 'infant');
+            }
+            const hasSlice = Array.isArray(transfer.vehicles) && transfer.vehicles.length
+                && vehicleIndex != null && vehicleIndex !== '' && vehicleIndex !== 'null'
+                && transfer.vehicles[vehicleIndex];
+            if (hasSlice && (field === 'type' || field === 'way' || field === 'adults' || field === 'child' || field === 'infant')) {
+                const slice = transfer.vehicles[vehicleIndex];
+                if (field === 'type') {
+                    slice.transferType = value;
+                    slice.type = value;
+                    // keep parent in sync with first vehicle when editing primary
+                    if (Number(vehicleIndex) === 0) {
+                        transfer.type = value;
+                        transfer.transferType = value;
+                    }
+                } else if (field === 'way') {
+                    slice._lastWay = slice.way || transfer.way || 'both-way';
+                    slice.way = value;
+                    if (Number(vehicleIndex) === 0) {
+                        transfer._lastWay = transfer.way || slice._lastWay;
+                        transfer.way = value;
+                    }
+                } else if (field === 'adults') {
+                    slice.adults = value;
+                    slice.adultsQty = value;
+                } else if (field === 'child') {
+                    slice.child = value;
+                    slice.childQty = value;
+                } else if (field === 'infant') {
+                    slice.infant = value;
+                    slice.infantQty = value;
+                }
+            } else {
+                if (field === 'way') {
+                    transfer._lastWay = transfer.way || 'both-way';
+                }
+                transfer[field] = value;
+                if (field === 'adults') {
+                    transfer.adultsQty = value;
+                } else if (field === 'child') {
+                    transfer.childQty = value;
+                } else if (field === 'infant') {
+                    transfer.infantQty = value;
+                } else if (field === 'type') {
+                    transfer.transferType = value;
+                }
             }
             
             // If dateTime field is changed, expand header dates and sync to linked arrival/departure and guide
@@ -27055,70 +27728,10 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                 updateTransferTable();
             }
             
-            // If type or way changes for local transfers, recalculate cost/sell based on zone prices
-            if ((field === 'type' || field === 'way') && transfer.transportMode === 'local') {
-                let zonePrivatePrice = parseFloat(transfer.zonePrivatePrice) || 0;
-                let zoneSharedPrice = parseFloat(transfer.zoneSharedPrice) || 0;
-                let zonePrivateCostPrice = parseFloat(transfer.zonePrivateCostPrice) || 0;
-                let zoneSharedCostPrice = parseFloat(transfer.zoneSharedCostPrice) || 0;
-                const loc = (typeof resolveTransferLocationIdsForZoneFetch === 'function')
-                    ? resolveTransferLocationIdsForZoneFetch(transfer)
-                    : {
-                        pickupId: transfer.pickupId || transfer.fromZoneId || '',
-                        dropId: transfer.dropId || transfer.dropoffId || transfer.toZoneId || '',
-                        pickupType: transfer.pickupType || 'hotel',
-                        dropType: transfer.dropType || transfer.dropoffType || 'hotel'
-                    };
-
-                if ((zonePrivateCostPrice === 0 && zoneSharedCostPrice === 0)
-                    && transfer.vehicleId && loc.pickupId && loc.dropId) {
-                    const dmcId = '{{ $dmc_id ?? "" }}';
-                    try {
-                        const zonePrice = await fetchZonePrice(
-                            transfer.vehicleId,
-                            loc.pickupId,
-                            loc.pickupType,
-                            loc.dropId,
-                            loc.dropType,
-                            dmcId
-                        );
-                        zonePrivatePrice = parseFloat(zonePrice.private_price) || zonePrivatePrice;
-                        zoneSharedPrice = parseFloat(zonePrice.shared_price) || zoneSharedPrice;
-                        zonePrivateCostPrice = parseFloat(zonePrice.private_cost_price) || 0;
-                        zoneSharedCostPrice = parseFloat(zonePrice.shared_cost_price) || 0;
-                        transfer.zonePrivatePrice = zonePrivatePrice;
-                        transfer.zoneSharedPrice = zoneSharedPrice;
-                        transfer.zonePrivateCostPrice = zonePrivateCostPrice;
-                        transfer.zoneSharedCostPrice = zoneSharedCostPrice;
-                    } catch (err) {
-                        console.warn('Could not fetch zone price for transfer recalculation:', err);
-                    }
-                }
-
-                const prices = calculateTransferPrice(
-                    {
-                        private_price: zonePrivatePrice,
-                        shared_price: zoneSharedPrice,
-                        private_cost_price: zonePrivateCostPrice,
-                        shared_cost_price: zoneSharedCostPrice
-                    },
-                    transfer.type || 'P',
-                    transfer.way || 'one-way',
-                    transfer.adults || transfer.adultsQty || 0,
-                    transfer.child || transfer.childQty || 0
-                );
-                transfer.cost = prices.cost;
-                transfer.sell = prices.sell;
-                
-                console.log('Recalculated transfer price:', {
-                    type: transfer.type,
-                    way: transfer.way,
-                    cost: transfer.cost,
-                    sell: transfer.sell,
-                    privateCost: zonePrivateCostPrice,
-                    privateSell: zonePrivatePrice
-                });
-                
+            // Type / way / per-vehicle pax: recalculate zone prices (multi-vehicle aware)
+            if ((field === 'type' || field === 'way' || ((field === 'adults' || field === 'child') && vehicleIndex != null && vehicleIndex !== '' && vehicleIndex !== 'null'))
+                && (transfer.transportMode === 'local' || !transfer.transportMode)) {
+                await recalculateLocalTransferSlicePricing(transfer, vehicleIndex);
                 updateTransferTable();
             }
             
@@ -29607,8 +30220,12 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                 listSellValue = units.unitSell;
 
                 if (tableRow) {
-                    const costInput = tableRow.querySelector('td:nth-child(10) input');
-                    const sellInput = tableRow.querySelector('td:nth-child(11) input');
+                    // Infant column shifted Cost/Sell to cols 11/12 — prefer stable classes
+                    const costInput = tableRow.querySelector('.transfer-cost-input')
+                        || tableRow.querySelector('td:nth-child(11) input');
+                    const sellInput = tableRow.querySelector('.transfer-sell-input')
+                        || tableRow.querySelector('td:nth-child(12) input[type="number"]')
+                        || tableRow.querySelector('td:nth-child(12) input');
                     if (costInput && costInput.value !== '') {
                         listCostValue = parseFloat(costInput.value) || 0;
                     }
@@ -30043,7 +30660,7 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                         if (transferTableBody) {
                             const rows = Array.from(transferTableBody.querySelectorAll('tr'));
                             if (ti < rows.length) {
-                                const sellInput = rows[ti].querySelector('td:nth-child(11) input');
+                                const sellInput = rows[ti].querySelector('.transfer-sell-input') || rows[ti].querySelector('td:nth-child(12) input[type="number"]') || rows[ti].querySelector('td:nth-child(12) input');
                                 if (sellInput && sellInput.value !== '') listSellValue = parseFloat(sellInput.value) || 0;
                             }
                         }
@@ -30132,7 +30749,7 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                 if (transferTableBody) {
                     const tableRows = Array.from(transferTableBody.querySelectorAll('tr'));
                     if (transferIndex < tableRows.length) {
-                        const sellInput = tableRows[transferIndex].querySelector('td:nth-child(11) input');
+                        const sellInput = tableRows[transferIndex].querySelector('.transfer-sell-input') || tableRows[transferIndex].querySelector('td:nth-child(12) input[type="number"]') || tableRows[transferIndex].querySelector('td:nth-child(12) input');
                         if (sellInput && sellInput.value !== '') listSellValue = parseFloat(sellInput.value) || 0;
                     }
                 }
@@ -30827,9 +31444,29 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
             ? (transferList.find(t => String(t.id) === String(tour.transferId)) || null)
             : null;
         const fromInfo = tour.transferInfo && Object.keys(tour.transferInfo).length > 0 ? tour.transferInfo : null;
-        if (fromList) {
-            return fromInfo ? Object.assign({}, fromInfo, fromList) : fromList;
+        if (fromList && fromInfo) {
+            const merged = Object.assign({}, fromInfo, fromList);
+            const vInfo = Array.isArray(fromInfo.vehicles) ? fromInfo.vehicles : [];
+            const vList = Array.isArray(fromList.vehicles) ? fromList.vehicles : [];
+            if (vInfo.length > vList.length) merged.vehicles = vInfo;
+            else if (vList.length) merged.vehicles = vList;
+            else if (vInfo.length) merged.vehicles = vInfo;
+            // Prefer explicit line totals when list entry still has listing unit storage only
+            const infoLine = parseFloat(fromInfo.lineCost != null ? fromInfo.lineCost : fromInfo.totalCost);
+            const listLine = parseFloat(fromList.lineCost != null ? fromList.lineCost : fromList.totalCost);
+            if (Number.isFinite(infoLine) && infoLine > 0 && (!Number.isFinite(listLine) || listLine <= 0)) {
+                merged.lineCost = fromInfo.lineCost != null ? fromInfo.lineCost : fromInfo.totalCost;
+                merged.lineSell = fromInfo.lineSell != null ? fromInfo.lineSell : fromInfo.totalSell;
+                merged.totalCost = fromInfo.totalCost != null ? fromInfo.totalCost : fromInfo.lineCost;
+                merged.totalSell = fromInfo.totalSell != null ? fromInfo.totalSell : fromInfo.lineSell;
+            }
+            if (fromInfo.infant != null || fromInfo.infantQty != null) {
+                merged.infant = fromInfo.infant != null ? fromInfo.infant : fromInfo.infantQty;
+                merged.infantQty = fromInfo.infantQty != null ? fromInfo.infantQty : fromInfo.infant;
+            }
+            return merged;
         }
+        if (fromList) return fromList;
         return fromInfo;
     }
 
@@ -30838,6 +31475,133 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
         if (t === 's' || t === 'shared' || t === 'sic') return 'Shared';
         if (t === 'p' || t === 'private') return 'Private';
         return 'Private';
+    }
+
+    /**
+     * Attraction multi-vehicle → transfer_options for order JSON.
+     * Shared: line = unit(way) × (adults+child)  — qty is seats only, NOT a price multiplier.
+     * Private: line = unit(way) × qty            — never × pax.
+     * Infant stored but never billed into pax.
+     */
+    function buildAttractionTransferOptionsPayload(linkedTransfer, tour) {
+        if (!linkedTransfer) return null;
+
+        const pickupName = linkedTransfer.pickup || '';
+        const dropoffName = linkedTransfer.dropoff || '';
+        const tourAdults = parseInt(tour?.adultsQty || tour?.adultCount || linkedTransfer.adults || 0, 10) || 0;
+        const tourChild = parseInt(tour?.childQty || tour?.childCount || linkedTransfer.child || 0, 10) || 0;
+        const tourInfant = parseInt(tour?.infantQty || tour?.infantCount || linkedTransfer.infant || linkedTransfer.infantQty || 0, 10) || 0;
+
+        // Prefer A/D order-store expander (same math as arrival/departure / local transfer)
+        let slices = [];
+        try {
+            if (typeof expandArrDepVehiclesForOrderStore === 'function') {
+                const seed = Object.assign({}, linkedTransfer, {
+                    adultsQty: tourAdults,
+                    adults: tourAdults,
+                    childQty: tourChild,
+                    child: tourChild,
+                    infantQty: tourInfant,
+                    infant: tourInfant
+                });
+                slices = expandArrDepVehiclesForOrderStore(seed) || [];
+            }
+        } catch (e) {
+            console.warn('expandArrDepVehiclesForOrderStore failed for attraction', e);
+            slices = [];
+        }
+
+        // Fallback: normalize raw vehicles[] / single vehicle
+        if (!slices.length) {
+            const rawList = (typeof normalizeArrDepVehiclesList === 'function')
+                ? normalizeArrDepVehiclesList(linkedTransfer)
+                : (Array.isArray(linkedTransfer.vehicles) ? linkedTransfer.vehicles : []);
+            slices = (rawList.length ? rawList : (linkedTransfer.vehicleId ? [{
+                vehicleId: linkedTransfer.vehicleId,
+                vehicleName: linkedTransfer.vehicleName || '',
+                vehicleType: linkedTransfer.vehicleType || '',
+                seats: linkedTransfer.capacity || 0,
+                qty: linkedTransfer.vehicleQty || 1,
+                transferType: linkedTransfer.type || linkedTransfer.transferType || 'S',
+                way: linkedTransfer.way || 'both-way',
+                adults: tourAdults,
+                child: tourChild,
+                infant: tourInfant,
+                unitCost: linkedTransfer.cost,
+                unitSell: linkedTransfer.sell,
+                lineCost: linkedTransfer.lineCost,
+                lineSell: linkedTransfer.lineSell,
+                zonePrivatePrice: linkedTransfer.zonePrivatePrice,
+                zoneSharedPrice: linkedTransfer.zoneSharedPrice,
+                zonePrivateCostPrice: linkedTransfer.zonePrivateCostPrice,
+                zoneSharedCostPrice: linkedTransfer.zoneSharedCostPrice
+            }] : [])).map(function (v, idx) {
+                const tt = (typeof normalizeTransferTypePS === 'function')
+                    ? normalizeTransferTypePS(v.transferType || v.type || 'S')
+                    : ((String(v.transferType || v.type || 'S').toUpperCase().charAt(0) === 'P') ? 'P' : 'S');
+                const isShared = tt === 'S';
+                const qty = Math.max(1, parseInt(v.qty || v.quantity || 1, 10) || 1);
+                const adults = Math.max(0, parseInt(v.adults ?? v.adultsQty ?? tourAdults, 10) || 0);
+                const child = Math.max(0, parseInt(v.child ?? v.childQty ?? 0, 10) || 0);
+                const infant = Math.max(0, parseInt(v.infant ?? v.infantQty ?? 0, 10) || 0);
+                const billPax = Math.max(0, adults + child);
+                let unitCost = parseFloat(v.unitCost);
+                let unitSell = parseFloat(v.unitSell);
+                if (!Number.isFinite(unitCost) || unitCost <= 0) {
+                    const zc = isShared
+                        ? (parseFloat(v.zoneSharedCostPrice) || parseFloat(linkedTransfer.zoneSharedCostPrice) || 0)
+                        : (parseFloat(v.zonePrivateCostPrice) || parseFloat(linkedTransfer.zonePrivateCostPrice) || 0);
+                    const way = String(v.way || linkedTransfer.way || 'both-way').toLowerCase();
+                    const wayMul = (way === 'both-way' || way === 'both' || way === '2-way' || way === 'return') ? 2 : 1;
+                    unitCost = zc > 0 ? (zc * wayMul) : (parseFloat(v.cost) || parseFloat(linkedTransfer.cost) || 0);
+                }
+                if (!Number.isFinite(unitSell) || unitSell <= 0) {
+                    const zs = isShared
+                        ? (parseFloat(v.zoneSharedPrice) || parseFloat(linkedTransfer.zoneSharedPrice) || 0)
+                        : (parseFloat(v.zonePrivatePrice) || parseFloat(linkedTransfer.zonePrivatePrice) || 0);
+                    const way = String(v.way || linkedTransfer.way || 'both-way').toLowerCase();
+                    const wayMul = (way === 'both-way' || way === 'both' || way === '2-way' || way === 'return') ? 2 : 1;
+                    unitSell = zs > 0 ? (zs * wayMul) : (parseFloat(v.sell) || parseFloat(linkedTransfer.sell) || unitCost);
+                }
+                let lineCost = parseFloat(v.lineCost);
+                let lineSell = parseFloat(v.lineSell);
+                if (!Number.isFinite(lineCost)) lineCost = isShared ? unitCost * Math.max(1, billPax) : unitCost * qty;
+                if (!Number.isFinite(lineSell)) lineSell = isShared ? unitSell * Math.max(1, billPax) : unitSell * qty;
+                return {
+                    vehicleId: String(v.vehicleId || v.vehicle_id || ''),
+                    vehicleName: v.vehicleName || v.vehicle_name || '',
+                    vehicleType: v.vehicleType || v.vehicle_type || '',
+                    seats: parseInt(v.seats || v.seating_capacity || 0, 10) || 0,
+                    qty: qty,
+                    transferType: tt,
+                    typeLabel: isShared ? 'Shared' : 'Private',
+                    way: v.way || linkedTransfer.way || 'both-way',
+                    adults: adults,
+                    child: child,
+                    infant: infant,
+                    unitCost: unitCost,
+                    unitSell: unitSell,
+                    lineCost: lineCost,
+                    lineSell: lineSell,
+                    zonePrivatePrice: parseFloat(v.zonePrivatePrice) || 0,
+                    zoneSharedPrice: parseFloat(v.zoneSharedPrice) || 0,
+                    zonePrivateCostPrice: parseFloat(v.zonePrivateCostPrice) || 0,
+                    zoneSharedCostPrice: parseFloat(v.zoneSharedCostPrice) || 0,
+                    index: idx
+                };
+            }).filter(function (s) { return !!s.vehicleId; });
+        }
+
+        if (!slices.length) return null;
+
+        const seed = Object.assign({}, linkedTransfer, { vehicles: slices });
+        if (typeof window.buildAttractionTransferOrderBlocks === 'function') {
+            return window.buildAttractionTransferOrderBlocks(seed, tour);
+        }
+        if (typeof buildAttractionTransferOrderBlocks === 'function') {
+            return buildAttractionTransferOrderBlocks(seed, tour);
+        }
+        return null;
     }
     
     // Transform arrival/departure data to required format
@@ -31327,6 +32091,58 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
         if (hotel.hasCnb) hotel.childWithoutBed = rooms;
     }
 
+    /**
+     * Lite-parity baby cot charge when infant cot is selected.
+     * Sell total = unit × infants × nights × rooms; cost unit from beds.baby_cot_cost_price.
+     */
+    function enquiryProResolveBabyCotCharge(hotel, nights, numberOfRooms) {
+        const enabled = !!(hotel && hotel.hasInfant);
+        const n = Math.max(1, parseInt(nights, 10) || 1);
+        const rooms = Math.max(1, parseInt(numberOfRooms, 10) || enquiryProHotelRoomCount(hotel) || 1);
+        if (!enabled) {
+            return {
+                enabled: false,
+                unit: 0,
+                unitCost: 0,
+                infants: 0,
+                nights: n,
+                rooms: rooms,
+                baby_cot: 0,
+                baby_cot_price: 0,
+                baby_cot_cost: 0,
+                baby_cot_cost_price_unit: 0,
+                baby_cot_cost_total: 0
+            };
+        }
+        const header = typeof getHeaderValues === 'function' ? getHeaderValues() : {};
+        const fromHotel = Math.max(0, parseInt(hotel.infants ?? hotel.selected_infants ?? hotel.infant ?? hotel.infantQty ?? 0, 10) || 0);
+        const fromHeader = Math.max(0, parseInt(header.infants, 10) || 0);
+        const infants = Math.max(1, fromHotel || fromHeader || 1);
+        const unit = parseFloat(hotel.infantPrice) || 0;
+        const unitCost = parseFloat(
+            hotel.infantCostPrice
+            ?? hotel.babyCotCostPrice
+            ?? hotel.bedData?.baby_cot_cost_price
+            ?? hotel.roomData?.baby_cot_cost_price
+            ?? 0
+        ) || 0;
+        const babyCotCost = (unit > 0) ? (unit * infants * n * rooms) : 0;
+        const babyCotCostTotal = (unitCost > 0) ? (unitCost * infants * n * rooms) : 0;
+        return {
+            enabled: true,
+            unit: unit,
+            unitCost: unitCost,
+            infants: infants,
+            nights: n,
+            rooms: rooms,
+            baby_cot: 1,
+            baby_cot_price: unit,
+            baby_cot_cost: babyCotCost,
+            baby_cot_cost_price_unit: unitCost,
+            baby_cot_cost_total: babyCotCostTotal
+        };
+    }
+
     /** Map meal plan label/value to computeMealCost switch key */
     function enquiryProMealPlanKey(mealPlan, mealPlanLabel) {
         if (mealPlan && String(mealPlan).includes('_')) return String(mealPlan).trim();
@@ -31525,7 +32341,7 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
         return Number.isFinite(v) ? v : 0;
     }
 
-    /** Hotel JSON total: ceiling room lodging + meals + extra bed / CWB / CNB. */
+    /** Hotel JSON total: ceiling room lodging + meals + extra bed / CWB / CNB / baby cot. */
     function enquiryProHotelPayloadTotalPrice(hotel, numberOfRooms, nights) {
         if (!hotel) return 0;
         const nr = Math.max(1, parseInt(numberOfRooms, 10) || 1);
@@ -31540,8 +32356,9 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
         const childWithBedTotalCost = (hotel.hasCwb && cwbChildren > 0) ? (cwbPrice * cwbChildren * n) : 0;
         const childWithoutBedTotalCost = (hotel.hasCnb && cnbChildren > 0) ? (cnbPrice * cnbChildren * n) : 0;
         const extraBedTotalCost = (hotel.hasExtraBed && extraBedQuantity > 0) ? (extraBedPrice * extraBedQuantity * n) : 0;
+        const babyCot = enquiryProResolveBabyCotCharge(hotel, n, nr);
         const pricing = enquiryProBuildSelectedMealsPayload(hotel, nr, n);
-        return pricing.totals.lodging + pricing.totals.meals + extraBedTotalCost + childWithBedTotalCost + childWithoutBedTotalCost;
+        return pricing.totals.lodging + pricing.totals.meals + extraBedTotalCost + childWithBedTotalCost + childWithoutBedTotalCost + (babyCot.baby_cot_cost || 0);
     }
 
     // Transform accommodation data to required hotel format
@@ -31650,12 +32467,16 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
             const lodgingCostSnapshot = (typeof enquiryProBuildLodgingCostSnapshot === 'function')
                 ? enquiryProBuildLodgingCostSnapshot(hotel, numberOfRooms)
                 : null;
+            const babyCot = enquiryProResolveBabyCotCharge(hotel, nights, numberOfRooms);
 
-            // Create bed object with clean structure
+            // Create bed object with clean structure (Lite-parity baby_cot fields when infant selected)
             const bedObject = {
                 bed_id: String(actualBedId || ""),
                 bed_type: cleanBedType,
-                baby_cot: 0,
+                baby_cot: babyCot.baby_cot,
+                baby_cot_price: babyCot.baby_cot_price,
+                baby_cot_cost: babyCot.baby_cot_cost,
+                baby_cot_cost_price: babyCot.baby_cot_cost_price_unit,
                 head_count: enquiryProMealPaxPerRoomForHotel(hotel),
                 max_occupancy: parseInt(hotel.maxOccupancy) || 3,
                 cost: roomCost,
@@ -31747,6 +32568,15 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                 // Pricing
                 totalPrice: totalPrice,
                 price: totalPrice,
+                baby_cot: babyCot.baby_cot,
+                baby_cot_price: babyCot.baby_cot_price,
+                baby_cot_cost: babyCot.baby_cot_cost,
+                baby_cot_cost_price: babyCot.baby_cot_cost_price_unit,
+                baby_cot_cost_total: babyCot.baby_cot_cost_total,
+                grand_total_with_cot: totalPrice,
+                hasInfant: !!hotel.hasInfant,
+                infants: babyCot.enabled ? babyCot.infants : 0,
+                selected_infants: babyCot.enabled ? babyCot.infants : 0,
                 ...enquiryProOrderDiscountPayload(hotel, () => computeHotelServiceDiscountAmount(hotel)),
                 
                 // Extra bed (enabled, price, quantity, total_cost = price * quantity * nights)
@@ -31878,10 +32708,10 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                 ticket_details: {
                     ticket_id: tour.ticketId || 0,
                     ticket_name: tour.ticketName || "",
-                    adult_price: parseFloat(tour.adultCost) || 0,
+                    adult_price: parseFloat(tour.adultSell) || 0,
                     adult_cost: parseFloat(tour.adultCost) || 0,
                     adult_sell: parseFloat(tour.adultSell) || 0,
-                    child_price: parseFloat(tour.childCost) || 0,
+                    child_price: parseFloat(tour.childSell) || 0,
                     child_cost: parseFloat(tour.childCost) || 0,
                     child_sell: parseFloat(tour.childSell) || 0,
                     infant_cost: parseFloat(tour.infantCost) || 0,
@@ -31893,9 +32723,15 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                 transport: null,
                 Selection: "withoutTransport",
                 mode: "dmc",
-                totalPrice: parseFloat(tour.adultSell || 0) * parseInt(tour.adultsQty || 0) + parseFloat(tour.childSell || 0) * parseInt(tour.childQty || 0),
-                cost: parseFloat(tour.adultCost || 0) * parseInt(tour.adultsQty || 0) + parseFloat(tour.childCost || 0) * parseInt(tour.childQty || 0),
-                sell: parseFloat(tour.adultSell || 0) * parseInt(tour.adultsQty || 0) + parseFloat(tour.childSell || 0) * parseInt(tour.childQty || 0),
+                totalPrice: parseFloat(tour.adultSell || 0) * parseInt(tour.adultsQty || 0)
+                    + parseFloat(tour.childSell || 0) * parseInt(tour.childQty || 0)
+                    + parseFloat(tour.infantSell || 0) * parseInt(tour.infantQty || 0),
+                cost: parseFloat(tour.adultCost || 0) * parseInt(tour.adultsQty || 0)
+                    + parseFloat(tour.childCost || 0) * parseInt(tour.childQty || 0)
+                    + parseFloat(tour.infantCost || 0) * parseInt(tour.infantQty || 0),
+                sell: parseFloat(tour.adultSell || 0) * parseInt(tour.adultsQty || 0)
+                    + parseFloat(tour.childSell || 0) * parseInt(tour.childQty || 0)
+                    + parseFloat(tour.infantSell || 0) * parseInt(tour.infantQty || 0),
                 nri: "residential",
                 bookingType: "enquiry",
                 package_type: 0,
@@ -31907,74 +32743,29 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                 ...enquiryProOrderDiscountPayload(tour, () => computeTourTicketDiscountAmount(tour))
             };
             
-            // Add transfer_options if attraction has linked transfer
+            // Add transfer_options if attraction has linked transfer (multi-vehicle array + line totals)
             const linkedTransfer = getTourLinkedTransferForOrder(tour);
             if (linkedTransfer) {
-                // IMPORTANT: Use pickup and dropoff from transfer object (MUST respect "Is PickUp?" checkbox)
-                const pickupName = linkedTransfer.pickup || '';
-                const dropoffName = linkedTransfer.dropoff || '';
-                const baseCost = parseFloat(linkedTransfer.cost) || 0;
-                const baseSell = parseFloat(linkedTransfer.sell) || 0;
-                const basePrice = baseSell || baseCost;
-                let adults = parseInt(linkedTransfer.adults || linkedTransfer.adultsQty || 0) || 0;
-                let child = parseInt(linkedTransfer.child || linkedTransfer.childQty || 0) || 0;
-                if (adults <= 0 && child <= 0) {
-                    adults = parseInt(tour.adultsQty || tour.adultCount || 0) || 0;
-                    child = parseInt(tour.childQty || tour.childCount || 0) || 0;
+                const blocks = buildAttractionTransferOptionsPayload(linkedTransfer, tour)
+                    || ((typeof buildAttractionTransferOrderBlocks === 'function')
+                        ? buildAttractionTransferOrderBlocks(linkedTransfer, tour)
+                        : null);
+                if (blocks && blocks.transfer_options) {
+                    tourData.Selection = 'withTransport';
+                    tourData.transfer_options = {
+                        ...blocks.transfer_options,
+                        ...enquiryProOrderDiscountPayload(linkedTransfer, () => computeTransferOptionsDiscountAmount(
+                            Object.assign({}, linkedTransfer, {
+                                cost: blocks.transfer_options.cost,
+                                sell: blocks.transfer_options.sell,
+                                lineCost: blocks.transfer_options.lineCost,
+                                lineSell: blocks.transfer_options.lineSell
+                            }),
+                            true
+                        ))
+                    };
+                    tourData.transferInfo = blocks.transferInfo;
                 }
-                const totalPax = Math.max(1, adults + child);
-                const typeLabel = normalizeAttractionTransferTypeLabel(linkedTransfer.type || linkedTransfer.transferType);
-                const isShared = typeLabel === 'Shared';
-                const transferTotalPrice = isShared ? (basePrice * totalPax) : basePrice;
-                tourData.Selection = 'withTransport';
-                tourData.transfer_options = {
-                    transfer_required: true,
-                    type: typeLabel,
-                    way: linkedTransfer.way || 'one-way',
-                    vehicle_id: linkedTransfer.vehicleId || linkedTransfer.vehicle_id || '',
-                    vehicle_details: {
-                        vehicle_name: linkedTransfer.vehicleName || '',
-                        vehicle_type: linkedTransfer.vehicleType || '',
-                        seating_capacity: linkedTransfer.capacity || 0
-                    },
-                    cost: parseFloat(baseCost) || 0,
-                    sell: parseFloat(baseSell) || parseFloat(baseCost) || 0,
-                    totalPrice: transferTotalPrice,
-                    adults: adults,
-                    child: child,
-                    children: child,
-                    pickup_location_name: pickupName,
-                    destination_name: dropoffName,
-                    zonePrivatePrice: parseFloat(linkedTransfer.zonePrivatePrice) || 0,
-                    zoneSharedPrice: parseFloat(linkedTransfer.zoneSharedPrice) || 0,
-                    zonePrivateCostPrice: parseFloat(linkedTransfer.zonePrivateCostPrice) || 0,
-                    zoneSharedCostPrice: parseFloat(linkedTransfer.zoneSharedCostPrice) || 0,
-                    pickupId: linkedTransfer.pickupId || '',
-                    dropId: linkedTransfer.dropId || linkedTransfer.dropoffId || '',
-                    pickupType: linkedTransfer.pickupType || '',
-                    dropType: linkedTransfer.dropType || linkedTransfer.dropoffType || '',
-                    ...enquiryProOrderDiscountPayload(linkedTransfer, () => computeTransferOptionsDiscountAmount(linkedTransfer, true))
-                };
-                tourData.transferInfo = {
-                    id: linkedTransfer.id || tour.transferId || null,
-                    destination: linkedTransfer.destination || dropoffName,
-                    destinationId: linkedTransfer.destinationId || null,
-                    vehicleId: linkedTransfer.vehicleId,
-                    vehicleName: linkedTransfer.vehicleName,
-                    vehicleType: linkedTransfer.vehicleType,
-                    type: linkedTransfer.type || (isShared ? 'S' : 'P'),
-                    way: linkedTransfer.way,
-                    pickup: pickupName,
-                    dropoff: dropoffName,
-                    isDestinationPickup: linkedTransfer.isDestinationPickup || false,
-                    cost: parseFloat(baseCost) || 0,
-                    sell: parseFloat(baseSell) || parseFloat(baseCost) || 0,
-                    totalPrice: transferTotalPrice,
-                    adults: adults,
-                    child: child,
-                    zonePrivateCostPrice: parseFloat(linkedTransfer.zonePrivateCostPrice) || 0,
-                    zoneSharedCostPrice: parseFloat(linkedTransfer.zoneSharedCostPrice) || 0
-                };
             }
             
             // Add guide_options if attraction has linked guide
@@ -31983,45 +32774,25 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                 if (linkedGuide) {
                     tourData.guide_options = {
                         guide_required: true,
-                        guideId: linkedGuide.guideId || linkedGuide.guide_id || '',
                         guide_id: linkedGuide.guideId || linkedGuide.guide_id || '',
-                        guideName: linkedGuide.name || linkedGuide.guideName || '',
                         guide_name: linkedGuide.name || linkedGuide.guideName || '',
-                        name: linkedGuide.name || linkedGuide.guideName || '',
                         hours: parseInt(linkedGuide.hours) || 12,
-                        service_hours: parseInt(linkedGuide.hours) || 12,
-                        serviceType: linkedGuide.serviceType || 'Full Day',
                         service_type: linkedGuide.serviceType || 'Full Day',
                         language: linkedGuide.language || linkedGuide.languages || '',
-                        languages: linkedGuide.languages || linkedGuide.language || '',
                         adultsQty: linkedGuide.adultsQty || linkedGuide.adults_qty || 0,
-                        adults_qty: linkedGuide.adultsQty || linkedGuide.adults_qty || 0,
                         childQty: linkedGuide.childQty || linkedGuide.child_qty || 0,
-                        child_qty: linkedGuide.childQty || linkedGuide.child_qty || 0,
                         cost: parseFloat(linkedGuide.cost) || 0,
-                        Cost: parseFloat(linkedGuide.cost) || 0,
                         sell: parseFloat(linkedGuide.sell) || 0,
-                        Sell: parseFloat(linkedGuide.sell) || 0,
-                        base_price: parseFloat(linkedGuide.cost) || 0,
                         total_price: parseFloat(linkedGuide.sell) || 0,
-                        tourActivity: tour.attractionName || '',
-                        tour_activity: tour.attractionName || '',
-                        Activity: tour.attractionName || '',
                         pickup_time: linkedGuide.time || '',
                         ...enquiryProOrderDiscountPayload(linkedGuide, () => computeGuideServiceDiscountAmount(linkedGuide, true))
                     };
                     tourData.guideInfo = {
                         id: linkedGuide.id,
                         guide_id: linkedGuide.guideId || linkedGuide.guide_id,
-                        guideId: linkedGuide.guideId || linkedGuide.guide_id,
                         name: linkedGuide.name,
-                        guideName: linkedGuide.name,
-                        language: linkedGuide.language,
-                        languages: linkedGuide.languages,
-                        serviceType: linkedGuide.serviceType,
+                        language: linkedGuide.language || linkedGuide.languages,
                         hours: linkedGuide.hours,
-                        adultsQty: linkedGuide.adultsQty || 0,
-                        childQty: linkedGuide.childQty || 0,
                         cost: linkedGuide.cost,
                         sell: linkedGuide.sell
                     };
@@ -33247,8 +34018,10 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
         const customerInfo = getCustomerInfo();
         const dmcId = '{{ $dmc_id ?? "" }}';
         return tourList.map(tour => {
-            // Find linked transfer if exists
-            const linkedTransfer = tour.transferId ? transferList.find(t => t.id === tour.transferId) : null;
+            // Find linked transfer if exists (prefer transferList + transferInfo with vehicles[])
+            const linkedTransfer = (typeof getTourLinkedTransferForOrder === 'function')
+                ? getTourLinkedTransferForOrder(tour)
+                : (tour.transferId ? transferList.find(t => t.id === tour.transferId) : null);
             const linkedGuide = tour.guideId ? guideList.find(g => g.id === tour.guideId) : null;
             
             // Extract date and time from dateTime
@@ -33268,6 +34041,10 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                     visitTime = `${hours}:${minutes} ${ampm}`;
                 }
             }
+
+            const ticketSell = (parseFloat(tour.adultSell) || 0) * (parseInt(tour.adultsQty) || 0)
+                + (parseFloat(tour.childSell) || 0) * (parseInt(tour.childQty) || 0)
+                + (parseFloat(tour.infantSell) || 0) * (parseInt(tour.infantQty) || 0);
             
             return {
                 fullName: customerInfo.fullName,
@@ -33283,6 +34060,8 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                 visitTime: visitTime,
                 adultCount: tour.adultsQty || 0,
                 childCount: tour.childQty || 0,
+                infantQty: tour.infantQty || 0,
+                infants: tour.infantQty || 0,
                 seniorCount: 0,
                 AttractionId: parseInt(tour.attractionId) || 0,
                 AttractionName: tour.attractionName || "",
@@ -33291,6 +34070,8 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                 ticket_details: {
                     adult_price: tour.adultSell || 0,
                     child_price: tour.childSell || 0,
+                    infant_cost: tour.infantCost || 0,
+                    infant_sell: tour.infantSell || 0,
                     senior_price: 0,
                     description: "",
                     nri: "residential"
@@ -33298,11 +34079,11 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                 transport: null,
                 Selection: linkedTransfer ? "withTransport" : "withoutTransport",
                 mode: "dmc",
-                totalPrice: (tour.adultSell * tour.adultsQty) + (tour.childSell * tour.childQty) || 0,
+                totalPrice: ticketSell,
                 nri: "residential",
-                price: (tour.adultSell * tour.adultsQty) + (tour.childSell * tour.childQty) || 0,
+                price: ticketSell,
                 prices: {
-                    price: (tour.adultSell * tour.adultsQty) + (tour.childSell * tour.childQty) || 0
+                    price: ticketSell
                 },
                 dmc_id: dmcId || "",
                 created_by_dmc: dmcId || "",
@@ -33311,23 +34092,13 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                 bookingType: "booking",
                 package_type: 0,
                 package_attraction_id: null,
-                transfer_options: linkedTransfer ? {
-                    transfer_required: true,
-                    type: linkedTransfer.type || "Private",
-                    way: linkedTransfer.way || "One Way",
-                    vehicle_id: linkedTransfer.vehicleId || "",
-                    vehicle_details: linkedTransfer.vehicleId ? {
-                        vehicle_id: linkedTransfer.vehicleId,
-                        vehicle_name: linkedTransfer.vehicleName || "",
-                        vehicle_type: linkedTransfer.vehicleType || "",
-                        seating_capacity: linkedTransfer.seatingCapacity || "",
-                        private_price: linkedTransfer.privatePrice || "0.00",
-                        shared_price: linkedTransfer.sharedPrice || "0.00"
-                    } : null,
-                    cost: linkedTransfer.cost || 0,
-                    pickup_location_id: linkedTransfer.pickupLocationId || "",
-                    pickup_location_name: linkedTransfer.pickupLocationName || ""
-                } : null,
+                transfer_options: linkedTransfer ? (function () {
+                    const blocks = buildAttractionTransferOptionsPayload(linkedTransfer, tour)
+                        || ((typeof buildAttractionTransferOrderBlocks === 'function')
+                            ? buildAttractionTransferOrderBlocks(linkedTransfer, tour)
+                            : null);
+                    return blocks ? blocks.transfer_options : null;
+                })() : null,
                 guide_options: linkedGuide ? {
                     guide_required: true,
                     guide_id: linkedGuide.guideId || linkedGuide.guide_id || "",
@@ -33453,12 +34224,16 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                     const roomMealLabel = room.mealPlanLabel || room.mealPlan || 'room only';
                     const nr = Math.max(1, parseInt(room.rooms, 10) || 1);
                     const selectedMealsPayload = enquiryProBuildSelectedMealsPayload(room, nr, groupNights);
+                    const babyCot = enquiryProResolveBabyCotCharge(room, groupNights, nr);
 
                     // Create bed object matching the working format exactly
                     const bedObject = {
                         bed_id: String(actualBedId || ""), // Actual database bed_id as string
                         bed_type: room.bedType || "",
-                        baby_cot: 0,
+                        baby_cot: babyCot.baby_cot,
+                        baby_cot_price: babyCot.baby_cot_price,
+                        baby_cot_cost: babyCot.baby_cot_cost,
+                        baby_cot_cost_price: babyCot.baby_cot_cost_price_unit,
                         head_count: enquiryProMealPaxPerRoomForHotel(room),
                         max_occupancy: room.maxOccupancy || 2,
                         price: room.roomPrice || room.sell || 0,
@@ -33477,6 +34252,7 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                 }),
                 totalPrice: groupedHotelJsonTotal,
                 price: groupedHotelJsonTotal,
+                grand_total_with_cot: groupedHotelJsonTotal,
                 transfer_options: linkedTransfer ? {
                     transfer_required: true,
                     type: linkedTransfer.type || "Private",

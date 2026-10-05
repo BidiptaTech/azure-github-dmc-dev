@@ -469,6 +469,77 @@ class OrderCostPriceHelper
             }
         }
 
+        // Baby cot / infant: unit cost × infants × rooms × nights
+        if (! $hasComponentKey($components, 'baby_cot')) {
+            $firstBedRow = (! empty($rooms[0]['beds'][0]) && is_array($rooms[0]['beds'][0]))
+                ? $rooms[0]['beds'][0]
+                : [];
+            $cotEnabled = (int) ($firstBedRow['baby_cot'] ?? $item['baby_cot'] ?? 0) === 1
+                || ! empty($item['hasInfant'])
+                || ! empty($item['has_infant']);
+            if ($cotEnabled) {
+                $numberOfRoomsCot = max(1, (int) ($rooms[0]['number_of_rooms'] ?? $item['number_of_rooms'] ?? 1));
+                $infants = self::qtyFromItem($item, ['selected_infants', 'infants', 'infant', 'infantQty']);
+                if ($infants <= 0) {
+                    $infants = 1;
+                }
+                $unitCost = 0.0;
+                $cotSource = 'payload';
+                $firstBedId = $firstBedRow['bed_id'] ?? null;
+                $firstRoomId = (int) (($rooms[0]['room_id'] ?? 0));
+                if ($firstBedId && Schema::hasColumn('beds', 'baby_cot_cost_price')) {
+                    $bedQuery = Bed::query();
+                    if (is_numeric($firstBedId)) {
+                        $bedQuery->where('bed_id', $firstBedId);
+                    } else {
+                        $bedQuery->where('bed_id', (string) $firstBedId);
+                    }
+                    $bed = $bedQuery->first();
+                    if (! $bed && $firstRoomId > 0) {
+                        $bed = Bed::query()->where('room_id', $firstRoomId)->first();
+                    }
+                    if ($bed && is_numeric($bed->baby_cot_cost_price ?? null)) {
+                        $unitCost = (float) $bed->baby_cot_cost_price;
+                        $cotSource = 'database';
+                    }
+                }
+                if ($unitCost <= 0) {
+                    $unitCost = self::firstNumeric($firstBedRow, ['baby_cot_cost_price', 'baby_cot_cost_price_unit']);
+                }
+                if ($unitCost <= 0) {
+                    $unitCost = self::firstNumeric($item, [
+                        'baby_cot_cost_price', 'infantCostPrice', 'infant_cost_price', 'babyCotCostPrice',
+                    ]);
+                }
+                $cotTotal = $unitCost > 0
+                    ? ($unitCost * $infants * $numberOfRoomsCot * max(1, $nights))
+                    : 0.0;
+                // Prefer explicit cost total from payload when present (not sell baby_cot_cost)
+                $payloadCostTotal = self::firstNumeric($item, ['baby_cot_cost_total']);
+                if ($payloadCostTotal > 0 && $unitCost <= 0) {
+                    $cotTotal = $payloadCostTotal;
+                    $cotSource = 'payload';
+                }
+                if ($cotTotal > 0) {
+                    $components[] = [
+                        'key' => 'baby_cot',
+                        'label' => 'Baby Cot',
+                        'cost' => round($cotTotal, 2),
+                        'meta' => [
+                            'quantity' => $infants,
+                            'unit_cost' => $unitCost,
+                            'nights' => max(1, $nights),
+                            'number_of_rooms' => $numberOfRoomsCot,
+                            'source' => $cotSource,
+                        ],
+                    ];
+                    if ($cotSource === 'database') {
+                        $source = $source === 'payload' ? 'database' : $source;
+                    }
+                }
+            }
+        }
+
         // Transfer cost (prefer explicit cost fields; do not treat sell as cost unless only cost exists)
         $transfer = is_array($item['transfer_options'] ?? null) ? $item['transfer_options'] : null;
         if ($transfer && (! empty($transfer['transfer_required']) || self::firstNumeric($transfer, ['cost', 'total_cost', 'cost_price']) > 0)) {
@@ -505,6 +576,7 @@ class OrderCostPriceHelper
 
         $adults = self::qtyFromItem($item, ['adultCount', 'adultsQty', 'adults', 'adult']);
         $children = self::qtyFromItem($item, ['childCount', 'childQty', 'children', 'child']);
+        $infants = self::qtyFromItem($item, ['infantQty', 'infants', 'infant', 'infantCount']);
         $seniors = self::qtyFromItem($item, ['seniorCount', 'seniorQty', 'seniors', 'senior']);
         $isNri = self::isNriItem($item);
 
@@ -521,6 +593,7 @@ class OrderCostPriceHelper
 
         $adultUnit = 0.0;
         $childUnit = 0.0;
+        $infantUnit = 0.0;
         $seniorUnit = 0.0;
 
         if ($ticket) {
@@ -528,27 +601,39 @@ class OrderCostPriceHelper
             if ($isNri) {
                 $adultUnit = (float) ($ticket->adult_cost_price_nri ?? $ticket->adult_cost_price ?? 0);
                 $childUnit = (float) ($ticket->child_cost_price_nri ?? $ticket->child_cost_price ?? 0);
+                $infantUnit = (float) ($ticket->infant_cost_price_nri ?? $ticket->infant_cost_price ?? 0);
                 $seniorUnit = (float) ($ticket->senior_adult_cost_price_nri ?? $ticket->senior_adult_cost_price ?? 0);
             } else {
                 $adultUnit = (float) ($ticket->adult_cost_price ?? 0);
                 $childUnit = (float) ($ticket->child_cost_price ?? 0);
+                $infantUnit = (float) ($ticket->infant_cost_price ?? 0);
                 $seniorUnit = (float) ($ticket->senior_adult_cost_price ?? 0);
             }
         }
 
-        if ($adultUnit <= 0 && $childUnit <= 0 && $seniorUnit <= 0) {
+        if ($adultUnit <= 0 && $childUnit <= 0 && $infantUnit <= 0 && $seniorUnit <= 0) {
             $ticketDetails = is_array($item['ticket_details'] ?? null) ? $item['ticket_details'] : [];
             $adultUnit = self::firstNumeric($ticketDetails, ['adult_cost', 'adult_cost_price', 'adultCost'])
                 ?: self::firstNumeric($item, ['adultCost', 'adult_cost', 'adult_cost_price']);
             $childUnit = self::firstNumeric($ticketDetails, ['child_cost', 'child_cost_price', 'childCost'])
                 ?: self::firstNumeric($item, ['childCost', 'child_cost', 'child_cost_price']);
+            $infantUnit = self::firstNumeric($ticketDetails, ['infant_cost', 'infant_cost_price', 'infantCost'])
+                ?: self::firstNumeric($item, ['infantCost', 'infant_cost', 'infant_cost_price']);
             $seniorUnit = self::firstNumeric($ticketDetails, ['senior_cost', 'senior_adult_cost_price', 'seniorCost'])
                 ?: self::firstNumeric($item, ['seniorCost', 'senior_cost']);
         }
 
-        $ticketCost = ($adultUnit * $adults) + ($childUnit * $children) + ($seniorUnit * $seniors);
+        $ticketCost = ($adultUnit * $adults) + ($childUnit * $children) + ($infantUnit * $infants) + ($seniorUnit * $seniors);
         if ($ticketCost <= 0) {
-            $ticketCost = self::firstNumeric($item, ['total_cost', 'cost', 'Cost']);
+            $sellTotal = self::firstNumeric($item, ['sell', 'totalPrice']);
+            $maybeCost = self::firstNumeric($item, ['total_cost']);
+            $topCost = self::firstNumeric($item, ['cost', 'Cost']);
+            // Do not treat ticket sell total as cost
+            if ($maybeCost > 0) {
+                $ticketCost = $maybeCost;
+            } elseif ($topCost > 0 && abs($topCost - $sellTotal) > 0.009) {
+                $ticketCost = $topCost;
+            }
         }
 
         if ($ticketCost > 0) {
@@ -561,9 +646,11 @@ class OrderCostPriceHelper
                     'attraction_id' => $item['attraction_id'] ?? $item['AttractionId'] ?? null,
                     'adults' => $adults,
                     'children' => $children,
+                    'infants' => $infants,
                     'seniors' => $seniors,
                     'adult_unit_cost' => $adultUnit,
                     'child_unit_cost' => $childUnit,
+                    'infant_unit_cost' => $infantUnit,
                     'senior_unit_cost' => $seniorUnit,
                     'nri' => $isNri,
                 ],
@@ -894,6 +981,64 @@ class OrderCostPriceHelper
             $vehicleQty = 1;
         }
 
+        // Prefer summed multi-vehicle line COSTS when vehicles[] is present
+        $vehicles = is_array($transfer['vehicles'] ?? null) ? $transfer['vehicles'] : [];
+        $vehiclesLineSum = 0.0;
+        if (count($vehicles) > 0) {
+            foreach ($vehicles as $v) {
+                if (! is_array($v)) {
+                    continue;
+                }
+                $vTypeRaw = strtolower(trim((string) (
+                    $v['type'] ?? $v['transferType'] ?? $v['transfer_type'] ?? ''
+                )));
+                $vShared = in_array($vTypeRaw, ['s', 'shared', 'sic'], true)
+                    || (! in_array($vTypeRaw, ['p', 'private'], true) && $isShared);
+                $vAdults = self::qtyFromItem($v, ['adults', 'adultsQty', 'adult_qty']);
+                $vChild = self::qtyFromItem($v, ['children', 'child', 'childQty', 'child_qty']);
+                $vPax = max(0, $vAdults + $vChild);
+                $vQty = self::qtyFromItem($v, ['qty', 'quantity', 'vehicle_qty', 'vehicleQty']);
+                if ($vQty <= 0) {
+                    $vQty = 1;
+                }
+                $vWayRaw = strtolower(trim((string) ($v['way'] ?? $transfer['way'] ?? '')));
+                $vBoth = in_array($vWayRaw, ['both-way', 'both way', 'both', 'two-way', 'return', '2way'], true);
+                $vWayMul = $vBoth ? 2 : 1;
+
+                $line = self::firstNumeric($v, ['lineCost', 'line_cost']);
+                if ($line <= 0) {
+                    $zoneUnit = $vShared
+                        ? self::firstNumeric($v, ['zoneSharedCostPrice', 'zone_shared_cost_price', 'shared_cost_price'])
+                        : self::firstNumeric($v, ['zonePrivateCostPrice', 'zone_private_cost_price', 'private_cost_price']);
+                    $unit = self::firstNumeric($v, ['unitCost', 'unit_cost']);
+                    if ($zoneUnit > 0) {
+                        $line = $vShared
+                            ? ($zoneUnit * $vWayMul * max(1, $vPax > 0 ? $vPax : $pax))
+                            : ($zoneUnit * $vWayMul * $vQty);
+                    } elseif ($unit > 0) {
+                        // unitCost already includes way
+                        $line = $vShared ? ($unit * max(1, $vPax > 0 ? $vPax : $pax)) : ($unit * $vQty);
+                    }
+                }
+                $vehiclesLineSum += max(0, $line);
+            }
+        }
+
+        if ($vehiclesLineSum > 0) {
+            return [
+                'cost' => round($vehiclesLineSum, 2),
+                'meta' => [
+                    'type' => 'multi-vehicle',
+                    'way' => $transfer['way'] ?? null,
+                    'vehicle_count' => count($vehicles),
+                    'adults' => $adults,
+                    'children' => $children,
+                    'pax' => $pax,
+                    'formula' => 'sum(vehicle line_cost): shared = zone_cost × way × (adults+child); private = zone_cost × way × qty',
+                ],
+            ];
+        }
+
         $explicitLine = self::firstNumeric($transfer, ['lineCost', 'line_cost']);
         $payloadCost = self::firstNumeric($transfer, [
             'cost', 'Cost', 'adult_cost', 'adultCost', 'base_cost', 'baseCost', 'cost_price',
@@ -963,8 +1108,9 @@ class OrderCostPriceHelper
             ! empty($transfer['transfer_required'])
             || ! empty($transfer['vehicle_id'])
             || ! empty($transfer['vehicleId'])
+            || (is_array($transfer['vehicles'] ?? null) && count($transfer['vehicles']) > 0)
             || self::firstNumeric($transfer, [
-                'cost', 'total_cost', 'cost_price', 'sell', 'totalPrice',
+                'cost', 'total_cost', 'cost_price', 'sell', 'totalPrice', 'lineCost', 'line_cost',
                 'zoneSharedCostPrice', 'zonePrivateCostPrice', 'shared_cost_price', 'private_cost_price',
             ]) > 0
         );
@@ -1789,6 +1935,28 @@ class OrderCostPriceHelper
                     'nights' => $nightCount,
                     'source' => $unit > 0 ? 'database' : 'view_details',
                 ];
+                continue;
+            }
+
+            if ($key === 'baby_cot') {
+                $qty = max(1, (int) ($meta['quantity'] ?? $meta['infants'] ?? 1));
+                $roomsCot = max(1, (int) ($meta['number_of_rooms'] ?? $numberOfRooms));
+                $unit = 0.0;
+                if ($bedId && Schema::hasColumn('beds', 'baby_cot_cost_price')) {
+                    $bed = Bed::query()->where('bed_id', $bedId)->first();
+                    if ($bed && is_numeric($bed->baby_cot_cost_price ?? null)) {
+                        $unit = (float) $bed->baby_cot_cost_price;
+                    }
+                }
+                $nightCount = max(1, (int) ($meta['nights'] ?? $nights));
+                $component['cost'] = round($unit * $qty * $roomsCot * $nightCount, 2);
+                $component['meta'] = [
+                    'quantity' => $qty,
+                    'unit_cost' => $unit,
+                    'nights' => $nightCount,
+                    'number_of_rooms' => $roomsCot,
+                    'source' => $unit > 0 ? 'database' : 'view_details',
+                ];
             }
         }
         unset($component);
@@ -1961,9 +2129,29 @@ class OrderCostPriceHelper
 
         $transfer = 0.0;
         if (isset($item['transfer_options']) && is_array($item['transfer_options'])) {
-            $transfer = (float) ($item['transfer_options']['cost']
-                ?? $item['transfer_options']['totalPrice']
+            $to = $item['transfer_options'];
+            // Prefer sell-side line totals; fall back to cost when sell missing
+            $transfer = (float) ($to['totalPrice']
+                ?? $to['lineSell']
+                ?? $to['line_sell']
+                ?? $to['sell']
+                ?? $to['totalSell']
+                ?? $to['cost']
                 ?? 0);
+            // Multi-vehicle: sum vehicle lineSell when top-level sell looks like listing unit storage
+            $vehicles = is_array($to['vehicles'] ?? null) ? $to['vehicles'] : [];
+            if (count($vehicles) > 0) {
+                $vehSellSum = 0.0;
+                foreach ($vehicles as $v) {
+                    if (! is_array($v)) {
+                        continue;
+                    }
+                    $vehSellSum += (float) ($v['lineSell'] ?? $v['line_sell'] ?? $v['totalPrice'] ?? $v['sell'] ?? 0);
+                }
+                if ($vehSellSum > 0) {
+                    $transfer = $vehSellSum;
+                }
+            }
         }
 
         $guide = 0.0;

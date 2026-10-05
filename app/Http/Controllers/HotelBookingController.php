@@ -1266,6 +1266,45 @@ class HotelBookingController extends Controller
                         // Child accommodation
                         'child_with_bed' => $booking['child_with_bed'] ?? null,
                         'child_without_bed' => $booking['child_without_bed'] ?? null,
+                        // Baby cot / infant (Lite + Pro)
+                        'baby_cot' => (int) (
+                            $booking['baby_cot']
+                            ?? (is_array($booking['rooms'][0]['beds'][0] ?? null)
+                                ? ($booking['rooms'][0]['beds'][0]['baby_cot'] ?? 0)
+                                : 0)
+                        ),
+                        'baby_cot_price' => (float) (
+                            $booking['baby_cot_price']
+                            ?? (is_array($booking['rooms'][0]['beds'][0] ?? null)
+                                ? ($booking['rooms'][0]['beds'][0]['baby_cot_price'] ?? 0)
+                                : 0)
+                        ),
+                        'baby_cot_cost' => (float) (
+                            $booking['baby_cot_cost']
+                            ?? (is_array($booking['rooms'][0]['beds'][0] ?? null)
+                                ? ($booking['rooms'][0]['beds'][0]['baby_cot_cost'] ?? 0)
+                                : 0)
+                        ),
+                        'infants' => (int) (
+                            $booking['selected_infants']
+                            ?? $booking['infants']
+                            ?? $booking['infant']
+                            ?? $booking['infantQty']
+                            ?? 0
+                        ),
+                        'has_infant' => ! empty($booking['hasInfant'])
+                            || ! empty($booking['has_infant'])
+                            || (int) (
+                                $booking['baby_cot']
+                                ?? (is_array($booking['rooms'][0]['beds'][0] ?? null)
+                                    ? ($booking['rooms'][0]['beds'][0]['baby_cot'] ?? 0)
+                                    : 0)
+                            ) === 1,
+                        'number_of_rooms' => (int) (
+                            (is_array($booking['rooms'][0] ?? null) ? ($booking['rooms'][0]['number_of_rooms'] ?? null) : null)
+                            ?? $booking['number_of_rooms']
+                            ?? max(1, count($booking['rooms'] ?? []))
+                        ),
                         // Transfer Options
                         'transfer_options' => $booking['transfer_options'] ?? null,
                         // Approval status
