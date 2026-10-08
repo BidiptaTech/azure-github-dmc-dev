@@ -1,0 +1,2690 @@
+import Header11 from "@/components/header/header-11";
+import DefaultFooter from "@/components/footer/default";
+import MainFilterSearchBox from "@/components/activity-list/activity-list-v3/MainFilterSearchBox";
+import TopHeaderFilter from "@/components/activity-list/activity-list-v3/TopHeaderFilter";
+import TourProperties from "@/components/activity-list/activity-list-v3/ActivityProperties";
+import DropdownSelelctBar from "@/components/activity-list/common/DropdownSelelctBar";
+import MapPropertyFinder from "@/components/activity-list/common/MapPropertyFinder";
+import Pagination from "@/components/activity-list/common/Pagination";
+import Sidebar from "@/components/activity-list/activity-list-v3/Sidebar";
+import ActivityProperties1 from "@/components/activity-list/activity-list-v3/ActivityProperties";
+import { useState, useEffect, useMemo } from "react";
+import React from "react";
+
+// Add this function to format time from 24h to 12h format
+const formatTime = (timeString) => {
+  if (!timeString) return "";
+  const timeParts = timeString.split(":");
+  if (timeParts.length < 2) return timeString;
+
+  const hours = parseInt(timeParts[0], 10);
+  const minutes = timeParts[1];
+  const period = hours >= 12 ? "PM" : "AM";
+  const displayHours = hours % 12 || 12;
+
+  return `${displayHours}:${minutes} ${period}`;
+};
+import { useSelector, useDispatch } from "react-redux";
+
+import {
+  setSelectedVehicle,
+  setCheckoutVehicle,
+  setMode,
+  fetchVehicleDetails,
+  setSelectedPort,
+  fetchVehicles,
+  fetchZoneVehicles,
+} from "@/slice/localtour/Localslice";
+
+import MetaComponent from "@/components/common/MetaComponent";
+import CustomStepper from "@/components/common/sub_common/CustomStepper";
+import TourStatus from "@/components/common/sub_common/TourStatus";
+import { FaAngleUp, FaAngleDown } from "react-icons/fa";
+import { fetchViewDetails } from "@/slice/common/ViewDetails";
+import { selectCart } from "@/slice/cart/carSlice";
+import {
+  fetchLocalZone,
+  setPicktype,
+  setSelectbooking,
+} from "@/slice/localtour/Localslice";
+import { formatChipDates, normalizeYmd } from "@/utils/cityWiseDates";
+import { toCityOnly } from "@/utils/locationFormat";
+// Import Material UI icons
+import {
+  MdHotel,
+  MdAttractions,
+  MdRestaurant,
+  MdAirportShuttle,
+  MdDirectionsBoat,
+  MdDirectionsCar,
+  MdAccessTime,
+  MdTour,
+  MdArrowForward,
+} from "react-icons/md";
+
+// Import Material UI icons
+import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
+import AccessTimeIcon from "@mui/icons-material/AccessTime";
+import HotelIcon from "@mui/icons-material/Hotel";
+import PersonIcon from "@mui/icons-material/Person";
+import ConfirmationNumberIcon from "@mui/icons-material/ConfirmationNumber";
+import RestaurantIcon from "@mui/icons-material/Restaurant";
+import FastfoodIcon from "@mui/icons-material/Fastfood";
+import RoomServiceIcon from "@mui/icons-material/RoomService";
+import LocationOnIcon from "@mui/icons-material/LocationOn";
+import AirportShuttleIcon from "@mui/icons-material/AirportShuttle";
+import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
+import TourIcon from "@mui/icons-material/Tour";
+
+const metadata = {
+  title:
+    "Local Tour Vehicle List || Travclicks - Travel Technology Transformed",
+  description: "Travclicks - Travel Technology Transformed",
+};
+
+// Add this function before the ActivityListPage3 component
+const getRowBackgroundColor = (serviceType) => {
+  switch (serviceType) {
+    case "Hotel":
+      return "rgba(33, 150, 243, 0.06)"; // Professional light blue
+    case "Attraction":
+      return "rgba(76, 175, 80, 0.06)"; // Professional light green
+    case "Attraction Package":
+      return "rgba(175, 76, 114, 0.06)"; // Professional light green
+    case "Restaurant":
+      return "rgba(244, 67, 54, 0.06)"; // Professional light red
+    case "Entry Port":
+      return "rgba(126, 87, 194, 0.06)"; // Professional light violet
+    case "Exit Port":
+      return "rgba(255, 152, 0, 0.06)"; // Professional light orange
+    case "Travel Point":
+      return "rgba(0, 188, 212, 0.06)"; // Professional light cyan
+    case "Travel Hourly":
+      return "rgba(255, 87, 34, 0.06)"; // Professional light deep orange
+    case "Travel Zone":
+      return "rgba(156, 39, 176, 0.06)"; // Professional light purple for zone
+    case "Guide":
+      return "rgba(171, 71, 188, 0.06)"; // Professional light purple
+    default:
+      return "transparent";
+  }
+};
+
+// Add border color function
+const getRowBorderColor = (serviceType) => {
+  switch (serviceType) {
+    case "Hotel":
+      return "#2196F3"; // Blue
+    case "Attraction":
+      return "#4CAF50"; // Green
+    case "Attraction Package":
+      return "#7E57C2"; // Green
+    case "Restaurant":
+      return "#F44336"; // Red
+    case "Entry Port":
+      return "#7E57C2"; // Violet
+    case "Exit Port":
+      return "#FF9800"; // Orange
+    case "Travel Point":
+      return "#00BCD4"; // Cyan
+    case "Travel Hourly":
+      return "#FF5722"; // Deep Orange
+    case "Travel Zone":
+      return "#9C27B0"; // Purple
+    case "Guide":
+      return "#AB47BC"; // Purple
+    default:
+      return "#CCCCCC"; // Default gray
+  }
+};
+
+// Add this function to map service types to their respective icons
+const getServiceTypeIcon = (serviceType) => {
+  switch (serviceType) {
+    case "Hotel":
+      return <HotelIcon className="text-blue-1" style={{ fontSize: 22 }} />;
+    case "Attraction":
+      return (
+        <ConfirmationNumberIcon
+          className="text-green-1"
+          style={{ fontSize: 22 }}
+        />
+      );
+    case "Attraction Package":
+      return (
+        <ConfirmationNumberIcon
+          className="text-purple-1"
+          style={{ fontSize: 22 }}
+        />
+      );
+    case "Restaurant":
+      return <RestaurantIcon className="text-red-1" style={{ fontSize: 22 }} />;
+    case "Entry Port":
+      return (
+        <AirportShuttleIcon
+          className="text-purple-1"
+          style={{ fontSize: 22 }}
+        />
+      );
+    case "Exit Port":
+      return (
+        <AirportShuttleIcon
+          className="text-orange-1"
+          style={{ fontSize: 22 }}
+        />
+      );
+    case "Guide":
+      return <TourIcon className="text-purple-2" style={{ fontSize: 22 }} />;
+    case "Travel Point":
+      return (
+        <DirectionsCarIcon className="text-cyan-1" style={{ fontSize: 22 }} />
+      );
+    case "Travel Hourly":
+      return (
+        <DirectionsCarIcon
+          className="text-deep-orange-1"
+          style={{ fontSize: 22 }}
+        />
+      );
+    case "Travel Zone":
+      return (
+        <MdDirectionsBoat className="text-purple-2" style={{ fontSize: 22 }} />
+      );
+    default:
+      return (
+        <AccessTimeIcon className="text-gray-1" style={{ fontSize: 22 }} />
+      );
+  }
+};
+
+const ActivityListPage3 = () => {
+  const dispatch = useDispatch();
+  //const vehicles = useSelector((state) => state.pickupDrop.vehicles);
+  const vehicles = useSelector((state) => state.localtour.vehicles);
+  console.log("vehicles69", vehicles);
+  const status = useSelector((state) => state.localtour.status);
+  const PriceHide = useSelector((state) => state.auth.PriceHide);
+  const rawZoneOn = useSelector((state) => state.auth.zone_on);
+  const zone_on = rawZoneOn !== null ? Number(rawZoneOn) : null;
+console.log("zone_on5", zone_on);
+  // Add this to check if vehicles is an array or an error object
+  const isVehiclesArray = Array.isArray(vehicles);
+  const vehiclesError = !isVehiclesArray && vehicles?.message;
+
+  const Location = useSelector((state) => state.bookings.searchLocation);
+  console.log("countryNames", Location);
+  const mode = useSelector((state) => state.localtour.mode);
+  const priceMode = useSelector((state) => state.localtour.pricemode);
+  const exchangeRate = useSelector((state) => state.auth.exchangeRate);
+  const bookingType = useSelector((state) => state.common.bookingType);
+  const id = useSelector((state) => state.hotels.id);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5; // Adjust as needed
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  //const [sortOrder, setSortOrder] = useState("asc");
+  const [sortedVehicles, setSortedVehicles] = useState([]);
+  //const [filteredVehicles, setFilteredVehicles] = useState([]);
+  const [priceRange, setPriceRange] = useState({ min: 0, max: 500 });
+  const [sortOrder, setSortOrder] = useState("asc");
+  // const [selectedModes, setSelectedModes] = useState({});
+  const [isFilterVisible, setIsFilterVisible] = useState(false);
+  const selectedPort = useSelector((state) => state.localtour.selectedPort);
+  const viewDetails = useSelector((state) => state.viewDetails.bookings);
+  const cart = useSelector(selectCart);
+  console.log("cart23", cart);
+  console.log("viewDetails", viewDetails);
+
+  const cartBookings = useMemo(() => {
+    if (!Array.isArray(cart)) return [];
+    return cart.flatMap((trip) =>
+      Array.isArray(trip?.bookings)
+        ? trip.bookings.map((booking) => ({
+            ...booking,
+            _cartTripId: trip.tripId,
+          }))
+        : []
+    );
+  }, [cart]);
+
+  const normalizeBookingDateKey = (rawDate) => {
+    if (!rawDate) return "";
+    if (Array.isArray(rawDate)) return normalizeBookingDateKey(rawDate[0]);
+    const value = String(rawDate).trim();
+    if (!value) return "";
+
+    // DD/MM/YYYY → YYYY-MM-DD
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(value)) {
+      const [day, month, year] = value.split("/");
+      return `${year}-${month}-${day}`;
+    }
+
+    // Already YYYY-MM-DD (or ISO datetime)
+    if (/^\d{4}-\d{2}-\d{2}/.test(value)) {
+      return value.slice(0, 10);
+    }
+
+    const parsed = new Date(value);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed.toISOString().slice(0, 10);
+    }
+    return value;
+  };
+
+  const parseFlexibleDate = (rawDate) => {
+    const key = normalizeBookingDateKey(rawDate);
+    if (!key) return null;
+    const parsed = new Date(`${key}T00:00:00`);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  };
+
+  // Function to check if the "Add Transfer" button should be displayed
+  const shouldShowAddTransferButton = () => {
+    const hasTravelPoint =
+      ((viewDetails?.travel_point && viewDetails.travel_point.length > 0) ||
+        (viewDetails?.guide && viewDetails.guide.length > 0) ||
+        (viewDetails?.travel_hourly && viewDetails.travel_hourly.length > 0) ||
+        (viewDetails?.entry_port && viewDetails.entry_port.length > 0) ||
+        (viewDetails?.exit_port && viewDetails.exit_port.length > 0) ||
+        (viewDetails?.local_transport &&
+          viewDetails.local_transport.length > 0)) &&
+      (!viewDetails?.hotel || viewDetails?.hotel?.length === 0) &&
+      (!viewDetails?.attraction || viewDetails?.attraction?.length === 0) &&
+      (!viewDetails?.attraction_package ||
+        viewDetails?.attraction_package?.length === 0) &&
+      (!viewDetails?.restaurant || viewDetails?.restaurant?.length === 0);
+
+    return hasTravelPoint;
+  };
+
+  const showAddTransferButton = shouldShowAddTransferButton();
+
+  console.log("viewDetails", viewDetails);
+
+  const viewDetailsBookingCount = useMemo(() => {
+    if (!viewDetails || Array.isArray(viewDetails)) return 0;
+
+    const serviceKeys = [
+      "hotel",
+      "attraction",
+      "attraction_package",
+      "restaurant",
+      "guide",
+      "travel_point",
+      "travel_hourly",
+      "local_transport",
+      "entry_port",
+      "exit_port",
+    ];
+
+    return serviceKeys.reduce((total, key) => {
+      const items = viewDetails[key];
+      if (Array.isArray(items)) {
+        return total + items.length;
+      }
+      return total;
+    }, 0);
+  }, [viewDetails]);
+
+  const bookingCount = viewDetailsBookingCount + cartBookings.length;
+  const hasBookings = bookingCount > 0;
+  const hasViewDetailsBookings = viewDetailsBookingCount > 0;
+  const hasCartBookings = cartBookings.length > 0;
+
+  const [showBookingTable, setShowBookingTable] = useState(hasBookings);
+  const [lastBookingCount, setLastBookingCount] = useState(bookingCount);
+  const [selectedBooking, setSelectedBooking] = useState(null);
+  // Exclusive accordion: only one city section open at a time
+  const [openCityAccordionKey, setOpenCityAccordionKey] = useState(null);
+  const zoneType = useSelector((state) => state.localtour.zonetype);
+
+  useEffect(() => {
+    dispatch(fetchViewDetails({ tour_id: id }));
+  }, [id]);
+
+  useEffect(() => {
+    if (!hasBookings) {
+      setShowBookingTable(false);
+      setLastBookingCount(0);
+      return;
+    }
+
+    if (bookingCount !== lastBookingCount) {
+      setShowBookingTable(true);
+      setLastBookingCount(bookingCount);
+    }
+  }, [hasBookings, bookingCount, lastBookingCount]);
+
+  useEffect(() => {
+    // Hide table only when both view-details and cart are empty
+    if (!hasViewDetailsBookings && !hasCartBookings) {
+      setShowBookingTable(false);
+    }
+  }, [hasViewDetailsBookings, hasCartBookings]);
+
+  useEffect(() => {});
+
+  const appendBookingByDate = (bookingsByDate, dateKey, booking) => {
+    if (!dateKey) return;
+    if (!bookingsByDate[dateKey]) bookingsByDate[dateKey] = [];
+    bookingsByDate[dateKey].push(booking);
+  };
+
+  const addCartBookingsToDateMap = (bookingsByDate) => {
+    cartBookings.forEach((item) => {
+      const type = String(item.type || "").toLowerCase();
+
+      if (type === "hotel") {
+        const checkIn = item.check_in || item.bookingDate || "";
+        const checkOut = item.check_out || "";
+        const checkInDate = parseFlexibleDate(checkIn);
+        const checkOutDate = parseFlexibleDate(checkOut);
+        const hotelRow = {
+          ...item,
+          serviceType: "Hotel",
+          serviceName: item.hotel_name || "Unknown Hotel",
+          serviceImage: item.image || "",
+          price: item.totalPrice,
+          bookingDate: [checkIn, checkOut].filter(Boolean),
+          hotelDetails: {
+            hotel_id: item.hotel_id || item.hotelId || "",
+            hotel_name: item.hotel_name,
+            image: item.image,
+          },
+          source: "cart",
+        };
+
+        if (checkInDate && checkOutDate && checkInDate < checkOutDate) {
+          const currentDate = new Date(checkInDate);
+          while (currentDate < checkOutDate) {
+            const dateString = currentDate.toISOString().split("T")[0];
+            appendBookingByDate(bookingsByDate, dateString, hotelRow);
+            currentDate.setDate(currentDate.getDate() + 1);
+          }
+        } else {
+          appendBookingByDate(
+            bookingsByDate,
+            normalizeBookingDateKey(checkIn),
+            hotelRow
+          );
+        }
+        return;
+      }
+
+      if (type === "attraction") {
+        appendBookingByDate(
+          bookingsByDate,
+          normalizeBookingDateKey(item.bookingDate),
+          {
+            ...item,
+            serviceType: "Attraction",
+            serviceName: item.AttractionName || "Unknown Attraction",
+            serviceImage: item.image || "",
+            price: item.totalPrice,
+            adultCount: item.adultCount ?? item.adults ?? 0,
+            childCount: item.childCount ?? item.children ?? 0,
+            source: "cart",
+          }
+        );
+        return;
+      }
+
+      if (type === "restaurant") {
+        appendBookingByDate(
+          bookingsByDate,
+          normalizeBookingDateKey(item.bookingDate),
+          {
+            ...item,
+            serviceType: "Restaurant",
+            serviceName: item.restaurantName || "Unknown Restaurant",
+            serviceImage: item.image || "",
+            price: item.totalPrice,
+            adultCount: item.adultCount ?? item.adults ?? 0,
+            childCount: item.childCount ?? item.children ?? 0,
+            source: "cart",
+          }
+        );
+        return;
+      }
+
+      if (type === "entryport") {
+        appendBookingByDate(
+          bookingsByDate,
+          normalizeBookingDateKey(
+            item.bookingDate || item.pickupdate || item.entrypickupdate
+          ),
+          {
+            ...item,
+            serviceType: "Entry Port",
+            serviceName: item.vehicles_name || "Unknown Entry Port",
+            serviceImage: item.image || "",
+            price: item.totalPrice,
+            source: "cart",
+          }
+        );
+        return;
+      }
+
+      if (type === "exitport") {
+        appendBookingByDate(
+          bookingsByDate,
+          normalizeBookingDateKey(
+            item.bookingDate || item.exitpickupdate || item.pickupdate
+          ),
+          {
+            ...item,
+            serviceType: "Exit Port",
+            serviceName: item.vehicles_name || "Unknown Exit Port",
+            serviceImage: item.image || "",
+            price: item.totalPrice,
+            source: "cart",
+          }
+        );
+        return;
+      }
+
+      if (type === "guide") {
+        appendBookingByDate(
+          bookingsByDate,
+          normalizeBookingDateKey(item.bookingDate),
+          {
+            ...item,
+            serviceType: "Guide",
+            serviceName: item.guide_name || "Unknown Guide",
+            serviceImage: item.image || "",
+            price: item.totalPrice,
+            source: "cart",
+          }
+        );
+        return;
+      }
+
+      if (type === "travel_point" || type === "travelpoint") {
+        appendBookingByDate(
+          bookingsByDate,
+          normalizeBookingDateKey(item.bookingDate || item.pickupdate),
+          {
+            ...item,
+            serviceType: "Travel Point",
+            serviceName: item.vehicles_name || "Unknown Travel Point",
+            serviceImage: item.image || "",
+            price: item.totalPrice,
+            source: "cart",
+          }
+        );
+        return;
+      }
+
+      if (type === "travel_hourly" || type === "travelhourly") {
+        appendBookingByDate(
+          bookingsByDate,
+          normalizeBookingDateKey(item.bookingDate || item.pickupdate),
+          {
+            ...item,
+            serviceType: "Travel Hourly",
+            serviceName: item.vehicles_name || "Unknown Travel Hourly",
+            serviceImage: item.image || "",
+            price: item.totalPrice,
+            source: "cart",
+          }
+        );
+        return;
+      }
+
+      if (
+        type === "local_transport" ||
+        type === "travel_zone" ||
+        type === "zone" ||
+        type === "travelpointzone"
+      ) {
+        appendBookingByDate(
+          bookingsByDate,
+          normalizeBookingDateKey(item.bookingDate || item.pickupdate),
+          {
+            ...item,
+            serviceType: "Travel Zone",
+            serviceName: item.vehicles_name || "Unknown Travel Zone",
+            serviceImage: item.image || "",
+            price: item.totalPrice,
+            source: "cart",
+          }
+        );
+      }
+    });
+  };
+
+  /** Flatten a cart booking into one display row (hotels shown once, not per night). */
+  const normalizeCartBookingRow = (item) => {
+    if (!item) return null;
+    const type = String(item.type || "").toLowerCase();
+    const cityHint = toCityOnly(
+      item.city ||
+        item.location ||
+        item.hotel_city ||
+        item.hotelDetails?.city ||
+        ""
+    );
+    const dateKey = normalizeBookingDateKey(
+      type === "hotel"
+        ? item.check_in || item.bookingDate
+        : item.bookingDate ||
+            item.pickupdate ||
+            item.entrypickupdate ||
+            item.exitpickupdate ||
+            item.check_in
+    );
+
+    const base = { ...item, source: "cart", cityHint, dateKey };
+
+    if (type === "hotel") {
+      const checkIn = item.check_in || item.bookingDate || "";
+      const checkOut = item.check_out || "";
+      return {
+        ...base,
+        serviceType: "Hotel",
+        serviceName: item.hotel_name || "Unknown Hotel",
+        serviceImage: item.image || "",
+        price: item.totalPrice,
+        bookingDate: [checkIn, checkOut].filter(Boolean),
+        hotelDetails: {
+          hotel_id: item.hotel_id || item.hotelId || "",
+          hotel_name: item.hotel_name,
+          image: item.image,
+          checkInTime: item.checkInTime || item.hotelDetails?.checkInTime,
+          checkOutTime: item.checkOutTime || item.hotelDetails?.checkOutTime,
+        },
+      };
+    }
+    if (type === "attraction") {
+      return {
+        ...base,
+        serviceType: "Attraction",
+        serviceName: item.AttractionName || "Unknown Attraction",
+        serviceImage: item.image || "",
+        price: item.totalPrice,
+        adultCount: item.adultCount ?? item.adults ?? 0,
+        childCount: item.childCount ?? item.children ?? 0,
+      };
+    }
+    if (type === "restaurant") {
+      return {
+        ...base,
+        serviceType: "Restaurant",
+        serviceName: item.restaurantName || "Unknown Restaurant",
+        serviceImage: item.image || "",
+        price: item.totalPrice,
+        adultCount: item.adultCount ?? item.adults ?? 0,
+        childCount: item.childCount ?? item.children ?? 0,
+      };
+    }
+    if (type === "entryport") {
+      return {
+        ...base,
+        serviceType: "Entry Port",
+        serviceName: item.vehicles_name || "Unknown Entry Port",
+        serviceImage: item.image || "",
+        price: item.totalPrice,
+      };
+    }
+    if (type === "exitport") {
+      return {
+        ...base,
+        serviceType: "Exit Port",
+        serviceName: item.vehicles_name || "Unknown Exit Port",
+        serviceImage: item.image || "",
+        price: item.totalPrice,
+      };
+    }
+    if (type === "guide") {
+      return {
+        ...base,
+        serviceType: "Guide",
+        serviceName: item.guide_name || "Unknown Guide",
+        serviceImage: item.image || "",
+        price: item.totalPrice,
+      };
+    }
+    if (type === "travel_point" || type === "travelpoint") {
+      return {
+        ...base,
+        serviceType: "Travel Point",
+        serviceName: item.vehicles_name || "Unknown Travel Point",
+        serviceImage: item.image || "",
+        price: item.totalPrice,
+      };
+    }
+    if (type === "travel_hourly" || type === "travelhourly") {
+      return {
+        ...base,
+        serviceType: "Travel Hourly",
+        serviceName: item.vehicles_name || "Unknown Travel Hourly",
+        serviceImage: item.image || "",
+        price: item.totalPrice,
+      };
+    }
+    if (
+      type === "local_transport" ||
+      type === "travel_zone" ||
+      type === "zone" ||
+      type === "travelpointzone"
+    ) {
+      return {
+        ...base,
+        serviceType: "Travel Zone",
+        serviceName: item.vehicles_name || "Unknown Travel Zone",
+        serviceImage: item.image || "",
+        price: item.totalPrice,
+      };
+    }
+    return {
+      ...base,
+      serviceType: item.type || "Booking",
+      serviceName:
+        item.hotel_name ||
+        item.AttractionName ||
+        item.restaurantName ||
+        item.guide_name ||
+        item.vehicles_name ||
+        "Booking",
+      serviceImage: item.image || "",
+      price: item.totalPrice,
+    };
+  };
+
+  /** Flatten viewDetails bookings into display rows (hotels once, not per night). */
+  const normalizeViewDetailsBookingRows = () => {
+    if (!viewDetails || Array.isArray(viewDetails)) return [];
+    const rows = [];
+
+    const pushHotel = (hotel) => {
+      const checkIn = Array.isArray(hotel.bookingDate)
+        ? hotel.bookingDate[0]
+        : hotel.check_in || hotel.bookingDate || "";
+      const checkOut = Array.isArray(hotel.bookingDate)
+        ? hotel.bookingDate[1]
+        : hotel.check_out || "";
+      const cityHint = toCityOnly(
+        hotel.city ||
+          hotel.location ||
+          hotel.hotelDetails?.city ||
+          hotel.hotelDetails?.location ||
+          hotel.service_details?.city ||
+          ""
+      );
+      rows.push({
+        ...hotel,
+        source: "viewDetails",
+        cityHint,
+        dateKey: normalizeBookingDateKey(checkIn),
+        serviceType: "Hotel",
+        serviceName: hotel.hotelDetails?.hotel_name || hotel.hotel_name || "Unknown Hotel",
+        serviceImage: hotel.hotelDetails?.image || hotel.image || "",
+        price: hotel.totalPrice,
+        bookingDate: [checkIn, checkOut].filter(Boolean),
+      });
+    };
+
+    const pushSimple = (item, serviceType, serviceName, serviceImage) => {
+      const cityHint = toCityOnly(
+        item.city ||
+          item.location ||
+          item.service_details?.city ||
+          item.attractionDetails?.location ||
+          item.restaurantDetails?.city ||
+          ""
+      );
+      const dateKey = normalizeBookingDateKey(
+        item.bookingDate ||
+          item.pickupdate ||
+          item.entrypickupdate ||
+          item.exitpickupdate ||
+          item.check_in
+      );
+      rows.push({
+        ...item,
+        source: "viewDetails",
+        cityHint,
+        dateKey,
+        serviceType,
+        serviceName,
+        serviceImage,
+        price: item.totalPrice,
+      });
+    };
+
+    (viewDetails.hotel || []).forEach(pushHotel);
+
+    (viewDetails.entry_port || []).forEach((item) =>
+      pushSimple(
+        item,
+        "Entry Port",
+        item.vehicles_name || "Unknown Entry Port",
+        item.image || ""
+      )
+    );
+    (viewDetails.exit_port || []).forEach((item) =>
+      pushSimple(
+        item,
+        "Exit Port",
+        item.vehicles_name || "Unknown Exit Port",
+        item.image || ""
+      )
+    );
+    (viewDetails.attraction || []).forEach((item) =>
+      pushSimple(
+        item,
+        "Attraction",
+        item.AttractionName || "Unknown Attraction",
+        item.service_details?.master_image || item.image || ""
+      )
+    );
+    (viewDetails.attraction_package || []).forEach((item) =>
+      pushSimple(
+        item,
+        "Attraction Package",
+        item.AttractionName || "Unknown Attraction Package",
+        item.service_details?.master_image || item.image || ""
+      )
+    );
+    (viewDetails.restaurant || []).forEach((item) =>
+      pushSimple(
+        item,
+        "Restaurant",
+        item.restaurantName || "Unknown Restaurant",
+        item.service_details?.master_image || item.image || ""
+      )
+    );
+    (viewDetails.guide || []).forEach((item) =>
+      pushSimple(
+        item,
+        "Guide",
+        item.guide_name || "Unknown Guide",
+        item.image || ""
+      )
+    );
+    (viewDetails.travel_point || []).forEach((item) =>
+      pushSimple(
+        item,
+        "Travel Point",
+        item.vehicles_name || "Unknown Travel Point",
+        item.image || ""
+      )
+    );
+    (viewDetails.travel_hourly || []).forEach((item) =>
+      pushSimple(
+        item,
+        "Travel Hourly",
+        item.vehicles_name || "Unknown Travel Hourly",
+        item.image || ""
+      )
+    );
+    (viewDetails.local_transport || []).forEach((item) =>
+      pushSimple(
+        item,
+        "Travel Zone",
+        item.vehicles_name || "Unknown Travel Zone",
+        item.image || ""
+      )
+    );
+
+    return rows;
+  };
+
+  const resolveCityWiseDates = () => {
+    const trip = Array.isArray(cart) && cart.length ? cart[0] : null;
+    const fromCart = Array.isArray(trip?.cityWiseDates) ? trip.cityWiseDates : [];
+    const fromTour = Array.isArray(viewDetails?.tour?.cityWiseDates)
+      ? viewDetails.tour.cityWiseDates
+      : [];
+    if (fromCart.length) return fromCart;
+    if (fromTour.length) return fromTour;
+    return [];
+  };
+
+  /**
+   * Split cart + viewDetails bookings into city sections using cityWiseDates.
+   * Match by booking.city first, then by bookingDate within city checkIn–checkOut.
+   */
+  const getBookingsByCity = () => {
+    const cityWiseDates = resolveCityWiseDates();
+    if (!cityWiseDates.length) return [];
+
+    const rows = [
+      ...cartBookings.map(normalizeCartBookingRow).filter(Boolean),
+      ...normalizeViewDetailsBookingRows(),
+    ];
+
+    const assignedIds = new Set();
+    const resolveRowId = (row, index) =>
+      row.cartItemId ||
+      row.booking_id ||
+      row.id ||
+      `${row.source || "row"}-${row.serviceType}-${row.serviceName}-${row.dateKey || index}`;
+
+    const sectionMap = cityWiseDates.map((entry) => {
+      const cityName = entry.city || "";
+      const cityNeedle = toCityOnly(cityName).toLowerCase();
+      const checkIn =
+        normalizeYmd(entry.checkIn) || normalizeBookingDateKey(entry.checkIn);
+      const checkOut =
+        normalizeYmd(entry.checkOut) || normalizeBookingDateKey(entry.checkOut);
+
+      return {
+        key: `city-${cityNeedle || "unknown"}-${checkIn || ""}`,
+        city: cityName,
+        cityNeedle,
+        checkIn: entry.checkIn,
+        checkOut: entry.checkOut,
+        checkInKey: checkIn,
+        checkOutKey: checkOut,
+        dateLabel: formatChipDates(entry),
+        bookings: [],
+      };
+    });
+
+    // Pass 1: match explicit booking.city to cityWiseDates city
+    rows.forEach((row, index) => {
+      const rowId = resolveRowId(row, index);
+      if (assignedIds.has(rowId)) return;
+      const rowCity = toCityOnly(row.cityHint).toLowerCase();
+      if (!rowCity) return;
+      const section = sectionMap.find((s) => s.cityNeedle === rowCity);
+      if (!section) return;
+      section.bookings.push(row);
+      assignedIds.add(rowId);
+    });
+
+    // Pass 2: remaining bookings by bookingDate within city checkIn–checkOut
+    rows.forEach((row, index) => {
+      const rowId = resolveRowId(row, index);
+      if (assignedIds.has(rowId)) return;
+      if (!row.dateKey) return;
+      const section = sectionMap.find(
+        (s) =>
+          s.checkInKey &&
+          s.checkOutKey &&
+          row.dateKey >= s.checkInKey &&
+          row.dateKey <= s.checkOutKey
+      );
+      if (!section) return;
+      section.bookings.push(row);
+      assignedIds.add(rowId);
+    });
+
+    sectionMap.forEach((section) => {
+      section.bookings.sort((a, b) =>
+        String(a.dateKey || "").localeCompare(String(b.dateKey || ""))
+      );
+    });
+
+    const sections = sectionMap.map(
+      ({ checkInKey, checkOutKey, cityNeedle, ...rest }) => rest
+    );
+
+    // Any leftover bookings that didn't match a city range
+    const unassigned = rows.filter((row, index) => {
+      const rowId = resolveRowId(row, index);
+      return !assignedIds.has(rowId);
+    });
+    if (unassigned.length) {
+      sections.push({
+        key: "city-other",
+        city: "Other",
+        checkIn: "",
+        checkOut: "",
+        dateLabel: "",
+        bookings: unassigned,
+      });
+    }
+
+    return sections.filter((section) => section.bookings.length > 0);
+  };
+
+  // Organize bookings by date from view details and/or cart
+  const getBookingsByDate = () => {
+    const bookingsByDate = {};
+
+    if (viewDetails && !Array.isArray(viewDetails)) {
+    if (viewDetails.entry_port) {
+      viewDetails.entry_port.forEach((entryport) => {
+          appendBookingByDate(
+            bookingsByDate,
+            normalizeBookingDateKey(entryport.bookingDate),
+            {
+          ...entryport,
+          serviceType: "Entry Port",
+              serviceName: entryport.vehicles_name || "Unknown Entry Port",
+          serviceImage: entryport.image || "",
+              price: entryport.totalPrice,
+              source: "viewDetails",
+            }
+          );
+      });
+    }
+
+    if (viewDetails.hotel) {
+      viewDetails.hotel.forEach((hotel) => {
+          if (
+            Array.isArray(hotel.bookingDate) &&
+            hotel.bookingDate.length >= 2
+          ) {
+            const checkInDate = parseFlexibleDate(hotel.bookingDate[0]);
+            const checkOutDate = parseFlexibleDate(hotel.bookingDate[1]);
+
+            if (checkInDate && checkOutDate) {
+          const currentDate = new Date(checkInDate);
+          while (currentDate < checkOutDate) {
+                const dateString = currentDate.toISOString().split("T")[0];
+                appendBookingByDate(bookingsByDate, dateString, {
+              ...hotel,
+              serviceType: "Hotel",
+                  serviceName:
+                    hotel.hotelDetails?.hotel_name || "Unknown Hotel",
+              serviceImage: hotel.hotelDetails?.image || "",
+              price: hotel.totalPrice,
+                  source: "viewDetails",
+            });
+            currentDate.setDate(currentDate.getDate() + 1);
+              }
+          }
+        }
+      });
+    }
+
+    if (viewDetails.attraction) {
+      viewDetails.attraction.forEach((attraction) => {
+          appendBookingByDate(
+            bookingsByDate,
+            normalizeBookingDateKey(attraction.bookingDate),
+            {
+          ...attraction,
+          serviceType: "Attraction",
+          serviceName: attraction.AttractionName || "Unknown Attraction",
+          serviceImage: attraction.service_details?.master_image || "",
+          price: attraction.totalPrice,
+              source: "viewDetails",
+            }
+          );
+      });
+    }
+
+    if (viewDetails.attraction_package) {
+      viewDetails.attraction_package.forEach((attraction_package) => {
+          appendBookingByDate(
+            bookingsByDate,
+            normalizeBookingDateKey(attraction_package.bookingDate),
+            {
+          ...attraction_package,
+          serviceType: "Attraction Package",
+              serviceName:
+                attraction_package.AttractionName ||
+                "Unknown Attraction Package",
+              serviceImage:
+                attraction_package.service_details?.master_image || "",
+          price: attraction_package.totalPrice,
+              source: "viewDetails",
+            }
+          );
+      });
+    }
+
+    if (viewDetails.restaurant) {
+      viewDetails.restaurant.forEach((restaurant) => {
+          appendBookingByDate(
+            bookingsByDate,
+            normalizeBookingDateKey(restaurant.bookingDate),
+            {
+          ...restaurant,
+          serviceType: "Restaurant",
+          serviceName: restaurant.restaurantName || "Unknown Restaurant",
+          serviceImage: restaurant.service_details?.master_image || "",
+              price: restaurant.totalPrice,
+              source: "viewDetails",
+            }
+          );
+        });
+      }
+
+    if (viewDetails.guide) {
+      viewDetails.guide.forEach((guide) => {
+          appendBookingByDate(
+            bookingsByDate,
+            normalizeBookingDateKey(guide.bookingDate),
+            {
+          ...guide,
+          serviceType: "Guide",
+              serviceName: guide.guide_name || "Unknown Guide",
+          serviceImage: guide.image || "",
+              price: guide.totalPrice,
+              source: "viewDetails",
+            }
+          );
+      });
+    }
+
+    if (viewDetails.travel_point) {
+      viewDetails.travel_point.forEach((travel_point) => {
+          appendBookingByDate(
+            bookingsByDate,
+            normalizeBookingDateKey(travel_point.bookingDate),
+            {
+          ...travel_point,
+              serviceType: "Travel Point",
+              serviceName:
+                travel_point.vehicles_name || "Unknown Travel Point",
+          serviceImage: travel_point.image || "",
+              price: travel_point.totalPrice,
+              source: "viewDetails",
+            }
+          );
+        });
+      }
+
+    if (viewDetails.travel_hourly) {
+      viewDetails.travel_hourly.forEach((travel_hourly) => {
+          appendBookingByDate(
+            bookingsByDate,
+            normalizeBookingDateKey(travel_hourly.bookingDate),
+            {
+          ...travel_hourly,
+              serviceType: "Travel Hourly",
+              serviceName:
+                travel_hourly.vehicles_name || "Unknown Travel Hourly",
+          serviceImage: travel_hourly.image || "",
+              price: travel_hourly.totalPrice,
+              source: "viewDetails",
+            }
+          );
+        });
+      }
+
+      if (
+        viewDetails.local_transport &&
+        viewDetails.local_transport.length > 0
+      ) {
+      viewDetails.local_transport.forEach((local_transport) => {
+          appendBookingByDate(
+            bookingsByDate,
+            normalizeBookingDateKey(local_transport.bookingDate),
+            {
+          ...local_transport,
+              serviceType: "Travel Zone",
+              serviceName:
+                local_transport.vehicles_name || "Unknown Travel Zone",
+          serviceImage: local_transport.image || "",
+              price: local_transport.totalPrice,
+              source: "viewDetails",
+            }
+          );
+        });
+      }
+
+    if (viewDetails.exit_port) {
+      viewDetails.exit_port.forEach((exitport) => {
+          appendBookingByDate(
+            bookingsByDate,
+            normalizeBookingDateKey(exitport.bookingDate),
+            {
+          ...exitport,
+          serviceType: "Exit Port",
+              serviceName: exitport.vehicles_name || "Unknown Exit Port",
+          serviceImage: exitport.image || "",
+              price: exitport.totalPrice,
+              source: "viewDetails",
+            }
+          );
+        });
+      }
+    }
+
+    if (hasCartBookings) {
+      addCartBookingsToDateMap(bookingsByDate);
+    }
+
+    return bookingsByDate;
+  };
+
+  const getBookingTableSections = () => {
+    const cityWiseDates = resolveCityWiseDates();
+
+    // City-wise layout when cityWiseDates exist (cart and/or viewDetails)
+    if (
+      cityWiseDates.length > 0 &&
+      (hasCartBookings || hasViewDetailsBookings)
+    ) {
+      return getBookingsByCity().map((section) => ({
+        key: section.key,
+        title: section.city,
+        subtitle: section.dateLabel
+          ? section.dateLabel
+          : [section.checkIn, section.checkOut].filter(Boolean).join(" – "),
+        isCitySection: true,
+        bookings: section.bookings,
+      }));
+    }
+
+    return Object.entries(getBookingsByDate())
+      .sort(([a], [b]) => String(a).localeCompare(String(b)))
+      .map(([date, bookings]) => ({
+        key: date,
+        title: `Bookings for ${new Date(date).toLocaleDateString("en-US", {
+          weekday: "long",
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        })}`,
+        subtitle: null,
+        isCitySection: false,
+        bookings,
+      }));
+  };
+
+
+  useEffect(() => {
+    if (!showBookingTable) return;
+    const sections = getBookingTableSections().filter((s) => s.isCitySection);
+    if (!sections.length) {
+      setOpenCityAccordionKey(null);
+      return;
+    }
+    const stillOpen = sections.some((s) => s.key === openCityAccordionKey);
+    if (!stillOpen) {
+      setOpenCityAccordionKey(sections[0].key);
+    }
+  }, [showBookingTable, cart, cartBookings.length, hasCartBookings, hasViewDetailsBookings, viewDetails]);
+
+  const handleBookTransfer = (booking, id, type) => {
+    if(zone_on === 1){
+      console.log("zone_on567", zone_on);
+    dispatch(fetchLocalZone({ id, type }));
+    dispatch(setSelectbooking(booking));
+    dispatch(setPicktype(type));
+    dispatch(setSelectedPort("Local Transfer"));
+    }
+    setShowBookingTable(false);
+  };
+
+  /** Resolve service id for Book Transfer from view-details or cart item shape */
+  const getTransferServiceId = (booking) => {
+    if (!booking) return null;
+    const type = booking.serviceType;
+
+    if (type === "Hotel") {
+      return (
+        booking.hotelDetails?.hotel_id ||
+        booking.hotel_id ||
+        booking.hotelId ||
+        booking.id ||
+        null
+      );
+    }
+
+    if (type === "Attraction") {
+      return (
+        booking.service_details?.attraction_id ||
+        booking.AttractionId ||
+        booking.attraction_id ||
+        booking.attractionId ||
+        booking.id ||
+        null
+      );
+    }
+
+    if (type === "Attraction Package") {
+      return (
+        booking.package_attraction_id ||
+        booking.AttractionId ||
+        booking.attraction_id ||
+        booking.attractionId ||
+        booking.id ||
+        null
+      );
+    }
+
+    if (type === "Restaurant") {
+      return (
+        booking.service_details?.restaurant_id ||
+        booking.restaurantId ||
+        booking.restaurant_id ||
+        booking.id ||
+        null
+      );
+    }
+
+    return null;
+  };
+
+  const getTransferServiceType = (booking) => {
+    if (booking?.serviceType === "Hotel") return "hotel";
+    if (booking?.serviceType === "Attraction") return "attraction";
+    if (booking?.serviceType === "Attraction Package") return "attraction_package";
+    if (booking?.serviceType === "Restaurant") return "restaurant";
+    return null;
+  };
+
+  useEffect(() => {
+    // ✅ Ensure all vehicles get "dmc" as default unless priceMode is "marketplace"
+    const defaultMode =
+      priceMode === "checked"
+        ? "dmc"
+        : "travclicks" || priceMode === "non-checked"
+        ? "dmc"
+        : "travclicks";
+
+    const initialModes = vehicles.reduce((acc, vehicle) => {
+      acc[vehicle.id] = { mode: defaultMode, dmcId: vehicle.dmc_id };
+      return acc;
+    }, {});
+
+    dispatch(setMode(initialModes)); // ✅ Set mode for all vehicles
+  }, [vehicles, priceMode, dispatch]);
+
+  // Memoized list of prices from vehicles
+  const getPriceField = (vehicle) => {
+    const vehicleMode = mode[vehicle.id]?.mode || "dmc"; // Default mode
+    return vehicleMode === "dmc"
+      ? vehicle.dmc_sharable_price
+        ? parseFloat(vehicle.dmc_sharable_price)
+        : vehicle.dmc_private_price
+        ? parseFloat(vehicle.dmc_private_price)
+        : 0
+      : vehicle.trav_sharable_price
+      ? parseFloat(vehicle.trav_sharable_price)
+      : vehicle.trav_private_price
+      ? parseFloat(vehicle.trav_private_price)
+      : 0;
+  };
+
+  const hourlyPrices = useMemo(
+    () =>
+      isVehiclesArray ? vehicles.map((vehicle) => getPriceField(vehicle)) : [],
+    [vehicles, mode, isVehiclesArray] // ✅ Use Redux mode instead of selectedModes
+  );
+
+  // Update sortedVehicles when vehicles change
+  useEffect(() => {
+    setSortedVehicles(isVehiclesArray ? [...vehicles] : []); // Initialize sorted guides
+  }, [vehicles, isVehiclesArray]);
+
+  // Sorting function
+  const handleSort = () => {
+    const sorted = [...vehicles]
+      .map((vehicle) => ({
+        ...vehicle,
+        price: getPriceField(vehicle), // Use dynamic price field
+      }))
+      .sort((a, b) =>
+        sortOrder === "asc" ? a.price - b.price : b.price - a.price
+      );
+
+    setSortedVehicles(sorted);
+    setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+  };
+
+  // Update price range when vehicles change
+  useEffect(() => {
+    if (hourlyPrices.length > 0) {
+      setPriceRange({
+        min: Math.min(...hourlyPrices),
+        max: Math.max(...hourlyPrices),
+      });
+    }
+  }, [hourlyPrices]);
+
+  // Filter guides based on selected price range
+  const filteredVehicles = sortedVehicles.filter((vehicle) => {
+    const rate = getPriceField(vehicle);
+    return rate >= priceRange.min && rate <= priceRange.max;
+  });
+
+  // Ensure filtering happens *after* priceRange updates
+  // useEffect(() => {
+  //   if (priceRange.min !== undefined && priceRange.max !== undefined) {
+  //     console.log("Before filtering - sortedVehicles:", sortedVehicles);
+  //     console.log("Current price range:", priceRange);
+
+  //     const newFilteredVehicles = sortedVehicles.filter(
+  //       (vehicle) =>
+  //         vehicle.dmcDayPrice >= priceRange.min &&
+  //         vehicle.dmcDayPrice <= priceRange.max
+  //     );
+
+  //     setFilteredVehicles(newFilteredVehicles);
+  //     console.log("After filtering - filteredVehicles:", newFilteredVehicles);
+  //   }
+  // }, [sortedVehicles, priceRange]); // Trigger when sortedVehicles updates
+  // Runs when either `sortedVehicles` or `priceRange` changes
+
+  useEffect(() => {
+    console.log("Updated Price Range:", priceRange);
+  }, [priceRange]);
+  useEffect(() => {
+    console.log("Updated filteredVehicles:", filteredVehicles);
+  }, [filteredVehicles]);
+
+  // Function to handle page change
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+  };
+
+  // Function to handle guide selection
+  const handleVehicleClick = (vehicles, navigate) => {
+    const vehicleMode = mode[vehicles.id]?.mode || "dmc"; // ✅ Get correct mode
+    const dmcId = mode[vehicles.id]?.dmcId || vehicles.dmc_id; // ✅ Get correct dmcId
+    dispatch(setSelectedVehicle({ id: vehicles.id, mode: vehicleMode, dmcId })); // ✅ Store only selected vehicle's ID & mode
+    dispatch(
+      fetchVehicleDetails({
+        city: vehicles.city,
+        country: vehicles.country,
+        type: zoneType,
+      })
+    )
+      .unwrap() // Unwrap the promise to handle the payload directly
+      .then((data) => {
+        dispatch(setCheckoutVehicle(data));
+        navigate(`/dashboard/db-dashboard/activity-single-2`, {
+          state: { vehicles: data },
+        });
+      });
+  };
+
+  // Function to handle mode change and update Redux
+  const handleModeChange = (id, newMode, dmcId) => {
+    dispatch(setMode({ [id]: { mode: newMode, dmcId } })); // ✅ Update Redux mode for specific vehicle
+  };
+
+  // Reset current page when vehicles are cleared (new search)
+  useEffect(() => {
+    if (vehicles.length === 0) {
+      setCurrentPage(1);
+      setHasMore(true);
+      setIsLoadingMore(false);
+    }
+  }, [vehicles.length]);
+
+  // After first page loads: if fewer than a full page, stop infinite scroll
+  // (fixes Hourly calling page-2 when API only returned e.g. 2 of limit 5)
+  useEffect(() => {
+    if (status !== "succeeded" || currentPage !== 1) return;
+    if (!Array.isArray(vehicles) || vehicles.length === 0) return;
+    setHasMore(vehicles.length >= itemsPerPage);
+  }, [status, vehicles, currentPage, itemsPerPage]);
+
+  // Scroll detection for infinite scroll
+  useEffect(() => {
+    const handleScroll = () => {
+      if (
+        window.innerHeight + document.documentElement.scrollTop >=
+        document.documentElement.offsetHeight - 1000 && // Load more when 1000px from bottom
+        !isLoadingMore &&
+        hasMore &&
+        status !== "loading" &&
+        Array.isArray(vehicles) &&
+        vehicles.length >= itemsPerPage // Only load more when first page was full
+      ) {
+        setCurrentPage((prev) => prev + 1);
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [isLoadingMore, hasMore, status, vehicles, itemsPerPage]);
+
+  // Load more effect for infinite scroll
+  useEffect(() => {
+    if (currentPage <= 1) return;
+    if (!Array.isArray(vehicles) || vehicles.length === 0) return;
+
+    // Short first page — do not request next page (avoids 404 "No vehicles found")
+    if (vehicles.length < itemsPerPage) {
+              setHasMore(false);
+      return;
+            }
+
+    const start = (currentPage - 1) * itemsPerPage;
+    if (vehicles.length < start) {
+            setHasMore(false);
+      return;
+    }
+
+    let cancelled = false;
+    setIsLoadingMore(true);
+
+    const request =
+      selectedPort === "Local Transfer"
+        ? dispatch(fetchZoneVehicles({ start, limit: itemsPerPage }))
+        : dispatch(fetchVehicles({ start, limit: itemsPerPage }));
+
+    request
+      .then((result) => {
+        if (cancelled) return;
+          setIsLoadingMore(false);
+
+        if (result?.meta?.requestStatus === "rejected") {
+          setHasMore(false);
+          return;
+        }
+
+        const payload = result?.payload;
+        if (Array.isArray(payload)) {
+          if (payload.length < itemsPerPage) {
+              setHasMore(false);
+            }
+          } else {
+            setHasMore(false);
+          }
+      })
+      .catch(() => {
+        if (cancelled) return;
+          setIsLoadingMore(false);
+          setHasMore(false);
+        });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentPage, itemsPerPage, dispatch, selectedPort]);
+  // Note: intentionally not depending on vehicles.length to avoid re-fetch loops
+
+  const displayedVehicles = filteredVehicles.filter((vehicle) => {
+    const dmcPrice = vehicle.dmc_sharable_price
+      ? parseFloat(vehicle.dmc_sharable_price) * exchangeRate
+      : vehicle.dmc_private_price
+      ? parseFloat(vehicle.dmc_private_price) * exchangeRate
+      : 0;
+    const travClicksPrice = vehicle.trav_sharable_price
+      ? parseFloat(vehicle.trav_sharable_price) * exchangeRate
+      : vehicle.trav_private_price
+      ? parseFloat(vehicle.trav_private_price) * exchangeRate
+      : 0;
+
+    if (priceMode === "checked" && dmcPrice <= 0) {
+      return false;
+    }
+
+    if (
+      (dmcPrice === 0 && travClicksPrice === 0) ||
+      (bookingType === "enquiry" && dmcPrice === 0)
+    ) {
+      return false;
+    }
+
+    return true;
+  });
+
+  const displayedVehicleCount = displayedVehicles.length;
+
+  return (
+    <>
+      <MetaComponent meta={metadata} />
+      {/* End Page Title */}
+      <div className="header-margin">
+        <CustomStepper variant="lite" />
+        <TourStatus variant="lite" />
+      </div>
+
+      {showBookingTable && hasBookings ? (
+        <section className="layout-pt-md layout-pb-md">
+          <div className="container-xxl">
+            {/* Add debug panel */}
+            {/* <div className="row mb-20">
+              <div className="col-12">
+                <div className="border border-danger rounded-4 p-20 bg-light-2">
+                  <h3 className="text-18 fw-500 text-danger mb-10">Debug Information</h3>
+                  <div className="text-14">
+                    <p><strong>viewDetails.travel_point:</strong> {JSON.stringify(viewDetails?.travel_point)}</p>
+                    <p><strong>travel_point length:</strong> {viewDetails?.travel_point?.length || 0}</p>
+                    <p><strong>Has hotel:</strong> {Boolean(!viewDetails?.hotel || viewDetails?.hotel?.length === 0).toString()}</p>
+                    <p><strong>Has attraction:</strong> {Boolean(!viewDetails?.attraction || viewDetails?.attraction?.length === 0).toString()}</p>
+                    <p><strong>Has restaurant:</strong> {Boolean(!viewDetails?.restaurant || viewDetails?.restaurant?.length === 0).toString()}</p>
+                    <p><strong>Button should show:</strong> {Boolean(
+                      (viewDetails?.travel_point?.length > 0 || 
+                       viewDetails?.guide?.length > 0 || 
+                       viewDetails?.travel_hourly?.length > 0 || 
+                       viewDetails?.entry_port?.length > 0 || 
+                       viewDetails?.exit_port?.length > 0) && 
+                      (!viewDetails?.hotel || viewDetails?.hotel?.length === 0) && 
+                      (!viewDetails?.attraction || viewDetails?.attraction?.length === 0) && 
+                      (!viewDetails?.restaurant || viewDetails?.restaurant?.length === 0)
+                    ).toString()}</p>
+                  </div>
+                </div>
+              </div>
+            </div> */}
+            {/* End debug panel */}
+
+            <div className="row">
+              <div className="col-12">
+                <div className="text-center mb-30">
+                  <h2 className="text-30 fw-600">Your Bookings</h2>
+                  {(hasViewDetailsBookings || hasCartBookings) && (
+                    <p className="text-14 text-light-1 mt-10">
+                      {hasViewDetailsBookings && hasCartBookings
+                        ? "Showing confirmed bookings and cart items"
+                        : hasCartBookings
+                          ? "Showing items from your cart"
+                          : "Showing confirmed bookings"}
+                    </p>
+                  )}
+                </div>
+
+                {getBookingTableSections().map((section) => {
+                  const isCityOpen =
+                    !section.isCitySection ||
+                    openCityAccordionKey === section.key;
+                  return (
+                  <div key={section.key} className="mb-40">
+                    {section.isCitySection ? (
+                      <button
+                        type="button"
+                        className="d-flex items-center justify-between flex-wrap w-100 mb-0 px-20 py-15 rounded-8 border-0 text-left"
+                        onClick={() =>
+                          setOpenCityAccordionKey((prev) =>
+                            prev === section.key ? null : section.key
+                          )
+                        }
+                        aria-expanded={isCityOpen}
+                        style={{
+                          background:
+                            "linear-gradient(90deg, #3554d1 0%, #4c6fff 100%)",
+                          color: "#fff",
+                          boxShadow: "0 8px 20px rgba(53, 84, 209, 0.18)",
+                          cursor: "pointer",
+                        }}
+                      >
+                        <div className="d-flex items-center">
+                          <LocationOnIcon
+                            style={{ fontSize: 22, marginRight: 8 }}
+                          />
+                          <div>
+                            <div className="text-20 fw-600 lh-15">
+                              {section.title}
+                            </div>
+                            {section.subtitle ? (
+                              <div
+                                className="text-13 mt-5"
+                                style={{ opacity: 0.9 }}
+                              >
+                                {section.subtitle}
+                              </div>
+                            ) : null}
+                          </div>
+                        </div>
+                        <div className="d-flex items-center gap-2">
+                          <div
+                            className="text-13 fw-500 px-12 py-5 rounded-100"
+                            style={{
+                              background: "rgba(255,255,255,0.18)",
+                            }}
+                          >
+                            {section.bookings.length} booking
+                            {section.bookings.length === 1 ? "" : "s"}
+                          </div>
+                          <span
+                            className="d-flex items-center justify-center"
+                            style={{
+                              width: 28,
+                              height: 28,
+                              borderRadius: "50%",
+                              background: "rgba(255,255,255,0.2)",
+                              marginLeft: 10,
+                            }}
+                          >
+                            {isCityOpen ? (
+                              <FaAngleUp style={{ fontSize: 14 }} />
+                            ) : (
+                              <FaAngleDown style={{ fontSize: 14 }} />
+                            )}
+                          </span>
+                        </div>
+                      </button>
+                    ) : (
+                      <h3 className="text-22 fw-500 mb-20">{section.title}</h3>
+                    )}
+                    {isCityOpen ? (
+                    <div className="overflow-auto mt-15">
+                      <table className="table1 table-bordered table-hover shadow-sm">
+                        <thead className="bg-blue-1 text-white">
+                          <tr>
+                            <th className="px-20 py-15">
+                              <div className="d-flex items-center">
+                                <HotelIcon
+                                  style={{ fontSize: 20, marginRight: 8 }}
+                                />
+                                Service Type
+                              </div>
+                            </th>
+                            <th className="px-20 py-15">
+                              <div className="d-flex items-center">
+                                <TourIcon
+                                  style={{ fontSize: 20, marginRight: 8 }}
+                                />
+                                Name
+                              </div>
+                            </th>
+                            <th className="px-20 py-15">
+                              <div className="d-flex items-center">
+                                <RestaurantIcon
+                                  style={{ fontSize: 20, marginRight: 8 }}
+                                />
+                                Details
+                              </div>
+                            </th>
+                            <th className="px-20 py-15">
+                              <div className="d-flex items-center">
+                                <AccessTimeIcon
+                                  style={{ fontSize: 20, marginRight: 8 }}
+                                />
+                                Time
+                              </div>
+                            </th>
+                            <th className="px-20 py-15">
+                              <div className="d-flex items-center">
+                                <FastfoodIcon
+                                  style={{ fontSize: 20, marginRight: 8 }}
+                                />
+                                Price
+                              </div>
+                            </th>
+                            <th className="px-20 py-15">
+                              <div className="d-flex items-center">
+                                <DirectionsCarIcon
+                                  style={{ fontSize: 20, marginRight: 8 }}
+                                />
+                                Transport
+                              </div>
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {section.bookings.map((booking, index) => (
+                            <tr
+                              key={index}
+                              className="border-bottom-light booking-row"
+                              data-service-type={booking.serviceType}
+                              style={{
+                                backgroundColor: getRowBackgroundColor(
+                                  booking.serviceType
+                                ),
+                                borderLeft: `4px solid ${getRowBorderColor(
+                                  booking.serviceType
+                                )}`,
+                              }}
+                            >
+                              <td className="px-20 py-15">
+                                <div className="d-flex items-center">
+                                  {getServiceTypeIcon(booking.serviceType)}
+                                  <div className="ml-10">
+                                    <div className="fw-500">
+                                    {booking.serviceType}
+                                    </div>
+                                    {booking.source === "cart" && (
+                                      <span
+                                        className="d-inline-flex items-center mt-5"
+                                        style={{
+                                          fontSize: "11px",
+                                          fontWeight: 600,
+                                          lineHeight: 1,
+                                          padding: "4px 8px",
+                                          borderRadius: "4px",
+                                          background: "#eef2ff",
+                                          color: "#3554d1",
+                                          border: "1px solid #c7d2fe",
+                                          whiteSpace: "nowrap",
+                                        }}
+                                      >
+                                        From Cart
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-20 py-15">
+                                <div className="d-flex items-center">
+                                  {booking.serviceImage && (
+                                    <img
+                                      src={booking.serviceImage}
+                                      alt={booking.serviceName}
+                                      className="size-40 rounded-4 object-cover mr-10"
+                                    />
+                                  )}
+                                  <span className="fw-500">
+                                    {booking.serviceName}
+                                  </span>
+                                </div>
+                              </td>
+                              <td className="px-20 py-15">
+                                {booking.serviceType === "Hotel" && (
+                                  <div className="d-flex flex-column">
+                                    <div className="d-flex items-center mb-10">
+                                      <CalendarMonthIcon
+                                        className="text-blue-1 mr-10"
+                                        style={{ fontSize: 20 }}
+                                      />
+                                      <span className="fw-500 mr-5">
+                                        Check-in:
+                                      </span>{" "}
+                                      <span className="text-15">
+                                        {Array.isArray(booking.bookingDate)
+                                          ? booking.bookingDate[0]
+                                          : booking.check_in ||
+                                            booking.bookingDate ||
+                                            "—"}
+                                      </span>
+                                    </div>
+                                    <div className="d-flex items-center">
+                                      <CalendarMonthIcon
+                                        className="text-blue-1 mr-10"
+                                        style={{ fontSize: 20 }}
+                                      />
+                                      <span className="fw-500 mr-5">
+                                        Check-out:
+                                      </span>{" "}
+                                      <span className="text-15">
+                                        {Array.isArray(booking.bookingDate)
+                                          ? booking.bookingDate[1] || "—"
+                                          : booking.check_out || "—"}
+                                      </span>
+                                    </div>
+                                  </div>
+                                )}
+                                {booking.serviceType === "Attraction" && (
+                                  <div className="d-flex flex-column">
+                                    <div className="d-flex items-center mb-10">
+                                      <PersonIcon
+                                        className="text-green-1 mr-10"
+                                        style={{ fontSize: 20 }}
+                                      />
+                                      <span className="fw-500 mr-5">
+                                        Guests:
+                                      </span>
+                                      <span className="text-15">
+                                        Adults: {booking.adultCount}, Children:{" "}
+                                        {booking.childCount}
+                                      </span>
+                                    </div>
+                                    <div className="d-flex items-center">
+                                      <ConfirmationNumberIcon
+                                        className="text-green-1 mr-10"
+                                        style={{ fontSize: 20 }}
+                                      />
+                                      <span className="fw-500 mr-5">
+                                        Ticket:
+                                      </span>{" "}
+                                      <span className="text-15">
+                                        {booking.ticketName}
+                                      </span>
+                                    </div>
+                                  </div>
+                                )}
+                                {booking.serviceType === "Attraction Package" && (
+                                  <div className="d-flex flex-column">
+                                    <div className="d-flex items-center mb-10">
+                                      <PersonIcon
+                                        className="text-green-1 mr-10"
+                                        style={{ fontSize: 20 }}
+                                      />
+                                      <span className="fw-500 mr-5">
+                                        Guests:
+                                      </span>
+                                      <span className="text-15">
+                                        Adults: {booking.adultCount}, Children:{" "}
+                                        {booking.childCount}
+                                      </span>
+                                    </div>
+                                    <div className="d-flex items-center">
+                                      <ConfirmationNumberIcon
+                                        className="text-green-1 mr-10"
+                                        style={{ fontSize: 20 }}
+                                      />
+                                      <span className="fw-500 mr-5">
+                                        Ticket:
+                                      </span>{" "}
+                                      <span className="text-15">
+                                        {booking.ticketName}
+                                      </span>
+                                    </div>
+                                  </div>
+                                )}
+                                {booking.serviceType === "Restaurant" && (
+                                  <div className="d-flex flex-column">
+                                    <div className="d-flex items-center mb-10">
+                                      <PersonIcon
+                                        className="text-red-1 mr-10"
+                                        style={{ fontSize: 20 }}
+                                      />
+                                      <span className="fw-500 mr-5">
+                                        Guests:
+                                      </span>
+                                      <span className="text-15">
+                                        Adults: {booking.adultCount}, Children:{" "}
+                                        {booking.childCount}
+                                      </span>
+                                    </div>
+                                    <div className="d-flex items-center mb-10">
+                                      <RestaurantIcon
+                                        className="text-red-1 mr-10"
+                                        style={{ fontSize: 20 }}
+                                      />
+                                      <span className="fw-500 mr-5">
+                                        Meal Type:
+                                      </span>{" "}
+                                      <span className="text-15">
+                                        {booking.mealType || "N/A"}
+                                      </span>
+                                    </div>
+                                    <div className="d-flex items-center">
+                                      <RoomServiceIcon
+                                        className="text-red-1 mr-10"
+                                        style={{ fontSize: 20 }}
+                                      />
+                                      <span className="fw-500 mr-5">
+                                        Description:
+                                      </span>{" "}
+                                      <span className="text-15">
+                                        {booking.mealSpecificType || "N/A"}
+                                      </span>
+                                    </div>
+                                  </div>
+                                )}
+                                {booking.serviceType === "Entry Port" && (
+                                  <div className="d-flex flex-column">
+                                    <div className="d-flex items-center mb-10">
+                                      <LocationOnIcon
+                                        className="text-purple-1 mr-10"
+                                        style={{ fontSize: 20 }}
+                                      />
+                                      <span className="fw-500 mr-5">
+                                        Pick Up:
+                                      </span>{" "}
+                                      <span className="text-15">
+                                        {booking.entrypickup}
+                                      </span>
+                                    </div>
+                                    <div className="d-flex items-center mb-10">
+                                      <LocationOnIcon
+                                        className="text-purple-1 mr-10"
+                                        style={{ fontSize: 20 }}
+                                      />
+                                      <span className="fw-500 mr-5">
+                                        Drop Off:
+                                      </span>{" "}
+                                      <span className="text-15">
+                                        {booking.entrydropoff}
+                                      </span>
+                                    </div>
+                                    <div className="d-flex items-center mb-10">
+                                      <AirportShuttleIcon
+                                        className="text-purple-1 mr-10"
+                                        style={{ fontSize: 20 }}
+                                      />
+                                      <span className="fw-500 mr-5">Type:</span>{" "}
+                                      <span className="text-15">
+                                        {booking.type}
+                                      </span>
+                                    </div>
+                                    <div className="d-flex items-center">
+                                      <PersonIcon
+                                        className="text-purple-1 mr-10"
+                                        style={{ fontSize: 20 }}
+                                      />
+                                      <span className="fw-500 mr-5">
+                                        Guests:
+                                      </span>
+                                      <span className="text-15">
+                                        Adults: {booking.adults}, Children:{" "}
+                                        {booking.children}
+                                      </span>
+                                    </div>
+                                  </div>
+                                )}
+                                {booking.serviceType === "Exit Port" && (
+                                  <div className="d-flex flex-column">
+                                    <div className="d-flex items-center mb-10">
+                                      <LocationOnIcon
+                                        className="text-orange-1 mr-10"
+                                        style={{ fontSize: 20 }}
+                                      />
+                                      <span className="fw-500 mr-5">
+                                        Pick Up:
+                                      </span>{" "}
+                                      <span className="text-15">
+                                        {booking.exitpickup}
+                                      </span>
+                                    </div>
+                                    <div className="d-flex items-center mb-10">
+                                      <LocationOnIcon
+                                        className="text-orange-1 mr-10"
+                                        style={{ fontSize: 20 }}
+                                      />
+                                      <span className="fw-500 mr-5">
+                                        Drop Off:
+                                      </span>{" "}
+                                      <span className="text-15">
+                                        {booking.exitdropoff}
+                                      </span>
+                                    </div>
+                                    <div className="d-flex items-center mb-10">
+                                      <AirportShuttleIcon
+                                        className="text-orange-1 mr-10"
+                                        style={{ fontSize: 20 }}
+                                      />
+                                      <span className="fw-500 mr-5">Type:</span>{" "}
+                                      <span className="text-15">
+                                        {booking.type}
+                                      </span>
+                                    </div>
+                                    <div className="d-flex items-center">
+                                      <PersonIcon
+                                        className="text-orange-1 mr-10"
+                                        style={{ fontSize: 20 }}
+                                      />
+                                      <span className="fw-500 mr-5">
+                                        Guests:
+                                      </span>
+                                      <span className="text-15">
+                                        Adults: {booking.adults}, Children:{" "}
+                                        {booking.children}
+                                      </span>
+                                    </div>
+                                  </div>
+                                )}
+                                {booking.serviceType === "Travel Point" && (
+                                  <div className="d-flex flex-column">
+                                    <div className="d-flex items-center mb-10">
+                                      <LocationOnIcon
+                                        className="text-cyan-1 mr-10"
+                                        style={{ fontSize: 20 }}
+                                      />
+                                      <span className="fw-500 mr-5">
+                                        Pick Up:
+                                      </span>{" "}
+                                      <span className="text-15">
+                                        {booking.entrypickup}
+                                      </span>
+                                    </div>
+                                    <div className="d-flex items-center mb-10">
+                                      <LocationOnIcon
+                                        className="text-cyan-1 mr-10"
+                                        style={{ fontSize: 20 }}
+                                      />
+                                      <span className="fw-500 mr-5">
+                                        Drop Off:
+                                      </span>{" "}
+                                      <span className="text-15">
+                                        {booking.entrydropoff}
+                                      </span>
+                                    </div>
+                                    <div className="d-flex items-center">
+                                      <DirectionsCarIcon
+                                        className="text-cyan-1 mr-10"
+                                        style={{ fontSize: 20 }}
+                                      />
+                                      <span className="fw-500 mr-5">Type:</span>{" "}
+                                      <span className="text-15">
+                                        {booking.type}
+                                      </span>
+                                    </div>
+                                  </div>
+                                )}
+                                {booking.serviceType === "Travel Hourly" && (
+                                  <div className="d-flex flex-column">
+                                    <div className="d-flex items-center mb-10">
+                                      <LocationOnIcon
+                                        className="text-deep-orange-1 mr-10"
+                                        style={{ fontSize: 20 }}
+                                      />
+                                      <span className="fw-500 mr-5">
+                                        Pick Up:
+                                      </span>{" "}
+                                      <span className="text-15">
+                                        {booking.entrypickup}
+                                      </span>
+                                    </div>
+                                    <div className="d-flex items-center">
+                                      <DirectionsCarIcon
+                                        className="text-deep-orange-1 mr-10"
+                                        style={{ fontSize: 20 }}
+                                      />
+                                      <span className="fw-500 mr-5">Type:</span>{" "}
+                                      <span className="text-15">
+                                        {booking.type}
+                                      </span>
+                                    </div>
+                                  </div>
+                                )}
+                                {booking.serviceType === "Travel Zone" && (
+                                  <div className="d-flex flex-column">
+                                    <div className="d-flex items-center mb-10">
+                                      <LocationOnIcon
+                                        className="text-purple-2 mr-10"
+                                        style={{ fontSize: 20 }}
+                                      />
+                                      <span className="fw-500 mr-5">
+                                        Pick Up:
+                                      </span>{" "}
+                                      <span className="text-15">
+                                        {booking.entrypickup}
+                                      </span>
+                                    </div>
+                                    <div className="d-flex items-center mb-10">
+                                      <LocationOnIcon
+                                        className="text-cyan-1 mr-10"
+                                        style={{ fontSize: 20 }}
+                                      />
+                                      <span className="fw-500 mr-5">
+                                        Drop Off:
+                                      </span>{" "}
+                                      <span className="text-15">
+                                        {booking.entrydropoff}
+                                      </span>
+                                    </div>
+                                    <div className="d-flex items-center">
+                                      <DirectionsCarIcon
+                                        className="text-cyan-1 mr-10"
+                                        style={{ fontSize: 20 }}
+                                      />
+                                      <span className="fw-500 mr-5">Type:</span>{" "}
+                                      <span className="text-15">
+                                        {booking.type}
+                                      </span>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {booking.serviceType === "Guide" && (
+                                  <div className="d-flex flex-column">
+                                    <div className="d-flex items-center mb-10">
+                                      <LocationOnIcon
+                                        className="text-purple-2 mr-10"
+                                        style={{ fontSize: 20 }}
+                                      />
+                                      <span className="fw-500 mr-5">
+                                        Pick Up:
+                                      </span>{" "}
+                                      <span className="text-15">
+                                        {booking.entrypickup}
+                                      </span>
+                                    </div>
+                                    <div className="d-flex items-center">
+                                      <TourIcon
+                                        className="text-purple-2 mr-10"
+                                        style={{ fontSize: 20 }}
+                                      />
+                                      <span className="fw-500 mr-5">Type:</span>{" "}
+                                      <span className="text-15">
+                                        {booking.type}
+                                      </span>
+                                    </div>
+                                  </div>
+                                )}
+                              </td>
+                              <td className="px-20 py-15">
+                                {booking.serviceType === "Hotel" && (
+                                  <div className="d-flex flex-column">
+                                    <div className="d-flex items-center mb-10">
+                                      <AccessTimeIcon
+                                        className="text-blue-1 mr-10"
+                                        style={{ fontSize: 20 }}
+                                      />
+                                      <span className="text-15">
+                                        {/* { {booking.ent}{" "} */}
+                                        Check In Time:{" "}
+                                        {formatTime(
+                                          booking.hotelDetails?.checkInTime
+                                        )}
+                                      </span>
+                                    </div>
+                                    <div className="d-flex items-center">
+                                      <AccessTimeIcon
+                                        className="text-blue-1 mr-10"
+                                        style={{ fontSize: 20 }}
+                                      />
+                                      <span className="text-15">
+                                        Check Out Time:{" "}
+                                        {formatTime(
+                                          booking.hotelDetails?.checkOutTime
+                                        )}
+                                      </span>
+                                    </div>
+                                  </div>
+                                )}
+                                {booking.serviceType === "Attraction" && (
+                                  <div>
+                                    {booking.visitTime &&
+                                      booking.visitTime
+                                        .split("-")
+                                        .map((time, i) => {
+                                          // Convert 24hr format to AM/PM
+                                          const [hours, minutes] =
+                                            time.split(":");
+                                          const h = parseInt(hours, 10);
+                                          const ampm = h >= 12 ? "PM" : "AM";
+                                          const hour = h % 12 || 12; // Convert 0 to 12 for 12 AM
+                                          return (
+                                            <div
+                                              className="d-flex items-center mt-10"
+                                              key={i}
+                                            >
+                                              <AccessTimeIcon
+                                                className="text-green-1 mr-10"
+                                                style={{ fontSize: 20 }}
+                                              />
+                                              <span className="text-15">
+                                                {i === 0 ? "From: " : "To: "}
+                                                {hour}:{minutes} {ampm}
+                                              </span>
+                                            </div>
+                                          );
+                                        })}
+                                  </div>
+                                )}
+                                {booking.serviceType === "Attraction Package" && (
+                                 <div>
+                                 {booking.visitTime &&
+                                   booking.visitTime
+                                     .split("-")
+                                     .map((time, i) => {
+                                       // Convert 24hr format to AM/PM
+                                       const [hours, minutes] =
+                                         time.split(":");
+                                       const h = parseInt(hours, 10);
+                                       const ampm = h >= 12 ? "PM" : "AM";
+                                       const hour = h % 12 || 12; // Convert 0 to 12 for 12 AM
+                                       return (
+                                         <div
+                                           className="d-flex items-center mt-10"
+                                           key={i}
+                                         >
+                                           <AccessTimeIcon
+                                             className="text-green-1 mr-10"
+                                             style={{ fontSize: 20 }}
+                                           />
+                                           <span className="text-15">
+                                             {i === 0 ? "From: " : "To: "}
+                                             {hour}:{minutes} {ampm}
+                                           </span>
+                                         </div>
+                                       );
+                                     })}
+                               </div>
+                                )}
+                                {booking.serviceType === "Restaurant" && (
+                                  <div className="d-flex items-center">
+                                    <AccessTimeIcon
+                                      className="text-red-1 mr-10"
+                                      style={{ fontSize: 20 }}
+                                    />
+                                    <span className="text-15">
+                                      {booking.visitTime}
+                                    </span>
+                                  </div>
+                                )}
+                                {booking.serviceType === "Entry Port" && (
+                                  <div className="d-flex items-center">
+                                    <AccessTimeIcon
+                                      className="text-purple-1 mr-10"
+                                      style={{ fontSize: 20 }}
+                                    />
+                                    <span className="text-15">
+                                      {booking.entrytime}
+                                    </span>
+                                  </div>
+                                )}
+                                {booking.serviceType === "Exit Port" && (
+                                  <div className="d-flex items-center">
+                                    <AccessTimeIcon
+                                      className="text-orange-1 mr-10"
+                                      style={{ fontSize: 20 }}
+                                    />
+                                    <span className="text-15">
+                                      {booking.entrytime}
+                                    </span>
+                                  </div>
+                                )}
+                                {booking.serviceType === "Travel Point" && (
+                                  <div className="d-flex items-center">
+                                    <AccessTimeIcon
+                                      className="text-cyan-1 mr-10"
+                                      style={{ fontSize: 20 }}
+                                    />
+                                    <span className="text-15">
+                                      {booking.entrytime}
+                                    </span>
+                                  </div>
+                                )}
+                                {booking.serviceType === "Travel Hourly" && (
+                                  <div className="d-flex items-center">
+                                    <AccessTimeIcon
+                                      className="text-deep-orange-1 mr-10"
+                                      style={{ fontSize: 20 }}
+                                    />
+                                    <span className="text-15">
+                                      {booking.entrytime}
+                                    </span>
+                                  </div>
+                                )}
+                                {booking.serviceType === "Travel Zone" && (
+                                  <div className="d-flex items-center">
+                                    <AccessTimeIcon
+                                      className="text-cyan-1 mr-10"
+                                      style={{ fontSize: 20 }}
+                                    />
+                                    <span className="text-15">
+                                      {booking.entrytime}
+                                    </span>
+                                  </div>
+                                )}
+                                {booking.serviceType === "Guide" && (
+                                  <div className="d-flex items-center">
+                                    <AccessTimeIcon
+                                      className="text-purple-2 mr-10"
+                                      style={{ fontSize: 20 }}
+                                    />
+                                    <span className="text-15">
+                                      {booking.entrytime}
+                                    </span>
+                                  </div>
+                                )}
+                              </td>
+                              <td className="px-20 py-15">
+                                <div className="fw-600 text-blue-1 d-flex justify-center align-center">
+                                  <span
+                                    className="text-18"
+                                    style={{
+                                      padding: "4px 12px",
+                                      borderRadius: "20px",
+                                      background: "rgba(53, 84, 209, 0.1)",
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                    }}
+                                  >
+                                    {PriceHide === "0" ? `$${booking.price}` : "Price Hidden"}
+                                  </span>
+                                </div>
+                              </td>
+                              <td className="px-20 py-15">
+                                {(booking.serviceType === "Hotel" ||
+                                  booking.serviceType === "Attraction" ||
+                                  booking.serviceType === "Attraction Package" ||
+                                  booking.serviceType === "Restaurant") && (
+                                  <button
+                                    className="button -md -dark-1 bg-blue-1 text-white d-flex items-center justify-center"
+                                    onClick={() => {
+                                      const serviceId = getTransferServiceId(booking);
+                                      const serviceType = getTransferServiceType(booking);
+                                      if (!serviceId || !serviceType) {
+                                        console.warn(
+                                          "Book Transfer: missing service id for",
+                                          booking.serviceType,
+                                          booking
+                                        );
+                                        return;
+                                      }
+                                        handleBookTransfer(
+                                          booking,
+                                        serviceId,
+                                        serviceType
+                                      );
+                                    }}
+                                    style={{
+                                      borderRadius: "6px",
+                                      boxShadow: "0 2px 4px rgba(0,0,0,0.15)",
+                                      transition: "all 0.2s ease",
+                                    }}
+                                  >
+                                    <DirectionsCarIcon
+                                      style={{ marginRight: 8, fontSize: 18 }}
+                                    />
+                                    Book Transfer
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    ) : null}
+                  </div>
+                  );
+                })}
+              </div>
+              <div className="d-flex justify-center mt-20">
+                {/* Always render this for debugging */}
+
+                {/* Regular button with condition */}
+                {showAddTransferButton && (
+                  <button
+                    className="button -md -dark-1 bg-blue-1 text-white d-flex items-center justify-center"
+                    onClick={() => {
+                      setShowBookingTable(false);
+                    }}
+                    style={{
+                      borderRadius: "6px",
+                      boxShadow: "0 2px 4px rgba(0,0,0,0.15)",
+                      transition: "all 0.2s ease",
+                    }}
+                  >
+                    <DirectionsCarIcon
+                      style={{ marginRight: 8, fontSize: 18 }}
+                    />
+                    Add Transfer
+                  </button>
+                )}
+
+                {/* Debug button that's always visible */}
+              </div>
+            </div>
+          </div>
+        </section>
+      ) : (
+        <>
+          {/* header top margin */}
+          {/* <Header11 /> */}
+          {/* End Header 1 */}
+          <section className="pt-40 pb-40 bg-light-2">
+            <div
+              className={
+                selectedPort === "Hourly" ? "container" : "container-xxl padding-left-right-5"
+              }
+            >
+              <div className="row" style={{ padding: "20px" }}>
+                <div className="col-12">
+                  <div className="text-center">
+                    <h1 className="text-30 fw-600">Local Tour</h1>
+                  </div>
+                  {/* End text-center */}
+                  <MainFilterSearchBox Location={Location} />
+                </div>
+                {/* End col-12 */}
+              </div>
+            </div>
+          </section>
+          <section className="layout-pt-md layout-pb-lg">
+            <div className="container-xxl padding-left-right-5`">
+              <div className="row y-gap-30" style={{ padding: "20px" }}>
+                <div className="col-xl-3  d-xl-block">
+                  <aside className="sidebar y-gap-40 xl:d-none">
+                    <Sidebar
+                      hourlyPrices={hourlyPrices}
+                      priceRange={priceRange}
+                      setPriceRange={setPriceRange}
+                    />
+                  </aside>
+                </div>
+
+                {/* Mobile Filter Section */}
+                <div className="col-12 d-xl-none">
+                  <div className="filter-mobile-section">
+                    <button
+                      className="filter-button"
+                      onClick={() => setIsFilterVisible(!isFilterVisible)}
+                      aria-expanded={isFilterVisible}
+                    >
+                      <div className="button-content">
+                        <div className="left-content">
+                          <i className="icon-filter text-20" />
+                          <span>Filter</span>
+                        </div>
+                        <div className="arrow-icon">
+                          {isFilterVisible ? (
+                            <FaAngleUp className="arrow-icon-svg" />
+                          ) : (
+                            <FaAngleDown className="arrow-icon-svg" />
+                          )}
+                        </div>
+                      </div>
+                    </button>
+
+                    {/* Collapsible Filter Content */}
+                    <div
+                      className={`filter-content ${
+                        isFilterVisible ? "show" : ""
+                      }`}
+                    >
+                      <aside className="sidebar y-gap-40 mb-30">
+                        <Sidebar
+                          hourlyPrices={hourlyPrices}
+                          priceRange={priceRange}
+                          setPriceRange={setPriceRange}
+                        />
+                      </aside>
+                    </div>
+                  </div>
+                </div>
+                {/* End col */}
+
+                <div className="col-xl-9 ">
+                  <TopHeaderFilter
+                    Location={Location}
+                    vehicles={vehicles}
+                    handleSort={handleSort}
+                    sortOrder={sortOrder}
+                    filteredCount={displayedVehicleCount}
+                  />
+                  <div className="mt-30"></div>
+                  {/* End mt--30 */}
+                  <div className="row y-gap-30" style={{ marginTop: "0px", paddingLeft: "2rem" }}>
+                    <ActivityProperties1
+                      vehicles={filteredVehicles}
+                      status={status}
+                      onVehicleClick={handleVehicleClick}
+                      selectedModes={mode} // ✅ Pass selected modes
+                      setSelectedModes={handleModeChange} // ✅ Allow child to update mode
+                      priceMode={priceMode}
+                      hasMore={hasMore}
+                      isLoadingMore={isLoadingMore}
+                    />
+                  </div>
+                  {/* End .row */}
+                  {/* <Pagination /> */}
+                </div>
+                {/* End .col for right content */}
+              </div>
+              {/* End .row */}
+            </div>
+            {/* End .container */}
+          </section>
+          {/* End halfMap content */}
+          {/* <DefaultFooter /> */}
+        </>
+      )}
+
+      <style jsx>{`
+        .filter-mobile-section {
+          position: relative;
+          margin-bottom: 20px;
+        }
+
+        .filter-button {
+          width: 100%;
+          background-color: #3554d1;
+          border: none;
+          border-radius: 4px;
+          padding: 15px 20px;
+          cursor: pointer;
+          transition: all 0.3s ease;
+        }
+
+        .filter-button:hover {
+          background-color: #284bc1;
+        }
+
+        .button-content {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+
+        .left-content {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+
+        .left-content i {
+          color: white;
+        }
+
+        .left-content span {
+          color: white;
+          font-size: 16px;
+          font-weight: 500;
+        }
+
+        .arrow-icon {
+          color: white;
+          display: flex;
+          align-items: center;
+        }
+
+        .arrow-icon-svg {
+          width: 20px;
+          height: 20px;
+          color: white;
+          transition: transform 0.3s ease;
+        }
+
+        .filter-content {
+          max-height: 0;
+          overflow: hidden;
+          transition: max-height 0.3s ease-out;
+          background-color: white;
+          border-radius: 4px;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .filter-content.show {
+          max-height: 2000px;
+          transition: max-height 0.5s ease-in;
+          padding: 20px;
+          margin-top: 15px;
+        }
+
+        @media (max-width: 1199px) {
+          .sidebar {
+            margin-bottom: 30px;
+          }
+        }
+
+        /* Additional styles for the booking table */
+        .table1 {
+          width: 100%;
+          border-collapse: separate;
+          border-spacing: 0;
+          border: 1px solid #e5e5e5;
+          border-radius: 8px;
+          overflow: hidden;
+          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        }
+
+        .table th,
+        .table td {
+          border: 1px solid #e5e5e5;
+        }
+
+        .table th {
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+
+        .booking-row {
+          transition: all 0.2s ease;
+        }
+
+        .booking-row:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .bg-blue-1 {
+          background-color: #3554d1;
+        }
+
+        .text-white {
+          color: white;
+        }
+
+        .text-blue-1 {
+          color: #3554d1;
+        }
+
+        .text-green-1 {
+          color: #4caf50;
+        }
+
+        .text-red-1 {
+          color: #f44336;
+        }
+
+        .text-purple-1 {
+          color: #7e57c2;
+        }
+
+        .text-orange-1 {
+          color: #ff9800;
+        }
+
+        .text-cyan-1 {
+          color: #00bcd4;
+        }
+
+        .text-deep-orange-1 {
+          color: #ff5722;
+        }
+
+        .text-purple-2 {
+          color: #ab47bc;
+        }
+
+        .border-bottom-light {
+          border-bottom: 1px solid #e5e5e5;
+        }
+
+        .size-40 {
+          width: 40px;
+          height: 40px;
+        }
+
+        .rounded-4 {
+          border-radius: 4px;
+        }
+
+        .flex-center {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .object-cover {
+          object-fit: cover;
+        }
+
+        .text-15 {
+          font-size: 15px;
+        }
+
+        .text-16 {
+          font-size: 16px;
+        }
+
+        .text-18 {
+          font-size: 18px;
+        }
+
+        .mr-10 {
+          margin-right: 10px;
+        }
+
+        .mb-10 {
+          margin-bottom: 10px;
+        }
+      `}</style>
+    </>
+  );
+};
+
+export default ActivityListPage3;
