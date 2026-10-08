@@ -454,6 +454,7 @@ Route::get('/clear', function () {
             Route::post('/fetch-online-hotels', [SingleTourPackageController::class, 'fetchOnlineHotels'])->name('fetch-online-hotels');
             Route::post('/fetch-online-hotel-rooms', [SingleTourPackageController::class, 'fetchOnlineHotelRooms'])->name('fetch-online-hotel-rooms');
             Route::post('/fetch-online-attractions', [SingleTourPackageController::class, 'fetchOnlineAttractions'])->name('fetch-online-attractions');
+            Route::post('/fetch-online-attraction-tickets', [SingleTourPackageController::class, 'fetchOnlineAttractionTickets'])->name('fetch-online-attraction-tickets');
             Route::get('/fetch-rooms-by-hotel', [SingleTourPackageController::class, 'fetchRooms'])->name('fetch-rooms-by-hotel');
             Route::get('/fetch-beds-by-room', [SingleTourPackageController::class, 'fetchBeds'])->name('fetch-beds-by-room');
             Route::post('/get-hotel-price', [SingleTourPackageController::class, 'getHotelPrice'])->name('get-hotel-price');

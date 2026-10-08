@@ -1,5 +1,6 @@
 /* === STP LITE: attraction.js ===
  * Attraction tickets — cascade → Transfer/Guide extras → Get Price → Add → list
+ * Online: reuses partials/online-attraction-modal.blade.php (SG Attractions API)
  * Payload: attraction_data
  * === */
 (function (window, document) {
@@ -7,8 +8,15 @@
 
     var S = function () { return window.StpLiteTransportShared || {}; };
     var PREFIX = 'attraction';
+    /** Active city root when Online Attractions modal is open. */
+    var onlineTargetRoot = null;
 
     function cfg() { return window.STP_LITE_CONFIG || {}; }
+
+    function onlineApiEnabled() {
+        return !!(cfg().onlineAttractionApiEnabled || cfg().onlineHotelApiEnabled)
+            && !!document.getElementById('onlineAttractionModal');
+    }
 
     function guestCounts(root) {
         var T = S();
@@ -21,12 +29,55 @@
         };
     }
 
+    function attractionSourceToggleHtml(stay) {
+        if (!onlineApiEnabled()) return '';
+        var T = S();
+        var key = String(stay.planIndex || '0') + '_' +
+            String(stay.cityId || stay.cityName || 'city').replace(/[^\w\-]+/g, '_');
+        var name = 'attractionSourceType_' + key;
+        return (
+            '  <div class="row g-2 mb-2">' +
+            '    <div class="col-12 stp-lite-attraction-source">' +
+            '      <label class="stp-lite-label mb-1"><i class="ri-toggle-line me-1"></i>Attraction Source</label>' +
+            '      <div class="d-flex flex-wrap gap-3">' +
+            '        <div class="form-check">' +
+            '          <input class="form-check-input attraction-source-type" type="radio" name="' + T.esc(name) + '"' +
+            '            id="attractionSourceOffline_' + T.esc(key) + '" value="offline" checked>' +
+            '          <label class="form-check-label" for="attractionSourceOffline_' + T.esc(key) + '" style="font-size:0.85rem;">' +
+            '            <i class="ri-database-2-line me-1"></i> Offline Attractions' +
+            '          </label>' +
+            '        </div>' +
+            '        <div class="form-check">' +
+            '          <input class="form-check-input attraction-source-type" type="radio" name="' + T.esc(name) + '"' +
+            '            id="attractionSourceOnline_' + T.esc(key) + '" value="online">' +
+            '          <label class="form-check-label" for="attractionSourceOnline_' + T.esc(key) + '" style="font-size:0.85rem;">' +
+            '            <i class="ri-global-line me-1"></i> Online Attractions' +
+            '          </label>' +
+            '        </div>' +
+            '      </div>' +
+            '      <small class="text-muted d-block mt-1" style="font-size:0.75rem;">' +
+            '        Offline uses DMC inventory. Online opens live API search.' +
+            '      </small>' +
+            '    </div>' +
+            '  </div>'
+        );
+    }
+
     function shellHtml(stay) {
         var T = S();
         var cur = stay.currency || 'SGD';
         var g = T.tourGuests();
+        var onlineOn = onlineApiEnabled();
         return (
-            '<div class="stp-lite-svc stp-lite-attraction" data-currency="' + T.esc(cur) + '">' +
+            '<div class="stp-lite-svc stp-lite-attraction" data-currency="' + T.esc(cur) + '"' +
+            ' data-city-id="' + T.esc(stay.cityId || '') + '"' +
+            ' data-city-name="' + T.esc(stay.cityName || '') + '"' +
+            ' data-plan-index="' + T.esc(stay.planIndex || '') + '"' +
+            ' data-stay-start="' + T.esc(stay.start || '') + '"' +
+            ' data-stay-end="' + T.esc(stay.end || '') + '"' +
+            ' data-country="' + T.esc(stay.country || '') + '">' +
+            attractionSourceToggleHtml(stay) +
+            (onlineOn ? '  <div class="offline-attraction-panel">' : '') +
             '  <div class="row g-2 mb-2">' +
             '    <div class="col-md-3"><label class="stp-lite-label">City</label>' +
             '      <div class="stp-lite-city-static">' + T.esc(T.cityLabel(stay)) + '</div></div>' +
@@ -60,6 +111,7 @@
             '        <i class="ri-add-line me-1"></i>Add</button></div>' +
             '  </div>' +
             T.pricePanelHtml(cur, 'attraction') +
+            (onlineOn ? '  </div><!-- /.offline-attraction-panel -->' : '') +
             '  <div class="stp-lite-svc-added mt-2" data-attraction-added-list></div>' +
             '  <input type="hidden" class="attraction_data_chunk" value="[]">' +
             '</div>'
@@ -412,12 +464,202 @@
                 : null,
             vehicle_included: !!(aOpt && aOpt.dataset.vehicleIncluded === '1'),
             guide_included: !!(aOpt && aOpt.dataset.guideIncluded === '1'),
+            isOnlineAttraction: false,
+            attractionSourceType: 'offline',
+            sku_id: null,
+            ticket_sku_id: null,
+            provider_ticket_id: null,
+            supplier_code: null,
+            api_environment: null,
+            onlineAttractionRaw: null,
             city: stay.cityName || '',
             country: stay.country || '',
             currency: stay.currency || '',
             plan_index: stay.planIndex || '',
             remarks: '',
             bookingType: T.resolveRowBookingType ? T.resolveRowBookingType(null) : 'enquiry'
+        };
+    }
+
+    function setAttractionSourceUi(root, isOnline) {
+        if (!root) return;
+        var panel = root.querySelector('.offline-attraction-panel');
+        if (panel) panel.style.display = isOnline ? 'none' : '';
+    }
+
+    function resetAttractionSourceToOffline(root) {
+        if (!root) return;
+        var offlineRadio = root.querySelector('.attraction-source-type[value="offline"]');
+        if (offlineRadio) offlineRadio.checked = true;
+        setAttractionSourceUi(root, false);
+    }
+
+    function bindOnlineAttractionDefaultsForRoot(root, stay) {
+        window.getOnlineAttractionSearchDefaults = function () {
+            var s = stay || {};
+            var cityName = s.cityName || root.getAttribute('data-city-name') || '';
+            var visitDate = (root.querySelector('.attraction-date') || {}).value
+                || s.start
+                || root.getAttribute('data-stay-start')
+                || (document.getElementById('start_date') || {}).value
+                || '';
+            return {
+                city: cityName,
+                cityLabel: cityName + (s.isReturn ? ' (Return)' : ''),
+                visitDate: visitDate,
+                targetLabel: (cityName || 'City') + ' · Online Attraction'
+            };
+        };
+    }
+
+    function openOnlineAttractionForRoot(root, stay) {
+        if (!onlineApiEnabled()) return;
+        onlineTargetRoot = root;
+        window.__stpLiteOnlineAttractionRoot = root;
+        bindOnlineAttractionDefaultsForRoot(root, stay);
+        setAttractionSourceUi(root, true);
+        if (typeof window.openOnlineAttractionModal === 'function') {
+            // day/index unused for Lite (pushSelectedOnlineAttraction handles add)
+            window.openOnlineAttractionModal(1, 1);
+        } else {
+            alert('Online attraction modal is not available. Reload the page.');
+            resetAttractionSourceToOffline(root);
+            onlineTargetRoot = null;
+            window.__stpLiteOnlineAttractionRoot = null;
+        }
+    }
+
+    function mapOnlineAttractionToLiteRow(root, stay, payload) {
+        var T = S();
+        payload = payload || {};
+        var adults = Math.max(0, parseInt(payload.adults, 10) || 0);
+        var children = Math.max(0, parseInt(payload.children, 10) || 0);
+        var infants = Math.max(0, parseInt(payload.infants, 10) || 0);
+        var adultP = Number(payload.adultPrice) || 0;
+        var childP = Number(payload.childPrice) || 0;
+        var seniorP = Number(payload.seniorPrice) || 0;
+        var total = Number(payload.totalPrice);
+        if (!Number.isFinite(total) || total <= 0) {
+            total = (adultP * adults) + (childP * children);
+        }
+        var cur = payload.currency || stay.currency || root.getAttribute('data-currency') || 'SGD';
+        var supplement = T.autoSupplement ? T.autoSupplement(adults) : false;
+
+        return {
+            AttractionId: String(payload.attractionId || payload.skuId || ''),
+            AttractionName: payload.attractionName || 'Online Attraction',
+            ticketId: String(payload.ticketId || ''),
+            ticketName: payload.ticketName || 'Ticket',
+            ticket_details: {
+                adult_price: adultP,
+                child_price: childP,
+                senior_adult_price: seniorP,
+                senior_price: seniorP
+            },
+            adultCount: adults,
+            childCount: children,
+            seniorCount: 0,
+            infantCount: infants,
+            adults: adults,
+            children: children,
+            infants: infants,
+            visitTime: payload.timeSlot || '',
+            bookingDate: payload.visitDate || stay.start || '',
+            totalPrice: total,
+            grand_total: total,
+            price: total,
+            supplement: !!supplement,
+            is_supplement: !!supplement,
+            transfer_options: null,
+            guide_options: null,
+            is_bundle: false,
+            package_attraction_id: null,
+            vehicle_included: false,
+            guide_included: false,
+            isOnlineAttraction: true,
+            attractionSourceType: 'online',
+            sku_id: payload.skuId || payload.attractionId || null,
+            ticket_sku_id: payload.ticketSkuId || null,
+            provider_ticket_id: payload.providerTicketId || null,
+            lowest_ticket_price: Number(payload.lowestTicketPrice) || null,
+            highest_ticket_price: Number(payload.highestTicketPrice) || null,
+            supplier_code: payload.supplierCode || 'sg_attractions',
+            api_environment: payload.apiEnvironment || null,
+            onlineAttractionRaw: payload.onlineAttractionRaw || {
+                lowest_ticket_price: Number(payload.lowestTicketPrice) || 0,
+                highest_ticket_price: Number(payload.highestTicketPrice) || 0
+            },
+            city: payload.cityValue || stay.cityName || '',
+            country: stay.country || root.getAttribute('data-country') || '',
+            currency: cur,
+            plan_index: stay.planIndex || root.getAttribute('data-plan-index') || '',
+            remarks: payload.remarks || '',
+            bookingType: T.resolveRowBookingType ? T.resolveRowBookingType(null) : 'enquiry'
+        };
+    }
+
+    function pushSelectedOnlineAttractionLite(payload) {
+        var root = onlineTargetRoot || window.__stpLiteOnlineAttractionRoot || null;
+        if (!root || !document.contains(root)) {
+            console.warn('STP Lite: no active attraction section for online attraction add');
+            return;
+        }
+        var T = S();
+        var stay = (T.stayFromPanel && T.stayFromPanel(root, 'attraction')) || {
+            cityName: root.getAttribute('data-city-name') || '',
+            country: root.getAttribute('data-country') || '',
+            start: root.getAttribute('data-stay-start') || '',
+            planIndex: root.getAttribute('data-plan-index') || '',
+            currency: root.getAttribute('data-currency') || 'SGD'
+        };
+        var row = mapOnlineAttractionToLiteRow(root, stay || {}, payload || {});
+        var rows = readChunk(root);
+        rows.push(row);
+        writeChunk(root, rows);
+        renderAdded(root);
+        resetAttractionSourceToOffline(root);
+        onlineTargetRoot = null;
+        window.__stpLiteOnlineAttractionRoot = null;
+    }
+
+    function bindAttractionSourceToggle(root, stay) {
+        if (!onlineApiEnabled() || !root) return;
+        root.querySelectorAll('.attraction-source-type').forEach(function (radio) {
+            radio.addEventListener('change', function () {
+                if (!this.checked) return;
+                if (this.value === 'online') {
+                    openOnlineAttractionForRoot(root, stay);
+                } else {
+                    setAttractionSourceUi(root, false);
+                    if (onlineTargetRoot === root) {
+                        onlineTargetRoot = null;
+                        window.__stpLiteOnlineAttractionRoot = null;
+                    }
+                    var modalEl = document.getElementById('onlineAttractionModal');
+                    if (modalEl && window.bootstrap) {
+                        var inst = bootstrap.Modal.getInstance(modalEl);
+                        if (inst) inst.hide();
+                    }
+                }
+            });
+        });
+    }
+
+    function ensureOnlineAttractionModalHooks() {
+        if (!onlineApiEnabled() || window.__stpLiteOnlineAttractionHooks) return;
+        window.__stpLiteOnlineAttractionHooks = true;
+        window.onlineApiEnabled = true;
+
+        // Same contract as classic — modal Add calls this for Lite.
+        window.pushSelectedOnlineAttraction = function (payload) {
+            pushSelectedOnlineAttractionLite(payload);
+        };
+        window.resetLiteAttractionSourceToOffline = function (root) {
+            resetAttractionSourceToOffline(root || onlineTargetRoot);
+        };
+        window.updateAttractionDataField = function () {
+            var T = S();
+            if (T.syncHiddenJson) T.syncHiddenJson('attraction_data', '.attraction_data_chunk');
         };
     }
 
@@ -450,8 +692,11 @@
                 extras.push(vc && Number(vc) > 1 ? ('Transfer ×' + vc) : 'Transfer');
             }
             if (row.guide_options && row.guide_options.guide_required) extras.push('Guide');
+            var isOnline = !!(row.isOnlineAttraction || row.attractionSourceType === 'online');
             html += '<tr class="' + (editing ? 'is-editing' : '') + '" data-idx="' + idx + '">' +
-                '<td><div class="fw-semibold">' + T.esc(row.AttractionName || 'Attraction') + '</div>' +
+                '<td><div class="fw-semibold">' + T.esc(row.AttractionName || 'Attraction') +
+                (isOnline ? ' <span class="badge bg-info text-dark" style="font-size:0.65rem;">Online</span>' : '') +
+                '</div>' +
                 '<small class="text-muted">' + T.esc(row.bookingDate || '') +
                 (extras.length ? ' · ' + extras.join(' + ') : '') + '</small>' +
                 T.editingMarkHtml(editing) + '</td>' +
@@ -464,7 +709,15 @@
                 '<td><div class="form-check mb-0"><input class="form-check-input attraction-is-supplement" type="checkbox" data-idx="' + idx + '"' +
                 (row.supplement || row.is_supplement ? ' checked' : '') + '>' +
                 '<label class="form-check-label" style="font-size:0.72rem;">Supplement</label></div></td>' +
-                '<td class="text-end">' + T.addedTableActions('attraction', idx, true) + '</td>' +
+                '<td class="text-end">' +
+                (isOnline
+                    ? ('<div class="stp-lite-hotel-card__btns justify-content-end">' +
+                       '<button type="button" class="btn btn-sm btn-outline-primary attraction-view-breakup" data-idx="' + idx + '" title="Price breakdown">' +
+                       '<i class="ri-file-list-3-line me-1"></i>Price breakdown</button>' +
+                       '<button type="button" class="btn btn-sm btn-outline-danger attraction-remove" data-idx="' + idx + '" title="Remove">' +
+                       '<i class="ri-delete-bin-line"></i></button></div>')
+                    : T.addedTableActions('attraction', idx, true)) +
+                '</td>' +
                 '</tr>';
         });
         html += '</tbody></table></div>';
@@ -474,6 +727,13 @@
     function hydrate(root, stay, row) {
         if (!row) return;
         var T = S();
+        if (row.isOnlineAttraction || row.attractionSourceType === 'online') {
+            alert('Online attractions cannot be modified here. Remove and add again from Online Attractions.');
+            root.__editingIdx = null;
+            setAddMode(root, false);
+            renderAdded(root);
+            return;
+        }
         root.__hydrating = true;
         var dateEl = root.querySelector('.attraction-date');
         var adultsEl = root.querySelector('.attraction-adults');
@@ -584,6 +844,8 @@
         if (!root || root.__bound) return;
         root.__bound = true;
         var T = S();
+        ensureOnlineAttractionModalHooks();
+        bindAttractionSourceToggle(root, stay);
         T.bindAmPm(root);
         T.bindStayDate(root.querySelector('.attraction-date'), stay, function () { invalidate(root); });
         T.bindGuestCaps(root);
@@ -744,7 +1006,9 @@
             if (!root) return;
             writeChunk(root, rows || []);
             renderAdded(root);
-        }
+        },
+        openOnlineAttractionForRoot: openOnlineAttractionForRoot,
+        pushSelectedOnlineAttractionLite: pushSelectedOnlineAttractionLite
     };
 })(window, document);
 /* === END attraction.js === */
