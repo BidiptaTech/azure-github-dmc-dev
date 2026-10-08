@@ -239,10 +239,41 @@
         });
 
         document.getElementById('applyMainGuestSelectionBtn').addEventListener('click', function () {
+            if (!childAgesComplete(modal.__draft)) {
+                alert('Please select age for every child before applying.');
+                syncApplyButtonState();
+                return;
+            }
             applySelection(modal.__draft);
             var instance = bootstrap.Modal.getInstance(modal);
             if (instance) instance.hide();
         });
+    }
+
+    function childAgesComplete(draft) {
+        draft = draft || {};
+        var count = toInt(draft.children, 0);
+        if (count <= 0) return true;
+        var ages = Array.isArray(draft.childAges) ? draft.childAges : [];
+        for (var i = 0; i < count; i++) {
+            var age = ages[i];
+            if (age == null || String(age).trim() === '') return false;
+            var n = toInt(age, 0);
+            if (n < 1 || n > 17) return false;
+        }
+        return true;
+    }
+
+    function syncApplyButtonState() {
+        var modal = document.getElementById('mainGuestSelectorModal');
+        var btn = document.getElementById('applyMainGuestSelectionBtn');
+        if (!modal || !btn || !modal.__draft) return;
+        var ok = childAgesComplete(modal.__draft);
+        btn.disabled = !ok;
+        btn.classList.toggle('disabled', !ok);
+        btn.title = ok ? '' : 'Select age for every child to enable Apply';
+        var hint = document.getElementById('childAgeRequiredHint');
+        if (hint) hint.classList.toggle('d-none', ok || toInt(modal.__draft.children, 0) <= 0);
     }
 
     function paintDraft() {
@@ -256,6 +287,7 @@
         document.getElementById('mainModalChildren').textContent = String(d.children);
         document.getElementById('mainModalInfants').textContent = String(d.infants);
         renderChildAgeDropdowns();
+        syncApplyButtonState();
     }
 
     function renderChildAgeDropdowns() {
@@ -273,19 +305,21 @@
         var html = '';
         for (var i = 0; i < d.children; i++) {
             var val = d.childAges[i] != null ? d.childAges[i] : '';
-            html += '<label class="form-label mb-1" style="font-size:0.75rem;">Child ' + (i + 1) + ' age</label>';
-            html += '<select class="form-select form-select-sm mb-2" data-child-age-index="' + i + '">';
+            html += '<label class="form-label mb-1" style="font-size:0.75rem;">Child ' + (i + 1) + ' age <span class="text-danger">*</span></label>';
+            html += '<select class="form-select form-select-sm mb-2" data-child-age-index="' + i + '" required>';
             html += '<option value="">Select age</option>';
             for (var a = 1; a <= 17; a++) {
                 html += '<option value="' + a + '"' + (String(val) === String(a) ? ' selected' : '') + '>' + a + '</option>';
             }
             html += '</select>';
         }
+        html += '<small id="childAgeRequiredHint" class="text-danger d-none" style="font-size:0.72rem;">Select age for every child before Apply.</small>';
         box.innerHTML = html;
         box.querySelectorAll('[data-child-age-index]').forEach(function (sel) {
             sel.addEventListener('change', function () {
                 var idx = toInt(sel.getAttribute('data-child-age-index'), 0);
                 modal.__draft.childAges[idx] = sel.value;
+                syncApplyButtonState();
             });
         });
     }
