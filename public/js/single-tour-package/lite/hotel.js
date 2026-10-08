@@ -2,6 +2,7 @@
  * Depends: geo.buildInventoryDmcQuery, country-segments, guest-caps, STP_LITE_CONFIG.routes
  * Owns: hotel / room type (names only) / bed type / meal plan — same APIs as backup
  * Routes: fetch-hotels-by-dmc, fetch-rooms-by-hotel, fetch-beds-by-room
+ * Online: reuses partials/online-hotel-modal.blade.php (fetch-online-hotels / rooms)
  * === */
 (function (window, document) {
     'use strict';
@@ -9,6 +10,13 @@
     function cfg() {
         return window.STP_LITE_CONFIG || {};
     }
+
+    function onlineApiEnabled() {
+        return !!cfg().onlineHotelApiEnabled && !!document.getElementById('onlineHotelModal');
+    }
+
+    /** Active city root when Online Hotels modal is open. */
+    var onlineTargetRoot = null;
 
     function esc(s) {
         return String(s || '')
@@ -80,6 +88,39 @@
         return plans;
     }
 
+    function hotelSourceToggleHtml(stay) {
+        if (!onlineApiEnabled()) return '';
+        var key = String(stay.planIndex || '0') + '_' +
+            String(stay.cityId || stay.cityName || 'city').replace(/[^\w\-]+/g, '_');
+        var name = 'hotelSourceType_' + key;
+        return (
+            '  <div class="row g-2 mb-2">' +
+            '    <div class="col-12 stp-lite-hotel-source">' +
+            '      <label class="stp-lite-label mb-1"><i class="ri-toggle-line me-1"></i>Hotel Source</label>' +
+            '      <div class="d-flex flex-wrap gap-3">' +
+            '        <div class="form-check">' +
+            '          <input class="form-check-input hotel-source-type" type="radio" name="' + esc(name) + '"' +
+            '            id="hotelSourceOffline_' + esc(key) + '" value="offline" checked>' +
+            '          <label class="form-check-label" for="hotelSourceOffline_' + esc(key) + '" style="font-size:0.85rem;">' +
+            '            <i class="ri-database-2-line me-1"></i> Offline Hotels' +
+            '          </label>' +
+            '        </div>' +
+            '        <div class="form-check">' +
+            '          <input class="form-check-input hotel-source-type" type="radio" name="' + esc(name) + '"' +
+            '            id="hotelSourceOnline_' + esc(key) + '" value="online">' +
+            '          <label class="form-check-label" for="hotelSourceOnline_' + esc(key) + '" style="font-size:0.85rem;">' +
+            '            <i class="ri-global-line me-1"></i> Online Hotels' +
+            '          </label>' +
+            '        </div>' +
+            '      </div>' +
+            '      <small class="text-muted d-block mt-1" style="font-size:0.75rem;">' +
+            '        Offline uses DMC inventory. Online opens live API search.' +
+            '      </small>' +
+            '    </div>' +
+            '  </div>'
+        );
+    }
+
     function shellHtml(country, currency, stay) {
         stay = stay || {};
         var cityLabel = stay.cityName || '';
@@ -88,6 +129,7 @@
             cityLabel += ' · ' + moment(stay.start, 'YYYY-MM-DD').format('MMM D') + '–' +
                 moment(stay.end, 'YYYY-MM-DD').format('MMM D');
         }
+        var onlineOn = onlineApiEnabled();
         return (
             '<div class="stp-lite-hotel" data-country="' + esc(country) + '" data-currency="' + esc(currency) + '"' +
             ' data-city-id="' + esc(stay.cityId || '') + '"' +
@@ -96,6 +138,8 @@
             ' data-is-return="' + (stay.isReturn ? '1' : '0') + '"' +
             ' data-stay-start="' + esc(stay.start || '') + '"' +
             ' data-stay-end="' + esc(stay.end || '') + '">' +
+            hotelSourceToggleHtml(stay) +
+            (onlineOn ? '  <div class="offline-hotel-panel">' : '') +
             '  <div class="row g-2 mb-2">' +
             '    <div class="col-md-3">' +
             '      <label class="stp-lite-label">City</label>' +
@@ -277,6 +321,7 @@
             '      </div>' +
             '    </div>' +
             '  </div>' +
+            (onlineOn ? '  </div><!-- /.offline-hotel-panel -->' : '') +
             '  <div class="stp-lite-hotel-added mt-2" data-hotel-added-list></div>' +
             '  <input type="hidden" class="hotel_data_chunk" value="[]">' +
             '</div>'
@@ -1897,10 +1942,12 @@
             var bed0 = (Array.isArray(r0.beds) && r0.beds[0]) ? r0.beds[0] : {};
             if (bed0.baby_cot || row.baby_cot) childBits.push('Baby cot');
             var isAdHocRowFlag = isAdHocRow(row);
+            var isOnlineRow = !!(row.isOnlineHotel || row.hotelSourceType === 'online');
             html +=
                 '<tr class="' + (editing ? 'is-editing' : '') + '" data-added-idx="' + idx + '">' +
                 '  <td>' +
                 '    <div class="fw-semibold">' + esc(hotelName) +
+                (isOnlineRow ? ' <span class="stp-lite-adhoc-badge" title="Online supplier hotel">Online</span>' : '') +
                 (isAdHocRowFlag ? ' <span class="stp-lite-adhoc-badge" title="Manual Room rate">AdHoc</span>' : '') +
                 '</div>' +
                 (row.is_return ? ' <span class="stp-lite-return-badge">Return</span>' : '') +
@@ -1928,9 +1975,11 @@
                 '      <button type="button" class="btn btn-sm btn-outline-primary hotel-view-breakup" data-idx="' + idx + '" title="Price breakdown">' +
                 '        <i class="ri-file-list-3-line me-1"></i>Price breakdown' +
                 '      </button>' +
-                '      <button type="button" class="btn btn-sm btn-outline-secondary hotel-edit-added" data-idx="' + idx + '" title="Modify">' +
-                '        <i class="ri-pencil-line me-1"></i>Modify' +
-                '      </button>' +
+                (isOnlineRow
+                    ? ''
+                    : ('      <button type="button" class="btn btn-sm btn-outline-secondary hotel-edit-added" data-idx="' + idx + '" title="Modify">' +
+                       '        <i class="ri-pencil-line me-1"></i>Modify' +
+                       '      </button>')) +
                 '      <button type="button" class="btn btn-sm btn-outline-danger hotel-remove-added" data-idx="' + idx + '" title="Remove">' +
                 '        <i class="ri-delete-bin-line"></i>' +
                 '      </button>' +
@@ -2229,6 +2278,10 @@
         var rows = readHotelChunk(root);
         var row = rows[idx];
         if (!row) return;
+        if (row.isOnlineHotel || row.hotelSourceType === 'online') {
+            alert('Online hotels cannot be modified here. Remove and add again from Online Hotels.');
+            return;
+        }
 
         root.__editingIdx = idx;
         setAddButtonMode(root, true);
@@ -2940,9 +2993,328 @@
             });
     }
 
+    function nightsBetweenYmd(start, end) {
+        if (!start || !end || typeof moment === 'undefined') return 0;
+        var a = moment(start, 'YYYY-MM-DD');
+        var b = moment(end, 'YYYY-MM-DD');
+        if (!a.isValid() || !b.isValid()) return 0;
+        return Math.max(0, b.diff(a, 'days'));
+    }
+
+    function setHotelSourceUi(root, isOnline) {
+        if (!root) return;
+        var panel = root.querySelector('.offline-hotel-panel');
+        if (panel) panel.style.display = isOnline ? 'none' : '';
+    }
+
+    function resetHotelSourceToOffline(root) {
+        if (!root) return;
+        var offlineRadio = root.querySelector('.hotel-source-type[value="offline"]');
+        if (offlineRadio) offlineRadio.checked = true;
+        setHotelSourceUi(root, false);
+    }
+
+    function bindOnlineSearchDefaultsForRoot(root) {
+        window.getOnlineHotelSearchDefaults = function () {
+            var stay = stayContextFromRoot(root) || {};
+            var checkIn = stay.start || root.getAttribute('data-stay-start') ||
+                (document.getElementById('start_date') || {}).value || '';
+            var checkOut = stay.end || root.getAttribute('data-stay-end') ||
+                (document.getElementById('end_date') || {}).value || '';
+            var cityName = stay.cityName || root.getAttribute('data-city-name') || '';
+            return {
+                city: cityName,
+                cityLabel: cityName + (stay.isReturn ? ' (Return)' : ''),
+                checkIn: checkIn,
+                checkOut: checkOut
+            };
+        };
+        window.getHotelNightPlanStart = function () {
+            var stay = stayContextFromRoot(root) || {};
+            return stay.start || root.getAttribute('data-stay-start') ||
+                (document.getElementById('start_date') || {}).value || '';
+        };
+        window.getHotelNightPlanNightCount = function () {
+            var stay = stayContextFromRoot(root) || {};
+            var start = stay.start || root.getAttribute('data-stay-start') || '';
+            var end = stay.end || root.getAttribute('data-stay-end') || '';
+            var n = nightsBetweenYmd(start, end);
+            return n > 0 ? n : 1;
+        };
+    }
+
+    function ensureLiteHotelCitySelect(root) {
+        var stay = stayContextFromRoot(root) || {};
+        var cityName = stay.cityName || root.getAttribute('data-city-name') || '';
+        if (!cityName) return;
+        var el = document.getElementById('hotelCitySelect');
+        if (!el) {
+            el = document.createElement('select');
+            el.id = 'hotelCitySelect';
+            el.className = 'd-none';
+            el.setAttribute('aria-hidden', 'true');
+            document.body.appendChild(el);
+        }
+        el.innerHTML = '';
+        var opt = document.createElement('option');
+        opt.value = cityName;
+        opt.textContent = cityName + (stay.isReturn ? ' (Return)' : '');
+        opt.selected = true;
+        el.appendChild(opt);
+        el.value = cityName;
+    }
+
+    function openOnlineHotelForRoot(root) {
+        if (!onlineApiEnabled()) return;
+        onlineTargetRoot = root;
+        window.__stpLiteOnlineHotelRoot = root;
+        ensureLiteHotelCitySelect(root);
+        bindOnlineSearchDefaultsForRoot(root);
+        setHotelSourceUi(root, true);
+        if (typeof window.openOnlineHotelModal === 'function') {
+            window.openOnlineHotelModal();
+        } else {
+            alert('Online hotel modal is not available. Reload the page.');
+            resetHotelSourceToOffline(root);
+        }
+    }
+
+    function resolveOnlineStayDates(hotelData, root) {
+        var booking = hotelData && hotelData.onlineHotelBooking ? hotelData.onlineHotelBooking : {};
+        var sel = booking.selection || {};
+        var stay = stayContextFromRoot(root) || {};
+        var checkIn = sel.stay_check_in || booking.check_in || '';
+        var checkOut = sel.stay_check_out || booking.check_out || '';
+        if ((!checkIn || !checkOut) && Array.isArray(hotelData.nights) && hotelData.nights.length && stay.start) {
+            var nums = hotelData.nights.slice().map(Number).filter(function (n) { return isFinite(n) && n > 0; }).sort(function (a, b) { return a - b; });
+            if (nums.length && typeof moment !== 'undefined') {
+                checkIn = moment(stay.start, 'YYYY-MM-DD').add(nums[0] - 1, 'days').format('YYYY-MM-DD');
+                checkOut = moment(stay.start, 'YYYY-MM-DD').add(nums[nums.length - 1], 'days').format('YYYY-MM-DD');
+            }
+        }
+        if (!checkIn) checkIn = stay.start || '';
+        if (!checkOut) checkOut = stay.end || '';
+        return { checkIn: checkIn, checkOut: checkOut };
+    }
+
+    function mapOnlineHotelToLiteRow(root, hotelData) {
+        var stay = stayContextFromRoot(root) || {};
+        var dates = resolveOnlineStayDates(hotelData, root);
+        var checkIn = dates.checkIn;
+        var checkOut = dates.checkOut;
+        var nights = nightsBetweenYmd(checkIn, checkOut) ||
+            (Array.isArray(hotelData.nights) ? hotelData.nights.length : 0) || 1;
+        var price = Number(hotelData.price || hotelData.combinedRoomTotal || 0) || 0;
+        var persons = parseInt(hotelData.selectedPersons, 10) || 1;
+        var rooms = parseInt(hotelData.numberOfRooms, 10) || 1;
+        var roomType = hotelData.roomType || hotelData.room_type || '';
+        var bedType = hotelData.bedType || hotelData.bed_type || '';
+        var mealPlan = hotelData.mealPlan || hotelData.meal_plan || '';
+        var hotelId = hotelData.id || '';
+        var hotelName = hotelData.name || '';
+        var onlineBooking = hotelData.onlineHotelBooking || null;
+        var onlineHotel = (onlineBooking && onlineBooking.hotel) || {};
+        var customer = (window.StpLiteGuests && window.StpLiteGuests.getCustomerDataForServices)
+            ? window.StpLiteGuests.getCustomerDataForServices()
+            : { fullName: '', email: '', phone: '', countryCode: '', address1: '', address2: null, state: null, zip: '', specialRequests: null };
+        var adults = parseInt((document.getElementById('adults') || {}).value || '1', 10) || 1;
+        var children = parseInt((document.getElementById('children') || {}).value || '0', 10) || 0;
+        var infants = parseInt((document.getElementById('infants') || {}).value || '0', 10) || 0;
+        var stayLabel = '';
+        if (checkIn && checkOut && typeof moment !== 'undefined') {
+            stayLabel = moment(checkIn, 'YYYY-MM-DD').format('MMM D') + ' → ' +
+                moment(checkOut, 'YYYY-MM-DD').format('MMM D, YYYY');
+        }
+        var pricePayload = {
+            room_total: price,
+            meal_total: 0,
+            grand_total: price,
+            nights: nights,
+            currency: currencyLabel(root),
+            is_online: true,
+            breakdown: []
+        };
+
+        return {
+            fullName: customer.fullName,
+            email: customer.email,
+            phone: customer.phone,
+            countryCode: customer.countryCode,
+            address1: customer.address1,
+            address2: customer.address2,
+            state: customer.state,
+            zip: customer.zip,
+            specialRequests: customer.specialRequests,
+            id: null,
+            bookingType: (window.StpLiteTransportShared && window.StpLiteTransportShared.defaultBookingType)
+                ? window.StpLiteTransportShared.defaultBookingType()
+                : 'enquiry',
+            bookingDate: [checkIn, checkOut],
+            city: hotelData.city || stay.cityName || '',
+            country: stay.country || root.getAttribute('data-country') || '',
+            hotelDetails: {
+                hotel_id: hotelId,
+                hotel_name: hotelName,
+                image: onlineHotel.image || '',
+                location: hotelData.city || stay.cityName || onlineHotel.address || '',
+                country: stay.country || root.getAttribute('data-country') || '',
+                city: hotelData.city || stay.cityName || '',
+                checkInTime: onlineHotel.check_in_time || '',
+                checkOutTime: onlineHotel.check_out_time || '',
+                cancellation_charge: null
+            },
+            priceMode: 'online',
+            priceModeId: parseInt(cfg().dmcId, 10) || 0,
+            is_adhoc: false,
+            adhoc_price: null,
+            rooms: [{
+                room_id: hotelData.roomId || (onlineBooking && onlineBooking.room && onlineBooking.room.code) || ('online-room-' + Date.now()),
+                room_type: roomType,
+                occupancy: persons <= 1 ? 'single' : 'double',
+                selected_persons: persons,
+                selected_adults: adults,
+                selected_children: children,
+                selected_children_no_bed: 0,
+                selected_children_with_bed: 0,
+                selected_infants: infants,
+                number_of_rooms: rooms,
+                breakfast_included: 0,
+                supplement_breakfast_included: 0,
+                beds: [{
+                    bed_id: hotelData.bedId || ('online-bed-' + Date.now()),
+                    bed_type: bedType,
+                    baby_cot: 0,
+                    baby_cot_price: 0,
+                    baby_cot_cost: 0,
+                    head_count: persons,
+                    max_occupancy: persons,
+                    extra_bed: 0,
+                    extra_bed_price: 0,
+                    extra_bed_cost: 0,
+                    price: price,
+                    mealTypes: [mealPlan],
+                    meal_plan: mealPlan
+                }]
+            }],
+            totalPrice: price,
+            price: price,
+            transfer_options: null,
+            child_with_bed: null,
+            child_without_bed: null,
+            children: children,
+            selected_children_no_bed: 0,
+            selected_children_with_bed: 0,
+            infants: infants,
+            selected_adults: adults,
+            selected_children: children,
+            selected_infants: infants,
+            supplement: false,
+            is_supplement: false,
+            remarks: hotelData.remarks || '',
+            currency: currencyLabel(root),
+            hotel_unique_id: hotelId,
+            hotel_name: hotelName,
+            hotel_id: hotelId,
+            room_type: roomType,
+            bed_id: hotelData.bedId || '',
+            bed_label: bedType,
+            meal_plan: mealPlan,
+            number_of_rooms: rooms,
+            selected_persons: persons,
+            occupancy: persons <= 1 ? 'single' : 'double',
+            childWithBedEnabled: false,
+            childWithoutBedEnabled: false,
+            plan_index: stay.planIndex || '',
+            is_return: !!stay.isReturn,
+            stay_start: checkIn,
+            stay_end: checkOut,
+            stay_label: stayLabel,
+            room_total: price,
+            meal_total: 0,
+            grand_total: price,
+            price_payload: pricePayload,
+            helperPriceResult: pricePayload,
+            isOnlineHotel: true,
+            hotelSourceType: 'online',
+            onlineHotelSource: hotelData.onlineHotelSource || null,
+            onlineHotelBooking: onlineBooking,
+            onlineHotelRaw: hotelData.onlineHotelRaw || null,
+            api_environment: hotelData.api_environment || (onlineBooking && onlineBooking.api_environment) || ''
+        };
+    }
+
+    function pushSelectedHotelLite(hotelData) {
+        var root = onlineTargetRoot || window.__stpLiteOnlineHotelRoot || null;
+        if (!root || !document.contains(root)) {
+            console.warn('STP Lite: no active hotel section for online hotel add');
+            return;
+        }
+        var row = mapOnlineHotelToLiteRow(root, hotelData || {});
+        var rows = readHotelChunk(root);
+        rows.push(row);
+        writeHotelChunk(root, rows);
+        renderAddedHotels(root);
+        resetHotelSourceToOffline(root);
+        onlineTargetRoot = null;
+    }
+
+    function bindHotelSourceToggle(root) {
+        if (!onlineApiEnabled() || !root) return;
+        root.querySelectorAll('.hotel-source-type').forEach(function (radio) {
+            radio.addEventListener('change', function () {
+                if (!this.checked) return;
+                if (this.value === 'online') {
+                    openOnlineHotelForRoot(root);
+                } else {
+                    setHotelSourceUi(root, false);
+                    if (onlineTargetRoot === root) onlineTargetRoot = null;
+                    var modalEl = document.getElementById('onlineHotelModal');
+                    if (modalEl && window.bootstrap) {
+                        var inst = bootstrap.Modal.getInstance(modalEl);
+                        if (inst) inst.hide();
+                    }
+                }
+            });
+        });
+    }
+
+    function ensureOnlineHotelModalHooks() {
+        if (!onlineApiEnabled() || window.__stpLiteOnlineHotelHooks) return;
+        window.__stpLiteOnlineHotelHooks = true;
+
+        // Same contract as classic create.blade.php — modal Add Hotel calls this.
+        window.pushSelectedHotel = function (hotelData) {
+            pushSelectedHotelLite(hotelData);
+        };
+        // Modal also calls this after classic selectedHotels push.
+        window.updateHotelDataField = function () {
+            syncHotelDataHidden();
+        };
+
+        document.addEventListener('hidden.bs.modal', function (e) {
+            if (!e.target || e.target.id !== 'onlineHotelModal') return;
+            if (onlineTargetRoot) {
+                resetHotelSourceToOffline(onlineTargetRoot);
+                onlineTargetRoot = null;
+            }
+            document.querySelectorAll('.stp-lite-hotel .hotel-source-type[value="online"]').forEach(function (r) {
+                if (r.checked) {
+                    var offline = r.closest('.stp-lite-hotel') &&
+                        r.closest('.stp-lite-hotel').querySelector('.hotel-source-type[value="offline"]');
+                    if (offline) offline.checked = true;
+                    var root = r.closest('.stp-lite-hotel');
+                    setHotelSourceUi(root, false);
+                }
+            });
+        });
+    }
+
     function bindShell(root) {
         if (!root || root.__stpHotelBound) return;
         root.__stpHotelBound = true;
+
+        ensureOnlineHotelModalHooks();
+        bindHotelSourceToggle(root);
 
         var stay = stayContextFromRoot(root);
         var country = (stay && stay.country) || root.getAttribute('data-country') || '';
@@ -3260,6 +3632,7 @@
         loadHotelsForCity: loadHotelsForCity,
         syncHotelDataHidden: syncHotelDataHidden,
         updateHotelChildPricingVisibility: updateHotelChildPricingVisibility,
+        openOnlineHotelForRoot: openOnlineHotelForRoot,
         seedAdded: function (root, rows) {
             if (!root) return;
             writeHotelChunk(root, rows || []);

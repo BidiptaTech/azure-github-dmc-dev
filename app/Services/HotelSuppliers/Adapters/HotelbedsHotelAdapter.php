@@ -37,13 +37,13 @@ class HotelbedsHotelAdapter implements HotelSupplierAdapter
         $apiKey = trim((string) ($credentials['api_key'] ?? ''));
         $secret = trim((string) ($credentials['api_secret'] ?? ''));
 
-        if ($baseUrl === '') {
+        if (! array_key_exists('base_url', $credentials) && $baseUrl === '') {
             $baseUrl = rtrim((string) config('services.hotelbeds.base_url', ''), '/');
         }
-        if ($apiKey === '') {
+        if (! array_key_exists('api_key', $credentials) && $apiKey === '') {
             $apiKey = trim((string) config('services.hotelbeds.api_key', ''));
         }
-        if ($secret === '') {
+        if (! array_key_exists('api_secret', $credentials) && $secret === '') {
             $secret = trim((string) config('services.hotelbeds.api_secret', ''));
         }
 

@@ -150,6 +150,8 @@ Route::get('/clear', function () {
             Route::get('/', function () {
                 return redirect()->route('dashboard'); // Redirects root to /index
             });
+            Route::post('/create-single-tour/old', [App\Http\Controllers\SingleTourPackageController::class, 'create'])->name('create.tour.old');
+            
             
             // Updated dashboard routes to use the controller
             Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
@@ -450,6 +452,7 @@ Route::get('/clear', function () {
             Route::post('/fetch-restaurant-transfer-pricing', [SingleTourPackageController::class, 'fetchRestaurantTransferPricing'])->name('fetch-restaurant-transfer-pricing');
             Route::get('/fetch-hotels-by-dmc', [SingleTourPackageController::class, 'fetchHotels'])->name('fetch-hotels-by-dmc');
             Route::post('/fetch-online-hotels', [SingleTourPackageController::class, 'fetchOnlineHotels'])->name('fetch-online-hotels');
+            Route::post('/fetch-online-hotel-rooms', [SingleTourPackageController::class, 'fetchOnlineHotelRooms'])->name('fetch-online-hotel-rooms');
             Route::post('/fetch-online-attractions', [SingleTourPackageController::class, 'fetchOnlineAttractions'])->name('fetch-online-attractions');
             Route::get('/fetch-rooms-by-hotel', [SingleTourPackageController::class, 'fetchRooms'])->name('fetch-rooms-by-hotel');
             Route::get('/fetch-beds-by-room', [SingleTourPackageController::class, 'fetchBeds'])->name('fetch-beds-by-room');
@@ -613,6 +616,9 @@ Route::get('/clear', function () {
         Route::post('users/update-zone-on', [UserController::class, 'updateZone'])->name('update.zoneon');
         Route::post('users/update-active', [UserController::class, 'updateActive'])->name('users.update.active');
         Route::post('users/update-thirdparty-enabled', [UserController::class, 'updateThirdPartyEnabled'])->name('users.update.thirdparty-enabled');
+        Route::post('users/update-online-api', [UserController::class, 'updateOnlineApi'])->name('users.update.online-api');
+        Route::post('users/update-demo-api', [UserController::class, 'updateDemoApi'])->name('users.update.demo-api');
+        Route::post('users/update-live-api', [UserController::class, 'updateLiveApi'])->name('users.update.live-api');
         Route::post('users/update-auto-cancel', [UserController::class, 'updateAutoCancel'])->name('update.autocancel');
         Route::post('users/update-guide-pax', [UserController::class, 'updateGuidePax'])->name('update.guidepax');
         Route::post('users/update-ai-response', [UserController::class, 'updateAiResponse'])->name('update.airesponse');
@@ -944,6 +950,7 @@ Route::get('/clear', function () {
         Route::post('/bookings/cancel-tour/{tourId}', [BookingsController::class, 'cancelTour'])->name('bookings.cancel-tour');
         Route::post('/bookings/{encryptedId}/save-qr', [BookingsController::class, 'saveQrCode'])->name('bookings.save-qr');
         Route::post('/booking/approve-hotel-booking', [HotelBookingController::class, 'approveHotelBooking'])->name('booking.approve.hotel.booking');
+        Route::post('/booking/recheck-online-hotel-booking', [HotelBookingController::class, 'recheckOnlineHotelBooking'])->name('booking.recheck.online.hotel.booking');
         Route::post('/booking/reject-hotel-booking', [HotelBookingController::class, 'rejectHotelBooking'])->name('booking.reject.hotel.booking');
         Route::post('/booking/approve-attraction-booking', [HotelBookingController::class, 'approveAttractionBooking'])->name('booking.approve.attraction.booking');
         Route::post('/booking/approve-restaurant-booking', [HotelBookingController::class, 'approveRestaurantBooking'])->name('booking.approve.restaurant.booking');

@@ -36,8 +36,11 @@ use App\Models\Tax;
 use App\Models\Guest;
 use App\Models\MultiRestaurant;
 use App\Models\PackagedAttraction;
+use App\Services\ApiEnvironmentResolver;
 use App\Services\HotelSuppliers\OnlineHotelAggregator;
+use App\Services\HotelSuppliers\OnlineHotelCancellationService;
 use App\Services\AttractionSuppliers\OnlineAttractionAggregator;
+use App\Services\AttractionSuppliers\OnlineAttractionOrderService;
 use App\Services\EnquiryAmountTopUpService;
 
 class SingleTourPackageController extends Controller
@@ -716,6 +719,24 @@ class SingleTourPackageController extends Controller
             $tourId = (int) $order->tour_id;
             $tour = Tour::where('tour_id', $tourId)->first();
             $tourStatus = $tour ? $tour->tour_status : null;
+
+            // Cancel with the supplier before soft-deleting so a failed API call
+            // does not leave a live reservation while the local order is gone.
+            try {
+                app(OnlineHotelCancellationService::class)->cancelIfApplicable($order);
+            } catch (\Throwable $e) {
+                Log::error('Online hotel supplier cancellation failed during order remove', [
+                    'order_id' => $order->id,
+                    'booking_id' => $order->booking_id,
+                    'order_type' => $order->order_type ?? null,
+                    'error' => $e->getMessage(),
+                ]);
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to cancel the online hotel with the supplier: ' . $e->getMessage(),
+                ], 422);
+            }
 
             DB::transaction(function () use ($order, $tourId, $tourStatus) {
                 $payload = is_array($order->data) && isset($order->data[0]) ? $order->data[0] : (is_array($order->data) ? $order->data : []);
@@ -3581,6 +3602,7 @@ class SingleTourPackageController extends Controller
             'checkOut' => 'required|date|after:checkIn',
             'city' => 'required|string|max:255',
             'paxInfo' => 'required|string|max:50',
+            'rooms' => 'nullable|integer|min:1|max:999',
         ]);
 
         try {
@@ -3590,6 +3612,7 @@ class SingleTourPackageController extends Controller
                     $request->input('checkIn'),
                     $request->input('checkOut'),
                     $request->input('paxInfo'),
+                    (int) $request->input('rooms', 1),
                 )
             );
         } catch (\RuntimeException $e) {
@@ -3611,6 +3634,57 @@ class SingleTourPackageController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Error fetching online hotels: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Proxy: live availability for one hotel from the mapped supplier, used after the
+     * guest picks a hotel from the list returned by fetchOnlineHotels().
+     */
+    public function fetchOnlineHotelRooms(Request $request, OnlineHotelAggregator $aggregator)
+    {
+        $request->validate([
+            'checkIn' => 'required|date',
+            'checkOut' => 'required|date|after:checkIn',
+            'city' => 'required|string|max:255',
+            'paxInfo' => 'required|string|max:50',
+            'hotelCode' => 'required|string|max:100',
+            'rooms' => 'nullable|integer|min:1|max:999',
+        ]);
+
+        try {
+            return response()->json(
+                $aggregator->rooms(
+                    $request->input('city'),
+                    $request->input('hotelCode'),
+                    $request->input('checkIn'),
+                    $request->input('checkOut'),
+                    $request->input('paxInfo'),
+                    (int) $request->input('rooms', 1),
+                )
+            );
+        } catch (\RuntimeException $e) {
+            Log::warning('Online hotel room search failed', [
+                'city' => $request->input('city'),
+                'hotel_code' => $request->input('hotelCode'),
+                'message' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
+        } catch (\Throwable $e) {
+            Log::error('Online hotel room search exception', [
+                'city' => $request->input('city'),
+                'hotel_code' => $request->input('hotelCode'),
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error fetching hotel rooms: ' . $e->getMessage(),
             ], 500);
         }
     }
@@ -5842,8 +5916,6 @@ class SingleTourPackageController extends Controller
         ]);
 
         try {
-            DB::beginTransaction();
-
             $tourId = $request->tour_id;
             $agentId = $request->agent_id;
             $tourForBookingType = Tour::where('tour_id', $tourId)->first();
@@ -6064,8 +6136,11 @@ class SingleTourPackageController extends Controller
                                         'selected_infants' => $hotelBooking['selected_infants'] ?? null,
                                         'selected_persons' => $hotelBooking['selected_persons'] ?? null,
 
-                                        // Rooms data - fix room_id to use actual numeric ID from database
-                                        'rooms' => $this->fixRoomIds($hotelBooking['rooms'] ?? [], $hotelBooking['hotelDetails']['hotel_id'] ?? $hotelBooking['hotel_id'] ?? null),
+                                        // Rooms data - fix room_id to use actual numeric ID from database.
+                                        // Online hotels have supplier room codes with no local row to map to.
+                                        'rooms' => ! empty($hotelBooking['isOnlineHotel'])
+                                            ? ($hotelBooking['rooms'] ?? [])
+                                            : $this->fixRoomIds($hotelBooking['rooms'] ?? [], $hotelBooking['hotelDetails']['hotel_id'] ?? $hotelBooking['hotel_id'] ?? null),
                                         
                                         // Total price
                                         'totalPrice' => $hotelBooking['totalPrice'] ?? 0,
@@ -6111,7 +6186,18 @@ class SingleTourPackageController extends Controller
                                         'isOnlineHotel' => (bool) ($hotelBooking['isOnlineHotel'] ?? false),
                                         'hotelSourceType' => $hotelBooking['hotelSourceType'] ?? (! empty($hotelBooking['isOnlineHotel']) ? 'online' : 'offline'),
                                         'onlineHotelSource' => $hotelBooking['onlineHotelSource'] ?? null,
+
+                                        // Supplier session, rate keys, room/meal and cancellation terms for confirming the booking
+                                        'onlineHotelBooking' => is_array($hotelBooking['onlineHotelBooking'] ?? null)
+                                            ? $hotelBooking['onlineHotelBooking']
+                                            : null,
+                                        'api_environment' => $this->resolveStoredApiEnvironment($hotelBooking),
                                     ];
+
+                                    if (is_array($enhancedHotelData['onlineHotelBooking'])) {
+                                        $enhancedHotelData['onlineHotelBooking']['api_environment']
+                                            = $enhancedHotelData['api_environment'];
+                                    }
 
                                     [$enhancedHotelData, $hotelGeo] = $this->applyOrderGeoToServiceRow($enhancedHotelData, $request, $tourId);
                                     
@@ -6183,13 +6269,16 @@ class SingleTourPackageController extends Controller
                             
                         } elseif ($type === 'attraction') {
                             // For attractions, store each attraction as a separate order
-                            foreach ($decodedData as $attraction) {
+                            foreach ($decodedData as $attractionIndex => $attraction) {
                                 // Ensure attraction has proper price field (use totalPrice from frontend calculation)
                                 $attraction['price'] = $attraction['totalPrice'] ?? $attraction['price'] ?? 0;
 
                                 $attraction['isOnlineAttraction'] = (bool) ($attraction['isOnlineAttraction'] ?? false);
                                 $attraction['attractionSourceType'] = $attraction['attractionSourceType']
                                     ?? (! empty($attraction['isOnlineAttraction']) ? 'online' : 'offline');
+                                if (! empty($attraction['isOnlineAttraction'])) {
+                                    $attraction['api_environment'] = $this->resolveStoredApiEnvironment($attraction);
+                                }
                                 
                                 // Process transfer_options if it exists
                                 if (isset($attraction['transfer_options']) && is_array($attraction['transfer_options']) && !empty($attraction['transfer_options'])) {
@@ -6241,6 +6330,14 @@ class SingleTourPackageController extends Controller
                                 // $newAttractionBookingId = $this->getNextBookingId();
 
                                 [$attraction, $attractionGeo] = $this->applyOrderGeoToServiceRow($attraction, $request, $tourId);
+
+                                $externalRef = $attractionExternalRefs[$attractionIndex] ?? null;
+                                if (is_string($externalRef) && $externalRef !== '' && ! OnlineAttractionOrderService::isPlaceholderRef($externalRef)) {
+                                    $attraction = app(OnlineAttractionOrderService::class)
+                                        ->applyRefToAttraction($attraction, $externalRef, 'pending');
+                                } else {
+                                    $externalRef = null;
+                                }
                                 $attractionBookingType = $this->resolveOrderBookingType(
                                     $tourStatusForBooking,
                                     $attraction['bookingType'] ?? null
@@ -6260,14 +6357,23 @@ class SingleTourPackageController extends Controller
                                     'bookingType' => $attractionBookingType,
                                     'remarks' => $attraction['remarks'] ?? null,
                                     'order_type' => $this->resolveServiceOrderType($attraction, 'attraction'),
-                                    'order_ref_no' => '1111111',
+                                    'order_ref_no' => $externalRef,
                                 ]);
                                 $order->refresh();
+                                if ($externalRef && (string) $order->order_ref_no !== (string) $externalRef) {
+                                    DB::table('orders')->where('id', $order->id)->update([
+                                        'order_ref_no' => $externalRef,
+                                        'updated_at' => now(),
+                                    ]);
+                                    $order->order_ref_no = $externalRef;
+                                }
 
                                 \Log::info("Attraction order created successfully", [
                                     'order_id' => $order->booking_id,
-                                    'attraction_name' => $attraction['attraction_name'] ?? 'Unknown Attraction',
-                                    'tour_id' => $tourId
+                                    'attraction_name' => $attraction['attraction_name'] ?? $attraction['AttractionName'] ?? 'Unknown Attraction',
+                                    'tour_id' => $tourId,
+                                    'order_type' => $order->order_type,
+                                    'order_ref_no' => $order->order_ref_no,
                                 ]);
 
                                 $createdOrders[] = [
@@ -6770,7 +6876,15 @@ class SingleTourPackageController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            DB::rollback();
+            if (DB::transactionLevel() > 0) {
+                DB::rollback();
+            }
+
+            \Log::error('Failed to save service orders', [
+                'error' => $e->getMessage(),
+                'code' => $e->getCode(),
+                'previous' => $e->getPrevious() ? $e->getPrevious()->getMessage() : null,
+            ]);
             
             return response()->json([
                 'success' => false,
@@ -7102,6 +7216,23 @@ class SingleTourPackageController extends Controller
         } elseif (is_array($bookingData)) {
             $bookingData = $firstAttraction;
         }
+
+        $externalRefs = $this->createOnlineAttractionExternalOrders(
+            isset($bookingData[0]) && is_array($bookingData[0]) ? $bookingData : [$firstAttraction],
+            (int) $tourId
+        );
+        $externalRef = $externalRefs[0] ?? null;
+        if (is_string($externalRef) && $externalRef !== '' && ! OnlineAttractionOrderService::isPlaceholderRef($externalRef)) {
+            $firstAttraction = app(OnlineAttractionOrderService::class)
+                ->applyRefToAttraction($firstAttraction, $externalRef, 'pending');
+            if (is_array($bookingData) && isset($bookingData[0]) && is_array($bookingData[0])) {
+                $bookingData[0] = $firstAttraction;
+            } else {
+                $bookingData = $firstAttraction;
+            }
+        } else {
+            $externalRef = null;
+        }
         
         // Create order
         $order = \App\Models\Order::create([
@@ -7117,8 +7248,17 @@ class SingleTourPackageController extends Controller
             'markup_percentage' => 0,
             'status' => 1,
             'additional' => $additionalFlag,
+            'order_type' => $this->resolveServiceOrderType(is_array($firstAttraction) ? $firstAttraction : [], 'attraction'),
+            'order_ref_no' => $externalRef,
         ]);
         $order->refresh();
+        if ($externalRef && (string) $order->order_ref_no !== (string) $externalRef) {
+            DB::table('orders')->where('id', $order->id)->update([
+                'order_ref_no' => $externalRef,
+                'updated_at' => now(),
+            ]);
+            $order->order_ref_no = $externalRef;
+        }
         $bookingId = $order->booking_id;
         $this->topUpEnquiryAmount($order);
         $tourStatus = $tour->tour_status;
@@ -8002,6 +8142,76 @@ class SingleTourPackageController extends Controller
         }
 
         return 'offline';
+    }
+
+    /**
+     * @param  array<string, mixed>  $item
+     */
+    private function resolveStoredApiEnvironment(array $item): ?string
+    {
+        $resolver = app(ApiEnvironmentResolver::class);
+        $stored = $resolver->storedEnvironment($item);
+
+        if ($stored !== null) {
+            return $stored;
+        }
+
+        if (empty($item['isOnlineHotel']) && ($item['hotelSourceType'] ?? '') !== 'online'
+            && empty($item['isOnlineAttraction']) && ($item['attractionSourceType'] ?? '') !== 'online') {
+            return null;
+        }
+
+        try {
+            return $resolver->resolve();
+        } catch (\RuntimeException) {
+            return $resolver->normalize('demo');
+        }
+    }
+
+    /**
+     * Call Attractions /order/create outside any DB transaction.
+     * Reuses an existing/cached order_ref_id so retries do not duplicate external orders.
+     *
+     * @param  list<mixed>  $attractions
+     * @return array<int, string|null>
+     */
+    private function createOnlineAttractionExternalOrders(array $attractions, int $tourId): array
+    {
+        $refs = [];
+        $service = app(OnlineAttractionOrderService::class);
+
+        foreach ($attractions as $index => $attraction) {
+            if (! is_array($attraction) || ! OnlineAttractionOrderService::isOnlineAttraction($attraction)) {
+                $refs[$index] = null;
+                continue;
+            }
+
+            $existing = OnlineAttractionOrderService::extractSavedRef((object) [
+                'order_ref_no' => $attraction['order_ref_no'] ?? null,
+            ], $attraction);
+            if ($existing !== null) {
+                $refs[$index] = $existing;
+                continue;
+            }
+
+            $result = $service->createOrder($attraction, $tourId);
+            $ref = $result['order_ref_id'] ?? null;
+            $ref = (is_string($ref) && $ref !== '' && ! OnlineAttractionOrderService::isPlaceholderRef($ref))
+                ? $ref
+                : null;
+
+            if ($ref !== null) {
+                $refs[$index] = $ref;
+                continue;
+            }
+
+            throw new \RuntimeException(
+                'Failed to create online attraction order: '
+                . ($result['message'] ?? 'missing order_ref_id from Attractions API')
+            );
+        }
+
+        return $refs;
     }
 
     /**

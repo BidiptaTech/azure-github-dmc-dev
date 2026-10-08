@@ -42,6 +42,12 @@
         </form>
 
         @include('single-tour-package.lite.partials.add-agency-contact-modal')
+        @php
+            $onlineHotelApiEnabled = \App\Helpers\CommonHelper::masterDmcOnlineApiEnabled(auth()->user());
+        @endphp
+        @if(!empty($onlineHotelApiEnabled))
+            @include('single-tour-package.partials.online-hotel-modal')
+        @endif
     </div>
 </div>
 @endsection
