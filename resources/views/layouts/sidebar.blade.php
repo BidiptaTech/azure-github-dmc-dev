@@ -2066,12 +2066,13 @@
                                 <div class="ctp-lead-error" data-ctp-error-for="customerName"></div>
                             </div>
                             <div class="col-md-5">
-                                <label class="ctp-label" for="customerEmail">Email</label>
+                                <label class="ctp-label" for="ctpCustomerEmail">Email</label>
                                 <div class="ctp-icon-field">
                                     <i class="ri-mail-line ctp-field-ico"></i>
-                                    <input type="text" class="form-control" id="customerEmail" name="email" placeholder="Enter email" inputmode="email" autocomplete="email" maxlength="255" data-ctp-filter="email">
+                                    {{-- Unique id: must not collide with STP lite #customerEmail --}}
+                                    <input type="text" class="form-control" id="ctpCustomerEmail" name="email" placeholder="Enter email" inputmode="email" autocomplete="email" maxlength="255" data-ctp-filter="email">
                                 </div>
-                                <div class="ctp-lead-error" data-ctp-error-for="customerEmail"></div>
+                                <div class="ctp-lead-error" data-ctp-error-for="ctpCustomerEmail"></div>
                             </div>
                         </div>
                         <div class="row g-3 mb-3">

@@ -165,11 +165,27 @@
         updateGuestLimitInfo();
     }
 
+    /** Scope to lead-guest card — layout sidebar also has #customerEmail (duplicate id). */
+    function leadRoot() {
+        return document.getElementById('customerAccordion')
+            || document.getElementById('guestInfoSection')
+            || null;
+    }
+
+    function getLeadEl(id, name) {
+        var root = leadRoot();
+        var el = null;
+        if (root) {
+            el = root.querySelector('#' + id);
+            if (!el && name) el = root.querySelector('[name="' + name + '"]');
+        }
+        if (!el) el = document.getElementById(id);
+        if (!el && name) el = document.querySelector('[name="' + name + '"]');
+        return el;
+    }
+
     function getLeadVal(id, name) {
-        var section = document.getElementById('customerAccordion');
-        var el = section
-            ? section.querySelector('#' + id + ', [name="' + name + '"]')
-            : (document.getElementById(id) || document.querySelector('[name="' + name + '"]'));
+        var el = getLeadEl(id, name);
         return ((el && el.value) || '').trim();
     }
 
@@ -258,15 +274,9 @@
 
     function hydrate(mainGuest, additional) {
         mainGuest = mainGuest || {};
-        function set(id, val) {
-            var el = document.getElementById(id);
-            if (!el || val == null || val === '') return;
-            el.value = val;
-            try { el.dispatchEvent(new Event('change', { bubbles: true })); } catch (e) { /* ignore */ }
-        }
-        // Allow clearing then set — empty string skips; set known fields explicitly
+        // Must scope to lead card — document.getElementById('customerEmail') hits sidebar CTP field
         function setAll(id, val) {
-            var el = document.getElementById(id);
+            var el = getLeadEl(id, null);
             if (!el) return;
             el.value = val != null ? String(val) : '';
             try { el.dispatchEvent(new Event('change', { bubbles: true })); } catch (e) { /* ignore */ }
@@ -298,7 +308,8 @@
                 name: g.name || g.full_name || g.fullName || '',
                 passport_no: g.passport_no || g.passportNo || '',
                 passport_exp: g.passport_exp || g.passportExp || g.passport_expiry || '',
-                contact_no: g.contact_no || g.contactNo || g.phone || ''
+                contact_no: g.contact_no || g.contactNo || g.phone || '',
+                email: g.email || g.Email || ''
             };
             Object.keys(map).forEach(function (k) {
                 var input = card.querySelector('[name="additional_guests[' + idx + '][' + k + ']"]');
@@ -317,9 +328,9 @@
         var validateEmailEl = typeof San.validateEmailField === 'function' ? San.validateEmailField : null;
         var validatePhoneEl = typeof San.validatePhoneField === 'function' ? San.validatePhoneField : null;
 
-        var nameEl = document.getElementById('customerFullName');
-        var emailEl = document.getElementById('customerEmail');
-        var phoneEl = document.getElementById('customerPhone');
+        var nameEl = getLeadEl('customerFullName', 'customer_full_name');
+        var emailEl = getLeadEl('customerEmail', 'customer_email');
+        var phoneEl = getLeadEl('customerPhone', 'customer_phone');
         var fullName = ((nameEl && nameEl.value) || '').trim();
         var email = ((emailEl && emailEl.value) || '').trim();
         var phone = ((phoneEl && phoneEl.value) || '').trim();
@@ -351,6 +362,7 @@
         for (var i = 0; i < guestCards.length; i += 1) {
             var nameInput = guestCards[i].querySelector('input[name*="[name]"]');
             var contactInput = guestCards[i].querySelector('input[name*="[contact_no]"]');
+            var emailInput = guestCards[i].querySelector('input[name*="[email]"]');
             if (nameInput) {
                 if (validateNameEl) validateNameEl(nameInput);
                 var gName = String(nameInput.value || '').trim();
@@ -365,6 +377,14 @@
                 if (gContact && !phoneOk(gContact)) {
                     try { contactInput.focus(); } catch (e4) { /* ignore */ }
                     return { ok: false, message: 'Additional guest contact: digits only (6–15 numbers).' };
+                }
+            }
+            if (emailInput) {
+                if (validateEmailEl) validateEmailEl(emailInput);
+                var gEmail = String(emailInput.value || '').trim();
+                if (gEmail && !emailOk(gEmail)) {
+                    try { emailInput.focus(); } catch (e5) { /* ignore */ }
+                    return { ok: false, message: 'Additional guest email must be valid (e.g. name@example.com).' };
                 }
             }
         }
