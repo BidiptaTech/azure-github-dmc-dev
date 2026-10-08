@@ -47,6 +47,7 @@
         @endphp
         @if(!empty($onlineHotelApiEnabled))
             @include('single-tour-package.partials.online-hotel-modal')
+            @include('single-tour-package.partials.online-attraction-modal')
         @endif
     </div>
 </div>
