@@ -3016,7 +3016,6 @@ $(document).ready(function() {
             }
         }
     }
-    
     // Initialize meal options on page load
     document.addEventListener('DOMContentLoaded', function() {
         toggleMealOptions('breakfast');

@@ -28,14 +28,23 @@ class SgAttractionsAdapter implements AttractionSupplierAdapter
             throw new RuntimeException($ctx['message'] ?? 'Failed to authenticate with SG Attractions API.');
         }
 
-        $query = array_filter([
-            'display_limit' => $request->displayLimit,
-            'current_page' => $request->currentPage,
-            'visit_date' => $request->visitDate,
-            'city' => $request->cityName,
-        ], static fn ($value) => $value !== null && $value !== '');
+        // Full catalog (no display_limit): match Postman GET /attractions — no paging filters.
+        // Passing display_limit truncates (~24–25). City filter is also omitted on full
+        // catalog so the provider returns the complete list (~150+); we resolve
+        // credentials/city on our side before this call.
+        $fetchAll = $request->displayLimit === null;
+        $query = $fetchAll
+            ? array_filter([
+                'visit_date' => $request->visitDate,
+            ], static fn ($value) => $value !== null && $value !== '')
+            : array_filter([
+                'display_limit' => $request->displayLimit,
+                'current_page' => $request->currentPage,
+                'visit_date' => $request->visitDate,
+                'city' => $request->cityName,
+            ], static fn ($value) => $value !== null && $value !== '');
 
-        $response = Http::timeout($ctx['timeout'])
+        $response = Http::timeout(max(30, (int) ($ctx['timeout'] ?? 60)))
             ->withHeaders($this->headers($ctx['token']))
             ->acceptJson()
             ->get($ctx['base_url'] . '/attractions', $query);

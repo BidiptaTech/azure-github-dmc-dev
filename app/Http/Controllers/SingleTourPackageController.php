@@ -3698,18 +3698,32 @@ class SingleTourPackageController extends Controller
             'visitDate' => 'nullable|date',
             'city' => 'nullable|string|max:255',
             'paxInfo' => 'nullable|string|max:50',
-            'display_limit' => 'nullable|integer|min:1|max:500',
+            // 0 / omitted = full catalog (Postman-style). Positive = optional paging.
+            'display_limit' => 'nullable|integer|min:0|max:500',
             'current_page' => 'nullable|integer|min:1',
+            'fetch_all' => 'nullable|boolean',
+            'include_tickets' => 'nullable|boolean',
         ]);
 
         try {
+            $fetchAll = $request->boolean('fetch_all', true);
+            $displayLimit = $request->has('display_limit')
+                ? (int) $request->input('display_limit')
+                : ($fetchAll ? 0 : OnlineAttractionAggregator::DEFAULT_PAGE_SIZE);
+            if ($fetchAll) {
+                $displayLimit = 0;
+            }
+
             return response()->json(
                 $aggregator->search(
                     $request->input('visitDate'),
                     $request->input('city'),
                     $request->input('paxInfo'),
-                    $request->input('display_limit') !== null ? (int) $request->input('display_limit') : null,
-                    $request->input('current_page') !== null ? (int) $request->input('current_page') : null,
+                    $displayLimit > 0 ? $displayLimit : null,
+                    $displayLimit > 0 && $request->input('current_page') !== null
+                        ? (int) $request->input('current_page')
+                        : null,
+                    (bool) $request->boolean('include_tickets', false),
                 )
             );
         } catch (\RuntimeException $e) {
@@ -3731,6 +3745,44 @@ class SingleTourPackageController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Error fetching online attractions: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Lazy-load tickets for one online attraction SKU (after user selects it).
+     * Avoids N+1 ticket API calls during the catalog search.
+     */
+    public function fetchOnlineAttractionTickets(Request $request, OnlineAttractionAggregator $aggregator)
+    {
+        $request->validate([
+            'sku_id' => 'required|string|max:255',
+            'visitDate' => 'nullable|date',
+            'city' => 'nullable|string|max:255',
+        ]);
+
+        try {
+            return response()->json(
+                $aggregator->fetchTicketsForSku(
+                    (string) $request->input('sku_id'),
+                    $request->input('visitDate'),
+                    $request->input('city'),
+                )
+            );
+        } catch (\RuntimeException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
+        } catch (\Throwable $e) {
+            Log::error('Online attraction tickets exception', [
+                'sku_id' => $request->input('sku_id'),
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error fetching attraction tickets: ' . $e->getMessage(),
             ], 500);
         }
     }

@@ -2226,6 +2226,8 @@ class HotelController extends Controller
                 // Admin: Update the original room
                 \Log::info("Admin updating original room");
                 $this->updateExistingRoom($request, $originalRoom);
+                $originalRoom->refresh();
+                $this->syncAdminRoomCatalogToClones($originalRoom);
             } else {
                 $dmcOwnerId = $this->resolveRoomPricingDmcUserId($auth_user) ?? $auth_user->userId;
 
@@ -2815,6 +2817,50 @@ class HotelController extends Controller
             \Log::error('HotelController::createDmcRoom failed', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
             $friendly = $this->hotelUserFacingError($e, 'Unable to update the room. Please try again.');
             throw new \RuntimeException($friendly, 0, $e);
+        }
+    }
+
+    /**
+     * Copy catalog (structural) fields from an admin master room onto DMC clones.
+     * Pricing, profit, child rates, and status stay on each clone.
+     */
+    private function syncAdminRoomCatalogToClones(Room $adminRoom): void
+    {
+        try {
+            if (!\Illuminate\Support\Facades\Schema::hasColumn('rooms', 'cloned_from')) {
+                return;
+            }
+
+            $catalogPayload = [
+                'room_type' => $adminRoom->room_type,
+                'dimension' => $adminRoom->dimension,
+                'no_of_room' => $adminRoom->no_of_room,
+                'master_image' => $adminRoom->master_image,
+                'images' => $adminRoom->images,
+                'breakfast' => $adminRoom->breakfast,
+                'breakfast_type' => $adminRoom->breakfast_type,
+                'lunch' => $adminRoom->lunch,
+                'lunch_type' => $adminRoom->lunch_type,
+                'dinner' => $adminRoom->dinner,
+                'dinner_type' => $adminRoom->dinner_type,
+                'breakfast_included' => $adminRoom->breakfast_included,
+                'breakfast_restaurant' => $adminRoom->breakfast_restaurant,
+            ];
+
+            $updated = Room::where('cloned_from', $adminRoom->room_id)
+                ->where('dmc_base_room', 0)
+                ->update($catalogPayload);
+
+            \Log::info('HotelController::syncAdminRoomCatalogToClones', [
+                'admin_room_id' => $adminRoom->room_id,
+                'clones_updated' => $updated,
+            ]);
+        } catch (\Throwable $e) {
+            \Log::error('HotelController::syncAdminRoomCatalogToClones failed', [
+                'admin_room_id' => $adminRoom->room_id ?? null,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
         }
     }
 
