@@ -156,23 +156,36 @@
             return !!(g.full_name || g.fullName || g.name || g.email || g.phone || g.salutation
                 || g.address1 || g.passport || g.passport_no);
         }
-        var main = cfg.mainGuest || {};
-        if (!hasLead(main) && cfg.customer) {
-            var c = cfg.customer || {};
-            main = {
-                salutation: c.salutation || '',
-                full_name: c.fullName || c.full_name || c.name || '',
-                email: c.email || '',
-                phone: c.phone || '',
-                country_code: c.countryCode || c.country_code || '',
-                address1: c.address1 || '',
-                address2: c.address2 || '',
-                state: c.state || '',
-                zip: c.zip || '',
-                special_requests: c.specialRequests || c.special_requests || '',
-                passport: c.passport || c.passport_no || '',
-                passport_exp: c.passport_exp || c.passport_expiry || ''
-            };
+        function fillEmpty(target, source) {
+            if (!source || typeof source !== 'object') return target;
+            Object.keys(source).forEach(function (k) {
+                var cur = String(target[k] == null ? '' : target[k]).trim();
+                var next = String(source[k] == null ? '' : source[k]).trim();
+                if (!cur && next) target[k] = next;
+            });
+            return target;
+        }
+        var main = Object.assign({}, cfg.mainGuest || {});
+        var c = cfg.customer || {};
+        var fromCustomer = {
+            salutation: c.salutation || '',
+            full_name: c.fullName || c.full_name || c.name || '',
+            email: c.email || '',
+            phone: c.phone || '',
+            country_code: c.countryCode || c.country_code || '',
+            address1: c.address1 || '',
+            address2: c.address2 || '',
+            state: c.state || '',
+            zip: c.zip || '',
+            special_requests: c.specialRequests || c.special_requests || '',
+            passport: c.passport || c.passport_no || '',
+            passport_exp: c.passport_exp || c.passport_expiry || ''
+        };
+        if (!hasLead(main)) {
+            main = fromCustomer;
+        } else {
+            // mainguest often has name/phone but blank email — fill from order customer
+            fillEmpty(main, fromCustomer);
         }
         return {
             main: main,

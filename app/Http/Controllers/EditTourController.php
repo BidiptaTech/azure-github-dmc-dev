@@ -872,6 +872,7 @@ class EditTourController extends Controller
             'female' => 'required|integer|min:0',
             'agent_id' => 'required|exists:agents,agent_id',
             'child_ages' => 'nullable|string|max:255',
+            'reference_number' => 'nullable|string|max:255',
             'delete_affected_services' => 'nullable|boolean', // Flag to delete services outside date range
             'tour_type' => 'nullable|in:FIT,GROUP',
             'foc_size' => [
@@ -959,6 +960,11 @@ class EditTourController extends Controller
 
             if (!empty($validated['display_id'])) {
                 $tour->display_id = $validated['display_id'];
+            }
+            // Form field is reference_number; DB column is reference_id
+            if ($request->has('reference_number')) {
+                $ref = trim((string) $request->input('reference_number', ''));
+                $tour->reference_id = $ref !== '' ? $ref : null;
             }
             // Base destination from the form, then merge any countries present in city plans
             // (e.g. user added "Batam (Indonesia)" while destination was still "Singapore").
@@ -1238,6 +1244,27 @@ class EditTourController extends Controller
                         $mainGuestEmail = null;
                     } elseif ($mainGuestEmail !== null) {
                         $mainGuestEmail = trim((string) $mainGuestEmail);
+                    }
+                    // If form email is blank, recover from existing mainguest or first order JSON
+                    if ($mainGuestEmail === null || $mainGuestEmail === '') {
+                        $existingMain = is_array($tour->mainguest) ? $tour->mainguest : [];
+                        $recovered = trim((string) ($existingMain['email'] ?? $existingMain['Email'] ?? ''));
+                        if ($recovered === '') {
+                            $firstOrder = Order::where('tour_id', $tour->tour_id)->whereNull('deleted_at')->orderByDesc('created_at')->first();
+                            if ($firstOrder && $firstOrder->data) {
+                                $od = is_array($firstOrder->data) ? $firstOrder->data : json_decode($firstOrder->data, true);
+                                if (isset($od[0]) && is_array($od[0])) {
+                                    $od = $od[0];
+                                }
+                                if (is_array($od)) {
+                                    $recovered = trim((string) ($od['email'] ?? ''));
+                                }
+                            }
+                        }
+                        if ($recovered !== '') {
+                            $mainGuestEmail = $recovered;
+                            $mainGuestData['email'] = $recovered;
+                        }
                     }
                     unset($mainGuestData['app_password']);
 
@@ -1639,11 +1666,11 @@ class EditTourController extends Controller
                     }
                     $name = trim((string) ($row['name'] ?? $row['guest_name'] ?? ''));
                     $contact = trim((string) ($row['contact_no'] ?? $row['contact'] ?? ''));
-                    if ($name === '' && $contact === '') {
+                    $email = trim((string) ($row['email'] ?? ''));
+                    // Keep email-only additional guests (same rule as tour create)
+                    if ($name === '' && $contact === '' && $email === '') {
                         continue;
                     }
-
-                    $email = trim((string) ($row['email'] ?? ''));
                     $salutation = $row['salutation'] ?? null;
                     if (is_string($salutation)) {
                         $salutation = rtrim($salutation, '.');

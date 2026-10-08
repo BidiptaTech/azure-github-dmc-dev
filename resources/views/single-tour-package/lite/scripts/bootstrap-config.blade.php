@@ -68,6 +68,7 @@ window.STP_LITE_CONFIG = {
     siblingDmcZoneOnMap: @json($siblingDmcZoneOnMap ?? new \stdClass()),
     enquiryLocked: @json(!empty($enquiry) && empty($tour->tour_id ?? null)),
     onlineHotelApiEnabled: @json(\App\Helpers\CommonHelper::masterDmcOnlineApiEnabled(auth()->user())),
+    onlineAttractionApiEnabled: @json(\App\Helpers\CommonHelper::masterDmcOnlineApiEnabled(auth()->user())),
     routes: {
         store: @json(route('single-tour-package.store')),
         ajaxCities: @json(route('ajax.cities')),
@@ -108,5 +109,7 @@ window.STP_LITE_CONFIG = {
     currencyMarkups: @json($liteCurrencyMarkups),
     bundleAttractionIcon: @json(asset('assets/images/bundle-attraction-icon.png'))
 };
+window.onlineApiEnabled = !!window.STP_LITE_CONFIG.onlineHotelApiEnabled
+    || !!window.STP_LITE_CONFIG.onlineAttractionApiEnabled;
 </script>
 {{-- === END bootstrap-config === --}}

@@ -1794,7 +1794,7 @@ class SingleTourPackageController extends Controller
 
         $firstOrder = $orders->first();
         $customer_info = [];
-        // Prefer tour->mainguest (updated via Save Guest Changes) over Order data
+        // Prefer tour->mainguest, but fill empty fields (esp. email) from order service JSON
         $mainGuest = $tour->mainguest;
         if (is_array($mainGuest) && !empty(array_filter($mainGuest))) {
             $customer_info['salutation'] = $mainGuest['salutation'] ?? '';
@@ -1807,21 +1807,37 @@ class SingleTourPackageController extends Controller
             $customer_info['state'] = $mainGuest['state'] ?? '';
             $customer_info['zip'] = $mainGuest['zip'] ?? '';
             $customer_info['specialRequests'] = $mainGuest['special_requests'] ?? $mainGuest['specialRequests'] ?? '';
-        } elseif ($firstOrder && $firstOrder->data) {
+            $customer_info['passport'] = $mainGuest['passport'] ?? $mainGuest['passport_no'] ?? '';
+            $customer_info['passport_exp'] = $mainGuest['passport_exp'] ?? $mainGuest['passport_expiry'] ?? '';
+        }
+        if ($firstOrder && $firstOrder->data) {
             $firstOrderData = is_array($firstOrder->data) ? $firstOrder->data : json_decode($firstOrder->data, true);
             if (isset($firstOrderData[0])) {
                 $firstOrderData = $firstOrderData[0];
             }
-            $customer_info['salutation'] = $firstOrderData['salutation'] ?? '';
-            $customer_info['fullName'] = $firstOrderData['fullName'] ?? '';
-            $customer_info['email'] = $firstOrderData['email'] ?? '';
-            $customer_info['phone'] = $firstOrderData['phone'] ?? '';
-            $customer_info['countryCode'] = $firstOrderData['countryCode'] ?? '';
-            $customer_info['address1'] = $firstOrderData['address1'] ?? '';
-            $customer_info['address2'] = $firstOrderData['address2'] ?? '';
-            $customer_info['state'] = $firstOrderData['state'] ?? '';
-            $customer_info['zip'] = $firstOrderData['zip'] ?? '';
-            $customer_info['specialRequests'] = $firstOrderData['specialRequests'] ?? '';
+            if (is_array($firstOrderData)) {
+                $orderMap = [
+                    'salutation' => $firstOrderData['salutation'] ?? '',
+                    'fullName' => $firstOrderData['fullName'] ?? ($firstOrderData['full_name'] ?? ''),
+                    'email' => $firstOrderData['email'] ?? '',
+                    'phone' => $firstOrderData['phone'] ?? '',
+                    'countryCode' => $firstOrderData['countryCode'] ?? ($firstOrderData['country_code'] ?? ''),
+                    'address1' => $firstOrderData['address1'] ?? '',
+                    'address2' => $firstOrderData['address2'] ?? '',
+                    'state' => $firstOrderData['state'] ?? '',
+                    'zip' => $firstOrderData['zip'] ?? '',
+                    'specialRequests' => $firstOrderData['specialRequests'] ?? ($firstOrderData['special_requests'] ?? ''),
+                    'passport' => $firstOrderData['passport'] ?? ($firstOrderData['passport_no'] ?? ''),
+                    'passport_exp' => $firstOrderData['passport_exp'] ?? ($firstOrderData['passport_expiry'] ?? ''),
+                ];
+                foreach ($orderMap as $key => $val) {
+                    $current = trim((string) ($customer_info[$key] ?? ''));
+                    $incoming = trim((string) $val);
+                    if ($current === '' && $incoming !== '') {
+                        $customer_info[$key] = $incoming;
+                    }
+                }
+            }
         }
 
         $hotelOrders = [];
@@ -1960,7 +1976,8 @@ class SingleTourPackageController extends Controller
             ? Agent::where('agent_id', $tour->agent_id)->first()
             : null;
         $enquiry = (object) [
-            'reference_number' => $tour->reference_number ?? '',
+            // DB column is reference_id (form field name remains reference_number)
+            'reference_number' => $tour->reference_id ?? '',
             'country' => is_string($tour->destination) ? trim(explode(',', $tour->destination)[0]) : '',
             'check_in_time' => $tour->check_in_time,
             'check_out_time' => $tour->check_out_time,
@@ -3698,18 +3715,32 @@ class SingleTourPackageController extends Controller
             'visitDate' => 'nullable|date',
             'city' => 'nullable|string|max:255',
             'paxInfo' => 'nullable|string|max:50',
-            'display_limit' => 'nullable|integer|min:1|max:500',
+            // 0 / omitted = full catalog (Postman-style). Positive = optional paging.
+            'display_limit' => 'nullable|integer|min:0|max:500',
             'current_page' => 'nullable|integer|min:1',
+            'fetch_all' => 'nullable|boolean',
+            'include_tickets' => 'nullable|boolean',
         ]);
 
         try {
+            $fetchAll = $request->boolean('fetch_all', true);
+            $displayLimit = $request->has('display_limit')
+                ? (int) $request->input('display_limit')
+                : ($fetchAll ? 0 : OnlineAttractionAggregator::DEFAULT_PAGE_SIZE);
+            if ($fetchAll) {
+                $displayLimit = 0;
+            }
+
             return response()->json(
                 $aggregator->search(
                     $request->input('visitDate'),
                     $request->input('city'),
                     $request->input('paxInfo'),
-                    $request->input('display_limit') !== null ? (int) $request->input('display_limit') : null,
-                    $request->input('current_page') !== null ? (int) $request->input('current_page') : null,
+                    $displayLimit > 0 ? $displayLimit : null,
+                    $displayLimit > 0 && $request->input('current_page') !== null
+                        ? (int) $request->input('current_page')
+                        : null,
+                    (bool) $request->boolean('include_tickets', false),
                 )
             );
         } catch (\RuntimeException $e) {
@@ -3731,6 +3762,44 @@ class SingleTourPackageController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Error fetching online attractions: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Lazy-load tickets for one online attraction SKU (after user selects it).
+     * Avoids N+1 ticket API calls during the catalog search.
+     */
+    public function fetchOnlineAttractionTickets(Request $request, OnlineAttractionAggregator $aggregator)
+    {
+        $request->validate([
+            'sku_id' => 'required|string|max:255',
+            'visitDate' => 'nullable|date',
+            'city' => 'nullable|string|max:255',
+        ]);
+
+        try {
+            return response()->json(
+                $aggregator->fetchTicketsForSku(
+                    (string) $request->input('sku_id'),
+                    $request->input('visitDate'),
+                    $request->input('city'),
+                )
+            );
+        } catch (\RuntimeException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
+        } catch (\Throwable $e) {
+            Log::error('Online attraction tickets exception', [
+                'sku_id' => $request->input('sku_id'),
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error fetching attraction tickets: ' . $e->getMessage(),
             ], 500);
         }
     }
