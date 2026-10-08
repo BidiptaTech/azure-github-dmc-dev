@@ -12,7 +12,7 @@
             <div class="modal-body" style="background: #f8f9fa;">
                 <div class="alert alert-info py-2 mb-3" style="font-size: 0.85rem;">
                     <i class="ri-information-line me-1"></i>
-                    Attractions are fetched live from SG Attractions. Select visit date and guests, then click <strong>Fetch Attractions</strong>.
+                    Attractions are fetched live from SG Attractions as a <strong>full catalog</strong> (with a progress timer). Tickets load when you select an attraction — that keeps the list fast.
                 </div>
 
                 <div class="card border-0 shadow-sm mb-3">
@@ -43,12 +43,28 @@
                                 <input type="hidden" id="onlineAttractionPaxInfo" value="">
                             </div>
                         </div>
-                        <div class="mt-3 d-flex align-items-center gap-2">
+                        <div class="mt-3 d-flex align-items-center gap-2 flex-wrap">
                             <button type="button" class="btn btn-sm btn-primary" id="onlineAttractionFetchBtn" style="background: linear-gradient(135deg, #a855f7 0%, #9333ea 100%); border: none;">
                                 <span class="spinner-border spinner-border-sm d-none me-1" id="onlineAttractionFetchSpinner" role="status" aria-hidden="true"></span>
                                 <i class="ri-search-line me-1" id="onlineAttractionFetchIcon"></i> Fetch Attractions
                             </button>
-                            <small class="text-muted" id="onlineAttractionFetchStatus" style="font-size: 0.8rem;"></small>
+                            <button type="button" class="btn btn-sm btn-outline-secondary d-none" id="onlineAttractionCancelFetchBtn">
+                                <i class="ri-stop-circle-line me-1"></i> Stop
+                            </button>
+                            <small class="text-danger d-none" id="onlineAttractionFetchStatus" style="font-size: 0.8rem;"></small>
+                        </div>
+                        <div class="mt-3 d-none" id="onlineAttractionFetchProgressWrap">
+                            <div class="online-attraction-loader">
+                                <div class="online-attraction-loader__ring" aria-hidden="true"></div>
+                                <div class="online-attraction-loader__copy">
+                                    <div class="online-attraction-loader__title" id="onlineAttractionFetchProgressLabel">Loading attractions…</div>
+                                    <div class="online-attraction-loader__sub">Please wait while we sync the live catalog</div>
+                                </div>
+                                <div class="online-attraction-loader__timer" id="onlineAttractionFetchTimer">0s</div>
+                            </div>
+                            <div class="online-attraction-loader__track" aria-hidden="true">
+                                <div class="online-attraction-loader__bar" id="onlineAttractionFetchProgressBar"></div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -203,6 +219,66 @@
     #onlineAttractionModal .select2-container--default .select2-selection--single .select2-selection__arrow {
         height: 29px;
     }
+
+    .online-attraction-loader {
+        display: flex;
+        align-items: center;
+        gap: 0.85rem;
+        padding: 0.85rem 1rem;
+        border-radius: 10px;
+        background: linear-gradient(135deg, rgba(168, 85, 247, 0.08) 0%, rgba(147, 51, 234, 0.06) 100%);
+        border: 1px solid rgba(147, 51, 234, 0.15);
+    }
+    .online-attraction-loader__ring {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        border: 3px solid rgba(147, 51, 234, 0.2);
+        border-top-color: #9333ea;
+        animation: onlineAttractionSpin 0.75s linear infinite;
+        flex-shrink: 0;
+    }
+    .online-attraction-loader__copy { flex: 1; min-width: 0; }
+    .online-attraction-loader__title {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #5b21b6;
+        line-height: 1.2;
+    }
+    .online-attraction-loader__sub {
+        font-size: 0.72rem;
+        color: #6b7280;
+        margin-top: 0.15rem;
+    }
+    .online-attraction-loader__timer {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #7c3aed;
+        font-variant-numeric: tabular-nums;
+        flex-shrink: 0;
+    }
+    .online-attraction-loader__track {
+        margin-top: 0.55rem;
+        height: 4px;
+        border-radius: 999px;
+        background: rgba(147, 51, 234, 0.12);
+        overflow: hidden;
+    }
+    .online-attraction-loader__bar {
+        height: 100%;
+        width: 35%;
+        border-radius: 999px;
+        background: linear-gradient(90deg, #a855f7, #7c3aed, #a855f7);
+        background-size: 200% 100%;
+        animation: onlineAttractionShimmer 1.2s ease-in-out infinite;
+    }
+    @keyframes onlineAttractionSpin {
+        to { transform: rotate(360deg); }
+    }
+    @keyframes onlineAttractionShimmer {
+        0% { transform: translateX(-120%); }
+        100% { transform: translateX(320%); }
+    }
 </style>
 @endpush
 
@@ -210,6 +286,7 @@
 <script>
 (function () {
     const fetchUrl = @json(route('fetch-online-attractions'));
+    const ticketsUrl = @json(route('fetch-online-attraction-tickets'));
     const csrfToken = @json(csrf_token());
 
     let onlineAttractionsCache = [];
@@ -217,6 +294,10 @@
     let onlineLastApiEnvironment = '';
     let onlineAttractionTarget = { day: 1, index: 1 };
     let onlineAttractionGuestState = { male: 1, female: 0, children: 0, infants: 0, childAges: [] };
+    let onlineFetchAbort = null;
+    let onlineFetchTimerId = null;
+    let onlineFetchStartedAt = 0;
+    let onlineTicketsRequestId = 0;
 
     function initOnlineAttractionSelect2(disabled) {
         if (typeof jQuery === 'undefined' || !jQuery.fn.select2) {
@@ -685,14 +766,17 @@
     }
 
     function attractionSelectLabel(item) {
-        const name = attractionLabel(item);
-        const price = attractionLowestPrice(item);
-        const currency = attractionCurrency(item);
+        return attractionLabel(item);
+    }
 
-        if (price > 0) {
-            return name + ' - ' + currency + ' ' + price.toFixed(2);
-        }
-        return name;
+    function setOnlineAttractionFetchStatus(message, isError) {
+        const statusEl = document.getElementById('onlineAttractionFetchStatus');
+        if (!statusEl) return;
+        const text = message ? String(message) : '';
+        statusEl.textContent = text;
+        statusEl.classList.toggle('d-none', !text);
+        statusEl.classList.toggle('text-danger', !!isError);
+        statusEl.classList.toggle('text-muted', !isError);
     }
 
     function buildSgTickets(item) {
@@ -801,10 +885,13 @@
     }
 
     function resetOnlineAttractionFetchResults() {
+        if (onlineFetchAbort) {
+            try { onlineFetchAbort.abort(); } catch (e) { /* ignore */ }
+        }
         hideOnlineAttractionSelectionPanel();
         populateOnlineAttractions([]);
-        const statusEl = document.getElementById('onlineAttractionFetchStatus');
-        if (statusEl) statusEl.textContent = '';
+        showOnlineAttractionFetchProgress(false);
+        setOnlineAttractionFetchStatus('');
     }
 
     function hideOnlineAttractionSelectionPanel() {
@@ -829,9 +916,179 @@
         const btn = document.getElementById('onlineAttractionFetchBtn');
         const spinner = document.getElementById('onlineAttractionFetchSpinner');
         const icon = document.getElementById('onlineAttractionFetchIcon');
+        const cancelBtn = document.getElementById('onlineAttractionCancelFetchBtn');
         if (btn) btn.disabled = !!isLoading;
         if (spinner) spinner.classList.toggle('d-none', !isLoading);
         if (icon) icon.classList.toggle('d-none', !!isLoading);
+        if (cancelBtn) cancelBtn.classList.toggle('d-none', !isLoading);
+    }
+
+    function formatElapsed(ms) {
+        const sec = Math.max(0, Math.floor(ms / 1000));
+        if (sec < 60) return sec + 's';
+        const m = Math.floor(sec / 60);
+        const s = sec % 60;
+        return m + 'm ' + s + 's';
+    }
+
+    function startOnlineAttractionFetchTimer() {
+        stopOnlineAttractionFetchTimer();
+        onlineFetchStartedAt = Date.now();
+        const timerEl = document.getElementById('onlineAttractionFetchTimer');
+        if (timerEl) timerEl.textContent = '0s';
+        onlineFetchTimerId = setInterval(function () {
+            const el = document.getElementById('onlineAttractionFetchTimer');
+            if (el) el.textContent = formatElapsed(Date.now() - onlineFetchStartedAt);
+        }, 250);
+    }
+
+    function stopOnlineAttractionFetchTimer() {
+        if (onlineFetchTimerId) {
+            clearInterval(onlineFetchTimerId);
+            onlineFetchTimerId = null;
+        }
+    }
+
+    function showOnlineAttractionFetchProgress(show) {
+        const wrap = document.getElementById('onlineAttractionFetchProgressWrap');
+        if (wrap) wrap.classList.toggle('d-none', !show);
+        if (!show) {
+            stopOnlineAttractionFetchTimer();
+            updateOnlineAttractionFetchProgress('Loading attractions…');
+        }
+    }
+
+    function updateOnlineAttractionFetchProgress(label) {
+        const labelEl = document.getElementById('onlineAttractionFetchProgressLabel');
+        if (labelEl && label != null) labelEl.textContent = label;
+    }
+
+    function fetchOnlineAttractionsCatalog(city, visitDate, paxInfo, signal) {
+        // Same as Postman GET /attractions: full list, no display_limit.
+        // Tickets stay lazy so this stays ~few seconds instead of 60s+.
+        return fetch(fetchUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken,
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            signal: signal,
+            body: JSON.stringify({
+                visitDate: visitDate,
+                city: city,
+                paxInfo: paxInfo,
+                fetch_all: true,
+                display_limit: 0,
+                include_tickets: false
+            })
+        }).then(function (r) {
+            if (!r.ok) {
+                return r.json().catch(function () { return {}; }).then(function (body) {
+                    const msg = body && body.message
+                        ? body.message
+                        : ('Request failed (HTTP ' + r.status + ')');
+                    throw new Error(msg);
+                });
+            }
+            return r.json();
+        });
+    }
+
+    async function fetchAllOnlineAttractions(city, visitDate, paxInfo) {
+        onlineFetchAbort = typeof AbortController !== 'undefined' ? new AbortController() : null;
+        const signal = onlineFetchAbort ? onlineFetchAbort.signal : undefined;
+
+        setOnlineAttractionFetchStatus('');
+        showOnlineAttractionFetchProgress(true);
+        startOnlineAttractionFetchTimer();
+        setOnlineAttractionFetchLoading(true);
+        updateOnlineAttractionFetchProgress('Loading attractions…');
+
+        try {
+            const data = await fetchOnlineAttractionsCatalog(city, visitDate, paxInfo, signal);
+            if (!data || !data.success) {
+                throw new Error((data && data.message) || 'Failed to fetch online attractions.');
+            }
+
+            const attractions = extractAttractionsFromResponse(data);
+            const lastEnv = data.api_environment || onlineLastApiEnvironment || '';
+            return { attractions: attractions, api_environment: lastEnv };
+        } finally {
+            setOnlineAttractionFetchLoading(false);
+            stopOnlineAttractionFetchTimer();
+            showOnlineAttractionFetchProgress(false);
+            onlineFetchAbort = null;
+        }
+    }
+
+    function hasRealTickets(attraction) {
+        const tickets = attractionTickets(attraction);
+        if (!tickets.length) return false;
+        return tickets.some(function (t) {
+            return t && !t.synthetic && (ticketSkuId(t) || providerTicketId(t));
+        });
+    }
+
+    function applyTicketsToAttraction(attraction, tickets) {
+        if (!attraction || !Array.isArray(tickets)) return attraction;
+        attraction.tickets = tickets;
+        attraction.ticketDetails = tickets;
+        onlineCurrentTickets = tickets;
+        return attraction;
+    }
+
+    function loadTicketsForSelectedAttraction(attraction) {
+        if (!attraction) return Promise.resolve(attraction);
+        if (hasRealTickets(attraction)) {
+            return Promise.resolve(attraction);
+        }
+
+        const sku = attractionId(attraction);
+        if (!sku) return Promise.resolve(attraction);
+
+        const requestId = ++onlineTicketsRequestId;
+        const ticketSel = document.getElementById('onlineAttractionTicketSelect');
+        if (ticketSel) {
+            ticketSel.disabled = true;
+            ticketSel.innerHTML = '<option value="">Loading tickets…</option>';
+        }
+        setOnlineAttractionFetchStatus('');
+
+        return fetch(ticketsUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken,
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({
+                sku_id: sku,
+                visitDate: document.getElementById('onlineAttractionVisitDate')?.value || '',
+                city: document.getElementById('onlineAttractionCity')?.value || ''
+            })
+        })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (requestId !== onlineTicketsRequestId) return attraction;
+                if (data && data.success && Array.isArray(data.tickets) && data.tickets.length) {
+                    applyTicketsToAttraction(attraction, data.tickets);
+                    if (data.api_environment) {
+                        onlineLastApiEnvironment = data.api_environment;
+                    }
+                }
+                setOnlineAttractionFetchStatus('');
+                return attraction;
+            })
+            .catch(function (err) {
+                console.warn('Lazy ticket fetch failed', err);
+                if (requestId === onlineTicketsRequestId) {
+                    setOnlineAttractionFetchStatus('Ticket details unavailable — using catalog prices.', true);
+                }
+                return attraction;
+            });
     }
 
     function syncOnlineAttractionDefaults(day) {
@@ -862,11 +1119,37 @@
             visitDateEl.value = getTourDateForDay(day);
         }
 
+        // Lite STP: no classic day slots — fill city/date from active city section
+        if (typeof window.getOnlineAttractionSearchDefaults === 'function') {
+            const d = window.getOnlineAttractionSearchDefaults() || {};
+            if (onlineCity && d.city) {
+                const hasCity = Array.from(onlineCity.options || []).some(function (o) {
+                    return String(o.value) === String(d.city);
+                });
+                if (!hasCity) {
+                    onlineCity.innerHTML = '';
+                    const o = document.createElement('option');
+                    o.value = d.city;
+                    o.textContent = d.cityLabel || d.city;
+                    onlineCity.appendChild(o);
+                }
+                onlineCity.value = d.city;
+            }
+            if (visitDateEl && d.visitDate) {
+                visitDateEl.value = d.visitDate;
+            }
+        }
+
         syncOnlineAttractionGuestDerivedFields();
 
         const label = document.getElementById('onlineAttractionTargetLabel');
         if (label) {
-            label.textContent = 'Day ' + day + ' · Attraction Slot #' + (onlineAttractionTarget.index || 1);
+            if (typeof window.getOnlineAttractionSearchDefaults === 'function') {
+                const d = window.getOnlineAttractionSearchDefaults() || {};
+                label.textContent = d.targetLabel || ((d.cityLabel || d.city || 'City') + ' · Online Attraction');
+            } else {
+                label.textContent = 'Day ' + day + ' · Attraction Slot #' + (onlineAttractionTarget.index || 1);
+            }
         }
     }
 
@@ -1149,7 +1432,6 @@
         const city = document.getElementById('onlineAttractionCity')?.value;
         const visitDate = document.getElementById('onlineAttractionVisitDate')?.value;
         const paxInfo = document.getElementById('onlineAttractionPaxInfo')?.value || buildPaxInfo();
-        const statusEl = document.getElementById('onlineAttractionFetchStatus');
 
         if (!city || !visitDate) {
             if (typeof showNotification === 'function') {
@@ -1159,68 +1441,66 @@
         }
 
         hideOnlineAttractionSelectionPanel();
-        setOnlineAttractionFetchLoading(true);
-        if (statusEl) statusEl.textContent = '';
+        setOnlineAttractionFetchStatus('');
 
-        fetch(fetchUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': csrfToken,
-                'Accept': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            body: JSON.stringify({ visitDate: visitDate, city: city, paxInfo: paxInfo })
-        })
-        .then(function (r) { return r.json(); })
-        .then(function (data) {
-            if (data && data.success) {
-                onlineLastApiEnvironment = data.api_environment || onlineLastApiEnvironment || '';
-                const attractions = extractAttractionsFromResponse(data);
+        fetchAllOnlineAttractions(city, visitDate, paxInfo)
+            .then(function (result) {
+                onlineLastApiEnvironment = result.api_environment || onlineLastApiEnvironment || '';
+                const attractions = result.attractions || [];
                 populateOnlineAttractions(attractions);
                 if (attractions.length > 0) {
                     showOnlineAttractionSelectionPanel();
-                    if (statusEl) statusEl.textContent = attractions.length + ' attraction(s) found.';
+                    setOnlineAttractionFetchStatus('');
                     if (typeof showNotification === 'function') {
-                        showNotification('Online attractions loaded successfully.', 'success');
+                        showNotification('Attractions loaded successfully.', 'success');
                     }
                 } else {
                     hideOnlineAttractionSelectionPanel();
-                    if (statusEl) statusEl.textContent = '0 attractions found.';
+                    setOnlineAttractionFetchStatus('No attractions found.', true);
                     if (typeof showNotification === 'function') {
                         showNotification('No attractions found for the selected criteria.', 'warning');
                     }
                 }
-            } else {
+            })
+            .catch(function (err) {
+                if (err && err.name === 'AbortError') {
+                    setOnlineAttractionFetchStatus('');
+                    return;
+                }
                 hideOnlineAttractionSelectionPanel();
                 populateOnlineAttractions([]);
-                if (statusEl) statusEl.textContent = data?.message || 'No attractions found.';
+                showOnlineAttractionFetchProgress(false);
+                const msg = (err && err.message) ? err.message : 'Request failed.';
+                setOnlineAttractionFetchStatus(msg, true);
+                console.error(err);
                 if (typeof showNotification === 'function') {
-                    showNotification(data?.message || 'Failed to fetch online attractions.', 'error');
+                    showNotification(msg || 'Error fetching online attractions.', 'error');
                 }
-            }
-        })
-        .catch(function (err) {
-            hideOnlineAttractionSelectionPanel();
-            populateOnlineAttractions([]);
-            if (statusEl) statusEl.textContent = 'Request failed.';
-            console.error(err);
-            if (typeof showNotification === 'function') {
-                showNotification('Error fetching online attractions.', 'error');
-            }
-        })
-        .finally(function () {
-            setOnlineAttractionFetchLoading(false);
-        });
+            });
+    });
+
+    document.getElementById('onlineAttractionCancelFetchBtn')?.addEventListener('click', function () {
+        if (onlineFetchAbort) {
+            try { onlineFetchAbort.abort(); } catch (e) { /* ignore */ }
+        }
     });
 
     function onOnlineAttractionSelectChange() {
         const idx = getOnlineAttractionSelectIndex();
         const attraction = idx >= 0 ? onlineAttractionsCache[idx] : null;
-        if (attraction) {
-            populateOnlineAttractionDetails(attraction);
+        if (!attraction) {
+            validateOnlineAttractionAddBtn();
+            return;
         }
+        // Show catalog prices immediately, then enrich with real tickets
+        populateOnlineAttractionDetails(attraction);
         validateOnlineAttractionAddBtn();
+        loadTicketsForSelectedAttraction(attraction).then(function (enriched) {
+            const stillSelected = getOnlineAttractionSelectIndex() === idx;
+            if (!stillSelected || !enriched) return;
+            populateOnlineAttractionDetails(enriched);
+            validateOnlineAttractionAddBtn();
+        });
     }
 
     if (typeof jQuery !== 'undefined') {
@@ -1255,6 +1535,14 @@
         }
 
         const slots = attractionTimeSlots(attractionRaw);
+        const guests = getAttractionGuestCounts();
+        const adultPrice = toNumber(ticketOpt?.dataset?.adultPrice);
+        const childPrice = toNumber(ticketOpt?.dataset?.childPrice);
+        const seniorPrice = toNumber(ticketOpt?.dataset?.seniorPrice);
+        const priceDisplay = toNumber(document.getElementById('onlineAttractionPriceDisplay')?.value);
+        const ticketTotal = priceDisplay > 0
+            ? priceDisplay
+            : ((guests.adults * adultPrice) + (guests.children * childPrice));
         const payload = {
             cityValue: document.getElementById('onlineAttractionCity')?.value || '',
             attractionId: attractionId(attractionRaw) || ('online-' + Date.now()),
@@ -1273,11 +1561,33 @@
             providerTicketId: ticketOpt?.dataset?.providerTicketId || providerTicketId(onlineCurrentTickets[0] || {}),
             lowestTicketPrice: attractionRaw.lowest_ticket_price || attractionRaw.lowestPrice || 0,
             highestTicketPrice: attractionRaw.highest_ticket_price || attractionRaw.highestPrice || 0,
-            adultPrice: toNumber(ticketOpt?.dataset?.adultPrice),
-            childPrice: toNumber(ticketOpt?.dataset?.childPrice),
-            seniorPrice: toNumber(ticketOpt?.dataset?.seniorPrice),
-            remarks: document.getElementById('onlineAttractionRemarks')?.value || ''
+            adultPrice: adultPrice,
+            childPrice: childPrice,
+            seniorPrice: seniorPrice,
+            adults: guests.adults,
+            children: guests.children,
+            infants: guests.infants,
+            male: guests.male,
+            female: guests.female,
+            totalPrice: ticketTotal,
+            currency: document.getElementById('onlineAttractionCurrency')?.textContent || 'SGD',
+            visitDate: document.getElementById('onlineAttractionVisitDate')?.value || '',
+            remarks: document.getElementById('onlineAttractionRemarks')?.value || '',
+            onlineAttractionRaw: attractionRaw || null
         };
+
+        // Lite STP: push into attraction_data for the active city section
+        if (typeof window.pushSelectedOnlineAttraction === 'function' && window.__stpLiteOnlineAttractionRoot) {
+            window.pushSelectedOnlineAttraction(payload);
+            if (typeof showNotification === 'function') {
+                showNotification('Online attraction "' + payload.attractionName + '" added.', 'success');
+            }
+            const modalElLite = document.getElementById('onlineAttractionModal');
+            if (modalElLite && typeof bootstrap !== 'undefined') {
+                bootstrap.Modal.getInstance(modalElLite)?.hide();
+            }
+            return;
+        }
 
         if (!applyOnlineAttractionToForm(day, index, payload)) {
             alert('Could not apply attraction to Day ' + day + '. Please reload the page.');
@@ -1296,6 +1606,14 @@
     });
 
     document.getElementById('onlineAttractionModal')?.addEventListener('hidden.bs.modal', function () {
+        if (window.__stpLiteOnlineAttractionRoot) {
+            if (typeof window.resetLiteAttractionSourceToOffline === 'function') {
+                window.resetLiteAttractionSourceToOffline(window.__stpLiteOnlineAttractionRoot);
+            }
+            window.__stpLiteOnlineAttractionRoot = null;
+            resetOnlineAttractionFetchResults();
+            return;
+        }
         const day = onlineAttractionTarget.day;
         const index = onlineAttractionTarget.index || 1;
         const onlineRadio = document.querySelector('input[name="attractionSourceType_day' + day + '_slot' + index + '"][value="online"]');
