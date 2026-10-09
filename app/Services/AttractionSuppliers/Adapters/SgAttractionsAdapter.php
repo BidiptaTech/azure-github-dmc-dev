@@ -218,6 +218,100 @@ class SgAttractionsAdapter implements AttractionSupplierAdapter
     }
 
     /**
+     * POST /voucher/cancel — cancel a purchased voucher by code + reason.
+     *
+     * @param  array<string, string|null>  $credentials
+     * @return array{success: bool, provider_status: ?int, message: ?string, provider: mixed}
+     */
+    public function cancelVoucher(string $code, string $cancelReason, array $credentials): array
+    {
+        $code = trim($code);
+        $cancelReason = trim($cancelReason);
+        if ($code === '') {
+            return [
+                'success' => false,
+                'provider_status' => null,
+                'message' => 'Voucher code is required for cancellation.',
+                'provider' => null,
+            ];
+        }
+        if ($cancelReason === '') {
+            return [
+                'success' => false,
+                'provider_status' => null,
+                'message' => 'Cancel reason is required for voucher cancellation.',
+                'provider' => null,
+            ];
+        }
+
+        $ctx = $this->authenticatedContext($credentials);
+        if (! $ctx['success']) {
+            Log::warning('SG Attractions voucher-cancel auth failed', [
+                'message' => $ctx['message'] ?? null,
+            ]);
+
+            return [
+                'success' => false,
+                'provider_status' => null,
+                'message' => $ctx['message'] ?? 'SG Attractions authentication failed',
+                'provider' => null,
+            ];
+        }
+
+        try {
+            $response = Http::timeout($ctx['timeout'])
+                ->withHeaders($this->headers($ctx['token']))
+                ->acceptJson()
+                ->asForm()
+                ->post($ctx['base_url'] . '/voucher/cancel', [
+                    'code' => $code,
+                    'cancel_reason' => $cancelReason,
+                    // Some provider builds accept "reason" — send both for compatibility.
+                    'reason' => $cancelReason,
+                ]);
+        } catch (\Throwable $e) {
+            Log::error('SG Attractions voucher-cancel request exception', [
+                'message' => $e->getMessage(),
+                'code' => $code,
+            ]);
+
+            return [
+                'success' => false,
+                'provider_status' => null,
+                'message' => $e->getMessage(),
+                'provider' => null,
+            ];
+        }
+
+        $body = $response->json();
+        if (! is_array($body)) {
+            $body = [];
+        }
+        $providerStatus = isset($body['status']) ? (int) $body['status'] : null;
+        $message = trim((string) ($body['message'] ?? ''));
+        $success = $response->successful() && ($providerStatus === 1000 || $providerStatus === null && $response->successful());
+
+        // Treat already-cancelled as success so local reject can complete.
+        if (! $success && $message !== '' && preg_match('/already\s+cancel|already\s+cancelled|not\s+found/i', $message)) {
+            $success = true;
+        }
+
+        Log::info($success ? 'SG Attractions voucher-cancel succeeded' : 'SG Attractions voucher-cancel failed', [
+            'http_status' => $response->status(),
+            'provider_status' => $providerStatus,
+            'message' => $message !== '' ? $message : null,
+            'code' => $code,
+        ]);
+
+        return [
+            'success' => $success,
+            'provider_status' => $providerStatus,
+            'message' => $message !== '' ? $message : ($success ? 'Voucher cancelled successfully.' : 'Voucher cancellation failed.'),
+            'provider' => $body,
+        ];
+    }
+
+    /**
      * GET /credits — account credit balance. Used on Confirmed approve, not on create.
      *
      * @param  array<string, string|null>  $credentials

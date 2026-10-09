@@ -388,6 +388,82 @@ class OnlineAttractionOrderService
     }
 
     /**
+     * Primary voucher code for cancel UI / API (first non-empty code).
+     *
+     * @param  array<string, mixed>  $attraction
+     */
+    public static function extractPrimaryVoucherCode(array $attraction): ?string
+    {
+        $top = trim((string) ($attraction['voucher_code'] ?? ''));
+        if ($top !== '') {
+            return $top;
+        }
+
+        foreach (self::extractStoredVouchers($attraction) as $voucher) {
+            $code = trim((string) ($voucher['code'] ?? $voucher['voucher_code'] ?? ''));
+            if ($code !== '') {
+                return $code;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Cancel a voucher with the Attractions supplier. Does not touch the database.
+     *
+     * @param  array<string, mixed>  $attraction
+     * @return array{success: bool, message: ?string, provider_status: ?int, provider: mixed}
+     */
+    public function cancelVoucher(string $code, string $cancelReason, array $attraction = []): array
+    {
+        $code = trim($code);
+        $cancelReason = trim($cancelReason);
+        if ($code === '') {
+            return [
+                'success' => false,
+                'message' => 'Voucher code is required.',
+                'provider_status' => null,
+                'provider' => null,
+            ];
+        }
+
+        try {
+            [$supplierCode, $credentials] = $this->resolveSupplier($attraction);
+            $adapter = $this->factory->make($supplierCode);
+            if (! method_exists($adapter, 'cancelVoucher')) {
+                return [
+                    'success' => false,
+                    'message' => 'Voucher cancellation is not available for this supplier.',
+                    'provider_status' => null,
+                    'provider' => null,
+                ];
+            }
+
+            $result = $adapter->cancelVoucher($code, $cancelReason, $credentials);
+
+            return [
+                'success' => (bool) ($result['success'] ?? false),
+                'message' => $result['message'] ?? null,
+                'provider_status' => $result['provider_status'] ?? null,
+                'provider' => $result['provider'] ?? null,
+            ];
+        } catch (Throwable $e) {
+            Log::error('Attraction voucher cancel exception', [
+                'code' => $code,
+                'message' => $e->getMessage(),
+            ]);
+
+            return [
+                'success' => false,
+                'message' => $e->getMessage(),
+                'provider_status' => null,
+                'provider' => null,
+            ];
+        }
+    }
+
+    /**
      * GET /order/details for a paid AttractionsSG order. Does not touch the database.
      *
      * @param  array<string, mixed>  $attraction
@@ -459,6 +535,17 @@ class OnlineAttractionOrderService
         }
         if ($vouchers !== []) {
             $attraction['vouchers'] = $vouchers;
+            $first = $vouchers[0] ?? null;
+            if (is_array($first)) {
+                $code = trim((string) ($first['code'] ?? $first['voucher_code'] ?? ''));
+                $download = trim((string) ($first['download_link'] ?? $first['voucher'] ?? ''));
+                if ($code !== '') {
+                    $attraction['voucher_code'] = $code;
+                }
+                if ($download !== '') {
+                    $attraction['voucher_download_link'] = $download;
+                }
+            }
         }
         if ($status !== null && $status !== '') {
             $attraction['external_order_status'] = $status;
