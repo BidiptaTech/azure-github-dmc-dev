@@ -349,6 +349,15 @@
         if (sellInput && !sellUserEdited) sellInput.value = epFmt(combo.sell);
     };
 
+    function epIsOnlineHotelSource(source) {
+        return !!(source && (
+            source.isOnlineHotel
+            || source.hotelSourceType === 'online'
+            || source.priceMode === 'online'
+            || source.onlineHotelBooking
+        ));
+    }
+
     window.enquiryProBuildHotelPriceBreakdown = function (source) {
         const combo = {
             roomData: source?.roomData || source?.bedData || {},
@@ -363,6 +372,67 @@
             rooms: source?.rooms || 1
         };
         const dates = epDatesForSource(source, combo);
+
+        // Online hotels have no DMC weekday/season catalog — use stored avg cost/sell (equal) per night.
+        if (epIsOnlineHotelSource(source)) {
+            const nCount = Math.max(1, dates.length || parseInt(source.nights, 10) || 0);
+            const stayDates = dates.length ? dates : Array.from({ length: nCount }, function (_, i) {
+                return 'Night ' + (i + 1);
+            });
+            const rooms = Math.max(1, parseInt(source.rooms || combo.rooms || 1, 10) || 1);
+            let perNight = parseFloat(source.avgCost || source.avgSell || source.cost || source.sell || source.roomPrice || 0) || 0;
+            const stayTotal = parseFloat(source.totalPrice || source.grand_total || 0) || 0;
+            if (!(perNight > 0) && stayTotal > 0 && stayDates.length > 0) {
+                perNight = stayTotal / stayDates.length;
+            }
+            perNight = Math.round(perNight * 100) / 100;
+            const nights = stayDates.map(function (d, i) {
+                const dt = String(d || '');
+                const isIso = /^\d{4}-\d{2}-\d{2}/.test(dt);
+                const dateObj = isIso ? new Date(dt.substring(0, 10) + 'T12:00:00') : null;
+                const weekend = dateObj && typeof isWeekendDate === 'function' ? isWeekendDate(dateObj, []) : false;
+                return {
+                    date: isIso ? dt.substring(0, 10) : dt,
+                    day: weekend ? 'Weekend' : 'Weekday',
+                    eventType: 'Online',
+                    eventName: 'Live API',
+                    roomCostBase: perNight,
+                    roomCost: perNight,
+                    costSurcharge: 0,
+                    mealCost: 0,
+                    breakfastCost: 0,
+                    lunchCost: 0,
+                    dinnerCost: 0,
+                    cost: perNight,
+                    roomSellBase: perNight,
+                    surcharge: 0,
+                    roomSell: perNight,
+                    mealSell: 0,
+                    breakfast: 0,
+                    lunch: 0,
+                    dinner: 0,
+                    sell: perNight
+                };
+            });
+            const avg = perNight;
+            const stay = Math.round(perNight * nights.length * 100) / 100;
+            const roomStay = stay;
+            return {
+                combo,
+                nights,
+                avgCost: avg,
+                avgSell: avg,
+                staySellTotal: stay,
+                stayCostTotal: stay,
+                roomCostTotal: roomStay,
+                roomSellTotal: roomStay,
+                mealCostTotal: 0,
+                mealSellTotal: 0,
+                fairSellTotal: 0,
+                fairCostTotal: 0
+            };
+        }
+
         const rates = epRatesForSource(combo);
         const nights = dates.map(d => {
             const cost = enquiryProLodgingPriceForNight(combo, d, rates, true);
@@ -658,14 +728,22 @@
 
         const nightCards = data.nights.map((n, i) => {
             const sellParts = [];
-            if (n.roomSellBase > 0) sellParts.push(`Room ${epFmt(n.roomSellBase)}`);
+            if (n.eventType === 'Online') {
+                sellParts.push(`Online room ${epFmt(n.sell)}`);
+            } else if (n.roomSellBase > 0) {
+                sellParts.push(`Room ${epFmt(n.roomSellBase)}`);
+            }
             if (n.surcharge > 0) sellParts.push(`Fair ${epFmt(n.surcharge)}`);
             if (n.breakfast > 0) sellParts.push(`Breakfast ${epFmt(n.breakfast)}`);
             if (n.lunch > 0) sellParts.push(`Lunch ${epFmt(n.lunch)}`);
             if (n.dinner > 0) sellParts.push(`Dinner ${epFmt(n.dinner)}`);
 
             const costParts = [];
-            if (n.roomCostBase > 0) costParts.push(`Room ${epFmt(n.roomCostBase)}`);
+            if (n.eventType === 'Online') {
+                costParts.push(`Online room ${epFmt(n.cost)}`);
+            } else if (n.roomCostBase > 0) {
+                costParts.push(`Room ${epFmt(n.roomCostBase)}`);
+            }
             if (n.costSurcharge > 0) costParts.push(`Fair ${epFmt(n.costSurcharge)}`);
             if (n.breakfastCost > 0) costParts.push(`Breakfast ${epFmt(n.breakfastCost)}`);
             if (n.lunchCost > 0) costParts.push(`Lunch ${epFmt(n.lunchCost)}`);
@@ -766,6 +844,7 @@
     }
 
     window.enquiryProHotelNeedsCatalogEnrich = function (hotel) {
+        if (epIsOnlineHotelSource(hotel)) return false;
         const room = hotel?.roomData || {};
         const weekday = epNum(room.weekday_price || room.weekdayPrice, 0);
         const doubleWd = epNum(room.double_weekday_price || room.doubleWeekdayPrice, 0);
@@ -829,6 +908,7 @@
     window.enquiryProEnrichHotelCatalogPricing = async function (hotel, options) {
         const opts = options || {};
         if (!hotel) return hotel;
+        if (epIsOnlineHotelSource(hotel)) return hotel;
         const preserveStored = opts.preserveStoredPricing === true
             || !!(hotel.orderId || hotel.bookingId || hotel.savedSelectedMeals || hotel.savedTotalPrice);
         const needs = enquiryProHotelNeedsCatalogEnrich(hotel);

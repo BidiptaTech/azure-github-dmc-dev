@@ -496,6 +496,12 @@ class HotelBookingController extends Controller
                         'credits_message' => $creditsMessage,
                         'required_credits_amount' => $requiredCreditsAmount,
                         'vouchers' => $orderVouchers,
+                        'voucher_code' => is_array($booking)
+                            ? OnlineAttractionOrderService::extractPrimaryVoucherCode($booking)
+                            : null,
+                        'voucher_download_link' => is_array($booking)
+                            ? ($booking['voucher_download_link'] ?? null)
+                            : null,
                         'order_details' => is_array($booking) ? ($booking['order_details'] ?? null) : null,
                     ]
                 ]
@@ -3736,6 +3742,12 @@ class HotelBookingController extends Controller
                     'upload_errors' => $uploadErrors,
                     'order_ref_id' => $savedExternalRef ?? null,
                     'vouchers' => $orderVouchers ?? [],
+                    'voucher_code' => is_array($booking ?? null)
+                        ? OnlineAttractionOrderService::extractPrimaryVoucherCode($booking)
+                        : null,
+                    'voucher_download_link' => is_array($booking ?? null)
+                        ? ($booking['voucher_download_link'] ?? null)
+                        : null,
                     'attraction_details' => $booking ?? [],
                 ]
             ]);
@@ -4099,7 +4111,9 @@ class HotelBookingController extends Controller
                 'tour_id' => 'required|integer',
                 'attraction_order_index' => 'required|integer|min:0',
                 'booking_index' => 'required|integer|min:0',
-                'cancel_reason' => 'required|string'
+                'cancel_reason' => 'required|string',
+                'voucher_code' => 'nullable|string|max:255',
+                'attraction_order_id' => 'nullable|integer|min:1',
             ]);
 
             if ($validator->fails()) {
@@ -4113,16 +4127,15 @@ class HotelBookingController extends Controller
             $tourId = $request->tour_id;
             $attractionOrderIndex = $request->attraction_order_index;
             $bookingIndex = $request->booking_index;
-            $cancelReason = $request->cancel_reason;
+            $cancelReason = trim((string) $request->cancel_reason);
+            $requestedVoucherCode = trim((string) ($request->voucher_code ?? ''));
 
             // Find the attraction order in the orders table
-            $attractionOrder = DB::table('orders')
-                ->where('tour_id', $tourId)
-                ->where('type', 'attraction')
-                ->whereNull('deleted_at') // Only get non-deleted orders
-                // ->orderBy('id')
-                ->skip($attractionOrderIndex)
-                ->first();
+            $attractionOrder = $this->findTourAttractionOrder(
+                (int) $tourId,
+                (int) $attractionOrderIndex,
+                $request->attraction_order_id
+            );
 
             // Log the search criteria and result
             Log::info('Searching for attraction order for rejection', [
@@ -4139,12 +4152,72 @@ class HotelBookingController extends Controller
                 ], 404);
             }
 
-            // Check if the booking is already approved
-            if ($attractionOrder->is_approve == 1) {
+            $attractionData = json_decode($attractionOrder->data, true);
+            if (! is_array($attractionData)) {
+                $attractionData = [];
+            }
+            $booking = is_array($attractionData[$bookingIndex] ?? null)
+                ? $attractionData[$bookingIndex]
+                : (is_array($attractionData[0] ?? null) ? $attractionData[0] : (is_array($attractionData) ? $attractionData : []));
+            if (! is_array($booking)) {
+                $booking = [];
+            }
+
+            $isOnline = ((string) ($attractionOrder->order_type ?? '') === 'online')
+                || OnlineAttractionOrderService::isOnlineAttraction($booking);
+            $storedVoucherCode = OnlineAttractionOrderService::extractPrimaryVoucherCode($booking);
+            $voucherCode = $requestedVoucherCode !== '' ? $requestedVoucherCode : (string) ($storedVoucherCode ?? '');
+            $hasVoucher = $voucherCode !== '';
+            $isApproved = (int) ($attractionOrder->is_approve ?? 0) === 1;
+
+            // Offline / unpaid: keep previous rule (cannot reject after approve).
+            // Online with voucher: allow cancel-after-approve via Attractions cancel-voucher API.
+            if ($isApproved && ! ($isOnline && $hasVoucher)) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Cannot reject an already approved booking'
                 ], 400);
+            }
+
+            if ($isOnline && $hasVoucher && $requestedVoucherCode === '') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Voucher code is required to cancel this online attraction booking.',
+                    'errors' => ['voucher_code' => ['Voucher code is required.']]
+                ], 422);
+            }
+
+            $voucherCancelResult = null;
+            if ($isOnline && $hasVoucher) {
+                $voucherCancelResult = app(OnlineAttractionOrderService::class)
+                    ->cancelVoucher($voucherCode, $cancelReason, $booking);
+
+                if (empty($voucherCancelResult['success'])) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => $voucherCancelResult['message']
+                            ?: 'Provider voucher cancellation failed. Booking was not rejected.',
+                        'data' => [
+                            'voucher_cancel' => $voucherCancelResult,
+                            'voucher_code' => $voucherCode,
+                        ],
+                    ], 422);
+                }
+
+                $booking['voucher_cancelled'] = true;
+                $booking['voucher_cancel_reason'] = $cancelReason;
+                $booking['voucher_cancelled_at'] = now()->toIso8601String();
+                $booking['voucher_cancel_response'] = [
+                    'message' => $voucherCancelResult['message'] ?? null,
+                    'provider_status' => $voucherCancelResult['provider_status'] ?? null,
+                ];
+                if (isset($attractionData[$bookingIndex]) && is_array($attractionData[$bookingIndex])) {
+                    $attractionData[$bookingIndex] = $booking;
+                } elseif (isset($attractionData[0]) && is_array($attractionData[0])) {
+                    $attractionData[0] = $booking;
+                } else {
+                    $attractionData = [$booking];
+                }
             }
 
             // Update the orders table with rejection data and soft delete
@@ -4153,6 +4226,9 @@ class HotelBookingController extends Controller
                 'deleted_at' => now(), // Soft delete
                 'updated_at' => now(),
             ]);
+            if ($isOnline && $hasVoucher) {
+                $updateData['data'] = json_encode($attractionData);
+            }
 
             // Update the order
             $updated = DB::table('orders')
@@ -4171,18 +4247,29 @@ class HotelBookingController extends Controller
                 'tour_id' => $tourId,
                 'attraction_order_id' => $attractionOrder->id,
                 'cancel_reason' => $cancelReason,
+                'is_online' => $isOnline,
+                'voucher_code' => $hasVoucher ? $voucherCode : null,
+                'voucher_cancel_message' => $voucherCancelResult['message'] ?? null,
                 'deleted_at' => now()
             ]);
 
             CommonHelper::maybeRevertTourStatusToNewEnquiry((int) $tourId);
 
+            $message = 'Attraction booking rejected successfully';
+            if ($isOnline && $hasVoucher) {
+                $message = 'Online attraction voucher cancelled and booking rejected successfully.';
+            }
+
             return response()->json([
                 'success' => true,
-                'message' => 'Attraction booking rejected successfully',
+                'message' => $message,
                 'data' => [
                     'tour_id' => $tourId,
                     'attraction_order_id' => $attractionOrder->id,
                     'cancel_reason' => $cancelReason,
+                    'voucher_code' => $hasVoucher ? $voucherCode : null,
+                    'voucher_cancel' => $voucherCancelResult,
+                    'is_online_attraction' => $isOnline,
                     'deleted_at' => now()->toISOString()
                 ]
             ]);

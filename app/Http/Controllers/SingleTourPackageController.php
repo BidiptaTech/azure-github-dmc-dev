@@ -1794,7 +1794,7 @@ class SingleTourPackageController extends Controller
 
         $firstOrder = $orders->first();
         $customer_info = [];
-        // Prefer tour->mainguest (updated via Save Guest Changes) over Order data
+        // Prefer tour->mainguest, but fill empty fields (esp. email) from order service JSON
         $mainGuest = $tour->mainguest;
         if (is_array($mainGuest) && !empty(array_filter($mainGuest))) {
             $customer_info['salutation'] = $mainGuest['salutation'] ?? '';
@@ -1807,21 +1807,37 @@ class SingleTourPackageController extends Controller
             $customer_info['state'] = $mainGuest['state'] ?? '';
             $customer_info['zip'] = $mainGuest['zip'] ?? '';
             $customer_info['specialRequests'] = $mainGuest['special_requests'] ?? $mainGuest['specialRequests'] ?? '';
-        } elseif ($firstOrder && $firstOrder->data) {
+            $customer_info['passport'] = $mainGuest['passport'] ?? $mainGuest['passport_no'] ?? '';
+            $customer_info['passport_exp'] = $mainGuest['passport_exp'] ?? $mainGuest['passport_expiry'] ?? '';
+        }
+        if ($firstOrder && $firstOrder->data) {
             $firstOrderData = is_array($firstOrder->data) ? $firstOrder->data : json_decode($firstOrder->data, true);
             if (isset($firstOrderData[0])) {
                 $firstOrderData = $firstOrderData[0];
             }
-            $customer_info['salutation'] = $firstOrderData['salutation'] ?? '';
-            $customer_info['fullName'] = $firstOrderData['fullName'] ?? '';
-            $customer_info['email'] = $firstOrderData['email'] ?? '';
-            $customer_info['phone'] = $firstOrderData['phone'] ?? '';
-            $customer_info['countryCode'] = $firstOrderData['countryCode'] ?? '';
-            $customer_info['address1'] = $firstOrderData['address1'] ?? '';
-            $customer_info['address2'] = $firstOrderData['address2'] ?? '';
-            $customer_info['state'] = $firstOrderData['state'] ?? '';
-            $customer_info['zip'] = $firstOrderData['zip'] ?? '';
-            $customer_info['specialRequests'] = $firstOrderData['specialRequests'] ?? '';
+            if (is_array($firstOrderData)) {
+                $orderMap = [
+                    'salutation' => $firstOrderData['salutation'] ?? '',
+                    'fullName' => $firstOrderData['fullName'] ?? ($firstOrderData['full_name'] ?? ''),
+                    'email' => $firstOrderData['email'] ?? '',
+                    'phone' => $firstOrderData['phone'] ?? '',
+                    'countryCode' => $firstOrderData['countryCode'] ?? ($firstOrderData['country_code'] ?? ''),
+                    'address1' => $firstOrderData['address1'] ?? '',
+                    'address2' => $firstOrderData['address2'] ?? '',
+                    'state' => $firstOrderData['state'] ?? '',
+                    'zip' => $firstOrderData['zip'] ?? '',
+                    'specialRequests' => $firstOrderData['specialRequests'] ?? ($firstOrderData['special_requests'] ?? ''),
+                    'passport' => $firstOrderData['passport'] ?? ($firstOrderData['passport_no'] ?? ''),
+                    'passport_exp' => $firstOrderData['passport_exp'] ?? ($firstOrderData['passport_expiry'] ?? ''),
+                ];
+                foreach ($orderMap as $key => $val) {
+                    $current = trim((string) ($customer_info[$key] ?? ''));
+                    $incoming = trim((string) $val);
+                    if ($current === '' && $incoming !== '') {
+                        $customer_info[$key] = $incoming;
+                    }
+                }
+            }
         }
 
         $hotelOrders = [];
@@ -1960,7 +1976,8 @@ class SingleTourPackageController extends Controller
             ? Agent::where('agent_id', $tour->agent_id)->first()
             : null;
         $enquiry = (object) [
-            'reference_number' => $tour->reference_number ?? '',
+            // DB column is reference_id (form field name remains reference_number)
+            'reference_number' => $tour->reference_id ?? '',
             'country' => is_string($tour->destination) ? trim(explode(',', $tour->destination)[0]) : '',
             'check_in_time' => $tour->check_in_time,
             'check_out_time' => $tour->check_out_time,
@@ -6320,6 +6337,13 @@ class SingleTourPackageController extends Controller
                             }
                             
                         } elseif ($type === 'attraction') {
+                            // Call Attractions /order/create outside the per-row loop (Lite + Pro parity).
+                            // Reuses existing/cached order_ref_id so retries do not duplicate external orders.
+                            $attractionExternalRefs = $this->createOnlineAttractionExternalOrders(
+                                $decodedData,
+                                (int) $tourId
+                            );
+
                             // For attractions, store each attraction as a separate order
                             foreach ($decodedData as $attractionIndex => $attraction) {
                                 // Ensure attraction has proper price field (use totalPrice from frontend calculation)

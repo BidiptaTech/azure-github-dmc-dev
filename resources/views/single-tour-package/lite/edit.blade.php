@@ -33,9 +33,9 @@
     if (!is_array($mainGuest)) {
         $mainGuest = [];
     }
-    // Prefer order/customer_info when mainguest empty
-    if (empty(array_filter($mainGuest)) && !empty($customer_info)) {
-        $mainGuest = [
+    // Fill gaps from order/customer_info (mainguest often has name/phone but empty email)
+    if (!empty($customer_info)) {
+        $fillMap = [
             'salutation' => $customer_info['salutation'] ?? '',
             'full_name' => $customer_info['fullName'] ?? ($customer_info['full_name'] ?? ''),
             'email' => $customer_info['email'] ?? '',
@@ -49,6 +49,13 @@
             'passport' => $customer_info['passport'] ?? ($customer_info['passport_no'] ?? ''),
             'passport_exp' => $customer_info['passport_exp'] ?? ($customer_info['passport_expiry'] ?? ''),
         ];
+        foreach ($fillMap as $key => $val) {
+            $current = trim((string) ($mainGuest[$key] ?? ''));
+            $incoming = trim((string) $val);
+            if ($current === '' && $incoming !== '') {
+                $mainGuest[$key] = $incoming;
+            }
+        }
     }
 
     $additionalGuests = $tour->additionalguest ?? null;
@@ -156,7 +163,7 @@ window.STP_LITE_EDIT = {
     childAges: @json($tour->child_ages ?? []),
     agentId: @json((string) ($tour->agent_id ?? '')),
     agencyId: @json($editAgencyId),
-    referenceNumber: @json($tour->reference_number ?? ''),
+    referenceNumber: @json($tour->reference_id ?? ($enquiry->reference_number ?? '')),
     customer: @json($customer_info),
     mainGuest: @json($mainGuest),
     additionalGuests: @json($additionalGuests),
