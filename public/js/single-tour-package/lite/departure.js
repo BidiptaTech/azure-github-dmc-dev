@@ -307,34 +307,45 @@
         }
         var vehCount = readVehicleCount(root, '.departure-vehicle-count');
         priced = applyPrivateVehicleCount(priced, vehCount);
-        root.__lastPrice = priced;
         var cur = root.getAttribute('data-currency') || 'SGD';
-        var panel = root.querySelector('[data-departure-price-panel]');
-        var totalEl = root.querySelector('.departure-price-total');
-        var detail = root.querySelector('.departure-price-detail');
-        if (panel) panel.classList.remove('d-none');
-        if (totalEl) totalEl.textContent = cur + ' ' + Number(priced.total || 0).toFixed(2);
-        if (detail) {
-            var curLabel = cur;
-            if (String(svc).toLowerCase() === 'shared' && typeof T.vehiclePriceDetailHtml === 'function') {
-                detail.innerHTML = T.vehiclePriceDetailHtml({
-                    type: 'shared',
-                    mode: priced.mode || 'shared',
-                    adults: adultsEl ? adultsEl.value : 1,
-                    children: childrenEl ? childrenEl.value : 0,
-                    adultUnit: priced.adultUnit,
-                    childUnit: priced.childUnit,
-                    shared_price: opt.dataset.sharedPrice,
-                    unit: priced.unit,
-                    total: priced.total,
-                    vehicle_count: vehCount
-                }, curLabel);
-            } else {
-                var src = priced.source === 'zone' ? 'Zone price' : (priced.source === 'base' ? 'Base price' : '');
-                detail.textContent = (priced.mode || svc) + (src ? ' · ' + src : '') +
-                    (vehCount > 1 ? ' · ' + vehCount + ' vehicles' : '') +
-                    ' · ' + (opt.dataset.vehicleName || opt.textContent);
-            }
+        var detailHtml = '';
+        if (String(svc).toLowerCase() === 'shared' && typeof T.vehiclePriceDetailHtml === 'function') {
+            detailHtml = T.vehiclePriceDetailHtml({
+                type: 'shared',
+                mode: priced.mode || 'shared',
+                adults: adultsEl ? adultsEl.value : 1,
+                children: childrenEl ? childrenEl.value : 0,
+                adultUnit: priced.adultUnit,
+                childUnit: priced.childUnit,
+                shared_price: opt.dataset.sharedPrice,
+                unit: priced.unit,
+                total: priced.total,
+                vehicle_count: vehCount
+            }, cur);
+        } else {
+            var src = priced.source === 'zone' ? 'Zone price' : (priced.source === 'base' ? 'Base price' : '');
+            detailHtml = (priced.mode || svc) + (src ? ' · ' + src : '') +
+                (vehCount > 1 ? ' · ' + vehCount + ' vehicles' : '') +
+                ' · ' + (opt.dataset.vehicleName || opt.textContent);
+        }
+        var applied = (window.StpLiteDmcMarkup && typeof window.StpLiteDmcMarkup.apply === 'function')
+            ? window.StpLiteDmcMarkup.apply(priced.total || 0, 'other')
+            : { base_price: Number(priced.total || 0), markup_amount: 0, price: Number(priced.total || 0) };
+        root.__lastPrice = Object.assign({}, priced, {
+            total: applied.price,
+            baseTotal: applied.base_price,
+            markupAmount: applied.markup_amount,
+            dmc_profile_markup: applied
+        });
+        if (window.StpLiteDmcMarkup && typeof window.StpLiteDmcMarkup.fillPricePanel === 'function') {
+            window.StpLiteDmcMarkup.fillPricePanel(root, 'departure', cur, priced.total || 0, detailHtml);
+        } else {
+            var panel = root.querySelector('[data-departure-price-panel]');
+            var totalEl = root.querySelector('.departure-price-total');
+            var detail = root.querySelector('.departure-price-detail');
+            if (panel) panel.classList.remove('d-none');
+            if (totalEl) totalEl.textContent = cur + ' ' + Number(applied.price || 0).toFixed(2);
+            if (detail) detail.innerHTML = detailHtml;
         }
         var add = root.querySelector('.departure-add-btn');
         if (add) add.disabled = false;

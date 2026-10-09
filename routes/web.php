@@ -130,6 +130,7 @@ Route::get('/clear', function () {
             // Tour prices route
             Route::get('/user/profile', [UserController::class, 'profile'])->name('user.profile');
             Route::post('/user/profile', [UserController::class, 'updateProfile'])->name('user.profile.update');
+            Route::post('/user/profile/markup', [UserController::class, 'updateProfileMarkup'])->name('user.profile.markup.update');
             Route::post('/user/password', [UserController::class, 'updatePassword'])->name('user.password.update');
             Route::get('/user/account-status', function () {
                 $user = Auth::user();
@@ -209,6 +210,7 @@ Route::get('/clear', function () {
             Route::get('/services/agencies', [AgencyController::class, 'dmcAgenciesSelection'])->name('services.agencies');
             Route::post('/services/agencies/select', [AgencyController::class, 'selectAgency'])->name('services.agencies.select');
             Route::post('/services/agencies/remove', [AgencyController::class, 'removeAgency'])->name('services.agencies.remove');
+            Route::post('/services/agencies/special-discount', [AgencyController::class, 'updateSpecialDiscount'])->name('services.agencies.special-discount');
             
             // Miscellaneous Items - Admin Routes (Product Level 1)
             Route::prefix('miscellaneous')->group(function () {

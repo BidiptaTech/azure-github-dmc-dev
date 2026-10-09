@@ -135,7 +135,9 @@
         </div>
     </div>
 
-    @include('single-tour-package.lite.partials.07-pricing-by-city')
+    {{-- Pricing by city UI removed; keep hidden fields for save payload compatibility --}}
+    <input type="hidden" id="discount_price" name="discount_price" value="{{ old('discount_price', isset($tour) ? (int) ceil((float) ($tour->discount_amount ?? 0)) : 0) }}">
+    <input type="hidden" id="currency_markups" name="currency_markups" value="[]">
 
     <div class="d-flex justify-content-end align-items-center gap-2 mt-3 mb-4 flex-wrap">
         <small class="text-muted me-auto" id="stpLiteSaveHint">

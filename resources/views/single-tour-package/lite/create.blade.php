@@ -69,6 +69,7 @@
 <script src="{{ asset('js/single-tour-package/lite/country-mode.js') }}?v={{ filemtime(public_path('js/single-tour-package/lite/country-mode.js')) }}"></script>
 <script src="{{ asset('js/single-tour-package/lite/tour-details.js') }}?v={{ filemtime(public_path('js/single-tour-package/lite/tour-details.js')) }}"></script>
 <script src="{{ asset('js/single-tour-package/lite/accordion-manager.js') }}?v={{ filemtime(public_path('js/single-tour-package/lite/accordion-manager.js')) }}"></script>
+<script src="{{ asset('js/single-tour-package/lite/dmc-markup.js') }}?v={{ filemtime(public_path('js/single-tour-package/lite/dmc-markup.js')) }}"></script>
 <script src="{{ asset('js/single-tour-package/lite/hotel.js') }}?v={{ filemtime(public_path('js/single-tour-package/lite/hotel.js')) }}"></script>
 <script src="{{ asset('js/single-tour-package/lite/transport-shared.js') }}?v={{ filemtime(public_path('js/single-tour-package/lite/transport-shared.js')) }}"></script>
 <script src="{{ asset('js/single-tour-package/lite/arrival.js') }}?v={{ filemtime(public_path('js/single-tour-package/lite/arrival.js')) }}"></script>
@@ -80,7 +81,6 @@
 <script src="{{ asset('js/single-tour-package/lite/miscellaneous.js') }}?v={{ filemtime(public_path('js/single-tour-package/lite/miscellaneous.js')) }}"></script>
 <script src="{{ asset('js/single-tour-package/lite/country-segments.js') }}?v={{ filemtime(public_path('js/single-tour-package/lite/country-segments.js')) }}"></script>
 <script src="{{ asset('js/single-tour-package/lite/guests.js') }}?v={{ filemtime(public_path('js/single-tour-package/lite/guests.js')) }}"></script>
-<script src="{{ asset('js/single-tour-package/lite/city-markup.js') }}?v={{ filemtime(public_path('js/single-tour-package/lite/city-markup.js')) }}"></script>
 <script src="{{ asset('js/single-tour-package/lite/submit.js') }}?v={{ filemtime(public_path('js/single-tour-package/lite/submit.js')) }}"></script>
 <script src="{{ asset('js/single-tour-package/lite/main.js') }}?v={{ filemtime(public_path('js/single-tour-package/lite/main.js')) }}"></script>
 @endsection

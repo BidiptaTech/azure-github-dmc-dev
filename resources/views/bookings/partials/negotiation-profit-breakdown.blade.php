@@ -51,6 +51,78 @@
         background: transparent;
     }
 
+    /* Single profile markup + agency discount strip (not per-country) */
+    .nego-profile-markup-once {
+        background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+        border: 1px solid #e2e8f0;
+        border-radius: 0.7rem;
+        padding: 0.75rem 0.95rem;
+        margin-bottom: 0.85rem;
+    }
+    .nego-profile-markup-once__head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 0.35rem 0.75rem;
+        margin-bottom: 0.65rem;
+    }
+    .nego-profile-markup-once__title {
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: #334155;
+    }
+    .nego-profile-markup-once__hint {
+        font-size: 0.72rem;
+        color: #64748b;
+    }
+    .nego-profile-markup-once__grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 0.65rem;
+    }
+    @media (max-width: 720px) {
+        .nego-profile-markup-once__grid { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 520px) {
+        .nego-profile-markup-once__grid { grid-template-columns: 1fr; }
+    }
+    .nego-profile-markup-once__cell {
+        background: #fff;
+        border: 1px solid #e5e9f0;
+        border-radius: 0.55rem;
+        padding: 0.55rem 0.7rem;
+    }
+    .nego-profile-markup-once__cell.is-discount {
+        border-color: #bbf7d0;
+        background: #f0fdf4;
+    }
+    .nego-profile-markup-once__cell .negotiation-label {
+        display: block;
+        margin-bottom: 0.2rem;
+    }
+    .nego-profile-markup-once__value {
+        display: flex;
+        align-items: baseline;
+        gap: 0.35rem;
+        font-variant-numeric: tabular-nums;
+    }
+    .nego-profile-markup-once__value strong {
+        font-size: 1.15rem;
+        color: #0f172a;
+        letter-spacing: -0.02em;
+    }
+    .nego-profile-markup-once__suffix {
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: #64748b;
+    }
+    .nego-profile-markup-once__cell .input-group-sm > .form-control {
+        font-weight: 600;
+    }
+
     /* Left: country offer cards */
     #agentNegotiationModal .negotiation-pricing-summary {
         position: relative;
@@ -388,6 +460,210 @@
     }
 </style>
 <script>
+    {{-- DMC profile markup_json (hotel / other) — negotiation fields are read-only from this --}}
+    window.STP_DMC_PROFILE_MARKUP = @json(\App\Helpers\CommonHelper::getDmcProfileMarkupConfig(auth()->user()));
+
+    window.getNegotiationProfileMarkup = function () {
+        var cfg = window.STP_DMC_PROFILE_MARKUP || {};
+        var hotel = cfg.hotel || {};
+        var other = cfg.other || {};
+        var normType = function (t) {
+            t = String(t || 'percentage').toLowerCase();
+            if (t === 'fixed') t = 'flat';
+            return t === 'flat' ? 'flat' : 'percentage';
+        };
+        return {
+            hotelType: normType(hotel.markup_type),
+            otherType: normType(other.markup_type),
+            hotelRaw: Math.max(0, Number(hotel.markup_value) || 0),
+            otherRaw: Math.max(0, Number(other.markup_value) || 0),
+            dmcId: cfg.dmc_id || null
+        };
+    };
+
+    /** Resolve profile markup + display suffixes (once for all countries). */
+    window.resolveNegotiationMarkupFromProfile = function (currency) {
+        var p = window.getNegotiationProfileMarkup();
+        var cur = String(currency || '').trim() || 'AMT';
+        return {
+            hotelType: p.hotelType,
+            otherType: p.otherType,
+            hotelRaw: p.hotelRaw,
+            otherRaw: p.otherRaw,
+            hotelSuffix: p.hotelType === 'percentage' ? '%' : 'Flat',
+            otherSuffix: p.otherType === 'percentage' ? '%' : 'Flat',
+            hotelMoneySuffix: p.hotelType === 'percentage' ? '%' : cur,
+            otherMoneySuffix: p.otherType === 'percentage' ? '%' : cur,
+            markupType: p.hotelType
+        };
+    };
+
+    /**
+     * Prefer live DMC profile markup; fall back to server country-group values
+     * (tour DMC) when the session has no operating DMC profile.
+     */
+    window.resolveNegotiationMarkupForGroup = function (group, currency) {
+        group = group || {};
+        var cfg = window.STP_DMC_PROFILE_MARKUP || {};
+        if (cfg && Number(cfg.dmc_id || 0) > 0 && typeof window.resolveNegotiationMarkupFromProfile === 'function') {
+            return window.resolveNegotiationMarkupFromProfile(currency);
+        }
+        var hotelType = String(group.hotel_markup_type || group.markup_type || 'percentage').toLowerCase();
+        var otherType = String(group.other_markup_type || group.markup_type || 'percentage').toLowerCase();
+        if (hotelType === 'fixed') hotelType = 'flat';
+        if (otherType === 'fixed') otherType = 'flat';
+        if (hotelType !== 'flat') hotelType = 'percentage';
+        if (otherType !== 'flat') otherType = 'percentage';
+        var cur = String(currency || '').trim() || 'AMT';
+        return {
+            hotelType: hotelType,
+            otherType: otherType,
+            hotelRaw: Math.max(0, Number(group.hotel_markup_raw != null ? group.hotel_markup_raw : (group.markup_raw || 0)) || 0),
+            otherRaw: Math.max(0, Number(group.other_markup_raw != null ? group.other_markup_raw : 0) || 0),
+            hotelSuffix: hotelType === 'percentage' ? '%' : 'Flat',
+            otherSuffix: otherType === 'percentage' ? '%' : 'Flat',
+            hotelMoneySuffix: hotelType === 'percentage' ? '%' : cur,
+            otherMoneySuffix: otherType === 'percentage' ? '%' : cur,
+            markupType: hotelType
+        };
+    };
+
+    /**
+     * Resolve once-discount defaults from country groups (agency special_discount).
+     * Optional agentOffers can override with the latest negotiated discount.
+     */
+    window.resolveNegotiationDiscountOnce = function (groups, agentOffers) {
+        var discountType = 'percentage';
+        var discountRaw = 0;
+        var first = (Array.isArray(groups) && groups.length) ? groups[0] : {};
+        if (first && (first.discount_type || first.discount_raw != null || first.discount != null)) {
+            discountType = String(first.discount_type || 'percentage').toLowerCase();
+            discountRaw = Number(first.discount_raw != null ? first.discount_raw : (first.discount || 0)) || 0;
+        }
+        if (Array.isArray(agentOffers) && agentOffers.length) {
+            for (var i = 0; i < agentOffers.length; i++) {
+                var offer = agentOffers[i] || {};
+                if (offer.discount_type != null || offer.discount_value != null) {
+                    discountType = String(offer.discount_type || discountType || 'percentage').toLowerCase();
+                    discountRaw = Number(offer.discount_value != null ? offer.discount_value : discountRaw) || 0;
+                    break;
+                }
+            }
+        }
+        if (discountType === 'fixed') discountType = 'flat';
+        if (discountType !== 'flat' && discountType !== 'foc') discountType = 'percentage';
+        return {
+            discountType: discountType,
+            discountRaw: Math.max(0, discountRaw),
+            discountSuffix: discountType === 'percentage' ? '%' : (discountType === 'foc' ? 'FOC' : 'Flat')
+        };
+    };
+
+    window.readNegotiationProfileDiscountOnce = function (hostEl) {
+        if (!hostEl) return null;
+        var wrap = hostEl.querySelector('[data-nego-profile-markup]') || hostEl;
+        var typeEl = wrap.querySelector('.nego-profile-discount-type');
+        var inputEl = wrap.querySelector('.nego-profile-discount-input');
+        if (!typeEl && !inputEl) return null;
+        var discountType = String((typeEl && typeEl.value) || 'percentage').toLowerCase();
+        if (discountType === 'fixed') discountType = 'flat';
+        if (discountType !== 'flat' && discountType !== 'foc') discountType = 'percentage';
+        var discountRaw = Math.max(0, parseFloat(inputEl && inputEl.value != null ? inputEl.value : 0) || 0);
+        return { discountType: discountType, discountRaw: discountRaw };
+    };
+
+    /**
+     * Apply once-discount to every country card (data attrs + hiddens), then invoke per-card sync.
+     */
+    window.applyNegotiationProfileDiscountOnceToCards = function (hostEl, cardsRoot, syncCardFn) {
+        var disc = (typeof window.readNegotiationProfileDiscountOnce === 'function')
+            ? window.readNegotiationProfileDiscountOnce(hostEl)
+            : null;
+        if (!disc || !cardsRoot) return disc;
+        cardsRoot.querySelectorAll('.negotiation-pricing-summary').forEach(function (card) {
+            var offerInput = card.querySelector('.dmc-nego-offer-input, .agent-nego-offer-input');
+            if (offerInput) {
+                offerInput.setAttribute('data-discount-type', disc.discountType);
+            }
+            var typeHidden = card.querySelector('input[name*="[discount_type]"]');
+            if (typeHidden) typeHidden.value = disc.discountType;
+            var valueHidden = card.querySelector('.dmc-nego-discount-hidden, .agent-nego-discount-hidden');
+            if (valueHidden) valueHidden.value = String(disc.discountRaw);
+            if (typeof syncCardFn === 'function') {
+                syncCardFn(card);
+            }
+        });
+        return disc;
+    };
+
+    /**
+     * Render DMC profile hotel/other markup + editable agency discount once above country cards.
+     * Returns { markup, discount }.
+     */
+    window.renderNegotiationProfileMarkupOnce = function (hostEl, groups, agentOffers) {
+        if (!hostEl) return null;
+        var first = (Array.isArray(groups) && groups.length) ? groups[0] : {};
+        var currency = first.currency || '';
+        var mk = (typeof window.resolveNegotiationMarkupForGroup === 'function')
+            ? window.resolveNegotiationMarkupForGroup(first, currency)
+            : { hotelType: 'percentage', otherType: 'percentage', hotelRaw: 0, otherRaw: 0, hotelSuffix: '%', otherSuffix: '%', markupType: 'percentage' };
+        var disc = (typeof window.resolveNegotiationDiscountOnce === 'function')
+            ? window.resolveNegotiationDiscountOnce(groups, agentOffers)
+            : { discountType: 'percentage', discountRaw: 0, discountSuffix: '%' };
+        var fmt = function (n) {
+            return (typeof formatNegotiationAmount === 'function')
+                ? formatNegotiationAmount(n)
+                : Number(n || 0).toFixed(2);
+        };
+        var esc = function (s) {
+            return String(s == null ? '' : s)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        };
+        var discountLabel = disc.discountType === 'percentage'
+            ? 'Agency discount (%)'
+            : (disc.discountType === 'foc' ? 'Agency discount (FOC)' : 'Agency discount');
+        hostEl.innerHTML =
+            '<div class="nego-profile-markup-once" data-nego-profile-markup>' +
+            '  <div class="nego-profile-markup-once__head">' +
+            '    <span class="nego-profile-markup-once__title">Profile pricing</span>' +
+            '    <span class="nego-profile-markup-once__hint">Markup from DMC profile · Discount from agency (editable)</span>' +
+            '  </div>' +
+            '  <div class="nego-profile-markup-once__grid">' +
+            '    <div class="nego-profile-markup-once__cell">' +
+            '      <span class="negotiation-label">Hotel markup</span>' +
+            '      <div class="nego-profile-markup-once__value">' +
+            '        <strong class="nego-profile-hotel-display">' + esc(fmt(mk.hotelRaw)) + '</strong>' +
+            '        <span class="nego-profile-markup-once__suffix">' + esc(mk.hotelSuffix) + '</span>' +
+            '      </div>' +
+            '    </div>' +
+            '    <div class="nego-profile-markup-once__cell">' +
+            '      <span class="negotiation-label">Other markup</span>' +
+            '      <div class="nego-profile-markup-once__value">' +
+            '        <strong class="nego-profile-other-display">' + esc(fmt(mk.otherRaw)) + '</strong>' +
+            '        <span class="nego-profile-markup-once__suffix">' + esc(mk.otherSuffix) + '</span>' +
+            '      </div>' +
+            '    </div>' +
+            '    <div class="nego-profile-markup-once__cell is-discount">' +
+            '      <span class="negotiation-label">' + esc(discountLabel) + '</span>' +
+            '      <div class="input-group input-group-sm">' +
+            '        <input type="number" class="form-control nego-profile-discount-input" min="0" step="0.01" value="' + esc(String(disc.discountRaw)) + '">' +
+            '        <span class="input-group-text">' + esc(disc.discountSuffix) + '</span>' +
+            '      </div>' +
+            '    </div>' +
+            '  </div>' +
+            '  <input type="hidden" class="nego-profile-hotel-raw" value="' + esc(String(mk.hotelRaw)) + '">' +
+            '  <input type="hidden" class="nego-profile-other-raw" value="' + esc(String(mk.otherRaw)) + '">' +
+            '  <input type="hidden" class="nego-profile-hotel-type" value="' + esc(mk.hotelType) + '">' +
+            '  <input type="hidden" class="nego-profile-other-type" value="' + esc(mk.otherType) + '">' +
+            '  <input type="hidden" class="nego-profile-markup-type" value="' + esc(mk.markupType) + '">' +
+            '  <input type="hidden" class="nego-profile-discount-type" value="' + esc(disc.discountType) + '">' +
+            '</div>';
+        return { markup: mk, discount: disc };
+    };
+
     /** Hotel sell vs other-service sell for split markup — prefer service SELL rows (margin view source of truth). */
     window.negotiationHotelOtherGross = function (group) {
         group = group || {};
@@ -427,6 +703,7 @@
     /**
      * Hotel markup on hotel services only; other markup on non-hotel services only.
      * Discount on (hotel + other + both markups). Offer = ceil(gross + markup − discount).
+     * hotelMarkupType / otherMarkupType may differ (DMC profile markup_json).
      */
     window.computeSplitNegotiationPricing = function (opts) {
         opts = opts || {};
@@ -435,7 +712,11 @@
         const gross = hotelGross + otherGross;
         const hasHotel = hotelGross > 0.009;
         const hasOther = otherGross > 0.009;
-        const markupType = String(opts.markupType || 'flat').toLowerCase();
+        const fallbackType = String(opts.markupType || 'flat').toLowerCase();
+        let hotelType = String(opts.hotelMarkupType || fallbackType || 'flat').toLowerCase();
+        let otherType = String(opts.otherMarkupType || fallbackType || 'flat').toLowerCase();
+        if (hotelType === 'fixed') hotelType = 'flat';
+        if (otherType === 'fixed') otherType = 'flat';
         const discountType = String(opts.discountType || 'flat').toLowerCase();
         const hotelRaw = hasHotel ? (parseFloat(opts.hotelRaw) || 0) : 0;
         const otherRaw = hasOther ? (parseFloat(opts.otherRaw) || 0) : 0;
@@ -443,11 +724,14 @@
 
         let hotelMoney = 0;
         let otherMoney = 0;
-        if (markupType === 'percentage') {
+        if (hotelType === 'percentage') {
             hotelMoney = hotelGross * hotelRaw / 100;
-            otherMoney = otherGross * otherRaw / 100;
         } else {
             hotelMoney = hasHotel ? hotelRaw : 0;
+        }
+        if (otherType === 'percentage') {
+            otherMoney = otherGross * otherRaw / 100;
+        } else {
             otherMoney = hasOther ? otherRaw : 0;
         }
         const markupMoney = hotelMoney + otherMoney;
@@ -480,18 +764,26 @@
         const otherInput = card.querySelector('.' + prefix + '-other-markup');
         if (hotelInput) {
             hotelInput.disabled = !hasHotel;
+            hotelInput.readOnly = !!hasHotel;
+            hotelInput.classList.toggle('bg-light', !!hasHotel);
             hotelInput.classList.toggle('nego-markup-disabled', !hasHotel);
-            hotelInput.setAttribute('title', hasHotel ? '' : 'Disabled — no hotel services booked for this country');
+            hotelInput.setAttribute('title', hasHotel
+                ? 'From DMC profile markup (read-only)'
+                : 'Disabled — no hotel services booked for this country');
         }
         if (otherInput) {
             otherInput.disabled = !hasOther;
+            otherInput.readOnly = !!hasOther;
+            otherInput.classList.toggle('bg-light', !!hasOther);
             otherInput.classList.toggle('nego-markup-disabled', !hasOther);
-            otherInput.setAttribute('title', hasOther ? '' : 'Disabled — no other services booked for this country');
+            otherInput.setAttribute('title', hasOther
+                ? 'From DMC profile markup (read-only)'
+                : 'Disabled — no other services booked for this country');
         }
         const hotelNote = card.querySelector('.' + prefix + '-hotel-note');
         const otherNote = card.querySelector('.' + prefix + '-other-note');
-        if (hotelNote) hotelNote.textContent = hasHotel ? '' : 'No hotel booked';
-        if (otherNote) otherNote.textContent = hasOther ? '' : 'No other services booked';
+        if (hotelNote) hotelNote.textContent = hasHotel ? 'From profile' : 'No hotel booked';
+        if (otherNote) otherNote.textContent = hasOther ? 'From profile' : 'No other services booked';
     };
 
     window.updateNegotiationSplitBreakdown = function (card, prefix, currency, pricing) {
