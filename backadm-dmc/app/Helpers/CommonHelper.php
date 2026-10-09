@@ -2009,11 +2009,173 @@ class CommonHelper
         $dmc = User::where('userId', $get_dmc_id)->first();
         $dmc_markup = 0;
         if ($dmc) {
+            // Prefer profile markup_json (hotel) when present; fall back to legacy markup_price.
+            $profile = self::applyDmcProfileMarkup((float) $base_price, 'hotel', null, $get_dmc_id);
+            if ((float) ($profile['markup_value'] ?? 0) > 0) {
+                return [$profile['price']];
+            }
             $markup_value = is_numeric($dmc->markup_price) ? $dmc->markup_price : 0;
             $dmc_markup = ($dmc->markup_type == 0) ? $markup_value : ($base_price * $markup_value / 100);
         }
         $price = ($base_price + $dmc_markup) ?? 0;
         return [$price];
+    }
+
+    /**
+     * Resolve operating DMC (role_id 11) for the logged-in user / given DMC id.
+     * Works for DMC, sales, operations and multi-role trees via getDmcId().
+     */
+    public static function resolveOperatingDmcUser($authUser = null, $dmcId = null): ?User
+    {
+        $authUser = $authUser ?: Auth::user();
+        $resolvedId = $dmcId !== null && $dmcId !== '' ? (int) $dmcId : 0;
+        if ($resolvedId <= 0 && $authUser) {
+            $resolvedId = (int) (self::getDmcId($authUser) ?: 0);
+        }
+        if ($resolvedId <= 0) {
+            return null;
+        }
+
+        $user = User::where('userId', $resolvedId)->first();
+        if (! $user) {
+            return null;
+        }
+
+        // Walk up created_by until we hit DMC role 11 (or stop).
+        $guard = 0;
+        while ($user && (int) ($user->role_id ?? 0) !== 11 && $guard < 8) {
+            $parentId = (int) ($user->created_by ?? 0);
+            if ($parentId <= 0) {
+                break;
+            }
+            $parent = User::where('userId', $parentId)->first();
+            if (! $parent) {
+                break;
+            }
+            $user = $parent;
+            $guard++;
+        }
+
+        return $user;
+    }
+
+    /**
+     * DMC profile markup_json (hotel / other) for role-wise operating DMC.
+     *
+     * @return array{hotel: array{markup_type:string,markup_value:float}, other: array{markup_type:string,markup_value:float}, dmc_id:?int}
+     */
+    public static function getDmcProfileMarkupConfig($authUser = null, $dmcId = null): array
+    {
+        $defaults = [
+            'hotel' => ['markup_type' => 'percentage', 'markup_value' => 0.0],
+            'other' => ['markup_type' => 'percentage', 'markup_value' => 0.0],
+            'dmc_id' => null,
+        ];
+
+        $dmc = self::resolveOperatingDmcUser($authUser, $dmcId);
+        if (! $dmc) {
+            return $defaults;
+        }
+
+        $json = $dmc->markup_json ?? null;
+        if (is_string($json)) {
+            $decoded = json_decode($json, true);
+            $json = (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) ? $decoded : [];
+        }
+        if (! is_array($json)) {
+            $json = [];
+        }
+
+        $normalize = static function ($row): array {
+            $row = is_array($row) ? $row : [];
+            $type = strtolower(trim((string) ($row['markup_type'] ?? 'percentage')));
+            if ($type === 'fixed') {
+                $type = 'flat';
+            }
+            if (! in_array($type, ['percentage', 'flat'], true)) {
+                $type = 'percentage';
+            }
+
+            return [
+                'markup_type' => $type,
+                'markup_value' => max(0.0, (float) ($row['markup_value'] ?? 0)),
+            ];
+        };
+        return [
+            'hotel' => $normalize($json['hotel'] ?? []),
+            'other' => $normalize($json['other'] ?? []),
+            'dmc_id' => (int) $dmc->userId,
+        ];
+    }
+
+    /**
+     * Compute markup money for a base amount.
+     */
+    public static function computeMarkupAmount(float $basePrice, string $markupType, float $markupValue): float
+    {
+        $basePrice = max(0.0, $basePrice);
+        $markupValue = max(0.0, $markupValue);
+        if ($markupValue <= 0) {
+            return 0.0;
+        }
+
+        $type = strtolower(trim($markupType));
+        if ($type === 'fixed') {
+            $type = 'flat';
+        }
+
+        if ($type === 'flat') {
+            return round($markupValue, 2);
+        }
+
+        return round($basePrice * $markupValue / 100, 2);
+    }
+
+    /**
+     * Apply DMC profile markup_json to a sell price.
+     * $kind: hotel | other
+     *
+     * @return array{base_price:float,markup_amount:float,price:float,markup_type:string,markup_value:float,markup_kind:string,dmc_id:?int}
+     */
+    public static function applyDmcProfileMarkup(float $basePrice, string $kind = 'hotel', $authUser = null, $dmcId = null): array
+    {
+        $config = self::getDmcProfileMarkupConfig($authUser, $dmcId);
+        $kind = strtolower(trim($kind)) === 'hotel' ? 'hotel' : 'other';
+        $rule = $config[$kind] ?? ['markup_type' => 'percentage', 'markup_value' => 0.0];
+        $amount = self::computeMarkupAmount(
+            $basePrice,
+            (string) ($rule['markup_type'] ?? 'percentage'),
+            (float) ($rule['markup_value'] ?? 0)
+        );
+
+        return [
+            'base_price' => round(max(0.0, $basePrice), 2),
+            'markup_amount' => $amount,
+            'price' => round(max(0.0, $basePrice) + $amount, 2),
+            'markup_type' => (string) ($rule['markup_type'] ?? 'percentage'),
+            'markup_value' => (float) ($rule['markup_value'] ?? 0),
+            'markup_kind' => $kind,
+            'dmc_id' => $config['dmc_id'] ?? null,
+        ];
+    }
+
+    /**
+     * Apply other/hotel profile markup onto selected numeric fields of a price row.
+     */
+    public static function applyDmcProfileMarkupToPriceFields(array $row, array $fields, string $kind = 'other', $authUser = null, $dmcId = null): array
+    {
+        foreach ($fields as $field) {
+            if (! array_key_exists($field, $row) || $row[$field] === null || $row[$field] === '') {
+                continue;
+            }
+            if (! is_numeric($row[$field])) {
+                continue;
+            }
+            $applied = self::applyDmcProfileMarkup((float) $row[$field], $kind, $authUser, $dmcId);
+            $row[$field] = $applied['price'];
+        }
+
+        return $row;
     }
 
     /*
