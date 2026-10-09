@@ -63,7 +63,7 @@
                         <div class="row g-2 mb-2">
                             <div class="col-md-3">
                                 <label class="form-label fw-semibold mb-1" style="font-size: 0.8rem;"><i class="ri-hotel-line me-1"></i>Select Hotel</label>
-                                <select class="form-select form-select-sm" id="onlineHotelSelect" disabled>
+                                <select class="form-select form-select-sm" id="onlineHotelSelect">
                                     <option value="">Fetch hotels first</option>
                                 </select>
                             </div>
@@ -225,20 +225,58 @@
 
 @push('css')
 <style>
-    #onlineHotelModal .select2-container { width: 100% !important; }
+    /* Pro page Select2 CSS is aggressive — scope + override so hotel search works */
+    #onlineHotelModal.modal { overflow: visible !important; }
+    #onlineHotelModal .modal-dialog { overflow: visible !important; }
+    #onlineHotelModal .modal-content { overflow: visible !important; }
+    #onlineHotelModal select.select2-hidden-accessible {
+        display: none !important;
+    }
+    #onlineHotelModal .select2-container {
+        display: block !important;
+        width: 100% !important;
+        z-index: 2;
+    }
     #onlineHotelModal .select2-container--default .select2-selection--single {
-        height: 31px;
-        min-height: 31px;
-        border: 1px solid #dee2e6;
-        border-radius: 0.25rem;
-        font-size: 0.875rem;
+        height: 34px !important;
+        min-height: 34px !important;
+        border: 1px solid #dee2e6 !important;
+        border-radius: 0.375rem !important;
+        font-size: 0.875rem !important;
+        padding: 0 !important;
+        background-color: #fff !important;
+        cursor: pointer !important;
+        pointer-events: auto !important;
     }
     #onlineHotelModal .select2-container--default .select2-selection--single .select2-selection__rendered {
-        line-height: 29px;
-        padding-left: 0.5rem;
+        line-height: 32px !important;
+        padding-left: 0.65rem !important;
+        color: #212529 !important;
+        font-size: 0.875rem !important;
     }
     #onlineHotelModal .select2-container--default .select2-selection--single .select2-selection__arrow {
-        height: 29px;
+        height: 32px !important;
+    }
+    #onlineHotelModal .select2-container--default.select2-container--disabled .select2-selection--single {
+        background-color: #e9ecef !important;
+        cursor: not-allowed !important;
+        color: #6c757d !important;
+    }
+    #onlineHotelModal .select2-search--dropdown {
+        display: block !important;
+        padding: 8px !important;
+    }
+    #onlineHotelModal .select2-search--dropdown .select2-search__field {
+        height: 34px !important;
+        min-height: 34px !important;
+        font-size: 0.85rem !important;
+        padding: 6px 10px !important;
+        border: 1px solid #ced4da !important;
+        border-radius: 6px !important;
+        width: 100% !important;
+    }
+    .select2-container--open {
+        z-index: 20050 !important;
     }
 </style>
 @endpush
@@ -285,6 +323,7 @@
     let onlineRoomsAbortController = null;
     let onlineRoomsFetchKey = '';
     let onlineHotelSelectDebounce = null;
+    let onlineHotelHydrating = false;
 
     function bindOnlineHotelSelectEvents() {
         const el = document.getElementById('onlineHotelSelect');
@@ -292,17 +331,29 @@
             return;
         }
 
+        el.removeEventListener('change', onOnlineHotelSelectChange);
         if (typeof jQuery !== 'undefined' && jQuery.fn.select2) {
-            // Use Select2 events only — native change also fires and causes duplicate room fetches.
+            // Prefer Select2 events — native change also fires and causes duplicate room fetches.
             jQuery(el).off('.onlineHotel');
             jQuery(el).on('select2:select.onlineHotel select2:clear.onlineHotel', onOnlineHotelSelectChange);
         } else {
-            el.removeEventListener('change', onOnlineHotelSelectChange);
             el.addEventListener('change', onOnlineHotelSelectChange);
         }
     }
 
+    function setOnlineHotelSelectEnabled(enabled) {
+        const sel = document.getElementById('onlineHotelSelect');
+        if (sel) sel.disabled = !enabled;
+        if (typeof jQuery !== 'undefined' && jQuery.fn.select2) {
+            const $sel = jQuery('#onlineHotelSelect');
+            if ($sel.length) $sel.prop('disabled', !enabled);
+        }
+    }
+
     function initOnlineHotelSelect2(disabled) {
+        const sel = document.getElementById('onlineHotelSelect');
+        if (sel) sel.disabled = !!disabled;
+
         if (typeof jQuery === 'undefined' || !jQuery.fn.select2) {
             return;
         }
@@ -313,17 +364,24 @@
         }
 
         if ($sel.hasClass('select2-hidden-accessible')) {
-            $sel.select2('destroy');
+            try { $sel.select2('destroy'); } catch (e) { /* ignore */ }
         }
 
-        $sel.select2({
-            placeholder: 'Search hotel...',
-            allowClear: true,
-            width: '100%',
-            dropdownParent: jQuery('#onlineHotelModal'),
-        });
+        const $parent = jQuery('#onlineHotelModal .modal-content');
+        try {
+            $sel.select2({
+                placeholder: 'Search hotel...',
+                allowClear: true,
+                width: '100%',
+                minimumResultsForSearch: 0,
+                dropdownParent: $parent.length ? $parent : jQuery('#onlineHotelModal'),
+                language: { noResults: function () { return 'No matches'; } }
+            });
+        } catch (e) {
+            console.warn('Online hotel Select2 init failed', e);
+        }
 
-        $sel.prop('disabled', !!disabled);
+        setOnlineHotelSelectEnabled(!disabled);
         bindOnlineHotelSelectEvents();
     }
 
@@ -875,6 +933,23 @@
         validateOnlineAddBtn();
     }
 
+    function setOnlineSelectedNights(nights) {
+        const wanted = (Array.isArray(nights) ? nights : []).map(Number).filter(function (n) { return n > 0; });
+        if (!wanted.length) {
+            selectAllOnlineNights();
+            return;
+        }
+        onlineSelectedNights = wanted.slice().sort(function (a, b) { return a - b; });
+        document.querySelectorAll('.online-night-btn').forEach(function (btn) {
+            const n = parseInt(btn.dataset.night, 10);
+            btn.classList.toggle('active', onlineSelectedNights.includes(n));
+            btn.classList.toggle('btn-primary', onlineSelectedNights.includes(n));
+            btn.classList.toggle('btn-outline-primary', !onlineSelectedNights.includes(n));
+        });
+        updateOnlineNightSummary();
+        validateOnlineAddBtn();
+    }
+
     function toggleOnlineNight(nightNum) {
         const idx = onlineSelectedNights.indexOf(nightNum);
         if (idx >= 0) {
@@ -1055,6 +1130,9 @@
         }
 
         const sel = document.getElementById('onlineHotelSelect');
+        if (typeof jQuery !== 'undefined' && jQuery.fn.select2 && jQuery(sel).hasClass('select2-hidden-accessible')) {
+            try { jQuery(sel).select2('destroy'); } catch (e) { /* ignore */ }
+        }
         sel.innerHTML = '<option value="">Select hotel</option>';
         onlineHotelsCache.forEach(function (h, idx) {
             const opt = document.createElement('option');
@@ -1068,26 +1146,30 @@
             sel.appendChild(opt);
         });
 
-        initOnlineHotelSelect2(onlineHotelsCache.length === 0);
+        const hasItems = onlineHotelsCache.length > 0;
+        initOnlineHotelSelect2(!hasItems);
+        setOnlineHotelSelectEnabled(hasItems);
 
         document.getElementById('onlineRoomTypeSelect').innerHTML = '<option value="">Room Type</option>';
         document.getElementById('onlineBedTypeSelect').innerHTML = '<option value="">Bed Type</option>';
         document.getElementById('onlineRoomTypeSelect').disabled = true;
         document.getElementById('onlineBedTypeSelect').disabled = true;
-        setOnlineRoomStatus(onlineHotelsCache.length && onlineTwoStep ? 'Select a hotel to load live rates.' : '');
+        setOnlineRoomStatus(hasItems && onlineTwoStep ? 'Select a hotel to load live rates.' : '');
 
         if (onlineTwoStep) {
             // Selecting a hotel costs a supplier call, so let the user choose rather than auto-pricing.
             if (typeof jQuery !== 'undefined') {
                 jQuery('#onlineHotelSelect').val(null).trigger('change.select2');
             }
-        } else if (typeof jQuery !== 'undefined' && onlineHotelsCache.length > 0) {
-            const firstVal = hotelId(onlineHotelsCache[0]) || '0';
-            jQuery('#onlineHotelSelect').val(firstVal).trigger('change.select2');
+        } else if (hasItems) {
+            const firstVal = hotelId(onlineHotelsCache[0]) || String(sel.options[1] && sel.options[1].value) || '';
+            sel.disabled = false;
+            if (firstVal && typeof jQuery !== 'undefined') {
+                jQuery('#onlineHotelSelect').val(firstVal).trigger('change.select2');
+            } else {
+                sel.selectedIndex = 1;
+            }
             handleOnlineHotelSelectChange();
-        } else if (onlineHotelsCache.length > 0) {
-            sel.selectedIndex = 1;
-            populateOnlineRooms(onlineHotelsCache[0]);
         } else if (typeof jQuery !== 'undefined') {
             jQuery('#onlineHotelSelect').val(null).trigger('change.select2');
             handleOnlineHotelSelectChange();
@@ -1226,6 +1308,9 @@
         const addBtn = document.getElementById('onlineHotelAddBtn');
         if (addBtn) {
             addBtn.classList.remove('d-none');
+        }
+        if (onlineHotelsCache.length > 0) {
+            setOnlineHotelSelectEnabled(true);
         }
         validateOnlineAddBtn();
     }
@@ -1531,6 +1616,117 @@
         if (btn) btn.disabled = !ok;
     }
 
+    window.applyOnlineHotelModalState = function (saved) {
+        saved = saved || {};
+        onlineHotelHydrating = true;
+        const booking = saved.onlineHotelBooking || {};
+        const sel = booking.selection || {};
+        const checkIn = String(saved.checkIn || saved.stay_check_in || sel.stay_check_in || booking.check_in || '').substring(0, 10);
+        const checkOut = String(saved.checkOut || saved.stay_check_out || sel.stay_check_out || booking.check_out || '').substring(0, 10);
+        const cityName = saved.city || saved.cityValue || '';
+
+        if (checkIn) {
+            const checkInEl = document.getElementById('onlineHotelCheckIn');
+            if (checkInEl) checkInEl.value = checkIn;
+        }
+        if (checkOut) {
+            const checkOutEl = document.getElementById('onlineHotelCheckOut');
+            if (checkOutEl) checkOutEl.value = checkOut;
+        }
+        const cityEl = document.getElementById('onlineHotelCity');
+        if (cityEl && cityName) {
+            let has = Array.from(cityEl.options || []).some(function (o) { return o.value === cityName || o.textContent === cityName; });
+            if (!has) {
+                const o = document.createElement('option');
+                o.value = cityName;
+                o.textContent = cityName;
+                cityEl.appendChild(o);
+            }
+            cityEl.value = cityName;
+        }
+
+        onlineHotelLastSearch = {
+            checkIn: checkIn || onlineHotelLastSearch.checkIn,
+            checkOut: checkOut || onlineHotelLastSearch.checkOut,
+            city: cityEl?.value || cityName || onlineHotelLastSearch.city,
+            paxInfo: document.getElementById('onlineHotelPaxInfo')?.value || onlineHotelLastSearch.paxInfo || ''
+        };
+
+        const hotelRaw = saved.onlineHotelRaw || {
+            hotelId: saved.id,
+            hotel_id: saved.id,
+            id: saved.id,
+            hotelName: saved.name,
+            name: saved.name,
+            rooms: booking.room ? [booking.room] : []
+        };
+        onlineTwoStep = !!(booking.room && booking.room.rate_key);
+        populateOnlineHotels([hotelRaw]);
+
+        const roomsEl = document.getElementById('onlineNumberOfRooms');
+        if (roomsEl) roomsEl.value = String(saved.numberOfRooms || sel.number_of_rooms || 1);
+        const personsEl = document.getElementById('onlineSelectedPersons');
+        if (personsEl) personsEl.value = String(saved.selectedPersons || sel.selected_persons || 1);
+        const mealEl = document.getElementById('onlineMealPlanSelect');
+        if (mealEl && (saved.mealPlan || sel.meal_plan)) mealEl.value = saved.mealPlan || sel.meal_plan;
+        const remarksEl = document.getElementById('onlineHotelRemarks');
+        if (remarksEl) remarksEl.value = saved.remarks || sel.remarks || '';
+
+        const rooms = hotelRaw.rooms || hotelRaw.roomTypes || hotelRaw.room_types || (booking.room ? [booking.room] : []);
+        if (Array.isArray(rooms) && rooms.length) {
+            populateOnlineRooms(Object.assign({}, hotelRaw, { rooms: rooms }));
+            const wantRoom = saved.roomType || sel.room_type || '';
+            const roomSel = document.getElementById('onlineRoomTypeSelect');
+            if (roomSel && wantRoom) {
+                const match = Array.from(roomSel.options).find(function (o) {
+                    return o.value === wantRoom || (o.textContent || '').indexOf(wantRoom) !== -1;
+                });
+                if (match) {
+                    roomSel.value = match.value;
+                    const idx = parseInt(match.dataset.index, 10);
+                    if (!isNaN(idx) && rooms[idx]) {
+                        onlineSelectedRoom = rooms[idx];
+                        applySelectedRoomDetails(rooms[idx]);
+                    }
+                }
+            }
+            const wantBed = saved.bedType || sel.bed_type || '';
+            const bedSel = document.getElementById('onlineBedTypeSelect');
+            if (bedSel && wantBed) {
+                const bedMatch = Array.from(bedSel.options).find(function (o) { return o.value === wantBed || o.textContent === wantBed; });
+                if (bedMatch) bedSel.value = bedMatch.value;
+                else {
+                    const extra = document.createElement('option');
+                    extra.value = wantBed;
+                    extra.textContent = wantBed;
+                    bedSel.appendChild(extra);
+                    bedSel.value = wantBed;
+                    bedSel.disabled = false;
+                }
+            }
+        } else if (booking.room) {
+            onlineSelectedRoom = booking.room;
+            onlineCurrentRooms = [booking.room];
+        }
+
+        const price = parseFloat(saved.price || saved.combinedRoomTotal || sel.price || 0) || 0;
+        const priceEl = document.getElementById('onlineRoomPriceDisplay');
+        if (priceEl && price > 0) priceEl.value = price.toFixed(2);
+
+        const nights = Array.isArray(saved.nights) ? saved.nights.slice() : (Array.isArray(sel.nights) ? sel.nights.slice() : []);
+        const planNights = checkIn && checkOut ? Math.max(nights.length, countDaysBetween(checkIn, checkOut)) : nights.length;
+        showOnlineHotelSelectionPanel({
+            start: checkIn || getOnlineNightPlanContext().start,
+            nights: planNights || getOnlineNightPlanContext().nights
+        });
+        if (nights.length) {
+            setOnlineSelectedNights(nights.map(Number).filter(function (n) { return n > 0; }));
+        }
+        setOnlineHotelSelectEnabled(true);
+        validateOnlineAddBtn();
+        setTimeout(function () { onlineHotelHydrating = false; }, 0);
+    };
+
     window.openOnlineHotelModal = function () {
         syncOnlineSearchDefaults();
         const modalEl = document.getElementById('onlineHotelModal');
@@ -1543,6 +1739,15 @@
             return;
         }
         bootstrap.Modal.getOrCreateInstance(modalEl).show();
+        modalEl.addEventListener('shown.bs.modal', function onShownOnce() {
+            modalEl.removeEventListener('shown.bs.modal', onShownOnce);
+            const saved = window.__enquiryProOnlineHotelEditSnapshot;
+            if (saved && typeof window.applyOnlineHotelModalState === 'function') {
+                window.applyOnlineHotelModalState(saved);
+            } else if (onlineHotelsCache.length > 0) {
+                setOnlineHotelSelectEnabled(true);
+            }
+        });
     };
 
     bindHotelSourceToggle();
@@ -1655,6 +1860,7 @@
     }
 
     function handleOnlineHotelSelectChange() {
+        if (onlineHotelHydrating) return;
         const idx = getOnlineHotelSelectIndex();
         const hotel = (idx >= 0 && onlineHotelSelectHasValue()) ? onlineHotelsCache[idx] : null;
 
