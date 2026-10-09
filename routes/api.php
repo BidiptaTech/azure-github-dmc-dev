@@ -63,7 +63,11 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
 
     // Online (supplier-backed) hotels / attractions — separate from offline catalogue APIs
     Route::get('/online-hotels', 'App\Http\Controllers\Api\OnlineHotelController@lists');
+    Route::get('/online-hotels/details', 'App\Http\Controllers\Api\OnlineHotelController@details');
+    Route::post('/online-hotels/recheck', 'App\Http\Controllers\Api\OnlineHotelController@recheck');
+    Route::post('/online-hotels/book', 'App\Http\Controllers\Api\OnlineHotelController@book');
     Route::get('/online-attractions', 'App\Http\Controllers\Api\OnlineAttractionController@lists');
+    Route::get('/online-attractions/details', 'App\Http\Controllers\Api\OnlineAttractionController@details');
     Route::post('/create-tour', 'App\Http\Controllers\Api\TourController@createTour');
     Route::get('/edit-tour', 'App\Http\Controllers\Api\TourController@editTour');
     Route::post('/create-booking', 'App\Http\Controllers\Api\TourController@createBooking');
