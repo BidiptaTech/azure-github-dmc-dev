@@ -1198,6 +1198,7 @@
 @include('enquiryform_pro.partials.hotel-check-times-js')
 @include('enquiryform_pro.partials.stay-rate-full-calendar')
 @include('enquiryform_pro.partials.hotel-cost-sell-js')
+@include('enquiryform_pro.partials.online-booking-js')
 <script>window.hasNegotiationHistory = @json($hasNegotiationHistory);</script>
 @php
     // DMC information for cost sheet print (same pattern as invoices/pdf/final.blade.php)
@@ -1821,7 +1822,19 @@
         <div class="section-card">
             <div class="section-header">
                 <span>Accommodation</span>
-                <div>
+                <div class="d-flex align-items-center flex-wrap justify-content-end">
+                    @if(\App\Helpers\CommonHelper::masterDmcOnlineApiEnabled(auth()->user()))
+                    <div class="ep-online-source-toggle" title="Offline = catalog hotels · Online = live hotel API (Lite flow)">
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input ep-hotel-source-type" type="radio" name="epHotelSourceType" id="epHotelSourceOffline" value="offline" checked>
+                            <label class="form-check-label" for="epHotelSourceOffline">Offline</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input ep-hotel-source-type" type="radio" name="epHotelSourceType" id="epHotelSourceOnline" value="online">
+                            <label class="form-check-label" for="epHotelSourceOnline">Online</label>
+                        </div>
+                    </div>
+                    @endif
                     <button class="btn btn-sm btn-light btn-xs" onclick="openAccommodationModal()">+ Add</button>
                     <button class="btn btn-sm btn-light btn-xs ms-1" onclick="removeSelectedAccommodation()">- Remove</button>
                 </div>
@@ -1887,7 +1900,19 @@
         <div class="section-card">
             <div class="section-header">
                 <span>Attractions</span>
-                <div>
+                <div class="d-flex align-items-center flex-wrap justify-content-end">
+                    @if(\App\Helpers\CommonHelper::masterDmcOnlineApiEnabled(auth()->user()))
+                    <div class="ep-online-source-toggle" title="Offline = catalog attractions · Online = live SG Attractions (Lite flow, no transfer)">
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input ep-attraction-source-type" type="radio" name="epAttractionSourceType" id="epAttractionSourceOffline" value="offline" checked>
+                            <label class="form-check-label" for="epAttractionSourceOffline">Offline</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input ep-attraction-source-type" type="radio" name="epAttractionSourceType" id="epAttractionSourceOnline" value="online">
+                            <label class="form-check-label" for="epAttractionSourceOnline">Online</label>
+                        </div>
+                    </div>
+                    @endif
                     <button class="btn btn-sm btn-light btn-xs" onclick="openTourModal()">+ Add</button>
                     <button class="btn btn-sm btn-light btn-xs ms-1" onclick="removeSelectedTours()">- Remove</button>
                 </div>
@@ -40200,7 +40225,16 @@ exitPortData.push({
             focServiceDiscount: resolveFocServiceDiscountFromPayload(data),
             arrivalDepartureIds: [],
             transferIds: [],
-            isStandalone: true
+            isStandalone: true,
+            isOnlineHotel: !!(data.isOnlineHotel || data.hotelSourceType === 'online' || data.priceMode === 'online' || data.onlineHotelBooking),
+            hotelSourceType: data.hotelSourceType || (data.isOnlineHotel || data.priceMode === 'online' ? 'online' : ''),
+            priceMode: data.priceMode || '',
+            onlineHotelBooking: data.onlineHotelBooking || null,
+            onlineHotelRaw: data.onlineHotelRaw || null,
+            onlineHotelSource: data.onlineHotelSource || null,
+            onlineAddSnapshot: data.onlineAddSnapshot || null,
+            api_environment: data.api_environment || '',
+            skipArrivalDeparture: !!(data.skipArrivalDeparture || data.isOnlineHotel || data.hotelSourceType === 'online')
         };
         if (typeof enquiryProResolveStoredHotelAvgCostSell === 'function') {
             const avg = enquiryProResolveStoredHotelAvgCostSell(data, firstBed, nights, numberOfRooms);
@@ -40266,7 +40300,18 @@ exitPortData.push({
             guideIds: [],
             isStandalone: true,
             transferInfo: null,
-            guideInfo: null
+            guideInfo: null,
+            isOnlineAttraction: !!(data.isOnlineAttraction || data.attractionSourceType === 'online' || data.mode === 'online'),
+            attractionSourceType: data.attractionSourceType || (data.isOnlineAttraction || data.mode === 'online' ? 'online' : ''),
+            sku_id: data.sku_id || null,
+            ticket_sku_id: data.ticket_sku_id || null,
+            provider_ticket_id: data.provider_ticket_id || null,
+            supplier_code: data.supplier_code || null,
+            api_environment: data.api_environment || null,
+            onlineAttractionRaw: data.onlineAttractionRaw || null,
+            onlineAddSnapshot: data.onlineAddSnapshot || null,
+            visitTime: data.visitTime || data.timeSlot || '',
+            remarks: data.remarks || ''
         };
         
         // Check for transferInfo directly in data (priority) or transfer_options or transferId
@@ -41705,6 +41750,13 @@ exitPortData.push({
     }
     
 </script>
+@php
+    $enquiryProOnlineApiEnabled = \App\Helpers\CommonHelper::masterDmcOnlineApiEnabled(auth()->user());
+@endphp
+@if(!empty($enquiryProOnlineApiEnabled))
+    @include('single-tour-package.partials.online-hotel-modal')
+    @include('single-tour-package.partials.online-attraction-modal')
+@endif
 @endsection
 
 

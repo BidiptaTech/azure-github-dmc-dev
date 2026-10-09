@@ -74,7 +74,7 @@
                         <div class="row g-2 mb-2">
                             <div class="col-md-4">
                                 <label class="form-label fw-semibold mb-1" style="font-size: 0.8rem;"><i class="ri-ticket-line me-1"></i>Select Attraction</label>
-                                <select class="form-select form-select-sm" id="onlineAttractionSelect" disabled>
+                                <select class="form-select form-select-sm" id="onlineAttractionSelect">
                                     <option value="">Fetch attractions first</option>
                                 </select>
                             </div>
@@ -204,20 +204,58 @@
 
 @push('css')
 <style>
-    #onlineAttractionModal .select2-container { width: 100% !important; }
+    /* Keep modal usable with Select2 (Pro page CSS + scrollable modal otherwise clip/disable clicks) */
+    #onlineAttractionModal.modal { overflow: visible !important; }
+    #onlineAttractionModal .modal-dialog { overflow: visible !important; }
+    #onlineAttractionModal .modal-content { overflow: visible !important; }
+    #onlineAttractionModal select.select2-hidden-accessible {
+        display: none !important;
+    }
+    #onlineAttractionModal .select2-container {
+        display: block !important;
+        width: 100% !important;
+        z-index: 2;
+    }
     #onlineAttractionModal .select2-container--default .select2-selection--single {
-        height: 31px;
-        min-height: 31px;
-        border: 1px solid #dee2e6;
-        border-radius: 0.25rem;
-        font-size: 0.875rem;
+        height: 34px !important;
+        min-height: 34px !important;
+        border: 1px solid #dee2e6 !important;
+        border-radius: 0.375rem !important;
+        font-size: 0.875rem !important;
+        padding: 0 !important;
+        background-color: #fff !important;
+        cursor: pointer !important;
+        pointer-events: auto !important;
     }
     #onlineAttractionModal .select2-container--default .select2-selection--single .select2-selection__rendered {
-        line-height: 29px;
-        padding-left: 0.5rem;
+        line-height: 32px !important;
+        padding-left: 0.65rem !important;
+        color: #212529 !important;
+        font-size: 0.875rem !important;
     }
     #onlineAttractionModal .select2-container--default .select2-selection--single .select2-selection__arrow {
-        height: 29px;
+        height: 32px !important;
+    }
+    #onlineAttractionModal .select2-container--default.select2-container--disabled .select2-selection--single {
+        background-color: #e9ecef !important;
+        cursor: not-allowed !important;
+        color: #6c757d !important;
+    }
+    #onlineAttractionModal .select2-search--dropdown {
+        display: block !important;
+        padding: 8px !important;
+    }
+    #onlineAttractionModal .select2-search--dropdown .select2-search__field {
+        height: 34px !important;
+        min-height: 34px !important;
+        font-size: 0.85rem !important;
+        padding: 6px 10px !important;
+        border: 1px solid #ced4da !important;
+        border-radius: 6px !important;
+        width: 100% !important;
+    }
+    .select2-container--open {
+        z-index: 20050 !important;
     }
 
     .online-attraction-loader {
@@ -299,28 +337,65 @@
     let onlineFetchStartedAt = 0;
     let onlineTicketsRequestId = 0;
 
-    function initOnlineAttractionSelect2(disabled) {
-        if (typeof jQuery === 'undefined' || !jQuery.fn.select2) {
-            return;
+    function bindOnlineAttractionSelectEvents() {
+        const el = document.getElementById('onlineAttractionSelect');
+        if (!el) return;
+        el.removeEventListener('change', onOnlineAttractionSelectChange);
+        el.addEventListener('change', onOnlineAttractionSelectChange);
+        if (typeof jQuery !== 'undefined' && jQuery.fn.select2) {
+            jQuery(el).off('.onlineAttraction');
+            jQuery(el).on('select2:select.onlineAttraction select2:clear.onlineAttraction', onOnlineAttractionSelectChange);
         }
+    }
 
-        const $sel = jQuery('#onlineAttractionSelect');
-        if (!$sel.length) {
-            return;
+    function setOnlineAttractionSelectEnabled(enabled) {
+        const sel = document.getElementById('onlineAttractionSelect');
+        if (sel) sel.disabled = !enabled;
+        if (typeof jQuery !== 'undefined' && jQuery.fn.select2) {
+            const $sel = jQuery('#onlineAttractionSelect');
+            if ($sel.length) $sel.prop('disabled', !enabled);
         }
+    }
 
+    function initOnlineSelect2($sel, placeholder, disabled) {
+        if (typeof jQuery === 'undefined' || !jQuery.fn.select2 || !$sel || !$sel.length) {
+            return false;
+        }
         if ($sel.hasClass('select2-hidden-accessible')) {
-            $sel.select2('destroy');
+            try { $sel.select2('destroy'); } catch (e) { /* ignore */ }
         }
+        const $parent = jQuery('#onlineAttractionModal .modal-content');
+        try {
+            $sel.select2({
+                placeholder: placeholder,
+                allowClear: true,
+                width: '100%',
+                minimumResultsForSearch: 0,
+                dropdownParent: $parent.length ? $parent : jQuery('#onlineAttractionModal'),
+                language: { noResults: function () { return 'No matches'; } }
+            });
+            $sel.prop('disabled', !!disabled);
+            return true;
+        } catch (e) {
+            console.warn('Select2 init failed', e);
+            return false;
+        }
+    }
 
-        $sel.select2({
-            placeholder: 'Search attraction...',
-            allowClear: true,
-            width: '100%',
-            dropdownParent: jQuery('#onlineAttractionModal'),
-        });
+    function initOnlineAttractionSelect2(disabled) {
+        const sel = document.getElementById('onlineAttractionSelect');
+        if (sel) sel.disabled = !!disabled;
+        const $sel = (typeof jQuery !== 'undefined') ? jQuery('#onlineAttractionSelect') : null;
+        initOnlineSelect2($sel, 'Search attraction...', disabled);
+        setOnlineAttractionSelectEnabled(!disabled);
+        bindOnlineAttractionSelectEvents();
+    }
 
-        $sel.prop('disabled', !!disabled);
+    function initOnlineTicketSelect2(disabled) {
+        const sel = document.getElementById('onlineAttractionTicketSelect');
+        if (sel) sel.disabled = !!disabled;
+        const $sel = (typeof jQuery !== 'undefined') ? jQuery('#onlineAttractionTicketSelect') : null;
+        initOnlineSelect2($sel, 'Search ticket...', disabled);
     }
 
     function getOnlineAttractionSelectIndex() {
@@ -909,6 +984,9 @@
         if (panel) panel.classList.remove('d-none');
         const addBtn = document.getElementById('onlineAttractionAddBtn');
         if (addBtn) addBtn.classList.remove('d-none');
+        if (onlineAttractionsCache.length > 0) {
+            setOnlineAttractionSelectEnabled(true);
+        }
         validateOnlineAttractionAddBtn();
     }
 
@@ -1181,16 +1259,27 @@
             sel.appendChild(opt);
         });
 
-        initOnlineAttractionSelect2(onlineAttractionsCache.length === 0);
+        const hasItems = onlineAttractionsCache.length > 0;
+        initOnlineAttractionSelect2(!hasItems);
+        setOnlineAttractionSelectEnabled(hasItems);
 
-        if (typeof jQuery !== 'undefined' && onlineAttractionsCache.length > 0) {
-            const firstVal = attractionId(onlineAttractionsCache[0]) || '0';
-            jQuery('#onlineAttractionSelect').val(firstVal).trigger('change');
-        } else if (onlineAttractionsCache.length > 0) {
-            sel.selectedIndex = 1;
+        if (hasItems) {
+            const firstVal = attractionId(onlineAttractionsCache[0]) || String(sel.options[1] && sel.options[1].value) || '';
+            sel.disabled = false;
+            if (firstVal && typeof jQuery !== 'undefined') {
+                jQuery(sel).val(firstVal).trigger('change.select2');
+            } else {
+                sel.selectedIndex = 1;
+            }
             populateOnlineAttractionDetails(onlineAttractionsCache[0]);
+            validateOnlineAttractionAddBtn();
+            loadTicketsForSelectedAttraction(onlineAttractionsCache[0]).then(function (enriched) {
+                if (!enriched) return;
+                populateOnlineAttractionDetails(enriched);
+                validateOnlineAttractionAddBtn();
+            });
         } else if (typeof jQuery !== 'undefined') {
-            jQuery('#onlineAttractionSelect').val(null).trigger('change');
+            jQuery('#onlineAttractionSelect').val(null).trigger('change.select2');
         }
 
         validateOnlineAttractionAddBtn();
@@ -1202,6 +1291,9 @@
         const currencyEl = document.getElementById('onlineAttractionCurrency');
 
         timeSel.innerHTML = '<option value="">Select Time Slot</option>';
+        if (typeof jQuery !== 'undefined' && jQuery.fn.select2 && jQuery(ticketSel).hasClass('select2-hidden-accessible')) {
+            try { jQuery(ticketSel).select2('destroy'); } catch (e) { /* ignore */ }
+        }
         ticketSel.innerHTML = '<option value="">Select Ticket</option>';
         onlineCurrentTickets = attractionTickets(attraction);
 
@@ -1268,8 +1360,10 @@
             ticketSel.disabled = false;
             ticketSel.selectedIndex = 1;
             applySelectedTicketPrice();
+            initOnlineTicketSelect2(false);
         } else {
             ticketSel.disabled = true;
+            initOnlineTicketSelect2(true);
             document.getElementById('onlineAttractionPriceDisplay').value = '0.00';
         }
 
@@ -1393,6 +1487,119 @@
         return true;
     }
 
+    window.applyOnlineAttractionModalState = function (saved) {
+        saved = saved || {};
+        const city = saved.cityValue || saved.city || '';
+        const visitDate = saved.visitDate || '';
+        const cityEl = document.getElementById('onlineAttractionCity');
+        const dateEl = document.getElementById('onlineAttractionVisitDate');
+        if (cityEl && city) {
+            const has = Array.from(cityEl.options || []).some(function (o) { return o.value === city || o.textContent === city; });
+            if (!has) {
+                const o = document.createElement('option');
+                o.value = city;
+                o.textContent = city;
+                cityEl.appendChild(o);
+            }
+            cityEl.value = city;
+        }
+        if (dateEl && visitDate) dateEl.value = visitDate;
+
+        const adults = Math.max(1, parseInt(saved.adults, 10) || 1);
+        const male = parseInt(saved.male, 10);
+        const female = parseInt(saved.female, 10);
+        onlineAttractionGuestState.male = !isNaN(male) ? male : adults;
+        onlineAttractionGuestState.female = !isNaN(female) ? female : 0;
+        if (onlineAttractionGuestState.male + onlineAttractionGuestState.female < 1) {
+            onlineAttractionGuestState.male = adults;
+            onlineAttractionGuestState.female = 0;
+        }
+        onlineAttractionGuestState.children = Math.max(0, parseInt(saved.children, 10) || 0);
+        onlineAttractionGuestState.infants = Math.max(0, parseInt(saved.infants, 10) || 0);
+        clampOnlineAttractionGuestState();
+        syncOnlineAttractionGuestDerivedFields();
+
+        const raw = saved.onlineAttractionRaw || {
+            sku_id: saved.skuId || saved.attractionId,
+            attractionId: saved.attractionId,
+            id: saved.attractionId,
+            title: saved.attractionName,
+            attractionName: saved.attractionName,
+            name: saved.attractionName,
+            tickets: Array.isArray(saved.tickets) ? saved.tickets : [],
+            openTime: saved.openTime,
+            closeTime: saved.closeTime,
+            timeSlots: saved.timeSlots || []
+        };
+        populateOnlineAttractions([raw]);
+        showOnlineAttractionSelectionPanel();
+
+        const wantId = String(saved.attractionId || saved.skuId || attractionId(raw) || '');
+        const sel = document.getElementById('onlineAttractionSelect');
+        if (sel && wantId) {
+            sel.value = wantId;
+            if (typeof jQuery !== 'undefined') jQuery(sel).val(wantId).trigger('change.select2');
+        }
+        populateOnlineAttractionDetails(raw);
+        if (Array.isArray(saved.tickets) && saved.tickets.length) {
+            applyTicketsToAttraction(raw, saved.tickets);
+            populateOnlineAttractionDetails(raw);
+        }
+
+        const timeSel = document.getElementById('onlineAttractionTimeSelect');
+        if (timeSel && saved.timeSlot) {
+            const tMatch = Array.from(timeSel.options).find(function (o) {
+                return o.value === saved.timeSlot || (o.textContent || '').trim() === String(saved.timeSlot).trim();
+            });
+            if (tMatch) timeSel.value = tMatch.value;
+            else {
+                const extra = document.createElement('option');
+                extra.value = saved.timeSlot;
+                extra.textContent = saved.timeSlot;
+                timeSel.appendChild(extra);
+                timeSel.value = saved.timeSlot;
+                timeSel.disabled = false;
+            }
+        }
+
+        const ticketSel = document.getElementById('onlineAttractionTicketSelect');
+        if (ticketSel && (saved.ticketId || saved.ticketName)) {
+            const kMatch = Array.from(ticketSel.options).find(function (o) {
+                return o.value === String(saved.ticketId || '')
+                    || (o.textContent || '').trim() === String(saved.ticketName || '').trim();
+            });
+            if (kMatch) {
+                ticketSel.value = kMatch.value;
+                if (typeof jQuery !== 'undefined') jQuery(ticketSel).val(kMatch.value).trigger('change.select2');
+            } else if (saved.ticketName) {
+                const extraT = document.createElement('option');
+                extraT.value = saved.ticketId || saved.ticketName;
+                extraT.textContent = saved.ticketName;
+                extraT.dataset.adultPrice = String(saved.adultPrice || 0);
+                extraT.dataset.childPrice = String(saved.childPrice || 0);
+                extraT.dataset.seniorPrice = String(saved.seniorPrice || 0);
+                extraT.dataset.ticketSkuId = saved.ticketSkuId || '';
+                extraT.dataset.providerTicketId = saved.providerTicketId || '';
+                ticketSel.appendChild(extraT);
+                ticketSel.disabled = false;
+                ticketSel.value = extraT.value;
+                initOnlineTicketSelect2(false);
+            }
+        }
+
+        const remarksEl = document.getElementById('onlineAttractionRemarks');
+        if (remarksEl) remarksEl.value = saved.remarks || '';
+        const priceEl = document.getElementById('onlineAttractionPriceDisplay');
+        if (priceEl && saved.totalPrice != null) {
+            const p = parseFloat(saved.totalPrice);
+            if (Number.isFinite(p)) priceEl.value = p.toFixed(2);
+        } else {
+            applySelectedTicketPrice();
+        }
+        setOnlineAttractionSelectEnabled(true);
+        validateOnlineAttractionAddBtn();
+    };
+
     window.openOnlineAttractionModal = function (day, index) {
         onlineAttractionTarget = {
             day: parseInt(day, 10) || 1,
@@ -1406,6 +1613,15 @@
             return;
         }
         bootstrap.Modal.getOrCreateInstance(modalEl).show();
+        modalEl.addEventListener('shown.bs.modal', function onShownOnce() {
+            modalEl.removeEventListener('shown.bs.modal', onShownOnce);
+            const saved = window.__enquiryProOnlineAttractionEditSnapshot;
+            if (saved && typeof window.applyOnlineAttractionModalState === 'function') {
+                window.applyOnlineAttractionModalState(saved);
+            } else if (onlineAttractionsCache.length > 0) {
+                setOnlineAttractionSelectEnabled(true);
+            }
+        });
     };
 
     bindAttractionSourceToggle();
@@ -1503,16 +1719,20 @@
         });
     }
 
-    if (typeof jQuery !== 'undefined') {
-        jQuery('#onlineAttractionSelect').on('change.onlineAttraction select2:select.onlineAttraction select2:clear.onlineAttraction', onOnlineAttractionSelectChange);
-    } else {
-        document.getElementById('onlineAttractionSelect')?.addEventListener('change', onOnlineAttractionSelectChange);
-    }
+    bindOnlineAttractionSelectEvents();
 
-    document.getElementById('onlineAttractionTicketSelect')?.addEventListener('change', function () {
+    function onOnlineTicketSelectChange() {
         applySelectedTicketPrice();
         validateOnlineAttractionAddBtn();
-    });
+    }
+
+    const ticketEl = document.getElementById('onlineAttractionTicketSelect');
+    if (ticketEl) {
+        ticketEl.addEventListener('change', onOnlineTicketSelectChange);
+    }
+    if (typeof jQuery !== 'undefined' && jQuery.fn.select2) {
+        jQuery('#onlineAttractionTicketSelect').on('select2:select.onlineTicket select2:clear.onlineTicket', onOnlineTicketSelectChange);
+    }
 
     document.getElementById('onlineAttractionAddBtn')?.addEventListener('click', function () {
         const day = onlineAttractionTarget.day;
@@ -1573,11 +1793,13 @@
             currency: document.getElementById('onlineAttractionCurrency')?.textContent || 'SGD',
             visitDate: document.getElementById('onlineAttractionVisitDate')?.value || '',
             remarks: document.getElementById('onlineAttractionRemarks')?.value || '',
-            onlineAttractionRaw: attractionRaw || null
+            onlineAttractionRaw: attractionRaw || null,
+            tickets: Array.isArray(onlineCurrentTickets) ? onlineCurrentTickets.slice() : []
         };
 
         // Lite STP: push into attraction_data for the active city section
-        if (typeof window.pushSelectedOnlineAttraction === 'function' && window.__stpLiteOnlineAttractionRoot) {
+        if (typeof window.pushSelectedOnlineAttraction === 'function'
+            && (window.__stpLiteOnlineAttractionRoot || window.__enquiryProOnlineAttractionActive)) {
             window.pushSelectedOnlineAttraction(payload);
             if (typeof showNotification === 'function') {
                 showNotification('Online attraction "' + payload.attractionName + '" added.', 'success');
@@ -1586,6 +1808,7 @@
             if (modalElLite && typeof bootstrap !== 'undefined') {
                 bootstrap.Modal.getInstance(modalElLite)?.hide();
             }
+            window.__enquiryProOnlineAttractionActive = false;
             return;
         }
 

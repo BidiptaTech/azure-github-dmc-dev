@@ -28,6 +28,8 @@ use App\Models\Setting;
 use App\Helpers\CommonHelper;
 use App\Helpers\HotelPriceHelper;
 use App\Mail\TravclicksMail;
+use App\Services\ApiEnvironmentResolver;
+use App\Services\AttractionSuppliers\OnlineAttractionOrderService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
@@ -401,6 +403,123 @@ class EnquiryFormPro extends Controller
         $attributes['markup_type'] = $md['markup_type'] !== '' ? $md['markup_type'] : null;
 
         return Order::create($attributes);
+    }
+
+    /**
+     * Resolve whether a hotel/attraction order was booked online or offline (Lite parity).
+     *
+     * @param  array<string, mixed>  $item
+     */
+    private function resolveServiceOrderType(array $item, string $serviceType): string
+    {
+        if ($serviceType === 'hotel') {
+            if (! empty($item['isOnlineHotel']) || ($item['hotelSourceType'] ?? '') === 'online'
+                || strtolower((string) ($item['priceMode'] ?? '')) === 'online') {
+                return 'online';
+            }
+
+            return 'offline';
+        }
+
+        if ($serviceType === 'attraction') {
+            if (! empty($item['isOnlineAttraction']) || ($item['attractionSourceType'] ?? '') === 'online'
+                || strtolower((string) ($item['mode'] ?? '')) === 'online') {
+                return 'online';
+            }
+
+            return 'offline';
+        }
+
+        return 'offline';
+    }
+
+    /**
+     * @param  array<string, mixed>  $item
+     */
+    private function resolveStoredApiEnvironment(array $item): ?string
+    {
+        $resolver = app(ApiEnvironmentResolver::class);
+        $stored = $resolver->storedEnvironment($item);
+
+        if ($stored !== null) {
+            return $stored;
+        }
+
+        if (empty($item['isOnlineHotel']) && ($item['hotelSourceType'] ?? '') !== 'online'
+            && empty($item['isOnlineAttraction']) && ($item['attractionSourceType'] ?? '') !== 'online') {
+            return null;
+        }
+
+        try {
+            return $resolver->resolve();
+        } catch (\RuntimeException) {
+            return $resolver->normalize('demo');
+        }
+    }
+
+    /**
+     * Call Attractions /order/create (Lite parity). Prefer outside heavy DB work;
+     * reuses existing/cached order_ref_id so retries do not duplicate external orders.
+     *
+     * @param  list<mixed>  $attractions
+     * @return array<int, string|null>
+     */
+    private function createOnlineAttractionExternalOrders(array $attractions, int $tourId): array
+    {
+        $refs = [];
+        $service = app(OnlineAttractionOrderService::class);
+
+        foreach ($attractions as $index => $attraction) {
+            if (! is_array($attraction) || ! OnlineAttractionOrderService::isOnlineAttraction($attraction)) {
+                $refs[$index] = null;
+                continue;
+            }
+
+            $existing = OnlineAttractionOrderService::extractSavedRef((object) [
+                'order_ref_no' => $attraction['order_ref_no'] ?? null,
+            ], $attraction);
+            if ($existing !== null) {
+                $refs[$index] = $existing;
+                continue;
+            }
+
+            $result = $service->createOrder($attraction, $tourId);
+            $ref = $result['order_ref_id'] ?? null;
+            $ref = (is_string($ref) && $ref !== '' && ! OnlineAttractionOrderService::isPlaceholderRef($ref))
+                ? $ref
+                : null;
+
+            if ($ref !== null) {
+                $refs[$index] = $ref;
+                continue;
+            }
+
+            throw new \RuntimeException(
+                'Failed to create online attraction order: '
+                . ($result['message'] ?? 'missing order_ref_id from Attractions API')
+            );
+        }
+
+        return $refs;
+    }
+
+    /**
+     * Persist API order_ref_no onto the order row (and force-write if cast/save skipped it).
+     */
+    private function applyOrderRefNo(Order $order, ?string $externalRef): void
+    {
+        if ($externalRef === null || $externalRef === '' || OnlineAttractionOrderService::isPlaceholderRef($externalRef)) {
+            return;
+        }
+
+        $order->refresh();
+        if ((string) $order->order_ref_no !== (string) $externalRef) {
+            DB::table('orders')->where('id', $order->id)->update([
+                'order_ref_no' => $externalRef,
+                'updated_at' => now(),
+            ]);
+            $order->order_ref_no = $externalRef;
+        }
     }
 
     /**
@@ -2294,9 +2413,15 @@ class EnquiryFormPro extends Controller
             // 1. Accommodation Orders
             if ($request->has('accommodations') && !empty($request->accommodations)) {
                 $accommodations = json_decode($request->accommodations, true);
+                if (! is_array($accommodations)) {
+                    $accommodations = [];
+                }
                 \Log::info('Processing accommodations', ['count' => count($accommodations)]);
                 
                 foreach ($accommodations as $accommodation) {
+                    if (! is_array($accommodation)) {
+                        continue;
+                    }
                     \Log::info('Accommodation data', [
                         'has_transfer_options' => isset($accommodation['transfer_options']),
                         'transfer_options' => $accommodation['transfer_options'] ?? null
@@ -2305,6 +2430,13 @@ class EnquiryFormPro extends Controller
                     
                     // Add tour_id to the JSON data
                     $accommodation['tour_id'] = $tourId;
+                    $accommodation['isOnlineHotel'] = (bool) ($accommodation['isOnlineHotel'] ?? false);
+                    $accommodation['hotelSourceType'] = $accommodation['hotelSourceType']
+                        ?? (! empty($accommodation['isOnlineHotel']) ? 'online' : 'offline');
+                    $isOnlineHotel = $this->resolveServiceOrderType($accommodation, 'hotel') === 'online';
+                    if ($isOnlineHotel) {
+                        $accommodation['api_environment'] = $this->resolveStoredApiEnvironment($accommodation);
+                    }
                     
                     $order = $this->createEnquiryProOrder([
                         // 'booking_id' => $bookingId,
@@ -2318,6 +2450,9 @@ class EnquiryFormPro extends Controller
                         'markup_percentage' => $markupValue,
                         'markup_type' => $markupType,
                         'status' => 1,
+                        // Lite parity: online hotels store order_type + placeholder until supplier book on approve
+                        'order_type' => $isOnlineHotel ? 'online' : 'offline',
+                        'order_ref_no' => $isOnlineHotel ? OnlineAttractionOrderService::PLACEHOLDER_ORDER_REF : null,
                     ]);
                     
                     $order->refresh();
@@ -2344,9 +2479,18 @@ class EnquiryFormPro extends Controller
             // 2. Tour/Attraction Orders
             if ($request->has('tours') && !empty($request->tours)) {
                 $tours = json_decode($request->tours, true);
+                if (! is_array($tours)) {
+                    $tours = [];
+                }
                 \Log::info('Processing attractions', ['count' => count($tours)]);
+
+                // Lite parity: create Attractions API order_ref_id before inserting orders
+                $attractionExternalRefs = $this->createOnlineAttractionExternalOrders($tours, (int) $tourId);
                 
-                foreach ($tours as $tourItem) {
+                foreach ($tours as $attractionIndex => $tourItem) {
+                    if (! is_array($tourItem)) {
+                        continue;
+                    }
                     \Log::info('Attraction data', [
                         'has_transfer_options' => isset($tourItem['transfer_options']),
                         'has_guide_options' => isset($tourItem['guide_options']),
@@ -2357,6 +2501,20 @@ class EnquiryFormPro extends Controller
                     
                     // Add tour_id to the JSON data
                     $tourItem['tour_id'] = $tourId;
+                    $tourItem['isOnlineAttraction'] = (bool) ($tourItem['isOnlineAttraction'] ?? false);
+                    $tourItem['attractionSourceType'] = $tourItem['attractionSourceType']
+                        ?? (! empty($tourItem['isOnlineAttraction']) ? 'online' : 'offline');
+                    if (! empty($tourItem['isOnlineAttraction']) || ($tourItem['attractionSourceType'] ?? '') === 'online') {
+                        $tourItem['api_environment'] = $this->resolveStoredApiEnvironment($tourItem);
+                    }
+
+                    $externalRef = $attractionExternalRefs[$attractionIndex] ?? null;
+                    if (is_string($externalRef) && $externalRef !== '' && ! OnlineAttractionOrderService::isPlaceholderRef($externalRef)) {
+                        $tourItem = app(OnlineAttractionOrderService::class)
+                            ->applyRefToAttraction($tourItem, $externalRef, 'pending');
+                    } else {
+                        $externalRef = null;
+                    }
                     
                     $order = $this->createEnquiryProOrder([
                         // 'booking_id' => $bookingId,
@@ -2370,9 +2528,12 @@ class EnquiryFormPro extends Controller
                         'markup_percentage' => $markupValue,
                         'markup_type' => $markupType,
                         'status' => 1,
+                        'order_type' => $this->resolveServiceOrderType($tourItem, 'attraction'),
+                        'order_ref_no' => $externalRef,
                     ]);
                     
                     $order->refresh();
+                    $this->applyOrderRefNo($order, $externalRef);
                     $bookingId = $order->booking_id;
                     
                     $createdOrders[] = [
@@ -4215,10 +4376,36 @@ class EnquiryFormPro extends Controller
                 $seenHotels[] = $uniqueKey;
 
                 $accommodation['tour_id'] = $tour_id;
+                $accommodation['isOnlineHotel'] = (bool) ($accommodation['isOnlineHotel'] ?? false);
+                $accommodation['hotelSourceType'] = $accommodation['hotelSourceType']
+                    ?? (! empty($accommodation['isOnlineHotel']) ? 'online' : 'offline');
+                $isOnlineHotel = $this->resolveServiceOrderType($accommodation, 'hotel') === 'online';
+                if ($isOnlineHotel) {
+                    $accommodation['api_environment'] = $this->resolveStoredApiEnvironment($accommodation);
+                }
 
                 $existingOrder = $this->findOrderForTourTypeIncludingTrashedByPayload($tour, 'hotel', $accommodation);
                 if ($existingOrder !== null) {
                     $this->restoreAndUpdateEnquiryOrder($existingOrder, $request, $tour_id, [$accommodation], 'hotel', $bookingType, $discountValue, $discountType, $markupValue, $markupType, $syncedOrders);
+                    if ($isOnlineHotel) {
+                        $updates = [];
+                        if ((string) ($existingOrder->order_type ?? '') !== 'online') {
+                            $updates['order_type'] = 'online';
+                        }
+                        $existingRef = OnlineAttractionOrderService::extractSavedRef($existingOrder, $accommodation);
+                        if ($existingRef === null && OnlineAttractionOrderService::isPlaceholderRef((string) ($existingOrder->order_ref_no ?? ''))) {
+                            $updates['order_ref_no'] = OnlineAttractionOrderService::PLACEHOLDER_ORDER_REF;
+                        }
+                        if ($updates !== []) {
+                            $updates['updated_at'] = now();
+                            DB::table('orders')->where('id', $existingOrder->id)->update($updates);
+                            foreach ($updates as $k => $v) {
+                                if ($k !== 'updated_at') {
+                                    $existingOrder->{$k} = $v;
+                                }
+                            }
+                        }
+                    }
 
                     continue;
                 }
@@ -4236,6 +4423,8 @@ class EnquiryFormPro extends Controller
                     'markup_percentage' => $markupValue,
                     'markup_type' => $markupType,
                     'status' => 1,
+                    'order_type' => $isOnlineHotel ? 'online' : 'offline',
+                    'order_ref_no' => $isOnlineHotel ? OnlineAttractionOrderService::PLACEHOLDER_ORDER_REF : null,
                 ]);
                 $order->refresh();
                 $bookingId = $order->booking_id;
@@ -4251,8 +4440,25 @@ class EnquiryFormPro extends Controller
             }
             $removedOrdersCount += $this->softDeleteOrphanOrdersForType($tour, 'attraction', $this->resolveKeepBookingIdsForType($tour, 'attraction', $toursPayload));
 
+            // Seed existing refs onto payload so create-order reuses them (no duplicate API orders).
+            foreach ($toursPayload as $ti => $tourRow) {
+                if (! is_array($tourRow)) {
+                    continue;
+                }
+                $existingForRef = $this->findOrderForTourTypeIncludingTrashedByPayload($tour, 'attraction', $tourRow);
+                if ($existingForRef) {
+                    $savedRef = OnlineAttractionOrderService::extractSavedRef($existingForRef, $tourRow);
+                    if ($savedRef !== null) {
+                        $toursPayload[$ti]['order_ref_no'] = $savedRef;
+                        $toursPayload[$ti]['external_order_ref_id'] = $savedRef;
+                        $toursPayload[$ti]['attraction_order_ref_id'] = $savedRef;
+                    }
+                }
+            }
+            $attractionExternalRefs = $this->createOnlineAttractionExternalOrders($toursPayload, (int) $tour_id);
+
             $seenTours = [];
-            foreach ($toursPayload as $tourItem) {
+            foreach ($toursPayload as $attractionIndex => $tourItem) {
                 if (! is_array($tourItem)) {
                     continue;
                 }
@@ -4268,10 +4474,32 @@ class EnquiryFormPro extends Controller
                 $seenTours[] = $uniqueKey;
 
                 $tourItem['tour_id'] = $tour_id;
+                $tourItem['isOnlineAttraction'] = (bool) ($tourItem['isOnlineAttraction'] ?? false);
+                $tourItem['attractionSourceType'] = $tourItem['attractionSourceType']
+                    ?? (! empty($tourItem['isOnlineAttraction']) ? 'online' : 'offline');
+                if (! empty($tourItem['isOnlineAttraction']) || ($tourItem['attractionSourceType'] ?? '') === 'online') {
+                    $tourItem['api_environment'] = $this->resolveStoredApiEnvironment($tourItem);
+                }
+
+                $externalRef = $attractionExternalRefs[$attractionIndex] ?? null;
+                if (is_string($externalRef) && $externalRef !== '' && ! OnlineAttractionOrderService::isPlaceholderRef($externalRef)) {
+                    $tourItem = app(OnlineAttractionOrderService::class)
+                        ->applyRefToAttraction($tourItem, $externalRef, 'pending');
+                } else {
+                    $externalRef = null;
+                }
 
                 $existingOrder = $this->findOrderForTourTypeIncludingTrashedByPayload($tour, 'attraction', $tourItem);
                 if ($existingOrder !== null) {
                     $this->restoreAndUpdateEnquiryOrder($existingOrder, $request, $tour_id, [$tourItem], 'attraction', $bookingType, $discountValue, $discountType, $markupValue, $markupType, $syncedOrders);
+                    $this->applyOrderRefNo($existingOrder, $externalRef ?: OnlineAttractionOrderService::extractSavedRef($existingOrder, $tourItem));
+                    if ($this->resolveServiceOrderType($tourItem, 'attraction') === 'online' && (string) ($existingOrder->order_type ?? '') !== 'online') {
+                        DB::table('orders')->where('id', $existingOrder->id)->update([
+                            'order_type' => 'online',
+                            'updated_at' => now(),
+                        ]);
+                        $existingOrder->order_type = 'online';
+                    }
 
                     continue;
                 }
@@ -4289,8 +4517,11 @@ class EnquiryFormPro extends Controller
                     'markup_percentage' => $markupValue,
                     'markup_type' => $markupType,
                     'status' => 1,
+                    'order_type' => $this->resolveServiceOrderType($tourItem, 'attraction'),
+                    'order_ref_no' => $externalRef,
                 ]);
                 $order->refresh();
+                $this->applyOrderRefNo($order, $externalRef);
                 $bookingId = $order->booking_id;
                 
                 $syncedOrders[] = ['type' => 'attraction', 'booking_id' => $bookingId, 'action' => 'created'];
@@ -4885,6 +5116,23 @@ class EnquiryFormPro extends Controller
         if ($order->status === null) {
             $order->status = 1;
         }
+
+        // Lite parity: keep online order_type / API order_ref_no on update
+        $first = is_array($dataPayload[0] ?? null) ? $dataPayload[0] : [];
+        if (in_array($type, ['hotel', 'attraction'], true)) {
+            $resolvedType = $this->resolveServiceOrderType($first, $type);
+            $order->order_type = $resolvedType;
+            if ($type === 'attraction') {
+                $ref = OnlineAttractionOrderService::extractSavedRef($order, $first);
+                if ($ref !== null) {
+                    $order->order_ref_no = $ref;
+                }
+            } elseif ($resolvedType === 'online'
+                && OnlineAttractionOrderService::isPlaceholderRef((string) ($order->order_ref_no ?? ''))) {
+                $order->order_ref_no = OnlineAttractionOrderService::PLACEHOLDER_ORDER_REF;
+            }
+        }
+
         $order->save();
 
         $syncedOrders[] = [

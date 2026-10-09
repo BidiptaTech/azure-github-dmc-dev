@@ -3191,13 +3191,20 @@
                     extra_bed: 0,
                     extra_bed_price: 0,
                     extra_bed_cost: 0,
+                    // Online: cost === sell (stay total)
                     price: price,
+                    cost: price,
+                    sell: price,
+                    cost_price: price,
                     mealTypes: [mealPlan],
                     meal_plan: mealPlan
                 }]
             }],
             totalPrice: price,
             price: price,
+            cost: price,
+            sell: price,
+            cost_price: price,
             transfer_options: null,
             child_with_bed: null,
             child_without_bed: null,

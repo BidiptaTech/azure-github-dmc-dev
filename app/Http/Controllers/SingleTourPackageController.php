@@ -6320,6 +6320,13 @@ class SingleTourPackageController extends Controller
                             }
                             
                         } elseif ($type === 'attraction') {
+                            // Call Attractions /order/create outside the per-row loop (Lite + Pro parity).
+                            // Reuses existing/cached order_ref_id so retries do not duplicate external orders.
+                            $attractionExternalRefs = $this->createOnlineAttractionExternalOrders(
+                                $decodedData,
+                                (int) $tourId
+                            );
+
                             // For attractions, store each attraction as a separate order
                             foreach ($decodedData as $attractionIndex => $attraction) {
                                 // Ensure attraction has proper price field (use totalPrice from frontend calculation)
