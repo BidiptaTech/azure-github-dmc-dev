@@ -236,16 +236,30 @@
         var pickup = T.readAmPmValue(root, 'guide');
         var surcharge = nightSurchargeFor(guide, pickup);
         var total = base + surcharge;
-        root.__lastPrice = { total: total, base: base, surcharge: surcharge, hours: hours };
         var cur = root.getAttribute('data-currency') || 'SGD';
-        var panel = root.querySelector('[data-guide-price-panel]');
-        var totalEl = root.querySelector('.guide-price-total');
-        var detail = root.querySelector('.guide-price-detail');
-        if (panel) panel.classList.remove('d-none');
-        if (totalEl) totalEl.textContent = cur + ' ' + total.toFixed(2);
-        if (detail) {
-            detail.textContent = hours + 'h package ' + cur + ' ' + base.toFixed(2) +
-                (surcharge ? ' + night surcharge ' + cur + ' ' + surcharge.toFixed(2) : '');
+        var detailHtml = hours + 'h package ' + cur + ' ' + base.toFixed(2) +
+            (surcharge ? ' + night surcharge ' + cur + ' ' + surcharge.toFixed(2) : '');
+        var applied = (window.StpLiteDmcMarkup && typeof window.StpLiteDmcMarkup.apply === 'function')
+            ? window.StpLiteDmcMarkup.apply(total, 'other')
+            : { base_price: total, markup_amount: 0, price: total };
+        root.__lastPrice = {
+            total: applied.price,
+            baseTotal: applied.base_price,
+            markupAmount: applied.markup_amount,
+            base: base,
+            surcharge: surcharge,
+            hours: hours,
+            dmc_profile_markup: applied
+        };
+        if (window.StpLiteDmcMarkup && typeof window.StpLiteDmcMarkup.fillPricePanel === 'function') {
+            window.StpLiteDmcMarkup.fillPricePanel(root, 'guide', cur, total, detailHtml);
+        } else {
+            var panel = root.querySelector('[data-guide-price-panel]');
+            var totalEl = root.querySelector('.guide-price-total');
+            var detail = root.querySelector('.guide-price-detail');
+            if (panel) panel.classList.remove('d-none');
+            if (totalEl) totalEl.textContent = cur + ' ' + applied.price.toFixed(2);
+            if (detail) detail.textContent = detailHtml;
         }
         var add = root.querySelector('.guide-add-btn');
         if (add) add.disabled = false;
@@ -336,21 +350,30 @@
         if (adultsEl) adultsEl.value = String(row.adults || 0);
         if (childrenEl) childrenEl.value = String(row.children || 0);
         S().setAmPmValue(root, 'guide', row.entrytime || '');
+        var cur = root.getAttribute('data-currency') || 'SGD';
+        var detailHtml = (row.hours || 0) + 'h package ' + cur + ' ' + Number(row.basePrice || 0).toFixed(2) +
+            (row.surcharge ? ' + night surcharge ' + cur + ' ' + Number(row.surcharge || 0).toFixed(2) : '');
+        var applied = (window.StpLiteDmcMarkup && typeof window.StpLiteDmcMarkup.splitFromFinal === 'function')
+            ? window.StpLiteDmcMarkup.splitFromFinal(row.totalPrice || 0, 'other')
+            : { base_price: Number(row.totalPrice || 0), markup_amount: 0, price: Number(row.totalPrice || 0) };
         root.__lastPrice = {
-            total: row.totalPrice || 0,
+            total: applied.price,
+            baseTotal: applied.base_price,
+            markupAmount: applied.markup_amount,
             base: row.basePrice || 0,
             surcharge: row.surcharge || 0,
-            hours: row.hours || 0
+            hours: row.hours || 0,
+            dmc_profile_markup: applied
         };
-        var cur = root.getAttribute('data-currency') || 'SGD';
-        var panel = root.querySelector('[data-guide-price-panel]');
-        var totalEl = root.querySelector('.guide-price-total');
-        var detail = root.querySelector('.guide-price-detail');
-        if (panel) panel.classList.remove('d-none');
-        if (totalEl) totalEl.textContent = cur + ' ' + Number(row.totalPrice || 0).toFixed(2);
-        if (detail) {
-            detail.textContent = (row.hours || 0) + 'h package ' + cur + ' ' + Number(row.basePrice || 0).toFixed(2) +
-                (row.surcharge ? ' + night surcharge ' + cur + ' ' + Number(row.surcharge || 0).toFixed(2) : '');
+        if (window.StpLiteDmcMarkup && typeof window.StpLiteDmcMarkup.fillPricePanel === 'function') {
+            window.StpLiteDmcMarkup.fillPricePanel(root, 'guide', cur, applied.base_price, detailHtml);
+        } else {
+            var panel = root.querySelector('[data-guide-price-panel]');
+            var totalEl = root.querySelector('.guide-price-total');
+            var detail = root.querySelector('.guide-price-detail');
+            if (panel) panel.classList.remove('d-none');
+            if (totalEl) totalEl.textContent = cur + ' ' + Number(applied.price || 0).toFixed(2);
+            if (detail) detail.textContent = detailHtml;
         }
         var add = root.querySelector('.guide-add-btn');
         if (add) add.disabled = false;

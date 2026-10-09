@@ -663,6 +663,80 @@ class AgencyController extends Controller
     }
 
     /**
+     * Update special discount type/value for a selected agency.
+     */
+    public function updateSpecialDiscount(Request $request)
+    {
+        try {
+            $user = Auth::user();
+            $allowedRoles = [11, 33, 35, 37, 38, 74, 93, 130, 132, 133, 135, 136, 137, 138, 128, 129, 134];
+            if (! in_array($user->role_id, $allowedRoles)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You do not have permission to perform this action.',
+                ], 403);
+            }
+
+            try {
+                $dmc_id = $this->getDmcIdByUserRole();
+            } catch (\Exception $e) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $e->getMessage(),
+                ], 403);
+            }
+
+            $validator = Validator::make($request->all(), [
+                'agency_id' => 'required|integer',
+                'special_discount_type' => 'required|in:percentage,flat',
+                'special_discount' => 'nullable|integer|min:0',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $validator->errors()->first(),
+                    'errors' => $validator->errors(),
+                ], 422);
+            }
+
+            $agency = Agency::where('agency_id', $request->input('agency_id'))->first();
+            if (! $agency) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Agency not found.',
+                ], 404);
+            }
+
+            if (! $agency->hasSelectedByDmc($dmc_id)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Agency not selected by you.',
+                ], 400);
+            }
+
+            $agency->special_discount_type = $request->input('special_discount_type');
+            $agency->special_discount = (int) $request->input('special_discount', 0);
+            $agency->updated_by = $user->userId;
+            $agency->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Special discount updated successfully.',
+                'special_discount_type' => $agency->special_discount_type,
+                'special_discount' => (int) $agency->special_discount,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Agency special discount update error: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while updating special discount.',
+            ], 500);
+        }
+    }
+
+    /**
      * Return sales users in the hierarchy rooted at the given DMC.
      */
     private function getSalesDmcUsers($dmcId)

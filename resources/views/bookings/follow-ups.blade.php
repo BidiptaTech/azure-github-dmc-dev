@@ -1759,9 +1759,10 @@
                         <input type="hidden" name="actual_amount" id="followup_modal_actual_amount" value="" />
                         <input type="hidden" name="price" id="followup_current_price" value="" />
 
+                        <div id="followupProfileMarkupOnce" class="mb-2"></div>
                         <div id="followupCountryBlocks" class="d-flex flex-column gap-3 mb-3"></div>
                         <div class="alert alert-info py-2 px-3 mb-3">
-                            Hotel markup applies only to hotel services and other markup only to other services. Discount is taken from (gross + markup). Your counter price is calculated automatically and cannot be edited.
+                            Profile markup is shown once above and applied to each country. Discount is per country on (gross + markup). Counter price is calculated automatically.
                         </div>
 
                         <div class="negotiation-meta-block mb-3">
@@ -1810,9 +1811,10 @@
                             <span class="negotiation-label">Tour</span>
                             <div class="negotiation-value" id="agentNegotiationDisplayId">—</div>
                         </div>
+                        <div id="agentNegotiationProfileMarkupOnce" class="mb-2"></div>
                         <div id="agentNegotiationCountryBlocks" class="d-flex flex-column gap-3 mb-3"></div>
                         <div class="alert alert-info py-2 px-3 mb-3" id="agentNegotiationCurrencyHint">
-                            Hotel markup applies only to hotel services. Other markup applies only to other services. Discount is taken from (gross + markup). Offer is calculated automatically.
+                            Profile markup is shown once above and applied to each country. Discount is per country on (gross + markup). Offer is calculated automatically.
                         </div>
                         <div class="row g-2 mb-3">
                             <div class="col-md-6">
@@ -3347,27 +3349,49 @@ function showFilterResetMessage() {
         function syncFollowupDmcMarkupHidden(card) {
             if (!card) return;
             const offerInput = card.querySelector('.dmc-nego-offer-input');
-            const hotelRaw = parseFloat(card.querySelector('.dmc-nego-hotel-markup')?.value || 0) || 0;
-            const otherRaw = parseFloat(card.querySelector('.dmc-nego-other-markup')?.value || 0) || 0;
-            const discountRaw = parseFloat(card.querySelector('.dmc-nego-discount')?.value || 0) || 0;
+            const hotelRaw = parseFloat(
+                (offerInput && offerInput.getAttribute('data-hotel-markup-raw'))
+                || (card.querySelector('.dmc-nego-hotel-markup') || {}).value
+                || 0
+            ) || 0;
+            const otherRaw = parseFloat(
+                (offerInput && offerInput.getAttribute('data-other-markup-raw'))
+                || (card.querySelector('.dmc-nego-other-markup') || {}).value
+                || 0
+            ) || 0;
+            const profileDisc = (typeof readNegotiationProfileDiscountOnce === 'function')
+                ? readNegotiationProfileDiscountOnce(document.getElementById('followupProfileMarkupOnce'))
+                : null;
+            const discountRaw = profileDisc
+                ? profileDisc.discountRaw
+                : (parseFloat(card.querySelector('.dmc-nego-discount-hidden')?.value || 0) || 0);
+            const discountType = profileDisc
+                ? profileDisc.discountType
+                : String((offerInput && offerInput.getAttribute('data-discount-type')) || 'flat').toLowerCase();
             const hotelHidden = card.querySelector('.dmc-nego-hotel-hidden');
             const otherHidden = card.querySelector('.dmc-nego-other-hidden');
             const discountHidden = card.querySelector('.dmc-nego-discount-hidden');
+            const discountTypeHidden = card.querySelector('input[name*="[discount_type]"]');
             if (hotelHidden) hotelHidden.value = String(hotelRaw);
             if (otherHidden) otherHidden.value = String(otherRaw);
             if (discountHidden) discountHidden.value = String(discountRaw);
+            if (discountTypeHidden) discountTypeHidden.value = discountType;
+            if (offerInput) offerInput.setAttribute('data-discount-type', discountType);
             if (!offerInput) return;
 
             const hotelGross = parseFloat(offerInput.getAttribute('data-hotel-gross') || 0) || 0;
             const otherGross = parseFloat(offerInput.getAttribute('data-other-gross') || 0) || 0;
             const markupType = String(offerInput.getAttribute('data-markup-type') || 'flat').toLowerCase();
-            const discountType = String(offerInput.getAttribute('data-discount-type') || 'flat').toLowerCase();
+            const hotelMarkupType = String(offerInput.getAttribute('data-hotel-markup-type') || markupType).toLowerCase();
+            const otherMarkupType = String(offerInput.getAttribute('data-other-markup-type') || markupType).toLowerCase();
             const currency = offerInput.getAttribute('data-currency') || '';
             const pricing = (typeof computeSplitNegotiationPricing === 'function')
                 ? computeSplitNegotiationPricing({
                     hotelGross: hotelGross,
                     otherGross: otherGross,
                     markupType: markupType,
+                    hotelMarkupType: hotelMarkupType,
+                    otherMarkupType: otherMarkupType,
                     hotelRaw: hotelRaw,
                     otherRaw: otherRaw,
                     discountType: discountType,
@@ -3395,15 +3419,23 @@ function showFilterResetMessage() {
 
         function renderFollowupNegotiationCountryBlocks(countryGroups, agentOffers, fallbackPrice) {
             const blocksEl = document.getElementById('followupCountryBlocks');
+            const profileHost = document.getElementById('followupProfileMarkupOnce');
             const warningMessage = document.getElementById('followup-warning-message');
             if (!blocksEl) return;
 
             blocksEl.innerHTML = '';
+            if (profileHost) profileHost.innerHTML = '';
             if (!Array.isArray(countryGroups) || countryGroups.length === 0) {
                 blocksEl.innerHTML = '<div class="alert alert-warning mb-0">No country-wise order totals found for this tour.</div>';
                 syncFollowupPrimaryNegotiationAmount();
                 return;
             }
+            if (typeof renderNegotiationProfileMarkupOnce === 'function') {
+                renderNegotiationProfileMarkupOnce(profileHost, countryGroups, agentOffers);
+            }
+            const onceDisc = (typeof readNegotiationProfileDiscountOnce === 'function')
+                ? readNegotiationProfileDiscountOnce(profileHost)
+                : null;
 
             countryGroups.forEach(function (group, index) {
                 const currency = group.currency || '';
@@ -3415,25 +3447,20 @@ function showFilterResetMessage() {
                 const defaultCounter = Number.isFinite(agentAmount) && agentAmount > 0
                     ? agentAmount
                     : (Number.isFinite(fallbackPrice) && fallbackPrice > 0 && index === 0 ? fallbackPrice : (payable > 0 ? payable : ''));
-                const markupType = String((agentOffer && agentOffer.markup_type) || group.markup_type || 'flat').toLowerCase();
-                const discountType = String((agentOffer && agentOffer.discount_type) || group.discount_type || 'flat').toLowerCase();
-                const hotelRaw = Number(
-                    agentOffer && agentOffer.hotel_markup != null
-                        ? agentOffer.hotel_markup
-                        : (group.hotel_markup_raw != null ? group.hotel_markup_raw : (group.markup_raw || 0))
-                );
-                const otherRaw = Number(
-                    agentOffer && agentOffer.other_markup != null
-                        ? agentOffer.other_markup
-                        : (group.other_markup_raw != null ? group.other_markup_raw : 0)
-                );
-                const discountRaw = Number(
-                    agentOffer && agentOffer.discount_value != null
-                        ? agentOffer.discount_value
-                        : (group.discount_raw != null ? group.discount_raw : (group.discount || 0))
-                );
-                const markupSuffix = markupType === 'percentage' ? '%' : currency;
-                const discountSuffix = discountType === 'percentage' ? '%' : currency;
+                const profileMk = (typeof resolveNegotiationMarkupForGroup === 'function')
+                    ? resolveNegotiationMarkupForGroup(group, currency)
+                    : { hotelType: 'percentage', otherType: 'percentage', hotelRaw: 0, otherRaw: 0, hotelSuffix: '%', otherSuffix: '%', markupType: 'percentage' };
+                const markupType = profileMk.markupType;
+                const hotelMarkupType = profileMk.hotelType;
+                const otherMarkupType = profileMk.otherType;
+                const hotelRaw = profileMk.hotelRaw;
+                const otherRaw = profileMk.otherRaw;
+                const discountType = onceDisc
+                    ? onceDisc.discountType
+                    : String(group.discount_type || 'percentage').toLowerCase();
+                const discountRaw = onceDisc
+                    ? onceDisc.discountRaw
+                    : Number(group.discount_raw != null ? group.discount_raw : (group.discount || 0));
                 const citiesValue = negotiationCitiesValue(group);
                 const split = (typeof negotiationHotelOtherGross === 'function')
                     ? negotiationHotelOtherGross(group)
@@ -3454,35 +3481,9 @@ function showFilterResetMessage() {
                         '<div class="col-4"><span class="negotiation-label">Other services</span><div class="negotiation-value dmc-nego-other-base">' + currency + ' ' + formatNegotiationAmount(split.otherGross) + '</div></div>' +
                         '<div class="col-4"><span class="negotiation-label">Gross total</span><div class="negotiation-value dmc-nego-gross-display">' + currency + ' ' + formatNegotiationAmount(gross) + '</div></div>' +
                     '</div>' +
-                    '<div class="row g-2 mb-2">' +
-                        '<div class="col-6 col-md-4">' +
-                            '<label class="negotiation-label">Hotel markup' + (markupType === 'percentage' ? ' (%)' : '') + '</label>' +
-                            '<div class="input-group input-group-sm">' +
-                                '<input type="number" class="form-control dmc-nego-hotel-markup" min="0" step="0.01" value="' + hotelRaw + '"' + (split.hasHotel ? '' : ' disabled') + '>' +
-                                '<span class="input-group-text">' + escAttr(markupSuffix || 'AMT') + '</span>' +
-                            '</div>' +
-                            '<div class="nego-add-amt dmc-nego-hotel-add">+ ' + escAttr(currency) + ' 0.00</div>' +
-                            '<div class="nego-split-note dmc-nego-hotel-note">' + (split.hasHotel ? '' : 'No hotel booked') + '</div>' +
-                        '</div>' +
-                        '<div class="col-6 col-md-4">' +
-                            '<label class="negotiation-label">Other markup' + (markupType === 'percentage' ? ' (%)' : '') + '</label>' +
-                            '<div class="input-group input-group-sm">' +
-                                '<input type="number" class="form-control dmc-nego-other-markup" min="0" step="0.01" value="' + otherRaw + '"' + (split.hasOther ? '' : ' disabled') + '>' +
-                                '<span class="input-group-text">' + escAttr(markupSuffix || 'AMT') + '</span>' +
-                            '</div>' +
-                            '<div class="nego-add-amt dmc-nego-other-add">+ ' + escAttr(currency) + ' 0.00</div>' +
-                            '<div class="nego-split-note dmc-nego-other-note">' + (split.hasOther ? '' : 'No other services booked') + '</div>' +
-                        '</div>' +
-                        '<div class="col-6 col-md-4">' +
-                            '<label class="negotiation-label">Discount' + (discountType === 'percentage' ? ' (%)' : (discountType === 'foc' ? ' (FOC)' : '')) + '</label>' +
-                            '<div class="input-group input-group-sm">' +
-                                '<input type="number" class="form-control dmc-nego-discount" min="0" step="0.01" value="' + discountRaw + '">' +
-                                '<span class="input-group-text">' + escAttr(discountSuffix || 'AMT') + '</span>' +
-                            '</div>' +
-                            '<div class="nego-add-amt dmc-nego-discount-add is-zero">− ' + escAttr(currency) + ' 0.00</div>' +
-                        '</div>' +
-                    '</div>' +
                     '<div class="nego-calc-summary">' +
+                        '<div class="nego-calc-row is-markup"><span>Hotel markup amt</span><span class="dmc-nego-hotel-add">' + currency + ' 0.00</span></div>' +
+                        '<div class="nego-calc-row is-markup"><span>Other markup amt</span><span class="dmc-nego-other-add">' + currency + ' 0.00</span></div>' +
                         '<div class="nego-calc-row is-markup"><span>Markup total</span><span class="dmc-nego-markup-total">' + currency + ' 0.00</span></div>' +
                         '<div class="nego-calc-row"><span>After markup</span><span class="dmc-nego-after-markup">' + currency + ' 0.00</span></div>' +
                         '<div class="nego-calc-row is-discount"><span>Discount total</span><span class="dmc-nego-discount-total">' + currency + ' 0.00</span></div>' +
@@ -3495,9 +3496,10 @@ function showFilterResetMessage() {
                     '<input type="number" class="form-control dmc-nego-offer-input bg-light" min="0" step="0.01" required readonly tabindex="-1" ' +
                         'data-index="' + index + '" data-max="' + payable + '" data-country="' + escAttr(country) + '" data-currency="' + escAttr(currency) + '" ' +
                         'data-gross="' + gross + '" data-hotel-gross="' + split.hotelGross + '" data-other-gross="' + split.otherGross + '" ' +
-                        'data-markup-type="' + escAttr(markupType) + '" data-discount-type="' + escAttr(discountType) + '" ' +
+                        'data-hotel-markup-raw="' + hotelRaw + '" data-other-markup-raw="' + otherRaw + '" ' +
+                        'data-markup-type="' + escAttr(markupType) + '" data-hotel-markup-type="' + escAttr(hotelMarkupType) + '" data-other-markup-type="' + escAttr(otherMarkupType) + '" data-discount-type="' + escAttr(discountType) + '" ' +
                         'value="' + defaultCounter + '" placeholder="Auto from markup / discount">' +
-                    '<div class="form-text text-muted mt-1">Counter price updates automatically from hotel/other markup and discount. Hotel markup on hotel services only · Other markup on other services only · Discount on (gross + markup).</div>' +
+                    '<div class="form-text text-muted mt-1">Uses profile markup &amp; agency discount (above) · Offer = gross + markup − discount.</div>' +
                     '<input type="hidden" name="offers[' + index + '][country]" value="' + escAttr(country) + '">' +
                     '<input type="hidden" name="offers[' + index + '][currency]" value="' + escAttr(currency) + '">' +
                     '<input type="hidden" name="offers[' + index + '][cities]" value="' + escAttr(citiesValue) + '">' +
@@ -3518,12 +3520,16 @@ function showFilterResetMessage() {
                 const hidden = input.parentElement.querySelector('.dmc-nego-offer-hidden');
                 if (hidden) hidden.value = input.value;
             });
-            blocksEl.querySelectorAll('.dmc-nego-hotel-markup, .dmc-nego-other-markup, .dmc-nego-discount').forEach(function (input) {
-                input.addEventListener('input', function () {
-                    const card = this.closest('.negotiation-pricing-summary');
-                    if (card) syncFollowupDmcMarkupHidden(card);
+
+            const onceDiscountInput = profileHost && profileHost.querySelector('.nego-profile-discount-input');
+            if (onceDiscountInput) {
+                onceDiscountInput.addEventListener('input', function () {
+                    if (typeof applyNegotiationProfileDiscountOnceToCards === 'function') {
+                        applyNegotiationProfileDiscountOnceToCards(profileHost, blocksEl, syncFollowupDmcMarkupHidden);
+                    }
+                    syncFollowupPrimaryNegotiationAmount();
                 });
-            });
+            }
 
             syncFollowupPrimaryNegotiationAmount();
         }
@@ -3700,26 +3706,41 @@ function showFilterResetMessage() {
                 renderAgentNegotiationProfitPanel(countryGroups);
             }
 
+            const profileHost = document.getElementById('agentNegotiationProfileMarkupOnce');
+            if (profileHost) profileHost.innerHTML = '';
             if (blocksEl) {
                 blocksEl.innerHTML = '';
                 if (countryGroups.length === 0) {
                     blocksEl.innerHTML = '<div class="alert alert-warning mb-0">No country-wise order totals found for this tour.</div>';
                 } else {
+                    if (typeof renderNegotiationProfileMarkupOnce === 'function') {
+                        renderNegotiationProfileMarkupOnce(profileHost, countryGroups, lastOffers);
+                    }
+                    const onceDisc = (typeof readNegotiationProfileDiscountOnce === 'function')
+                        ? readNegotiationProfileDiscountOnce(profileHost)
+                        : null;
                     countryGroups.forEach(function (group, index) {
                         const currency = group.currency || '';
                         const country = group.country || currency || ('Country ' + (index + 1));
                         const payable = Number(group.payable || 0);
                         const gross = Number(group.gross || 0);
-                        const markupType = String(group.markup_type || 'flat').toLowerCase();
-                        const discountType = String(group.discount_type || 'flat').toLowerCase();
-                        const hotelRaw = Number(group.hotel_markup_raw != null ? group.hotel_markup_raw : (group.markup_raw || 0));
-                        const otherRaw = Number(group.other_markup_raw != null ? group.other_markup_raw : 0);
-                        const discountRaw = Number(group.discount_raw != null ? group.discount_raw : (group.discount || 0));
+                        const profileMk = (typeof resolveNegotiationMarkupForGroup === 'function')
+                            ? resolveNegotiationMarkupForGroup(group, currency)
+                            : { hotelType: 'percentage', otherType: 'percentage', hotelRaw: 0, otherRaw: 0, hotelSuffix: '%', otherSuffix: '%', markupType: 'percentage' };
+                        const markupType = profileMk.markupType;
+                        const hotelMarkupType = profileMk.hotelType;
+                        const otherMarkupType = profileMk.otherType;
+                        const hotelRaw = profileMk.hotelRaw;
+                        const otherRaw = profileMk.otherRaw;
+                        const discountType = onceDisc
+                            ? onceDisc.discountType
+                            : String(group.discount_type || 'percentage').toLowerCase();
+                        const discountRaw = onceDisc
+                            ? onceDisc.discountRaw
+                            : Number(group.discount_raw != null ? group.discount_raw : (group.discount || 0));
                         const split = (typeof negotiationHotelOtherGross === 'function')
                             ? negotiationHotelOtherGross(group)
                             : { hotelGross: 0, otherGross: gross, hasHotel: false, hasOther: true };
-                        const markupSuffix = markupType === 'percentage' ? '%' : currency;
-                        const discountSuffix = discountType === 'percentage' ? '%' : currency;
                         const lastOfferMatch = findAgentOfferForGroup(lastOffers, group);
                         const lastOfferAmount = lastOfferMatch ? parseFloat(lastOfferMatch.amount) : NaN;
                         const citiesValue = negotiationCitiesValue(group);
@@ -3738,35 +3759,9 @@ function showFilterResetMessage() {
                                 '<div class="col-4"><span class="negotiation-label">Other services</span><div class="negotiation-value agent-nego-other-base">' + currency + ' ' + formatNegotiationAmount(split.otherGross) + '</div></div>' +
                                 '<div class="col-4"><span class="negotiation-label">Gross total</span><div class="negotiation-value agent-nego-gross-display">' + currency + ' ' + formatNegotiationAmount(gross) + '</div></div>' +
                             '</div>' +
-                            '<div class="row g-2 mb-2">' +
-                                '<div class="col-6 col-md-4">' +
-                                    '<label class="negotiation-label">Hotel markup' + (markupType === 'percentage' ? ' (%)' : '') + '</label>' +
-                                    '<div class="input-group input-group-sm">' +
-                                        '<input type="number" class="form-control agent-nego-hotel-markup" min="0" step="0.01" value="' + hotelRaw + '"' + (split.hasHotel ? '' : ' disabled') + '>' +
-                                        '<span class="input-group-text">' + escAttr(markupSuffix || 'AMT') + '</span>' +
-                                    '</div>' +
-                                    '<div class="nego-add-amt agent-nego-hotel-add">+ ' + escAttr(currency) + ' 0.00</div>' +
-                                    '<div class="nego-split-note agent-nego-hotel-note">' + (split.hasHotel ? '' : 'No hotel booked') + '</div>' +
-                                '</div>' +
-                                '<div class="col-6 col-md-4">' +
-                                    '<label class="negotiation-label">Other markup' + (markupType === 'percentage' ? ' (%)' : '') + '</label>' +
-                                    '<div class="input-group input-group-sm">' +
-                                        '<input type="number" class="form-control agent-nego-other-markup" min="0" step="0.01" value="' + otherRaw + '"' + (split.hasOther ? '' : ' disabled') + '>' +
-                                        '<span class="input-group-text">' + escAttr(markupSuffix || 'AMT') + '</span>' +
-                                    '</div>' +
-                                    '<div class="nego-add-amt agent-nego-other-add">+ ' + escAttr(currency) + ' 0.00</div>' +
-                                    '<div class="nego-split-note agent-nego-other-note">' + (split.hasOther ? '' : 'No other services booked') + '</div>' +
-                                '</div>' +
-                                '<div class="col-6 col-md-4">' +
-                                    '<label class="negotiation-label">Discount' + (discountType === 'percentage' ? ' (%)' : (discountType === 'foc' ? ' (FOC)' : '')) + '</label>' +
-                                    '<div class="input-group input-group-sm">' +
-                                        '<input type="number" class="form-control agent-nego-discount" min="0" step="0.01" value="' + discountRaw + '">' +
-                                        '<span class="input-group-text">' + escAttr(discountSuffix || 'AMT') + '</span>' +
-                                    '</div>' +
-                                    '<div class="nego-add-amt agent-nego-discount-add is-zero">− ' + escAttr(currency) + ' 0.00</div>' +
-                                '</div>' +
-                            '</div>' +
                             '<div class="nego-calc-summary">' +
+                                '<div class="nego-calc-row is-markup"><span>Hotel markup amt</span><span class="agent-nego-hotel-add">' + currency + ' 0.00</span></div>' +
+                                '<div class="nego-calc-row is-markup"><span>Other markup amt</span><span class="agent-nego-other-add">' + currency + ' 0.00</span></div>' +
                                 '<div class="nego-calc-row is-markup"><span>Markup total</span><span class="agent-nego-markup-total">' + currency + ' 0.00</span></div>' +
                                 '<div class="nego-calc-row"><span>After markup</span><span class="agent-nego-after-markup">' + currency + ' 0.00</span></div>' +
                                 '<div class="nego-calc-row is-discount"><span>Discount total</span><span class="agent-nego-discount-total">' + currency + ' 0.00</span></div>' +
@@ -3781,10 +3776,11 @@ function showFilterResetMessage() {
                             '<input type="number" class="form-control agent-nego-offer-input bg-light" min="0" step="0.01" readonly tabindex="-1" ' +
                                 'data-index="' + index + '" data-max="' + payable + '" data-country="' + escAttr(country) + '" data-currency="' + escAttr(currency) + '" ' +
                                 'data-gross="' + gross + '" data-hotel-gross="' + split.hotelGross + '" data-other-gross="' + split.otherGross + '" data-payable="' + payable + '" ' +
-                                'data-markup-type="' + escAttr(markupType) + '" data-discount-type="' + escAttr(discountType) + '" ' +
+                                'data-hotel-markup-raw="' + hotelRaw + '" data-other-markup-raw="' + otherRaw + '" ' +
+                                'data-markup-type="' + escAttr(markupType) + '" data-hotel-markup-type="' + escAttr(hotelMarkupType) + '" data-other-markup-type="' + escAttr(otherMarkupType) + '" data-discount-type="' + escAttr(discountType) + '" ' +
                                 'value="' + (payable > 0 ? payable : '0') + '" placeholder="Auto-calculated offer">' +
                             '<div class="agent-nego-offer-error text-danger small mt-1 d-none" role="alert"></div>' +
-                            '<div class="form-text text-muted mt-1">Hotel markup on hotel services only · Other markup on other services only · Discount on (gross + markup)</div>' +
+                            '<div class="form-text text-muted mt-1">Uses profile markup &amp; agency discount (above) · Offer = gross + markup − discount</div>' +
                             '<input type="hidden" name="offers[' + index + '][country]" value="' + escAttr(country) + '">' +
                             '<input type="hidden" name="offers[' + index + '][currency]" value="' + escAttr(currency) + '">' +
                             '<input type="hidden" name="offers[' + index + '][cities]" value="' + escAttr(citiesValue) + '">' +
@@ -3800,16 +3796,18 @@ function showFilterResetMessage() {
                         recalculateAgentNegotiationCard(card);
                     });
 
-                    blocksEl.querySelectorAll('.agent-nego-hotel-markup, .agent-nego-other-markup, .agent-nego-discount').forEach(function (input) {
-                        input.addEventListener('input', function () {
-                            const card = this.closest('.negotiation-pricing-summary');
-                            if (card) recalculateAgentNegotiationCard(card);
+                    const onceDiscountInput = profileHost && profileHost.querySelector('.nego-profile-discount-input');
+                    if (onceDiscountInput) {
+                        onceDiscountInput.addEventListener('input', function () {
+                            if (typeof applyNegotiationProfileDiscountOnceToCards === 'function') {
+                                applyNegotiationProfileDiscountOnceToCards(profileHost, blocksEl, recalculateAgentNegotiationCard);
+                            }
                             syncPrimaryNegotiationAmount();
                             if (typeof syncAgentNegotiationProfitFromOffers === 'function') {
                                 syncAgentNegotiationProfitFromOffers();
                             }
                         });
-                    });
+                    }
                     if (typeof syncAgentNegotiationProfitFromOffers === 'function') {
                         syncAgentNegotiationProfitFromOffers();
                     }
@@ -3849,18 +3847,37 @@ function showFilterResetMessage() {
             const offerInput = card.querySelector('.agent-nego-offer-input');
             if (!offerInput) return;
             const markupType = String(offerInput.getAttribute('data-markup-type') || 'flat').toLowerCase();
-            const discountType = String(offerInput.getAttribute('data-discount-type') || 'flat').toLowerCase();
+            const hotelMarkupType = String(offerInput.getAttribute('data-hotel-markup-type') || markupType).toLowerCase();
+            const otherMarkupType = String(offerInput.getAttribute('data-other-markup-type') || markupType).toLowerCase();
+            const profileDisc = (typeof readNegotiationProfileDiscountOnce === 'function')
+                ? readNegotiationProfileDiscountOnce(document.getElementById('agentNegotiationProfileMarkupOnce'))
+                : null;
+            const discountType = profileDisc
+                ? profileDisc.discountType
+                : String(offerInput.getAttribute('data-discount-type') || 'flat').toLowerCase();
             const currency = offerInput.getAttribute('data-currency') || '';
             const hotelGross = parseFloat(offerInput.getAttribute('data-hotel-gross') || 0) || 0;
             const otherGross = parseFloat(offerInput.getAttribute('data-other-gross') || 0) || 0;
-            const hotelRaw = parseFloat(card.querySelector('.agent-nego-hotel-markup')?.value || 0) || 0;
-            const otherRaw = parseFloat(card.querySelector('.agent-nego-other-markup')?.value || 0) || 0;
-            const discountRaw = parseFloat(card.querySelector('.agent-nego-discount')?.value || 0) || 0;
+            const hotelRaw = parseFloat(
+                offerInput.getAttribute('data-hotel-markup-raw')
+                || (card.querySelector('.agent-nego-hotel-markup') || {}).value
+                || 0
+            ) || 0;
+            const otherRaw = parseFloat(
+                offerInput.getAttribute('data-other-markup-raw')
+                || (card.querySelector('.agent-nego-other-markup') || {}).value
+                || 0
+            ) || 0;
+            const discountRaw = profileDisc
+                ? profileDisc.discountRaw
+                : (parseFloat(card.querySelector('.agent-nego-discount-hidden')?.value || 0) || 0);
             const pricing = (typeof computeSplitNegotiationPricing === 'function')
                 ? computeSplitNegotiationPricing({
                     hotelGross: hotelGross,
                     otherGross: otherGross,
                     markupType: markupType,
+                    hotelMarkupType: hotelMarkupType,
+                    otherMarkupType: otherMarkupType,
                     hotelRaw: hotelRaw,
                     otherRaw: otherRaw,
                     discountType: discountType,
@@ -3873,6 +3890,7 @@ function showFilterResetMessage() {
             offerInput.value = String(payable);
             offerInput.setAttribute('data-payable', String(payable));
             offerInput.setAttribute('data-max', String(payable));
+            offerInput.setAttribute('data-discount-type', discountType);
 
             if (typeof updateNegotiationSplitBreakdown === 'function') {
                 updateNegotiationSplitBreakdown(card, 'agent-nego', currency, pricing);
@@ -3883,11 +3901,13 @@ function showFilterResetMessage() {
             const hotelHidden = card.querySelector('.agent-nego-hotel-hidden');
             const otherHidden = card.querySelector('.agent-nego-other-hidden');
             const discountHidden = card.querySelector('.agent-nego-discount-hidden');
+            const discountTypeHidden = card.querySelector('input[name*="[discount_type]"]');
             if (offerHidden) offerHidden.value = String(payable);
             if (actualHidden) actualHidden.value = String(payable);
             if (hotelHidden) hotelHidden.value = String(hotelRaw);
             if (otherHidden) otherHidden.value = String(otherRaw);
             if (discountHidden) discountHidden.value = String(discountRaw);
+            if (discountTypeHidden) discountTypeHidden.value = discountType;
         }
 
         /** Max allowed offer for a country input (payable amount). */

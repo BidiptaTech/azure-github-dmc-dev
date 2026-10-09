@@ -341,18 +341,32 @@ class BookingsController extends Controller
                 }
             }
 
-            // Prefer city-wise currency_markups JSON; fall back to tour-level markup/discount.
-            $currencyMarkups = $this->parseTourCurrencyMarkups($tour);
-            $markupType = $tour->markup_type ?? null;
-            $markupRaw = (float) ($tour->getAttributes()['markup_amount'] ?? $tour->markup_amount ?? 0);
-            $markupOn = ((int) ($tour->markup ?? 0) === 1)
-                && $markupRaw > 0
-                && in_array($markupType, ['percentage', 'flat'], true);
+            // Hotel/other markup from DMC profile markup_json (once, not country-wise).
+            // Discount from agencies.special_discount (once, editable in UI).
+            $dmcProfileMarkup = \App\Helpers\CommonHelper::getDmcProfileMarkupConfig(
+                auth()->user(),
+                $tour->userId ?? $tour->dmc_id ?? null
+            );
+            $profileHotelType = (string) ($dmcProfileMarkup['hotel']['markup_type'] ?? 'percentage');
+            $profileHotelRaw = (float) ($dmcProfileMarkup['hotel']['markup_value'] ?? 0);
+            $profileOtherType = (string) ($dmcProfileMarkup['other']['markup_type'] ?? 'percentage');
+            $profileOtherRaw = (float) ($dmcProfileMarkup['other']['markup_value'] ?? 0);
 
-            $discountType = $tour->discount_type ?? null;
-            $discountRaw = (float) ($tour->getAttributes()['discount_amount'] ?? $tour->discount_amount ?? 0);
+            $discountType = 'percentage';
+            $discountRaw = 0.0;
+            if (! empty($tour->agent_id)) {
+                $agentForDiscount = Agent::with('agency')->where('agent_id', $tour->agent_id)->first();
+                $agencyForDiscount = $agentForDiscount?->agency;
+                if ($agencyForDiscount) {
+                    $agencyDiscountType = strtolower(trim((string) ($agencyForDiscount->special_discount_type ?? 'percentage')));
+                    if (! in_array($agencyDiscountType, ['percentage', 'flat'], true)) {
+                        $agencyDiscountType = 'percentage';
+                    }
+                    $discountType = $agencyDiscountType;
+                    $discountRaw = (float) ($agencyForDiscount->special_discount ?? 0);
+                }
+            }
 
-            $index = 0;
             $countryGroups = [];
             foreach ($groups as $group) {
                 $serviceRows = [];
@@ -391,22 +405,23 @@ class BookingsController extends Controller
                 $applied = $this->applyNegotiationMarkupDiscount(
                     $gross,
                     $group,
-                    $currencyMarkups,
-                    $markupOn,
-                    $markupType,
-                    $markupRaw,
+                    $profileHotelType,
+                    $profileHotelRaw,
+                    $profileOtherType,
+                    $profileOtherRaw,
                     $discountType,
-                    $discountRaw,
-                    $index
+                    $discountRaw
                 );
                 $markupMoney = (float) ($applied['markup'] ?? 0);
                 $discountMoney = (float) ($applied['discount'] ?? 0);
                 $hotelMarkupMoney = (float) ($applied['hotel_markup'] ?? $markupMoney);
                 $otherMarkupMoney = (float) ($applied['other_markup'] ?? 0);
-                $markupTypeOut = $applied['markup_type'] ?? $markupType;
-                $markupRawOut = (float) ($applied['markup_raw'] ?? $markupRaw);
-                $hotelMarkupRawOut = (float) ($applied['hotel_markup_raw'] ?? $markupRawOut);
-                $otherMarkupRawOut = (float) ($applied['other_markup_raw'] ?? 0);
+                $markupTypeOut = $applied['markup_type'] ?? $profileHotelType;
+                $markupRawOut = (float) ($applied['markup_raw'] ?? ($profileHotelRaw + $profileOtherRaw));
+                $hotelMarkupRawOut = (float) ($applied['hotel_markup_raw'] ?? $profileHotelRaw);
+                $otherMarkupRawOut = (float) ($applied['other_markup_raw'] ?? $profileOtherRaw);
+                $hotelMarkupTypeOut = (string) ($applied['hotel_markup_type'] ?? $profileHotelType);
+                $otherMarkupTypeOut = (string) ($applied['other_markup_type'] ?? $profileOtherType);
                 $discountTypeOut = $applied['discount_type'] ?? $discountType;
                 $discountRawOut = (float) ($applied['discount_raw'] ?? $discountRaw);
 
@@ -438,11 +453,12 @@ class BookingsController extends Controller
                     'markup_raw' => $markupRawOut,
                     'hotel_markup_raw' => $hotelMarkupRawOut,
                     'other_markup_raw' => $otherMarkupRawOut,
+                    'hotel_markup_type' => $hotelMarkupTypeOut,
+                    'other_markup_type' => $otherMarkupTypeOut,
                     'discount_type' => $discountTypeOut,
                     'discount_raw' => $discountRawOut,
                     'cities' => array_values(array_filter(array_keys($group['city_gross'] ?? []))),
                 ];
-                $index++;
             }
 
             $tour->negotiation_country_groups = $countryGroups;
@@ -575,106 +591,80 @@ class BookingsController extends Controller
     }
 
     /**
-     * Apply city-wise currency_markups to a country/currency bucket, else tour-level rates.
+     * Apply DMC profile hotel/other markup; discount from agency special_discount (once).
      *
      * @param  array<string, mixed>  $group
-     * @param  array<int, array<string, mixed>>  $currencyMarkups
-     * @return array{markup:float,discount:float,markup_type:?string,markup_raw:float,discount_type:?string,discount_raw:float}
+     * @return array{markup:float,discount:float,hotel_markup:float,other_markup:float,hotel_markup_raw:float,other_markup_raw:float,hotel_markup_type:string,other_markup_type:string,markup_type:?string,markup_raw:float,discount_type:?string,discount_raw:float}
      */
     private function applyNegotiationMarkupDiscount(
         float $gross,
         array $group,
-        array $currencyMarkups,
-        bool $tourMarkupOn,
-        ?string $tourMarkupType,
-        float $tourMarkupRaw,
-        ?string $tourDiscountType,
-        float $tourDiscountRaw,
-        int $index
+        ?string $hotelMarkupType,
+        float $hotelRaw,
+        ?string $otherMarkupType,
+        float $otherRaw,
+        ?string $discountType,
+        float $discountRaw
     ): array {
-        $country = trim((string) ($group['country'] ?? ''));
-        $currency = strtoupper(trim((string) ($group['currency'] ?? '')));
-        $cityGrosses = is_array($group['city_gross'] ?? null) ? $group['city_gross'] : [];
         $hotelGross = (float) ($group['hotel_gross'] ?? 0);
         $otherGross = (float) ($group['other_gross'] ?? 0);
         if ($hotelGross <= 0 && $otherGross <= 0) {
             $otherGross = $gross;
         }
 
-        $row = null;
-        if ($currencyMarkups !== []) {
-            foreach ($cityGrosses as $cityName => $cityGross) {
-                $cityName = trim((string) $cityName);
-                if ($cityName === '' || (float) $cityGross <= 0) {
-                    continue;
-                }
-                $row = $this->lookupCurrencyMarkupRow($currencyMarkups, $cityName, '', '');
-                if ($row) {
-                    break;
-                }
-            }
-            if (! $row) {
-                $row = $this->lookupCurrencyMarkupRow($currencyMarkups, '', $country, $currency);
-            }
-        }
-
-        $markupType = $tourMarkupType;
-        $hotelRaw = 0.0;
-        $otherRaw = 0.0;
-        $discountType = $tourDiscountType;
-        $discountRaw = $tourDiscountRaw;
-        $applyFlatDiscount = $index === 0;
-
-        if ($row) {
-            $markupType = $row['markup_type'] ?? $markupType;
-            $hotelRaw = (float) ($row['hotel_markup'] ?? $row['markup_value'] ?? 0);
-            $otherRaw = (float) ($row['other_markup'] ?? 0);
-            if ($hotelRaw <= 0 && $otherRaw <= 0 && (float) ($row['markup_value'] ?? 0) > 0) {
-                $hotelRaw = (float) $row['markup_value'];
-            }
-            $discountType = $row['discount_type'] ?? $discountType;
-            $discountRaw = (float) ($row['discount_value'] ?? 0);
-            $applyFlatDiscount = true;
-        } elseif ($tourMarkupOn) {
-            $hotelRaw = $tourMarkupRaw;
-            $otherRaw = 0.0;
-        }
-
         return $this->computeSplitHotelOtherMarkup(
             $hotelGross,
             $otherGross,
-            $markupType,
+            $hotelMarkupType,
             $hotelRaw,
+            $otherMarkupType,
             $otherRaw,
             $discountType,
             $discountRaw,
-            $applyFlatDiscount
+            true
         );
     }
 
     /**
      * Hotel markup applies only to hotel sell; other markup only to non-hotel sell.
+     * Each may use its own markup type (percentage / flat) from DMC profile.
      * Discount applies to (hotel + other + both markups).
      *
-     * @return array{markup:float,discount:float,hotel_markup:float,other_markup:float,hotel_markup_raw:float,other_markup_raw:float,markup_type:?string,markup_raw:float,discount_type:?string,discount_raw:float}
+     * @return array{markup:float,discount:float,hotel_markup:float,other_markup:float,hotel_markup_raw:float,other_markup_raw:float,hotel_markup_type:string,other_markup_type:string,markup_type:?string,markup_raw:float,discount_type:?string,discount_raw:float}
      */
     private function computeSplitHotelOtherMarkup(
         float $hotelGross,
         float $otherGross,
-        ?string $markupType,
+        ?string $hotelMarkupType,
         float $hotelRaw,
+        ?string $otherMarkupType,
         float $otherRaw,
         ?string $discountType,
         float $discountRaw,
         bool $applyFlatDiscount = true
     ): array {
+        $hotelType = strtolower(trim((string) ($hotelMarkupType ?? 'percentage')));
+        $otherType = strtolower(trim((string) ($otherMarkupType ?? 'percentage')));
+        if ($hotelType === 'fixed') {
+            $hotelType = 'flat';
+        }
+        if ($otherType === 'fixed') {
+            $otherType = 'flat';
+        }
+        if (! in_array($hotelType, ['percentage', 'flat'], true)) {
+            $hotelType = 'percentage';
+        }
+        if (! in_array($otherType, ['percentage', 'flat'], true)) {
+            $otherType = 'percentage';
+        }
+
         $hotelMoney = 0.0;
         $otherMoney = 0.0;
         if ($hotelGross > 0.009) {
-            $hotelMoney = (float) ($this->computeMarkupDiscountMoney($hotelGross, $markupType, $hotelRaw, null, 0)['markup'] ?? 0);
+            $hotelMoney = (float) ($this->computeMarkupDiscountMoney($hotelGross, $hotelType, $hotelRaw, null, 0)['markup'] ?? 0);
         }
         if ($otherGross > 0.009) {
-            $otherMoney = (float) ($this->computeMarkupDiscountMoney($otherGross, $markupType, $otherRaw, null, 0)['markup'] ?? 0);
+            $otherMoney = (float) ($this->computeMarkupDiscountMoney($otherGross, $otherType, $otherRaw, null, 0)['markup'] ?? 0);
         }
 
         $markupMoney = $hotelMoney + $otherMoney;
@@ -694,7 +684,9 @@ class BookingsController extends Controller
             'other_markup' => $otherMoney,
             'hotel_markup_raw' => $hotelRaw,
             'other_markup_raw' => $otherRaw,
-            'markup_type' => $markupType,
+            'hotel_markup_type' => $hotelType,
+            'other_markup_type' => $otherType,
+            'markup_type' => $hotelType,
             'markup_raw' => $hotelRaw + $otherRaw,
             'discount_type' => $discountType,
             'discount_raw' => $discountRaw,

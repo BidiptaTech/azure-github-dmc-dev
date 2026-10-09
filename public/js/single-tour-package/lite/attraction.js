@@ -386,9 +386,18 @@
                 extraHtml: (transferHtml || '') + guideHtml
             })
             : '';
+        var applied = (window.StpLiteDmcMarkup && typeof window.StpLiteDmcMarkup.apply === 'function')
+            ? window.StpLiteDmcMarkup.apply(total, 'other')
+            : { base_price: total, markup_amount: 0, price: total };
+        var ticketApplied = (window.StpLiteDmcMarkup && typeof window.StpLiteDmcMarkup.apply === 'function')
+            ? window.StpLiteDmcMarkup.apply(ticketTotal, 'other')
+            : { base_price: ticketTotal, markup_amount: 0, price: ticketTotal };
         root.__lastPrice = {
-            total: total,
-            ticketTotal: ticketTotal,
+            total: applied.price,
+            baseTotal: applied.base_price,
+            markupAmount: applied.markup_amount,
+            ticketTotal: ticketApplied.price,
+            ticketTotalBase: ticketApplied.base_price,
             transferTotal: Number(xfer) || 0,
             guideTotal: Number(guide.total) || 0,
             adultPrice: adultP,
@@ -399,14 +408,19 @@
             children: g.children,
             seniors: g.seniors,
             infants: g.infants,
-            breakdown: breakdownHtml
+            breakdown: breakdownHtml,
+            dmc_profile_markup: applied
         };
-        var panel = root.querySelector('[data-attraction-price-panel]');
-        var totalEl = root.querySelector('.attraction-price-total');
-        var detail = root.querySelector('.attraction-price-detail');
-        if (panel) panel.classList.remove('d-none');
-        if (totalEl) totalEl.textContent = cur + ' ' + total.toFixed(2);
-        if (detail) detail.innerHTML = breakdownHtml;
+        if (window.StpLiteDmcMarkup && typeof window.StpLiteDmcMarkup.fillPricePanel === 'function') {
+            window.StpLiteDmcMarkup.fillPricePanel(root, 'attraction', cur, total, breakdownHtml);
+        } else {
+            var panel = root.querySelector('[data-attraction-price-panel]');
+            var totalEl = root.querySelector('.attraction-price-total');
+            var detail = root.querySelector('.attraction-price-detail');
+            if (panel) panel.classList.remove('d-none');
+            if (totalEl) totalEl.textContent = cur + ' ' + applied.price.toFixed(2);
+            if (detail) detail.innerHTML = breakdownHtml;
+        }
         var add = root.querySelector('.attraction-add-btn');
         if (add) add.disabled = false;
     }
@@ -753,20 +767,31 @@
             var displayTotal = typeof T.serviceRowDisplayTotal === 'function'
                 ? T.serviceRowDisplayTotal(row)
                 : ticketOnly;
+            var breakdown = (row.ticket_details
+                ? ((row.adultCount || 0) + '×' + Number((row.ticket_details || {}).adult_price || 0).toFixed(2))
+                : '');
+            var applied = (window.StpLiteDmcMarkup && typeof window.StpLiteDmcMarkup.splitFromFinal === 'function')
+                ? window.StpLiteDmcMarkup.splitFromFinal(displayTotal, 'other')
+                : { base_price: displayTotal, markup_amount: 0, price: displayTotal };
             root.__lastPrice = {
-                total: displayTotal,
+                total: applied.price,
+                baseTotal: applied.base_price,
+                markupAmount: applied.markup_amount,
                 ticketTotal: ticketOnly,
                 transferTotal: (row.transfer_options && Number(row.transfer_options.cost)) || 0,
                 guideTotal: (row.guide_options && Number(row.guide_options.total_price)) || 0,
-                breakdown: (row.ticket_details
-                    ? ((row.adultCount || 0) + '×' + Number((row.ticket_details || {}).adult_price || 0).toFixed(2))
-                    : '')
+                breakdown: breakdown,
+                dmc_profile_markup: applied
             };
             var cur = root.getAttribute('data-currency') || 'SGD';
-            var panel = root.querySelector('[data-attraction-price-panel]');
-            var totalEl = root.querySelector('.attraction-price-total');
-            if (panel) panel.classList.remove('d-none');
-            if (totalEl) totalEl.textContent = cur + ' ' + Number(displayTotal || 0).toFixed(2);
+            if (window.StpLiteDmcMarkup && typeof window.StpLiteDmcMarkup.fillPricePanel === 'function') {
+                window.StpLiteDmcMarkup.fillPricePanel(root, 'attraction', cur, applied.base_price, breakdown);
+            } else {
+                var panel = root.querySelector('[data-attraction-price-panel]');
+                var totalEl = root.querySelector('.attraction-price-total');
+                if (panel) panel.classList.remove('d-none');
+                if (totalEl) totalEl.textContent = cur + ' ' + Number(applied.price || 0).toFixed(2);
+            }
             var add = root.querySelector('.attraction-add-btn');
             if (add) add.disabled = false;
             root.__hydrating = false;
