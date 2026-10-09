@@ -572,6 +572,7 @@
         fd.append('child_ages', JSON.stringify(caps.childAges || []));
         fd.append('agent_id', val('agent_id') || val('agent') || '0');
         fd.append('tour_type', resolveTourType());
+        fd.append('reference_number', val('reference_number'));
         fd.append('delete_affected_services', '1');
         if (String(resolveTourType()).toUpperCase() === 'GROUP') {
             fd.append('foc_size', val('foc_size') || '0');
