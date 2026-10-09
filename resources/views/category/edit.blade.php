@@ -11,7 +11,7 @@
                     <i class="mdi mdi-arrow-left"></i> Back
                 </a>
             </h5>
-            <form action="{{ route('category.update', $category->id) }}" method="POST" enctype="multipart/form-data"
+            <form action="{{ route('category.update', $category->category_id) }}" method="POST" enctype="multipart/form-data"
                 class="card-body">
                 @csrf
                 @method('PUT')
@@ -32,11 +32,15 @@
 
                     <div class="col-md-6">
                         <div class="mb-3">
-                            <label for="name" class="form-label"><strong>Icon</strong>
-                            <span style="color: red; font-weight: bold;">*</span>
-                            </label>
-                            <input type="file" name="icon" class="form-control" required>
-                            <img src="{{ $category->icon }}" alt="Category Icon" style="width: 50px; height: 32px;">
+                            <label for="icon" class="form-label"><strong>Icon</strong></label>
+                            <input type="file" name="icon" id="icon" class="form-control" accept="image/*">
+                            <small class="text-muted d-block mt-1">Leave empty to keep the current icon.</small>
+                            @if($category->icon)
+                                <img src="{{ $category->icon }}" alt="Category Icon" class="mt-2" style="width: 50px; height: 32px; object-fit: cover;">
+                            @endif
+                            @error('icon')
+                            <div class="text-danger mt-1">{{ $message }}</div>
+                            @enderror
                         </div>
                     </div>
                 </div>

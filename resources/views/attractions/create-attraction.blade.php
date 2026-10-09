@@ -45,7 +45,7 @@
                 </a>
             </h5>
             <form id="attractionForm" method="POST" action="{{ route('attraction.store') }}"
-                enctype="multipart/form-data" class="card-body">
+                enctype="multipart/form-data" class="card-body js-submit-loader-form" data-loader-message="Saving...">
                 @csrf
                 <!-- Hidden Fields -->
                 <div id="attractionDetailsContainer">
@@ -295,6 +295,19 @@
                                     <div class="text-danger mt-1">{{ $message }}</div>
                                 @enderror
                             </div>
+
+                            <!-- Type of Attraction -->
+                            <div class="col-md-3 mb-3">
+                                <label for="attraction_type" class="form-label"><strong>Type of Attraction</strong><span class="text-danger">*</span></label>
+                                <select class="form-control" id="attraction_type" name="attraction_type" required>
+                                    <option value="">Select One</option>
+                                    <option value="2" {{ old('attraction_type') == '2' ? 'selected' : '' }}>Attraction</option>
+                                    <option value="1" {{ old('attraction_type') == '1' ? 'selected' : '' }}>Tour Site</option>
+                                </select>
+                                @error('attraction_type')
+                                    <div class="text-danger mt-1">{{ $message }}</div>  
+                                @enderror
+                            </div>
                             
                             <!-- Open Time -->
                             <div id="time-container">
@@ -381,6 +394,7 @@
                         <div class="col-md-12 mb-3">
                             <label for="terms_conditions" class="form-label"><strong>Terms & Conditions</strong><span class="text-danger">*</span></label>
                             <textarea id="terms_conditions" name="terms_conditions" class="form-control" rows="6" placeholder="Enter terms and conditions...">{{ old('terms_conditions') }}</textarea>
+                            <div id="terms_conditions_error" class="text-danger small mt-1 d-none"></div>
                             @error('terms_conditions')
                             <div class="text-danger mt-1">{{ $message }}</div>
                             @enderror
@@ -396,13 +410,20 @@
 
                     <!-- Submit Buttons -->
                     <div class="d-flex gap-3 mt-4">
-                        <button type="submit" class="btn btn-primary px-4">Save</button>
+                        <button type="submit" class="btn btn-primary px-4 js-submit-loader-btn">
+                            <span class="js-submit-loader-btn-text">Save</span>
+                            <span class="js-submit-loader-btn-loading d-none">
+                                <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                                Saving...
+                            </span>
+                        </button>
                     </div>
             </form>
         </div>
     </div>
 </div>
 <!-- End of the form -->
+<x-form-submit-loader message="Saving..." />
 @endsection
 @section('scripts')
 <script src="https://cdn.jsdelivr.net/npm/summernote@0.9.0/dist/summernote.min.js"></script>
@@ -456,6 +477,47 @@
                 }
             }
         });
+
+        // Summernote hides the textarea, so HTML5 required does not work.
+        function getTermsConditionsText() {
+            return $('<div>').html($('#terms_conditions').summernote('code')).text().trim();
+        }
+        function setTermsConditionsError(message) {
+            var errorEl = document.getElementById('terms_conditions_error');
+            var editor = $('#terms_conditions').next('.note-editor');
+            if (!errorEl) return;
+            if (message) {
+                errorEl.textContent = message;
+                errorEl.classList.remove('d-none');
+                editor.css('border-color', '#dc3545');
+            } else {
+                errorEl.classList.add('d-none');
+                errorEl.textContent = '';
+                editor.css('border-color', '');
+            }
+        }
+        $('#attractionForm').on('submit', function (e) {
+            if (getTermsConditionsText() === '') {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                setTermsConditionsError('Terms & Conditions is required. Please fill in this field.');
+                var errorEl = document.getElementById('terms_conditions_error');
+                if (errorEl) {
+                    errorEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+                return false;
+            }
+            setTermsConditionsError('');
+        });
+        $('#terms_conditions').on('summernote.change', function () {
+            if (getTermsConditionsText() !== '') {
+                setTermsConditionsError('');
+            }
+        });
+        @error('terms_conditions')
+            setTermsConditionsError(@json($message));
+        @enderror
+
         // Initialize Select2 for city (disabled until country is selected)
         $('#citySelect').select2({
             placeholder: "Select Country First",

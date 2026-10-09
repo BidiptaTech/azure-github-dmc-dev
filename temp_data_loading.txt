@@ -1,0 +1,307 @@
+﻿
+>                 case 'entry_port':
+                  case 'exit_port':
+                      const portKey = [
+                          item.portName || item.port_name || '',
+                          item.transferDestinationName || item.transfer_destination_name || '',
+                          item.dateTime || item.bookingDate || '',
+                          item.vehicleId || item.vehicle_id || '',
+                          item.type || ''
+                      ].join('|');
+                      return portKey;
+                  default:
+                      return null;
+              }
+          } catch (e) {
+              console.error('Error creating unique key:', e);
+              return null;
+          }
+      }
+      
+      // Transform arrival/departure data to required format
+      async function transformArrivalDepartureData() {
+          const customerInfo = getCustomerInfo();
+          const destination = document.getElementById('destinationSelect')?.value || 'Singapore';
+          const dmcId = '{{ $dmc_id ?? "" }}';
+          
+          const entryPortData = [];
+          const exitPortData = [];
+          const seenKeys = {
+              entry_port: new Set(),
+              exit_port: new Set()
+          };
+          
+          for (const item of arrivalDepartureList) {
+              if (item.type === 'Arrival') {
+                  // Extract date and time
+                  let bookingDate = normalizeDateToYYYYMMDD(item.dateTime);
+                  let entrytime = "03:00 AM";
+                  
+                  if (item.dateTime && item.dateTime.includes('T')) {
+                      const parts = item.dateTime.split('T');
+                      bookingDate = parts[0];
+                      if (parts[1]) {
+                          const timeParts = parts[1].split(':');
+                          let hours = parseInt(timeParts[0]);
+                          const minutes = timeParts[1] || '00';
+                          const ampm = hours >= 12 ? 'PM' : 'AM';
+                          hours = hours % 12 || 12;
+                          entrytime = `${String(hours).padStart(2, '0')}:${minutes} ${ampm}`;
+                      }
+                  }
+                  
+                  // Fetch vehicle details if vehicle_id exists
+                  const vehicleDetails = await fetchVehicleDetails(item.vehicleId, dmcId);
+                  
+                  // Check for duplicates
+                  const uniqueKey = createUniqueKey(item, 'entry_port');
+                  if (uniqueKey && seenKeys.entry_port.has(uniqueKey)) {
+                      console.warn('Skipping duplicate entry_port (frontend):', uniqueKey);
+                      continue; // Skip this duplicate
+                  }
+                  if (uniqueKey) {
+                      seenKeys.entry_port.add(uniqueKey);
+                  }
+                  
+                  entryPortData.push({
+                      id: item.id || `entry-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                      bookingDate: bookingDate,
+                      date: bookingDate,
+                      dateTime: item.dateTime || "",
+                      pickupdate: bookingDate,
+                      vehicle_id: item.vehicleId || '',
+                      vehicleId: item.vehicleId || '',
+                      image: vehicleDetails.image,
+                      dmc_id: dmcId,
+                      vehicles_name: vehicleDetails.vehicles_name,
+                      vehicle_name: vehicleDetails.vehicles_name,
+                      vehicleName: vehicleDetails.vehicles_name,
+                      Mode: "dmc",
+                      type: item.transferType || "Private",
+                      transferType: item.transferType || "Private",
+                      vehicle_type: vehicleDetails.vehicle_type || item.vehicleType || "",
+                      vehicleType: vehicleDetails.vehicle_type || item.vehicleType || "",
+                      vehicle_model: vehicleDetails.vehicle_model,
+                      model_year: vehicleDetails.model_year,
+                      seating_capacity: 0,
+                      travel_type: "entry_port",
+                      entrypickup: item.portName || "",
+                      pickup: item.portName || "",
+                      pickupLocation: item.portName || "",
+                      port_name: item.portName || "",
+                      portName: item.portName || "",
+                      port_id: item.portId || "",
+                      portId: item.portId || "",
+                      entrydropoff: item.transferDestinationName || "",
+                      dropoff: item.transferDestinationName || "",
+                      dropoffLocation: item.transferDestinationName || "",
+                      transfer_destination_name: item.transferDestinationName || "",
+                      transferDestinationName: item.transferDestinationName || "",
+                      transfer_destination_id: item.transferDestinationId || "",
+                      transferDestinationId: item.transferDestinationId || "",
+                      flightNumber: item.flightNo || item.flightNumber || "",
+                      flight_number: item.flightNo || item.flightNumber || "",
+                      PickupPlaceid: { lat: "", lng: "" },
+                      DropoffPlaceid: { lat: "", lng: "" },
+                      entrytime: entrytime,
+                      time: entrytime,
+                      adults: parseInt(item.adultsQty) || 0,
+                      adultsQty: parseInt(item.adultsQty) || 0,
+                      children: parseInt(item.childQty) || 0,
+                      childQty: parseInt(item.childQty) || 0,
+                      infants: parseInt(item.infantQty) || 0,
+                      infantQty: parseInt(item.infantQty) || 0,
+                      componentDayIndex: 0,
+                      adultCost: parseFloat(item.adultCost) || 0,
+                      childCost: parseFloat(item.childCost) || 0,
+                      infantCost: parseFloat(item.infantCost) || 0,
+                      adultSell: parseFloat(item.adultSell) || 0,
+                      childSell: parseFloat(item.childSell) || 0,
+                      infantSell: parseFloat(item.infantSell) || 0,
+                      cost: parseFloat(item.cost) || 0,
+                      sell: parseFloat(item.sell) || 0,
+                      totalPrice: parseFloat(item.adultSell || 0) * parseInt(item.adultsQty || 0) + 
+parseFloat(item.childSell || 0) * parseInt(item.childQty || 0),
+                      Tax: 0,
+                      distance: 0,
+                      Night_Start_Time: null,
+                      Night_End_Time: null,
+                      city: destination,
+                      country: destination,
+                      fullName: customerInfo.fullName,
+                      email: customerInfo.email,
+                      phone: customerInfo.phone,
+                      countryCode: customerInfo.countryCode,
+                      address1: customerInfo.address1,
+                      address2: customerInfo.address2,
+                      state: customerInfo.state,
+                      zip: customerInfo.zip,
+                      specialRequests: customerInfo.specialRequests,
+                      userInfo: {
+                          fullName: customerInfo.fullName,
+                          email: customerInfo.email,
+                          phone: customerInfo.phone,
+                          countryCode: customerInfo.countryCode,
+                          address1: customerInfo.address1,
+                          address2: customerInfo.address2,
+                          state: customerInfo.state,
+                          zip: customerInfo.zip,
+                          specialRequests: customerInfo.specialRequests
+                      },
+                      bookingType: "enquiry",
+                      supplement: item.supplement || false
+                  });
+              } else if (item.type === 'Departure') {
+                  // Extract date and time
+                  let bookingDate = normalizeDateToYYYYMMDD(item.dateTime);
+                  let entrytime = "11:00 AM";
+                  
+                  if (item.dateTime && item.dateTime.includes('T')) {
+                      const parts = item.dateTime.split('T');
+                      bookingDate = parts[0];
+                      if (parts[1]) {
+                          const timeParts = parts[1].split(':');
+                          let hours = parseInt(timeParts[0]);
+                          const minutes = timeParts[1] || '00';
+                          const ampm = hours >= 12 ? 'PM' : 'AM';
+                          hours = hours % 12 || 12;
+                          entrytime = `${String(hours).padStart(2, '0')}:${minutes} ${ampm}`;
+                      }
+                  }
+                  
+                  // Fetch vehicle details if vehicle_id exists
+                  const vehicleDetails = await fetchVehicleDetails(item.vehicleId, dmcId);
+                  
+                  // Check for duplicates
+                  const uniqueKey = createUniqueKey(item, 'exit_port');
+                  if (uniqueKey && seenKeys.exit_port.has(uniqueKey)) {
+                      console.warn('Skipping duplicate exit_port (frontend):', uniqueKey);
+                      continue; // Skip this duplicate
+                  }
+                  if (uniqueKey) {
+                      seenKeys.exit_port.add(uniqueKey);
+                  }
+                  
+                  exitPortData.push({
+                      id: item.id || `exit-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                      fullName: customerInfo.fullName,
+                      email: customerInfo.email,
+                      phone: customerInfo.phone,
+                      countryCode: customerInfo.countryCode,
+                      address1: customerInfo.address1,
+                      address2: customerInfo.address2,
+                      state: customerInfo.state,
+                      zip: customerInfo.zip,
+                      specialRequests: customerInfo.specialRequests,
+                      bookingDate: bookingDate,
+                      date: bookingDate,
+                      dateTime: item.dateTime || "",
+                      exitpickupdate: bookingDate,
+                      vehicle_id: item.vehicleId || '',
+                      vehicleId: item.vehicleId || '',
+                      vehicles_name: vehicleDetails.vehicles_name,
+                      vehicle_name: vehicleDetails.vehicles_name,
+                      vehicleName: vehicleDetails.vehicles_name,
+                      dmc_id: String(dmcId),
+                      Mode: "dmc",
+                      type: item.transferType || "Shared",
+                      transferType: item.transferType || "Shared",
+                      image: vehicleDetails.image,
+                      exitpickup: item.transferDestinationName || "",
+                      pickup: item.transferDestinationName || "",
+                      pickupLocation: item.transferDestinationName || "",
+                      transfer_destination_name: item.transferDestinationName || "",
+                      transferDestinationName: item.transferDestinationName || "",
+                      transfer_destination_id: item.transferDestinationId || "",
+                      transferDestinationId: item.transferDestinationId || "",
+                      exitdropoff: item.portName || "",
+                      dropoff: item.portName || "",
+                      dropoffLocation: item.portName || "",
+                      port_name: item.portName || "",
+                      portName: item.portName || "",
+                      port_id: item.portId || "",
+                      portId: item.portId || "",
+                      flightNumber: item.flightNo || item.flightNumber || "",
+                      flight_number: item.flightNo || item.flightNumber || "",
+                      entrytime: entrytime,
+                      time: entrytime,
+                      PickupPlaceid: null,
+                      DropoffPlaceid: null,
+                      adults: parseInt(item.adultsQty) || 0,
+                      adultsQty: parseInt(item.adultsQty) || 0,
+                      children: parseInt(item.childQty) || 0,
+                      childQty: parseInt(item.childQty) || 0,
+                      infants: parseInt(item.infantQty) || 0,
+                      infantQty: parseInt(item.infantQty) || 0,
+                      adultCost: parseFloat(item.adultCost) || 0,
+                      childCost: parseFloat(item.childCost) || 0,
+                      infantCost: parseFloat(item.infantCost) || 0,
+                      adultSell: parseFloat(item.adultSell) || 0,
+                      childSell: parseFloat(item.childSell) || 0,
+                      infantSell: parseFloat(item.infantSell) || 0,
+                      cost: parseFloat(item.cost) || 0,
+                      sell: parseFloat(item.sell) || 0,
+                      totalPrice: parseFloat(item.adultSell || 0) * parseInt(item.adultsQty || 0) + 
+parseFloat(item.childSell || 0) * parseInt(item.childQty || 0),
+                      Tax: 0,
+                      distance: 0,
+                      Night_Start_Time: null,
+                      Night_End_Time: null,
+                      city: destination,
+                      country: destination,
+                      vehicle_type: vehicleDetails.vehicle_type || item.vehicleType || "",
+                      vehicleType: vehicleDetails.vehicle_type || item.vehicleType || "",
+                      vehicle_model: vehicleDetails.vehicle_model,
+                      model_year: vehicleDetails.model_year,
+                      seating_capacity: 0,
+                      userInfo: {
+                          fullName: customerInfo.fullName,
+                          email: customerInfo.email,
+                          phone: customerInfo.phone,
+                          countryCode: customerInfo.countryCode,
+                          address1: customerInfo.address1,
+                          address2: customerInfo.address2,
+                          state: customerInfo.state,
+                          zip: customerInfo.zip,
+                          specialRequests: customerInfo.specialRequests
+                      },
+                      bookingType: "enquiry",
+                      supplement: item.supplement || false
+                  });
+              }
+          }
+          
+          return { entryPortData, exitPortData };
+      }
+      
+      // Transform accommodation data to required hotel format
+      function transformAccommodationData() {
+          const customerInfo = getCustomerInfo();
+          const dmcId = '{{ $dmc_id ?? "" }}';
+          // Get tour_id from URL parameter, initial data, or hotel object
+          const urlParams = new URLSearchParams(window.location.search);
+          const tourIdFromUrl = urlParams.get('tour_id');
+          const tourIdFromInitial = {{ isset($initialData['tour_id']) ? "'" . $initialData['tour_id'] . "'" : 'null' 
+}};
+          const defaultTourId = tourIdFromUrl || tourIdFromInitial || null;
+          
+          return accommodationList.map((hotel, hotelIdx) => {
+              // Extract date and time from checkIn and checkOut
+              let checkInDate = hotel.checkIn || '';
+              let checkOutDate = hotel.checkOut || '';
+              let checkInTime = "12:00:00";
+              let checkOutTime = "20:15:00";
+              
+              // If checkIn/checkOut contain time (datetime-local format), extract them
+              if (checkInDate && checkInDate.includes('T')) {
+                  const parts = checkInDate.split('T');
+                  checkInDate = parts[0];
+                  checkInTime = parts[1] ? parts[1].substring(0, 5) + ':00' : "12:00:00";
+              }
+              if (checkOutDate && checkOutDate.includes('T')) {
+                  const parts = checkOutDate.split('T');
+                  checkOutDate = parts[0];
+                  checkOutTime = parts[1] ? parts[1].substring(0, 5) + ':00' : "20:15:00";
+              }
+
+

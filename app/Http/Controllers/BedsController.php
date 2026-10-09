@@ -61,28 +61,31 @@ class BedsController extends Controller
             'queen_beds' => 'required|integer|min:0|max:4',
             'twin_beds' => 'required|integer|min:0|max:4', 
             'single_bed' => 'required|integer|min:0|max:4', 
-            'bunk_beds' => 'required|integer|min:0|max:4', 
+            'bunk_beds' => 'required|integer|min:0|max:4',
+            'child_wo_bed' => 'required|integer|in:0,1',
             'bed_status' => 'nullable|integer',
             // 'room_category_id' => 'required', 
         ]);
         $hotel_id = $request->hotel_id;
-        $bedId = BedMaster::max('bedId') ?? 1;
-        $categoryId = CommonHelper::createId($bedId);
-        while (BedMaster::where('bedId', $bedId)->exists()) {
-            $bedId = CommonHelper::createId($bedId);
-        }
-        BedMaster::create([
+        // $bedId = BedMaster::max('bedId') ?? 1;
+        // $categoryId = CommonHelper::createId($bedId);
+        // while (BedMaster::where('bedId', $bedId)->exists()) {
+        //     $bedId = CommonHelper::createId($bedId);
+        // }
+        $bedMaster = BedMaster::create([
             'name' => $validatedData['bed_type'],
             'no_of_king_bed' => $validatedData['king_beds'],
             'no_of_queen_bed' => $validatedData['queen_beds'],
             'no_of_twin_bed' => $validatedData['twin_beds'],
             'no_of_bunk_bed' => $validatedData['bunk_beds'],
             'no_of_single_bed' => $validatedData['single_bed'],
-            'bedId' => $bedId,
+            'child_wo_bed' => (int) $validatedData['child_wo_bed'],
+            // 'bedId' => CommonHelper::createId(),  // Generate a new bedId
             'hotel_id' => $hotel_id,
             'is_active' => $request->bed_status
             // 'room_id' =>  $validatedData['room_category_id'],
         ]);
+        $bedMaster->refresh();
         return redirect()->route('beds.create', $hotel_id)->with('success', 'Bed information added successfully.');
     }
 
@@ -116,7 +119,8 @@ class BedsController extends Controller
         $bedId = $request->bed_id;
         $bed = BedMaster::where('bedId', $bedId)->first();
         $validatedData = $request->validate([
-            'bed_type' => 'required|string|max:255', 
+            'bed_type' => 'required|string|max:255',
+            'child_wo_bed' => 'nullable|integer|in:0,1',
         ]);
 
         // Get the old name before updating
@@ -131,6 +135,7 @@ class BedsController extends Controller
             'no_of_bunk_bed' => $request->bunk_beds ?? 0,
             'hotel_id' => $request->hotel_id,
             'no_of_single_bed' => $request->single_bed ?? 0,
+            'child_wo_bed' => in_array((int) $request->child_wo_bed, [0, 1], true) ? (int) $request->child_wo_bed : 0,
             'is_active' => $request->bed_status == 1 ? 1 : 0,
         ]);
 

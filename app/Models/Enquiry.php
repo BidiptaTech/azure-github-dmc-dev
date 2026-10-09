@@ -16,6 +16,10 @@ class Enquiry extends Model
     protected $table = 'enquiry_comments'; 
     protected $guarded = [];
 
+    protected $casts = [
+        'negotiation_details' => 'array',
+    ];
+
     public function order()
     {
         return $this->belongsTo(Order::class, 'booking_id', 'booking_id');

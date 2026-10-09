@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en" class="light-style layout-navbar-fixed layout-menu-fixed layout-compact " dir="ltr"
-  data-theme="theme-bordered" data-assets-path="{{ env('APP_URL') . '/assets/'}}"
+  data-theme="theme-bordered" data-assets-path="{{ rtrim(config('app.url'), '/') . '/assets/' }}"
   data-template="vertical-menu-template-bordered"
   data-style="light">
 <head>
@@ -17,6 +17,14 @@
 
 @yield('content')  
 @include('layouts.footer') 
+<!-- Close layout-page + layout-container (opened in sidebar/topbar) -->
+</div>
+</div>
+<!-- Mobile sidebar backdrop (click to close) -->
+<div class="layout-overlay layout-menu-toggle"></div>
+<div class="drag-target"></div>
+<!-- Close layout-wrapper -->
+</div>
 @yield('scripts')
 @stack('scripts')
 
