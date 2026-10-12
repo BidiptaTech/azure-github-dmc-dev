@@ -1390,22 +1390,24 @@ use Illuminate\Support\Facades\Crypt;
                             <span class="summary-value">{{ $formatPrice($pricingMarkup['gross']) }}</span>
                         </div>
                         <div class="summary-row" style="background: #f0f9ff; padding: 10px 15px; border-radius: 6px; margin: 4px 0;">
-                            <span class="summary-label">Hotel Markup <small class="text-muted">({{ $payTypeLabel($pricingMarkup['markup_type'], $pricingMarkup['hotel_markup_raw']) }})</small></span>
+                            <span class="summary-label">Hotel Markup <small class="text-muted">({{ $payTypeLabel($pricingMarkup['hotel_markup_type'] ?? $pricingMarkup['markup_type'], $pricingMarkup['hotel_markup_raw']) }})</small></span>
                             <span class="summary-value text-info">
-                                @if(($pricingMarkup['markup_type'] ?? '') === 'flat' || ($pricingMarkup['markup_type'] ?? '') === 'fixed')
+                                @php $hotelMkType = $pricingMarkup['hotel_markup_type'] ?? $pricingMarkup['markup_type'] ?? ''; @endphp
+                                @if($hotelMkType === 'flat' || $hotelMkType === 'fixed')
                                     +{{ $formatPrice($pricingMarkup['hotel_markup_money']) }}
                                 @else
-                                    {{ $payTypeLabel($pricingMarkup['markup_type'], $pricingMarkup['hotel_markup_raw']) }}
+                                    {{ $payTypeLabel($hotelMkType, $pricingMarkup['hotel_markup_raw']) }}
                                 @endif
                             </span>
                         </div>
                         <div class="summary-row" style="background: #f0f9ff; padding: 10px 15px; border-radius: 6px; margin: 4px 0;">
-                            <span class="summary-label">Other Service Markup <small class="text-muted">({{ $payTypeLabel($pricingMarkup['markup_type'], $pricingMarkup['other_markup_raw']) }})</small></span>
+                            <span class="summary-label">Other Service Markup <small class="text-muted">({{ $payTypeLabel($pricingMarkup['other_markup_type'] ?? $pricingMarkup['markup_type'], $pricingMarkup['other_markup_raw']) }})</small></span>
                             <span class="summary-value text-info">
-                                @if(($pricingMarkup['markup_type'] ?? '') === 'flat' || ($pricingMarkup['markup_type'] ?? '') === 'fixed')
+                                @php $otherMkType = $pricingMarkup['other_markup_type'] ?? $pricingMarkup['markup_type'] ?? ''; @endphp
+                                @if($otherMkType === 'flat' || $otherMkType === 'fixed')
                                     +{{ $formatPrice($pricingMarkup['other_markup_money']) }}
                                 @else
-                                    {{ $payTypeLabel($pricingMarkup['markup_type'], $pricingMarkup['other_markup_raw']) }}
+                                    {{ $payTypeLabel($otherMkType, $pricingMarkup['other_markup_raw']) }}
                                 @endif
                             </span>
                         </div>
@@ -1441,8 +1443,8 @@ use Illuminate\Support\Facades\Crypt;
                                                 <span class="text-muted">({{ $mkRow['currency'] }})</span>
                                             @endif
                                         </td>
-                                        <td>{{ $payTypeLabel($mkRow['markup_type'], $mkRow['hotel_raw']) }}</td>
-                                        <td>{{ $payTypeLabel($mkRow['markup_type'], $mkRow['other_raw']) }}</td>
+                                        <td>{{ $payTypeLabel($mkRow['hotel_markup_type'] ?? $pricingMarkup['hotel_markup_type'] ?? $mkRow['markup_type'], $mkRow['hotel_raw']) }}</td>
+                                        <td>{{ $payTypeLabel($mkRow['other_markup_type'] ?? $pricingMarkup['other_markup_type'] ?? $mkRow['markup_type'], $mkRow['other_raw']) }}</td>
                                         <td>{{ $payTypeLabel($mkRow['discount_type'], $mkRow['discount_raw']) }}</td>
                                     </tr>
                                     @endforeach

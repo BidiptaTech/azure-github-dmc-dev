@@ -40,6 +40,28 @@
     $hotelMarkupMoney = $markupMoney;
     $otherMarkupMoney = 0.0;
 
+    // Hotel + other can use different types (e.g. hotel 1% + other flat 100).
+    // Prefer DMC profile types — currency_markups often stores only one shared markup_type.
+    $normalizeMkType = static function ($type, $fallback = 'percentage') {
+        $type = strtolower(trim((string) $type));
+        if ($type === 'fixed') {
+            $type = 'flat';
+        }
+        return in_array($type, ['percentage', 'flat'], true) ? $type : $fallback;
+    };
+    $profileMarkup = \App\Helpers\CommonHelper::getDmcProfileMarkupConfig(
+        auth()->user(),
+        $tour->userId ?? $tour->dmc_id ?? null
+    );
+    $hotelMarkupType = $normalizeMkType($profileMarkup['hotel']['markup_type'] ?? $markupType, 'percentage');
+    $otherMarkupType = $normalizeMkType($profileMarkup['other']['markup_type'] ?? $markupType, 'percentage');
+    if ((float) ($profileMarkup['hotel']['markup_value'] ?? 0) > 0 && $hotelMarkupRaw <= 0) {
+        $hotelMarkupRaw = (float) $profileMarkup['hotel']['markup_value'];
+    }
+    if ((float) ($profileMarkup['other']['markup_value'] ?? 0) > 0 && $otherMarkupRaw <= 0) {
+        $otherMarkupRaw = (float) $profileMarkup['other']['markup_value'];
+    }
+
     $cmRaw = $tour->currency_markups ?? ($tour->getAttributes()['currency_markups'] ?? null);
     if (is_string($cmRaw)) {
         $decodedCm = json_decode($cmRaw, true);
@@ -52,9 +74,6 @@
 
     $markupRows = [];
     if (is_array($cmRaw)) {
-        $hotelSumFlat = 0.0;
-        $otherSumFlat = 0.0;
-        $discSumFlat = 0.0;
         foreach ($cmRaw as $key => $row) {
             if (!is_array($row)) {
                 continue;
@@ -68,10 +87,14 @@
             if ($rowCur === '' && is_string($key) && !is_numeric($key)) {
                 $rowCur = strtoupper(trim($key));
             }
-            $mt = strtolower(trim((string) ($row['markup_type'] ?? '')));
-            if ($mt === 'fixed') {
-                $mt = 'flat';
-            }
+            $mt = $normalizeMkType($row['markup_type'] ?? '', '');
+            // Per-kind types from row when present; else DMC profile (not shared markup_type).
+            $hType = ($row['hotel_markup_type'] ?? '') !== ''
+                ? $normalizeMkType($row['hotel_markup_type'], $hotelMarkupType)
+                : $hotelMarkupType;
+            $oType = ($row['other_markup_type'] ?? '') !== ''
+                ? $normalizeMkType($row['other_markup_type'], $otherMarkupType)
+                : $otherMarkupType;
             $dt = strtolower(trim((string) ($row['discount_type'] ?? '')));
             if ($dt === 'fixed') {
                 $dt = 'flat';
@@ -86,19 +109,14 @@
             $markupRows[] = [
                 'place' => $place,
                 'currency' => $rowCur,
-                'markup_type' => $mt,
+                'markup_type' => $mt !== '' ? $mt : $hType,
+                'hotel_markup_type' => $hType,
+                'other_markup_type' => $oType,
                 'hotel_raw' => $hRaw,
                 'other_raw' => $oRaw,
                 'discount_type' => $dt,
                 'discount_raw' => $dRaw,
             ];
-            if ($mt === 'flat') {
-                $hotelSumFlat += $hRaw;
-                $otherSumFlat += $oRaw;
-            }
-            if ($dt === 'flat' || $dt === 'foc') {
-                $discSumFlat += $dRaw;
-            }
         }
         if ($markupRows !== []) {
             $preferred = $markupRows[0];
@@ -110,22 +128,35 @@
             }
             $hotelMarkupRaw = (float) $preferred['hotel_raw'];
             $otherMarkupRaw = (float) $preferred['other_raw'];
+            $hotelMarkupType = $preferred['hotel_markup_type'] !== '' ? $preferred['hotel_markup_type'] : $hotelMarkupType;
+            $otherMarkupType = $preferred['other_markup_type'] !== '' ? $preferred['other_markup_type'] : $otherMarkupType;
             $markupType = $preferred['markup_type'] !== '' ? $preferred['markup_type'] : $markupType;
             $discountType = $preferred['discount_type'] !== '' ? $preferred['discount_type'] : $discountType;
             $discountRaw = (float) $preferred['discount_raw'];
-            if ($markupType === 'flat') {
-                $hotelMarkupMoney = $hotelSumFlat;
-                $otherMarkupMoney = $otherSumFlat;
-                $markupMoney = $hotelMarkupMoney + $otherMarkupMoney;
-            }
-            if (($discountType === 'flat' || $discountType === 'foc') && $discSumFlat > 0) {
-                $discountMoney = $discSumFlat;
-            }
+            // Rates are for purpose only — do not sum Fixed 100 across every city row.
+            $hotelMarkupMoney = 0.0;
+            $otherMarkupMoney = 0.0;
+            $markupMoney = 0.0;
         }
     }
 
-    $hotelTypeText = $payTypeLabel($markupType, $hotelMarkupRaw);
-    $otherTypeText = $payTypeLabel($markupType, $otherMarkupRaw);
+    // Discount money must match the rate label (e.g. 10% of gross 200 = 20), not a stale tour column.
+    if ($discountType === 'percentage' && $discountRaw > 0) {
+        $discountMoney = round(max(0, $grossAmt) * $discountRaw / 100, 2);
+    } elseif (in_array($discountType, ['flat', 'foc'], true) && $discountRaw > 0) {
+        $discountMoney = round($discountRaw, 2);
+    } else {
+        $discountMoney = 0.0;
+    }
+
+    // Markup already in sell/gross — actual = gross − discount.
+    $actualPrice = max(0, $grossAmt - $discountMoney);
+    if (! $hasConfirmed || $confirmedPrice <= 0) {
+        $invoiceBase = (float) ceil($actualPrice);
+    }
+
+    $hotelTypeText = $payTypeLabel($hotelMarkupType, $hotelMarkupRaw);
+    $otherTypeText = $payTypeLabel($otherMarkupType, $otherMarkupRaw);
     $discTypeText = $payTypeLabel($discountType, $discountRaw);
 @endphp
 
@@ -207,21 +238,14 @@
         <div class="apb-item">
             <span class="apb-lbl">Hotel markup</span>
             <div class="apb-val text-info">{{ $hotelTypeText }}</div>
-            @if($markupType === 'flat')
-                <div class="apb-sub">+ {{ $payFmt($hotelMarkupMoney) }} {{ $payCur }}</div>
-            @endif
         </div>
         <div class="apb-item">
             <span class="apb-lbl">Other markup</span>
             <div class="apb-val text-info">{{ $otherTypeText }}</div>
-            @if($markupType === 'flat')
-                <div class="apb-sub">+ {{ $payFmt($otherMarkupMoney) }} {{ $payCur }}</div>
-            @endif
         </div>
         <div class="apb-item">
-            <span class="apb-lbl">Discount</span>
+            <span class="apb-lbl">Discount ({{ $discTypeText }})</span>
             <div class="apb-val text-success">− {{ $payFmt($discountMoney) }} {{ $payCur }}</div>
-            <div class="apb-sub">{{ $discTypeText }}</div>
         </div>
     </div>
 
@@ -229,7 +253,7 @@
         <div class="apb-item is-accent">
             <span class="apb-lbl">Actual price</span>
             <div class="apb-val text-primary">{{ $payFmt(ceil($actualPrice)) }} {{ $payCur }}</div>
-            <div class="apb-sub">Gross + markup − discount</div>
+            <div class="apb-sub">Gross − discount</div>
         </div>
         <div class="apb-item {{ $hasConfirmed ? 'is-ok' : '' }}">
             <span class="apb-lbl">Confirmed price</span>
@@ -268,8 +292,8 @@
                                     <span class="text-muted">({{ $row['currency'] }})</span>
                                 @endif
                             </td>
-                            <td>{{ $payTypeLabel($row['markup_type'], $row['hotel_raw']) }}</td>
-                            <td>{{ $payTypeLabel($row['markup_type'], $row['other_raw']) }}</td>
+                            <td>{{ $payTypeLabel($row['hotel_markup_type'] ?? $hotelMarkupType, $row['hotel_raw']) }}</td>
+                            <td>{{ $payTypeLabel($row['other_markup_type'] ?? $otherMarkupType, $row['other_raw']) }}</td>
                             <td>{{ $payTypeLabel($row['discount_type'], $row['discount_raw']) }}</td>
                         </tr>
                     @endforeach

@@ -406,36 +406,8 @@
         }
         $showMarkupDiscount = $markupDiscountDisplayAmount > 0;
 
-        // currency_markups hotel_markup + other_markup — added to TOTAL COST
-        $markupAddRows = is_array($tourPrices['markups'] ?? null) ? $tourPrices['markups'] : [];
-        $markupAddTotalNative = (float) ($tourPrices['markup_total'] ?? 0);
+        // Hotel/other markup already in sell rates — never add again to TOTAL COST.
         $markupAddDisplayAmount = 0.0;
-        $markupAddConvertedOk = true;
-        if (!empty($markupAddRows)) {
-            foreach ($markupAddRows as $mRow) {
-                $mAmount = (float) ($mRow['amount'] ?? 0);
-                if ($mAmount <= 0) {
-                    continue;
-                }
-                $mCurrency = strtoupper(trim((string) ($mRow['currency'] ?? $baseCurrency)));
-                if ($mCurrency === '') {
-                    $mCurrency = strtoupper((string) $baseCurrency);
-                }
-                $converted = \App\Helpers\CurrencyHelper::convertAmount($mAmount, $mCurrency, $selectedCurrency);
-                if ($converted === null) {
-                    if ($mCurrency === $selectedCurrency) {
-                        $converted = $mAmount;
-                    } else {
-                        $markupAddConvertedOk = false;
-                        $converted = $mAmount;
-                    }
-                }
-                $markupAddDisplayAmount += (float) $converted;
-            }
-            $markupAddDisplayAmount = ceil($markupAddDisplayAmount);
-        } elseif ($markupAddTotalNative > 0) {
-            $markupAddDisplayAmount = ceil($markupAddTotalNative);
-        }
 
         $otherTotalForOccupancy = $occupancyKey === 'double' ? $otherDoubleTotal : $otherSingleTotal;
 
@@ -2566,7 +2538,7 @@
                 ];
             };
 
-            // City markups from tours.currency_markups — bake into services (hidden)
+            // Discount rates from currency_markups (markup already in sell — discount only).
             $cityMarkupIndex = [];
             $rawCityMarkups = $tour->currency_markups ?? ($tour->getAttributes()['currency_markups'] ?? null);
             if (is_string($rawCityMarkups)) {
@@ -2575,7 +2547,7 @@
             }
             if (is_array($rawCityMarkups)) {
                 foreach ($rawCityMarkups as $mRow) {
-                    if (!is_array($mRow)) {
+                    if (!is_array($mRow) || str_starts_with((string) ($mRow['city'] ?? ''), '__lite_markup_pad__')) {
                         continue;
                     }
                     $mCountry = trim((string) ($mRow['country'] ?? $mRow['city'] ?? ''));
@@ -2594,25 +2566,6 @@
                     ];
                 }
             }
-            $lookupCityMarkup = function ($country, $currency) use ($cityMarkupIndex) {
-                $country = trim((string) $country);
-                $currency = strtoupper(trim((string) $currency));
-                $key = mb_strtolower($country) . '|' . $currency;
-                if (isset($cityMarkupIndex[$key])) {
-                    return $cityMarkupIndex[$key];
-                }
-                foreach ($cityMarkupIndex as $row) {
-                    if ($country !== '' && strcasecmp((string) ($row['country'] ?? ''), $country) === 0) {
-                        return $row;
-                    }
-                }
-                foreach ($cityMarkupIndex as $row) {
-                    if ($currency !== '' && strtoupper((string) ($row['currency'] ?? '')) === $currency) {
-                        return $row;
-                    }
-                }
-                return null;
-            };
 
             $overallPackageRows = [];
             $hotelPriceOptions = is_array($tourPrices['hotel_price_options'] ?? null)
@@ -2924,24 +2877,34 @@
             }
 
             $overallDiscountShown = 0.0;
-            // Prefer pre-converted discount from calculateTourPrices (create/edit markup form)
+            // Prefer pre-converted discount from calculateTourPrices (per-country gross × rate, summed once).
             if ((float) ($markupDiscountDisplayAmount ?? 0) > 0) {
                 $overallDiscountShown = (float) $markupDiscountDisplayAmount;
             } else {
-            foreach ($cityMarkupIndex as $mInfo) {
-                $dRaw = (float) ($mInfo['discount_value'] ?? 0);
-                if ($dRaw <= 0) {
-                    continue;
+                // One preferred discount rate on package subtotal — do not re-apply per city row.
+                $preferredDisc = null;
+                foreach ($cityMarkupIndex as $mInfo) {
+                    if ((float) ($mInfo['discount_value'] ?? 0) > 0) {
+                        $preferredDisc = $mInfo;
+                        break;
+                    }
                 }
-                if (($mInfo['discount_type'] ?? 'flat') === 'percentage') {
-                    $overallDiscountShown += $overallLinesSubtotal * $dRaw / 100.0;
-                } else {
-                    $overallDiscountShown += $convertToOverall($dRaw, $mInfo['currency'] ?? $overallTargetCurrency);
+                if ($preferredDisc) {
+                    $dRaw = (float) ($preferredDisc['discount_value'] ?? 0);
+                    $dType = strtolower(trim((string) ($preferredDisc['discount_type'] ?? 'flat')));
+                    if ($dType === 'fixed') {
+                        $dType = 'flat';
+                    }
+                    if ($dType === 'percentage') {
+                        $overallDiscountShown = $overallLinesSubtotal * $dRaw / 100.0;
+                    } else {
+                        $overallDiscountShown = $convertToOverall($dRaw, $preferredDisc['currency'] ?? $overallTargetCurrency);
+                    }
                 }
             }
-            }
+            $overallDiscountShown = (float) ceil(max(0.0, $overallDiscountShown));
 
-            $overallMarkupShown = 0.0; // markup is already baked into per-pax rates — never show to customer
+            $overallMarkupShown = 0.0; // already in sell — never add / never show to customer
 
             // Discount first, then Tax on (Subtotal − Discount)
             $taxableBase = max(0.0, (float) $overallLinesSubtotal - (float) $overallDiscountShown);
