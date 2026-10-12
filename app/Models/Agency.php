@@ -29,6 +29,8 @@ class Agency extends Model
         'status',
         'dmc_id',
         'sales_dmc',
+        'special_discount',
+        'special_discount_type',
         'created_by',
         'updated_by',
     ];
@@ -37,6 +39,7 @@ class Agency extends Model
         'branches' => 'array', // Cast JSON to array
         'dmc_id' => 'array', // Cast JSON to array
         'sales_dmc' => 'array',
+        'special_discount' => 'decimal:2',
         'status' => 'boolean',
     ];
 

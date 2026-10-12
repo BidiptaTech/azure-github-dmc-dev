@@ -314,9 +314,15 @@
             '      </div>' +
             '      <div class="stp-lite-hotel-breakup-body" data-hotel-breakup-body>' +
             '        <div class="hotel-breakup-grid"></div>' +
-            '        <div class="stp-lite-hotel-breakup-total">' +
-            '          <span><strong>Total:</strong></span>' +
-            '          <strong class="hotel-breakup-grand">' + esc(currency) + ' 0.00</strong>' +
+            '        <div class="stp-lite-hotel-breakup-totals">' +
+            '          <div class="stp-lite-hotel-breakup-total is-markup hotel-breakup-markup-row d-none">' +
+            '            <span><strong>Markup Amount:</strong></span>' +
+            '            <strong class="hotel-breakup-markup">' + esc(currency) + ' 0.00</strong>' +
+            '          </div>' +
+            '          <div class="stp-lite-hotel-breakup-total">' +
+            '            <span><strong>Total Price:</strong></span>' +
+            '            <strong class="hotel-breakup-grand">' + esc(currency) + ' 0.00</strong>' +
+            '          </div>' +
             '        </div>' +
             '      </div>' +
             '    </div>' +
@@ -1123,7 +1129,18 @@
         if (!isAdHocRow(row)) return null;
         var nights = nightCountFromRow(row) || 0;
         if (nights < 1) nights = 1;
-        var roomTotal = positiveAmount(payload && payload.room_total) || positiveAmount(row.room_total);
+        // Prefer base room total (before DMC markup) so edit does not inflate Manual Room rate.
+        var roomTotal = positiveAmount(payload && payload.room_total_base);
+        if (roomTotal == null && payload && payload.dmc_profile_markup) {
+            var mkAmt = Number((payload.dmc_profile_markup || {}).markup_amount || 0);
+            var roomWithMk = positiveAmount(payload.room_total);
+            if (roomWithMk != null && mkAmt > 0) {
+                roomTotal = Math.max(0, roomWithMk - mkAmt);
+            }
+        }
+        if (roomTotal == null) {
+            roomTotal = positiveAmount(payload && payload.room_total) || positiveAmount(row.room_total);
+        }
         if (roomTotal != null) return roomTotal / nights;
         // Stored bed.price is room sell total for 1 room across the stay
         var b0 = firstBed(row);
@@ -1229,6 +1246,86 @@
      * are never modified (complementary breakfast already has no meal charge).
      * Original inventory room rates are kept for strikethrough display.
      */
+    function resolveHotelMarkupRule() {
+        var cfgMk = (cfg().dmcProfileMarkup && cfg().dmcProfileMarkup.hotel)
+            || (window.STP_LITE_CONFIG && window.STP_LITE_CONFIG.dmcProfileMarkup && window.STP_LITE_CONFIG.dmcProfileMarkup.hotel)
+            || {};
+        var type = String(cfgMk.markup_type || 'percentage').toLowerCase();
+        if (type === 'fixed') type = 'flat';
+        if (type !== 'flat' && type !== 'percentage') type = 'percentage';
+        return {
+            markup_type: type,
+            markup_value: Math.max(0, Number(cfgMk.markup_value) || 0),
+            dmc_id: (cfg().dmcProfileMarkup && cfg().dmcProfileMarkup.dmc_id)
+                || (window.STP_LITE_CONFIG && window.STP_LITE_CONFIG.dmcProfileMarkup && window.STP_LITE_CONFIG.dmcProfileMarkup.dmc_id)
+                || null
+        };
+    }
+
+    function computeHotelMarkupAmount(basePrice, rule) {
+        basePrice = Math.max(0, Number(basePrice) || 0);
+        rule = rule || resolveHotelMarkupRule();
+        var val = Math.max(0, Number(rule.markup_value) || 0);
+        if (val <= 0) return 0;
+        if (String(rule.markup_type || '').toLowerCase() === 'flat') {
+            return Math.round(val * 100) / 100;
+        }
+        return Math.round((basePrice * val / 100) * 100) / 100;
+    }
+
+    /**
+     * Re-apply DMC hotel profile markup onto a Get Price / stored payload.
+     * Used on edit hydrate so Markup Amount + Total match create/add.
+     */
+    function ensureHotelMarkupOnPriceData(data) {
+        if (!data || typeof data !== 'object') return data;
+        var rule = resolveHotelMarkupRule();
+        var cwb = data.child_with_bed || null;
+        var cnb = data.child_without_bed || null;
+        var cwbTotal = cwb ? Number(cwb.total || 0) : 0;
+        var cnbTotal = cnb ? Number(cnb.total || 0) : 0;
+        var mealTotal = Number(data.meal_total || 0);
+        var prevMk = data.dmc_profile_markup || {};
+        var prevMkAmt = Number(prevMk.markup_amount || 0);
+
+        var roomBase;
+        var baseGrand;
+        if (data.base_grand_total != null && data.room_total_base != null) {
+            roomBase = Math.max(0, Number(data.room_total_base || 0));
+            baseGrand = Math.max(0, Number(data.base_grand_total || 0));
+        } else if (data.room_total_base != null) {
+            roomBase = Math.max(0, Number(data.room_total_base || 0));
+            baseGrand = roomBase + mealTotal + cwbTotal + cnbTotal;
+        } else if (prevMkAmt > 0) {
+            roomBase = Math.max(0, Number(data.room_total || 0) - prevMkAmt);
+            baseGrand = data.base_grand_total != null
+                ? Math.max(0, Number(data.base_grand_total || 0))
+                : Math.max(0, Number(data.grand_total || 0) - prevMkAmt);
+        } else {
+            // No prior markup meta — treat current totals as base (edit / legacy rows).
+            roomBase = Math.max(0, Number(data.room_total || 0));
+            baseGrand = roomBase + mealTotal + cwbTotal + cnbTotal;
+            if (!(baseGrand > 0) && Number(data.grand_total || 0) > 0) {
+                baseGrand = Math.max(0, Number(data.grand_total || 0));
+            }
+        }
+
+        var markupAmount = computeHotelMarkupAmount(baseGrand, rule);
+        return Object.assign({}, data, {
+            room_total_base: roomBase,
+            room_total: roomBase + markupAmount,
+            base_grand_total: baseGrand,
+            grand_total: baseGrand + markupAmount,
+            dmc_profile_markup: {
+                markup_kind: 'hotel',
+                markup_type: rule.markup_type,
+                markup_value: rule.markup_value,
+                markup_amount: markupAmount,
+                dmc_id: rule.dmc_id
+            }
+        });
+    }
+
     function applyAdHocToPriceData(data, adhocPerNight) {
         if (!data || adhocPerNight == null || !isFinite(adhocPerNight)) return data;
         var nights = parseInt(data.nights, 10)
@@ -1240,17 +1337,29 @@
         var cnb = data.child_without_bed || null;
         var cwbTotal = cwb ? Number(cwb.total || 0) : 0;
         var cnbTotal = cnb ? Number(cnb.total || 0) : 0;
+        var baseGrand = roomTotal + mealTotal + cwbTotal + cnbTotal;
+        var markupRule = resolveHotelMarkupRule();
+        var markupAmount = computeHotelMarkupAmount(baseGrand, markupRule);
         var out = Object.assign({}, data, {
             is_adhoc: true,
             adhoc_price: Number(adhocPerNight),
-            original_room_total: Number(data.room_total || 0),
+            original_room_total: Number(data.room_total_base != null ? data.room_total_base : (data.room_total || 0)),
             original_fair_charge_total: Number(data.fair_charge_total || 0),
-            room_total: roomTotal,
+            room_total_base: roomTotal,
+            room_total: roomTotal + markupAmount,
             // Fair surcharge is part of inventory room pricing; AdHoc is a flat room rate.
             fair_charge_total: 0,
             fair_nights: 0,
+            base_grand_total: baseGrand,
+            dmc_profile_markup: {
+                markup_kind: 'hotel',
+                markup_type: markupRule.markup_type,
+                markup_value: markupRule.markup_value,
+                markup_amount: markupAmount,
+                dmc_id: markupRule.dmc_id
+            },
             // Keep meal_total / breakfast_total / lunch_total / dinner_total from Get Price.
-            grand_total: roomTotal + mealTotal + cwbTotal + cnbTotal
+            grand_total: baseGrand + markupAmount
         });
         if (Array.isArray(data.breakdown) && data.breakdown.length) {
             out.breakdown = data.breakdown.map(function (n) {
@@ -1383,9 +1492,22 @@
         if (!data) return { html: '', grand: 0 };
         opts = opts || {};
         var rooms = parseInt(numberOfRooms, 10) || 1;
-        var roomTotal = Number(data.room_total || 0) * rooms;
+        var markupMeta = data.dmc_profile_markup || {};
+        var markupPerRoom = Number(markupMeta.markup_amount || 0);
+        var markupAmt = markupPerRoom * rooms;
+        // Prefer base room total so markup is shown as its own line for sales clarity.
+        var roomTotalBaseUnit = data.room_total_base != null
+            ? Number(data.room_total_base || 0)
+            : Math.max(0, Number(data.room_total || 0) - markupPerRoom);
+        var roomTotal = roomTotalBaseUnit * rooms;
         var mealTotal = Number(data.meal_total || 0) * rooms;
         var grand = Number(data.grand_total || 0) * rooms;
+        if (!(grand > 0)) {
+            var fallbackBase = data.base_grand_total != null
+                ? Number(data.base_grand_total || 0) * rooms
+                : (roomTotal + mealTotal);
+            grand = fallbackBase + markupAmt;
+        }
         var fairCharge = Number(data.fair_charge_total || 0) * rooms;
         var roomBase = Math.max(0, roomTotal - fairCharge);
         var mealPlanLabel = String(opts.mealPlan || data.meal_plan || '').trim();
@@ -1551,8 +1673,33 @@
                 moneyTxt(cur, 0)
             );
         }
+        var priceBeforeMarkup = Math.max(0, grand - markupAmt);
+        if (markupAmt > 0 || Number(markupMeta.markup_value || 0) > 0) {
+            var mkType = String(markupMeta.markup_type || 'percentage').toLowerCase();
+            var mkVal = Number(markupMeta.markup_value || 0);
+            var mkLabel = mkType === 'flat'
+                ? ('Flat ' + moneyTxt(cur, mkVal))
+                : (mkVal + '%');
+            html += summaryRowHtml(
+                '<strong>Price (before markup)</strong>',
+                moneyTxt(cur, priceBeforeMarkup),
+                'is-base'
+            );
+            html += summaryRowHtml(
+                '<strong>Markup Amount</strong> <small class="text-muted">(' + mkLabel + ')</small>',
+                moneyTxt(cur, markupAmt),
+                'is-markup'
+            );
+        }
         html += '</div>';
-        return { html: html, grand: grand, babyCot: cot };
+        return {
+            html: html,
+            grand: grand,
+            babyCot: cot,
+            markupAmount: markupAmt,
+            baseGrand: priceBeforeMarkup,
+            markupMeta: markupMeta
+        };
     }
 
     function setAddEnabled(root, on) {
@@ -1595,6 +1742,14 @@
             infants: selectedInfantsCount(root)
         });
         grid.innerHTML = built.html || '<div class="text-muted" style="font-size:0.72rem;">No breakdown returned.</div>';
+        var markupEl = root.querySelector('.hotel-breakup-markup');
+        var markupWrap = root.querySelector('.hotel-breakup-markup-row');
+        if (markupEl) {
+            markupEl.textContent = cur + ' ' + Number(built.markupAmount || 0).toFixed(2);
+        }
+        if (markupWrap) {
+            markupWrap.classList.toggle('d-none', !(Number(built.markupAmount || 0) > 0));
+        }
         if (grandEl) grandEl.textContent = cur + ' ' + Number(built.grand || 0).toFixed(2);
 
         panel.classList.remove('d-none');
@@ -1819,15 +1974,18 @@
             }
             if (!helper || typeof helper !== 'object') {
                 helper = buildFallbackPriceDataFromRow(row);
-            } else if (isAdHocRow(row)) {
-                var adhocAmt = resolveAdHocPriceFromRow(row);
-                if (adhocAmt != null && (!helper.is_adhoc || helperRoomLooksEmpty(helper))) {
-                    helper = applyAdHocToPriceData(helper, adhocAmt);
-                } else if (helperRoomLooksEmpty(helper)) {
-                    helper = buildFallbackPriceDataFromRow(row);
-                }
             } else if (helperRoomLooksEmpty(helper) && Number(row.grand_total || row.totalPrice || 0) > 0) {
                 helper = buildFallbackPriceDataFromRow(row);
+            }
+            if (isAdHocRow(row)) {
+                var adhocAmt = resolveAdHocPriceFromRow(row);
+                if (adhocAmt != null) {
+                    helper = applyAdHocToPriceData(helper, adhocAmt);
+                } else {
+                    helper = ensureHotelMarkupOnPriceData(helper);
+                }
+            } else {
+                helper = ensureHotelMarkupOnPriceData(helper);
             }
 
             var built = buildBreakdownHtml(helper, rooms, cur, {
@@ -1835,13 +1993,24 @@
                 isAdHoc: !!(helper.is_adhoc || isAdHocRow(row)),
                 infants: savedInfantsFromRow(row)
             });
+            var modalTotals =
+                '    <div class="stp-lite-hotel-breakup-totals">' +
+                (Number(built.markupAmount || 0) > 0
+                    ? ('      <div class="stp-lite-hotel-breakup-total is-markup">' +
+                        '        <span><strong>Markup Amount:</strong></span>' +
+                        '        <strong>' + cur + ' ' + Number(built.markupAmount || 0).toFixed(2) + '</strong>' +
+                        '      </div>')
+                    : '') +
+                '      <div class="stp-lite-hotel-breakup-total">' +
+                '        <span><strong>Total Price:</strong></span>' +
+                '        <strong>' + cur + ' ' + Number(built.grand || 0).toFixed(2) + '</strong>' +
+                '      </div>' +
+                '    </div>';
             bodyEl.innerHTML =
                 '<div class="stp-lite-hotel-breakup-card is-modal">' +
                 '  <div class="stp-lite-hotel-breakup-body p-2">' +
                 (built.html || '<div class="text-muted text-center py-2" style="font-size:0.75rem;">No night breakdown available</div>') +
-                '    <div class="stp-lite-hotel-breakup-total">' +
-                '      <span><strong>Total:</strong></span><strong>' + cur + ' ' + Number(built.grand || 0).toFixed(2) + '</strong>' +
-                '    </div>' +
+                modalTotals +
                 '  </div>' +
                 '</div>';
 
@@ -2523,15 +2692,23 @@
                     try { payload = JSON.parse(payload); } catch (e) { payload = null; }
                 }
                 var rowAdHocPrice = resolveAdHocPriceFromRow(row);
+                var roomsN = row.number_of_rooms || firstRoom(row).number_of_rooms || 1;
                 if (payload) {
-                    var roomEmpty = !(Number(payload.room_total || 0) > 0);
-                    if (isAdHocRow(row) && rowAdHocPrice != null && (!payload.is_adhoc || roomEmpty)) {
+                    // Always refresh markup on edit so Total / Markup Amount match add.
+                    if (isAdHocRow(row) && rowAdHocPrice != null) {
                         payload = applyAdHocToPriceData(payload, Number(rowAdHocPrice));
+                    } else {
+                        payload = ensureHotelMarkupOnPriceData(payload);
                     }
-                    renderBreakdown(root, payload, row.number_of_rooms || firstRoom(row).number_of_rooms || 1);
+                    renderBreakdown(root, payload, roomsN);
                 } else if (isAdHocRow(row) || Number(row.grand_total || row.totalPrice || 0) > 0) {
-                    renderBreakdown(root, buildFallbackPriceDataFromRow(row),
-                        row.number_of_rooms || firstRoom(row).number_of_rooms || 1);
+                    var fallback = buildFallbackPriceDataFromRow(row);
+                    if (isAdHocRow(row) && rowAdHocPrice != null) {
+                        fallback = applyAdHocToPriceData(fallback, Number(rowAdHocPrice));
+                    } else {
+                        fallback = ensureHotelMarkupOnPriceData(fallback);
+                    }
+                    renderBreakdown(root, fallback, roomsN);
                 }
             })
             .catch(function () { /* ignore hydrate errors */ })

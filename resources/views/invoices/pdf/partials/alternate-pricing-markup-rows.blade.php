@@ -20,13 +20,14 @@
     <td class="inv-col-service">&nbsp;</td>
     <td class="inv-total-label-cell">
         Hotel Markup
-        <span style="color:#64748b; font-weight:normal;">({{ $payTypeLabel($pricingMarkup['markup_type'], $pricingMarkup['hotel_markup_raw']) }})</span>
+        <span style="color:#64748b; font-weight:normal;">({{ $payTypeLabel($pricingMarkup['hotel_markup_type'] ?? $pricingMarkup['markup_type'], $pricingMarkup['hotel_markup_raw']) }})</span>
     </td>
     <td class="inv-col-amount"><span class="inv-svc-amt">
-        @if(($pricingMarkup['markup_type'] ?? '') === 'flat' || ($pricingMarkup['markup_type'] ?? '') === 'fixed')
+        @php $hotelMkType = $pricingMarkup['hotel_markup_type'] ?? $pricingMarkup['markup_type'] ?? ''; @endphp
+        @if($hotelMkType === 'flat' || $hotelMkType === 'fixed')
             +{{ $markupFmtPrice($pricingMarkup['hotel_markup_money']) }}
         @else
-            {{ $payTypeLabel($pricingMarkup['markup_type'], $pricingMarkup['hotel_markup_raw']) }}
+            {{ $payTypeLabel($hotelMkType, $pricingMarkup['hotel_markup_raw']) }}
         @endif
     </span></td>
 </tr>
@@ -34,13 +35,14 @@
     <td class="inv-col-service">&nbsp;</td>
     <td class="inv-total-label-cell">
         Other Service Markup
-        <span style="color:#64748b; font-weight:normal;">({{ $payTypeLabel($pricingMarkup['markup_type'], $pricingMarkup['other_markup_raw']) }})</span>
+        <span style="color:#64748b; font-weight:normal;">({{ $payTypeLabel($pricingMarkup['other_markup_type'] ?? $pricingMarkup['markup_type'], $pricingMarkup['other_markup_raw']) }})</span>
     </td>
     <td class="inv-col-amount"><span class="inv-svc-amt">
-        @if(($pricingMarkup['markup_type'] ?? '') === 'flat' || ($pricingMarkup['markup_type'] ?? '') === 'fixed')
+        @php $otherMkType = $pricingMarkup['other_markup_type'] ?? $pricingMarkup['markup_type'] ?? ''; @endphp
+        @if($otherMkType === 'flat' || $otherMkType === 'fixed')
             +{{ $markupFmtPrice($pricingMarkup['other_markup_money']) }}
         @else
-            {{ $payTypeLabel($pricingMarkup['markup_type'], $pricingMarkup['other_markup_raw']) }}
+            {{ $payTypeLabel($otherMkType, $pricingMarkup['other_markup_raw']) }}
         @endif
     </span></td>
 </tr>
@@ -84,8 +86,8 @@
                             <span style="color:#64748b;">({{ $mkRow['currency'] }})</span>
                         @endif
                     </td>
-                    <td>{{ $payTypeLabel($mkRow['markup_type'], $mkRow['hotel_raw']) }}</td>
-                    <td>{{ $payTypeLabel($mkRow['markup_type'], $mkRow['other_raw']) }}</td>
+                    <td>{{ $payTypeLabel($mkRow['hotel_markup_type'] ?? $pricingMarkup['hotel_markup_type'] ?? $mkRow['markup_type'], $mkRow['hotel_raw']) }}</td>
+                    <td>{{ $payTypeLabel($mkRow['other_markup_type'] ?? $pricingMarkup['other_markup_type'] ?? $mkRow['markup_type'], $mkRow['other_raw']) }}</td>
                     <td>{{ $payTypeLabel($mkRow['discount_type'], $mkRow['discount_raw']) }}</td>
                 </tr>
                 @endforeach
