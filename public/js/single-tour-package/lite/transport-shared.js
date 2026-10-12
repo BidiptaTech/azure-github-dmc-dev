@@ -385,12 +385,25 @@
             );
         }
         if (bodyEl) {
+            var cur = String(currency || 'SGD').trim() || 'SGD';
+            // `total` is the final sell price already stored on the row — split for display only.
+            var applied = (window.StpLiteDmcMarkup && typeof window.StpLiteDmcMarkup.splitFromFinal === 'function')
+                ? window.StpLiteDmcMarkup.splitFromFinal(total, 'other')
+                : { base_price: Number(total || 0), markup_amount: 0, price: Number(total || 0) };
+            var markupRows = (window.StpLiteDmcMarkup && typeof window.StpLiteDmcMarkup.summaryRowsHtml === 'function')
+                ? window.StpLiteDmcMarkup.summaryRowsHtml(applied, cur)
+                : '';
+            var totals = (window.StpLiteDmcMarkup && typeof window.StpLiteDmcMarkup.totalsHtml === 'function')
+                ? window.StpLiteDmcMarkup.totalsHtml(applied, cur)
+                : ('<div class="stp-lite-summary-row mt-2 pt-2" style="border-top:1px dashed #93c5fd;">' +
+                    '<span class="stp-lite-summary-row__left"><strong>Total Price</strong></span>' +
+                    '<strong class="stp-lite-summary-row__amt">' + esc(cur) + ' ' + Number(applied.price || 0).toFixed(2) + '</strong></div>');
             bodyEl.innerHTML =
                 '<div class="stp-lite-svc-price-card">' +
                 detail +
-                '<div class="stp-lite-summary-row mt-2 pt-2" style="border-top:1px dashed #93c5fd;">' +
-                '<span class="stp-lite-summary-row__left"><strong>Total</strong></span>' +
-                '<strong class="stp-lite-summary-row__amt">' + esc(currency || '') + ' ' + Number(total || 0).toFixed(2) + '</strong></div></div>';
+                markupRows +
+                totals +
+                '</div>';
         }
         try {
             if (window.bootstrap && bootstrap.Modal) {
@@ -985,7 +998,12 @@
             '        <div class="stp-lite-svc-price-title">Price</div>' +
             '        <div class="stp-lite-svc-price-sub text-muted">After Get Price · ' + esc(currency) + '</div>' +
             '      </div>' +
-            '      <strong class="' + prefix + '-price-total">' + esc(currency) + ' 0.00</strong>' +
+            '      <div class="text-end">' +
+            '        <div class="' + prefix + '-price-markup-row d-none" style="font-size:0.7rem;color:#6d28d9;">' +
+            '          <span>Markup Amount:</span> <strong class="' + prefix + '-price-markup">' + esc(currency) + ' 0.00</strong>' +
+            '        </div>' +
+            '        <strong class="' + prefix + '-price-total">' + esc(currency) + ' 0.00</strong>' +
+            '      </div>' +
             '    </div>' +
             '    <div class="' + prefix + '-price-detail text-muted mt-1" style="font-size:0.72rem;"></div>' +
             '  </div>' +

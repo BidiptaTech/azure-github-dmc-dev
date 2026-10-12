@@ -1199,7 +1199,11 @@
 @include('enquiryform_pro.partials.stay-rate-full-calendar')
 @include('enquiryform_pro.partials.hotel-cost-sell-js')
 @include('enquiryform_pro.partials.online-booking-js')
-<script>window.hasNegotiationHistory = @json($hasNegotiationHistory);</script>
+<script>
+window.hasNegotiationHistory = @json($hasNegotiationHistory);
+window.enquiryProTourStatus = @json($tour->tour_status ?? '');
+window.enquiryProCancelOrderUrl = @json(url('/api/orders/__ID__/cancel'));
+</script>
 @php
     // DMC information for cost sheet print (same pattern as invoices/pdf/final.blade.php)
     $dmcUser = isset($dmc_id) && $dmc_id ? \App\Models\User::where('userId', $dmc_id)->first() : ($user ?? null);
@@ -25815,6 +25819,84 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
         });
     }
     
+    function enquiryProTourStatusNeedsVoucherCancel() {
+        const status = String(window.enquiryProTourStatus || '').trim().toLowerCase();
+        return status === 'confirmed' || status === 'definite';
+    }
+
+    function enquiryProAttractionNeedsVoucherCancel(item) {
+        if (!item || !enquiryProTourStatusNeedsVoucherCancel()) return false;
+        const isOnline = !!(item.isOnlineAttraction || item.attractionSourceType === 'online' || item.order_type === 'online');
+        const code = String(item.voucher_code || '').trim();
+        return isOnline && !!code;
+    }
+
+    function promptCancelOnlineAttractionVoucher(item) {
+        const code = String(item.voucher_code || '').trim();
+        const name = item.attractionName || item.AttractionName || 'Online attraction';
+        if (typeof Swal === 'undefined' || typeof Swal.fire !== 'function') {
+            const reason = window.prompt('Cancel voucher ' + code + ' for "' + name + '". Enter cancel reason (min 10 chars):', '');
+            if (reason == null) return Promise.resolve(null);
+            if (String(reason).trim().length < 10) {
+                alert('Cancel reason must be at least 10 characters.');
+                return Promise.resolve(null);
+            }
+            return Promise.resolve(String(reason).trim());
+        }
+        return Swal.fire({
+            title: 'Cancel Online Voucher?',
+            html: '<p class="mb-2 text-start">Removing <strong>' + (name || 'attraction') + '</strong> will cancel the supplier voucher and refund credits.</p>'
+                + '<div class="text-start mb-2"><label class="form-label fw-semibold mb-1">Voucher Code</label>'
+                + '<input type="text" class="form-control" id="proCancelVoucherCode" value="' + code.replace(/"/g, '&quot;') + '" readonly></div>'
+                + '<div class="text-start"><label class="form-label fw-semibold mb-1">Cancel Reason <span class="text-danger">*</span></label>'
+                + '<textarea id="proCancelVoucherReason" class="form-control" rows="3" minlength="10" maxlength="1000" '
+                + 'placeholder="Reason for cancelling this voucher..."></textarea></div>',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#dc2626',
+            cancelButtonColor: '#64748b',
+            confirmButtonText: 'Confirm Cancel Voucher',
+            cancelButtonText: 'Keep Booking',
+            width: '440px',
+            preConfirm: () => {
+                const reason = String(document.getElementById('proCancelVoucherReason')?.value || '').trim();
+                if (reason.length < 10) {
+                    Swal.showValidationMessage('Please enter a cancel reason (at least 10 characters).');
+                    return false;
+                }
+                return reason;
+            }
+        }).then((result) => (result.isConfirmed ? result.value : null));
+    }
+
+    async function cancelOnlineAttractionOrderOnEdit(item, cancelReason) {
+        const bookingKey = item.bookingId || item.booking_id || item.orderId;
+        if (!bookingKey) {
+            throw new Error('Missing booking id for this attraction order.');
+        }
+        const urlTemplate = window.enquiryProCancelOrderUrl || '/api/orders/__ID__/cancel';
+        const url = String(urlTemplate).replace('__ID__', encodeURIComponent(bookingKey));
+        const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+        const resp = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': csrf
+            },
+            body: JSON.stringify({
+                tour_id: window.tourId || undefined,
+                cancel_reason: cancelReason
+            })
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok || !data.success) {
+            const msg = (data && data.message) ? data.message : 'Failed to cancel online attraction voucher.';
+            throw new Error(msg);
+        }
+        return data;
+    }
+
     // Remove selected tours
     function removeSelectedTours() {
         const checkboxes = document.querySelectorAll('.tour-checkbox:checked');
@@ -25832,35 +25914,86 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
             const item = tourList.find(t => String(t.id) === String(id));
             return item && (item.orderId != null && item.orderId !== '');
         });
+        const voucherCancelItems = idsToRemove
+            .map(id => tourList.find(t => String(t.id) === String(id)))
+            .filter(item => enquiryProAttractionNeedsVoucherCancel(item));
         
         const count = checkboxes.length;
         const itemLabel = count === 1 ? 'tour' : 'tours';
-        showRemoveFormSelectionAlert(count, itemLabel, () => {
-            const snapshotBefore = snapshotAllServiceState();
-            tourList.forEach(tour => {
-                if (idsToRemove.includes(String(tour.id))) {
-                    if (tour.transferId) {
-                        transferList = transferList.filter(t => String(t.id) !== String(tour.transferId));
+        showRemoveFormSelectionAlert(count, itemLabel, async () => {
+            try {
+                for (const item of voucherCancelItems) {
+                    const reason = await promptCancelOnlineAttractionVoucher(item);
+                    if (!reason) {
+                        return;
                     }
-                    if (tour.guideId) {
-                        guideList = guideList.filter(g => String(g.id) !== String(tour.guideId));
+                    const result = await cancelOnlineAttractionOrderOnEdit(item, reason);
+                    const providerMsg = result?.data?.voucher_cancel?.message || result?.message || 'Voucher cancelled.';
+                    if (typeof Swal !== 'undefined' && Swal.fire) {
+                        await Swal.fire({
+                            icon: 'success',
+                            title: 'Voucher cancelled',
+                            html: '<div class="text-start"><div class="mb-2">' + (providerMsg || '') + '</div>'
+                                + (result?.data?.voucher_code
+                                    ? ('<div class="small text-muted">Code: <strong>' + result.data.voucher_code + '</strong></div>')
+                                    : '')
+                                + '</div>',
+                            confirmButtonText: 'OK'
+                        });
+                    } else {
+                        alert(providerMsg);
                     }
                 }
-            });
+
+                const snapshotBefore = snapshotAllServiceState();
+                tourList.forEach(tour => {
+                    if (idsToRemove.includes(String(tour.id))) {
+                        if (tour.transferId) {
+                            transferList = transferList.filter(t => String(t.id) !== String(tour.transferId));
+                        }
+                        if (tour.guideId) {
+                            guideList = guideList.filter(g => String(g.id) !== String(tour.guideId));
+                        }
+                    }
+                });
+                
+                tourList = tourList.filter(tour => !idsToRemove.includes(String(tour.id)));
             
-            tourList = tourList.filter(tour => !idsToRemove.includes(String(tour.id)));
-        
-            updateTourTable();
-            updateTransferTable();
-            updateGuideTable();
-            recalculateHeaderDatesFromServices();
-            recalculateTotals();
-            scheduleRemoveWithUndo({
-                categoryKey: 'tours',
-                serviceMessage: 'Tour service',
-                existingIds: existingIdsToRemove,
-                snapshotBefore
-            });
+                updateTourTable();
+                updateTransferTable();
+                updateGuideTable();
+                recalculateHeaderDatesFromServices();
+                recalculateTotals();
+                // Skip undo for voucher-cancelled rows (already soft-deleted via API)
+                if (!voucherCancelItems.length) {
+                    scheduleRemoveWithUndo({
+                        categoryKey: 'tours',
+                        serviceMessage: 'Tour service',
+                        existingIds: existingIdsToRemove,
+                        snapshotBefore
+                    });
+                } else {
+                    const nonVoucherExisting = existingIdsToRemove.filter(id => {
+                        const item = snapshotBefore.tourList.find(t => String(t.id) === String(id));
+                        return item && !enquiryProAttractionNeedsVoucherCancel(item);
+                    });
+                    if (nonVoucherExisting.length) {
+                        scheduleRemoveWithUndo({
+                            categoryKey: 'tours',
+                            serviceMessage: 'Tour service',
+                            existingIds: nonVoucherExisting,
+                            snapshotBefore
+                        });
+                    }
+                }
+            } catch (err) {
+                console.error('Attraction remove / voucher cancel failed', err);
+                if (typeof Swal !== 'undefined' && Swal.fire) {
+                    Swal.fire({ icon: 'error', title: 'Cancel failed', text: err.message || 'Unable to cancel voucher.' });
+                } else {
+                    alert(err.message || 'Unable to cancel voucher.');
+                }
+            }
         }, window.hasNegotiationHistory, hasExistingItems);
     }
 
@@ -40301,8 +40434,8 @@ exitPortData.push({
             isStandalone: true,
             transferInfo: null,
             guideInfo: null,
-            isOnlineAttraction: !!(data.isOnlineAttraction || data.attractionSourceType === 'online' || data.mode === 'online'),
-            attractionSourceType: data.attractionSourceType || (data.isOnlineAttraction || data.mode === 'online' ? 'online' : ''),
+            isOnlineAttraction: !!(data.isOnlineAttraction || data.attractionSourceType === 'online' || data.mode === 'online' || (order.order_type ?? '') === 'online'),
+            attractionSourceType: data.attractionSourceType || (data.isOnlineAttraction || data.mode === 'online' || (order.order_type ?? '') === 'online' ? 'online' : ''),
             sku_id: data.sku_id || null,
             ticket_sku_id: data.ticket_sku_id || null,
             provider_ticket_id: data.provider_ticket_id || null,
@@ -40311,7 +40444,21 @@ exitPortData.push({
             onlineAttractionRaw: data.onlineAttractionRaw || null,
             onlineAddSnapshot: data.onlineAddSnapshot || null,
             visitTime: data.visitTime || data.timeSlot || '',
-            remarks: data.remarks || ''
+            remarks: data.remarks || '',
+            is_approve: !!(order.is_approve == 1 || order.is_approve === true || data.is_approve),
+            order_type: order.order_type || data.order_type || null,
+            voucher_code: (function () {
+                const top = String(data.voucher_code || '').trim();
+                if (top) return top;
+                const vouchers = Array.isArray(data.vouchers) ? data.vouchers : [];
+                for (let i = 0; i < vouchers.length; i++) {
+                    const c = String((vouchers[i] && (vouchers[i].code || vouchers[i].voucher_code)) || '').trim();
+                    if (c) return c;
+                }
+                return null;
+            })(),
+            voucher_download_link: data.voucher_download_link || null,
+            vouchers: Array.isArray(data.vouchers) ? data.vouchers : []
         };
         
         // Check for transferInfo directly in data (priority) or transfer_options or transferId

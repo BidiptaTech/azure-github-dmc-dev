@@ -44,6 +44,8 @@
             $liteCurrencyMarkups = array_values($rawMarkups);
         }
     }
+
+    $dmcProfileMarkup = \App\Helpers\CommonHelper::getDmcProfileMarkupConfig(auth()->user());
 @endphp
 <script>
 window.TOUR_PACKAGE_CURRENCY = @json($dmcCurrency ?? 'SGD');
@@ -99,6 +101,7 @@ window.STP_LITE_CONFIG = {
         updateCityPlans: @json(url('/single-tour-package/__ID__/city-plans')),
         updateGuests: @json(url('/single-tour-package/__ID__/guests')),
         clearServices: @json(url('/single-tour-package/__ID__/services/clear')),
+        cancelOrder: @json(url('/api/orders/__ID__/cancel')),
         getMiscellaneous: @json(route('enquiry-form-pro.get-miscellaneous'))
     },
     dateFormats: {
@@ -107,6 +110,7 @@ window.STP_LITE_CONFIG = {
     },
     serviceOrder: ['hotel', 'arrival', 'attraction', 'guide', 'restaurant', 'transport', 'departure', 'miscellaneous'],
     currencyMarkups: @json($liteCurrencyMarkups),
+    dmcProfileMarkup: @json($dmcProfileMarkup),
     bundleAttractionIcon: @json(asset('assets/images/bundle-attraction-icon.png'))
 };
 window.onlineApiEnabled = !!window.STP_LITE_CONFIG.onlineHotelApiEnabled
