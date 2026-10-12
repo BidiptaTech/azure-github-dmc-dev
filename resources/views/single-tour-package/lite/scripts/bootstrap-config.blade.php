@@ -99,6 +99,7 @@ window.STP_LITE_CONFIG = {
         updateCityPlans: @json(url('/single-tour-package/__ID__/city-plans')),
         updateGuests: @json(url('/single-tour-package/__ID__/guests')),
         clearServices: @json(url('/single-tour-package/__ID__/services/clear')),
+        cancelOrder: @json(url('/api/orders/__ID__/cancel')),
         getMiscellaneous: @json(route('enquiry-form-pro.get-miscellaneous'))
     },
     dateFormats: {
