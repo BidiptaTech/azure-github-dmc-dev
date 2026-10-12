@@ -5144,6 +5144,7 @@ class EnquiryFormPro extends Controller
 
     /**
      * Soft-delete orders of this type for this tour row whose booking_id is not listed in the payload (removed in UI).
+     * Online approved attractions: cancel voucher with supplier first (credits refund), same as booking modal.
      *
      * @param  list<string>  $keepBookingIds
      */
@@ -5161,7 +5162,48 @@ class EnquiryFormPro extends Controller
             $q->whereNotIn('booking_id', $normalized);
         }
 
-        return (int) $q->delete();
+        if ($type !== 'attraction') {
+            return (int) $q->delete();
+        }
+
+        $orphans = $q->get();
+        if ($orphans->isEmpty()) {
+            return 0;
+        }
+
+        $deleted = 0;
+        $cancelService = app(\App\Services\AttractionSuppliers\OnlineAttractionCancellationService::class);
+        foreach ($orphans as $orphan) {
+            try {
+                $cancelService->cancelIfApplicable(
+                    $orphan,
+                    'Removed from Pro enquiry edit form'
+                );
+            } catch (\Throwable $e) {
+                \Log::error('Pro edit: online attraction voucher cancel failed during orphan soft-delete', [
+                    'tour_id' => $tour->tour_id,
+                    'order_id' => $orphan->id,
+                    'booking_id' => $orphan->booking_id,
+                    'error' => $e->getMessage(),
+                ]);
+
+                throw new \RuntimeException(
+                    'Cannot remove online attraction "' . ($orphan->booking_id ?? $orphan->id)
+                    . '": voucher cancel failed — ' . $e->getMessage()
+                );
+            }
+
+            $refundPayload = \App\Helpers\CommonHelper::withDefiniteOrActualTourIsRefundFlag((int) $tour->tour_id, []);
+            if (isset($refundPayload['is_refund'])) {
+                $orphan->is_refund = $refundPayload['is_refund'];
+                $orphan->save();
+            }
+
+            $orphan->delete();
+            $deleted++;
+        }
+
+        return $deleted;
     }
 
     /**
