@@ -373,19 +373,6 @@
         wrap.className = 'attraction-details-voucher-wrap mt-3 mb-0';
         wrap.innerHTML = window.renderAttractionVouchersHtml(list);
 
-        var tourId = opts.tourId;
-        var attractionOrderIndex = opts.attractionOrderIndex;
-        var bookingIndex = opts.bookingIndex;
-        if (code && tourId != null && attractionOrderIndex != null && bookingIndex != null) {
-            var cancelBar = document.createElement('div');
-            cancelBar.className = 'mt-2 d-flex justify-content-end';
-            cancelBar.innerHTML = '' +
-                '<button type="button" class="btn btn-outline-danger btn-sm" ' +
-                    'onclick="window.openCancelAttractionVoucher(' + tourId + ', ' + attractionOrderIndex + ', ' + bookingIndex + ')">' +
-                    '<i class="ri-close-circle-line me-1"></i>Cancel Voucher</button>';
-            wrap.appendChild(cancelBar);
-        }
-
         var actionsSection = null;
         modalContentEl.querySelectorAll('.svc-section').forEach(function (section) {
             var title = section.querySelector('.svc-section-title');
