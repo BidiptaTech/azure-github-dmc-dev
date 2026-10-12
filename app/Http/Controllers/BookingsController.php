@@ -372,16 +372,23 @@ class BookingsController extends Controller
                 $serviceRows = [];
                 $hotelFromServices = 0.0;
                 $otherFromServices = 0.0;
+                $otherMarkupGross = 0.0;
+                $otherMarkupCount = 0;
                 foreach ($group['services'] as $service) {
                     $sell = round((float) ($service['sell'] ?? 0), 2);
                     $cost = round((float) ($service['cost'] ?? 0), 2);
                     $profit = round($sell - $cost, 2);
                     $margin = $sell > 0 ? round(($profit / $sell) * 100, 2) : 0.0;
                     $serviceType = strtolower(trim((string) ($service['type'] ?? '')));
+                    $serviceCount = max(1, (int) ($service['count'] ?? 1));
                     if ($serviceType === 'hotel') {
                         $hotelFromServices += $sell;
                     } else {
                         $otherFromServices += $sell;
+                        if (! in_array($serviceType, ['miscellaneous', 'misc'], true)) {
+                            $otherMarkupGross += $sell;
+                            $otherMarkupCount += $serviceCount;
+                        }
                     }
                     $serviceRows[] = [
                         'service' => $service['service'] ?? 'Service',
@@ -390,7 +397,7 @@ class BookingsController extends Controller
                         'cost' => $cost,
                         'profit' => $profit,
                         'margin' => $margin,
-                        'count' => (int) ($service['count'] ?? 1),
+                        'count' => $serviceCount,
                     ];
                 }
 
@@ -398,6 +405,8 @@ class BookingsController extends Controller
                 if ($hotelFromServices > 0.009 || $otherFromServices > 0.009) {
                     $group['hotel_gross'] = $hotelFromServices;
                     $group['other_gross'] = $otherFromServices;
+                    $group['other_markup_gross'] = $otherMarkupGross;
+                    $group['other_markup_count'] = $otherMarkupCount;
                     $group['gross'] = $hotelFromServices + $otherFromServices;
                 }
 
@@ -425,7 +434,7 @@ class BookingsController extends Controller
                 $discountTypeOut = $applied['discount_type'] ?? $discountType;
                 $discountRawOut = (float) ($applied['discount_raw'] ?? $discountRaw);
 
-                $payable = max(0, ceil($gross + $markupMoney - $discountMoney));
+                $payable = max(0, ceil($gross - $discountMoney));
 
                 $sellTotal = round((float) ($group['sell_total'] ?? 0), 2);
                 $costTotal = round((float) ($group['cost_total'] ?? 0), 2);
@@ -438,6 +447,8 @@ class BookingsController extends Controller
                     'gross' => $gross,
                     'hotel_gross' => round((float) ($group['hotel_gross'] ?? 0), 2),
                     'other_gross' => round((float) ($group['other_gross'] ?? 0), 2),
+                    'other_markup_gross' => round((float) ($group['other_markup_gross'] ?? 0), 2),
+                    'other_markup_count' => (int) ($group['other_markup_count'] ?? 0),
                     'markup' => round($markupMoney, 2),
                     'hotel_markup' => round($hotelMarkupMoney, 2),
                     'other_markup' => round($otherMarkupMoney, 2),
@@ -591,7 +602,8 @@ class BookingsController extends Controller
     }
 
     /**
-     * Apply DMC profile hotel/other markup; discount from agency special_discount (once).
+     * Profile markup is already baked into tour sell prices — do not add it again.
+     * Discount from agency special_discount applies on gross.
      *
      * @param  array<string, mixed>  $group
      * @return array{markup:float,discount:float,hotel_markup:float,other_markup:float,hotel_markup_raw:float,other_markup_raw:float,hotel_markup_type:string,other_markup_type:string,markup_type:?string,markup_raw:float,discount_type:?string,discount_raw:float}
@@ -608,8 +620,13 @@ class BookingsController extends Controller
     ): array {
         $hotelGross = (float) ($group['hotel_gross'] ?? 0);
         $otherGross = (float) ($group['other_gross'] ?? 0);
+        $otherMarkupGross = (float) ($group['other_markup_gross'] ?? 0);
+        $otherCount = (int) ($group['other_markup_count'] ?? 0);
         if ($hotelGross <= 0 && $otherGross <= 0) {
             $otherGross = $gross;
+        }
+        if ($otherMarkupGross <= 0 && $otherGross > 0) {
+            $otherMarkupGross = $otherGross;
         }
 
         return $this->computeSplitHotelOtherMarkup(
@@ -621,14 +638,15 @@ class BookingsController extends Controller
             $otherRaw,
             $discountType,
             $discountRaw,
-            true
+            true,
+            $otherMarkupGross,
+            $otherCount
         );
     }
 
     /**
-     * Hotel markup applies only to hotel sell; other markup only to non-hotel sell.
-     * Each may use its own markup type (percentage / flat) from DMC profile.
-     * Discount applies to (hotel + other + both markups).
+     * Tour sell already includes hotel/other markup. Keep profile rates for display
+     * but do not add markup money. Discount applies to gross.
      *
      * @return array{markup:float,discount:float,hotel_markup:float,other_markup:float,hotel_markup_raw:float,other_markup_raw:float,hotel_markup_type:string,other_markup_type:string,markup_type:?string,markup_raw:float,discount_type:?string,discount_raw:float}
      */
@@ -641,7 +659,9 @@ class BookingsController extends Controller
         float $otherRaw,
         ?string $discountType,
         float $discountRaw,
-        bool $applyFlatDiscount = true
+        bool $applyFlatDiscount = true,
+        float $otherMarkupGross = 0.0,
+        int $otherCount = 0
     ): array {
         $hotelType = strtolower(trim((string) ($hotelMarkupType ?? 'percentage')));
         $otherType = strtolower(trim((string) ($otherMarkupType ?? 'percentage')));
@@ -658,21 +678,27 @@ class BookingsController extends Controller
             $otherType = 'percentage';
         }
 
+        if ($otherMarkupGross <= 0) {
+            $otherMarkupGross = $otherGross;
+        }
+
         $hotelMoney = 0.0;
         $otherMoney = 0.0;
         if ($hotelGross > 0.009) {
             $hotelMoney = (float) ($this->computeMarkupDiscountMoney($hotelGross, $hotelType, $hotelRaw, null, 0)['markup'] ?? 0);
         }
-        if ($otherGross > 0.009) {
-            $otherMoney = (float) ($this->computeMarkupDiscountMoney($otherGross, $otherType, $otherRaw, null, 0)['markup'] ?? 0);
+        if ($otherMarkupGross > 0.009 || $otherCount > 0) {
+            if ($otherType === 'percentage') {
+                $otherMoney = (float) ($this->computeMarkupDiscountMoney($otherMarkupGross, $otherType, $otherRaw, null, 0)['markup'] ?? 0);
+            } else {
+                $otherMoney = $otherRaw * max($otherCount, 1);
+            }
         }
-
         $markupMoney = $hotelMoney + $otherMoney;
         $gross = $hotelGross + $otherGross;
         $discountMoney = 0.0;
-        $discountBase = $gross + $markupMoney;
         if ($discountType === 'percentage' && $discountRaw > 0) {
-            $discountMoney = $discountBase * $discountRaw / 100;
+            $discountMoney = $gross * $discountRaw / 100;
         } elseif (in_array($discountType, ['flat', 'foc'], true) && $discountRaw > 0 && $applyFlatDiscount) {
             $discountMoney = $discountRaw;
         }

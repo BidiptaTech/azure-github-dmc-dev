@@ -43,6 +43,30 @@ Route::get('/debug-test', function () {
     return response()->json(['message' => 'API debug route working', 'time' => now()]);
 });
 
+// Outbound server IP check — hits https://api.attractionsg.com/whatismyip
+Route::get('/test-server-ip', function () {
+    $url = 'https://api.attractionsg.com/whatismyip';
+    try {
+        $response = Http::timeout(15)->get($url);
+        $ip = trim((string) $response->body());
+
+        return response()->json([
+            'ok' => $response->successful(),
+            'status' => $response->status(),
+            'server_outbound_ip' => $ip,
+            'source' => $url,
+            'checked_at' => now()->toDateTimeString(),
+        ], $response->successful() ? 200 : 502);
+    } catch (\Throwable $e) {
+        return response()->json([
+            'ok' => false,
+            'error' => $e->getMessage(),
+            'source' => $url,
+            'checked_at' => now()->toDateTimeString(),
+        ], 500);
+    }
+})->withoutMiddleware([EnsureFrontendRequestsAreStateful::class]);
+
 Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
     Route::post('/update-profile', 'App\Http\Controllers\Api\LoginControllerApi@updateProfile');
     Route::get('/zone-lists', 'App\Http\Controllers\Api\ZoneController@zone_lists');
