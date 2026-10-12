@@ -8971,36 +8971,11 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             $otherMarkupRaw = $row ? (float) ($row['other_markup'] ?? 0) : 0.0;
             $discountRaw = $row ? (float) ($row['discount_value'] ?? 0) : ($tourDiscountOn ? $tourDiscountRaw : 0.0);
 
-            // TOTAL COST markups: always include hotel_markup + other_markup from currency_markups.
-            $hotelMarkupForTotal = $moneyFromRaw($grossHotel, $mType, $hotelMarkupRaw);
-            $otherMarkupForTotal = $moneyFromRaw($grossOther, $mType, $otherMarkupRaw);
-            $markupMoneyForTotal = $hotelMarkupForTotal + $otherMarkupForTotal;
-            if ($markupMoneyForTotal > 0) {
-                $markupRowsOut[] = [
-                    'country' => $country,
-                    'currency' => $currency,
-                    'markup_type' => $mType !== '' ? $mType : 'flat',
-                    'hotel_markup' => $hotelMarkupForTotal,
-                    'other_markup' => $otherMarkupForTotal,
-                    'amount' => $markupMoneyForTotal,
-                ];
-                $sumMarkupFlat += $markupMoneyForTotal;
-            }
+            // Sell prices already include hotel/other markup from tour creation.
+            // Do not bake markup into per-pax rates or add it again to TOTAL COST.
+            $markupMoneyForTotal = 0.0;
 
-            // Per-pax hotel cells: no hotel booked → do not invent hotel prices.
-            $hotelMarkupForPaxRaw = $hotelMarkupRaw;
-            $otherMarkupForPaxRaw = $otherMarkupRaw;
-            if (! $hasHotel) {
-                if (! $row && $tourMarkupOn && $hotelMarkupForPaxRaw > 0 && $otherMarkupForPaxRaw <= 0) {
-                    $otherMarkupForPaxRaw += $hotelMarkupForPaxRaw;
-                }
-                $hotelMarkupForPaxRaw = 0.0;
-            }
-
-            $hotelMarkupMoney = $hasHotel ? $moneyFromRaw($grossHotel, $mType, $hotelMarkupForPaxRaw) : 0.0;
-            $otherMarkupMoney = $moneyFromRaw($grossOther, $mType, $otherMarkupForPaxRaw);
-
-            // Discount is NOT applied to hotel/other per-pax — only subtracted from TOTAL COST.
+            // Discount on country gross only — subtracted from TOTAL COST (not per-pax).
             $countryGrossForDiscount = $grossHotel + $grossOther;
             $discountMoney = $moneyFromRaw(
                 $countryGrossForDiscount,
@@ -9018,24 +8993,21 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 $sumDiscountFlat += $discountMoney;
             }
 
-            $hotelMarkupPerPax = $hasHotel ? ($hotelMarkupMoney / $totalPax) : 0.0;
-            $otherMarkupPerPax = $otherMarkupMoney / $totalPax;
-
-            // Only booked occupancy columns get markup — never invent Single/Double from markup alone.
+            // Occupancy columns use booked sell rates as-is (markup already included).
             $baseHotelSingle = (float) ($hRow['single'] ?? 0);
             $baseHotelDouble = (float) ($hRow['double'] ?? 0);
             $baseHotelTriple = (float) ($hRow['triple'] ?? 0);
             $cHotelSingle = ($hasHotel && $baseHotelSingle > 0)
-                ? max(0.0, ($baseHotelSingle + $hotelMarkupPerPax) * $focFactor)
+                ? max(0.0, $baseHotelSingle * $focFactor)
                 : 0.0;
             $cHotelDouble = ($hasHotel && $baseHotelDouble > 0)
-                ? max(0.0, ($baseHotelDouble + $hotelMarkupPerPax) * $focFactor)
+                ? max(0.0, $baseHotelDouble * $focFactor)
                 : 0.0;
             $cHotelTriple = ($hasHotel && $baseHotelTriple > 0)
-                ? max(0.0, ($baseHotelTriple + $hotelMarkupPerPax) * $focFactor)
+                ? max(0.0, $baseHotelTriple * $focFactor)
                 : 0.0;
-            $cOtherSingle = max(0.0, ((float) $oRow['single'] + $otherMarkupPerPax) * $focFactor);
-            $cOtherDouble = max(0.0, ((float) $oRow['double'] + $otherMarkupPerPax) * $focFactor);
+            $cOtherSingle = max(0.0, (float) $oRow['single'] * $focFactor);
+            $cOtherDouble = max(0.0, (float) $oRow['double'] * $focFactor);
 
             $sumHotelSingle += $cHotelSingle;
             $sumHotelDouble += $cHotelDouble;
@@ -9066,38 +9038,18 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             ];
         }
 
-        // No country rows but tour-level markup only — apply on other side (no hotel).
-        // Tour-level discount still collected for TOTAL COST only.
-        if ($allKeys === [] && ($tourMarkupOn || $tourDiscountOn)) {
-            if ($tourMarkupOn) {
-                $markupMoney = $moneyFromRaw(0, $tourMarkupType, $tourMarkupRaw);
-                $per = max(0.0, $markupMoney / $totalPax) * $focFactor;
-                $sumOtherSingle += $per;
-                $sumOtherDouble += $per;
-                if ($markupMoney > 0) {
-                    $markupRowsOut[] = [
-                        'country' => 'Overall',
-                        'currency' => strtoupper((string) $fallbackCurrency),
-                        'markup_type' => $tourMarkupType,
-                        'hotel_markup' => 0.0,
-                        'other_markup' => $markupMoney,
-                        'amount' => $markupMoney,
-                    ];
-                    $sumMarkupFlat += $markupMoney;
-                }
-            }
-            if ($tourDiscountOn && $tourDiscountRaw > 0) {
-                $discountMoney = $moneyFromRaw(0, $tourDiscountType === 'foc' ? 'flat' : $tourDiscountType, $tourDiscountRaw);
-                if ($discountMoney > 0) {
-                    $discountRows[] = [
-                        'country' => 'Overall',
-                        'currency' => strtoupper((string) $fallbackCurrency),
-                        'discount_type' => $tourDiscountType,
-                        'discount_value' => $tourDiscountRaw,
-                        'amount' => $discountMoney,
-                    ];
-                    $sumDiscountFlat += $discountMoney;
-                }
+        // No country rows — tour-level discount only (markup already in sell; do not re-add).
+        if ($allKeys === [] && $tourDiscountOn && $tourDiscountRaw > 0) {
+            $discountMoney = $moneyFromRaw(0, $tourDiscountType === 'foc' ? 'flat' : $tourDiscountType, $tourDiscountRaw);
+            if ($discountMoney > 0) {
+                $discountRows[] = [
+                    'country' => 'Overall',
+                    'currency' => strtoupper((string) $fallbackCurrency),
+                    'discount_type' => $tourDiscountType,
+                    'discount_value' => $tourDiscountRaw,
+                    'amount' => $discountMoney,
+                ];
+                $sumDiscountFlat += $discountMoney;
             }
         }
 
@@ -9125,29 +9077,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             }
         }
 
-        // Same for markup if country loop never ran / never matched.
-        if ($markupRowsOut === [] && $markupRows !== []) {
-            foreach ($markupRows as $mRow) {
-                $mType = (string) ($mRow['markup_type'] ?? 'flat');
-                $hRaw = (float) ($mRow['hotel_markup'] ?? 0);
-                $oRaw = (float) ($mRow['other_markup'] ?? 0);
-                $hMoney = $moneyFromRaw(0, $mType, $hRaw);
-                $oMoney = $moneyFromRaw(0, $mType, $oRaw);
-                $markupMoney = $hMoney + $oMoney;
-                if ($markupMoney <= 0) {
-                    continue;
-                }
-                $markupRowsOut[] = [
-                    'country' => (string) ($mRow['country'] ?? $mRow['city'] ?? 'Overall'),
-                    'currency' => strtoupper((string) ($mRow['currency'] ?? $fallbackCurrency)),
-                    'markup_type' => $mType,
-                    'hotel_markup' => $hMoney,
-                    'other_markup' => $oMoney,
-                    'amount' => $markupMoney,
-                ];
-                $sumMarkupFlat += $markupMoney;
-            }
-        }
+        // Markup rows are not re-added to TOTAL COST (sell already includes them).
 
         $hotelPriceOptions = [];
         foreach ($hotelBuckets as $hotelKey => $bucket) {
@@ -12180,6 +12110,14 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             if ($mt === 'fixed') {
                 $mt = 'flat';
             }
+            $hType = strtolower(trim((string) ($row['hotel_markup_type'] ?? '')));
+            if ($hType === 'fixed') {
+                $hType = 'flat';
+            }
+            $oType = strtolower(trim((string) ($row['other_markup_type'] ?? '')));
+            if ($oType === 'fixed') {
+                $oType = 'flat';
+            }
             $dt = strtolower(trim((string) ($row['discount_type'] ?? '')));
             if ($dt === 'fixed') {
                 $dt = 'flat';
@@ -12197,6 +12135,8 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 'country' => $country,
                 'currency' => $rowCur,
                 'markup_type' => $mt,
+                'hotel_markup_type' => $hType,
+                'other_markup_type' => $oType,
                 'hotel_raw' => $hRaw,
                 'other_raw' => $oRaw,
                 'discount_type' => $dt,
@@ -12250,6 +12190,23 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         $otherMoney = 0.0;
         $discountMoney = 0.0;
 
+        // Hotel/other types come from DMC profile — shared markup_type alone mislabels flat other as %.
+        $profileMarkup = self::getDmcProfileMarkupConfig(null, $tour->userId ?? $tour->dmc_id ?? null);
+        $hotelMarkupType = strtolower(trim((string) ($profileMarkup['hotel']['markup_type'] ?? 'percentage')));
+        $otherMarkupType = strtolower(trim((string) ($profileMarkup['other']['markup_type'] ?? 'percentage')));
+        if ($hotelMarkupType === 'fixed') {
+            $hotelMarkupType = 'flat';
+        }
+        if ($otherMarkupType === 'fixed') {
+            $otherMarkupType = 'flat';
+        }
+        if (! in_array($hotelMarkupType, ['percentage', 'flat'], true)) {
+            $hotelMarkupType = 'percentage';
+        }
+        if (! in_array($otherMarkupType, ['percentage', 'flat'], true)) {
+            $otherMarkupType = 'percentage';
+        }
+
         $hotelSumFlat = 0.0;
         $otherSumFlat = 0.0;
         $discSumFlat = 0.0;
@@ -12266,10 +12223,20 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             $discountRaw = (float) $preferred['discount_raw'];
             $markupType = $preferred['markup_type'] !== '' ? $preferred['markup_type'] : $markupType;
             $discountType = $preferred['discount_type'] !== '' ? $preferred['discount_type'] : $discountType;
+            if (($preferred['hotel_markup_type'] ?? '') !== '') {
+                $hotelMarkupType = (string) $preferred['hotel_markup_type'];
+            }
+            if (($preferred['other_markup_type'] ?? '') !== '') {
+                $otherMarkupType = (string) $preferred['other_markup_type'];
+            }
 
             foreach ($markupRows as $row) {
-                if (($row['markup_type'] ?? '') === 'flat') {
+                $rowHotelType = ($row['hotel_markup_type'] ?? '') !== '' ? $row['hotel_markup_type'] : $hotelMarkupType;
+                $rowOtherType = ($row['other_markup_type'] ?? '') !== '' ? $row['other_markup_type'] : $otherMarkupType;
+                if ($rowHotelType === 'flat') {
                     $hotelSumFlat += (float) $row['hotel_raw'];
+                }
+                if ($rowOtherType === 'flat') {
                     $otherSumFlat += (float) $row['other_raw'];
                 }
                 $dt = $row['discount_type'] ?? '';
@@ -12277,8 +12244,10 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                     $discSumFlat += (float) $row['discount_raw'];
                 }
             }
-            if ($markupType === 'flat') {
+            if ($hotelMarkupType === 'flat') {
                 $hotelMoney = $hotelSumFlat;
+            }
+            if ($otherMarkupType === 'flat') {
                 $otherMoney = $otherSumFlat;
             }
             if (($discountType === 'flat' || $discountType === 'foc') && $discSumFlat > 0) {
@@ -12385,6 +12354,15 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             || $discountMoney > 0
             || ($hasConfirmed && abs($confirmedPrice - $actualPrice) > 0.009);
 
+        foreach ($markupRows as $i => $row) {
+            if (($row['hotel_markup_type'] ?? '') === '') {
+                $markupRows[$i]['hotel_markup_type'] = $hotelMarkupType;
+            }
+            if (($row['other_markup_type'] ?? '') === '') {
+                $markupRows[$i]['other_markup_type'] = $otherMarkupType;
+            }
+        }
+
         return [
             'currency' => $selectedCurrency,
             'gross' => $gross,
@@ -12393,6 +12371,8 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             'hotel_markup_money' => $hotelMoney,
             'other_markup_money' => $otherMoney,
             'markup_type' => $markupType,
+            'hotel_markup_type' => $hotelMarkupType,
+            'other_markup_type' => $otherMarkupType,
             'discount_raw' => $discountRaw,
             'discount_money' => $discountMoney,
             'discount_type' => $discountType,

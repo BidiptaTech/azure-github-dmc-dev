@@ -1503,7 +1503,7 @@
                         <div id="newEnquiryProfileMarkupOnce" class="mb-2"></div>
                         <div id="newEnquiryCountryBlocks" class="d-flex flex-column gap-3 mb-3"></div>
                         <div class="alert alert-info py-2 px-3 mb-3">
-                            Profile markup is shown once above and applied to each country. Discount is per country on (gross + markup). Counter price is calculated automatically.
+                            Profile markup is already included in tour prices (shown above for reference). Discount is per country on gross. Counter price is calculated automatically.
                         </div>
 
                         <div class="negotiation-meta-block mb-3">
@@ -1554,7 +1554,7 @@
                         <div id="agentNegotiationProfileMarkupOnce" class="mb-2"></div>
                         <div id="agentNegotiationCountryBlocks" class="d-flex flex-column gap-3 mb-3"></div>
                         <div class="alert alert-info py-2 px-3 mb-3" id="agentNegotiationCurrencyHint">
-                            Profile markup is shown once above and applied to each country. Discount is per country on (gross + markup). Offer is calculated automatically.
+                            Profile markup is already included in tour prices (shown above for reference). Discount is per country on gross. Offer is calculated automatically.
                         </div>
                         <div class="row g-2 mb-3">
                             <div class="col-md-6">
@@ -3164,6 +3164,8 @@ function testServices() {
                 ? computeSplitNegotiationPricing({
                     hotelGross: hotelGross,
                     otherGross: otherGross,
+                    otherMarkupGross: parseFloat(offerInput.getAttribute('data-other-markup-gross') || 0) || 0,
+                    otherCount: parseFloat(offerInput.getAttribute('data-other-count') || 0) || 0,
                     markupType: markupType,
                     hotelMarkupType: hotelMarkupType,
                     otherMarkupType: otherMarkupType,
@@ -3255,13 +3257,9 @@ function testServices() {
                         '<div class="col-4"><span class="negotiation-label">Other services</span><div class="negotiation-value dmc-nego-other-base">' + currency + ' ' + formatNegotiationAmount(split.otherGross) + '</div></div>' +
                         '<div class="col-4"><span class="negotiation-label">Gross total</span><div class="negotiation-value dmc-nego-gross-display">' + currency + ' ' + formatNegotiationAmount(gross) + '</div></div>' +
                     '</div>' +
-                    '<div class="nego-calc-summary">' +
-                        '<div class="nego-calc-row is-markup"><span>Hotel markup amt</span><span class="dmc-nego-hotel-add">' + currency + ' 0.00</span></div>' +
-                        '<div class="nego-calc-row is-markup"><span>Other markup amt</span><span class="dmc-nego-other-add">' + currency + ' 0.00</span></div>' +
-                        '<div class="nego-calc-row is-markup"><span>Markup total</span><span class="dmc-nego-markup-total">' + currency + ' 0.00</span></div>' +
-                        '<div class="nego-calc-row"><span>After markup</span><span class="dmc-nego-after-markup">' + currency + ' 0.00</span></div>' +
-                        '<div class="nego-calc-row is-discount"><span>Discount total</span><span class="dmc-nego-discount-total">' + currency + ' 0.00</span></div>' +
-                    '</div>' +
+                    ((typeof negotiationCalcSummaryHtml === 'function')
+                        ? negotiationCalcSummaryHtml('dmc-nego', currency)
+                        : '') +
                     '<div class="mb-2"><span class="negotiation-label">Agent Offer</span>' +
                         '<div class="negotiation-value text-success">' +
                             (Number.isFinite(agentAmount) ? (currency + ' ' + formatNegotiationAmount(agentAmount)) : '—') +
@@ -3269,11 +3267,11 @@ function testServices() {
                     '<label class="form-label fw-semibold">Your Counter Price (' + escAttr(currency) + ') <span class="text-danger">*</span></label>' +
                     '<input type="number" class="form-control dmc-nego-offer-input bg-light" min="0" step="0.01" required readonly tabindex="-1" ' +
                         'data-index="' + index + '" data-max="' + payable + '" data-country="' + escAttr(country) + '" data-currency="' + escAttr(currency) + '" ' +
-                        'data-gross="' + gross + '" data-hotel-gross="' + split.hotelGross + '" data-other-gross="' + split.otherGross + '" ' +
+                        'data-gross="' + gross + '" data-hotel-gross="' + split.hotelGross + '" data-other-gross="' + split.otherGross + '" data-other-markup-gross="' + (split.otherMarkupGross != null ? split.otherMarkupGross : split.otherGross) + '" data-other-count="' + (split.otherCount || 0) + '" ' +
                         'data-hotel-markup-raw="' + hotelRaw + '" data-other-markup-raw="' + otherRaw + '" ' +
                         'data-markup-type="' + escAttr(markupType) + '" data-hotel-markup-type="' + escAttr(hotelMarkupType) + '" data-other-markup-type="' + escAttr(otherMarkupType) + '" data-discount-type="' + escAttr(discountType) + '" ' +
                         'value="' + defaultCounter + '" placeholder="Auto from markup / discount">' +
-                    '<div class="form-text text-muted mt-1">Uses profile markup &amp; agency discount (above) · Offer = gross + markup − discount.</div>' +
+                    '<div class="form-text text-muted mt-1">Tour prices already include markup · Offer = gross − discount.</div>' +
                     '<input type="hidden" name="offers[' + index + '][country]" value="' + escAttr(country) + '">' +
                     '<input type="hidden" name="offers[' + index + '][currency]" value="' + escAttr(currency) + '">' +
                     '<input type="hidden" name="offers[' + index + '][actual_amount]" value="' + payable + '">' +
@@ -3587,22 +3585,18 @@ function testServices() {
                                 '<div class="col-4"><span class="negotiation-label">Other services</span><div class="negotiation-value agent-nego-other-base">' + currency + ' ' + formatNegotiationAmount(split.otherGross) + '</div></div>' +
                                 '<div class="col-4"><span class="negotiation-label">Gross total</span><div class="negotiation-value agent-nego-gross-display">' + currency + ' ' + formatNegotiationAmount(gross) + '</div></div>' +
                             '</div>' +
-                            '<div class="nego-calc-summary">' +
-                                '<div class="nego-calc-row is-markup"><span>Hotel markup amt</span><span class="agent-nego-hotel-add">' + currency + ' 0.00</span></div>' +
-                                '<div class="nego-calc-row is-markup"><span>Other markup amt</span><span class="agent-nego-other-add">' + currency + ' 0.00</span></div>' +
-                                '<div class="nego-calc-row is-markup"><span>Markup total</span><span class="agent-nego-markup-total">' + currency + ' 0.00</span></div>' +
-                                '<div class="nego-calc-row"><span>After markup</span><span class="agent-nego-after-markup">' + currency + ' 0.00</span></div>' +
-                                '<div class="nego-calc-row is-discount"><span>Discount total</span><span class="agent-nego-discount-total">' + currency + ' 0.00</span></div>' +
-                            '</div>' +
+                            ((typeof negotiationCalcSummaryHtml === 'function')
+                                ? negotiationCalcSummaryHtml('agent-nego', currency)
+                                : '') +
                             '<label class="form-label fw-semibold">Offer Amount (' + escAttr(currency) + ')</label>' +
                             '<input type="number" class="form-control agent-nego-offer-input bg-light" min="0" step="0.01" readonly tabindex="-1" ' +
                                 'data-index="' + index + '" data-max="' + payable + '" data-country="' + escAttr(country) + '" data-currency="' + escAttr(currency) + '" ' +
-                                'data-gross="' + gross + '" data-hotel-gross="' + split.hotelGross + '" data-other-gross="' + split.otherGross + '" data-payable="' + payable + '" ' +
+                                'data-gross="' + gross + '" data-hotel-gross="' + split.hotelGross + '" data-other-gross="' + split.otherGross + '" data-other-markup-gross="' + (split.otherMarkupGross != null ? split.otherMarkupGross : split.otherGross) + '" data-other-count="' + (split.otherCount || 0) + '" data-payable="' + payable + '" ' +
                                 'data-hotel-markup-raw="' + hotelRaw + '" data-other-markup-raw="' + otherRaw + '" ' +
                                 'data-markup-type="' + escAttr(markupType) + '" data-hotel-markup-type="' + escAttr(hotelMarkupType) + '" data-other-markup-type="' + escAttr(otherMarkupType) + '" data-discount-type="' + escAttr(discountType) + '" ' +
                                 'value="' + (payable > 0 ? payable : '0') + '" placeholder="Auto-calculated offer">' +
                             '<div class="agent-nego-offer-error text-danger small mt-1 d-none" role="alert"></div>' +
-                            '<div class="form-text text-muted mt-1">Uses profile markup &amp; agency discount (above) · Offer = gross + markup − discount</div>' +
+                            '<div class="form-text text-muted mt-1">Tour prices already include markup · Offer = gross − discount</div>' +
                             '<input type="hidden" name="offers[' + index + '][country]" value="' + escAttr(country) + '">' +
                             '<input type="hidden" name="offers[' + index + '][currency]" value="' + escAttr(currency) + '">' +
                             '<input type="hidden" name="offers[' + index + '][actual_amount]" class="agent-nego-actual-hidden" value="' + payable + '">' +
@@ -3693,6 +3687,8 @@ function testServices() {
                 ? computeSplitNegotiationPricing({
                     hotelGross: hotelGross,
                     otherGross: otherGross,
+                    otherMarkupGross: parseFloat(offerInput.getAttribute('data-other-markup-gross') || 0) || 0,
+                    otherCount: parseFloat(offerInput.getAttribute('data-other-count') || 0) || 0,
                     markupType: markupType,
                     hotelMarkupType: hotelMarkupType,
                     otherMarkupType: otherMarkupType,
