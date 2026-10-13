@@ -13,6 +13,116 @@
 
     function cfg() { return window.STP_LITE_CONFIG || {}; }
 
+    function csrfToken() {
+        var meta = document.querySelector('meta[name="csrf-token"]');
+        return meta ? meta.getAttribute('content') : '';
+    }
+
+    /**
+     * Confirmed/Definite edit: cancel supplier voucher (credits refund) then soft-delete order.
+     * @returns {Promise<boolean>}
+     */
+    function cancelOnlineAttractionFromLiteEdit(row) {
+        var code = String(row.voucher_code || '').trim();
+        var name = row.AttractionName || row.attraction_name || 'Online attraction';
+        var bookingKey = row._booking_id || row.booking_id || row._order_id || row.orderId;
+        if (!bookingKey) {
+            alert('Cannot cancel voucher: booking id is missing. Save the tour once, then try again.');
+            return Promise.resolve(false);
+        }
+
+        function askReason() {
+            if (typeof Swal !== 'undefined' && typeof Swal.fire === 'function') {
+                return Swal.fire({
+                    title: 'Cancel Online Voucher?',
+                    html: '<p class="mb-2 text-start">Removing <strong>' + String(name).replace(/</g, '&lt;') +
+                        '</strong> will cancel the supplier voucher and refund credits.</p>' +
+                        '<div class="text-start mb-2"><label class="form-label fw-semibold mb-1">Voucher Code</label>' +
+                        '<input type="text" class="form-control" value="' + code.replace(/"/g, '&quot;') + '" readonly></div>' +
+                        '<div class="text-start"><label class="form-label fw-semibold mb-1">Cancel Reason <span class="text-danger">*</span></label>' +
+                        '<textarea id="liteCancelVoucherReason" class="form-control" rows="3" minlength="10" maxlength="1000" ' +
+                        'placeholder="Reason for cancelling this voucher..."></textarea></div>',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#dc2626',
+                    cancelButtonColor: '#64748b',
+                    confirmButtonText: 'Confirm Cancel Voucher',
+                    cancelButtonText: 'Keep Booking',
+                    width: '440px',
+                    preConfirm: function () {
+                        var reason = String((document.getElementById('liteCancelVoucherReason') || {}).value || '').trim();
+                        if (reason.length < 10) {
+                            Swal.showValidationMessage('Please enter a cancel reason (at least 10 characters).');
+                            return false;
+                        }
+                        return reason;
+                    }
+                }).then(function (result) {
+                    return result.isConfirmed ? result.value : null;
+                });
+            }
+            var reason = window.prompt('Cancel voucher ' + code + '. Enter cancel reason (min 10 chars):', '');
+            if (reason == null) return Promise.resolve(null);
+            if (String(reason).trim().length < 10) {
+                alert('Cancel reason must be at least 10 characters.');
+                return Promise.resolve(null);
+            }
+            return Promise.resolve(String(reason).trim());
+        }
+
+        return askReason().then(function (reason) {
+            if (!reason) return false;
+            var urlTemplate = (cfg().routes && cfg().routes.cancelOrder) || '/api/orders/__ID__/cancel';
+            var url = String(urlTemplate).replace('__ID__', encodeURIComponent(bookingKey));
+            var tourId = (window.STP_LITE_EDIT && window.STP_LITE_EDIT.tourId) || cfg().tourId || 0;
+            return fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken()
+                },
+                body: JSON.stringify({
+                    tour_id: tourId || undefined,
+                    cancel_reason: reason
+                })
+            }).then(function (resp) {
+                return resp.json().then(function (data) {
+                    return { ok: resp.ok, data: data || {} };
+                });
+            }).then(function (result) {
+                if (!result.ok || !result.data.success) {
+                    var errMsg = (result.data && result.data.message) || 'Failed to cancel online attraction voucher.';
+                    if (typeof Swal !== 'undefined' && Swal.fire) {
+                        Swal.fire({ icon: 'error', title: 'Cancel failed', text: errMsg });
+                    } else {
+                        alert(errMsg);
+                    }
+                    return false;
+                }
+                var providerMsg = (result.data.data && result.data.data.voucher_cancel && result.data.data.voucher_cancel.message)
+                    || result.data.message
+                    || 'Voucher cancelled.';
+                if (typeof Swal !== 'undefined' && Swal.fire) {
+                    return Swal.fire({
+                        icon: 'success',
+                        title: 'Voucher cancelled',
+                        html: '<div class="text-start"><div class="mb-2">' + String(providerMsg).replace(/</g, '&lt;') + '</div>' +
+                            (code ? ('<div class="small text-muted">Code: <strong>' + code.replace(/</g, '&lt;') + '</strong></div>') : '') +
+                            '</div>',
+                        confirmButtonText: 'OK'
+                    }).then(function () { return true; });
+                }
+                alert(providerMsg);
+                return true;
+            }).catch(function (err) {
+                console.error('Lite attraction voucher cancel failed', err);
+                alert((err && err.message) || 'Failed to cancel voucher.');
+                return false;
+            });
+        });
+    }
+
     function onlineApiEnabled() {
         return !!(cfg().onlineAttractionApiEnabled || cfg().onlineHotelApiEnabled)
             && !!document.getElementById('onlineAttractionModal');
@@ -940,11 +1050,46 @@
         root.addEventListener('click', function (e) {
             var removeBtn = e.target.closest('.attraction-remove');
             if (removeBtn) {
+                var rows = readChunk(root);
+                var removeIdx = parseInt(removeBtn.getAttribute('data-idx'), 10) || 0;
+                var row = rows[removeIdx];
+                if (!row) return;
+
+                var tourStatus = String(
+                    (window.STP_LITE_EDIT && window.STP_LITE_EDIT.tourStatus) ||
+                    (cfg().edit && cfg().edit.tourStatus) ||
+                    (cfg().tourStatus) ||
+                    ''
+                ).trim().toLowerCase();
+                var needsVoucherCancel = (tourStatus === 'confirmed' || tourStatus === 'definite')
+                    && !!(row.isOnlineAttraction || row.attractionSourceType === 'online' || row.order_type === 'online')
+                    && !!String(row.voucher_code || '').trim();
+
+                if (needsVoucherCancel) {
+                    cancelOnlineAttractionFromLiteEdit(row).then(function (ok) {
+                        if (!ok) return;
+                        var nextRows = readChunk(root);
+                        var stillIdx = nextRows.findIndex(function (r) {
+                            if (!r) return false;
+                            if (row._booking_id && r._booking_id && String(r._booking_id) === String(row._booking_id)) return true;
+                            if (row._order_id && r._order_id && String(r._order_id) === String(row._order_id)) return true;
+                            if (row.voucher_code && r.voucher_code && String(r.voucher_code) === String(row.voucher_code)) return true;
+                            return false;
+                        });
+                        if (stillIdx < 0) stillIdx = removeIdx;
+                        if (stillIdx >= 0 && stillIdx < nextRows.length) nextRows.splice(stillIdx, 1);
+                        writeChunk(root, nextRows);
+                        root.__editingIdx = null;
+                        setAddMode(root, false);
+                        renderAdded(root);
+                    });
+                    return;
+                }
+
                 if (!(window.StpLiteTransportShared && window.StpLiteTransportShared.confirmRemoveService
                     ? window.StpLiteTransportShared.confirmRemoveService()
                     : window.confirm('Are you sure you want to remove this service?'))) return;
-                var rows = readChunk(root);
-                rows.splice(parseInt(removeBtn.getAttribute('data-idx'), 10) || 0, 1);
+                rows.splice(removeIdx, 1);
                 writeChunk(root, rows);
                 root.__editingIdx = null;
                 setAddMode(root, false);
