@@ -3782,19 +3782,18 @@ class UserController extends Controller
         }
 
         $request->validate([
-            'hotel_markup_type' => 'required|in:percentage,flat',
             'hotel_markup_value' => 'nullable|numeric|min:0',
-            'other_markup_type' => 'required|in:percentage,flat',
             'other_markup_value' => 'nullable|numeric|min:0',
         ]);
 
+        // Profile markup is percentage-only (type is readonly in the UI).
         $user->markup_json = [
             'hotel' => [
-                'markup_type' => $request->input('hotel_markup_type'),
+                'markup_type' => 'percentage',
                 'markup_value' => round((float) $request->input('hotel_markup_value', 0), 2),
             ],
             'other' => [
-                'markup_type' => $request->input('other_markup_type'),
+                'markup_type' => 'percentage',
                 'markup_value' => round((float) $request->input('other_markup_value', 0), 2),
             ],
         ];

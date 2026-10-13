@@ -1015,10 +1015,26 @@
                         extraHtml: (transferHtml || '') + guideHtml
                     })
                     : '';
+                // Detail lines are pre-markup (ticket/transfer/guide). Build the same
+                // base total as Get Price, then apply DMC markup so the modal's
+                // splitFromFinal matches the panel (before + markup + final).
+                var ticketBase = (typeof T.ticketOrMealBaseFromRow === 'function')
+                    ? T.ticketOrMealBaseFromRow(r)
+                    : ((Number(r.adultCount || r.adults || 0) * Number(td.adult_price || 0))
+                        + (Number(r.childCount || r.children || 0) * Number(td.child_price || 0))
+                        + (Number(r.seniorCount || 0) * Number(td.senior_adult_price || 0)));
+                var xferCost = (xfer.transfer_required || xfer.vehicle_id || xfer.cost)
+                    ? (Number(xfer.cost) || 0) : 0;
+                var guideCost = (guide.guide_required || guide.guide_id || guide.total_price)
+                    ? (Number(guide.total_price) || 0) : 0;
+                var baseBeforeMarkup = ticketBase + xferCost + guideCost;
+                var modalTotal = (window.StpLiteDmcMarkup && typeof window.StpLiteDmcMarkup.apply === 'function')
+                    ? window.StpLiteDmcMarkup.apply(baseBeforeMarkup, 'other').price
+                    : baseBeforeMarkup;
                 T.showPriceBreakdownModal(
                     r.AttractionName || 'Attraction',
                     cur,
-                    (typeof T.serviceRowDisplayTotal === 'function' ? T.serviceRowDisplayTotal(r) : r.totalPrice),
+                    modalTotal,
                     detailHtml
                 );
             }

@@ -583,37 +583,6 @@
         $liteOutstandingBalanceAlternatePdf = $liteFinalPriceAlternatePdf - (float) $litePaymentReceived;
     }
 
-    // Payment-modal style markup breakdown (display only; totals unchanged).
-    $pricingMarkupActual = (($mode ?? 'full') === 'price-only')
-        ? (float) ($liteActualAmount ?? $actualFromItems)
-        : (float) $actualFromItems;
-    $pricingMarkupConfirmed = (($mode ?? 'full') === 'price-only')
-        ? (float) ($liteNegotiatedAmount ?? $liteActualAmount ?? $actualFromItems)
-        : (float) $baseAmount;
-    $pricingMarkup = \App\Helpers\CommonHelper::buildInvoicePricingMarkupDisplay(
-        $tour,
-        $pricingMarkupActual,
-        $pricingMarkupConfirmed,
-        (string) ($selectedCurrency ?? $baseCurrency ?? 'SGD'),
-        !empty($thirdPartyNegotiation) && is_array($thirdPartyNegotiation) ? $thirdPartyNegotiation : null
-    );
-    $payTrimLite = static function ($n) {
-        return rtrim(rtrim(number_format((float) $n, 2, '.', ''), '0'), '.');
-    };
-    $payTypeLabel = static function ($type, $raw) use ($payTrimLite) {
-        $type = strtolower(trim((string) $type));
-        $raw = (float) $raw;
-        if ($type === 'percentage') {
-            return $payTrimLite($raw) . '%';
-        }
-        if ($type === 'foc') {
-            return 'FOC';
-        }
-        if ($type === 'flat' || $type === 'fixed') {
-            return $raw > 0 ? ('Fixed ' . $payTrimLite($raw)) : 'Fixed';
-        }
-        return $raw > 0 ? $payTrimLite($raw) : '—';
-    };
 @endphp
 
 @include('invoices.pdf.partials.header', ['invoice' => $invoice, 'logoType' => ($logoType ?? 'dmc'), 'showBlueTitle' => false])
@@ -737,8 +706,6 @@
         </tr>
         @endif
 
-        @include('invoices.pdf.partials.alternate-pricing-markup-rows', ['markupFmtPrice' => $fmtMoney])
-
         @if($shouldShowTax && $gstAmount > 0)
         <tr class="inv-line-data">
             <td class="inv-col-service"><span class="inv-svc-cat">GST / Tax</span></td>
@@ -802,8 +769,6 @@
     <tbody>
         <tr class="inv-total-row inv-total-sep"><td colspan="3" style="padding-top:6px;"></td></tr>
 
-        @include('invoices.pdf.partials.alternate-pricing-markup-rows', ['markupFmtPrice' => $litePdfFormatPrice])
-
         @if(!empty($isThirdPartyInvoice) && !empty($thirdPartyNegotiation['rows']))
             @foreach($thirdPartyNegotiation['rows'] as $negRow)
             @php
@@ -812,30 +777,13 @@
                 $negLabel = $negCountry !== '' ? $negCountry : $negCurrency;
                 $rowGross = (float) ($negRow['gross_selected'] ?? $negRow['gross'] ?? 0);
                 $rowActual = (float) ($negRow['actual_selected'] ?? 0);
-                $rowNeg = (float) ($negRow['negotiated_selected'] ?? 0);
                 $rowDisc = (float) ($negRow['discount_selected'] ?? 0);
-                $rowHotel = (float) ($negRow['hotel_markup'] ?? 0);
-                $rowOther = (float) ($negRow['other_markup'] ?? 0);
-                $rowMkType = strtolower(trim((string) ($negRow['markup_type'] ?? 'flat')));
-                $rowDiscType = strtolower(trim((string) ($negRow['discount_type'] ?? 'flat')));
-                $rowDiscVal = (float) ($negRow['discount_value'] ?? 0);
             @endphp
             @if($rowGross > 0 && abs($rowGross - $rowActual) > 0.009)
             <tr class="inv-total-row">
                 <td class="inv-col-service">&nbsp;</td>
                 <td class="inv-total-label-cell">{{ $negLabel }} — Gross</td>
                 <td class="inv-col-amount"><span class="inv-svc-amt">{{ $litePdfFormatPrice($rowGross) }}</span></td>
-            </tr>
-            @endif
-            @if($rowHotel > 0 || $rowOther > 0 || $rowDiscVal > 0)
-            <tr class="inv-total-row">
-                <td class="inv-col-service">&nbsp;</td>
-                <td class="inv-total-label-cell" style="font-size:9px; color:#64748b;">
-                    {{ $negLabel }} — Hotel {{ $payTypeLabel($rowMkType, $rowHotel) }}
-                    · Other {{ $payTypeLabel($rowMkType, $rowOther) }}
-                    · Disc {{ $payTypeLabel($rowDiscType, $rowDiscVal) }}
-                </td>
-                <td class="inv-col-amount">&nbsp;</td>
             </tr>
             @endif
             @if(abs($rowDisc) > 0.009)

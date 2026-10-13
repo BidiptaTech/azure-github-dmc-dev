@@ -540,15 +540,7 @@
             parseInt(xfer.vehicle_count != null ? xfer.vehicle_count
                 : (xfer.arrival_vehicle_count || xfer.departure_vehicle_count || 1), 10) || 1
         );
-        var privateUnit = Number(
-            (xfer.private_price != null && xfer.private_price !== '') ? xfer.private_price
-                : (vd.private_price != null && vd.private_price !== '') ? vd.private_price
-                    : (xfer.zone_pricing ? 0 : xfer.base_cost)
-        ) || 0;
-        if (privateUnit <= 0 && vehCount > 0 && cost > 0) {
-            privateUnit = cost / vehCount;
-        }
-        var label = '<strong>Private</strong> ' + privateUnit.toFixed(2);
+        var label = '<strong>Private</strong>';
         if (vehCount > 1) label += ' × ' + vehCount + ' vehicles';
         return header + priceFormulaRowHtml(label, cur + ' ' + cost.toFixed(2));
     }
@@ -578,9 +570,6 @@
         var childUnit = Number(row.child_price != null ? row.child_price
             : (row.childUnit != null ? row.childUnit : adultUnit)) || 0;
         var infantUnit = 0;
-        var privateUnit = Number(row.private_price != null ? row.private_price
-            : (row.unit != null ? row.unit : 0)) || 0;
-
         // Infer shared adult unit from total when rate fields missing
         if (type === 'shared' && adultUnit <= 0 && adults > 0 && total > 0) {
             var childPart = children > 0 && childUnit > 0 ? (childUnit * children) : 0;
@@ -631,8 +620,7 @@
             return sharedHtml;
         }
 
-        var unit = privateUnit > 0 ? privateUnit : (vehCount > 0 ? (total / vehCount) : total);
-        var label = '<strong>Private</strong> ' + unit.toFixed(2);
+        var label = '<strong>Private</strong>';
         if (vehCount > 1) label += ' × ' + vehCount + ' vehicles';
         var html = metaHtml + priceFormulaRowHtml(label, cur + ' ' + total.toFixed(2));
         if (adults || children || infants) {
