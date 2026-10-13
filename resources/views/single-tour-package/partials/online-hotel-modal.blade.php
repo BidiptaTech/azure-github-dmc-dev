@@ -113,6 +113,15 @@
                             </div>
                         </div>
 
+                        {{-- Compact MG cancellation summary (1–2 lines) for the selected room --}}
+                        <div id="onlineCancellationPolicy" class="d-none mb-3 px-2 py-1 rounded"
+                             style="background: #fff8e8; border: 1px solid #f0e0b2;">
+                            <div id="onlineCancellationPolicyLine1"
+                                 style="font-size: 0.72rem; line-height: 1.35; color: #6b5a1a;"></div>
+                            <div id="onlineCancellationPolicyLine2" class="d-none"
+                                 style="font-size: 0.7rem; line-height: 1.3; color: #7a6a2e; margin-top: 0.1rem;"></div>
+                        </div>
+
                         <div class="mb-3">
                             <label class="form-label fw-semibold mb-2" style="font-size: 0.85rem;"><i class="ri-chat-quote-line me-1"></i>Remarks</label>
                             <textarea class="form-control form-control-sm" id="onlineHotelRemarks" rows="2" placeholder="Optional notes for this online hotel booking..."></textarea>
@@ -1215,6 +1224,7 @@
             addBtn.classList.add('d-none');
             addBtn.disabled = true;
         }
+        clearOnlineCancellationPolicy();
     }
 
     function showOnlineHotelSelectionPanel(nightPlanOverride) {
@@ -1373,13 +1383,255 @@
         const parts = [name];
         const meal = String(room.mealPlanName || room.meal_plan || '').trim();
         if (meal) parts.push(meal);
-        const policy = String(room.booking?.room?.cancellation_policy_type || '').trim();
-        if (policy) parts.push(policy);
+        const policyType = normalizeCancellationPolicyType(roomCancellationPolicyType(room));
+        if (policyType) parts.push(policyType);
         const price = roomDisplayPrice(room);
         if (price > 0) {
             parts.push(String(room.currency || 'SGD') + ' ' + price.toFixed(2));
         }
         return parts.join(' • ');
+    }
+
+    function roomCancellationPolicyType(room) {
+        if (!room || typeof room !== 'object') return '';
+        return String(
+            room.booking?.room?.cancellation_policy_type
+            || room.cancellation_policy_type
+            || room.cancellationPolicyType
+            || room.raw?.cancellationPolicyType
+            || ''
+        ).trim();
+    }
+
+    function roomCancellationPolicies(room) {
+        if (!room || typeof room !== 'object') return [];
+
+        const candidates = [
+            room.cancellation_policy,
+            room.cancellationPolicy,
+            room.booking?.room?.cancellation_policies,
+            room.raw?.cancellationPolicies?.policy,
+            room.booking?.raw_room?.cancellationPolicies?.policy,
+        ];
+
+        for (let i = 0; i < candidates.length; i++) {
+            const value = candidates[i];
+            if (Array.isArray(value) && value.length) {
+                return value.filter(function (item) { return item && typeof item === 'object'; });
+            }
+            // Single policy object (MG sometimes returns one rule without wrapping)
+            if (value && typeof value === 'object' && !Array.isArray(value) && (value.fromDate || value.toDate)) {
+                return [value];
+            }
+        }
+
+        return [];
+    }
+
+    function normalizeCancellationPolicyType(raw) {
+        const value = String(raw || '').trim();
+        if (!value) return '';
+        if (/^nrf$/i.test(value) || /non[-\s]?refund/i.test(value)) return 'Non-refundable';
+        if (/flexi/i.test(value)) return 'Flexible';
+        return value;
+    }
+
+    function isNonRefundablePolicyType(raw) {
+        return /nrf|non[-\s]?refund/i.test(String(raw || ''));
+    }
+
+    function policyFieldFilled(value) {
+        if (value === null || value === undefined) return false;
+        if (typeof value === 'string') return value.trim() !== '';
+        if (typeof value === 'number') return Number.isFinite(value);
+        return !!value;
+    }
+
+    function formatOnlineCancelDate(ymd) {
+        const raw = String(ymd || '').slice(0, 10);
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return String(ymd || '');
+        const d = new Date(raw + 'T00:00:00');
+        if (isNaN(d.getTime())) return raw;
+        return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+    }
+
+    function dayBeforeYmd(ymd) {
+        const raw = String(ymd || '').slice(0, 10);
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return '';
+        const d = new Date(raw + 'T00:00:00');
+        if (isNaN(d.getTime())) return '';
+        d.setDate(d.getDate() - 1);
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        return yyyy + '-' + mm + '-' + dd;
+    }
+
+    function formatPolicyWindow(fromDate, toDate) {
+        const from = String(fromDate || '').slice(0, 10);
+        const to = String(toDate || '').slice(0, 10);
+        if (!from) return '';
+        if (!to || from === to) return formatOnlineCancelDate(from);
+
+        const fromLabel = formatOnlineCancelDate(from);
+        const toLabel = formatOnlineCancelDate(to);
+        // Same month/year → "6–9 Nov"
+        if (from.slice(0, 7) === to.slice(0, 7)) {
+            const fromDay = String(parseInt(from.slice(8, 10), 10));
+            return fromDay + '–' + toLabel;
+        }
+        return fromLabel + '–' + toLabel;
+    }
+
+    function formatPolicyPenalty(policy, currency) {
+        if (policyFieldFilled(policy.nights)) {
+            const nights = parseInt(policy.nights, 10);
+            if (nights === 1) return '1 night charge';
+            if (Number.isFinite(nights) && nights > 0) return nights + ' nights charge';
+            return String(policy.nights).trim() + ' night charge';
+        }
+
+        if (policyFieldFilled(policy.percent)) {
+            const pct = parseFloat(policy.percent);
+            const label = Number.isFinite(pct)
+                ? (pct % 1 === 0 ? String(pct) : pct.toFixed(2))
+                : String(policy.percent).trim();
+            return label + '% of stay';
+        }
+
+        const amount = policyFieldFilled(policy.grossAmount)
+            ? policy.grossAmount
+            : (policyFieldFilled(policy.amount) ? policy.amount : null);
+        if (amount !== null) {
+            const num = parseFloat(amount);
+            const money = Number.isFinite(num) ? num.toFixed(2) : String(amount).trim();
+            return String(currency || 'SGD') + ' ' + money;
+        }
+
+        return 'penalty applies';
+    }
+
+    function policyHasCharge(policy) {
+        return policyFieldFilled(policy?.nights)
+            || policyFieldFilled(policy?.percent)
+            || policyFieldFilled(policy?.amount)
+            || policyFieldFilled(policy?.grossAmount);
+    }
+
+    /**
+     * Build a 1–2 line agent-facing summary from MG CancellationPolicies.
+     * Amount | Nights | Percent — only one charge type is present per rule.
+     */
+    function summarizeOnlineCancellationPolicy(room) {
+        if (!room) return null;
+
+        const typeRaw = roomCancellationPolicyType(room);
+        const typeLabel = normalizeCancellationPolicyType(typeRaw);
+        const isNrf = isNonRefundablePolicyType(typeRaw);
+        const currency = room.currency || room.booking?.currency || 'SGD';
+        const policies = roomCancellationPolicies(room);
+        const freeFlag = !!(room.free_cancellation || room.freeCancellation);
+
+        if (!policies.length) {
+            if (isNrf) {
+                return { line1: 'Non-refundable · Full charge if cancelled', line2: '' };
+            }
+            if (typeLabel) {
+                return { line1: typeLabel + (freeFlag ? ' · Free cancellation' : ''), line2: '' };
+            }
+            if (freeFlag) {
+                return { line1: 'Free cancellation', line2: '' };
+            }
+            return null;
+        }
+
+        const cancelRules = policies.filter(function (p) {
+            return !p.noShow && policyHasCharge(p);
+        });
+        const noShowRules = policies.filter(function (p) {
+            return !!p.noShow && policyHasCharge(p);
+        });
+
+        const earliestFrom = policies
+            .map(function (p) { return String(p.fromDate || '').slice(0, 10); })
+            .filter(function (d) { return /^\d{4}-\d{2}-\d{2}$/.test(d); })
+            .sort()[0] || '';
+        const freeUntil = earliestFrom ? dayBeforeYmd(earliestFrom) : '';
+
+        let line1 = '';
+        if (isNrf) {
+            line1 = 'Non-refundable · Full charge if cancelled';
+        } else if (freeUntil) {
+            line1 = (typeLabel || 'Flexible') + ' · Free cancel until ' + formatOnlineCancelDate(freeUntil);
+        } else if (freeFlag) {
+            line1 = (typeLabel || 'Flexible') + ' · Free cancellation';
+        } else {
+            line1 = typeLabel || 'Cancellation policy';
+        }
+
+        const bits = [];
+        cancelRules.slice(0, 2).forEach(function (policy) {
+            const window = formatPolicyWindow(policy.fromDate, policy.toDate);
+            bits.push((window ? window + ': ' : '') + formatPolicyPenalty(policy, currency));
+        });
+
+        if (noShowRules[0]) {
+            const policy = noShowRules[0];
+            const fromLabel = formatOnlineCancelDate(policy.fromDate);
+            const pct = parseFloat(policy.percent);
+            // 100% no-show → plain "no cancellation allowed" (agent-facing)
+            if (Number.isFinite(pct) && pct >= 100) {
+                bits.push((fromLabel ? 'from ' + fromLabel + ': ' : '') + 'No cancellation allowed');
+            } else {
+                bits.push(
+                    'No-show' + (fromLabel ? ' from ' + fromLabel : '') + ': ' + formatPolicyPenalty(policy, currency)
+                );
+            }
+        }
+
+        return {
+            line1: line1,
+            line2: bits.join(' · '),
+        };
+    }
+
+    function renderOnlineCancellationPolicy(room) {
+        const box = document.getElementById('onlineCancellationPolicy');
+        const line1El = document.getElementById('onlineCancellationPolicyLine1');
+        const line2El = document.getElementById('onlineCancellationPolicyLine2');
+        if (!box || !line1El || !line2El) return;
+
+        const summary = summarizeOnlineCancellationPolicy(room);
+        if (!summary || !summary.line1) {
+            box.classList.add('d-none');
+            line1El.textContent = '';
+            line2El.textContent = '';
+            line2El.classList.add('d-none');
+            return;
+        }
+
+        line1El.innerHTML = '<i class="ri-calendar-close-line me-1"></i>' + escapeHtml(summary.line1);
+        if (summary.line2) {
+            line2El.textContent = summary.line2;
+            line2El.classList.remove('d-none');
+        } else {
+            line2El.textContent = '';
+            line2El.classList.add('d-none');
+        }
+        box.classList.remove('d-none');
+    }
+
+    function clearOnlineCancellationPolicy() {
+        renderOnlineCancellationPolicy(null);
+    }
+
+    function escapeHtml(value) {
+        return String(value || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
     }
 
     /**
@@ -1458,7 +1710,10 @@
 
     function applySelectedRoomDetails(room) {
         onlineSelectedRoom = room || null;
-        if (!room) return;
+        if (!room) {
+            clearOnlineCancellationPolicy();
+            return;
+        }
 
         const price = roomDisplayPrice(room);
         if (price > 0) {
@@ -1472,6 +1727,8 @@
         if (mealSel && meal) {
             mealSel.value = meal;
         }
+
+        renderOnlineCancellationPolicy(room);
     }
 
     function populateOnlineRooms(hotel) {
@@ -1502,6 +1759,7 @@
             applySelectedRoomDetails(onlineCurrentRooms[0]);
         } else {
             roomSel.disabled = true;
+            clearOnlineCancellationPolicy();
 
             const beds = hotel.beds || hotel.bedTypes || [];
             if (Array.isArray(beds) && beds.length) {
@@ -1695,6 +1953,7 @@
             applySelectedRoomDetails(room);
         } else {
             onlineSelectedRoom = null;
+            clearOnlineCancellationPolicy();
             if (opt && opt.dataset.price) {
                 document.getElementById('onlineRoomPriceDisplay').value = parseFloat(opt.dataset.price).toFixed(2);
             }

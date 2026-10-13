@@ -797,16 +797,17 @@ class SgAttractionsAdapter implements AttractionSupplierAdapter
         $secretKey = trim((string) ($credentials['secret_key'] ?? ''));
         $staticBearer = trim((string) ($credentials['bearer_token'] ?? ''));
 
-        if ($baseUrl === '' && ! array_key_exists('base_url', $credentials)) {
+        // Empty strings in $credentials still count — fall back to config/services.php.
+        if ($baseUrl === '') {
             $baseUrl = rtrim((string) config('services.sg_attractions.base_url', ''), '/');
         }
-        if ($apiKey === '' && ! array_key_exists('api_key', $credentials)) {
+        if ($apiKey === '') {
             $apiKey = trim((string) config('services.sg_attractions.api_key', ''));
         }
-        if ($secretKey === '' && ! array_key_exists('secret_key', $credentials)) {
+        if ($secretKey === '') {
             $secretKey = trim((string) config('services.sg_attractions.secret_key', ''));
         }
-        if ($staticBearer === '' && ! array_key_exists('bearer_token', $credentials)) {
+        if ($staticBearer === '') {
             $staticBearer = trim((string) config('services.sg_attractions.bearer_token', ''));
         }
 

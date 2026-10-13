@@ -19793,6 +19793,7 @@ function generateApproveHotelForm(tourId, hotelOrderIndex, bookingIndex, autoCan
                         <div class="col-md-9">
                             <h6 class="fw-bold mb-1" id="approve_hotel_name_${tourId}_${hotelOrderIndex}_${bookingIndex}">Hotel Booking</h6>
                             <p class="text-muted mb-0 small">Order ${hotelOrderIndex + 1}, Booking ${bookingIndex + 1}</p>
+                            <span id="approve_hotel_order_type_badge_${tourId}_${hotelOrderIndex}_${bookingIndex}" class="badge d-none mt-1"></span>
                         </div>
                     </div>
                 </div>
@@ -19809,12 +19810,15 @@ function generateApproveHotelForm(tourId, hotelOrderIndex, bookingIndex, autoCan
             </div>
 
             <div class="mb-3">
-                <label for="referenceId_${tourId}_${hotelOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
-                    <i class="ri-file-text-line me-2"></i>Reference ID <span class="text-danger">*</span>
+                <label for="referenceId_${tourId}_${hotelOrderIndex}_${bookingIndex}" class="form-label fw-semibold" id="referenceIdLabel_${tourId}_${hotelOrderIndex}_${bookingIndex}">
+                    <i class="ri-file-text-line me-2"></i>Reference ID <span class="text-danger reference-required-mark">*</span>
                 </label>
                 <input type="text" class="form-control form-control-lg" id="referenceId_${tourId}_${hotelOrderIndex}_${bookingIndex}" name="reference_id" required 
                        placeholder="Enter booking reference or confirmation number"
                        style="border-radius: 8px; border: 2px solid #e9ecef;">
+                <div class="form-text d-none" id="referenceIdHint_${tourId}_${hotelOrderIndex}_${bookingIndex}">
+                    Optional for online hotels — supplier confirmation is created on approve.
+                </div>
             </div>
 
             <div class="mb-3">
@@ -19833,7 +19837,7 @@ function generateApproveHotelForm(tourId, hotelOrderIndex, bookingIndex, autoCan
                 </label>
                 <input type="text" readonly class="form-control form-control-lg" id="actualDueDate_${tourId}_${hotelOrderIndex}_${bookingIndex}" name="actual_due_date" required 
                        style="border-radius: 8px; border: 2px solid #e9ecef;">
-                <div class="form-text">Select the Free Cancellation Date for this booking</div>
+                <div class="form-text" id="actualDueDateHint_${tourId}_${hotelOrderIndex}_${bookingIndex}">Select the Free Cancellation Date for this booking</div>
             </div>
 
             <div class="mb-3">
@@ -19864,6 +19868,76 @@ function generateApproveHotelForm(tourId, hotelOrderIndex, bookingIndex, autoCan
             </div>
         </form>
     `;
+}
+
+/** Free cancel = day before earliest cancellation_policies.fromDate */
+function freeCancelDateFromOnlinePolicies(policies) {
+    const earliest = (Array.isArray(policies) ? policies : [])
+        .map(function (p) { return String(p && p.fromDate ? p.fromDate : '').slice(0, 10); })
+        .filter(function (d) { return /^\d{4}-\d{2}-\d{2}$/.test(d); })
+        .sort()[0] || '';
+    if (!earliest) return '';
+
+    const d = new Date(earliest + 'T00:00:00');
+    if (isNaN(d.getTime())) return '';
+    d.setDate(d.getDate() - 1);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return yyyy + '-' + mm + '-' + dd;
+}
+
+function applyOnlineHotelApproveFormRules(tourId, hotelOrderIndex, bookingIndex, isOnline, freeCancelDate, tourAutoCancelDate) {
+    const refInput = document.getElementById(`referenceId_${tourId}_${hotelOrderIndex}_${bookingIndex}`);
+    const refHint = document.getElementById(`referenceIdHint_${tourId}_${hotelOrderIndex}_${bookingIndex}`);
+    const refLabel = document.getElementById(`referenceIdLabel_${tourId}_${hotelOrderIndex}_${bookingIndex}`);
+    const dueInput = document.getElementById(`actualDueDate_${tourId}_${hotelOrderIndex}_${bookingIndex}`);
+    const dueHint = document.getElementById(`actualDueDateHint_${tourId}_${hotelOrderIndex}_${bookingIndex}`);
+    const badge = document.getElementById(`approve_hotel_order_type_badge_${tourId}_${hotelOrderIndex}_${bookingIndex}`);
+
+    if (badge) {
+        badge.classList.remove('d-none', 'bg-info', 'bg-secondary');
+        if (isOnline) {
+            badge.classList.add('bg-info');
+            badge.textContent = 'Online order';
+        } else {
+            badge.classList.add('bg-secondary');
+            badge.textContent = 'Offline order';
+        }
+    }
+
+    if (refInput) {
+        if (isOnline) {
+            refInput.removeAttribute('required');
+            refInput.placeholder = 'Optional — leave blank to auto-generate on book';
+        } else {
+            refInput.setAttribute('required', 'required');
+            refInput.placeholder = 'Enter booking reference or confirmation number';
+        }
+    }
+    if (refHint) {
+        refHint.classList.toggle('d-none', !isOnline);
+    }
+    if (refLabel) {
+        const star = refLabel.querySelector('.reference-required-mark');
+        if (star) star.classList.toggle('d-none', !!isOnline);
+    }
+
+    if (dueInput) {
+        if (isOnline && freeCancelDate) {
+            dueInput.value = freeCancelDate;
+            if (dueHint) {
+                dueHint.textContent = 'From supplier cancellation policy (free cancel until this date).';
+            }
+        } else {
+            dueInput.value = tourAutoCancelDate || freeCancelDate || '';
+            if (dueHint) {
+                dueHint.textContent = isOnline
+                    ? 'Free cancellation date from supplier policy (fallback: tour auto-cancel date).'
+                    : 'Select the Free Cancellation Date for this booking';
+            }
+        }
+    }
 }
 
 function generateRejectHotelForm(tourId, hotelOrderIndex, bookingIndex) {
@@ -20086,6 +20160,10 @@ function loadHotelDataForApprove(tourId, hotelOrderIndex, bookingIndex) {
                     onlineHotelSource: hotelData.online_hotel_source || null,
                     storedPrice: parseFloat(hotelData.total_price || 0),
                     currency: hotelData.currency || 'SGD',
+                    cancellationPolicyType: hotelData.cancellation_policy_type || null,
+                    cancellationPolicies: Array.isArray(hotelData.cancellation_policies)
+                        ? hotelData.cancellation_policies
+                        : [],
                     recheckToken: null,
                     recheckData: null,
                 };
@@ -20115,13 +20193,19 @@ function loadHotelDataForApprove(tourId, hotelOrderIndex, bookingIndex) {
                 if (hotelNameElement) {
                     hotelNameElement.textContent = hotelData.hotel_name || 'Hotel Booking';
                 }
-                
-                // Set Free Cancellation Date from tour's auto_cancel_date
-                const actualDueDateInput = document.getElementById(`actualDueDate_${tourId}_${hotelOrderIndex}_${bookingIndex}`);
-                if (actualDueDateInput) {
-                    const autoCancelDate = (tourData && tourData.auto_cancel_date) ? tourData.auto_cancel_date : '';
-                    actualDueDateInput.value = autoCancelDate;
-                }
+
+                const isOnline = hotelData.is_online_hotel === true || hotelData.order_type === 'online';
+                const tourAutoCancelDate = (tourData && tourData.auto_cancel_date) ? tourData.auto_cancel_date : '';
+                const freeCancelFromPolicy = freeCancelDateFromOnlinePolicies(hotelData.cancellation_policies);
+
+                applyOnlineHotelApproveFormRules(
+                    tourId,
+                    hotelOrderIndex,
+                    bookingIndex,
+                    isOnline,
+                    freeCancelFromPolicy,
+                    tourAutoCancelDate
+                );
                 
             } else {
                 console.error('Failed to load hotel data for approve modal:', data);
@@ -20335,15 +20419,174 @@ function submitOfflineHotelApproval(tourId, hotelOrderIndex, bookingIndex, evt) 
     });
 }
 
+function onlineCancelPolicyFieldFilled(value) {
+    if (value === null || value === undefined) return false;
+    if (typeof value === 'string') return value.trim() !== '';
+    if (typeof value === 'number') return Number.isFinite(value);
+    return !!value;
+}
+
+function formatOnlineCancelDateConfirm(ymd) {
+    const raw = String(ymd || '').slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return String(ymd || '');
+    const d = new Date(raw + 'T00:00:00');
+    if (isNaN(d.getTime())) return raw;
+    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+}
+
+function dayBeforeYmdConfirm(ymd) {
+    const raw = String(ymd || '').slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return '';
+    const d = new Date(raw + 'T00:00:00');
+    if (isNaN(d.getTime())) return '';
+    d.setDate(d.getDate() - 1);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return yyyy + '-' + mm + '-' + dd;
+}
+
+function formatOnlineCancelWindowConfirm(fromDate, toDate) {
+    const from = String(fromDate || '').slice(0, 10);
+    const to = String(toDate || '').slice(0, 10);
+    if (!from) return '';
+    if (!to || from === to) return formatOnlineCancelDateConfirm(from);
+    const toLabel = formatOnlineCancelDateConfirm(to);
+    if (from.slice(0, 7) === to.slice(0, 7)) {
+        return String(parseInt(from.slice(8, 10), 10)) + '–' + toLabel;
+    }
+    return formatOnlineCancelDateConfirm(from) + '–' + toLabel;
+}
+
+function formatOnlineCancelPenaltyConfirm(policy, currency) {
+    if (onlineCancelPolicyFieldFilled(policy.nights)) {
+        const nights = parseInt(policy.nights, 10);
+        if (nights === 1) return '1 night charge';
+        if (Number.isFinite(nights) && nights > 0) return nights + ' nights charge';
+        return String(policy.nights).trim() + ' night charge';
+    }
+    if (onlineCancelPolicyFieldFilled(policy.percent)) {
+        const pct = parseFloat(policy.percent);
+        const label = Number.isFinite(pct)
+            ? (pct % 1 === 0 ? String(pct) : pct.toFixed(2))
+            : String(policy.percent).trim();
+        return label + '% of stay';
+    }
+    const amount = onlineCancelPolicyFieldFilled(policy.grossAmount)
+        ? policy.grossAmount
+        : (onlineCancelPolicyFieldFilled(policy.amount) ? policy.amount : null);
+    if (amount !== null) {
+        const num = parseFloat(amount);
+        return String(currency || 'SGD') + ' ' + (Number.isFinite(num) ? num.toFixed(2) : String(amount).trim());
+    }
+    return 'penalty applies';
+}
+
+function policyHasOnlineCancelCharge(policy) {
+    return onlineCancelPolicyFieldFilled(policy?.nights)
+        || onlineCancelPolicyFieldFilled(policy?.percent)
+        || onlineCancelPolicyFieldFilled(policy?.amount)
+        || onlineCancelPolicyFieldFilled(policy?.grossAmount);
+}
+
+/** Same 1–2 line summary as online hotel add modal. 100% no-show → "No cancellation allowed". */
+function summarizeOnlineCancellationForConfirm(policyType, policies, currency) {
+    const typeRaw = String(policyType || '').trim();
+    const isNrf = /nrf|non[-\s]?refund/i.test(typeRaw);
+    const typeLabel = isNrf
+        ? 'Non-refundable'
+        : (/flexi/i.test(typeRaw) ? 'Flexible' : (typeRaw || ''));
+    const list = Array.isArray(policies) ? policies.filter(function (p) { return p && typeof p === 'object'; }) : [];
+
+    if (!list.length) {
+        if (isNrf) return { line1: 'Non-refundable · Full charge if cancelled', line2: '' };
+        if (typeLabel) return { line1: typeLabel, line2: '' };
+        return null;
+    }
+
+    const cancelRules = list.filter(function (p) { return !p.noShow && policyHasOnlineCancelCharge(p); });
+    const noShowRules = list.filter(function (p) { return !!p.noShow && policyHasOnlineCancelCharge(p); });
+    const earliestFrom = list
+        .map(function (p) { return String(p.fromDate || '').slice(0, 10); })
+        .filter(function (d) { return /^\d{4}-\d{2}-\d{2}$/.test(d); })
+        .sort()[0] || '';
+    const freeUntil = earliestFrom ? dayBeforeYmdConfirm(earliestFrom) : '';
+
+    let line1 = '';
+    if (isNrf) {
+        line1 = 'Non-refundable · Full charge if cancelled';
+    } else if (freeUntil) {
+        line1 = (typeLabel || 'Flexible') + ' · Free cancel until ' + formatOnlineCancelDateConfirm(freeUntil);
+    } else {
+        line1 = typeLabel || 'Cancellation policy';
+    }
+
+    const bits = [];
+    cancelRules.slice(0, 2).forEach(function (policy) {
+        const window = formatOnlineCancelWindowConfirm(policy.fromDate, policy.toDate);
+        bits.push((window ? window + ': ' : '') + formatOnlineCancelPenaltyConfirm(policy, currency));
+    });
+
+    if (noShowRules[0]) {
+        const policy = noShowRules[0];
+        const fromLabel = formatOnlineCancelDateConfirm(policy.fromDate);
+        const pct = parseFloat(policy.percent);
+        if (Number.isFinite(pct) && pct >= 100) {
+            bits.push((fromLabel ? 'from ' + fromLabel + ': ' : '') + 'No cancellation allowed');
+        } else {
+            bits.push(
+                'No-show' + (fromLabel ? ' from ' + fromLabel : '') + ': ' + formatOnlineCancelPenaltyConfirm(policy, currency)
+            );
+        }
+    }
+
+    return { line1: line1, line2: bits.join(' · ') };
+}
+
+function escapeHtmlConfirm(value) {
+    return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function buildOnlineCancellationHtmlForConfirm(recheckData, approveCtx) {
+    const policies = (Array.isArray(recheckData?.cancellation_policies) && recheckData.cancellation_policies.length)
+        ? recheckData.cancellation_policies
+        : (Array.isArray(approveCtx?.cancellationPolicies) ? approveCtx.cancellationPolicies : []);
+    const policyType = recheckData?.cancellation_policy_type
+        || approveCtx?.cancellationPolicyType
+        || '';
+    const currency = recheckData?.currency || approveCtx?.currency || 'SGD';
+    const summary = summarizeOnlineCancellationForConfirm(policyType, policies, currency);
+    if (!summary || !summary.line1) return '';
+
+    return (
+        '<div class="mt-2 mb-1 px-2 py-1 rounded text-start" style="background:#fff8e8;border:1px solid #f0e0b2;">' +
+            '<div style="font-size:0.72rem;line-height:1.35;color:#6b5a1a;">' +
+                '<i class="ri-calendar-close-line me-1"></i>' + escapeHtmlConfirm(summary.line1) +
+            '</div>' +
+            (summary.line2
+                ? '<div style="font-size:0.7rem;line-height:1.3;color:#7a6a2e;margin-top:0.1rem;">' +
+                    escapeHtmlConfirm(summary.line2) +
+                  '</div>'
+                : '') +
+        '</div>'
+    );
+}
+
 function submitOnlineHotelApproval(tourId, hotelOrderIndex, bookingIndex, evt) {
-    const referenceId = document.getElementById(`referenceId_${tourId}_${hotelOrderIndex}_${bookingIndex}`).value;
+    const referenceId = (document.getElementById(`referenceId_${tourId}_${hotelOrderIndex}_${bookingIndex}`).value || '').trim();
     const actualDueDate = document.getElementById(`actualDueDate_${tourId}_${hotelOrderIndex}_${bookingIndex}`).value;
     const displayDueDateDays = document.getElementById(`displayDueDateDays_${tourId}_${hotelOrderIndex}_${bookingIndex}`).value;
     const displayDueDate = document.getElementById(`displayDueDate_${tourId}_${hotelOrderIndex}_${bookingIndex}`).value;
     const referenceFile = document.getElementById(`referenceFile_${tourId}_${hotelOrderIndex}_${bookingIndex}`).files[0];
 
-    if (!referenceId || !actualDueDate || !displayDueDateDays || !displayDueDate) {
-        alert('Please fill in all required fields');
+    // Reference ID is optional for online; free-cancel + display dates are still required.
+    if (!actualDueDate || !displayDueDateDays || !displayDueDate) {
+        alert('Please fill in Free Cancellation Date and Display Due Date.');
         return;
     }
 
@@ -20382,11 +20625,17 @@ function submitOnlineHotelApproval(tourId, hotelOrderIndex, bookingIndex, evt) {
         window._hotelApproveContext = window._hotelApproveContext || {};
         window._hotelApproveContext[ctxKey] = Object.assign(window._hotelApproveContext[ctxKey] || {}, {
             recheckToken: recheck.recheck_token,
-            recheckData: recheck.data
+            recheckData: recheck.data,
+            cancellationPolicyType: recheck.data.cancellation_policy_type
+                || (window._hotelApproveContext[ctxKey] || {}).cancellationPolicyType
+                || null,
+            cancellationPolicies: (Array.isArray(recheck.data.cancellation_policies) && recheck.data.cancellation_policies.length)
+                ? recheck.data.cancellation_policies
+                : ((window._hotelApproveContext[ctxKey] || {}).cancellationPolicies || []),
         });
 
+        const approveCtx = window._hotelApproveContext[ctxKey] || {};
         const currency = recheck.data.currency || 'SGD';
-        const supplierLabel = recheck.data.supplier_label || recheck.data.supplier_code || 'the supplier';
         const money = value => currency + ' ' + parseFloat(value || 0).toFixed(2);
 
         const storedPrice = parseFloat(recheck.data.stored_price || 0);
@@ -20435,6 +20684,8 @@ function submitOnlineHotelApproval(tourId, hotelOrderIndex, bookingIndex, evt) {
                 '</div>';
         }
 
+        const cancellationHtml = buildOnlineCancellationHtmlForConfirm(recheck.data, approveCtx);
+
         if (typeof Swal === 'undefined') {
             const comparisonLine = markupApplied
                 ? `Customer price now: ${money(customerPrice)}`
@@ -20457,6 +20708,7 @@ function submitOnlineHotelApproval(tourId, hotelOrderIndex, bookingIndex, evt) {
                     '<div class="mb-1">Room: ' + (recheck.data.room_name || '—') + '</div>' +
                     '<div class="mb-1">Meal plan: ' + (recheck.data.meal_plan_name || '—') + '</div>' +
                     '<div class="mb-1">Stay: ' + (recheck.data.check_in || '') + ' → ' + (recheck.data.check_out || '') + '</div>' +
+                    cancellationHtml +
                     priceRows +
                 '</div>',
             showCancelButton: true,
@@ -20464,16 +20716,22 @@ function submitOnlineHotelApproval(tourId, hotelOrderIndex, bookingIndex, evt) {
             confirmButtonColor: '#198754',
             cancelButtonText: 'Review again',
             showLoaderOnConfirm: true,
-            preConfirm: () => finalizeOnlineHotelApproval(
-                tourId,
-                hotelOrderIndex,
-                bookingIndex,
-                recheck.recheck_token,
-                referenceFile,
-                null,
-                '',
-                true
-            ),
+            preConfirm: () => {
+                const latestToken = (window._hotelApproveContext
+                    && window._hotelApproveContext[ctxKey]
+                    && window._hotelApproveContext[ctxKey].recheckToken)
+                    || recheck.recheck_token;
+                return finalizeOnlineHotelApproval(
+                    tourId,
+                    hotelOrderIndex,
+                    bookingIndex,
+                    latestToken,
+                    referenceFile,
+                    null,
+                    '',
+                    true
+                );
+            },
             allowOutsideClick: () => !Swal.isLoading()
         });
     })
@@ -20492,6 +20750,11 @@ function finalizeOnlineHotelApproval(tourId, hotelOrderIndex, bookingIndex, rech
     const actualDueDate = document.getElementById(`actualDueDate_${tourId}_${hotelOrderIndex}_${bookingIndex}`).value;
     const displayDueDateDays = document.getElementById(`displayDueDateDays_${tourId}_${hotelOrderIndex}_${bookingIndex}`).value;
     const displayDueDate = document.getElementById(`displayDueDate_${tourId}_${hotelOrderIndex}_${bookingIndex}`).value;
+    const ctxKey = `${tourId}_${hotelOrderIndex}_${bookingIndex}`;
+    const ctxToken = (window._hotelApproveContext
+        && window._hotelApproveContext[ctxKey]
+        && window._hotelApproveContext[ctxKey].recheckToken) || '';
+    const tokenToSend = (recheckToken || ctxToken || '').trim();
 
     const formData = new FormData();
     formData.append('tour_id', tourId);
@@ -20502,7 +20765,7 @@ function finalizeOnlineHotelApproval(tourId, hotelOrderIndex, bookingIndex, rech
     formData.append('display_due_date_days', displayDueDateDays);
     formData.append('display_due_date', displayDueDate);
     formData.append('confirm_online_booking', '1');
-    formData.append('recheck_token', recheckToken || '');
+    formData.append('recheck_token', tokenToSend);
     if (referenceFile) {
         formData.append('reference_file', referenceFile);
     }
@@ -20517,7 +20780,9 @@ function finalizeOnlineHotelApproval(tourId, hotelOrderIndex, bookingIndex, rech
     .then(response => response.json())
     .then(data => {
         if (!data.success) {
-            throw new Error(data.message || 'Online booking approval failed');
+            const err = new Error(data.message || 'Online booking approval failed');
+            err.requiresRecheck = !!data.requires_recheck;
+            throw err;
         }
 
         if (approveButton) {
@@ -20547,6 +20812,20 @@ function finalizeOnlineHotelApproval(tourId, hotelOrderIndex, bookingIndex, rech
         if (approveButton) {
             approveButton.innerHTML = originalText;
             approveButton.disabled = false;
+        }
+
+        // Token miss / expired: close Swal and run a fresh recheck automatically.
+        if (error && error.requiresRecheck) {
+            if (typeof Swal !== 'undefined') {
+                Swal.close();
+            }
+            setTimeout(function () {
+                submitOnlineHotelApproval(tourId, hotelOrderIndex, bookingIndex, null);
+            }, 250);
+            if (returnPromise) {
+                return false;
+            }
+            return;
         }
 
         if (returnPromise && typeof Swal !== 'undefined') {

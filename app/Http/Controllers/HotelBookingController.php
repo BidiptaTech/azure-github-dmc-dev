@@ -1320,6 +1320,12 @@ class HotelBookingController extends Controller
                         'is_online_hotel' => ! empty($booking['isOnlineHotel'])
                             || ($booking['hotelSourceType'] ?? '') === 'online'
                             || ($hotelOrder->order_type ?? '') === 'online',
+                        // MG cancellation rules stored at enquiry (for approve confirm modal)
+                        'cancellation_policy_type' => $booking['onlineHotelBooking']['room']['cancellation_policy_type']
+                            ?? ($booking['onlineHotelBooking']['raw_room']['cancellationPolicyType'] ?? null),
+                        'cancellation_policies' => $this->normalizeOnlineHotelCancellationPolicies(
+                            $booking['onlineHotelBooking'] ?? null
+                        ),
                     ]
                 ]
             ]);
@@ -2704,6 +2710,16 @@ class HotelBookingController extends Controller
                 'api_environment' => $recheckResult['api_environment'] ?? null,
             ]);
 
+            $storedPolicies = $this->normalizeOnlineHotelCancellationPolicies(
+                $booking['onlineHotelBooking'] ?? null
+            );
+            $livePolicies = $this->extractLiveCancellationPolicies($recheckResult);
+            $cancellationPolicies = $livePolicies !== [] ? $livePolicies : $storedPolicies;
+            $cancellationPolicyType = (string) (
+                $recheckResult['cancellation_policy_type']
+                ?? ($booking['onlineHotelBooking']['room']['cancellation_policy_type'] ?? '')
+            );
+
             return response()->json([
                 'success' => true,
                 'message' => 'Hotel availability rechecked successfully.',
@@ -2727,6 +2743,8 @@ class HotelBookingController extends Controller
                     'price_changed' => $recheckResult['price_changed'],
                     'session_id' => $recheckResult['session_id'] ?? null,
                     'api_environment' => $recheckResult['api_environment'] ?? null,
+                    'cancellation_policy_type' => $cancellationPolicyType !== '' ? $cancellationPolicyType : null,
+                    'cancellation_policies' => $cancellationPolicies,
                 ],
             ]);
         } catch (\Throwable $e) {
@@ -2759,17 +2777,17 @@ class HotelBookingController extends Controller
                 'request_data' => $request->all()
             ]);
 
-            // Validate the incoming request
+            // Validate the incoming request (reference_id required only for offline)
             $validator = Validator::make($request->all(), [
                 'tour_id' => 'required|integer',
                 'hotel_order_index' => 'required|integer|min:0',
                 'booking_index' => 'required|integer|min:0',
-                'reference_id' => 'required|string|max:255',
+                'reference_id' => 'nullable|string|max:255',
                 'actual_due_date' => 'required|date',
                 'display_due_date_days' => 'required|integer|min:1',
                 'display_due_date' => 'required|string|max:255',
                 'confirm_online_booking' => 'nullable|boolean',
-                'recheck_token' => 'nullable|string|max:64',
+                'recheck_token' => 'nullable|string|max:128',
                 //'reference_file' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240' // 10MB max
             ]);
 
@@ -2781,50 +2799,55 @@ class HotelBookingController extends Controller
                 ], 422);
             }
 
-            $tourId = $request->tour_id;
-            $hotelOrderIndex = $request->hotel_order_index;
-            $bookingIndex = $request->booking_index;
-            $referenceId = $request->reference_id;
+            $tourId = (int) $request->tour_id;
+            $hotelOrderIndex = (int) $request->hotel_order_index;
+            $bookingIndex = (int) $request->booking_index;
+            $referenceId = trim((string) $request->input('reference_id', ''));
             $actualDueDate = $request->actual_due_date;
             $displayDueDateDays = $request->display_due_date_days;
             $displayDueDate = $request->display_due_date;
             $referenceFile = $request->file('reference_file');
-            // Find the hotel order in the orders table
-            $hotelOrder = DB::table('orders')
-                ->where('tour_id', $tourId)
-                ->where('type', 'hotel')
-                // ->orderBy('id')
-                ->skip($hotelOrderIndex)
-                ->first();
-                
-            // Log the search criteria and result
+
+            // Must match recheckOnlineHotelBooking (same id + deleted_at + orderBy) or the
+            // cached recheck token will never be found.
+            try {
+                [$hotelOrder, $bookingRow, $bookingIndex] = $this->resolveHotelOrderBooking(
+                    $tourId,
+                    $hotelOrderIndex,
+                    $bookingIndex,
+                );
+            } catch (\RuntimeException $e) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $e->getMessage(),
+                ], 404);
+            }
+
             Log::info('Searching for hotel order', [
                 'tour_id' => $tourId,
                 'hotel_order_index' => $hotelOrderIndex,
-                'hotel_order_found' => !!$hotelOrder,
-                'hotel_order_id' => $hotelOrder ? $hotelOrder->id : null
+                'hotel_order_found' => true,
+                'hotel_order_id' => $hotelOrder->id,
             ]);
 
-            if (!$hotelOrder) {
+            $isOnlineOrder = ($hotelOrder->order_type ?? '') === 'online';
+
+            if (! $isOnlineOrder && $referenceId === '') {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Hotel order not found'
-                ], 404);
+                    'message' => 'Validation failed: The reference id field is required.',
+                    'errors' => ['reference_id' => ['The reference id field is required.']],
+                ], 422);
             }
 
-            $hotelData = json_decode($hotelOrder->data, true);
-
-            if (! is_array($hotelData) || ! isset($hotelData[$bookingIndex])) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Hotel booking not found in order data',
-                ], 404);
-            }
-
-            $bookingRow = $hotelData[$bookingIndex];
             $bookingDetails = null;
 
-            if (($hotelOrder->order_type ?? '') === 'online') {
+            // Online: agency booking id is still required by supplier — auto-generate when blank.
+            if ($isOnlineOrder && $referenceId === '') {
+                $referenceId = 'ONLINE-' . (int) $hotelOrder->tour_id . '-' . (int) $hotelOrder->id . '-' . (int) $bookingIndex;
+            }
+
+            if ($isOnlineOrder) {
                 if (! $request->boolean('confirm_online_booking')) {
                     return response()->json([
                         'success' => false,
@@ -2862,6 +2885,14 @@ class HotelBookingController extends Controller
                 );
 
                 if ($recheckResult === null) {
+                    Log::warning('Online hotel recheck token miss on approve', [
+                        'order_id' => $hotelOrder->id,
+                        'booking_index' => $bookingIndex,
+                        'token_prefix' => substr($recheckToken, 0, 12),
+                        'token_length' => strlen($recheckToken),
+                        'cache_driver' => config('cache.default'),
+                    ]);
+
                     return response()->json([
                         'success' => false,
                         'requires_recheck' => true,
@@ -2876,6 +2907,13 @@ class HotelBookingController extends Controller
                     $bookingRow,
                     $referenceId,
                     $credentials,
+                );
+
+                // Only drop the cache after a successful supplier book.
+                $bookingService->forgetCachedRecheckResult(
+                    (int) $hotelOrder->id,
+                    $bookingIndex,
+                    $recheckToken,
                 );
             }
 
@@ -6318,10 +6356,12 @@ class HotelBookingController extends Controller
      */
     private function resolveHotelOrderBooking(int $tourId, int $hotelOrderIndex, int $bookingIndex): array
     {
+        // Stable ordering is required: recheck caches by orders.id, approve must hit the same row.
         $hotelOrder = DB::table('orders')
             ->where('tour_id', $tourId)
             ->where('type', 'hotel')
             ->whereNull('deleted_at')
+            ->orderBy('id')
             ->skip($hotelOrderIndex)
             ->first();
 
@@ -6374,6 +6414,80 @@ class HotelBookingController extends Controller
         $code = app(OnlineHotelBookingServiceFactory::class)->credentialCode($supplierCode);
 
         return (string) config("suppliers.{$code}.label", $code);
+    }
+
+    /**
+     * Pull cancellation policy list from stored onlineHotelBooking (enquiry payload).
+     *
+     * @param  array<string, mixed>|null  $onlineBooking
+     * @return array<int, array<string, mixed>>
+     */
+    private function normalizeOnlineHotelCancellationPolicies(?array $onlineBooking): array
+    {
+        if (! is_array($onlineBooking)) {
+            return [];
+        }
+
+        $candidates = [
+            $onlineBooking['room']['cancellation_policies'] ?? null,
+            $onlineBooking['raw_room']['cancellationPolicies']['policy'] ?? null,
+            $onlineBooking['room']['cancellationPolicies']['policy'] ?? null,
+        ];
+
+        foreach ($candidates as $candidate) {
+            $normalized = $this->coerceCancellationPolicyList($candidate);
+            if ($normalized !== []) {
+                return $normalized;
+            }
+        }
+
+        return [];
+    }
+
+    /**
+     * Prefer live RecheckHotel policies when the supplier returns them.
+     *
+     * @param  array<string, mixed>  $recheckResult
+     * @return array<int, array<string, mixed>>
+     */
+    private function extractLiveCancellationPolicies(array $recheckResult): array
+    {
+        $roomDetails = $recheckResult['recheck_response']['hotels']['hotel']['roomDetails'] ?? null;
+
+        if (is_array($roomDetails) && isset($roomDetails[0]) && is_array($roomDetails[0])) {
+            $roomDetails = $roomDetails[0];
+        }
+
+        if (! is_array($roomDetails)) {
+            return [];
+        }
+
+        return $this->coerceCancellationPolicyList(
+            $roomDetails['cancellationPolicies']['policy'] ?? ($roomDetails['cancellation_policies'] ?? null)
+        );
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function coerceCancellationPolicyList(mixed $value): array
+    {
+        if (is_array($value) && isset($value['fromDate'])) {
+            return [$value];
+        }
+
+        if (! is_array($value)) {
+            return [];
+        }
+
+        $list = [];
+        foreach ($value as $item) {
+            if (is_array($item) && (isset($item['fromDate']) || isset($item['toDate']))) {
+                $list[] = $item;
+            }
+        }
+
+        return $list;
     }
 
     /**

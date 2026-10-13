@@ -12,18 +12,20 @@ if (! function_exists('azure_supplier_env_fields')) {
 
         foreach ($fields as $key => $field) {
             $suffix = (string) ($field['env_suffix'] ?? '');
+            $legacySuffix = $fields[$key]['legacy_suffix'] ?? null;
+            $legacySuffixes = $fields[$key]['legacy_suffixes'] ?? [];
             unset($field['env_suffix'], $field['legacy_suffix'], $field['legacy_suffixes']);
 
             $field['env'] = $prefix . '_' . $envName . '_' . $suffix;
 
+            $legacy = [];
             if ($isDemo) {
-                $legacy = [];
-                if (! empty($fields[$key]['legacy_suffix'])) {
-                    $legacy[] = $prefix . '_' . $fields[$key]['legacy_suffix'];
+                if (! empty($legacySuffix)) {
+                    $legacy[] = $prefix . '_' . $legacySuffix;
                 }
-                foreach ($fields[$key]['legacy_suffixes'] ?? [] as $legacySuffix) {
-                    if (is_string($legacySuffix) && $legacySuffix !== '') {
-                        $legacy[] = $prefix . '_' . $legacySuffix;
+                foreach ($legacySuffixes as $legacyItem) {
+                    if (is_string($legacyItem) && $legacyItem !== '') {
+                        $legacy[] = $prefix . '_' . $legacyItem;
                     }
                 }
                 if ($legacy !== []) {
@@ -32,6 +34,22 @@ if (! function_exists('azure_supplier_env_fields')) {
                         $field['legacy_envs'] = $legacy;
                     }
                 }
+            }
+
+            // Resolve at config-load time so `php artisan config:cache` bakes credentials in.
+            // Runtime env() is empty when the config cache is present.
+            $resolved = env($field['env']);
+            if (($resolved === null || trim((string) $resolved) === '') && $legacy !== []) {
+                foreach ($legacy as $legacyKey) {
+                    $candidate = env($legacyKey);
+                    if ($candidate !== null && trim((string) $candidate) !== '') {
+                        $resolved = $candidate;
+                        break;
+                    }
+                }
+            }
+            if ($resolved !== null && trim((string) $resolved) !== '') {
+                $field['value'] = (string) $resolved;
             }
 
             $mapped[$key] = $field;
