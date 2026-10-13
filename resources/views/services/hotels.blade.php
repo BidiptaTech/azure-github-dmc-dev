@@ -28,11 +28,16 @@
             </div>
         </div>
 
+        <div id="serviceActionAlerts" class="mb-3"></div>
+
         <!-- Selected Hotels Section -->
         <div class="card mb-4 {{ (!isset($selectedHotels) || count($selectedHotels) === 0) ? 'd-none' : '' }}" id="selectedHotelsSection">
             <div class="card-header">
                 <div class="d-flex flex-wrap justify-content-between align-items-end gap-2">
-                    <h5 class="mb-0" id="selectedHotelsTitle">Selected Hotels ({{ isset($selectedHotels) ? count($selectedHotels) : 0 }})</h5>
+                    <div>
+                        <h5 class="mb-0" id="selectedHotelsTitle">Selected Hotels ({{ isset($selectedHotels) ? count($selectedHotels) : 0 }})</h5>
+                        <small class="text-muted">Hotels selected by this DMC only</small>
+                    </div>
                     <div class="d-flex flex-wrap gap-2">
                         <div class="input-group input-group-sm" style="width: 260px;">
                             <span class="input-group-text"><i class="ri-search-line"></i></span>
@@ -51,10 +56,28 @@
                 </div>
             </div>
             <div class="card-body">
+                <div id="selectedHotelsBulkToolbar" class="selected-services-bulk-toolbar d-none mb-3" role="region" aria-live="polite">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                        <div class="d-flex flex-wrap align-items-center gap-2">
+                            <i class="ri-checkbox-circle-fill text-primary" aria-hidden="true"></i>
+                            <strong id="bulkSelectedCountLabel">0 Hotels Selected</strong>
+                            <button type="button" class="btn btn-link btn-sm px-1" id="clearHotelSelectionBtn">Clear Selection</button>
+                        </div>
+                        <button type="button" class="btn btn-danger btn-sm" id="bulkRemoveSelectedBtn">
+                            <i class="ri-delete-bin-line me-1"></i><span id="bulkRemoveSelectedLabel">Remove Selected</span>
+                        </button>
+                    </div>
+                </div>
                 <div class="table-responsive">
-                    <table class="table table-hover mb-2">
+                    <table class="table table-hover mb-2 align-middle">
                         <thead>
                             <tr>
+                                <th style="width: 130px;">
+                                    <div class="form-check mb-0">
+                                        <input class="form-check-input" type="checkbox" id="selectAllSelectedHotels" aria-label="Select all hotels">
+                                        <label class="form-check-label fw-semibold" for="selectAllSelectedHotels">Select All</label>
+                                    </div>
+                                </th>
                                 <th>Hotel Name</th>
                                 <th>Location</th>
                                 <th>Category</th>
@@ -64,6 +87,13 @@
                         <tbody id="selectedHotelsBody">
                             @foreach(($selectedHotels ?? []) as $hotel)
                                 <tr class="selected-hotel-row" data-hotel-id="{{ $hotel->id }}" data-name="{{ strtolower($hotel->name) }}" data-location="{{ strtolower($hotel->city) }}, {{ strtolower($hotel->country) }}">
+                                    <td>
+                                        <div class="form-check mb-0">
+                                            <input class="form-check-input selected-hotel-checkbox" type="checkbox"
+                                                   value="{{ $hotel->id }}"
+                                                   aria-label="Select {{ $hotel->name }}">
+                                        </div>
+                                    </td>
                                     <td>
                                         <div class="d-flex align-items-center">
                                             @if($hotel->main_image)
@@ -109,6 +139,7 @@
                     <nav>
                         <ul class="pagination pagination-sm mb-0" id="selectedHotelsPagination"></ul>
                     </nav>
+                    <div class="small text-muted mt-2" id="selectedHotelsShowingCount"></div>
                 </div>
             </div>
         </div>
@@ -133,26 +164,28 @@
 
                 <!-- Advanced Filters -->
                 <div class="row g-3 align-items-end mb-4">
-                    <div class="col-lg-4 col-md-6">
+                    <div class="col-lg-5 col-md-6">
                         <label for="hotelSearch" class="form-label mb-1">Search</label>
                         <div class="input-group">
                             <span class="input-group-text"><i class="ri-search-line"></i></span>
                             <input type="text" class="form-control" id="hotelSearch" placeholder="Search hotels by name..." onkeyup="applyFilters()">
                         </div>
                     </div>
-                    <div class="col-lg-3 col-md-6">
-                        <label for="countrySelect" class="form-label mb-1">Country</label>
-                        <select id="countrySelect" class="form-select" onchange="onCountryChange()">
-                            <option value="">All Countries</option>
-                        </select>
-                    </div>
-                    <div class="col-lg-3 col-md-6">
-                        <label for="citySelect" class="form-label mb-1">City</label>
-                        <select id="citySelect" class="form-select" onchange="applyFilters()" disabled>
+                    <div class="col-lg-4 col-md-6">
+                        <label for="citySelect" class="form-label mb-1">
+                            City
+                            @if(!empty($dmcCountry))
+                                <span class="text-muted fw-normal">({{ $dmcCountry }})</span>
+                            @endif
+                        </label>
+                        <select id="citySelect" class="form-select city-search-select" data-placeholder="Search and select a city">
                             <option value="">All Cities</option>
+                            @foreach(($allowedCities ?? []) as $cityName)
+                                <option value="{{ strtolower($cityName) }}">{{ $cityName }}</option>
+                            @endforeach
                         </select>
                     </div>
-                    <div class="col-lg-2 col-md-6 text-end">
+                    <div class="col-lg-3 col-md-6 text-end">
                         <button type="button" class="btn btn-outline-secondary w-100" onclick="resetFilters()"><i class="ri-filter-off-line me-1"></i>Clear Filters</button>
                         <div class="small text-muted mt-2" id="hotelCount">Showing all hotels</div>
                     </div>
@@ -275,6 +308,34 @@
     </div>
 </div>
 
+<!-- Bulk Remove Hotels Modal -->
+<div class="modal fade" id="bulkRemoveHotelsModal" tabindex="-1" aria-labelledby="bulkRemoveHotelsTitle" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0 pb-0">
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" id="bulkRemoveModalCloseBtn"></button>
+            </div>
+            <div class="modal-body text-center pt-0 px-4">
+                <div class="bulk-remove-confirm-icon" aria-hidden="true">
+                    <i class="ri-delete-bin-line"></i>
+                </div>
+                <h5 class="modal-title mb-2" id="bulkRemoveHotelsTitle">Remove Hotels?</h5>
+                <p class="text-muted mb-1" id="bulkRemoveHotelsBody"></p>
+                <p class="text-muted small mb-0">This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer justify-content-center border-0 pt-0 pb-4">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" id="cancelBulkRemoveHotels">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmBulkRemoveHotels">
+                    <span class="btn-text">Remove Hotels</span>
+                    <span class="btn-loader d-none">
+                        <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Removing...
+                    </span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <style>
 .hotel-card {
     transition: all 0.3s ease;
@@ -363,6 +424,103 @@
     display: inline-block;
 }
 
+.selected-services-bulk-toolbar {
+    background: #eef4ff;
+    border: 1px solid #d6e4ff;
+    border-radius: 0.5rem;
+    padding: 0.75rem 1rem;
+}
+
+.selected-services-bulk-toolbar .btn-link {
+    color: #0d6efd;
+    text-decoration: underline;
+    font-weight: 500;
+}
+
+.bulk-remove-confirm-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: #fee2e2;
+    color: #dc2626;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.75rem;
+    margin: 0 auto 1rem;
+}
+
+.selected-hotel-checkbox,
+#selectAllSelectedHotels {
+    cursor: pointer;
+}
+
+.city-combobox {
+    position: relative;
+}
+
+.city-combobox .city-search-select {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+    width: 1px;
+    height: 1px;
+}
+
+.city-combobox-input {
+    padding-right: 2.25rem;
+}
+
+.city-combobox-caret {
+    position: absolute;
+    right: 0.85rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #697a8d;
+    pointer-events: none;
+}
+
+.city-combobox-menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    z-index: 1080;
+    background: #fff;
+    border: 1px solid #d9dee3;
+    border-radius: 0.5rem;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+    padding: 0.35rem;
+}
+
+.city-combobox-options {
+    max-height: 220px;
+    overflow-y: auto;
+}
+
+.city-combobox-option {
+    display: block;
+    width: 100%;
+    text-align: left;
+    border: 0;
+    background: transparent;
+    padding: 0.45rem 0.7rem;
+    border-radius: 0.375rem;
+    color: #566a7f;
+}
+
+.city-combobox-option:hover,
+.city-combobox-option.active {
+    background: #f1f5ff;
+    color: #0d6efd;
+}
+
+.city-combobox-empty {
+    padding: 0.55rem 0.7rem;
+    color: #a1acb8;
+    font-size: 0.875rem;
+}
+
 /* Selected hotels table styling */
 .table-hover tbody tr:hover {
     background-color: rgba(13, 148, 136, 0.05);
@@ -384,13 +542,172 @@
 <script>
 // CSRF Token
 const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-const defaultCountry = '{{ strtolower(auth()->user()->country ?? '') }}';
+const dmcCountry = '{{ strtolower(trim($dmcCountry ?? '')) }}';
 let selectedHotelsPaginator = null;
+const selectedHotelIds = new Set();
+let bulkRemoveIds = [];
+let bulkRemoveInProgress = false;
 
 function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text ?? '';
     return div.innerHTML;
+}
+
+function initServiceCitySearch(selector, onChange) {
+    const select = document.querySelector(selector);
+    if (!select || select.dataset.citySearchReady === '1') return;
+    select.dataset.citySearchReady = '1';
+
+    const options = Array.from(select.options).map(opt => ({
+        value: opt.value,
+        label: (opt.textContent || '').trim()
+    }));
+    const placeholder = select.getAttribute('data-placeholder') || 'Search and select a city';
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'city-combobox';
+    select.parentNode.insertBefore(wrapper, select);
+    wrapper.appendChild(select);
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'form-control city-combobox-input';
+    input.placeholder = placeholder;
+    input.autocomplete = 'off';
+    input.setAttribute('role', 'combobox');
+    input.setAttribute('aria-expanded', 'false');
+    input.setAttribute('aria-autocomplete', 'list');
+
+    const caret = document.createElement('i');
+    caret.className = 'ri-arrow-down-s-line city-combobox-caret';
+    caret.setAttribute('aria-hidden', 'true');
+
+    const menu = document.createElement('div');
+    menu.className = 'city-combobox-menu d-none';
+    const list = document.createElement('div');
+    list.className = 'city-combobox-options';
+    list.setAttribute('role', 'listbox');
+    menu.appendChild(list);
+
+    wrapper.appendChild(input);
+    wrapper.appendChild(caret);
+    wrapper.appendChild(menu);
+
+    function selectedLabel() {
+        const match = options.find(opt => opt.value === select.value);
+        return match ? match.label : '';
+    }
+
+    function syncInput() {
+        input.value = select.value ? selectedLabel() : '';
+    }
+
+    function closeMenu() {
+        menu.classList.add('d-none');
+        input.setAttribute('aria-expanded', 'false');
+    }
+
+    function renderList(term) {
+        const query = (term || '').toLowerCase().trim();
+        const filtered = options.filter(opt => {
+            if (!query) return true;
+            return opt.label.toLowerCase().includes(query) || opt.value.toLowerCase().includes(query);
+        });
+
+        list.innerHTML = '';
+        if (!filtered.length) {
+            list.innerHTML = '<div class="city-combobox-empty">No cities found</div>';
+            return;
+        }
+
+        filtered.forEach(opt => {
+            const item = document.createElement('button');
+            item.type = 'button';
+            item.className = 'city-combobox-option' + (opt.value === select.value ? ' active' : '');
+            item.textContent = opt.label;
+            item.dataset.value = opt.value;
+            item.addEventListener('mousedown', function(event) {
+                event.preventDefault();
+                chooseCity(opt.value, opt.label);
+            });
+            list.appendChild(item);
+        });
+    }
+
+    function openMenu() {
+        menu.classList.remove('d-none');
+        input.setAttribute('aria-expanded', 'true');
+        renderList(select.value ? '' : input.value);
+    }
+
+    function chooseCity(value, label) {
+        select.value = value;
+        input.value = value ? label : '';
+        closeMenu();
+        if (typeof onChange === 'function') onChange();
+    }
+
+    input.addEventListener('focus', function() {
+        if (select.value) {
+            input.value = '';
+        }
+        openMenu();
+    });
+
+    input.addEventListener('input', function() {
+        if (!input.value) {
+            select.value = '';
+            if (typeof onChange === 'function') onChange();
+        }
+        openMenu();
+        renderList(input.value);
+    });
+
+    input.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
+            syncInput();
+            closeMenu();
+            input.blur();
+        }
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            const first = list.querySelector('.city-combobox-option');
+            if (first) {
+                chooseCity(first.dataset.value, first.textContent);
+            }
+        }
+    });
+
+    input.addEventListener('blur', function() {
+        setTimeout(function() {
+            if (!wrapper.contains(document.activeElement)) {
+                syncInput();
+                closeMenu();
+            }
+        }, 120);
+    });
+
+    document.addEventListener('click', function(event) {
+        if (!wrapper.contains(event.target)) {
+            syncInput();
+            closeMenu();
+        }
+    });
+
+    wrapper._syncCitySearch = syncInput;
+    select.addEventListener('change', onChange);
+    syncInput();
+}
+
+function resetCitySearchSelect(selector) {
+    const el = document.querySelector(selector);
+    if (!el) return;
+    el.value = '';
+    const wrapper = el.closest('.city-combobox');
+    if (wrapper && typeof wrapper._syncCitySearch === 'function') {
+        wrapper._syncCitySearch();
+    }
 }
 
 function resetButton(btn) {
@@ -431,6 +748,12 @@ function buildSelectedRowFromItem(hotelItem) {
     row.setAttribute('data-name', name.toLowerCase());
     row.setAttribute('data-location', `${city}, ${country}`.toLowerCase());
     row.innerHTML = `
+        <td>
+            <div class="form-check mb-0">
+                <input class="form-check-input selected-hotel-checkbox" type="checkbox"
+                       value="${escapeHtml(hotelId)}" aria-label="Select ${escapeHtml(name)}">
+            </div>
+        </td>
         <td>
             <div class="d-flex align-items-center">
                 ${imageHtml}
@@ -473,6 +796,163 @@ function removeHotelFromSelectedTable(hotelId) {
     if (row) {
         row.remove();
     }
+    selectedHotelIds.delete(String(hotelId));
+    syncHotelSelectionUi();
+}
+
+function getSelectedHotelRows() {
+    return Array.from(document.querySelectorAll('#selectedHotelsBody .selected-hotel-row'));
+}
+
+function getVisibleSelectedHotelRows() {
+    return getSelectedHotelRows().filter(row => !row.classList.contains('d-none'));
+}
+
+function hotelSelectionLabel(count) {
+    return count === 1 ? '1 Hotel Selected' : `${count} Hotels Selected`;
+}
+
+function hotelRemoveLabel(count) {
+    return count === 1 ? 'Remove 1 Hotel' : `Remove ${count} Hotels`;
+}
+
+function isHotelSelected(hotelId) {
+    return selectedHotelIds.has(String(hotelId));
+}
+
+function toggleHotelSelection(hotelId, shouldSelect) {
+    const id = String(hotelId);
+    if (shouldSelect) {
+        selectedHotelIds.add(id);
+    } else {
+        selectedHotelIds.delete(id);
+    }
+    syncHotelSelectionUi();
+}
+
+function toggleSelectAllSelectedHotels() {
+    const visibleRows = getVisibleSelectedHotelRows();
+    const allVisibleSelected = visibleRows.length > 0 && visibleRows.every(row => {
+        return isHotelSelected(row.getAttribute('data-hotel-id'));
+    });
+
+    visibleRows.forEach(row => {
+        const id = row.getAttribute('data-hotel-id');
+        if (allVisibleSelected) {
+            selectedHotelIds.delete(String(id));
+        } else {
+            selectedHotelIds.add(String(id));
+        }
+    });
+
+    syncHotelSelectionUi();
+}
+
+function clearHotelSelection() {
+    selectedHotelIds.clear();
+    syncHotelSelectionUi();
+}
+
+function syncHotelSelectionUi() {
+    getSelectedHotelRows().forEach(row => {
+        const checkbox = row.querySelector('.selected-hotel-checkbox');
+        if (checkbox) {
+            checkbox.checked = isHotelSelected(row.getAttribute('data-hotel-id'));
+        }
+    });
+
+    const visibleRows = getVisibleSelectedHotelRows();
+    const selectedVisibleCount = visibleRows.filter(row => isHotelSelected(row.getAttribute('data-hotel-id'))).length;
+    const selectAll = document.getElementById('selectAllSelectedHotels');
+    if (selectAll) {
+        selectAll.checked = visibleRows.length > 0 && selectedVisibleCount === visibleRows.length;
+        selectAll.indeterminate = selectedVisibleCount > 0 && selectedVisibleCount < visibleRows.length;
+    }
+
+    const count = selectedHotelIds.size;
+    const toolbar = document.getElementById('selectedHotelsBulkToolbar');
+    const countLabel = document.getElementById('bulkSelectedCountLabel');
+    const removeLabel = document.getElementById('bulkRemoveSelectedLabel');
+    if (toolbar) toolbar.classList.toggle('d-none', count === 0);
+    if (countLabel) countLabel.textContent = hotelSelectionLabel(count);
+    if (removeLabel) removeLabel.textContent = count > 0 ? `Remove Selected (${count})` : 'Remove Selected';
+}
+
+function openBulkRemoveHotelsModal() {
+    if (bulkRemoveInProgress || selectedHotelIds.size === 0) return;
+
+    bulkRemoveIds = Array.from(selectedHotelIds);
+    const count = bulkRemoveIds.length;
+    const noun = count === 1 ? 'Hotel' : 'Hotels';
+    const title = document.getElementById('bulkRemoveHotelsTitle');
+    const body = document.getElementById('bulkRemoveHotelsBody');
+    const confirmBtn = document.getElementById('confirmBulkRemoveHotels');
+    const confirmText = confirmBtn?.querySelector('.btn-text');
+
+    if (title) title.textContent = `Remove ${count} ${noun}?`;
+    if (body) {
+        body.textContent = count === 1
+            ? 'Are you sure you want to remove this selected hotel from your offerings?'
+            : `Are you sure you want to remove these ${count} selected hotels from your offerings?`;
+    }
+    if (confirmText) confirmText.textContent = hotelRemoveLabel(count);
+
+    setBulkRemoveHotelsLoading(false);
+    const modalEl = document.getElementById('bulkRemoveHotelsModal');
+    if (modalEl) new bootstrap.Modal(modalEl).show();
+}
+
+function setBulkRemoveHotelsLoading(isLoading) {
+    bulkRemoveInProgress = isLoading;
+    const confirmBtn = document.getElementById('confirmBulkRemoveHotels');
+    const toolbarBtn = document.getElementById('bulkRemoveSelectedBtn');
+    const closeBtn = document.getElementById('bulkRemoveModalCloseBtn');
+    const cancelBtn = document.getElementById('cancelBulkRemoveHotels');
+    if (confirmBtn) {
+        confirmBtn.disabled = isLoading;
+        const btnText = confirmBtn.querySelector('.btn-text');
+        const btnLoader = confirmBtn.querySelector('.btn-loader');
+        if (btnText) btnText.classList.toggle('d-none', isLoading);
+        if (btnLoader) btnLoader.classList.toggle('d-none', !isLoading);
+    }
+    if (toolbarBtn) toolbarBtn.disabled = isLoading;
+    if (closeBtn) closeBtn.disabled = isLoading;
+    if (cancelBtn) cancelBtn.disabled = isLoading;
+}
+
+function removeSelectedHotels() {
+    if (bulkRemoveInProgress || bulkRemoveIds.length === 0) return;
+
+    setBulkRemoveHotelsLoading(true);
+
+    fetch('{{ route("services.hotels.remove-bulk") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': csrfToken,
+            'Accept': 'application/json',
+        },
+        body: JSON.stringify({ hotel_ids: bulkRemoveIds })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            selectedHotelIds.clear();
+            bulkRemoveInProgress = false;
+            const modal = bootstrap.Modal.getInstance(document.getElementById('bulkRemoveHotelsModal'));
+            if (modal) modal.hide();
+            flashAndReload('success', data.message || `${bulkRemoveIds.length} hotels removed successfully.`);
+            return;
+        }
+
+        setBulkRemoveHotelsLoading(false);
+        showAlert('error', data.message || 'Unable to remove the selected hotels. Please try again.');
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        setBulkRemoveHotelsLoading(false);
+        showAlert('error', 'Unable to remove the selected hotels. Please try again.');
+    });
 }
 
 function refreshSelectedPagination() {
@@ -499,7 +979,6 @@ function deselectAll() {
 
 function applyFilters() {
     const searchTerm = document.getElementById('hotelSearch').value.toLowerCase();
-    const selectedCountry = (document.getElementById('countrySelect').value || '').toLowerCase();
     const selectedCity = (document.getElementById('citySelect').value || '').toLowerCase();
     const hotelItems = document.querySelectorAll('.hotel-item');
     let visibleCount = 0;
@@ -511,15 +990,13 @@ function applyFilters() {
         }
 
         const hotelName = item.getAttribute('data-hotel-name');
-        const hotelCountry = item.getAttribute('data-country') || '';
         const hotelCity = item.getAttribute('data-city') || '';
         const hotelNameElement = item.querySelector('.hotel-name');
 
         const matchSearch = !searchTerm || hotelName.includes(searchTerm);
-        const matchCountry = !selectedCountry || hotelCountry === selectedCountry;
         const matchCity = !selectedCity || hotelCity === selectedCity;
 
-        if (matchSearch && matchCountry && matchCity) {
+        if (matchSearch && matchCity) {
             item.classList.remove('hidden');
             visibleCount++;
 
@@ -544,41 +1021,7 @@ function applyFilters() {
 
 function resetFilters() {
     document.getElementById('hotelSearch').value = '';
-    document.getElementById('countrySelect').value = '';
-    const citySelect = document.getElementById('citySelect');
-    citySelect.innerHTML = '<option value="">All Cities</option>';
-    citySelect.disabled = true;
-    applyFilters();
-}
-
-function onCountryChange() {
-    const country = (document.getElementById('countrySelect').value || '').toLowerCase();
-    const citySelect = document.getElementById('citySelect');
-    citySelect.innerHTML = '<option value="">All Cities</option>';
-
-    if (!country) {
-        citySelect.disabled = true;
-        applyFilters();
-        return;
-    }
-
-    const hotelItems = document.querySelectorAll('.hotel-item');
-    const cities = new Set();
-    hotelItems.forEach(item => {
-        if ((item.getAttribute('data-country') || '') === country) {
-            const c = item.getAttribute('data-city') || '';
-            if (c) cities.add(c);
-        }
-    });
-
-    Array.from(cities).sort().forEach(city => {
-        const opt = document.createElement('option');
-        opt.value = city;
-        opt.textContent = city.replace(/\b\w/g, ch => ch.toUpperCase());
-        citySelect.appendChild(opt);
-    });
-    citySelect.disabled = cities.size === 0;
-
+    resetCitySearchSelect('#citySelect');
     applyFilters();
 }
 
@@ -608,16 +1051,7 @@ function selectHotel(hotelId, hotelName, buttonEl) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            const hotelItem = document.querySelector(`.hotel-item[data-hotel-id="${hotelId}"]`);
-            if (hotelItem) {
-                addHotelToSelectedTable(hotelItem);
-                hotelItem.classList.add('hidden');
-            }
-
-            updateSelectedCount();
-            refreshSelectedPagination();
-            applyFilters();
-            showAlert('success', `${hotelName} has been selected successfully!`);
+            flashAndReload('success', data.message || `${hotelName} has been selected successfully!`);
         } else {
             resetButton(buttonEl);
             showAlert('error', data.message || 'An error occurred while selecting the hotel.');
@@ -645,18 +1079,7 @@ function removeHotel(hotelId, hotelName, buttonEl) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            removeHotelFromSelectedTable(hotelId);
-
-            const hotelItem = document.querySelector(`.hotel-item[data-hotel-id="${hotelId}"]`);
-            if (hotelItem) {
-                hotelItem.classList.remove('hotel-selected');
-                resetButton(hotelItem.querySelector('.select-hotel-btn'));
-            }
-
-            updateSelectedCount();
-            refreshSelectedPagination();
-            applyFilters();
-            showAlert('success', `${hotelName} has been removed successfully!`);
+            flashAndReload('success', data.message || `${hotelName} has been removed successfully!`);
         } else {
             showAlert('error', data.message || 'An error occurred while removing the hotel.');
         }
@@ -670,6 +1093,25 @@ function removeHotel(hotelId, hotelName, buttonEl) {
     });
 }
 
+function flashAndReload(type, message) {
+    try {
+        sessionStorage.setItem('servicesFlash', JSON.stringify({ type: type || 'success', message: message || '' }));
+    } catch (e) {}
+    window.location.reload();
+}
+
+function showStoredFlash() {
+    try {
+        const raw = sessionStorage.getItem('servicesFlash');
+        if (!raw) return;
+        sessionStorage.removeItem('servicesFlash');
+        const flash = JSON.parse(raw);
+        if (flash && flash.message) {
+            showAlert(flash.type || 'success', flash.message);
+        }
+    } catch (e) {}
+}
+
 function showAlert(type, message) {
     const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
     const alertHtml = `
@@ -679,10 +1121,10 @@ function showAlert(type, message) {
         </div>
     `;
 
-    const alertContainer = document.getElementById('availableHotelsAlerts');
+    const alertContainer = document.getElementById('serviceActionAlerts') || document.getElementById('availableHotelsAlerts');
     if (!alertContainer) return;
 
-    alertContainer.insertAdjacentHTML('beforeend', alertHtml);
+    alertContainer.innerHTML = alertHtml;
 
     setTimeout(() => {
         const alert = alertContainer.querySelector('.alert');
@@ -694,6 +1136,8 @@ function showAlert(type, message) {
 
 // Add event listeners when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
+    showStoredFlash();
+    initServiceCitySearch('#citySelect', applyFilters);
     // Initialize tooltips
     var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
     var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
@@ -753,49 +1197,41 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Prime Country dropdown from server-allowed list (Master DMC countries / Created DMC country)
-    // Fallback: if not provided, derive from DOM hotel cards (unique countries).
-    const countrySelect = document.getElementById('countrySelect');
-    const hotelItems = document.querySelectorAll('.hotel-item');
-
-    const allowedCountriesFromServer = @json($allowedCountries ?? []);
-    const normalizedAllowed = Array.isArray(allowedCountriesFromServer)
-        ? allowedCountriesFromServer
-            .map(c => String(c || '').trim())
-            .filter(Boolean)
-            .map(c => c.toLowerCase())
-        : [];
-
-    const countrySet = new Set();
-    if (normalizedAllowed.length > 0) {
-        normalizedAllowed.forEach(c => countrySet.add(c));
-    } else {
-        hotelItems.forEach(item => {
-            const c = item.getAttribute('data-country');
-            if (c) countrySet.add(c);
+    const selectAllSelected = document.getElementById('selectAllSelectedHotels');
+    if (selectAllSelected) {
+        selectAllSelected.addEventListener('change', function() {
+            toggleSelectAllSelectedHotels();
         });
     }
 
-    Array.from(countrySet).sort().forEach(country => {
-        const opt = document.createElement('option');
-        opt.value = country;
-        opt.textContent = country.replace(/\b\w/g, ch => ch.toUpperCase());
-        countrySelect.appendChild(opt);
+    document.getElementById('selectedHotelsBody')?.addEventListener('change', function(event) {
+        const checkbox = event.target.closest('.selected-hotel-checkbox');
+        if (!checkbox) return;
+        toggleHotelSelection(checkbox.value, checkbox.checked);
     });
 
-    // Only auto-filter to user's country when there's a single option.
-    // Otherwise show all Master DMC countries by default.
-    if (defaultCountry && countrySet.size === 1 && Array.from(countrySet).includes(defaultCountry)) {
-        countrySelect.value = defaultCountry;
-        onCountryChange();
-    } else {
-        applyFilters();
-    }
+    document.getElementById('clearHotelSelectionBtn')?.addEventListener('click', function() {
+        clearHotelSelection();
+    });
 
-    // Initialize hotel count and apply initial filters
+    document.getElementById('bulkRemoveSelectedBtn')?.addEventListener('click', function() {
+        openBulkRemoveHotelsModal();
+    });
+
+    document.getElementById('confirmBulkRemoveHotels')?.addEventListener('click', function() {
+        removeSelectedHotels();
+    });
+
+    document.getElementById('bulkRemoveHotelsModal')?.addEventListener('hide.bs.modal', function(event) {
+        if (bulkRemoveInProgress) {
+            event.preventDefault();
+        }
+    });
+
+    // Hotels are already limited to the DMC country server-side.
+    // City options come from the DMC country cities list.
     updateHotelCount();
     applyFilters();
-
     // Selected Hotels: client-side pagination + search
     const selectedBody = document.getElementById('selectedHotelsBody');
     if (selectedBody) {
@@ -853,6 +1289,12 @@ document.addEventListener('DOMContentLoaded', function() {
             filtered.slice(start, end).forEach(r => r.classList.remove('d-none'));
 
             renderPagination(total, safePage, pageSize);
+            const showingEl = document.getElementById('selectedHotelsShowingCount');
+            if (showingEl) {
+                const pageCount = filtered.slice(start, end).length;
+                showingEl.textContent = `Showing ${pageCount} of ${total} hotels`;
+            }
+            syncHotelSelectionUi();
         }
 
         selectedHotelsPaginator = {

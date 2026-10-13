@@ -191,21 +191,33 @@
                                 @enderror
                             </div>
 
-                            <!-- Country (Master DMC countries) -->
+                            <!-- Country (DMC base country from users.country) -->
                             <div class="col-md-3 mb-3">
                                 <label for="country" class="form-label"><strong>Country</strong>
                                     <span style="color: red; font-weight: bold;">*</span>
                                 </label>
                                 @php
-                                    $scopedCountries = $masterDmcCountries ?? $country ?? collect();
+                                    $scopedCountries = collect($dmcBaseCountries ?? $masterDmcCountries ?? $country ?? []);
                                     $editSelectedCountry = old('country', $selectedCountry ?? $driver->country ?? '');
+                                    if ($editSelectedCountry === '' && $scopedCountries->count() === 1) {
+                                        $editSelectedCountry = $scopedCountries->first()->name ?? '';
+                                    }
+                                    if (filled($editSelectedCountry) && !$scopedCountries->contains(function ($c) use ($editSelectedCountry) {
+                                        return strcasecmp(trim((string) ($c->name ?? '')), trim((string) $editSelectedCountry)) === 0;
+                                    })) {
+                                        $missingCountry = \App\Models\Country::whereRaw('LOWER(TRIM(name)) = ?', [strtolower(trim((string) $editSelectedCountry))])->first();
+                                        if ($missingCountry) {
+                                            $scopedCountries = $scopedCountries->prepend($missingCountry)->unique('id')->values();
+                                        }
+                                    }
                                 @endphp
                                 <select class="form-control" id="country" name="country" required>
                                     @if($scopedCountries->count() !== 1)
                                         <option value="">Select Country</option>
                                     @endif
                                     @foreach($scopedCountries as $c)
-                                        <option value="{{ $c->name }}" @if($editSelectedCountry == $c->name) selected @endif>
+                                        <option value="{{ $c->name }}"
+                                            {{ strcasecmp(trim((string) $editSelectedCountry), trim((string) $c->name)) === 0 ? 'selected' : '' }}>
                                             {{ $c->name }}
                                         </option>
                                     @endforeach

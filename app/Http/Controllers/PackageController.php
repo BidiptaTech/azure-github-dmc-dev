@@ -767,6 +767,7 @@ class PackageController extends Controller
                 ];
             })->values();
 
+
             return response()->json(['meals' => $rows]);
         } catch (\Throwable $e) {
             Log::error('getMealsByRestaurant failed: ' . $e->getMessage(), ['restaurant_id' => $restaurantId]);

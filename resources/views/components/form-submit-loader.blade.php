@@ -72,7 +72,17 @@ document.addEventListener('DOMContentLoaded', function () {
 
             // Wait for other submit handlers (validation) to call preventDefault if needed
             setTimeout(function () {
-                if (e.defaultPrevented) return;
+                if (e.defaultPrevented) {
+                    loader.classList.remove('active');
+                    loader.setAttribute('aria-busy', 'false');
+                    if (btn) {
+                        btn.disabled = false;
+                        if (typeof btn.resetSubmitSpinner === 'function') {
+                            btn.resetSubmitSpinner();
+                        }
+                    }
+                    return;
+                }
                 showFormSubmitLoader(btn, message);
             }, 0);
         });

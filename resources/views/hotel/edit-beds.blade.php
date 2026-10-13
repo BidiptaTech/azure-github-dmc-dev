@@ -24,6 +24,23 @@
                     <i class="mdi mdi-arrow-left"></i> Back
                 </a>
             </h5>
+            @php
+                $canManageBedConfig = $canManageBedConfig ?? in_array((int) optional($auth_user ?? auth()->user())->role_id, [1, 20], true);
+                $lockBedConfig = empty($canManageBedConfig);
+                $bedOccupancy = $bedOccupancy ?? [
+                    'adult_capacity' => (int) $hotelBed->adult_count,
+                    'max_adults' => (int) $hotelBed->adult_count,
+                    'child_count' => (int) $hotelBed->child_count,
+                    'max_occupancy' => (int) $hotelBed->max_occupancy,
+                    'default_adults' => (int) $hotelBed->adult_count,
+                    'has_child_wo_bed' => (int) $hotelBed->child_count > 0,
+                ];
+            @endphp
+            @if($lockBedConfig)
+            <div class="alert alert-info mx-4 mt-3 mb-0">
+                Bed configuration is set by Travclicks. You can only update Extra Bed and Baby Cot prices when those options are available.
+            </div>
+            @endif
             <form id="hotelForm" method="POST" action="{{ route('bed.update') }}"
                 enctype="multipart/form-data" class="card-body">
                 @csrf
@@ -57,7 +74,7 @@
                                     <option value="">Select Room Category</option>
                                     @foreach($beds as $bed)
                                     <option value="{{ $bed->bedId }}"
-                                        {{ $bed->name == $hotelBed->room_type ? 'selected' : '' }}>
+                                        {{ (string) $bed->bedId === (string) $hotelBed->bed_master_id || $bed->name == $hotelBed->room_type ? 'selected' : '' }}>
                                         {{ $bed->name }}
                                     </option>
                                     @endforeach
@@ -77,9 +94,9 @@
                             <div class="mb-3 col-md-3">
                                 <label for="max-occupancy" class="form-label"><strong>Maximum
                                         Occupancy</strong><span class="text-danger">*</span></label>
-                                <input value="{{$hotelBed->max_occupancy}}" type="number"
+                                <input value="{{ (int) $hotelBed->max_occupancy }}" type="number"
                                     name="max_occupancy" id="max-occupancy" class="form-control"
-                                    placeholder="Enter maximum occupancy">
+                                    placeholder="Enter maximum occupancy" readonly>
                             </div>
 
                             <div class="col-md-3 mb-3">
@@ -144,9 +161,18 @@
                             <div class="col-md-3 mb-3">
                                 <label for="adult_count" class="form-label"><strong>Adults</strong><span class="text-danger">*</span></label>
                                 <select id="adult_count" class="form-control" name="adult_count">
+                                    @php
+                                        $adultOptionsMax = !empty($bedOccupancy['has_child_wo_bed'])
+                                            ? max(1, (int) ($bedOccupancy['max_adults'] ?? 1))
+                                            : max(1, (int) $hotelBed->max_occupancy);
+                                        // Always prefer the saved bed row — not bed-master defaults.
+                                        $adultSelected = max(1, min($adultOptionsMax, (int) $hotelBed->adult_count));
+                                    @endphp
+                                    @if(empty($bedOccupancy['has_child_wo_bed']))
                                     <option value="">Select Adults</option>
-                                    @foreach(range(1, $hotelBed->max_occupancy) as $i)
-                                        <option value="{{ $i }}" {{ $i == $hotelBed->adult_count ? 'selected' : '' }}>{{ $i }}</option>
+                                    @endif
+                                    @foreach(range(1, $adultOptionsMax) as $i)
+                                        <option value="{{ $i }}" {{ $i == $adultSelected ? 'selected' : '' }}>{{ $i }}</option>
                                     @endforeach
                                 </select>
                                 @error('adult_count')
@@ -157,11 +183,19 @@
                             <!-- Child Count -->
                             <div class="col-md-3 mb-3">
                                 <label for="child_count" class="form-label"><strong>Children</strong><span class="text-danger">*</span></label>
-                                <select id="child_count" class="form-control" name="child_count">
+                                <select id="child_count" class="form-control" name="child_count" @if(!empty($bedOccupancy['has_child_wo_bed'])) required @endif>
+                                    @if(!empty($bedOccupancy['has_child_wo_bed']))
+                                        @php
+                                            $childSelected = max(0, min(1, (int) $hotelBed->child_count));
+                                        @endphp
+                                        <option value="0" {{ $childSelected === 0 ? 'selected' : '' }}>0</option>
+                                        <option value="1" {{ $childSelected === 1 ? 'selected' : '' }}>1</option>
+                                    @else
                                     <option value="">Select Children</option>
-                                    @foreach(range(0, $hotelBed->max_occupancy - $hotelBed->adult_count) as $i)
-                                        <option value="{{ $i }}" {{ $i == $hotelBed->child_count ? 'selected' : '' }}>{{ $i }}</option>
+                                    @foreach(range(0, max(0, (int) $hotelBed->max_occupancy - (int) $hotelBed->adult_count)) as $i)
+                                        <option value="{{ $i }}" {{ $i == (int) $hotelBed->child_count ? 'selected' : '' }}>{{ $i }}</option>
                                     @endforeach
+                                    @endif
                                 </select>
                                 @error('child_count')
                                 <div class="text-danger mt-1">{{ $message }}</div>
@@ -436,27 +470,29 @@ const attachOccupancyListeners = (occupancyId, adultId, childId) => {
         const maxOccupancy = parseInt(maxOccupancyInput.value) || 0;
 
         // Function to populate adult and child dropdowns based on saved data
+        const hasChildWoBed = @json(!empty($bedOccupancy['has_child_wo_bed']));
+        const bedAdultCapacity = @json((int) ($bedOccupancy['adult_capacity'] ?? 0));
+        const requiredChildCount = @json((int) ($bedOccupancy['child_count'] ?? 0));
+
         const populateDropdowns = () => {
-            // Reset adult and child dropdowns
+            if (hasChildWoBed) {
+                return;
+            }
+            const savedAdults = parseInt(savedAdultCount, 10) || 0;
+            const savedChildren = parseInt(savedChildCount, 10);
+            const occupancy = parseInt(maxOccupancyInput.value, 10) || maxOccupancy;
+
             adultDropdown.innerHTML = `<option value="">Select Adults</option>`;
             childDropdown.innerHTML = `<option value="">Select Children</option>`;
 
-            // Populate adult count options based on max occupancy and saved value
-            if (savedAdultCount) {
-                for (let i = 1; i <= maxOccupancy; i++) {
-                    adultDropdown.innerHTML += `<option value="${i}" ${i === savedAdultCount ? 'selected' : ''}>${i}</option>`;
+            if (occupancy > 0) {
+                for (let i = 1; i <= occupancy; i++) {
+                    adultDropdown.innerHTML += `<option value="${i}" ${i === savedAdults ? 'selected' : ''}>${i}</option>`;
                 }
-            }
-
-            // Populate child count options based on max occupancy and saved value
-            if (savedChildCount !== null) {
-                for (let i = 0; i <= maxOccupancy; i++) {
-                    childDropdown.innerHTML += `<option value="${i}" ${i === savedChildCount ? 'selected' : ''}>${i}</option>`;
+                const maxChildren = Math.max(0, occupancy - savedAdults);
+                for (let i = 0; i <= maxChildren; i++) {
+                    childDropdown.innerHTML += `<option value="${i}" ${i === savedChildren ? 'selected' : ''}>${i}</option>`;
                 }
-            }
-
-            // Enable adult and child dropdowns based on max occupancy
-            if (maxOccupancy > 0) {
                 adultDropdown.disabled = false;
                 childDropdown.disabled = false;
             }
@@ -464,6 +500,9 @@ const attachOccupancyListeners = (occupancyId, adultId, childId) => {
 
         // Function to update options based on selected max occupancy
         const updateOptions = () => {
+            if (hasChildWoBed) {
+                return;
+            }
             const occupancy = parseInt(maxOccupancyInput.value) || 0;
 
             // Reset adult and child dropdowns
@@ -484,6 +523,9 @@ const attachOccupancyListeners = (occupancyId, adultId, childId) => {
 
         // Function to update child options based on selected adults
         const updateChildOptions = () => {
+            if (hasChildWoBed) {
+                return;
+            }
             const occupancy = parseInt(maxOccupancyInput.value) || 0;
             const adults = parseInt(adultDropdown.value) || 0;
             const maxChildren = occupancy - adults;
@@ -511,84 +553,136 @@ const attachOccupancyListeners = (occupancyId, adultId, childId) => {
 
 <script>
     document.addEventListener("DOMContentLoaded", function () {
-        // Get the bed type select box, extra bed select box, and max occupancy input
         const bedTypeSelect = document.getElementById("bed_type");
         const maxOccupancyInput = document.getElementById("max-occupancy");
         const extraBedSelect = document.getElementById("extra_bed");
         const hotelIdInput = document.querySelector("input[name='hotel_id']");
-        const preselectedBedType = bedTypeSelect.value;  // Get preselected bed type (for editing)
-        
-        // Function to update max occupancy based on bed type
-        const fetchMaxOccupancy = (bedType, hotelId) => {
+        const adultDropdown = document.getElementById("adult_count");
+        const childDropdown = document.getElementById("child_count");
+        const lockBedConfig = {{ $lockBedConfig ? 'true' : 'false' }};
+
+        /**
+         * @param {boolean} applyDefaults  true when bed type changed — use bed-master adults/children
+         * @param {boolean} preserveSelections  true when only extra bed toggled — keep current values if still valid
+         */
+        const fetchMaxOccupancy = (bedType, hotelId, applyDefaults, preserveSelections) => {
             if (!bedType || !hotelId) {
                 maxOccupancyInput.value = '';
                 return;
             }
 
-            // Construct the URL with query parameters
             const url = `{{ route('bed.type.data') }}?bed_type=${encodeURIComponent(bedType)}&hotel_id=${encodeURIComponent(hotelId)}`;
-
             const csrfTokenMeta = document.querySelector('meta[name="csrf-token"]');
             const csrfToken = csrfTokenMeta ? csrfTokenMeta.content : '';
-            // Make AJAX request to fetch max occupancy
+
             fetch(url, {
-                method: "GET",  // Use GET method
+                method: "GET",
                 headers: csrfToken ? { "X-CSRF-TOKEN": csrfToken } : {}
             })
                 .then(response => response.json())
                 .then(data => {
-                    if (data.total_count !== undefined) {
-                        let maxOccupancy = data.total_count; // Set the max occupancy
-
-                        // Add 1 to max occupancy if extra bed is selected
-                        if (extraBedSelect.value == '1') {
-                            maxOccupancy += 1; // Add 1 if extra bed is selected
-                        }
-
-                        maxOccupancyInput.value = maxOccupancy; // Set the updated max occupancy
-                    } else {
-                        maxOccupancyInput.value = ''; // Clear input if no data found
+                    if (data.total_count === undefined) {
+                        maxOccupancyInput.value = '';
+                        return;
                     }
+
+                    let maxOccupancy = parseInt(data.total_count, 10) || 0;
+                    const bedAdultCount = parseInt(data.adult_count, 10) || 0;
+                    const bedChildCount = parseInt(data.child_count, 10) || 0;
+                    const extraOn = extraBedSelect.value === '1';
+                    const hasChildWoBed = !!data.has_child_wo_bed || bedChildCount > 0;
+
+                    if (extraOn) {
+                        maxOccupancy += 1;
+                    }
+
+                    maxOccupancyInput.value = maxOccupancy;
+
+                    if (!adultDropdown || !childDropdown || (!applyDefaults && !preserveSelections)) {
+                        return;
+                    }
+
+                    const maxAdults = hasChildWoBed
+                        ? (extraOn ? bedAdultCount + 1 : bedAdultCount)
+                        : maxOccupancy;
+                    const previousAdult = parseInt(adultDropdown.value, 10);
+                    const previousChild = parseInt(childDropdown.value, 10);
+
+                    let selectedAdults;
+                    let selectedChild;
+
+                    if (preserveSelections && !applyDefaults) {
+                        selectedAdults = Number.isFinite(previousAdult) && previousAdult > 0
+                            ? Math.min(previousAdult, Math.max(1, maxAdults))
+                            : (extraOn ? maxAdults : bedAdultCount);
+                        selectedChild = Number.isFinite(previousChild) ? previousChild : bedChildCount;
+                    } else {
+                        selectedAdults = extraOn ? maxAdults : bedAdultCount;
+                        selectedChild = hasChildWoBed ? (bedChildCount > 0 ? 1 : 0) : bedChildCount;
+                    }
+
+                    adultDropdown.innerHTML = '';
+                    childDropdown.innerHTML = '';
+
+                    if (hasChildWoBed) {
+                        if (maxAdults <= 1) {
+                            adultDropdown.innerHTML = `<option value="1" selected>1</option>`;
+                            selectedAdults = 1;
+                        } else {
+                            adultDropdown.innerHTML = `<option value="">Select Adults</option>`;
+                            for (let i = 1; i <= maxAdults; i++) {
+                                adultDropdown.innerHTML += `<option value="${i}" ${i === selectedAdults ? 'selected' : ''}>${i}</option>`;
+                            }
+                        }
+                        selectedChild = selectedChild === 0 ? 0 : 1;
+                        childDropdown.innerHTML =
+                            `<option value="0" ${selectedChild === 0 ? 'selected' : ''}>0</option>` +
+                            `<option value="1" ${selectedChild === 1 ? 'selected' : ''}>1</option>`;
+                        childDropdown.required = true;
+                    } else {
+                        adultDropdown.innerHTML = `<option value="">Select Adults</option>`;
+                        for (let i = 1; i <= maxOccupancy; i++) {
+                            adultDropdown.innerHTML += `<option value="${i}" ${i === selectedAdults ? 'selected' : ''}>${i}</option>`;
+                        }
+                        const maxChildren = Math.max(0, maxOccupancy - (selectedAdults || 0));
+                        selectedChild = Math.min(Math.max(0, selectedChild || 0), maxChildren);
+                        childDropdown.innerHTML = `<option value="">Select Children</option>`;
+                        for (let i = 0; i <= maxChildren; i++) {
+                            childDropdown.innerHTML += `<option value="${i}" ${i === selectedChild ? 'selected' : ''}>${i}</option>`;
+                        }
+                        childDropdown.required = false;
+                    }
+
+                    adultDropdown.disabled = lockBedConfig;
+                    childDropdown.disabled = lockBedConfig;
                 })
                 .catch(error => {
                     console.error("Error fetching max occupancy:", error);
-                    maxOccupancyInput.value = ''; // Clear input on error
+                    maxOccupancyInput.value = '';
                 });
         };
 
-        // Event listener for bed type change
         bedTypeSelect.addEventListener("change", function () {
-            const selectedBedType = this.value;
-            const hotelId = hotelIdInput.value;
-            fetchMaxOccupancy(selectedBedType, hotelId);
+            fetchMaxOccupancy(this.value, hotelIdInput.value, true, false);
         });
 
-        // Event listener for extra bed change
         extraBedSelect.addEventListener("change", function () {
-            const selectedBedType = bedTypeSelect.value;
-            const hotelId = hotelIdInput.value;
-            fetchMaxOccupancy(selectedBedType, hotelId);
+            fetchMaxOccupancy(bedTypeSelect.value, hotelIdInput.value, false, true);
         });
 
-        // If editing, fetch max occupancy for preselected bed type on page load
-        if (preselectedBedType) {
-            fetchMaxOccupancy(preselectedBedType, hotelIdInput.value);
-        }
+        // Do not refetch adult/child on load — Blade already rendered the saved DB values.
+        // Refetching with applyDefaults=true was overwriting adults/children with bed-master defaults.
 
-        // If there's already a value for max occupancy from previous selection, set it in the input
-        const initialMaxOccupancy = maxOccupancyInput.value;
-        if (initialMaxOccupancy) {
-            maxOccupancyInput.value = initialMaxOccupancy;
-        }
-
-        // Ensure that the form submission includes the correct bed type
         document.getElementById("hotelForm").addEventListener("submit", function () {
-            // Ensure that the bed type is correctly selected in the form
             const selectedBedType = bedTypeSelect.value;
             if (!selectedBedType) {
                 alert("Please select a bed type before submitting.");
-                return false;  // Prevent form submission if bed type is not selected
+                return false;
             }
+            // Disabled fields are not posted; re-enable occupancy fields so saved values persist.
+            if (adultDropdown) adultDropdown.disabled = false;
+            if (childDropdown) childDropdown.disabled = false;
+            if (maxOccupancyInput) maxOccupancyInput.disabled = false;
         });
     });
 </script>
@@ -612,6 +706,33 @@ const attachOccupancyListeners = (occupancyId, adultId, childId) => {
     });
 </script>
 <!-- End Toggle Force Child Count -->
+@if(!empty($lockBedConfig))
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const allowed = {
+        extra_bed_price: true,
+        extra_bed_cost_price: true,
+        baby_cot_price: true,
+        baby_cot_cost_price: true,
+        bed_profit_margin: true,
+        bed_profit_amount: true
+    };
+    const extraOn = (document.getElementById('extra_bed') || {}).value === '1';
+    const cotOn = (document.getElementById('baby_cot') || {}).value === '1';
+    document.querySelectorAll('#hotelForm input, #hotelForm select, #hotelForm textarea').forEach(function (el) {
+        if (el.type === 'hidden' || el.type === 'submit') return;
+        const key = el.id || el.name;
+        const isExtraPrice = key === 'extra_bed_price' || key === 'extra_bed_cost_price';
+        const isCotPrice = key === 'baby_cot_price' || key === 'baby_cot_cost_price';
+        if (isExtraPrice && extraOn) return;
+        if (isCotPrice && cotOn) return;
+        if (allowed[key] && !isExtraPrice && !isCotPrice) return;
+        el.disabled = true;
+        el.classList.add('bg-light');
+    });
+});
+</script>
+@endif
 <script>
 (function () {
     function round2(n) {

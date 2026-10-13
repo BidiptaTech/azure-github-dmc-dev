@@ -24,14 +24,22 @@ $exchangeRate = $exchangeRate ?? CommonHelper::getInvoiceExchangeRate($baseCurre
 $showCurrencyConversion = CommonHelper::shouldShowInvoiceCurrencyConversion($baseCurrency, $selectedCurrency, $currencyConversion);
 $selectedCurrencyPrefix = $selectedCurrency . ' ';
 
-$isThirdPartyInvoice = CommonHelper::isInvoiceThirdPartyEnabled($invoice);
-$invoiceMultiGeo = CommonHelper::detectInvoiceMultiGeo($invoice);
-$isMultiGeoBooking = !empty($invoiceMultiGeo['is_multi']);
-$showMultiGeoThirdPartyNotice = $isMultiGeoBooking && !$isThirdPartyInvoice;
+        $isThirdPartyInvoice = CommonHelper::isInvoiceThirdPartyEnabled($invoice);
+        $invoiceMultiGeo = CommonHelper::detectInvoiceMultiGeo($invoice);
+        $restrictedTpScope = CommonHelper::applyRestrictedThirdPartyInvoiceItemFilter($invoice);
+        // Re-detect after filtering so restricted DMC does not keep foreign countries in the notice.
+        if (!empty($restrictedTpScope['restricted'])) {
+            $invoiceMultiGeo = CommonHelper::detectInvoiceMultiGeo($invoice);
+        }
+        $isMultiGeoBooking = !empty($invoiceMultiGeo['is_multi']);
+        // Restricted TP: no "enable multi-country" notice — foreign services are hidden instead.
+        $showMultiGeoThirdPartyNotice = $isMultiGeoBooking
+            && !$isThirdPartyInvoice
+            && empty($restrictedTpScope['restricted']);
 
-if ($isThirdPartyInvoice) {
-    CommonHelper::enrichInvoiceItemsWithOrderGeo($invoice);
-}
+        if ($isThirdPartyInvoice) {
+            CommonHelper::enrichInvoiceItemsWithOrderGeo($invoice);
+        }
 
 $formatPrice = function ($amount, $itemOrCurrency = null) use ($baseCurrency, $selectedCurrency, $exchangeRate, $isThirdPartyInvoice) {
     if (!$isThirdPartyInvoice) {

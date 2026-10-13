@@ -7,10 +7,10 @@
     $countryRoleId = (int) (Auth::user()->role_id ?? 0);
     $showRemitanceAndExchange = in_array($countryRoleId, \App\Models\Country::DMC_REMITTANCE_EXCHANGE_ROLE_IDS, true);
     $currentUser = Auth::user();
-    $currentDmcId = null;
-    if (in_array($countryRoleId, [11, 20], true)) {
+    $currentDmcId = \App\Helpers\CommonHelper::getDmcId($currentUser);
+    if (empty($currentDmcId) && in_array($countryRoleId, [11, 20], true)) {
         $currentDmcId = $currentUser->userId ?? null;
-    } else {
+    } elseif (empty($currentDmcId)) {
         $currentDmcId = $currentUser->created_by ?? null;
     }
 @endphp

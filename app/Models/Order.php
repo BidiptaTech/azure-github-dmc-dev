@@ -37,13 +37,23 @@ class Order extends Model
             }
 
             try {
-                \App\Helpers\OrderCostPriceHelper::snapshotOntoOrder($order);
+                // Use a savepoint so a failed cost query does not abort the parent
+                // PostgreSQL transaction (SQLSTATE 25P02).
+                \Illuminate\Support\Facades\DB::beginTransaction();
+                try {
+                    \App\Helpers\OrderCostPriceHelper::snapshotOntoOrder($order);
+                    \Illuminate\Support\Facades\DB::commit();
+                } catch (\Throwable $inner) {
+                    \Illuminate\Support\Facades\DB::rollBack();
+                    throw $inner;
+                }
             } catch (\Throwable $e) {
                 \Log::warning('Failed to build order cost_price', [
                     'booking_id' => $order->booking_id ?? null,
                     'tour_id' => $order->tour_id ?? null,
                     'type' => $order->type ?? null,
                     'error' => $e->getMessage(),
+                    'sql_state' => $e->getCode(),
                 ]);
             }
         });

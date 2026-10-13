@@ -116,6 +116,46 @@ class ZoneController extends Controller
     }
 
     /**
+     * Preserve Zone List tab/filters when moving to create/edit/show and back.
+     */
+    private function zoneListReturnQuery(Request $request): array
+    {
+        $allowedTypes = ['Hotel', 'Restaurant', 'Attraction'];
+        $query = [];
+        $returnTo = $request->input('return_to', old('return_to', []));
+        if (!is_array($returnTo)) {
+            $returnTo = [];
+        }
+
+        $zoneType = $returnTo['zone_type'] ?? $request->query('zone_type');
+        if (is_array($zoneType)) {
+            $zoneType = $zoneType[0] ?? null;
+        }
+        $zoneType = trim((string) $zoneType);
+        if (in_array($zoneType, $allowedTypes, true)) {
+            $query['zone_type'] = $zoneType;
+        }
+
+        foreach (['country', 'city', 'sort', 'direction'] as $key) {
+            $value = $returnTo[$key] ?? $request->query($key);
+            if (is_array($value)) {
+                $value = $value[0] ?? '';
+            }
+            $value = trim((string) $value);
+            if ($value !== '') {
+                $query[$key] = $value;
+            }
+        }
+
+        return $query;
+    }
+
+    private function zoneListUrl(array $query = []): string
+    {
+        return route('zones.index', $query);
+    }
+
+    /**
      * If zone_id is present in hotel/attraction/restaurant zone_assignments
      * (for the zone's dmc_id when set), return a block message; otherwise null.
      */
@@ -192,6 +232,51 @@ class ZoneController extends Controller
     }
 
     /**
+     * DMC base country names from users.country (not master DMC countries).
+     */
+    private function getDmcBaseCountryNames(?int $dmcId): array
+    {
+        if (!$dmcId) {
+            return [];
+        }
+
+        $dmcUser = User::where('userId', $dmcId)->first();
+        if (!$dmcUser || empty($dmcUser->country)) {
+            return [];
+        }
+
+        return array_values(array_filter(array_map(
+            static fn ($c) => trim($c),
+            preg_split('/\s*,\s*/', (string) $dmcUser->country)
+        )));
+    }
+
+    private function getDmcBaseCountriesCollection(?int $dmcId)
+    {
+        $names = $this->getDmcBaseCountryNames($dmcId);
+        if (empty($names)) {
+            return collect();
+        }
+
+        $matched = Country::where('is_active', 1)
+            ->where(function ($q) use ($names) {
+                foreach ($names as $name) {
+                    $q->orWhereRaw('LOWER(TRIM(name)) = ?', [mb_strtolower(trim($name))]);
+                }
+            })
+            ->orderBy('name')
+            ->get();
+
+        if ($matched->isNotEmpty()) {
+            return $matched;
+        }
+
+        return collect($names)->map(static function ($name) {
+            return (object) ['id' => null, 'name' => $name];
+        });
+    }
+
+    /**
      * Country names from the master DMC profile (comma-separated on user.country).
      */
     private function getMasterDmcCountryNamesForDmc(int $dmcId): array
@@ -229,14 +314,7 @@ class ZoneController extends Controller
             )));
         }
 
-        if (!empty($dmcUser->country)) {
-            return array_values(array_filter(array_map(
-                static fn ($c) => trim($c),
-                preg_split('/\s*,\s*/', (string) $dmcUser->country)
-            )));
-        }
-
-        return [];
+        return $this->getDmcBaseCountryNames($dmcId);
     }
 
     /**
@@ -345,10 +423,10 @@ class ZoneController extends Controller
         }
 
         $masterDmcCountryNames = (!$isAdmin && $dmcId)
-            ? $this->getMasterDmcCountryNamesForDmc((int) $dmcId)
+            ? $this->getDmcBaseCountryNames((int) $dmcId)
             : [];
 
-        // Non-admin: scope zones to master DMC countries.
+        // Non-admin: scope zones to DMC base country (users.country).
         if (!$isAdmin && !empty($masterDmcCountryNames)) {
             $scopedCityIds = City::whereIn('country', $masterDmcCountryNames)->pluck('city_id');
             if ($scopedCityIds->isNotEmpty()) {
@@ -426,27 +504,51 @@ class ZoneController extends Controller
     /**
      * Show the form for creating a new zone.
      */
-    public function create()
+    public function create(Request $request)
     {
         $user = Auth::user();
         $isAdmin = (int) ($user->role_id ?? 0) === 1
             || (int) ($user->userId ?? 0) === 1;
 
         $dmcId = $this->resolveDmcIdForUser($user);
-        $masterNames = $dmcId ? $this->getMasterDmcCountryNamesForDmc((int) $dmcId) : [];
+        $dmcBaseCountryNames = $dmcId ? $this->getDmcBaseCountryNames((int) $dmcId) : [];
 
-        $countriesQuery = Country::where('is_active', 1)->orderBy('name');
-        if (!$isAdmin && !empty($masterNames)) {
-            $countriesQuery->whereIn('name', $masterNames);
+        if (!$isAdmin && !empty($dmcBaseCountryNames)) {
+            $countries = $this->getDmcBaseCountriesCollection((int) $dmcId);
+        } else {
+            $countries = Country::where('is_active', 1)->orderBy('name')->get();
         }
-        $countries = $countriesQuery->get();
 
-        $selectedCountry = old('country', $masterNames[0] ?? ($countries->first()->name ?? null));
+        $selectedCountry = old('country');
+        if ($selectedCountry === null || $selectedCountry === '') {
+            if ($countries->count() === 1) {
+                $selectedCountry = $countries->first()->name ?? null;
+            } else {
+                $selectedCountry = $dmcBaseCountryNames[0] ?? ($countries->first()->name ?? null);
+            }
+        }
         $city = $selectedCountry
             ? City::where('country', $selectedCountry)->orderBy('name')->get()
             : collect();
 
-        return view('zones.create', compact('city', 'countries', 'isAdmin', 'selectedCountry'));
+        $listQuery = $this->zoneListReturnQuery($request);
+        $listUrl = $this->zoneListUrl($listQuery);
+        $fromZoneType = $listQuery['zone_type'] ?? null;
+        $preselectedZoneTypes = old('zone_type', $fromZoneType ? [$fromZoneType] : []);
+        if (!is_array($preselectedZoneTypes)) {
+            $preselectedZoneTypes = $fromZoneType ? [$fromZoneType] : [];
+        }
+
+        return view('zones.create', compact(
+            'city',
+            'countries',
+            'isAdmin',
+            'selectedCountry',
+            'dmcBaseCountryNames',
+            'listQuery',
+            'listUrl',
+            'preselectedZoneTypes'
+        ));
     }
     
 
@@ -531,26 +633,28 @@ class ZoneController extends Controller
             ]);
         }
 
-        return redirect()->route('zones.index')
+        return redirect()->route('zones.index', $this->zoneListReturnQuery($request))
             ->with('success', "Zone created successfully ({$createdCount})");
     }
 
     /**
      * Display the specified zone.
      */
-    public function show($id)
+    public function show(Request $request, $id)
     {
         $zoneId = Crypt::decrypt($id);
         $zone = Zone::where('zone_id', $zoneId)->first();
         // Get the city name using the city_id
         $cityName = City::where('city_id', $zone->city)->value('name') ?? $zone->city;
-        return view('zones.show', compact('zone', 'cityName'));
+        $listQuery = $this->zoneListReturnQuery($request);
+        $listUrl = $this->zoneListUrl($listQuery);
+        return view('zones.show', compact('zone', 'cityName', 'listQuery', 'listUrl'));
     }
 
     /**
      * Show the form for editing the specified zone.
      */
-    public function edit($id)
+    public function edit(Request $request, $id)
     {
         $zoneId = Crypt::decrypt($id);
         $zone = Zone::where('zone_id', $zoneId)->first();
@@ -559,25 +663,36 @@ class ZoneController extends Controller
             || (int) ($user->userId ?? 0) === 1;
 
         $dmcId = $this->resolveDmcIdForUser($user);
+        $listQuery = $this->zoneListReturnQuery($request);
+        $listUrl = $this->zoneListUrl($listQuery);
         if (!$isAdmin && !$this->canManageZone($user, $zone)) {
-            return redirect()->route('zones.index')
+            return redirect()->to($listUrl)
                 ->with('error', 'You are not authorized to edit this zone');
         }
 
-        $masterNames = $dmcId ? $this->getMasterDmcCountryNamesForDmc((int) $dmcId) : [];
-        $countriesQuery = Country::where('is_active', 1)->orderBy('name');
-        if (!$isAdmin && !empty($masterNames)) {
-            $countriesQuery->whereIn('name', $masterNames);
+        $dmcBaseCountryNames = $dmcId ? $this->getDmcBaseCountryNames((int) $dmcId) : [];
+        if (!$isAdmin && !empty($dmcBaseCountryNames)) {
+            $countries = $this->getDmcBaseCountriesCollection((int) $dmcId);
+        } else {
+            $countries = Country::where('is_active', 1)->orderBy('name')->get();
         }
-        $countries = $countriesQuery->get();
 
         $zoneCountry = City::where('city_id', $zone->city)->value('country');
-        $selectedCountry = old('country', $zoneCountry ?: ($masterNames[0] ?? ($countries->first()->name ?? null)));
+        $selectedCountry = old('country', $zoneCountry ?: ($dmcBaseCountryNames[0] ?? ($countries->first()->name ?? null)));
+        // Ensure zone's country is in the dropdown even if outside DMC base (readonly display)
+        if (filled($zoneCountry) && !$countries->contains(fn ($c) => strcasecmp(trim((string) $c->name), trim((string) $zoneCountry)) === 0)) {
+            $missing = Country::whereRaw('LOWER(TRIM(name)) = ?', [mb_strtolower(trim((string) $zoneCountry))])->first();
+            if ($missing) {
+                $countries = $countries->prepend($missing)->unique('id')->values();
+            } else {
+                $countries = $countries->prepend((object) ['id' => null, 'name' => $zoneCountry])->values();
+            }
+        }
         $city = $selectedCountry
             ? City::where('country', $selectedCountry)->orderBy('name')->get()
             : collect();
 
-        return view('zones.edit', compact('zone', 'city', 'countries', 'isAdmin', 'zoneCountry', 'selectedCountry'));
+        return view('zones.edit', compact('zone', 'city', 'countries', 'isAdmin', 'zoneCountry', 'selectedCountry', 'dmcBaseCountryNames', 'listQuery', 'listUrl'));
     }
 
     /**
@@ -598,7 +713,7 @@ class ZoneController extends Controller
         $isAdmin = (int) (Auth::user()->role_id ?? 0) === 1
             || (int) (Auth::user()->userId ?? 0) === 1;
         if (!$isAdmin && !$this->canManageZone(Auth::user(), $zone)) {
-            return redirect()->route('zones.index')
+            return redirect()->to($this->zoneListUrl($this->zoneListReturnQuery($request)))
                 ->with('error', 'You are not authorized to edit this zone');
         }
         if ($validator->fails()) {
@@ -614,7 +729,7 @@ class ZoneController extends Controller
         
         $zone->update($data);
 
-        return redirect()->route('zones.index')
+        return redirect()->route('zones.index', $this->zoneListReturnQuery($request))
             ->with('success', 'Zone updated successfully');
     }
 

@@ -224,6 +224,7 @@
                 </a>
             </div>
             
+            @if(!empty($canManageBedConfig))
             <!-- Navigation Tabs -->
             <div class="card-body p-0">
                 <ul class="nav nav-tabs" id="bedsTabs" role="tablist">
@@ -233,14 +234,6 @@
                             <i class="ri-add-line me-1"></i>Add Single Bed
                         </button>
                     </li>
-                    @if($auth_user->role_id == 11) <!-- Only DMC users can see bulk upload -->
-                        <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="bulk-upload-tab" data-bs-toggle="tab" data-bs-target="#bulk-upload" 
-                                type="button" role="tab" aria-controls="bulk-upload" aria-selected="false">
-                            <i class="ri-upload-cloud-2-line me-1"></i>Bulk Upload
-                        </button>
-                    </li>
-                    @endif
                 </ul>
                 
                 <div class="tab-content" id="bedsTabContent">
@@ -313,9 +306,11 @@
                             <div class="mb-3 col-md-3">
                                 <label for="no_of_rooms" class="form-label"><strong>No. of
                                         Rooms</strong><span class="text-danger">*</span></label>
-                                <select id="no_of_rooms" class="form-control" name="no_of_rooms" required>
-                                </select>
-                                @error('${bedType}_adult_count')
+                                <input type="number" id="no_of_rooms" class="form-control" name="no_of_rooms"
+                                       min="1" step="1" required disabled
+                                       placeholder="Select Room Category First">
+                                <small id="no_of_rooms_hint" class="text-muted">Select a room category first</small>
+                                @error('no_of_rooms')
                                 <div class="text-danger mt-1">{{ $message }}</div>
                                 @enderror
                             </div>
@@ -472,72 +467,15 @@
                         </form>
                         </div>
                     </div>
-                    
-                    @if($auth_user->role_id == 11) {{-- Only DMC users can see bulk upload --}}
-                    <!-- Bulk Upload Tab -->
-                    <div class="tab-pane fade" id="bulk-upload" role="tabpanel" aria-labelledby="bulk-upload-tab">
-                        <div class="p-4">
-                            <div class="bulk-upload-info">
-                                <h6 class="mb-3">
-                                    <i class="ri-upload-cloud-2-line me-2"></i>Bulk Upload Beds
-                                </h6>
-                                <p class="mb-3 text-muted">
-                                    Upload multiple beds at once using a CSV file. This feature allows you to quickly add 
-                                    many bed configurations for this hotel in a single upload operation.
-                                </p>
-                                
-                                <!-- Available Bed Types Info -->
-                                <div class="row mb-3">
-                                    <div class="col-md-6">
-                                        <h6 class="text-primary mb-2">Available Bed Types:</h6>
-                                        @if($beds->count() > 0)
-                                            @foreach($beds as $bedType)
-                                                <div class="d-flex align-items-center mb-1">
-                                                    <span class="badge bg-primary me-2">{{ $bedType->bedId }}</span>
-                                                    <span class="small">{{ $bedType->name }}</span>
-                                                </div>
-                                            @endforeach
-                                        @else
-                                            <span class="text-warning small">No bed types configured for this hotel</span>
-                                        @endif
-                                    </div>
-                                    <div class="col-md-6">
-                                        <h6 class="text-info mb-2">Available Room Categories:</h6>
-                                        @if($rooms->count() > 0)
-                                            @foreach($rooms as $room)
-                                                <div class="d-flex align-items-center mb-1">
-                                                    <span class="badge bg-info me-2">{{ $room->room_id }}</span>
-                                                    <span class="small">{{ $room->room_type }} ({{ $room->no_of_room }} rooms)</span>
-                                                </div>
-                                            @endforeach
-                                        @else
-                                            <span class="text-warning small">No room categories configured for this hotel</span>
-                                        @endif
-                                    </div>
-                                </div>
-                                
-                                <div class="alert alert-info mb-3">
-                                    <strong>Important:</strong> 
-                                    Use the exact Bed Type ID and Room Category ID numbers shown above in your CSV file. 
-                                    Download the template to see the required format and field requirements.
-                                </div>
-                                
-                                <div class="d-flex gap-2">
-                                    <a href="{{ route('beds.bulk_upload_for_hotel', $hotel->hotel_unique_id) }}" 
-                                       class="bulk-upload-btn">
-                                        <i class="ri-upload-cloud-2-line"></i>Go to Bulk Upload
-                                    </a>
-                                    <a href="{{ route('beds.template_for_hotel', $hotel->hotel_unique_id) }}" 
-                                       class="btn btn-outline-primary">
-                                        <i class="ri-download-cloud-2-line me-1"></i>Download Template
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    @endif
                 </div>
             </div>
+            @else
+            <div class="card-body">
+                <div class="alert alert-info mb-0">
+                    Bed configuration is added by Travclicks. You can open a bed below to update Extra Bed and Baby Cot prices.
+                </div>
+            </div>
+            @endif
         </div>
     </div>
 </div>
@@ -589,8 +527,8 @@
                     <table class="datatables-basic table table-bordered">
                         <thead>
                             <tr>
-                                <th>Bed Type</th>
                                 <th>Room Type</th>
+                                <th>Bed Type</th>
                                 @if($auth_user->role_id == 1)
                                 <th>DMC</th>
                                 @endif
@@ -600,14 +538,14 @@
                                 <th>Baby Cot</th>
                                 <th>Active</th>
                                 <th>Action</th>
-                                
                             </tr>
                         </thead>
                         <tbody>
                             @foreach ($bedsData as $bed)
                             <tr data-dmc-id="{{ $bed->dmc_id ?? 'unknown' }}">
-                                <td>{{ $bed->room_type }}</td>
-                                <td>{{ $bed->room->room_type }}</td>
+                            <td>{{ $bed->room->room_type }}</td>
+                            <td>{{ $bed->room_type }}</td>
+                                
                                 @if($auth_user->role_id == 1)
                                 <td>
                                     <span class="badge {{ $bed->dmc_id ? 'bg-primary' : 'bg-secondary' }}">
@@ -632,6 +570,7 @@
                                             </svg>
                                         </a>
 
+                                        @if(!empty($canManageBedConfig))
                                         <button type="button" 
                                                 class="btn btn-danger btn-sm d-flex align-items-center justify-content-center rounded-circle" 
                                                 style="width: 28px; height: 28px; padding: 0;" 
@@ -642,6 +581,7 @@
                                                 <path d="M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z"/>
                                             </svg>
                                         </button>
+                                        @endif
                                     </div>
                                 </td>
                             </tr>
@@ -852,7 +792,12 @@
         // Function to reset dependent dropdowns
         function resetDependentDropdowns() {
             $('#bed_type').val('').trigger('change');
-            $('#no_of_rooms').prop('disabled', true).empty().append('<option value="">Select Room Category First</option>');
+            $('#no_of_rooms')
+                .prop('disabled', true)
+                .val('')
+                .removeAttr('max')
+                .attr('placeholder', 'Select Room Category First');
+            $('#no_of_rooms_hint').text('Select a room category first');
             $('#max-occupancy').val('');
             $('#adult_count').empty().append('<option value="">Select Adults</option>').prop('disabled', true);
             $('#child_count').empty().append('<option value="">Select Children</option>').prop('disabled', true);
@@ -878,6 +823,9 @@
     function toggleForceChildCount() {
         const forceChildCheckbox = document.getElementById('force_child');
         const forceChildCountContainer = document.getElementById('force_child_count_container');
+        if (!forceChildCheckbox || !forceChildCountContainer) {
+            return;
+        }
         
         if (forceChildCheckbox.checked) {
             forceChildCountContainer.style.display = 'block';
@@ -897,11 +845,19 @@
 <!-- clear extra bed field -->
 <script>
     function onBedTypeChange() {
-        document.getElementById('extra_bed').value = "";
-        toggleExtraBedField(); // Optional: Trigger extra bed field logic
+        const extraBed = document.getElementById('extra_bed');
+        if (!extraBed) {
+            return;
+        }
+        extraBed.value = "";
+        toggleExtraBedField();
     }
     function toggleExtraBedField() {
-        const extraBedValue = document.getElementById('extra_bed').value;
+        const extraBedSelect = document.getElementById('extra_bed');
+        if (!extraBedSelect) {
+            return;
+        }
+        const extraBedValue = extraBedSelect.value;
         console.log("Extra bed changed to:", extraBedValue);
     }
 </script>
@@ -976,6 +932,9 @@
 <script>
     function toggleExtraBedField() {
         const extraBedSelect = document.getElementById('extra_bed');
+        if (!extraBedSelect) {
+            return;
+        }
         const extraBedTypeDiv = document.querySelector('.extra_bed_type');
         const extraBedPriceDivs = document.querySelectorAll('.extra_bed_price');
         const typeEl = document.getElementById('extra_bed_type');
@@ -1003,6 +962,27 @@
 <script>
     const BASE_URL = "{{ env('APP_URL') }}";
     $(document).ready(function() {
+        function clampNoOfRoomsInput() {
+            const $input = $('#no_of_rooms');
+            if ($input.prop('disabled')) return;
+
+            const max = parseInt($input.attr('max'), 10);
+            let value = parseInt($input.val(), 10);
+
+            if ($input.val() === '' || isNaN(value)) {
+                return;
+            }
+            if (value < 1) {
+                $input.val(1);
+                return;
+            }
+            if (!isNaN(max) && value > max) {
+                $input.val(max);
+            }
+        }
+
+        $('#no_of_rooms').on('input change blur', clampNoOfRoomsInput);
+
         $('#room_type').on('change', function() {
             const roomTypeId = $(this).val(); 
 
@@ -1015,23 +995,48 @@
                     },
                     success: function(response) {
                         console.log('Number of Rooms:', response);
-                        $('#no_of_rooms').prop('disabled', false);
-                        $('#no_of_rooms').empty().append(
-                            '<option value="">Select No of Rooms</option>');
-                        response.forEach(room => {
-                            for (let i = 0; i <= room.no_of_room; i++) {
-                                $('#no_of_rooms').append(
-                                    `<option value="${i}">${i}</option>`);
+                        let maxRooms = 0;
+                        (response || []).forEach(function(room) {
+                            const count = parseInt(room.no_of_room, 10) || 0;
+                            if (count > maxRooms) {
+                                maxRooms = count;
                             }
                         });
+
+                        const $input = $('#no_of_rooms');
+                        if (maxRooms > 0) {
+                            $input
+                                .prop('disabled', false)
+                                .attr({ min: 1, max: maxRooms })
+                                .attr('placeholder', 'Enter no. of rooms (max ' + maxRooms + ')')
+                                .val('');
+                            $('#no_of_rooms_hint').text('Maximum allowed: ' + maxRooms);
+                        } else {
+                            $input
+                                .prop('disabled', true)
+                                .val('')
+                                .removeAttr('max')
+                                .attr('placeholder', 'No rooms available');
+                            $('#no_of_rooms_hint').text('No rooms available for this category');
+                        }
                     },
                     error: function(xhr) {
                         console.error('An error occurred:', xhr.responseText);
+                        $('#no_of_rooms')
+                            .prop('disabled', true)
+                            .val('')
+                            .removeAttr('max')
+                            .attr('placeholder', 'Select Room Category First');
+                        $('#no_of_rooms_hint').text('Could not load room limit');
                     }
                 });
             } else {
-                $('#no_of_rooms').prop('disabled', true).empty().append(
-                    '<option value="">Select Room Category First</option>');
+                $('#no_of_rooms')
+                    .prop('disabled', true)
+                    .val('')
+                    .removeAttr('max')
+                    .attr('placeholder', 'Select Room Category First');
+                $('#no_of_rooms_hint').text('Select a room category first');
             }
         });
     });
@@ -1039,10 +1044,26 @@
 
 <script>
     $(document).ready(function () {
-        let originalOccupancy = 0;  // To keep track of the original occupancy value
+        let originalOccupancy = 0;
+        let defaultAdultCount = 0;
+        let defaultChildCount = 0;
+        let hasChildWoBed = false;
+
+        function extraBedEnabled() {
+            return $('#extra_bed').val() == '1';
+        }
+
+        function currentMaxOccupancy() {
+            return originalOccupancy + (extraBedEnabled() ? 1 : 0);
+        }
+
+        function maxAdultOptions() {
+            const bedAdults = Math.max(0, defaultAdultCount);
+            return extraBedEnabled() ? bedAdults + 1 : bedAdults;
+        }
 
         $('#bed_type').on('change', function () {
-            const selectedBedType = $(this).val(); // Get the selected bed type
+            const selectedBedType = $(this).val();
             const hotelId = $('#hotel_id').val();
             const BASE_URL = "{{ env('APP_URL') }}";
             if (selectedBedType) {
@@ -1052,17 +1073,19 @@
                     data: {
                         bed_type: selectedBedType, 
                         hotel_id: hotelId,
-                        _token: '{{ csrf_token() }}' // CSRF token for security
+                        _token: '{{ csrf_token() }}'
                     },
                     success: function (response) {
-                        // Append total count to the max_occupancy input field
                         if (response.total_count !== undefined) {
-                            originalOccupancy = response.total_count;  // Store the original occupancy value
-                            $('#max-occupancy').val(originalOccupancy);
-                            updateAdultChildOptions(originalOccupancy); // Update adult and child dropdowns
+                            originalOccupancy = parseInt(response.total_count, 10) || 0;
+                            defaultAdultCount = parseInt(response.adult_count, 10) || 0;
+                            defaultChildCount = parseInt(response.child_count, 10) || 0;
+                            hasChildWoBed = !!response.has_child_wo_bed || defaultChildCount > 0;
+                            $('#max-occupancy').val(currentMaxOccupancy());
+                            updateAdultChildOptions(false);
                         } else {
-                            $('#max-occupancy').val(''); // Clear the field if no total count
-                            resetAdultChildOptions(); // Reset the options if no count
+                            $('#max-occupancy').val('');
+                            resetAdultChildOptions();
                         }
                     },
                     error: function (xhr) {
@@ -1071,76 +1094,95 @@
                     }
                 });
             } else {
-                // Clear the occupancy field and reset dropdowns if no valid bed type is selected
                 $('#max-occupancy').val('');
                 resetAdultChildOptions();
             }
         });
 
-        // Function to update the adult and child dropdowns based on max occupancy
-        function updateAdultChildOptions(maxOccupancy) {
+        function updateAdultChildOptions(preserveChild) {
             const adultDropdown = $('#adult_count');
             const childDropdown = $('#child_count');
-            adultDropdown.empty().append('<option value="">Select Adults</option>');
-            childDropdown.empty().append('<option value="">Select Children</option>');
-            childDropdown.prop('disabled', true); // Disable child dropdown until adult is selected
+            const maxOccupancy = currentMaxOccupancy();
+            const maxAdults = Math.max(0, maxAdultOptions());
+            const selectedAdults = extraBedEnabled() ? maxAdults : defaultAdultCount;
+            const previousChild = parseInt(childDropdown.val(), 10);
 
-            // Update adult options
+            adultDropdown.empty();
+            childDropdown.empty();
+
+            if (hasChildWoBed) {
+                if (maxAdults <= 1) {
+                    adultDropdown.append('<option value="1" selected>1</option>');
+                } else {
+                    adultDropdown.append('<option value="">Select Adults</option>');
+                    for (let i = 1; i <= maxAdults; i++) {
+                        adultDropdown.append(`<option value="${i}">${i}</option>`);
+                    }
+                    adultDropdown.val(String(selectedAdults));
+                }
+                adultDropdown.prop('disabled', false);
+
+                let selectedChild = 1;
+                if (preserveChild && (previousChild === 0 || previousChild === 1)) {
+                    selectedChild = previousChild;
+                }
+                childDropdown.append('<option value="0">0</option>');
+                childDropdown.append('<option value="1">1</option>');
+                childDropdown.val(String(selectedChild));
+                childDropdown.prop('required', true);
+                childDropdown.prop('disabled', false);
+                adultDropdown.off('change.bedOccupancy');
+                return;
+            }
+
+            adultDropdown.append('<option value="">Select Adults</option>');
+            childDropdown.append('<option value="">Select Children</option>');
             for (let i = 1; i <= maxOccupancy; i++) {
                 adultDropdown.append(`<option value="${i}">${i}</option>`);
             }
-
-            // Enable adult dropdown
             adultDropdown.prop('disabled', false);
-
-            // Automatically update child dropdown based on selected adult count
-            adultDropdown.on('change', function () {
-                updateChildOptions(maxOccupancy, $(this).val());
+            if (defaultAdultCount > 0) {
+                adultDropdown.val(String(defaultAdultCount));
+            }
+            updateChildOptions(maxOccupancy, adultDropdown.val(), defaultChildCount);
+            adultDropdown.off('change.bedOccupancy').on('change.bedOccupancy', function () {
+                updateChildOptions(maxOccupancy, $(this).val(), defaultChildCount);
             });
         }
 
-        // Function to update child dropdown based on the selected number of adults
-        function updateChildOptions(maxOccupancy, selectedAdults) {
+        function updateChildOptions(maxOccupancy, selectedAdults, preferredChildCount) {
             const childDropdown = $('#child_count');
             childDropdown.empty().append('<option value="">Select Children</option>');
-            const maxChildren = maxOccupancy - selectedAdults;
+            const maxChildren = maxOccupancy - (parseInt(selectedAdults, 10) || 0);
 
             if (maxChildren >= 0) {
                 for (let i = 0; i <= maxChildren; i++) {
                     childDropdown.append(`<option value="${i}">${i}</option>`);
                 }
-                childDropdown.prop('disabled', false); // Enable child dropdown
+                childDropdown.prop('disabled', false);
+                if (preferredChildCount !== undefined && preferredChildCount !== null) {
+                    const childVal = Math.min(parseInt(preferredChildCount, 10) || 0, maxChildren);
+                    childDropdown.val(String(childVal));
+                }
             } else {
-                childDropdown.prop('disabled', true); // Disable child dropdown if no space
+                childDropdown.prop('disabled', true);
             }
         }
 
-        // Reset adult and child options if no valid occupancy
         function resetAdultChildOptions() {
+            originalOccupancy = 0;
+            defaultAdultCount = 0;
+            defaultChildCount = 0;
+            hasChildWoBed = false;
             $('#adult_count').empty().append('<option value="">Select Adults</option>').prop('disabled', true);
-            $('#child_count').empty().append('<option value="">Select Children</option>').prop('disabled', true);
+            $('#child_count').empty().append('<option value="">Select Children</option>').prop('disabled', true).prop('required', false);
         }
 
-        // Listen for changes in the "extra_bed" dropdown and adjust the occupancy accordingly
         $('#extra_bed').on('change', function () {
-            const extraBed = $(this).val(); // Get the extra bed selection (1 for Yes, 0 for No)
-            let currentOccupancy = originalOccupancy;  // Start with the original occupancy value
-
-            // If extra bed is selected as 'Yes', add 1 to the occupancy
-            if (extraBed == '1') {
-                currentOccupancy += 1;
+            $('#max-occupancy').val(currentMaxOccupancy());
+            if (originalOccupancy > 0 || defaultAdultCount > 0 || defaultChildCount > 0) {
+                updateAdultChildOptions(true);
             }
-
-            // If extra bed is selected as 'No', revert to the original occupancy
-            if (extraBed == '0') {
-                currentOccupancy = originalOccupancy;  // Revert to the original value
-            }
-
-            // Update max-occupancy field with the new value
-            $('#max-occupancy').val(currentOccupancy);
-
-            // Update the adult and child options based on the new max occupancy
-            updateAdultChildOptions(currentOccupancy);
         });
     });
 </script>

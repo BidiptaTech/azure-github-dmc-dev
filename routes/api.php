@@ -49,6 +49,30 @@ Route::get('/debug-test', function () {
     return response()->json(['message' => 'API debug route working', 'time' => now()]);
 });
 
+// Outbound server IP check — hits https://api.attractionsg.com/whatismyip
+Route::get('/test-server-ip', function () {
+    $url = 'https://api.attractionsg.com/whatismyip';
+    try {
+        $response = Http::timeout(15)->get($url);
+        $ip = trim((string) $response->body());
+
+        return response()->json([
+            'ok' => $response->successful(),
+            'status' => $response->status(),
+            'server_outbound_ip' => $ip,
+            'source' => $url,
+            'checked_at' => now()->toDateTimeString(),
+        ], $response->successful() ? 200 : 502);
+    } catch (\Throwable $e) {
+        return response()->json([
+            'ok' => false,
+            'error' => $e->getMessage(),
+            'source' => $url,
+            'checked_at' => now()->toDateTimeString(),
+        ], 500);
+    }
+})->withoutMiddleware([EnsureFrontendRequestsAreStateful::class]);
+
 Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
     Route::post('/update-profile', 'App\Http\Controllers\Api\LoginControllerApi@updateProfile');
     Route::get('/zone-lists', 'App\Http\Controllers\Api\ZoneController@zone_lists');
@@ -66,9 +90,18 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
     Route::get('/location', 'App\Http\Controllers\Api\HotelController@index');
     Route::get('/details', 'App\Http\Controllers\Api\HotelController@hotelDetails');
     Route::get('/roomlists', 'App\Http\Controllers\Api\HotelController@roomLists');
+
+    // Online (supplier-backed) hotels / attractions — separate from offline catalogue APIs
+    Route::get('/online-hotels', 'App\Http\Controllers\Api\OnlineHotelController@lists');
+    Route::get('/online-hotels/details', 'App\Http\Controllers\Api\OnlineHotelController@details');
+    Route::post('/online-hotels/recheck', 'App\Http\Controllers\Api\OnlineHotelController@recheck');
+    Route::post('/online-hotels/book', 'App\Http\Controllers\Api\OnlineHotelController@book');
+    Route::get('/online-attractions', 'App\Http\Controllers\Api\OnlineAttractionController@lists');
+    Route::get('/online-attractions/details', 'App\Http\Controllers\Api\OnlineAttractionController@details');
     Route::post('/create-tour', 'App\Http\Controllers\Api\TourController@createTour');
     Route::get('/edit-tour', 'App\Http\Controllers\Api\TourController@editTour');
     Route::post('/create-booking', 'App\Http\Controllers\Api\TourController@createBooking');
+    Route::post('/book-all', 'App\Http\Controllers\Api\TourController@bookAll');
     Route::post('/cancel-booking', 'App\Http\Controllers\Api\TourController@CancelBooking');
     Route::post('/update-enquiry', 'App\Http\Controllers\Api\TourController@updateEnquiry');
     Route::get('/enquiry-status', 'App\Http\Controllers\Api\TourController@enquiryStatus');

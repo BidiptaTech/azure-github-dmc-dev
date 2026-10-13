@@ -84,12 +84,15 @@ class multiRestaurantController extends Controller
                 ->values();
         }
 
+        $dmcCurrency = CommonHelper::getDmcCurrency(CommonHelper::getDmcId($user)) ?: '$';
+
         return view('multiResturant.list', [
             'multiRestaurants'   => $multiRestaurants,
             'restaurants'        => $restaurants,
             'hasPackageForDmc'   => $hasPackageForDmc,
             'companyFilters'     => $companyFilters,
             'selectedDmcId'      => $selectedDmcId,
+            'dmcCurrency'        => $dmcCurrency,
         ]);
     }
 
@@ -116,7 +119,9 @@ class multiRestaurantController extends Controller
             })
             ->values();
 
-        return view('multiResturant.create', compact('restaurants'));
+        $dmcCurrency = CommonHelper::getDmcCurrency($dmc_id) ?: '$';
+
+        return view('multiResturant.create', compact('restaurants', 'dmcCurrency'));
     }
 
     /**
@@ -211,6 +216,8 @@ class multiRestaurantController extends Controller
             'dinner' => (int) $validated['dinner_on'],
             'dinner_time' => $dinnerTime,
             'status' => (int) $validated['status'],
+            'vehicle' => $request->boolean('vehicle'),
+            'guide' => $request->boolean('guide'),
             'dmc_id' => $dmcId,
             // 'package_unique_id' => $packageUniqueId,
         ]);
@@ -263,7 +270,9 @@ class multiRestaurantController extends Controller
                 ->values();
         }
 
-        return view('multiResturant.edit', compact('multiRestaurant', 'restaurants'));
+        $dmcCurrency = CommonHelper::getDmcCurrency(CommonHelper::getDmcId($user)) ?: '$';
+
+        return view('multiResturant.edit', compact('multiRestaurant', 'restaurants', 'dmcCurrency'));
     }
 
     /**
@@ -345,6 +354,8 @@ class multiRestaurantController extends Controller
             'dinner' => (int) $validated['dinner_on'],
             'dinner_time' => $dinnerTime,
             'status' => (int) $validated['status'],
+            'vehicle' => $request->boolean('vehicle'),
+            'guide' => $request->boolean('guide'),
         ]);
 
         return redirect()->route('multiResturant.index')->with('success', 'Multi restaurant package updated successfully.');

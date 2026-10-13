@@ -102,7 +102,29 @@
             @if(!empty($isMultiCountry) && !empty($pdfCountryGroups))
                 @foreach($pdfCountryGroups as $countryGroup)
                     <tr>
-                        <td colspan="3" class="country-heading">{{ $countryGroup['name'] ?? 'Country' }}</td>
+                        <td colspan="3" class="country-heading">
+                            @php
+                                $pdfStayName = (string) ($countryGroup['name'] ?? 'Country');
+                                $pdfStayDates = '';
+                                $pdfDayKeys = array_keys($countryGroup['days'] ?? []);
+                                if (count($pdfDayKeys) > 0) {
+                                    try {
+                                        $pdfStayDates = \Carbon\Carbon::parse($pdfDayKeys[0])->format('d M Y')
+                                            . ' – '
+                                            . \Carbon\Carbon::parse($pdfDayKeys[count($pdfDayKeys) - 1])->format('d M Y');
+                                    } catch (\Throwable $e) {
+                                        $pdfStayDates = '';
+                                    }
+                                }
+                            @endphp
+                            {{ $pdfStayName }}
+                            @if(!empty($countryGroup['is_return']) && !preg_match('/\breturn\b/i', $pdfStayName))
+                                · Return
+                            @endif
+                            @if($pdfStayDates !== '')
+                                <span style="font-weight:500;opacity:0.85;"> ({{ $pdfStayDates }})</span>
+                            @endif
+                        </td>
                     </tr>
                     @foreach(($countryGroup['days'] ?? []) as $dateStr => $day)
                         <tr>

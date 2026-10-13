@@ -15,32 +15,46 @@
     }
     $grossTourAmount = round($tourTotalPrice);
 
-    // Markup stored on the tour (increases payable amount).
+    // Markup rates are display-only — sell/gross already includes hotel/other markup.
     $tourMarkupType = $tour->markup_type ?? null;
     $tourMarkupRaw = (float) ($tour->getAttributes()['markup_amount'] ?? $tour->markup_amount ?? 0);
-    $tourMarkupOn = ((int) ($tour->markup ?? 0) === 1)
-        && $tourMarkupRaw > 0
-        && in_array($tourMarkupType, ['percentage', 'flat'], true);
-    $tourMarkupMoney = $tourMarkupOn
-        ? ($tourMarkupType === 'percentage'
-            ? ($grossTourAmount * $tourMarkupRaw / 100)
-            : $tourMarkupRaw)
-        : 0;
-    $tourMarkupMoney = max(0, $tourMarkupMoney);
+    $tourMarkupMoney = 0;
 
-    // Discount stored on the tour, applied after markup.
+    // Prefer currency_markups discount (agency/tour) when present; else tour columns.
     $tourDiscountType = $tour->discount_type ?? null;
     $tourDiscountRaw = (float) ($tour->getAttributes()['discount_amount'] ?? $tour->discount_amount ?? 0);
-    $discountBaseAmount = $grossTourAmount + $tourMarkupMoney;
+    $cmForPay = $tour->currency_markups ?? ($tour->getAttributes()['currency_markups'] ?? null);
+    if (is_string($cmForPay)) {
+        $decodedCmPay = json_decode($cmForPay, true);
+        $cmForPay = (json_last_error() === JSON_ERROR_NONE) ? $decodedCmPay : null;
+    }
+    if (is_array($cmForPay)) {
+        foreach ($cmForPay as $cmRow) {
+            if (! is_array($cmRow) || str_starts_with((string) ($cmRow['city'] ?? ''), '__lite_markup_pad__')) {
+                continue;
+            }
+            $dRawPay = (float) ($cmRow['discount_value'] ?? 0);
+            $dTypePay = strtolower(trim((string) ($cmRow['discount_type'] ?? '')));
+            if ($dTypePay === 'fixed') {
+                $dTypePay = 'flat';
+            }
+            if ($dRawPay > 0 && in_array($dTypePay, ['percentage', 'flat', 'foc'], true)) {
+                $tourDiscountType = $dTypePay;
+                $tourDiscountRaw = $dRawPay;
+                break;
+            }
+        }
+    }
+    // Discount on gross only (markup already baked into sell).
     if ($tourDiscountType === 'percentage') {
-        $tourDiscountMoney = $discountBaseAmount * $tourDiscountRaw / 100;
+        $tourDiscountMoney = $grossTourAmount * $tourDiscountRaw / 100;
     } else {
         $tourDiscountMoney = $tourDiscountRaw;
     }
     $tourDiscountMoney = max(0, $tourDiscountMoney);
 
     $discountAmount = $tourDiscountMoney;
-    $priceAfterFoc = max(0, $grossTourAmount + $tourMarkupMoney - $tourDiscountMoney);
+    $priceAfterFoc = max(0, $grossTourAmount - $tourDiscountMoney);
     $netPayableBase = (int) ceil($priceAfterFoc);
     $baseAmount = $lastNegotiatedAmount > 0 ? $lastNegotiatedAmount : $netPayableBase;
     $netTourAmount = $baseAmount;

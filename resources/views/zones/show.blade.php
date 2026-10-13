@@ -90,6 +90,10 @@
 @endsection
 
 @section('content')
+@php
+    $listUrl = $listUrl ?? route('zones.index');
+    $listQuery = $listQuery ?? [];
+@endphp
 <div class="container-xxl flex-grow-1 container-p-y">
     <h4 class="fw-bold py-3 mb-4 zone-title">
         <span class="text-muted fw-light">Zone /</span> Zone Details
@@ -101,8 +105,8 @@
                 <div class="card-header card-header-3d d-flex justify-content-between align-items-center">
                     <h5 class="m-0" style="color: #141313"><i class="bx bx-map-pin me-2"></i>Zone Information</h5>
                     <div>
-                        <a href="{{ route('zones.edit', Crypt::encrypt($zone->zone_id)) }}" class="btn btn-primary btn-3d"><i class="bx bx-edit me-1"></i>Edit</a>
-                        <a href="{{ route('zones.index') }}" class="btn btn-secondary btn-3d ms-2"><i class="bx bx-arrow-back me-1"></i>Back to List</a>
+                        <a href="{{ route('zones.edit', ['zone' => Crypt::encrypt($zone->zone_id)] + $listQuery) }}" class="btn btn-primary btn-3d"><i class="bx bx-edit me-1"></i>Edit</a>
+                        <a href="{{ $listUrl }}" class="btn btn-secondary btn-3d ms-2"><i class="bx bx-arrow-back me-1"></i>Back to List</a>
                     </div>
                 </div>
                 <div class="card-body p-4">

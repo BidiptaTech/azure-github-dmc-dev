@@ -166,7 +166,7 @@ class QuotationController extends Controller
     }
 
     /**
-     * Packaged (detailed) quotation preview page: currency, iframe preview, then download via modal (same flow as itinerary preview).
+     * Acco + Service quotation preview page: currency, iframe preview, then download via modal (same flow as packaged quotation).
      */
     public function detailedQuotationPreview($encryptedTourId, Request $request)
     {
@@ -343,7 +343,7 @@ class QuotationController extends Controller
     }
 
     /**
-     * Generate packaged (detailed) quotation PDF for iframe preview and download.
+     * Generate Acco + Service quotation PDF for iframe preview and download.
      */
     public function downloadDetailedQuotation($tourId, Request $request)
     {
@@ -378,7 +378,7 @@ class QuotationController extends Controller
                         return $pdfResponse;
                     }
                 } catch (\Throwable $e) {
-                    Log::warning('Packaged quotation PDF generation attempt failed', [
+                    Log::warning('Acco + Service quotation PDF generation attempt failed', [
                         'tour_id' => $tourId,
                         'logo_type' => $attemptLogo,
                         'error' => $e->getMessage(),
@@ -386,19 +386,19 @@ class QuotationController extends Controller
                 }
             }
 
-            Log::error('Packaged quotation PDF generation failed after all logo attempts', [
+            Log::error('Acco + Service quotation PDF generation failed after all logo attempts', [
                 'tour_id' => $tourId,
                 'requested_logo_type' => $logoType,
             ]);
 
-            return $this->itineraryPdfErrorResponse($request, 'Unable to generate packaged quotation PDF.');
+            return $this->itineraryPdfErrorResponse($request, 'Unable to generate Acco + Service quotation PDF.');
         } catch (\Exception $e) {
-            Log::error('Packaged quotation PDF route error: ' . $e->getMessage(), [
+            Log::error('Acco + Service quotation PDF route error: ' . $e->getMessage(), [
                 'tour_id' => $tourId,
                 'trace' => $e->getTraceAsString(),
             ]);
 
-            return $this->itineraryPdfErrorResponse($request, 'Unable to generate packaged quotation PDF.');
+            return $this->itineraryPdfErrorResponse($request, 'Unable to generate Acco + Service quotation PDF.');
         }
     }
 

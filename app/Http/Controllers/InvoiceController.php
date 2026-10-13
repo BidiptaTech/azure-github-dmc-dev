@@ -40,6 +40,10 @@ class InvoiceController extends Controller
         $exchangeRate = CommonHelper::getInvoiceExchangeRate($baseCurrency, $selectedCurrency, $currencyConversion);
         $isThirdPartyInvoice = CommonHelper::isInvoiceThirdPartyEnabled($invoice);
         $invoiceMultiGeo = CommonHelper::detectInvoiceMultiGeo($invoice);
+        $restrictedTpScope = CommonHelper::applyRestrictedThirdPartyInvoiceItemFilter($invoice);
+        if (!empty($restrictedTpScope['restricted'])) {
+            $invoiceMultiGeo = CommonHelper::detectInvoiceMultiGeo($invoice);
+        }
 
         if ($isThirdPartyInvoice) {
             CommonHelper::enrichInvoiceItemsWithOrderGeo($invoice);
@@ -51,7 +55,8 @@ class InvoiceController extends Controller
             'currencyConversion',
             'exchangeRate',
             'isThirdPartyInvoice',
-            'invoiceMultiGeo'
+            'invoiceMultiGeo',
+            'restrictedTpScope'
         );
     }
 

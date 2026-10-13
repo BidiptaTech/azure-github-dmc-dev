@@ -1,5 +1,5 @@
 @extends('layouts.layout')
-@section('title', 'Day Level List')
+@section('title', 'AI Definition List')
 @extends('layouts.datatablecss')
 
 @section('content')
@@ -54,10 +54,10 @@
         <div class="card">
             <div class="card-datatable table-responsive pt-0">
                 <div class="d-flex justify-content-between align-items-center m-3">
-                    <h5 class="card-title mb-0">Day Level List</h5>
+                    <h5 class="card-title mb-0">AI Definition List</h5>
                     <div class="d-flex gap-2">
                         <a href="{{ route('day-level.create') }}" class="btn btn-primary btn-sm d-flex align-items-center gap-2">
-                            <i class="fas fa-plus"></i> Add Day Level
+                            <i class="fas fa-plus"></i> Add AI Definition
                         </a>
                     </div>
                 </div>
@@ -164,7 +164,7 @@
                             </tr>
                         @empty
                             {{-- <tr>
-                                <td colspan="8" class="text-center text-muted">No Day Level records found.</td>
+                                <td colspan="8" class="text-center text-muted">No AI Definition records found.</td>
                             </tr> --}}
                         @endforelse
                     </tbody>
@@ -279,7 +279,7 @@
 
         $(document).on('click', '.day-level-delete-row-btn', function () {
             const url = this.dataset.url;
-            const label = this.dataset.label || 'this Day Level';
+            const label = this.dataset.label || 'this AI Definition';
             softDeleteDayLevel(
                 url,
                 'Soft-delete ' + label + '?\n\nIt will be removed from the list and from Azure JSON.'
@@ -291,7 +291,7 @@
             const label = this.dataset.label || 'this package';
             softDeleteDayLevel(
                 url,
-                'Delete package "' + label + '"?\n\nIt will be removed from this Day Level and from Azure JSON.'
+                'Delete package "' + label + '"?\n\nIt will be removed from this AI Definition and from Azure JSON.'
             );
         });
     });

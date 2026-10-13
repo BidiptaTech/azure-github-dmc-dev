@@ -29,6 +29,28 @@ class MailController extends Controller
         'agent_creation' => 'Agent Creation'
     ];
 
+    /** Admin (1), DMC (11), Multi-role (138) — same DMC email settings, stored against parent dmc_id. */
+    private const MAIL_SETTINGS_ROLE_IDS = [1, 11, 138];
+
+    private function assertCanManageMailSettings()
+    {
+        $user = Auth::user();
+        if (!$user || !in_array((int) $user->role_id, self::MAIL_SETTINGS_ROLE_IDS, true)) {
+            abort(403, 'You do not have permission to access email settings.');
+        }
+
+        return $user;
+    }
+
+    private function resolveMailSettingsDmcId($user)
+    {
+        if ((int) $user->role_id === 1) {
+            return 1;
+        }
+
+        return CommonHelper::getDmcId($user);
+    }
+
     /**
      * Display a listing of the resource.
      */
@@ -715,22 +737,14 @@ class MailController extends Controller
      */
     public function settings()
     {
-        $user = Auth::user();
-        if (!$user || !in_array((int) $user->role_id, [1, 11], true)) {
-            abort(403, 'You do not have permission to access email settings.');
-        }
+        $user = $this->assertCanManageMailSettings();
 
-        $dmcId = CommonHelper::getDmcId($user);
-        if ((int) $user->role_id === 1) {
-            $dmcId = 1;
-        }
+        $dmcId = $this->resolveMailSettingsDmcId($user);
 
         $setup = null;
 
         if (!empty($dmcId)) {
-            $setup = EmailsSetup::where('dmcId', $dmcId)
-                ->where('created_By', $user->userId)
-                ->first();
+            $setup = EmailsSetup::where('dmcId', $dmcId)->first();
         }
 
         $settings = (object) [
@@ -763,15 +777,9 @@ class MailController extends Controller
      */
     public function saveSettings(Request $request)
     {
-        $user = Auth::user();
-        if (!$user || !in_array((int) $user->role_id, [1, 11], true)) {
-            abort(403, 'You do not have permission to save email settings.');
-        }
+        $user = $this->assertCanManageMailSettings();
 
-        $dmcId = CommonHelper::getDmcId($user);
-        if ((int) $user->role_id === 1) {
-            $dmcId = 1;
-        }
+        $dmcId = $this->resolveMailSettingsDmcId($user);
 
         if (empty($dmcId)) {
             return redirect()->route('mail.settings')
@@ -805,9 +813,7 @@ class MailController extends Controller
 
         $validated = $request->validate($rules);
 
-        $setup = EmailsSetup::where('dmcId', $dmcId)
-            ->where('created_By', $user->userId)
-            ->first();
+        $setup = EmailsSetup::where('dmcId', $dmcId)->first();
 
         $imapHost = trim((string) ($validated['imap_host'] ?? ''));
         $imapPassword = $validated['imap_password'] ?? '';
@@ -832,7 +838,7 @@ class MailController extends Controller
             'support_email' => $validated['support_email'],
             'support_phone' => $validated['support_phone'],
             'email_footer' => $validated['footer_text'] ?? null,
-            'created_By' => (int) $user->userId,
+            'created_By' => $setup ? (int) $setup->created_By : (int) $dmcId,
         ];
 
         if ($setup) {

@@ -343,29 +343,31 @@ class RestaurantController extends Controller
         }
         
         $restaurants = Restaurant::where('status', 1)->get();
-        //$meals = Meal::where('restaurant_id', $restaurant_id)->get();
+        $query = Meal::with(['restaurant', 'dmc:userId,name,company_name', 'createdByUser:userId,name'])
+            ->where('restaurant_id', $restaurant_id);
+
         if($auth_user->role_id == 1 || $auth_user->role_id == 20){
-            $meals = Meal::where('restaurant_id', $restaurant_id)->get();
+            // Admin and Virtual DMC can see all meals for this restaurant
         }
         else if($auth_user->role_id == 11){
-            $meals = Meal::where('restaurant_id', $restaurant_id)->where('dmc_id', $auth_user->userId)->get();
+            $query->where('dmc_id', $auth_user->userId);
         }
         else if($auth_user->role_id == 35 || in_array($auth_user->role_id, [130, 132, 133, 135, 136, 137, 138])){
             $userdmc = User::where('userId', $auth_user->created_by)->first();
-            $meals = Meal::where('restaurant_id', $restaurant_id)->where('dmc_id', $userdmc->userId)->get();
+            $query->where('dmc_id', $userdmc->userId);
         }
         else if($auth_user->role_id == 78 || $auth_user->role_id == 139){
-            $user_product_head = User::where('userId', $auth_user->created_by)->first();    
+            $user_product_head = User::where('userId', $auth_user->created_by)->first();
             $user_product_head_dmc = User::where('userId', $user_product_head->created_by)->first();
-            $meals = Meal::where('restaurant_id', $restaurant_id)->where('dmc_id', $user_product_head_dmc->userId)->get();
+            $query->where('dmc_id', $user_product_head_dmc->userId);
         }else if($auth_user->role_id == 120 || $auth_user->role_id == 140){
             $user_product_manager = User::where('userId', $auth_user->created_by)->first();
             $user_product_head = User::where('userId', $user_product_manager->created_by)->first();
             $user_product_head_dmc = User::where('userId', $user_product_head->created_by)->first();
-            $meals = Meal::where('restaurant_id', $restaurant_id)->where('dmc_id', $user_product_head_dmc->userId)->get();
-        }else{
-            $meals = Meal::where('restaurant_id', $restaurant_id)->get();
+            $query->where('dmc_id', $user_product_head_dmc->userId);
         }
+
+        $meals = $query->get();
         return view('meals.create-meals', compact('restaurants', 'meals', 'current_restaurant', 'auth_user', 'dmcUsers'));
     }
 
@@ -921,91 +923,83 @@ class RestaurantController extends Controller
      */
     public function dmcRestaurantsSelection(Request $request)
     {
-        // Check if user is DMC (role_id = 11)
+        // Check if user is DMC (role_id = 11) or an employee under that DMC
         $user = auth()->user();
         $allowedRoles = [11, 35, 78, 120, 130, 132, 133, 135, 136, 137, 138, 139, 140];
         if (!in_array($user->role_id, $allowedRoles)) {
             abort(403, 'You do not have permission to access this page.');
         }
-        if($user->role_id == 11){
-            $dmc_id = $user->userId;
-        }else if($user->role_id == 35 || in_array($user->role_id, [130, 132, 133, 135, 136, 137, 138])){
-            $dmc_id = $user->created_by;
-        }else if($user->role_id == 78 || $user->role_id == 139){
-            $user_product_head = User::where('userId', $user->created_by)->first();
-            $dmc_id = $user_product_head->created_by;
-        }else if($user->role_id == 120 || $user->role_id == 140){
-            $user_product_manager = User::where('userId', $user->created_by)->first();
-            $user_product_head = User::where('userId', $user_product_manager->created_by)->first();
-            $dmc_id = $user_product_head->created_by;
-        }
-        else{
+
+        $dmc_id = $this->resolveServicesRestaurantsDmcId($user);
+        if (!$dmc_id) {
             return redirect()->back()->with('error', 'You do not have permission to access this page.');
         }
 
-        // Resolve Master DMC for this user (to read multiple countries from master record)
-        $masterDmcId = $user->master_dmc_id ?? null;
-        if (empty($masterDmcId)) {
-            $dmcUser = User::where('userId', $dmc_id)->first();
-            $masterDmcId = $dmcUser->master_dmc_id ?? null;
-        }
-        if (empty($masterDmcId)) {
-            $visited = [];
-            $candidateId = $user->created_by ?? null;
-            $safety = 0;
-            while (!empty($candidateId) && $safety < 8 && !in_array($candidateId, $visited, true)) {
-                $visited[] = $candidateId;
-                $candidate = User::where('userId', $candidateId)->first();
-                if (! $candidate) break;
-                if ((int) ($candidate->role_id ?? 0) === 3) {
-                    $masterDmcId = $candidate->userId;
-                    break;
-                }
-                $candidateId = $candidate->created_by ?? null;
-                $safety++;
-            }
-        }
+        $dmcUser = User::where('userId', $dmc_id)->first();
+        $dmcCountry = trim((string) ($dmcUser->country ?? ''));
 
-        $masterDmc = User::where('userId', $masterDmcId ?: $dmc_id)->first();
-        $masterDmcCountries = [];
-        if ($masterDmc && !empty($masterDmc->country)) {
-            $masterDmcCountries = array_values(array_filter(array_map(
-                static fn ($c) => trim($c),
-                preg_split('/\s*,\s*/', (string) $masterDmc->country)
-            )));
-        }
-
-        // Get all available restaurants (Travclicks/platform + Master DMC countries)
+        // DMC may only select restaurants from their own single country.
         $allRestaurantsQuery = Restaurant::where('status', 1)->orderBy('name', 'asc');
         if (Schema::hasColumn('restaurants', 'user_type')) {
             $allRestaurantsQuery->where('user_type', 1);
         }
-        if (!empty($masterDmcCountries) && Schema::hasColumn('restaurants', 'country')) {
-            $allRestaurantsQuery->whereIn('country', $masterDmcCountries);
+        if ($dmcCountry !== '' && Schema::hasColumn('restaurants', 'country')) {
+            $allRestaurantsQuery->where(function ($query) use ($dmcCountry) {
+                $query->where('country', $dmcCountry)
+                    ->orWhereRaw('LOWER(TRIM(country)) = ?', [strtolower($dmcCountry)]);
+            });
+        } elseif ($dmcCountry === '') {
+            $allRestaurantsQuery->whereRaw('1 = 0');
         }
 
         $allRestaurants = $allRestaurantsQuery->get();
 
-        // Country dropdown should show only countries that actually exist in the Travclicks results
-        $allowedCountries = $allRestaurants
-            ->pluck('country')
-            ->filter()
-            ->unique()
-            ->sort()
-            ->values()
-            ->all();
-        
-        // Filter restaurants that are selected by the current DMC
-        $selectedRestaurants = $allRestaurants->filter(function($restaurant) use ($dmc_id) {
-            return $restaurant->hasSelectedByDmc($dmc_id);
-        });
-        
-        // Get restaurants that are not selected by the current DMC
-        $availableRestaurants = $allRestaurants->filter(function($restaurant) use ($dmc_id) {
+        $selectedRestaurants = CommonHelper::whereJsonContainsDmcIds(
+            Restaurant::where('status', 1)->orderBy('name', 'asc'),
+            [(int) $dmc_id]
+        )
+            ->get()
+            ->filter(function ($restaurant) use ($dmc_id) {
+                return $restaurant->hasSelectedByDmc($dmc_id);
+            })
+            ->values();
+
+        $availableRestaurants = $allRestaurants->filter(function ($restaurant) use ($dmc_id) {
             return !$restaurant->hasSelectedByDmc($dmc_id);
         });
 
-        return view('services.restaurants', compact('availableRestaurants', 'selectedRestaurants', 'allowedCountries'));
+        $allowedCities = collect();
+        if ($dmcCountry !== '') {
+            $allowedCities = City::query()
+                ->where(function ($query) use ($dmcCountry) {
+                    $query->where('country', $dmcCountry)
+                        ->orWhereRaw('LOWER(TRIM(country)) = ?', [strtolower($dmcCountry)]);
+                })
+                ->orderBy('name', 'asc')
+                ->pluck('name')
+                ->map(static fn ($name) => trim((string) $name))
+                ->filter()
+                ->unique(static fn ($name) => strtolower($name))
+                ->values();
+        }
+
+        if ($allowedCities->isEmpty()) {
+            $allowedCities = $allRestaurants
+                ->pluck('city')
+                ->map(static fn ($name) => trim((string) $name))
+                ->filter()
+                ->unique(static fn ($name) => strtolower($name))
+                ->sort()
+                ->values();
+        }
+
+        return view('services.restaurants', compact(
+            'availableRestaurants',
+            'selectedRestaurants',
+            'dmcCountry',
+            'allowedCities',
+            'dmc_id'
+        ));
     }
 
     /**
@@ -1020,32 +1014,29 @@ class RestaurantController extends Controller
             abort(403, 'You do not have permission to perform this action.');
         }
 
-        if($user->role_id == 11){
-            $dmc_id = $user->userId;
-        }else if($user->role_id == 35 || in_array($user->role_id, [130, 132, 133, 135, 136, 137, 138])){
-            $dmc_id = $user->created_by;
-        }else if($user->role_id == 78 || $user->role_id == 139){
-            $user_product_head = User::where('userId', $user->created_by)->first();
-            $dmc_id = $user_product_head->created_by;
-        }else if($user->role_id == 120 || $user->role_id == 140){
-            $user_product_manager = User::where('userId', $user->created_by)->first();
-            $user_product_head = User::where('userId', $user_product_manager->created_by)->first();
-            $dmc_id = $user_product_head->created_by;
-        }
-        else{
+        $dmc_id = $this->resolveServicesRestaurantsDmcId($user);
+        if (!$dmc_id) {
             return redirect()->back()->with('error', 'You do not have permission to access this page.');
         }
 
+        $dmcCountry = trim((string) (User::where('userId', $dmc_id)->value('country') ?? ''));
         $selectedRestaurants = $request->input('selected_restaurants', []);
-        
+
         // Remove DMC ID from all restaurants first
-        Restaurant::whereJsonContains('dmc_id', $dmc_id)->get()->each(function($restaurant) use ($dmc_id) {
+        Restaurant::whereJsonContains('dmc_id', $dmc_id)->get()->each(function ($restaurant) use ($dmc_id) {
             $restaurant->removeDmcId($dmc_id);
         });
-        
-        // Add DMC ID to selected restaurants
-        if (!empty($selectedRestaurants)) {
-            Restaurant::whereIn('restaurant_id', $selectedRestaurants)->get()->each(function($restaurant) use ($dmc_id) {
+
+        // Add DMC ID only for selected restaurants in the DMC's country
+        if (!empty($selectedRestaurants) && $dmcCountry !== '') {
+            $query = Restaurant::whereIn('restaurant_id', $selectedRestaurants);
+            if (Schema::hasColumn('restaurants', 'country')) {
+                $query->where(function ($q) use ($dmcCountry) {
+                    $q->where('country', $dmcCountry)
+                        ->orWhereRaw('LOWER(TRIM(country)) = ?', [strtolower($dmcCountry)]);
+                });
+            }
+            $query->get()->each(function ($restaurant) use ($dmc_id) {
                 $restaurant->addDmcId($dmc_id);
             });
         }
@@ -1068,44 +1059,44 @@ class RestaurantController extends Controller
                 abort(403, 'You do not have permission to perform this action.');
             }
 
-            if($user->role_id == 11){
-                $dmc_id = $user->userId;
-            }else if($user->role_id == 35 || in_array($user->role_id, [130, 132, 133, 135, 136, 137, 138])){
-                $dmc_id = $user->created_by;
-            }else if($user->role_id == 78 || $user->role_id == 139){
-                $user_product_head = User::where('userId', $user->created_by)->first();
-                $dmc_id = $user_product_head->created_by;
-            }else if($user->role_id == 120 || $user->role_id == 140){
-                $user_product_manager = User::where('userId', $user->created_by)->first();
-                $user_product_head = User::where('userId', $user_product_manager->created_by)->first();
-                $dmc_id = $user_product_head->created_by;
+            $dmc_id = $this->resolveServicesRestaurantsDmcId($user);
+            if (!$dmc_id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You do not have permission to select restaurants.',
+                ], 403);
             }
-            else{
-                return redirect()->back()->with('error', 'You do not have permission to access this page.');
-            }
-            
+
+            $dmcCountry = trim((string) (User::where('userId', $dmc_id)->value('country') ?? ''));
+
             // Find the restaurant
             $restaurant = Restaurant::where('restaurant_id', $restaurantId)->first();
             if (!$restaurant) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Restaurant not found.'
+                    'message' => 'Restaurant not found.',
                 ], 404);
             }
-            
+
+            if ($dmcCountry === '' || strcasecmp(trim((string) ($restaurant->country ?? '')), $dmcCountry) !== 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You can only select restaurants from your own country (' . ($dmcCountry ?: 'not set') . ').',
+                ], 403);
+            }
+
             // Add the DMC ID to the restaurant's dmc_id array
             $restaurant->addDmcId($dmc_id);
-            
+
             return response()->json([
                 'success' => true,
-                'message' => 'Restaurant selected successfully!'
+                'message' => 'Restaurant selected successfully!',
             ]);
-            
         } catch (\Exception $e) {
             \Log::error('Restaurant selection error: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'An error occurred while selecting the restaurant.'
+                'message' => 'An error occurred while selecting the restaurant.',
             ], 500);
         }
     }
@@ -1117,7 +1108,6 @@ class RestaurantController extends Controller
     public function removeRestaurant(Request $request)
     {
         try {
-            $restaurantId = $request->input('restaurant_id');
             $user = Auth::user();
 
             $allowedRoles = [11, 35, 78, 120, 130, 132, 133, 135, 136, 137, 138, 139, 140];
@@ -1125,46 +1115,143 @@ class RestaurantController extends Controller
                 abort(403, 'You do not have permission to perform this action.');
             }
 
-            if($user->role_id == 11){
-                $dmc_id = $user->userId;
-            }else if($user->role_id == 35 || in_array($user->role_id, [130, 132, 133, 135, 136, 137, 138])){
-                $dmc_id = $user->created_by;
-            }else if($user->role_id == 78 || $user->role_id == 139){
-                $user_product_head = User::where('userId', $user->created_by)->first();
-                $dmc_id = $user_product_head->created_by;
-            }else if($user->role_id == 120 || $user->role_id == 140){
-                $user_product_manager = User::where('userId', $user->created_by)->first();
-                $user_product_head = User::where('userId', $user_product_manager->created_by)->first();
-                $dmc_id = $user_product_head->created_by;
-            }
-            else{
-                return redirect()->back()->with('error', 'You do not have permission to access this page.');
-            }
-
-            // Find the restaurant
-            $restaurant = Restaurant::where('restaurant_id', $restaurantId)->first();
-            if (!$restaurant) {
+            $dmc_id = $this->resolveServicesRestaurantsDmcId($user);
+            if (!$dmc_id) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Restaurant not found'
-                ], 404);
+                    'message' => 'You do not have permission to remove restaurants.',
+                ], 403);
             }
 
-            // Remove the DMC from the restaurant's selected DMCs
-            $restaurant->removeDmcId($dmc_id);
-            
+            $result = $this->unselectRestaurantForDmc($request->input('restaurant_id'), $dmc_id);
+            if (!$result['success']) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $result['message'],
+                ], $result['status']);
+            }
+
             return response()->json([
                 'success' => true,
-                'message' => 'Restaurant removed successfully!'
+                'message' => 'Restaurant removed successfully!',
             ]);
-            
         } catch (\Exception $e) {
             \Log::error('Restaurant removal error: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'Error removing restaurant: ' . $e->getMessage()
+                'message' => 'Error removing restaurant: ' . $e->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * Remove multiple restaurants from DMC selection using the same unselect rules.
+     */
+    public function removeRestaurantsBulk(Request $request)
+    {
+        try {
+            $user = Auth::user();
+
+            $allowedRoles = [11, 35, 78, 120, 130, 132, 133, 135, 136, 137, 138, 139, 140];
+            if (!in_array($user->role_id, $allowedRoles)) {
+                abort(403, 'You do not have permission to perform this action.');
+            }
+
+            $dmc_id = $this->resolveServicesRestaurantsDmcId($user);
+            if (!$dmc_id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You do not have permission to remove restaurants.',
+                ], 403);
+            }
+
+            $restaurantIds = $request->input('restaurant_ids', []);
+            if (!is_array($restaurantIds) || empty($restaurantIds)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Please select at least one restaurant to remove.',
+                ], 422);
+            }
+
+            $restaurantIds = array_values(array_unique(array_filter($restaurantIds, static function ($id) {
+                return $id !== null && $id !== '';
+            })));
+
+            if (count($restaurantIds) > 200) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Too many restaurants selected. Please remove fewer at a time.',
+                ], 422);
+            }
+
+            $removed = 0;
+            foreach ($restaurantIds as $restaurantId) {
+                $result = $this->unselectRestaurantForDmc($restaurantId, $dmc_id);
+                if ($result['success']) {
+                    $removed++;
+                }
+            }
+
+            if ($removed === 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unable to remove the selected restaurants. Please try again.',
+                ], 400);
+            }
+
+            $label = $removed === 1 ? 'restaurant' : 'restaurants';
+
+            return response()->json([
+                'success' => true,
+                'removed' => $removed,
+                'message' => $removed . ' ' . $label . ' removed successfully.',
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Restaurant bulk removal error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Unable to remove the selected restaurants. Please try again.',
+            ], 500);
+        }
+    }
+
+    /**
+     * Unselect a restaurant for the owning DMC using the existing dmc_id removal rules.
+     */
+    private function unselectRestaurantForDmc($restaurantId, $dmcId): array
+    {
+        $restaurant = Restaurant::where('restaurant_id', $restaurantId)->first();
+        if (!$restaurant) {
+            return [
+                'success' => false,
+                'status' => 404,
+                'message' => 'Restaurant not found',
+            ];
+        }
+
+        if (!$restaurant->hasSelectedByDmc($dmcId)) {
+            return [
+                'success' => false,
+                'status' => 400,
+                'message' => 'Restaurant not selected by you.',
+            ];
+        }
+
+        $restaurant->removeDmcId($dmcId);
+
+        return [
+            'success' => true,
+            'status' => 200,
+            'message' => 'Restaurant removed successfully!',
+        ];
+    }
+
+    /**
+     * Resolve the owning DMC userId for the services restaurants selection page.
+     */
+    private function resolveServicesRestaurantsDmcId(?User $user): ?int
+    {
+        return CommonHelper::resolveNearestNormalDmcId($user);
     }
 
     /**

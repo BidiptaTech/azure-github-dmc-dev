@@ -1,36 +1,39 @@
 @extends('layouts.layout')
 
-@section('title', 'Day Level')
+@section('title', 'AI Definition')
 
 @push('css')
     <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet" />
     <style>
         :root {
-            --form-brand: #2f55d4;
-            --form-brand-end: #1e3a8a;
-            --form-brand-hover: #2545b8;
-            --form-gradient-primary: linear-gradient(135deg, #1e3a8a 0%, #2f55d4 100%);
-            --form-gradient-page: linear-gradient(135deg, #0f2557 0%, #1e3a8a 55%, #2f55d4 100%);
-            --form-gradient-teal: linear-gradient(135deg, #134e4a 0%, #0f766e 100%);
-            --form-gradient-info: linear-gradient(135deg, #155e75 0%, #0e7490 100%);
-            --form-gradient-success: linear-gradient(135deg, #14532d 0%, #166534 100%);
-            --form-header-bg: #1e3a8a;
+            --form-brand: #2563eb;
+            --form-brand-end: #1d4ed8;
+            --form-brand-hover: #1d4ed8;
+            --form-gradient-primary: linear-gradient(135deg, #1e40af 0%, #2563eb 100%);
+            --form-gradient-page: linear-gradient(135deg, #1e293b 0%, #1e40af 55%, #2563eb 100%);
+            --form-gradient-teal: linear-gradient(135deg, #115e59 0%, #0f766e 100%);
+            --form-gradient-info: linear-gradient(135deg, #1e40af 0%, #2563eb 100%);
+            --form-gradient-success: linear-gradient(135deg, #166534 0%, #15803d 100%);
+            --form-gradient-slate: linear-gradient(135deg, #334155 0%, #475569 100%);
+            --form-header-bg: #1e40af;
+            --form-header-text: #ffffff;
+            --form-header-muted: rgba(255, 255, 255, 0.82);
             --form-danger: #dc3545;
             --form-danger-hover: #bb2d3b;
             --form-secondary: #64748b;
             --form-secondary-hover: #475569;
             --form-label-color: #334155;
-            --form-border: #d8dee9;
-            --form-panel-bg: linear-gradient(135deg, #f8fafc 0%, #eef3fb 100%);
-            /* Compact density (~75% feel at 100% zoom) */
+            --form-border: #dbe3ef;
+            --form-panel-bg: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            /* Compact density */
             --dl-field-h: 32px;
-            --dl-field-fs: 0.8125rem;
-            --dl-label-fs: 0.75rem;
+            --dl-field-fs: 0.8rem;
+            --dl-label-fs: 0.72rem;
             --dl-btn-fs: 0.75rem;
             --dl-radius: 6px;
-            --dl-card-pad: 0.95rem;
-            --dl-section-pad: 0.75rem 1rem;
-            --dl-label-offset: calc(0.2rem + 1.05em);
+            --dl-card-pad: 0.8rem 0.95rem;
+            --dl-section-pad: 0.55rem 0.95rem;
+            --dl-label-offset: calc(0.18rem + 1.05em);
         }
         #dayForm {
             font-size: var(--dl-field-fs);
@@ -120,21 +123,24 @@
             margin-top: 0 !important;
         }
         .section-header-icon {
-            width: 28px;
-            height: 28px;
-            border-radius: 8px;
+            width: 26px;
+            height: 26px;
+            border-radius: 7px;
             display: flex;
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
-            font-size: 0.95rem;
+            font-size: 0.9rem;
         }
-        .section-header-icon--light {
-            background: rgba(255, 255, 255, 0.2);
+        .section-header-icon--light,
+        .section-header-icon--sky,
+        .section-header-icon--teal {
+            background: rgba(255, 255, 255, 0.18);
+            color: #fff;
         }
         .section-header-icon--muted {
-            background: rgba(73, 80, 87, 0.12);
-            color: #495057;
+            background: rgba(255, 255, 255, 0.18);
+            color: #fff;
         }
         .day-tab-btn.active {
             background: var(--form-brand);
@@ -191,38 +197,89 @@
             background: #fff;
         }
         .stp-page-banner {
-            margin-bottom: 0.75rem !important;
+            margin-bottom: 0 !important;
         }
-        .stp-page-banner .card-header {
-            background: var(--form-gradient-page);
-            border: none;
-            padding: 0.75rem 1rem;
+        /* Single merged page header — deep navy → teal (lite create style) */
+        .dl-unified-header {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 0.65rem 1rem;
+            padding: 0.65rem 0.95rem !important;
+            background: linear-gradient(135deg, #1e3a5f 0%, #0f766e 100%) !important;
+            border: none !important;
+            border-bottom: none !important;
+            color: #fff !important;
+            box-shadow: 0 6px 18px rgba(30, 58, 95, 0.16);
         }
-        .stp-page-banner h4 {
-            font-size: 1.1rem;
-        }
-        .stp-page-banner h4,
-        .stp-page-banner .banner-subtitle {
+        #dayForm .multi-city-section > .dl-unified-header.card-header,
+        #dayForm .multi-city-section > .dl-unified-header.modern-section-header {
+            background: linear-gradient(135deg, #1e3a5f 0%, #0f766e 100%) !important;
             color: #fff !important;
         }
-        .stp-page-banner .banner-subtitle {
+        #dayForm .multi-city-section > .dl-unified-header strong,
+        #dayForm .multi-city-section > .dl-unified-header h4 {
+            color: #fff !important;
+            font-size: 1.08rem;
+            font-weight: 750;
+            margin: 0;
+            letter-spacing: -0.015em;
+        }
+        #dayForm .multi-city-section > .dl-unified-header .section-subtitle,
+        #dayForm .multi-city-section > .dl-unified-header .banner-subtitle {
             color: rgba(255, 255, 255, 0.88) !important;
-            font-size: 0.85rem;
+            font-size: 0.78rem !important;
+            margin-top: 0.2rem;
+            display: block;
+        }
+        #dayForm .multi-city-section > .dl-unified-header .ai-def-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            padding: 0.14rem 0.55rem;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.14);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.28);
+            font-size: 0.65rem;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            margin-bottom: 0.3rem;
+        }
+        #dayForm .multi-city-section > .dl-unified-header .section-header-icon {
+            background: rgba(255, 255, 255, 0.14);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.22);
+        }
+        #dayForm .multi-city-section > .dl-unified-header .section-header-icon i {
+            color: #fff !important;
+        }
+        #dayForm .multi-city-section > .dl-unified-header .dl-city-mode-status {
+            background: rgba(255, 255, 255, 0.14);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.28);
+        }
+        #dayForm .multi-city-section > .dl-unified-header .dl-city-mode-status.is-multi {
+            background: rgba(255, 255, 255, 0.22);
+            color: #fff;
+            border-color: rgba(255, 255, 255, 0.4);
         }
         .stp-back-btn {
             border-radius: var(--dl-radius);
             font-weight: 600;
-            padding: 0.3rem 0.85rem;
+            padding: 0.28rem 0.8rem;
             font-size: var(--dl-btn-fs);
             min-height: var(--dl-field-h);
-            background: rgba(255, 255, 255, 0.95);
-            border: 1px solid rgba(255, 255, 255, 0.6);
-            color: #495057;
+            background: #fff;
+            border: 1px solid #d7e5e2;
+            color: #0f766e;
         }
         .stp-back-btn:hover {
             background: #fff;
-            color: var(--form-brand);
-            border-color: #fff;
+            color: #0d9488;
+            border-color: #14b8a6;
         }
         #dayForm .sketch-card .card-header,
         #dayForm .modern-section-header {
@@ -232,61 +289,696 @@
         }
         #dayForm .sketch-card .card-header strong,
         #dayForm .modern-section-header strong {
-            font-size: 0.9rem;
+            font-size: 0.86rem;
+            font-weight: 700;
+            color: #fff !important;
+        }
+        #dayForm .card-header .section-subtitle {
+            display: block;
+            font-size: 0.7rem;
+            color: rgba(255, 255, 255, 0.85) !important;
+            opacity: 1;
+            line-height: 1.25;
+            margin-top: 0.05rem;
         }
         #dayForm .dmc-form-section .card-header,
         #dayForm .card.attraction-day-section > .card-header {
             background: var(--form-gradient-primary);
         }
-        #dayForm .multi-city-section .card-header {
+        #dayForm .multi-city-section .card-header:not(.dl-unified-header) {
             background: var(--form-gradient-teal);
         }
         #dayForm .hotels-section .card-header {
-            background: #e9ecef;
-            color: #212529 !important;
-            border-bottom: 1px solid var(--form-border);
+            background: var(--form-gradient-slate);
+            color: #fff !important;
+            border-bottom: none;
         }
         #dayForm .hotels-section .card-header strong,
         #dayForm .hotels-section .card-header .section-subtitle {
-            color: #212529 !important;
+            color: #fff !important;
         }
         #dayForm .hotels-section .card-header .section-subtitle {
-            opacity: 0.75;
+            color: rgba(255, 255, 255, 0.85) !important;
+            opacity: 1;
         }
-        /* Light professional day headers */
+        #dayForm .row.g-3 {
+            --bs-gutter-y: 0.65rem;
+        }
+        #dayForm > .row.g-3 > [class*="col-"] > .sketch-card {
+            margin-bottom: 0;
+        }
+        #dayForm .sketch-card {
+            border: 1px solid rgba(15, 23, 42, 0.06);
+            box-shadow: 0 2px 10px rgba(15, 23, 42, 0.07);
+        }
+
+        /* One city card — light tint like STP lite plan cards; Hotel | Services as 2 blocks */
+        .dl-svc-city-card {
+            border: 1px solid #d7e5e2;
+            border-left: 3px solid #14b8a6;
+            border-radius: 10px;
+            background: #fff;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+            margin-bottom: 0.75rem;
+            overflow: hidden;
+        }
+        .dl-svc-city-card[data-tint="1"] { border-color: #d8dde5; border-left-color: #64748b; }
+        .dl-svc-city-card[data-tint="2"] { border-color: #e4ddd4; border-left-color: #a78b6a; }
+        .dl-svc-city-card[data-tint="3"] { border-color: #d5dde8; border-left-color: #5b7fa3; }
+        .dl-svc-city-card[data-tint="4"] { border-color: #d6e0da; border-left-color: #5a8a72; }
+        .dl-svc-city-card[data-tint="5"] { border-color: #d8dce6; border-left-color: #6b7ea3; }
+
+        .dl-svc-city-card__head {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.35rem 0.75rem;
+            padding: 0.55rem 0.8rem;
+            background: #e6f4f2;
+            border-bottom: 1px solid rgba(13, 148, 136, 0.18);
+        }
+        .dl-svc-city-card[data-tint="1"] .dl-svc-city-card__head { background: #eef2f6; border-bottom-color: rgba(51, 65, 85, 0.14); }
+        .dl-svc-city-card[data-tint="2"] .dl-svc-city-card__head { background: #f3eee8; border-bottom-color: rgba(138, 106, 74, 0.14); }
+        .dl-svc-city-card[data-tint="3"] .dl-svc-city-card__head { background: #e9eef4; border-bottom-color: rgba(61, 90, 128, 0.14); }
+        .dl-svc-city-card[data-tint="4"] .dl-svc-city-card__head { background: #e8efe9; border-bottom-color: rgba(74, 107, 90, 0.14); }
+        .dl-svc-city-card[data-tint="5"] .dl-svc-city-card__head { background: #ebedf3; border-bottom-color: rgba(91, 107, 138, 0.14); }
+
+        .dl-svc-city-card__title {
+            margin: 0;
+            font-size: 0.92rem;
+            font-weight: 750;
+            letter-spacing: 0.01em;
+            text-transform: none;
+            color: #0f766e;
+        }
+        .dl-svc-city-card[data-tint="1"] .dl-svc-city-card__title { color: #334155; }
+        .dl-svc-city-card[data-tint="2"] .dl-svc-city-card__title { color: #6b5344; }
+        .dl-svc-city-card[data-tint="3"] .dl-svc-city-card__title { color: #3d5a80; }
+        .dl-svc-city-card[data-tint="4"] .dl-svc-city-card__title { color: #3d5c4c; }
+        .dl-svc-city-card[data-tint="5"] .dl-svc-city-card__title { color: #475569; }
+
+        .dl-svc-city-card__meta {
+            margin: 0.1rem 0 0;
+            font-size: 0.72rem;
+            color: #64748b;
+        }
+        .dl-svc-city-card__nights {
+            padding: 0.18rem 0.55rem;
+            border-radius: 999px;
+            background: rgba(20, 184, 166, 0.12);
+            color: #0f766e;
+            border: 1px solid rgba(13, 148, 136, 0.22);
+            font-size: 0.65rem;
+            font-weight: 650;
+        }
+        .dl-svc-city-card[data-tint="1"] .dl-svc-city-card__nights {
+            background: rgba(100, 116, 139, 0.12);
+            color: #334155;
+            border-color: rgba(51, 65, 85, 0.18);
+        }
+
+        .dl-svc-city-card__body {
+            padding: 0.7rem 0.75rem 0.8rem;
+            background: #f3faf9;
+        }
+        .dl-svc-city-card[data-tint="1"] .dl-svc-city-card__body { background: #f8fafc; }
+        .dl-svc-city-card[data-tint="2"] .dl-svc-city-card__body { background: #faf8f5; }
+        .dl-svc-city-card[data-tint="3"] .dl-svc-city-card__body { background: #f5f7fa; }
+        .dl-svc-city-card[data-tint="4"] .dl-svc-city-card__body { background: #f5f8f6; }
+        .dl-svc-city-card[data-tint="5"] .dl-svc-city-card__body { background: #f6f7fa; }
+
+        .dl-svc-city-card__body--split {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 0.65rem;
+            align-items: start;
+        }
+        @media (min-width: 992px) {
+            .dl-svc-city-card__body--split {
+                grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+            }
+        }
+
+        .dl-city-block-label {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem;
+            font-size: 0.65rem;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: #0f766e;
+            margin: 0 0 0.45rem;
+        }
+        .dl-city-hotel-block,
+        .dl-city-services-block {
+            margin: 0;
+            padding: 0.55rem 0.65rem 0.65rem;
+            border: 1px solid #d7e5e2;
+            border-radius: 8px;
+            background: #fff;
+            min-width: 0;
+        }
+        .dl-city-hotel-block .hotels-compact-table-wrap {
+            margin-top: 0.35rem;
+        }
+        .dl-city-services-block .dl-day-pick-bar {
+            margin-bottom: 0.55rem;
+            padding: 0.45rem 0.55rem;
+        }
+        .dl-svc-city-card .btn-outline-primary {
+            color: #0f766e !important;
+            border-color: #14b8a6 !important;
+            background: #fff !important;
+        }
+        .dl-svc-city-card .btn-outline-primary:hover,
+        .dl-svc-city-card .btn-outline-primary:focus {
+            color: #fff !important;
+            background: #0d9488 !important;
+            border-color: #0d9488 !important;
+        }
+        .dl-svc-city-card .dl-day-chip.is-active {
+            border-color: #fdba74;
+            background: #fff7ed;
+            color: #c2410c;
+            box-shadow: 0 0 0 2px rgba(251, 146, 60, 0.18);
+        }
+
+        .hotels-form-park {
+            position: fixed !important;
+            left: -10000px !important;
+            top: 0 !important;
+            width: 1px !important;
+            height: 1px !important;
+            overflow: hidden !important;
+            clip: rect(0, 0, 0, 0) !important;
+            white-space: nowrap !important;
+            border: 0 !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+            z-index: -1 !important;
+        }
+
+        /* Kill page-level horizontal scroll; keep tables scrollable inside their wraps */
+        body:has(#dayForm),
+        html:has(#dayForm) {
+            overflow-x: hidden;
+        }
+        .layout-page:has(#dayForm),
+        .content-wrapper:has(#dayForm),
+        .container-xxl:has(#dayForm),
+        #dayForm {
+            max-width: 100%;
+            overflow-x: clip;
+        }
+        #dayForm .row {
+            --bs-gutter-x: 0.75rem;
+            margin-left: 0;
+            margin-right: 0;
+        }
+        #dayForm .row > [class*="col-"] {
+            min-width: 0;
+            padding-left: calc(var(--bs-gutter-x) * 0.5);
+            padding-right: calc(var(--bs-gutter-x) * 0.5);
+        }
+        #dayForm .sketch-card,
+        #dayForm .dl-svc-city-card,
+        #dayForm .table-responsive,
+        #dayForm .select2-container {
+            max-width: 100%;
+        }
+        #dayForm .table-responsive {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* Compact vertical rhythm — empty create fits without extra page scroll */
+        .container-xxl.container-p-y:has(#dayForm) {
+            padding-top: 0.4rem !important;
+            padding-bottom: 0.5rem !important;
+        }
+        #dayForm > .row.g-3 {
+            --bs-gutter-y: 0.45rem;
+        }
+        #dayForm .multi-city-section > .card-body {
+            padding: 0.65rem 0.85rem 0.75rem !important;
+        }
+        #dayForm .attraction-day-section {
+            box-shadow: none !important;
+            border: 0 !important;
+            background: transparent !important;
+        }
+        #dayForm .attraction-day-section > .card-body {
+            padding: 0 !important;
+        }
+        #dayForm .dl-mc-stay-list {
+            margin-top: 0.55rem;
+        }
+        #dayForm .dl-mc-stay-empty {
+            padding: 0.5rem 0.7rem;
+            font-size: 0.78rem;
+        }
+        #dayForm .dl-svc-city-card {
+            margin-bottom: 0.45rem;
+        }
+        #dayForm .dl-svc-city-card__head {
+            padding: 0.4rem 0.7rem;
+        }
+        #dayForm .dl-svc-city-card__body {
+            padding: 0.5rem 0.6rem 0.55rem;
+        }
+        #dayForm .form-actions-bar {
+            margin-top: 0.25rem;
+            padding-bottom: 0.25rem;
+        }
+        #dayForm .form-actions-bar .btn-lg {
+            min-height: 34px;
+            padding: 0.3rem 1rem;
+            font-size: 0.8125rem;
+        }
+        #dayForm .package-submit-hint {
+            margin-top: 0.2rem;
+            font-size: 0.78rem;
+        }
+        .dl-hotel-city-card {
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            background: #fff;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+            margin-bottom: 0.65rem;
+            overflow: hidden;
+        }
+        .dl-hotel-city-card__head {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.35rem 0.75rem;
+            padding: 0.5rem 0.75rem;
+            background: #f8fafc;
+            border-bottom: 1px solid #eef2f7;
+        }
+        .dl-hotel-city-card__title {
+            margin: 0;
+            font-size: 0.8rem;
+            font-weight: 750;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+            color: #0f172a;
+        }
+        .dl-hotel-city-card__meta {
+            margin: 0.1rem 0 0;
+            font-size: 0.7rem;
+            color: #64748b;
+        }
+        .dl-hotel-city-card__nights {
+            padding: 0.18rem 0.5rem;
+            border-radius: 999px;
+            background: #ecfdf5;
+            color: #047857;
+            font-size: 0.65rem;
+            font-weight: 650;
+        }
+        .dl-hotel-city-card__body { padding: 0.65rem 0.75rem 0.75rem; }
+        .dl-hotel-city-card__actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 0.75rem;
+        }
+        .city-hotel-form-slot:empty { display: none; }
+        .city-hotel-form-slot:not(:empty) {
+            margin-bottom: 0.85rem;
+            padding: 0.85rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            background: #f8fafc;
+        }
+        .hotel-city-field.is-locked .select2-container {
+            pointer-events: none;
+            opacity: 0.85;
+        }
+        .dl-mc-stay-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.55rem;
+            margin-top: 0.85rem;
+        }
+        .dl-mc-stay-empty {
+            margin: 0;
+            padding: 0.75rem 0.85rem;
+            border: 1px dashed rgba(13, 148, 136, 0.35);
+            border-radius: 10px;
+            background: #f3faf9;
+            color: #64748b;
+            font-size: 0.82rem;
+        }
+        .dl-mc-stay-card {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.55rem 1rem;
+            padding: 0.7rem 0.85rem;
+            border: 1px solid #d7e5e2;
+            border-left: 3px solid #14b8a6;
+            border-radius: 10px;
+            background: #f3faf9;
+            box-shadow: 0 0.1rem 0.35rem rgba(15, 23, 42, 0.04);
+        }
+        .dl-mc-stay-card__main {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.55rem 0.85rem;
+            min-width: 0;
+            flex: 1;
+        }
+        .dl-mc-stay-card__step {
+            flex-shrink: 0;
+            width: 1.75rem;
+            height: 1.75rem;
+            border-radius: 8px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: #e6f4f2;
+            color: #0f766e;
+            font-size: 0.72rem;
+            font-weight: 750;
+            border: 1px solid rgba(13, 148, 136, 0.28);
+        }
+        .dl-mc-stay-card__city {
+            margin: 0;
+            font-size: 0.9rem;
+            font-weight: 750;
+            letter-spacing: 0.01em;
+            text-transform: none;
+            color: #0f766e;
+        }
+        .dl-mc-stay-card__range {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.28rem 0.6rem;
+            border-radius: 999px;
+            background: #fff;
+            border: 1px solid #d7e5e2;
+            color: #475569;
+            font-size: 0.78rem;
+            font-weight: 650;
+        }
+        .dl-mc-stay-card__range-arrow {
+            color: #94a3b8;
+            font-weight: 700;
+        }
+        .dl-mc-stay-card__nights {
+            padding: 0.28rem 0.6rem;
+            border-radius: 999px;
+            background: rgba(20, 184, 166, 0.12);
+            color: #0f766e;
+            border: 1px solid rgba(13, 148, 136, 0.22);
+            font-size: 0.72rem;
+            font-weight: 650;
+        }
+        .dl-mc-stay-card__actions {
+            display: inline-flex;
+            gap: 0.35rem;
+            flex-shrink: 0;
+        }
+        .dl-mc-flow {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.35rem 0.45rem;
+            margin-top: 0.65rem;
+            padding: 0.45rem 0.15rem 0;
+            font-size: 0.75rem;
+            color: #64748b;
+        }
+        .dl-mc-flow__city {
+            font-weight: 700;
+            color: #0f172a;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+        }
+        .dl-mc-flow__days {
+            color: #475569;
+            font-weight: 600;
+        }
+        .dl-mc-flow__sep {
+            color: #94a3b8;
+            font-weight: 700;
+            padding: 0 0.1rem;
+        }
+        .dl-city-mode-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.2rem 0.55rem;
+            border-radius: 999px;
+            font-size: 0.72rem;
+            font-weight: 650;
+            letter-spacing: 0.02em;
+            background: #f1f5f9;
+            color: #475569;
+            border: 1px solid #e2e8f0;
+        }
+        .dl-city-mode-status.is-multi {
+            background: #ecfdf5;
+            color: #047857;
+            border-color: #a7f3d0;
+        }
+        .dl-day-pick-bar {
+            display: flex;
+            flex-direction: column;
+            gap: 0.45rem;
+            margin-bottom: 0.85rem;
+            padding: 0.65rem 0.75rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            background: linear-gradient(180deg, #f8fafc 0%, #fff 100%);
+        }
+        .dl-day-pick-bar > label {
+            display: block;
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: #64748b;
+            margin-bottom: 0;
+        }
+        .dl-day-pick-bar .form-select {
+            min-width: 10rem;
+            max-width: 14rem;
+            font-weight: 600;
+        }
+        .dl-day-pick-bar__hint {
+            font-size: 0.78rem;
+            color: #94a3b8;
+            padding-bottom: 0.35rem;
+        }
+        .dl-day-chip-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.4rem;
+            align-items: center;
+        }
+        .dl-day-chip {
+            appearance: none;
+            position: relative;
+            border: 1px solid #cbd5e1;
+            background: #fff;
+            color: #334155;
+            border-radius: 8px;
+            min-width: 4.25rem;
+            padding: 0.45rem 0.7rem;
+            font-size: 0.82rem;
+            font-weight: 650;
+            line-height: 1.2;
+            cursor: pointer;
+            transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease, color 0.15s ease;
+        }
+        .dl-day-chip:hover {
+            border-color: #94a3b8;
+            background: #f8fafc;
+        }
+        .dl-day-chip.is-active {
+            border-color: #fdba74;
+            background: #fff7ed;
+            color: #c2410c;
+            box-shadow: 0 0 0 2px rgba(251, 146, 60, 0.18);
+        }
+        .dl-day-chip.is-filled {
+            border-color: #86efac;
+            background: #f0fdf4;
+            color: #166534;
+        }
+        .dl-day-chip.is-active.is-filled {
+            border-color: #fdba74;
+            background: #fff7ed;
+            color: #c2410c;
+            box-shadow: 0 0 0 2px rgba(251, 146, 60, 0.18);
+        }
+        .dl-day-panel { display: none; }
+        .dl-day-panel.is-active { display: block; }
+        .dl-day-panel > .day-card {
+            border: 0;
+            box-shadow: none !important;
+            margin-bottom: 0 !important;
+            background: transparent;
+        }
+        .dl-day-panel .day-card-header,
+        .dl-day-panel .dl-day-seg-head { display: none !important; }
+        .dl-day-panel .day-card > .card-body {
+            padding: 0 !important;
+            background: transparent;
+        }
+        .dl-day-panel .row.g-2.align-items-end.mb-2:first-child {
+            /* keep city select in DOM for logic; hide from user */
+        }
+        .dl-day-panel .activity-city-row { display: none !important; }
+        /* Day segments — open, stacked, professional */
         #dayForm .day-card .day-header-primary,
         #dayForm .day-card .day-header-success,
         #dayForm .day-card .day-header-warning,
         #dayForm .day-card .day-header-danger,
         #dayForm .day-card .day-header-info,
-        #dayForm .day-card .day-header-purple { background: #f6f8fc; }
+        #dayForm .day-card .day-header-purple { background: transparent; }
         #dayForm .day-card .card-header { letter-spacing: 0.01em; }
         #dayForm .day-card-header {
-            color: #1f2d4d;
-            border-bottom: 1px solid #e6ebf4;
-            border-left: 3px solid var(--form-brand);
+            color: #0f172a;
+            border-bottom: 1px solid #e8eef5;
+            border-left: 0;
+            background: #fff !important;
+            padding: 0.7rem 1rem !important;
         }
-        #dayForm .day-card .card-header strong { color: #1f2d4d !important; }
-        #dayForm .day-card .card-header .small { color: #64748b !important; }
+        #dayForm .day-card .card-header strong,
+        #dayForm .day-card-header strong,
+        #dayForm .day-card .dl-day-seg-copy strong {
+            color: #0f172a !important;
+        }
+        #dayForm .day-card .card-header .small,
+        #dayForm .day-card .dl-day-seg-meta {
+            color: #64748b !important;
+        }
         #dayForm .modern-section-header strong,
-        #dayForm .card-header strong,
-        #dayForm .card-header .text-white {
+        #dayForm .card-header strong {
             color: #fff !important;
         }
+        #dayForm .card-header .text-white,
+        #dayForm .card-header .ri-settings-3-line,
+        #dayForm .card-header .ri-map-pin-line,
+        #dayForm .card-header .ri-calendar-event-line,
+        #dayForm .card-header .ri-hotel-line,
+        #dayForm .card-header i.text-white {
+            color: #fff !important;
+        }
+        #dayForm .day-card .card-header strong,
+        #dayForm .day-card-header strong,
+        #dayForm .day-card .dl-day-seg-copy strong {
+            color: #0f172a !important;
+        }
         #dayForm .card-header .section-subtitle {
-            color: rgba(255, 255, 255, 0.92);
+            color: rgba(255, 255, 255, 0.85) !important;
         }
         .day-card {
-            border: 0;
-            box-shadow: 0 0.25rem 0.75rem rgba(67, 89, 113, 0.08);
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            box-shadow: 0 0.15rem 0.45rem rgba(15, 23, 42, 0.04);
             overflow: hidden;
-            margin-bottom: 0.75rem !important;
+            margin-bottom: 0.85rem !important;
+            background: #fff;
         }
         .day-card > .card-body {
-            padding: var(--dl-card-pad) !important;
+            padding: 0.85rem 1rem 1rem !important;
+            background: #fcfdff;
         }
         #dayWiseServiceBlocks {
-            padding-top: 0.5rem;
+            padding-top: 0.35rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.15rem;
+        }
+        .dl-day-seg-head {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            width: 100%;
+        }
+        .dl-day-seg-num {
+            flex-shrink: 0;
+            width: 2.35rem;
+            height: 2.35rem;
+            border-radius: 10px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(160deg, #eef2ff 0%, #e0e7ff 100%);
+            color: #3730a3;
+            font-weight: 750;
+            font-size: 0.82rem;
+            letter-spacing: -0.02em;
+            border: 1px solid #c7d2fe;
+        }
+        .dl-day-seg-copy {
+            min-width: 0;
+            flex: 1;
+        }
+        .dl-day-seg-copy strong {
+            display: block;
+            font-size: 0.92rem;
+            font-weight: 700;
+            color: #0f172a !important;
+            line-height: 1.2;
+        }
+        .dl-day-seg-copy .dl-day-seg-meta {
+            display: block;
+            margin-top: 0.12rem;
+            font-size: 0.72rem !important;
+            color: #64748b !important;
+            opacity: 1 !important;
+        }
+        .dl-day-seg-city {
+            flex-shrink: 0;
+            padding: 0.28rem 0.65rem;
+            border-radius: 999px;
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            color: #334155;
+            font-size: 0.72rem;
+            font-weight: 650;
+            max-width: 12rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .dl-city-band {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 0.75rem;
+            margin: 0.85rem 0 0.55rem;
+            padding: 0.35rem 0.15rem 0.45rem;
+            border-bottom: 1px solid #e8eef5;
+        }
+        .dl-city-band:first-child { margin-top: 0.15rem; }
+        .dl-city-band__name {
+            margin: 0;
+            font-size: 0.78rem;
+            font-weight: 750;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: #475569;
+        }
+        .dl-city-band__range {
+            font-size: 0.72rem;
+            color: #94a3b8;
+            font-weight: 600;
         }
         /* Grouped service sections: light, compact panels (service + its transfer share one grid) */
         .day-service-group {
@@ -481,9 +1173,9 @@
         #packagePreviewModal .btn-outline-primary:focus,
         #packagePreviewModal .btn-outline-primary:active {
             color: #fff !important;
-            border-color: transparent !important;
-            background: var(--form-gradient-primary) !important;
-            box-shadow: 0 4px 12px rgba(47, 85, 212, 0.35);
+            border-color: var(--form-brand) !important;
+            background: var(--form-brand) !important;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
             transform: translateY(-1px);
         }
         #dayForm .btn-primary,
@@ -491,7 +1183,7 @@
             color: #fff !important;
             border: none !important;
             background: var(--form-gradient-primary) !important;
-            box-shadow: 0 4px 12px rgba(47, 85, 212, 0.35);
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.28);
         }
         #dayForm .btn-primary:hover,
         #dayForm .btn-primary:focus,
@@ -500,8 +1192,8 @@
         #packagePreviewModal .btn-primary:focus,
         #packagePreviewModal .btn-primary:active {
             color: #fff !important;
-            background: linear-gradient(135deg, #16306e 0%, #2545b8 100%) !important;
-            box-shadow: 0 6px 16px rgba(30, 58, 138, 0.35);
+            background: linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 100%) !important;
+            box-shadow: 0 5px 14px rgba(30, 58, 138, 0.32);
             transform: translateY(-1px);
         }
         #dayForm .btn-outline-danger {
@@ -566,25 +1258,16 @@
             stroke: currentColor;
         }
         .day-card .day-card-header {
-            color: #1f2d4d;
+            color: #0f172a;
         }
         .day-pill {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            min-width: 1.65rem;
-            height: 1.65rem;
-            border-radius: 999px;
-            background: #e8edfb;
-            color: var(--form-brand);
-            font-weight: 700;
-            font-size: 0.8rem;
+            display: none;
         }
         .day-card-header strong {
-            font-size: 0.9rem;
+            font-size: 0.92rem;
         }
         .day-card-header .small {
-            font-size: 0.7rem !important;
+            font-size: 0.72rem !important;
         }
         .detail-chip {
             display: inline-block;
@@ -781,115 +1464,196 @@
         #dayForm small.text-muted {
             font-size: 0.7rem;
         }
+        #packagePreviewModal .modal-content {
+            border: 0;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 16px 40px rgba(15, 23, 42, 0.18);
+        }
         #packagePreviewModal .modal-header {
-            background: var(--form-gradient-primary);
+            background: linear-gradient(135deg, #1e3a5f 0%, #0f766e 100%) !important;
             color: #fff !important;
             border-bottom: 0;
-            padding: 1rem 1.25rem;
+            padding: 0.7rem 1rem;
+            align-items: center;
         }
         #dayForm .form-actions-bar {
-            padding: 0.75rem;
+            padding: 0.65rem 0.85rem;
             background: #fff;
-            border-radius: 12px;
-            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+            border: 1px solid var(--form-border);
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(15, 23, 42, 0.06);
         }
         #packagePreviewModal .modal-header .modal-title {
             color: #fff !important;
+            font-size: 0.98rem;
+            font-weight: 750;
+            letter-spacing: -0.015em;
         }
         #packagePreviewModal .modal-header .btn-close {
             filter: brightness(0) invert(1);
-            opacity: 1;
+            opacity: 0.9;
+        }
+        #packagePreviewModal .modal-body {
+            background: #f4f7fb;
+            padding: 0.85rem 0.95rem;
+        }
+        #packagePreviewModal .modal-footer {
+            background: #fff;
+            border-top: 1px solid #e2e8f0;
+            padding: 0.55rem 0.95rem;
+        }
+        .preview-section-title {
+            font-size: 0.68rem;
+            font-weight: 750;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: #0f766e;
+            margin: 0 0 0.4rem;
+        }
+        .preview-hint {
+            font-size: 0.72rem;
+            color: #64748b;
+            margin: 0 0 0.55rem;
         }
         .preview-city-card {
-            border: 1px solid rgba(47, 85, 212, 0.15);
-            border-radius: 12px;
+            border: 1px solid #d7e5e2;
+            border-left: 3px solid #14b8a6;
+            border-radius: 10px;
             overflow: hidden;
-            margin-bottom: 1rem;
-            box-shadow: 0 2px 8px rgba(47, 85, 212, 0.08);
+            margin-bottom: 0.65rem;
+            background: #fff;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
         }
         .preview-city-card .preview-city-head {
-            background: var(--form-gradient-primary);
-            color: #fff;
-            padding: 0.75rem 1rem;
+            background: #e6f4f2;
+            color: #0f766e;
+            border-bottom: 1px solid rgba(13, 148, 136, 0.16);
+            padding: 0.45rem 0.7rem;
+            font-weight: 700;
+            font-size: 0.82rem;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.3rem 0.75rem;
+        }
+        .preview-city-head__meta {
+            font-size: 0.72rem;
             font-weight: 600;
+            color: #64748b;
+        }
+        .preview-city-body {
+            background: #f3faf9;
+            padding: 0.45rem 0.55rem 0.5rem;
         }
         .preview-day-block {
-            border-bottom: 1px solid rgba(67, 89, 113, 0.1);
-            padding: 0.85rem 1rem;
+            border: 1px solid #d7e5e2;
+            border-radius: 8px;
+            background: #fff;
+            padding: 0.5rem 0.6rem;
+            margin-bottom: 0.4rem;
         }
         .preview-day-block:last-child {
-            border-bottom: 0;
+            margin-bottom: 0;
         }
         .preview-day-title {
-            font-weight: 700;
-            color: var(--form-brand);
-            margin-bottom: 0.45rem;
+            font-weight: 750;
+            color: #c2410c;
+            background: #fff7ed;
+            border: 1px solid #fdba74;
+            border-radius: 999px;
+            padding: 0.12rem 0.5rem;
+            font-size: 0.72rem;
+            margin-bottom: 0;
         }
         .preview-line {
-            font-size: 0.85rem;
-            margin-bottom: 0.25rem;
-            color: #566a7f;
+            font-size: 0.78rem;
+            margin-bottom: 0.3rem;
+            color: #475569;
         }
         .preview-line strong {
-            color: #435971;
-            min-width: 5.5rem;
+            color: #0f766e;
+            min-width: 3.4rem;
             display: inline-block;
+            font-size: 0.65rem;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
         }
         .preview-warnings .alert {
-            font-size: 0.85rem;
-            margin-bottom: 0.5rem;
+            font-size: 0.78rem;
+            margin-bottom: 0.4rem;
+            padding: 0.4rem 0.65rem;
         }
         .preview-empty {
-            color: #8592a3;
-            font-size: 0.85rem;
-            font-style: italic;
+            color: #94a3b8;
+            font-size: 0.76rem;
         }
         .preview-summary-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-            gap: 0.75rem;
-            margin-bottom: 1.25rem;
+            grid-template-columns: repeat(auto-fit, minmax(108px, 1fr));
+            gap: 0.45rem;
+            margin-bottom: 0.75rem;
         }
         .preview-summary-card {
-            background: linear-gradient(135deg, #f8f9ff 0%, #eef2ff 100%);
-            border: 1px solid rgba(47, 85, 212, 0.18);
-            border-radius: 10px;
-            padding: 0.85rem 1rem;
+            background: #fff;
+            border: 1px solid #d7e5e2;
+            border-radius: 8px;
+            padding: 0.45rem 0.6rem;
         }
         .preview-summary-card .label {
-            font-size: 0.72rem;
+            font-size: 0.62rem;
             text-transform: uppercase;
-            letter-spacing: 0.04em;
-            color: #8592a3;
-            font-weight: 600;
+            letter-spacing: 0.05em;
+            color: #64748b;
+            font-weight: 700;
         }
         .preview-summary-card .value {
-            font-size: 1.1rem;
-            font-weight: 700;
-            color: #435971;
-            margin-top: 0.15rem;
+            font-size: 0.95rem;
+            font-weight: 750;
+            color: #0f172a;
+            margin-top: 0.08rem;
+        }
+        .preview-summary-card.grand-total {
+            background: #e6f4f2;
+            border-color: rgba(13, 148, 136, 0.28);
         }
         .preview-summary-card.grand-total .value {
-            color: #198754;
+            color: #0f766e;
         }
         .preview-service-table th {
-            font-size: 0.72rem;
+            font-size: 0.65rem;
             text-transform: uppercase;
-            letter-spacing: 0.03em;
+            letter-spacing: 0.04em;
+            padding: 0.3rem 0.45rem !important;
+            background: #f8fafc !important;
+            color: #64748b;
         }
         .preview-service-table td {
-            font-size: 0.82rem;
+            font-size: 0.76rem;
             vertical-align: middle;
+            padding: 0.32rem 0.45rem !important;
         }
         .preview-transfer-chip {
             display: inline-block;
-            background: #eef2ff;
-            border: 1px solid rgba(47, 85, 212, 0.2);
+            background: #e6f4f2;
+            border: 1px solid rgba(13, 148, 136, 0.22);
             border-radius: 999px;
-            padding: 0.15rem 0.55rem;
-            font-size: 0.78rem;
-            color: #435971;
-            margin-top: 0.2rem;
+            padding: 0.08rem 0.45rem;
+            font-size: 0.7rem;
+            color: #0f766e;
+            margin-top: 0.15rem;
+        }
+        .preview-itinerary-table th,
+        .preview-itinerary-table td {
+            font-size: 0.76rem;
+            padding: 0.32rem 0.5rem !important;
+        }
+        .preview-itinerary-table thead th {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: #64748b;
         }
         .form-actions-bar {
             position: relative;
@@ -912,15 +1676,15 @@
             font-style: italic;
         }
         .container-xxl.container-p-y:has(#dayForm) {
-            padding-top: 0.65rem !important;
-            padding-bottom: 0.85rem !important;
+            padding-top: 0.4rem !important;
+            padding-bottom: 0.5rem !important;
         }
         #dayForm .card-header.gap-2 {
             gap: 0.35rem !important;
         }
         #dayForm .sketch-card {
-            border-radius: 8px;
-            box-shadow: 0 1px 6px rgba(0, 0, 0, 0.06);
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(15, 23, 42, 0.07);
         }
         #dayForm .data-table-sm td,
         #dayForm .data-table-sm th {
@@ -962,34 +1726,6 @@
 @section('content')
     <div class="content-wrapper">
         <div class="container-xxl flex-grow-1 container-p-y">
-            <div class="row mb-2 stp-page-banner">
-                <div class="col-12">
-                    <div class="card shadow-sm border-0 sketch-card">
-                        <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-                            <div>
-                                <h4 class="mb-0 fw-bold">
-                                    @isset($dayLevel)
-                                        Edit Day Level Package
-                                    @else
-                                        Create Day Level Package
-                                    @endisset
-                                </h4>
-                                <div class="banner-subtitle mt-1">
-                                    @if(!empty($editingPackageId))
-                                        Editing one package only
-                                    @elseif(isset($dayLevel))
-                                        Update saved itinerary and services
-                                    @else
-                                        Design day-wise hotels, activities and transfers
-                                    @endif
-                                </div>
-                            </div>
-                            <button type="button" class="btn stp-back-btn" onclick="history.back()">Back</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
             @if (session('success'))
                 <div class="alert alert-success">{{ session('success') }}</div>
             @endif
@@ -1022,53 +1758,43 @@
 
                 <div class="row g-3">
                     <div class="col-12">
-                        <div class="card sketch-card dmc-form-section">
-                            <div class="card-header modern-section-header text-white d-flex align-items-center gap-2">
-                                <div class="section-header-icon section-header-icon--light">
-                                    <i class="ri-settings-3-line text-white"></i>
+                        {{-- DMC ids stay for API / save; Package Setup UI removed --}}
+                        <input type="hidden" id="master_dmc_id" value="{{ (int) $masterDmcId }}">
+                        <input type="hidden" id="dmc_id" value="{{ (int) $defaultDmcId }}" data-country="{{ $dmcCountry ?? '' }}">
+
+                        <div class="card sketch-card multi-city-section">
+                            <div class="card-header modern-section-header dl-unified-header">
+                                <div class="d-flex align-items-start gap-2 flex-grow-1 min-w-0">
+                                    <div class="min-w-0">
+                                        <div class="ai-def-badge"><i class="ri-magic-line"></i> AI Definition</div>
+                                        <h4 class="mb-0">
+                                            @isset($dayLevel)
+                                                Edit AI Definition Package
+                                            @else
+                                                Create AI Definition Package
+                                            @endisset
+                                        </h4>
+                                        <span class="banner-subtitle section-subtitle">
+                                            @if(!empty($editingPackageId))
+                                                Editing one package — add city stays, hotels and other services
+                                            @elseif(isset($dayLevel))
+                                                Update city stays, hotels and other services in one flow
+                                            @else
+                                                Multi-city stays, hotels and other services 
+                                            @endif
+                                        </span>
+                                    </div>
                                 </div>
-                                <div>
-                                    <strong class="text-white d-block">DMC Form</strong>
-                                    <span class="section-subtitle">Package days and DMC assignment</span>
-                                </div>
+                                <span class="dl-city-mode-status" id="cityModeStatusBadge" aria-live="polite">Single City</span>
                             </div>
                             <div class="card-body">
-                                <div class="row g-3">
+                                <input type="hidden" id="city_itinerary_mode" value="single">
+                                <div class="row g-3 align-items-end">
+                                    <input type="hidden" id="country" name="country" value="{{ old('country') }}">
                                     <div class="col-md-2">
                                         <label class="form-label section-label" for="days">No. of Days</label>
                                         <input type="number" class="form-control" id="days" name="days" min="1" max="365" value="{{ old('days', 1) }}">
                                     </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label section-label">Master DMC</label>
-                                        <input type="text" class="form-control" value="{{ $masterDmcName ?? 'Master DMC' }}" readonly>
-                                        <input type="hidden" id="master_dmc_id" value="{{ (int) $masterDmcId }}">
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label section-label" for="dmc_id">DMC</label>
-                                        <input type="text" class="form-control" value="{{ $dmcName ?? 'DMC' }}" readonly>
-                                        <input type="hidden" id="dmc_id" value="{{ (int) $defaultDmcId }}" data-country="{{ $dmcCountry ?? '' }}">
-                                    </div>
-                                </div>
-
-                                {{-- Day tabs removed: itinerary day mapping comes from Multi City --}}
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="col-12">
-                        <div class="card sketch-card multi-city-section">
-                            <div class="card-header modern-section-header text-white d-flex align-items-center gap-2">
-                                <div class="section-header-icon section-header-icon--light">
-                                    <i class="ri-map-pin-line text-white"></i>
-                                </div>
-                                <div>
-                                    <strong class="text-white d-block">Multi City</strong>
-                                    <span class="section-subtitle">Map cities to check-in and check-out days</span>
-                                </div>
-                            </div>
-                            <div class="card-body">
-                                <div class="row g-3 align-items-end">
-                                    <input type="hidden" id="country" name="country" value="{{ old('country') }}">
                                     <div class="col-md-4">
                                         <label class="form-label" for="city_id">City</label>
                                         <select id="city_id" name="city_id" class="form-select searchable-select">
@@ -1084,54 +1810,33 @@
                                         </select>
                                     </div>
                                     <div class="col-md-2">
-                                        <label class="form-label" for="mc_day_in">Day Check In</label>
+                                        <label class="form-label" for="mc_day_in">Stay from</label>
                                         <select id="mc_day_in" class="form-select searchable-select"></select>
                                     </div>
                                     <div class="col-md-2">
-                                        <label class="form-label" for="mc_day_out">Day Check Out</label>
+                                        <label class="form-label" for="mc_day_out">Stay until</label>
                                         <select id="mc_day_out" class="form-select searchable-select"></select>
                                     </div>
                                     <div class="col-md-2">
-                                        <button type="button" class="btn btn-outline-primary w-100" id="multiCityAddBtn" onclick="addMultiCityPlan()">Add</button>
+                                        <button type="button" class="btn btn-outline-primary w-100" id="multiCityAddBtn" onclick="addMultiCityPlan()">Add stay</button>
                                     </div>
                                 </div>
-                                <small class="text-muted">Data auto-loads when you change DMC/city.</small>
+                                <small class="text-muted" id="cityModeHint">Auto Single City — add another stay to switch to Multi City.</small>
 
-                                <div class="table-responsive modern-table-wrap mt-3">
-                                    <table class="table table-sm data-table-sm">
-                                        <thead class="table-light">
-                                            <tr>
-                                                <th>City</th>
-                                                <th>Day Check In</th>
-                                                <th>Day Check Out</th>
-                                                <th></th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="multiCityRows">
-                                            <tr><td colspan="4" class="text-muted">No city plan added</td></tr>
-                                        </tbody>
-                                    </table>
+                                <div id="multiCityStayList" class="dl-mc-stay-list" aria-live="polite">
+                                    <p class="dl-mc-stay-empty mb-0">No city stay yet. Select a city, set day range, then Add stay.</p>
                                 </div>
+                                <div id="multiCityFlow" class="dl-mc-flow d-none" aria-hidden="true"></div>
                             </div>
                         </div>
                     </div>
 
-                    <div class="col-12">
-                        <div class="card sketch-card hotels-section">
-                            <div class="card-header modern-section-header d-flex align-items-center gap-2">
-                                <div class="section-header-icon section-header-icon--muted">
-                                    <i class="ri-hotel-line"></i>
-                                </div>
-                                <div>
-                                    <strong class="d-block">Hotels</strong>
-                                    <span class="section-subtitle">Add accommodation and meal plans with pricing</span>
-                                </div>
-                            </div>
-                            <div class="card-body hotels-form-body">
+                    <div id="hotelsFormPark" class="hotels-form-park" aria-hidden="true">
+                        <div id="hotelsFormBody" class="hotels-form-body">
                                 <div class="hotels-form-panel">
                                     <div class="hotels-form-panel-title">Stay details</div>
                                     <div class="row g-3 align-items-end">
-                                        <div class="col-lg-3 col-md-6">
+                                        <div class="col-lg-3 col-md-6 hotel-city-field" id="hotel_city_field_wrap">
                                             <label class="form-label" for="hotel_city_select">City</label>
                                         <select id="hotel_city_select" class="form-select searchable-select">
                                             <option value="">Select city</option>
@@ -1235,43 +1940,18 @@
                                         <label class="form-label d-none d-md-block">&nbsp;</label>
                                         <button type="button" class="btn btn-outline-primary w-100 hotels-add-btn" id="hotelAddBtn" onclick="addHotel()">Add Hotel</button>
                                     </div>
+                                    <div class="col-lg-3 col-md-4">
+                                        <label class="form-label d-none d-md-block">&nbsp;</label>
+                                        <button type="button" class="btn btn-outline-secondary w-100" onclick="parkHotelForm()">Close</button>
+                                    </div>
                                     </div>
                                 </div>
-
-                                <div class="table-responsive modern-table-wrap hotels-compact-table-wrap">
-                                    <table class="table table-sm data-table-sm hotels-compact-table mb-0">
-                                        <thead class="table-light">
-                                            <tr>
-                                                <th>Day</th>
-                                                <th>City</th>
-                                                <th>Hotel</th>
-                                                <th>Nights</th>
-                                                <th>Room &amp; Meal</th>
-                                                <th class="text-end">Price / Night</th>
-                                                <th class="text-end">Total</th>
-                                                <th class="text-end" style="width:88px;"></th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="hotelRows">
-                                            <tr><td colspan="8" class="text-muted">No hotels added</td></tr>
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
                         </div>
                     </div>
 
                     <div class="col-12">
                         <div class="card sketch-card attraction-day-section border-0">
-                            <div class="card-header modern-section-header text-white d-flex align-items-center gap-2">
-                                <div class="section-header-icon section-header-icon--light">
-                                    <i class="ri-calendar-event-line text-white"></i>
-                                </div>
-                                <div>
-                                    <strong class="text-white d-block">Attraction / Restaurant by Day</strong>
-                                    <span class="section-subtitle">Plan daily attractions, meals and transfers</span>
-                                </div>
-                            </div>
+                            
                             <div class="card-body">
                                 <div id="dayWiseServiceBlocks"></div>
                             </div>
@@ -1402,6 +2082,7 @@
         let transferDefaults = { defaultPort: '' };
         let hotelTransferState = { city: '', pickup: '', drop: '' };
         let hotelRoomsCache = [];
+        let activeHotelCityKey = null;
         let dayTransferExtras = {};
 
         function hotelsHaveArrivalDepartureTransferSaved() {
@@ -2340,6 +3021,10 @@
 
         function cacheAllCities() {
             const citySelect = document.getElementById('city_id');
+            if (!citySelect || !citySelect.options) {
+                allCities = [];
+                return;
+            }
             allCities = Array.from(citySelect.options)
                 .filter(opt => opt.value)
                 .map(opt => ({
@@ -2350,20 +3035,17 @@
         }
 
         function applyCountryFilter() {
-            const selectedCountry = String(document.getElementById('country').value || '').trim();
-            const filteredByCountry = allCities.filter(c => cityMatchesCountry(c, selectedCountry));
-            const filtered = filteredByCountry.length ? filteredByCountry : allCities;
+            // Cities are already scoped to Master DMC countries server-side.
+            // Do not narrow further to the child DMC country.
             const prevCityId = $('#city_id').val();
-            setSelectOptions('city_id', filtered.map(c => ({
+            setSelectOptions('city_id', allCities.map(c => ({
                 value: c.value,
                 label: c.country ? `${c.name}, ${c.country}` : c.name,
                 data_name: c.name,
                 data_country: c.country,
             })));
-            if (prevCityId && filtered.some(c => String(c.value) === String(prevCityId))) {
+            if (prevCityId && allCities.some(c => String(c.value) === String(prevCityId))) {
                 safeSetSelectValue('city_id', prevCityId);
-            } else {
-                $('#city_id').val('').trigger('change');
             }
             setSectionCityOptions();
         }
@@ -2372,12 +3054,17 @@
             const hiddenCountry = document.getElementById('country');
             if (!hiddenCountry) return;
 
-            const dmcOp = getSelectedOption('dmc_id');
-            const dmcCountry = String(dmcOp?.dataset?.country || '').trim();
             const cityOp = getSelectedOption('city_id');
             const cityCountry = String(cityOp?.dataset?.country || '').trim();
-            const fallbackCountry = String(allCities.find(c => !!c.country)?.country || '').trim();
-            hiddenCountry.value = String(preferredCountry || dmcCountry || cityCountry || fallbackCountry || '').trim();
+            // Prefer explicit / selected city country. Never lock to child DMC country
+            // — that hid Master DMC cities in other countries.
+            if (String(preferredCountry || '').trim()) {
+                hiddenCountry.value = String(preferredCountry).trim();
+                return;
+            }
+            if (cityCountry) {
+                hiddenCountry.value = cityCountry;
+            }
         }
 
         function getCityNameFromSelect(selectId) {
@@ -2458,10 +3145,9 @@
 
         function getSectionCityOptions() {
             const multiCityFiltered = getDayCityOptionsFromMultiCity();
-            const selectedCountry = document.getElementById('country').value || '';
             const source = (multiCityFiltered && multiCityFiltered.length)
                 ? multiCityFiltered
-                : allCities.filter(c => cityMatchesCountry(c, selectedCountry));
+                : allCities;
             return source.map(c => ({
                 value: c.value,
                 label: c.country ? `${c.name}, ${c.country}` : c.name,
@@ -2611,6 +3297,41 @@
             return null;
         }
 
+        function getCityItineraryMode() {
+            const el = document.getElementById('city_itinerary_mode');
+            const mode = String(el?.value || 'single').toLowerCase();
+            return mode === 'multi' ? 'multi' : 'single';
+        }
+
+        /** Lite-style: auto Single/Multi from stay count (2+ → multi). No manual toggle. */
+        function syncCityItineraryModeFromPlans() {
+            const next = multiCityPlans.length > 1 ? 'multi' : 'single';
+            const modeInput = document.getElementById('city_itinerary_mode');
+            if (modeInput) modeInput.value = next;
+
+            const badge = document.getElementById('cityModeStatusBadge');
+            if (badge) {
+                badge.textContent = next === 'multi' ? 'Multi City' : 'Single City';
+                badge.classList.toggle('is-multi', next === 'multi');
+            }
+
+            const hint = document.getElementById('cityModeHint');
+            if (hint) {
+                if (next === 'multi') {
+                    hint.textContent = `Auto Multi City — ${multiCityPlans.length} city stays.`;
+                } else if (multiCityPlans.length === 1) {
+                    hint.textContent = 'Auto Single City — add another stay to switch to Multi City.';
+                } else {
+                    hint.textContent = 'Auto Single City — select a city, set day range, then Add stay.';
+                }
+            }
+            return next;
+        }
+
+        function inferCityItineraryModeFromPlans() {
+            return multiCityPlans.length > 1 ? 'multi' : 'single';
+        }
+
         function addMultiCityPlan() {
             const cityOp = getSelectedOption('city_id');
             if (!cityOp) {
@@ -2648,19 +3369,12 @@
                 multiCityPlans[editingMultiCityIndex] = payload;
                 editingMultiCityIndex = null;
                 const btn = document.getElementById('multiCityAddBtn');
-                if (btn) btn.textContent = 'Add';
+                if (btn) btn.textContent = 'Add stay';
             } else {
                 multiCityPlans.push(payload);
             }
-            renderMultiCityRows();
-            setSectionCityOptions();
             resetMultiCityPickerFields();
-            updateAllDayTransferVisibility();
-            invalidateTransferOptionsCache();
-            scheduleTransferOptionsReload(true);
-            applyTransferDefaults();
-            // Hotels (day + nights) depend solely on Multi City.
-            syncHotelsWithMultiCity();
+            refreshMultiCityDependentUi();
         }
 
         function removeMultiCityPlan(idx) {
@@ -2668,19 +3382,12 @@
             if (editingMultiCityIndex === idx) {
                 editingMultiCityIndex = null;
                 const btn = document.getElementById('multiCityAddBtn');
-                if (btn) btn.textContent = 'Add';
+                if (btn) btn.textContent = 'Add stay';
             }
-            renderMultiCityRows();
-            setSectionCityOptions();
             if (!multiCityPlans.length) {
                 resetMultiCityPickerFields();
             }
-            updateAllDayTransferVisibility();
-            invalidateTransferOptionsCache();
-            scheduleTransferOptionsReload(true);
-            applyTransferDefaults();
-            // Hotels (day + nights) depend solely on Multi City.
-            syncHotelsWithMultiCity();
+            refreshMultiCityDependentUi();
         }
 
         function editMultiCityPlan(idx) {
@@ -2698,29 +3405,79 @@
             document.getElementById('mc_day_in').value = String(row.day_in || 1);
             document.getElementById('mc_day_out').value = String(row.day_out || row.day_in || 1);
             const btn = document.getElementById('multiCityAddBtn');
-            if (btn) btn.textContent = 'Update';
+            if (btn) btn.textContent = 'Update stay';
         }
 
         function renderMultiCityRows() {
-            const body = document.getElementById('multiCityRows');
-            if (!body) return;
+            const list = document.getElementById('multiCityStayList');
+            const flow = document.getElementById('multiCityFlow');
+            if (!list) return;
+
             if (!multiCityPlans.length) {
-                body.innerHTML = '<tr><td colspan="4" class="text-muted">No city plan added</td></tr>';
+                list.innerHTML = '<p class="dl-mc-stay-empty mb-0">No city stay yet. Select a city, set day range, then Add stay.</p>';
+                if (flow) {
+                    flow.classList.add('d-none');
+                    flow.setAttribute('aria-hidden', 'true');
+                    flow.innerHTML = '';
+                }
+                syncCityItineraryModeFromPlans();
                 return;
             }
 
-            body.innerHTML = multiCityPlans.map((row, idx) => `
-                <tr>
-                    <td>${escapeHtml(row.city_name)}</td>
-                    <td>Day ${row.day_in}</td>
-                    <td>Day ${row.day_out}</td>
-                    <td class="action-cell">
-                        <span class="action-buttons">
+            const sorted = multiCityPlans
+                .map((row, idx) => ({ row, idx }))
+                .sort((a, b) => (parseInt(String(a.row.day_in || 0), 10) || 0) - (parseInt(String(b.row.day_in || 0), 10) || 0));
+
+            list.innerHTML = sorted.map(({ row, idx }, step) => {
+                const din = parseInt(String(row.day_in || 0), 10) || 0;
+                const dout = parseInt(String(row.day_out || 0), 10) || 0;
+                const nights = Math.max(1, dout - din);
+                const cityName = String(row.city_name || '').split(',')[0].trim() || 'City';
+                return `
+                    <div class="dl-mc-stay-card" data-mc-index="${idx}">
+                        <div class="dl-mc-stay-card__main">
+                            <span class="dl-mc-stay-card__step">${step + 1}</span>
+                            <h4 class="dl-mc-stay-card__city">${escapeHtml(cityName)}</h4>
+                            <span class="dl-mc-stay-card__range">
+                                Day ${din}
+                                <span class="dl-mc-stay-card__range-arrow" aria-hidden="true">→</span>
+                                Day ${dout}
+                            </span>
+                            <span class="dl-mc-stay-card__nights">${nights} Night${nights === 1 ? '' : 's'}</span>
+                        </div>
+                        <div class="dl-mc-stay-card__actions action-buttons">
+                            <button type="button" class="btn btn-sm btn-outline-primary btn-icon" onclick="editMultiCityPlan(${idx})" title="Edit" aria-label="Edit">${actionIcon('edit')}</button>
                             <button type="button" class="btn btn-sm btn-outline-danger btn-icon" onclick="removeMultiCityPlan(${idx})" title="Remove" aria-label="Remove">${actionIcon('remove')}</button>
-                        </span>
-                    </td>
-                </tr>
-            `).join('');
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            if (flow) {
+                flow.classList.remove('d-none');
+                flow.setAttribute('aria-hidden', 'false');
+                flow.innerHTML = sorted.map(({ row }, i) => {
+                    const din = parseInt(String(row.day_in || 0), 10) || 0;
+                    const dout = parseInt(String(row.day_out || 0), 10) || 0;
+                    const cityName = String(row.city_name || '').split(',')[0].trim() || 'City';
+                    const sep = i < sorted.length - 1 ? '<span class="dl-mc-flow__sep">→</span>' : '';
+                    return `<span class="dl-mc-flow__city">${escapeHtml(cityName)}</span><span class="dl-mc-flow__days">Day ${din}–${dout}</span>${sep}`;
+                }).join('');
+            }
+            syncCityItineraryModeFromPlans();
+        }
+
+        function refreshMultiCityDependentUi() {
+            renderMultiCityRows();
+            setSectionCityOptions();
+            if (typeof renderDayServiceBlocks === 'function') {
+                renderDayServiceBlocks();
+            }
+            updateAllDayTransferVisibility();
+            invalidateTransferOptionsCache();
+            scheduleTransferOptionsReload(true);
+            applyTransferDefaults();
+            syncHotelsWithMultiCity();
         }
 
         function autoLoadBySelection() {
@@ -2805,8 +3562,6 @@
 
         function getDayCityOptionsFromMultiCity() {
             if (!multiCityPlans.length) return null;
-            const selectedCountry = document.getElementById('country').value || '';
-            const filteredByCountry = allCities.filter(c => cityMatchesCountry(c, selectedCountry));
             const allowedIds = new Set(
                 multiCityPlans
                     .map(p => String(resolveCityIdForPlan(p) || p?.city_id || '').trim())
@@ -2821,10 +3576,7 @@
                 if (allowedIds.has(String(c.value))) return true;
                 return allowedNames.has(normalizeCityNameKey(c.name));
             };
-            let filtered = filteredByCountry.filter(matchPlanCity);
-            if (!filtered.length) {
-                filtered = allCities.filter(matchPlanCity);
-            }
+            const filtered = allCities.filter(matchPlanCity);
             return filtered.length ? filtered : [];
         }
 
@@ -2976,38 +3728,322 @@
             syncHotelsWithMultiCity();
         }
 
+        function hotelBelongsToCityGroup(row, group) {
+            if (!row || !group) return false;
+            const rowCity = normalizeCityNameKey(row.city_name);
+            const groupCity = normalizeCityNameKey(group.city_name);
+            if (rowCity && groupCity && rowCity === groupCity) return true;
+            const d = parseInt(String(row.day || 0), 10) || 0;
+            return d >= group.day_in && d <= group.day_out;
+        }
+
+        function parkHotelForm() {
+            const park = document.getElementById('hotelsFormPark');
+            const body = document.getElementById('hotelsFormBody');
+            if (!park || !body) return;
+            try {
+                $(body).find('select.searchable-select').each(function () {
+                    if ($(this).data('select2')) $(this).select2('destroy');
+                });
+            } catch (e) { /* ignore */ }
+            if (body.parentElement !== park) {
+                park.appendChild(body);
+            }
+            document.querySelectorAll('.city-hotel-form-slot').forEach((el) => {
+                if (el.contains(body)) return;
+                el.innerHTML = '';
+            });
+            initSearchableSelects(body);
+            activeHotelCityKey = null;
+            const cityWrap = document.getElementById('hotel_city_field_wrap');
+            if (cityWrap) cityWrap.classList.remove('is-locked');
+        }
+
+        function openCityHotelForm(cityKey) {
+            const blocks = document.getElementById('dayWiseServiceBlocks');
+            if (!blocks) return;
+            const card = blocks.querySelector('.dl-svc-city-card[data-city-key="' + cityKey + '"]');
+            const slot = card ? card.querySelector('.city-hotel-form-slot') : null;
+            const body = document.getElementById('hotelsFormBody');
+            if (!slot || !body) return;
+            parkHotelForm();
+            try {
+                $(body).find('select.searchable-select').each(function () {
+                    if ($(this).data('select2')) $(this).select2('destroy');
+                });
+            } catch (e) { /* ignore */ }
+            slot.appendChild(body);
+            initSearchableSelects(body);
+            activeHotelCityKey = cityKey;
+            const groups = getItineraryCityGroupsForUi();
+            const group = groups.find((g) => String(g.key) === String(cityKey));
+            if (group) {
+                const citySelect = document.getElementById('hotel_city_select');
+                const match = citySelect
+                    ? Array.from(citySelect.options).find((opt) => {
+                        const nm = normalizeCityNameKey(opt.dataset.name || opt.textContent);
+                        return nm === normalizeCityNameKey(group.city_name);
+                    })
+                    : null;
+                if (match) {
+                    safeSetSelectValue('hotel_city_select', match.value);
+                    syncHotelDayDropdownWithMultiCity();
+                    if (!isHydratingDayServices && !isPrefillingHotelForm) {
+                        loadHotelCityServices();
+                    }
+                }
+                const cityWrap = document.getElementById('hotel_city_field_wrap');
+                if (cityWrap) cityWrap.classList.add('is-locked');
+            }
+            slot.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        function renderHotelCityBlocks() {
+            // Hotel UI lives inside each city card from renderDayServiceBlocks.
+            const wrap = document.getElementById('dayWiseServiceBlocks');
+            if (!wrap || !wrap.querySelector('.city-hotel-form-slot')) {
+                return;
+            }
+            renderHotelRows();
+        }
+
+        function getTransferCityContextForDay(dayVal) {
+            const d = parseInt(String(dayVal || 0), 10) || 0;
+            const arrivalPlan = multiCityPlans.find((p) => (parseInt(String(p?.day_in || 0), 10) || 0) === d) || null;
+            const departurePlan = multiCityPlans.find((p) => (parseInt(String(p?.day_out || 0), 10) || 0) === d) || null;
+            const cityName = (plan) => String(plan?.city_name || '').split(',')[0].trim();
+            return {
+                arrivalCity: arrivalPlan ? cityName(arrivalPlan) : '',
+                departureCity: departurePlan ? cityName(departurePlan) : '',
+                isTripStart: d === 1,
+                isTripEnd: d === daysCount,
+                hasPrevCity: !!(arrivalPlan && multiCityPlans.some((p) => (parseInt(String(p?.day_out || 0), 10) || 0) < d)),
+                hasNextCity: !!(departurePlan && multiCityPlans.some((p) => (parseInt(String(p?.day_in || 0), 10) || 0) > d)),
+            };
+        }
+
+
         // Backward-compat wrapper (older code still calls syncHotelNightsWithDays())
         function syncHotelNightsWithDays(forceToTotal = false) {
             syncHotelNightsWithMultiCity();
         }
 
+
+        function getItineraryCityGroupsForUi() {
+            const groups = [];
+            if (Array.isArray(multiCityPlans) && multiCityPlans.length) {
+                multiCityPlans.forEach((p, idx) => {
+                    const din = Math.max(1, parseInt(String(p?.day_in || 1), 10) || 1);
+                    const dout = Math.max(din, Math.min(daysCount, parseInt(String(p?.day_out || din), 10) || din));
+                    const planCityKey = normalizeCityNameKey(p?.city_name);
+                    const days = [];
+                    // One day → one city card. Shared boundary days (Day 5 = city A out / city B in)
+                    // must not render duplicate attraction_select_5 / activity_city_select_5 ids,
+                    // or the second city panel stays empty while populate writes to the first.
+                    for (let d = din; d <= dout; d++) {
+                        const owner = getMultiCityPlanForDay(d);
+                        if (!owner) continue;
+                        const ownerDin = parseInt(String(owner.day_in || 0), 10) || 0;
+                        const ownerDout = parseInt(String(owner.day_out || 0), 10) || 0;
+                        const sameRange = ownerDin === din && ownerDout === dout;
+                        const sameCity = normalizeCityNameKey(owner.city_name) === planCityKey;
+                        if (sameRange && sameCity) {
+                            days.push(d);
+                        }
+                    }
+                    if (!days.length) return;
+                    groups.push({
+                        key: 'c' + idx,
+                        city_name: String(p?.city_name || 'City').split(',')[0].trim() || 'City',
+                        day_in: din,
+                        day_out: dout,
+                        nights: Math.max(1, dout - din),
+                        days
+                    });
+                });
+            }
+            if (!groups.length) {
+                const days = [];
+                for (let d = 1; d <= daysCount; d++) days.push(d);
+                const mainName = (getCityNameFromSelect('city_id') || 'Itinerary').split(',')[0].trim() || 'Itinerary';
+                groups.push({
+                    key: 'all',
+                    city_name: mainName,
+                    day_in: 1,
+                    day_out: Math.max(1, daysCount),
+                    nights: Math.max(1, daysCount > 1 ? daysCount - 1 : 1),
+                    days
+                });
+            }
+            return groups;
+        }
+
+        function dayHasFilledServices(dayNum) {
+            const d = parseInt(String(dayNum || 0), 10) || 0;
+            if (!d) return false;
+
+            const hasService = (Array.isArray(dayItems) ? dayItems : []).some((x) => {
+                if (parseInt(String(x.day || 0), 10) !== d) return false;
+                if (typeof isTransferOnlyPlaceholderItem === 'function' && isTransferOnlyPlaceholderItem(x)) {
+                    const t = x.transfer && typeof x.transfer === 'object' ? x.transfer : {};
+                    return t.required === 'Yes'
+                        || String(t.pickup_location || '').trim()
+                        || String(t.drop_location || '').trim()
+                        || parseFloat(t.cost ?? t.transfer_price ?? 0) > 0
+                        || (Array.isArray(t.additional_transfers) && t.additional_transfers.length > 0);
+                }
+                if (String(x.id || '').trim()) return true;
+                const label = String(x.label || '').trim().toLowerCase();
+                if (label === 'day arrival' || label === 'day departure') return true;
+                return x.type === 'attraction' || x.type === 'restaurant';
+            });
+            if (hasService) return true;
+
+            return (Array.isArray(hotels) ? hotels : []).some((h) => {
+                const checkIn = parseInt(String(h.day || 0), 10) || 0;
+                const nights = Math.max(1, parseInt(String(h.night || 1), 10) || 1);
+                const checkOut = checkIn + nights;
+                return checkIn > 0 && d >= checkIn && d < checkOut;
+            });
+        }
+
+        function refreshDayChipFilledStatuses() {
+            const wrap = document.getElementById('dayWiseServiceBlocks');
+            if (!wrap) return;
+            wrap.querySelectorAll('.dl-day-chip').forEach((chip) => {
+                const day = parseInt(String(chip.getAttribute('data-day') || ''), 10) || 0;
+                const filled = dayHasFilledServices(day);
+                chip.classList.toggle('is-filled', filled);
+                chip.setAttribute('title', filled ? `Day ${day} — services added` : `Day ${day}`);
+                chip.setAttribute('aria-label', filled ? `Day ${day}, filled` : `Day ${day}`);
+            });
+        }
+
+        function switchItineraryCityDay(cityKey, dayVal) {
+            const wrap = document.getElementById('dayWiseServiceBlocks');
+            if (!wrap) return;
+            const day = String(dayVal || '');
+            wrap.querySelectorAll('.dl-day-panel[data-city-key="' + cityKey + '"]').forEach((panel) => {
+                panel.classList.toggle('is-active', String(panel.getAttribute('data-day') || '') === day);
+            });
+            const card = wrap.querySelector('.dl-svc-city-card[data-city-key="' + cityKey + '"]');
+            if (card) {
+                card.querySelectorAll('.dl-day-chip').forEach((chip) => {
+                    chip.classList.toggle('is-active', String(chip.getAttribute('data-day') || '') === day);
+                });
+            }
+            const sel = document.getElementById('city_service_day_' + cityKey);
+            if (sel) sel.value = day;
+            if (typeof updateAllDayTransferVisibility === 'function') {
+                updateAllDayTransferVisibility();
+            }
+            refreshDayChipFilledStatuses();
+
+            // Ensure this day's attraction/restaurant lists are loaded for the plan city
+            // (covers first paint races and city switches after adding a second stay).
+            const d = parseInt(day, 10) || 0;
+            if (d > 0) {
+                const plan = getMultiCityPlanForDay(d);
+                const cityId = resolveCityIdForDay(d);
+                if (cityId) {
+                    ensureCityOptionInSelect(`activity_city_select_${d}`, cityId);
+                    if (String(document.getElementById(`activity_city_select_${d}`)?.value || '') !== String(cityId)) {
+                        safeSetSelectValueSilent(`activity_city_select_${d}`, cityId);
+                    }
+                }
+                const cityName = getCityNameFromSelect(`activity_city_select_${d}`)
+                    || String(plan?.city_name || '').split(',')[0].trim()
+                    || '';
+                activityCityByDay[d] = cityName;
+                const attractionSel = document.getElementById(`attraction_select_${d}`);
+                const attractionCount = attractionSel
+                    ? Array.from(attractionSel.options || []).filter((o) => String(o.value || '').trim()).length
+                    : 0;
+                if (cityName && attractionCount === 0) {
+                    populateDayServiceOptionsByCity(d, cityName, { loadTransfers: true, silent: true });
+                }
+            }
+        }
+
         function renderDayServiceBlocks() {
             const wrap = document.getElementById('dayWiseServiceBlocks');
             if (!wrap) return;
+            const wasKey = activeHotelCityKey;
+            const formWasOpen = !!(document.getElementById('hotelsFormBody')?.closest('.city-hotel-form-slot'));
+            parkHotelForm();
+            const groups = getItineraryCityGroupsForUi();
             let html = '';
-            const dayHeaderClasses = [
-                'day-header-primary',
-                'day-header-success',
-                'day-header-warning',
-                'day-header-danger',
-                'day-header-info',
-                'day-header-purple'
-            ];
-            for (let d = 1; d <= daysCount; d++) {
-                const dayHeaderClass = dayHeaderClasses[(d - 1) % dayHeaderClasses.length];
+            groups.forEach((group, gIdx) => {
+                const rowsId = 'hotelRows_' + group.key;
                 html += `
-                    <div class="card sketch-card day-card mb-2">
-                        <div class="card-header day-card-header ${dayHeaderClass}">
-                            <div class="d-flex align-items-center gap-2">
-                                <span class="day-pill">${d}</span>
-                                <div>
-                                    <strong>Day ${d}</strong>
-                                    <div class="small opacity-75">Plan attractions, meals and transfers</div>
+                    <div class="dl-svc-city-card" data-city-key="${escapeHtml(group.key)}" data-city-name="${escapeHtml(group.city_name)}">
+                        <div class="dl-svc-city-card__head">
+                            <div>
+                                <h3 class="dl-svc-city-card__title">${escapeHtml(group.city_name)}</h3>
+                                <p class="dl-svc-city-card__meta">Day ${group.day_in} → Day ${group.day_out}</p>
+                            </div>
+                            <span class="dl-svc-city-card__nights">${group.nights} Night${group.nights === 1 ? '' : 's'}</span>
+                        </div>
+                        <div class="dl-svc-city-card__body">
+                            <div class="dl-city-hotel-block">
+                                <div class="dl-city-block-label">
+                                    <span>Hotel</span>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="openCityHotelForm('${escapeHtml(group.key)}')">
+                                        Add hotel
+                                    </button>
                                 </div>
+                                <div class="city-hotel-form-slot" data-city-key="${escapeHtml(group.key)}"></div>
+                                <div class="table-responsive modern-table-wrap hotels-compact-table-wrap">
+                                    <table class="table table-sm data-table-sm hotels-compact-table mb-0">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Day</th>
+                                                <th>Hotel</th>
+                                                <th>Nights</th>
+                                                <th>Room &amp; Meal</th>
+                                                <th class="text-end">Price / Night</th>
+                                                <th class="text-end">Total</th>
+                                                <th class="text-end" style="width:88px;"></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="${rowsId}">
+                                            <tr><td colspan="7" class="text-muted">No hotels for ${escapeHtml(group.city_name)}</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="dl-city-services-block">
+                            <div class="dl-city-block-label"><span>Services</span></div>
+                            <div class="dl-day-pick-bar">
+                                <label>Add services for</label>
+                                <div class="dl-day-chip-row" role="group" aria-label="Days for ${escapeHtml(group.city_name)}">
+                                    ${group.days.map((d, di) => `
+                                        <button type="button"
+                                            class="dl-day-chip${di === 0 ? ' is-active' : ''}"
+                                            data-city-key="${escapeHtml(group.key)}"
+                                            data-day="${d}"
+                                            onclick="switchItineraryCityDay('${escapeHtml(group.key)}', '${d}')">
+                                            Day ${d}
+                                        </button>
+                                    `).join('')}
+                                </div>
+                                <select id="city_service_day_${escapeHtml(group.key)}" class="d-none" aria-hidden="true" tabindex="-1">
+                                    ${group.days.map((d) => `<option value="${d}">Day ${d}</option>`).join('')}
+                                </select>
+                            </div>
+                `;
+                group.days.forEach((d, di) => {
+                const activeClass = di === 0 ? ' is-active' : '';
+                html += `
+                    <div class="dl-day-panel${activeClass}" data-city-key="${escapeHtml(group.key)}" data-day="${d}" id="itinerary_day_panel_${d}">
+                    <div class="card sketch-card day-card mb-2" data-day="${d}">
+                        <div class="card-header day-card-header">
+                            <div class="dl-day-seg-head">
+                                <strong>Day ${d}</strong>
                             </div>
                         </div>
                         <div class="card-body">
-                            <div class="row g-2 align-items-end mb-2">
+                            <div class="row g-2 align-items-end mb-2 activity-city-row">
                             <div class="col-md-4">
                                 <label class="form-label" for="activity_city_select_${d}">City</label>
                                 <select id="activity_city_select_${d}" class="form-select searchable-select">
@@ -3265,14 +4301,26 @@
                             <div class="mt-2" id="day_items_${d}"></div>
                         </div>
                     </div>
+                    </div>
                 `;
-            }
+                });
+                html += `
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
             wrap.innerHTML = html;
             initSearchableSelects(wrap);
             hydrateDayServiceBlocksOptions();
             updateAllDayTransferVisibility();
             hydrateAllDayTransferCityOptions();
             renderAllExtraTransferRows();
+            renderHotelRows();
+            if (formWasOpen && wasKey && wrap.querySelector('.dl-svc-city-card[data-city-key="' + wasKey + '"]')) {
+                openCityHotelForm(wasKey);
+            }
+            refreshDayChipFilledStatuses();
         }
 
         async function hydrateDayServiceBlocksOptions() {
@@ -3284,8 +4332,7 @@
                 do {
                     hydrateDayServicesQueued = false;
                     isHydratingDayServices = true;
-            const selectedCountry = document.getElementById('country').value || '';
-                    const filteredCities = allCities.filter(c => cityMatchesCountry(c, selectedCountry));
+                    const filteredCities = allCities;
             const multiCityFiltered = getDayCityOptionsFromMultiCity();
             const source = (multiCityFiltered && multiCityFiltered.length) ? multiCityFiltered : filteredCities;
             const cityOptions = source.map(c => ({
@@ -3603,6 +4650,9 @@
             document.getElementById('days').value = String(resolvedDays);
             daysCount = resolvedDays;
             initDays();
+            if (typeof renderDayServiceBlocks === 'function' && document.getElementById('dayWiseServiceBlocks')) {
+                renderDayServiceBlocks();
+            }
 
             hotels = [];
             dayItems = [];
@@ -3919,6 +4969,7 @@
 
             renderMultiCityRows();
             resolveCityIdsForMultiPlans();
+            syncCityItineraryModeFromPlans();
             setSectionCityOptions();
             // City sync + per-day option population both happen inside
             // hydrateDayServiceBlocksOptions (sync runs before populate).
@@ -3949,17 +5000,52 @@
                 if (wrap) {
                     wrap.style.display = '';
                 }
+                const showArrival = shouldShowArrivalForDay(d);
+                const showDeparture = shouldShowDepartureForDay(d);
+                const ctx = getTransferCityContextForDay(d);
                 const arrivalWrap = document.getElementById(`day_arrival_wrap_${d}`);
                 if (arrivalWrap) {
-                    arrivalWrap.style.display = shouldShowArrivalForDay(d) ? '' : 'none';
+                    arrivalWrap.style.display = showArrival ? '' : 'none';
+                    if (showArrival) {
+                        const titleEl = arrivalWrap.querySelector('.day-service-group__header strong');
+                        const hintEl = arrivalWrap.querySelector('.day-service-group__hint');
+                        if (titleEl) {
+                            titleEl.textContent = ctx.arrivalCity
+                                ? `Arrival — ${ctx.arrivalCity}`
+                                : 'Arrival';
+                        }
+                        if (hintEl) {
+                            hintEl.textContent = ctx.arrivalCity && ctx.hasPrevCity
+                                ? `Enter ${ctx.arrivalCity} (from previous city)`
+                                : (ctx.arrivalCity
+                                    ? `Airport pickup into ${ctx.arrivalCity}`
+                                    : 'Airport pickup on arrival day');
+                        }
+                    }
                 }
                 const departureWrap = document.getElementById(`day_departure_wrap_${d}`);
                 if (departureWrap) {
-                    departureWrap.style.display = shouldShowDepartureForDay(d) ? '' : 'none';
+                    departureWrap.style.display = showDeparture ? '' : 'none';
+                    if (showDeparture) {
+                        const titleEl = departureWrap.querySelector('.day-service-group__header strong');
+                        const hintEl = departureWrap.querySelector('.day-service-group__hint');
+                        if (titleEl) {
+                            titleEl.textContent = ctx.departureCity
+                                ? `Departure — ${ctx.departureCity}`
+                                : 'Departure';
+                        }
+                        if (hintEl) {
+                            hintEl.textContent = ctx.departureCity && ctx.hasNextCity
+                                ? `Leave ${ctx.departureCity} (to next city)`
+                                : (ctx.departureCity
+                                    ? `Airport drop leaving ${ctx.departureCity}`
+                                    : 'Airport drop on departure day');
+                        }
+                    }
                 }
                 const extraWrap = document.getElementById(`extra_transfer_wrap_${d}`);
                 if (extraWrap) {
-                    const isLegDay = shouldShowArrivalForDay(d) || shouldShowDepartureForDay(d);
+                    const isLegDay = showArrival || showDeparture;
                     const showExtra = daysCount >= 3 && d > 1 && d < daysCount && !isLegDay;
                     extraWrap.style.display = showExtra ? '' : 'none';
                 }
@@ -3973,10 +5059,8 @@
         }
 
         function hydrateAllDayTransferCityOptions() {
-            const selectedCountry = document.getElementById('country').value || '';
-            const filtered = allCities.filter(c => !selectedCountry || c.country === selectedCountry);
             const multiCityFiltered = getDayCityOptionsFromMultiCity();
-            const source = (multiCityFiltered && multiCityFiltered.length) ? multiCityFiltered : filtered;
+            const source = (multiCityFiltered && multiCityFiltered.length) ? multiCityFiltered : allCities;
             const options = source.map(c => ({
                 value: c.value,
                 label: c.country ? `${c.name}, ${c.country}` : c.name,
@@ -4071,8 +5155,7 @@
                 wrap.innerHTML = '<small class="text-muted">No extra transfer added.</small>';
                 return;
             }
-            const selectedCountry = document.getElementById('country').value || '';
-            const filteredCities = allCities.filter(c => !selectedCountry || c.country === selectedCountry);
+            const filteredCities = allCities;
             const cityOptionMarkup = filteredCities.map(c => {
                 const cityLabel = c.country ? `${c.name}, ${c.country}` : c.name;
                 return `<option value="${escapeHtml(c.name)}">${escapeHtml(cityLabel)}</option>`;
@@ -5886,6 +6969,7 @@
             updateAllDayTransferVisibility();
             applyTransferDefaults();
             resetHotelFields();
+            parkHotelForm();
         }
 
         function removeHotel(idx) {
@@ -5918,6 +7002,11 @@
             });
             if (cityMatch) {
                 safeSetSelectValue('hotel_city_select', cityMatch.value);
+            }
+            const groupsForEdit = getItineraryCityGroupsForUi();
+            const editCityKey = (groupsForEdit.find((g) => hotelBelongsToCityGroup(x, g)) || {}).key;
+            if (editCityKey) {
+                openCityHotelForm(editCityKey);
             }
             // Nights dropdown depends on hotel city + Multi City span.
             syncHotelDayDropdownWithMultiCity();
@@ -5982,53 +7071,73 @@
             isPrefillingHotelForm = false;
         }
 
+        function buildHotelRowHtml(x, idx) {
+            const perNight = getHotelPerNightPrice(x);
+            const stayTotal = getHotelStayTotalPrice(x);
+            const hotelLabel = String(x.hotel_name || '-').replace(/\s*-\s*[^-]+$/i, '').trim() || x.hotel_name || '-';
+            return `
+                <tr>
+                    <td><div class="d-flex flex-wrap gap-1">${formatHotelStayDayBadgesHtml(x)}</div></td>
+                    <td>
+                        <div class="hotel-cell-title">${escapeHtml(hotelLabel)}</div>
+                        <div class="hotel-cell-meta">${escapeHtml(x.cat_label || '')}</div>
+                    </td>
+                    <td>${escapeHtml(String(x.night || 1))}</td>
+                    <td>
+                        <div class="hotel-cell-title">${escapeHtml(formatHotelRoomMealSummary(x))}</div>
+                        ${x.bed_type ? `<div class="hotel-cell-meta">Bed: ${escapeHtml(x.bed_type)}${(parseInt(String(x.max_occupancy || 0), 10) > 0) ? ` (${escapeHtml(String(x.max_occupancy))} pax)` : ''}</div>` : ''}
+                    </td>
+                    <td class="text-end">
+                        <div class="hotel-price-night">${getDayCurrency()} ${perNight.toFixed(2)}</div>
+                        <div class="hotel-price-breakdown">${escapeHtml(formatHotelPriceBreakdown(x))}</div>
+                    </td>
+                    <td class="text-end">
+                        <div class="hotel-price-total">${getDayCurrency()} ${stayTotal.toFixed(2)}</div>
+                        <div class="hotel-price-breakdown">${Math.max(1, parseInt(String(x.night || 1), 10) || 1)} night(s)</div>
+                    </td>
+                    <td class="action-cell text-end">
+                        <span class="action-buttons">
+                            <button type="button" class="btn btn-sm btn-outline-primary btn-icon" onclick="editHotel(${idx})" title="Edit" aria-label="Edit">${actionIcon('edit')}</button>
+                            <button type="button" class="btn btn-sm btn-outline-danger btn-icon" onclick="removeHotel(${idx})" title="Remove" aria-label="Remove">${actionIcon('remove')}</button>
+                        </span>
+                    </td>
+                </tr>
+            `;
+        }
+
         function renderHotelRows() {
-            const body = document.getElementById('hotelRows');
-            const current = [...hotels].sort((a, b) => (a.day || 0) - (b.day || 0));
-            if (!current.length) {
-                body.innerHTML = '<tr><td colspan="8" class="text-muted">No hotels added</td></tr>';
-            } else {
-                body.innerHTML = current.map((x) => {
-                    const idx = hotels.indexOf(x);
-                    const perNight = getHotelPerNightPrice(x);
-                    const stayTotal = getHotelStayTotalPrice(x);
-                    const hotelLabel = String(x.hotel_name || '-').replace(/\s*-\s*[^-]+$/i, '').trim() || x.hotel_name || '-';
-                    return `
-                        <tr>
-                            <td><div class="d-flex flex-wrap gap-1">${formatHotelStayDayBadgesHtml(x)}</div></td>
-                            <td>${escapeHtml(x.city_name || '-')}</td>
-                            <td>
-                                <div class="hotel-cell-title">${escapeHtml(hotelLabel)}</div>
-                                <div class="hotel-cell-meta">${escapeHtml(x.cat_label || '')}</div>
-                            </td>
-                            <td>${escapeHtml(String(x.night || 1))}</td>
-                            <td>
-                                <div class="hotel-cell-title">${escapeHtml(formatHotelRoomMealSummary(x))}</div>
-                                ${x.bed_type ? `<div class="hotel-cell-meta">Bed: ${escapeHtml(x.bed_type)}${(parseInt(String(x.max_occupancy || 0), 10) > 0) ? ` (${escapeHtml(String(x.max_occupancy))} pax)` : ''}</div>` : ''}
-                            </td>
-                            <td class="text-end">
-                                <div class="hotel-price-night">${getDayCurrency()} ${perNight.toFixed(2)}</div>
-                                <div class="hotel-price-breakdown">${escapeHtml(formatHotelPriceBreakdown(x))}</div>
-                            </td>
-                            <td class="text-end">
-                                <div class="hotel-price-total">${getDayCurrency()} ${stayTotal.toFixed(2)}</div>
-                                <div class="hotel-price-breakdown">${Math.max(1, parseInt(String(x.night || 1), 10) || 1)} night(s)</div>
-                            </td>
-                            <td class="action-cell text-end">
-                                <span class="action-buttons">
-                                    <button type="button" class="btn btn-sm btn-outline-primary btn-icon" onclick="editHotel(${idx})" title="Edit" aria-label="Edit">${actionIcon('edit')}</button>
-                                    <button type="button" class="btn btn-sm btn-outline-danger btn-icon" onclick="removeHotel(${idx})" title="Remove" aria-label="Remove">${actionIcon('remove')}</button>
-                                </span>
-                            </td>
-                        </tr>
-                    `;
-                }).join('');
+            const groups = getItineraryCityGroupsForUi();
+            const assigned = new Set();
+            groups.forEach((group) => {
+                const body = document.getElementById('hotelRows_' + group.key);
+                if (!body) return;
+                const cityHotels = hotels
+                    .map((x, idx) => ({ x, idx }))
+                    .filter(({ x, idx }) => {
+                        if (assigned.has(idx)) return false;
+                        if (!hotelBelongsToCityGroup(x, group)) return false;
+                        assigned.add(idx);
+                        return true;
+                    })
+                    .sort((a, b) => (a.x.day || 0) - (b.x.day || 0));
+                if (!cityHotels.length) {
+                    body.innerHTML = `<tr><td colspan="7" class="text-muted">No hotels for ${escapeHtml(group.city_name)}</td></tr>`;
+                } else {
+                    body.innerHTML = cityHotels.map(({ x, idx }) => buildHotelRowHtml(x, idx)).join('');
+                }
+            });
+            // Fallback global tbody if present (legacy / single park)
+            const legacyBody = document.getElementById('hotelRows');
+            if (legacyBody && !groups.length) {
+                legacyBody.innerHTML = '<tr><td colspan="8" class="text-muted">No hotels added</td></tr>';
             }
-            document.getElementById('hotels_json').value = JSON.stringify(hotels);
+            const jsonEl = document.getElementById('hotels_json');
+            if (jsonEl) jsonEl.value = JSON.stringify(hotels);
             updateAllDayTransferVisibility();
             for (let d = 1; d <= daysCount; d++) {
                 populateServiceTransferSelectsForDay(d);
             }
+            refreshDayChipFilledStatuses();
             syncPackageSubmitButtonsState();
         }
 
@@ -6673,6 +7782,7 @@
 
             const outEl = document.getElementById('activities_json');
             if (outEl) outEl.value = JSON.stringify(dayItems);
+            refreshDayChipFilledStatuses();
             syncPackageSubmitButtonsState();
         }
 
@@ -7375,7 +8485,7 @@
 
                 return `
                     <tr>
-                        <td><span class="badge bg-primary-subtle text-primary">${escapeHtml(typeLabel)}</span></td>
+                        <td><span class="badge bg-success-subtle text-success">${escapeHtml(typeLabel)}</span></td>
                         <td class="small">${pickup !== '-' ? escapeHtml(pickup) : '<span class="text-muted">-</span>'}</td>
                         <td class="small">${drop !== '-' ? escapeHtml(drop) : '<span class="text-muted">-</span>'}</td>
                         <td class="small">
@@ -7422,9 +8532,9 @@
                 || '';
 
             let inner = `
-                <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
-                    <div class="preview-day-title mb-0">Day ${escapeHtml(String(d))}</div>
-                    ${resolvedCity ? `<span class="badge bg-light text-dark border">${escapeHtml(resolvedCity)}</span>` : ''}
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+                    <div class="preview-day-title">Day ${escapeHtml(String(d))}</div>
+                    ${resolvedCity ? `<span class="preview-city-head__meta">${escapeHtml(resolvedCity)}</span>` : ''}
                 </div>
             `;
 
@@ -7498,9 +8608,9 @@
 
             if (multiCityPlans.length) {
                 html += `
-                    <h6 class="fw-semibold mb-2">Multi City itinerary</h6>
+                    <div class="preview-section-title">City itinerary</div>
                     <div class="table-responsive modern-table-wrap mb-3">
-                        <table class="table table-sm data-table-sm mb-0">
+                        <table class="table table-sm data-table-sm mb-0 preview-itinerary-table">
                             <thead><tr><th>City</th><th>Check-in</th><th>Check-out</th><th>Nights</th><th>Covered Days</th></tr></thead>
                             <tbody>
                                 ${multiCityPlans.map(p => {
@@ -7527,9 +8637,9 @@
 
             if (hotels.length) {
                 html += `
-                    <h6 class="fw-semibold mb-2">Hotels summary</h6>
+                    <div class="preview-section-title">Hotels</div>
                     <div class="table-responsive modern-table-wrap mb-3">
-                        <table class="table table-sm data-table-sm mb-0">
+                        <table class="table table-sm data-table-sm mb-0 preview-itinerary-table">
                             <thead><tr><th>Stay Days</th><th>City</th><th>Hotel</th><th>Nights</th><th>Room &amp; Meal</th><th class="text-end">Price / Night</th><th class="text-end">Total</th></tr></thead>
                             <tbody>
                                 ${[...hotels].sort((a, b) => (a.day || 0) - (b.day || 0)).map(h => `
@@ -7552,21 +8662,20 @@
                 `;
             }
 
-            html += '<h6 class="fw-semibold mb-2">Day-by-day itinerary</h6>';
-            html += '<p class="text-muted small mb-3">Hotels appear on each covered day (check-in through check-out). Service totals include ticket/meal plus transfer.</p>';
+            html += '<div class="preview-section-title">Stay &amp; services</div>';
+            html += '<p class="preview-hint">Hotels show on each covered day. Service totals include ticket/meal plus transfer.</p>';
 
             if (multiCityPlans.length) {
                 multiCityPlans.forEach((plan) => {
                     const cityName = plan.city_name || 'Unknown city';
                     const dayIn = parseInt(String(plan.day_in || 1), 10) || 1;
                     const dayOut = parseInt(String(plan.day_out || dayIn), 10) || dayIn;
+                    const nights = Math.max(1, dayOut - dayIn);
                     html += `
                         <div class="preview-city-card">
                             <div class="preview-city-head">
-                                ${escapeHtml(cityName)}
-                                · Check-in Day ${dayIn}
-                                · Check-out Day ${dayOut}
-                                · ${Math.max(1, dayOut - dayIn)} night(s)
+                                <span>${escapeHtml(cityName)}</span>
+                                <span class="preview-city-head__meta">Day ${dayIn} → Day ${dayOut} · ${nights} night${nights === 1 ? '' : 's'}</span>
                             </div>
                             <div class="preview-city-body">
                     `;
@@ -7665,6 +8774,7 @@
             editingActivityIndex = null;
             activeDay = 1;
             dayTransferExtras = {};
+            syncCityItineraryModeFromPlans();
             initDays();
             renderHotelRows();
             renderActivityRows();
@@ -7679,7 +8789,7 @@
             if (hotelBtn) hotelBtn.textContent = 'Add Hotel';
             if (attrBtn) attrBtn.textContent = 'Add Attraction';
             if (restBtn) restBtn.textContent = 'Add Restaurant';
-            if (multiBtn) multiBtn.textContent = 'Add';
+            if (multiBtn) multiBtn.textContent = 'Add stay';
         }
 
         function escapeHtml(value) {
@@ -7705,6 +8815,8 @@
             toggleRestaurantTransferConfig();
             syncSectionCitySelectionsFromMain();
             hydrateFromEditPayload().catch(() => {});
+
+            syncCityItineraryModeFromPlans();
 
             document.getElementById('days').addEventListener('input', function () {
                 const newDays = Math.max(1, parseInt(this.value || '1', 10) || 1);

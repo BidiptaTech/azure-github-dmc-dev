@@ -5,13 +5,15 @@ namespace App\Services\AttractionSuppliers;
 use App\Models\City;
 use App\Models\Country;
 use App\Models\SupplierMaster;
-use App\Services\SupplierEnvService;
+use App\Services\ApiEnvironmentResolver;
+use App\Services\SupplierConfigResolver;
 use RuntimeException;
 
 class AttractionSupplierResolver
 {
     public function __construct(
-        private SupplierEnvService $supplierEnv,
+        private ApiEnvironmentResolver $apiEnvironment,
+        private SupplierConfigResolver $supplierConfig,
     ) {}
 
     /**
@@ -19,7 +21,8 @@ class AttractionSupplierResolver
      *     city: City,
      *     country_id: int,
      *     supplier: SupplierMaster,
-     *     credentials: array<string, string|null>
+     *     credentials: array<string, string|null>,
+     *     api_environment: string
      * }
      */
     public function resolveForCityName(string $cityName): array
@@ -44,17 +47,20 @@ class AttractionSupplierResolver
             throw new RuntimeException("No active attraction supplier is mapped for {$countryName}. Configure it in Supplier Master.");
         }
 
-        if (! $this->supplierEnv->isConfigured($supplier->code)) {
-            $label = config("suppliers.{$supplier->code}.label", $supplier->code);
+        $environment = $this->apiEnvironment->resolve();
 
-            throw new RuntimeException("{$label} API credentials are not configured. Set them in Supplier Master → API Credentials.");
+        if (! $this->supplierConfig->isConfigured($supplier->code, $environment)) {
+            throw new RuntimeException(
+                $this->supplierConfig->missingCredentialsMessage($supplier->code, $environment)
+            );
         }
 
         return [
             'city' => $city,
             'country_id' => $countryId,
             'supplier' => $supplier,
-            'credentials' => $this->supplierEnv->valuesFor($supplier->code),
+            'credentials' => $this->supplierConfig->valuesFor($supplier->code, $environment),
+            'api_environment' => $environment,
         ];
     }
 
@@ -66,11 +72,19 @@ class AttractionSupplierResolver
             return null;
         }
 
-        try {
-            return $this->resolveForCityName($cityName)['supplier'];
-        } catch (RuntimeException) {
+        $city = $this->findCity($cityName);
+
+        if (! $city) {
             return null;
         }
+
+        $countryId = $this->resolveCountryId($city);
+
+        if (! $countryId) {
+            return null;
+        }
+
+        return SupplierMaster::forCountryAndService($countryId, 'attractions');
     }
 
     private function findCity(string $cityName): ?City

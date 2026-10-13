@@ -865,9 +865,21 @@
                     && $isMasterDmcViewer
                     && (int) ($user->master_dmc_id ?? 0) === $authUserId;
                 $thirdPartyEnabled = strtolower((string) ($user->thirdparty_enabled ?? 'no')) === 'yes';
+                $showOnlineApiForThisRow = $rowRoleId === 10;
+                $canToggleOnlineApiForThisRow = $showOnlineApiForThisRow
+                    && in_array($authRoleId, [1, 2, 3], true);
+                $onlineApiEnabled = (bool) ($user->online_api ?? false);
+                $showDemoApiForThisRow = $rowRoleId === 10;
+                $canToggleDemoApiForThisRow = $showDemoApiForThisRow
+                    && in_array($authRoleId, [1, 2, 3], true);
+                $demoApiEnabled = (bool) ($user->demo_api ?? false);
+                $showLiveApiForThisRow = $rowRoleId === 10;
+                $canToggleLiveApiForThisRow = $showLiveApiForThisRow
+                    && in_array($authRoleId, [1, 2, 3], true);
+                $liveApiEnabled = (bool) ($user->live_api ?? false);
                 $showBookingTypeForThisRow = ($authRoleId === 1 && (int) ($user->role_id ?? 0) === 10)
                     || ($authRoleId === 10 && (int) ($user->role_id ?? 0) === 11);
-                $showSettingsCellForThisRow = $showSettingsForThisRow || $showThirdPartyForThisRow || $showBookingTypeForThisRow;
+                $showSettingsCellForThisRow = $showSettingsForThisRow || $showThirdPartyForThisRow || $showBookingTypeForThisRow || $showOnlineApiForThisRow || $showDemoApiForThisRow || $showLiveApiForThisRow;
                 $bookingOptionsForRow = [
                     1 => 'Lite Form',
                     2 => 'Pro Form',
@@ -907,6 +919,29 @@
                 }
                 $canEditSettings = (int) auth()->user()->role_id === 10;
                 $showAutoLogin = in_array((int) auth()->user()->user_type, [1, 2, 3], true);
+                $userLocationCountry = trim((string) ($user->user_country ?? ''));
+                $userLocationCity = trim((string) ($user->city ?? ''));
+                $operationalCountries = [];
+                $operationalSeen = [];
+                $operationalRaw = trim((string) ($user->country ?? ''));
+                if ($operationalRaw !== '') {
+                    $decodedOperational = json_decode($operationalRaw, true);
+                    $operationalParts = (json_last_error() === JSON_ERROR_NONE && is_array($decodedOperational))
+                        ? $decodedOperational
+                        : preg_split('/[,|]/', $operationalRaw);
+                    foreach ((array) $operationalParts as $part) {
+                        $name = trim((string) $part);
+                        if ($name === '') {
+                            continue;
+                        }
+                        $operationalKey = mb_strtolower($name);
+                        if (isset($operationalSeen[$operationalKey])) {
+                            continue;
+                        }
+                        $operationalSeen[$operationalKey] = true;
+                        $operationalCountries[] = $name;
+                    }
+                }
               @endphp
               <tr class="{{ ($showSettingsCellForThisRow ? '' : 'no-settings-row') . ($userIsActive ? '' : ' user-inactive-row') }}">
                 <td>
@@ -941,8 +976,14 @@
                         @endif
                         <span>
                           <i class="fas fa-map-marker-alt"></i>
-                          {{ $user->user_country ?? 'N/A' }}{{ $user->city ? ', ' . $user->city : '' }}
+                          {{ $userLocationCountry !== '' ? $userLocationCountry : 'N/A' }}{{ $userLocationCity !== '' ? ', ' . $userLocationCity : '' }}
                         </span>
+                        @if(!empty($operationalCountries))
+                          <span title="Operational country">
+                            <i class="fas fa-globe"></i>
+                            Operational: {{ implode(', ', $operationalCountries) }}
+                          </span>
+                        @endif
                       </div>
                     </div>
                   </div>
@@ -950,7 +991,7 @@
 
                 <td class="settings-controls-cell">
                   <div class="users-corp-section-label">Settings</div>
-                  @if($showSettingsForThisRow || $showThirdPartyForThisRow || $showBookingTypeForThisRow)
+                  @if($showSettingsForThisRow || $showThirdPartyForThisRow || $showBookingTypeForThisRow || $showOnlineApiForThisRow || $showDemoApiForThisRow)
                   <div class="users-corp-controls">
                     @if($showSettingsForThisRow)
                       <div class="users-corp-control-item">
@@ -1063,6 +1104,63 @@
                                 ? ($thirdPartyEnabled ? 'Third party access on' : 'Third party access off')
                                 : 'Only the Master DMC can change third party access' }}"
                             {{ $canToggleThirdPartyForThisRow ? '' : 'disabled' }}>
+                        </div>
+                      </div>
+                    @endif
+
+                    @if($showOnlineApiForThisRow)
+                      <div class="users-corp-control-item">
+                        <span class="users-corp-label">Online API</span>
+                        <div class="form-check form-switch mb-0">
+                          <input {{ $onlineApiEnabled ? 'checked' : '' }}
+                            class="form-check-input {{ $canToggleOnlineApiForThisRow ? 'online-api-toggle' : '' }}"
+                            data-user-id="{{ $user->userId }}"
+                            type="checkbox"
+                            role="switch"
+                            id="online_api_{{ $user->userId }}"
+                            value="1"
+                            title="{{ $canToggleOnlineApiForThisRow
+                                ? ($onlineApiEnabled ? 'Online API on' : 'Online API off')
+                                : 'Only TravClicks can change Online API access' }}"
+                            {{ $canToggleOnlineApiForThisRow ? '' : 'disabled' }}>
+                        </div>
+                      </div>
+                    @endif
+
+                    @if($showDemoApiForThisRow)
+                      <div class="users-corp-control-item">
+                        <span class="users-corp-label">Demo API</span>
+                        <div class="form-check form-switch mb-0">
+                          <input {{ $demoApiEnabled ? 'checked' : '' }}
+                            class="form-check-input {{ $canToggleDemoApiForThisRow ? 'demo-api-toggle' : '' }}"
+                            data-user-id="{{ $user->userId }}"
+                            type="checkbox"
+                            role="switch"
+                            id="demo_api_{{ $user->userId }}"
+                            value="1"
+                            title="{{ $canToggleDemoApiForThisRow
+                                ? ($demoApiEnabled ? 'Demo API on' : 'Demo API off')
+                                : 'Only TravClicks can change Demo API access' }}"
+                            {{ $canToggleDemoApiForThisRow ? '' : 'disabled' }}>
+                        </div>
+                      </div>
+                    @endif
+
+                    @if($showLiveApiForThisRow)
+                      <div class="users-corp-control-item">
+                        <span class="users-corp-label">Live API</span>
+                        <div class="form-check form-switch mb-0">
+                          <input {{ $liveApiEnabled ? 'checked' : '' }}
+                            class="form-check-input {{ $canToggleLiveApiForThisRow ? 'live-api-toggle' : '' }}"
+                            data-user-id="{{ $user->userId }}"
+                            type="checkbox"
+                            role="switch"
+                            id="live_api_{{ $user->userId }}"
+                            value="1"
+                            title="{{ $canToggleLiveApiForThisRow
+                                ? ($liveApiEnabled ? 'Live API on' : 'Live API off')
+                                : 'Only TravClicks can change Live API access' }}"
+                            {{ $canToggleLiveApiForThisRow ? '' : 'disabled' }}>
                         </div>
                       </div>
                     @endif
@@ -1441,6 +1539,32 @@
         return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
     }
 
+    function uniqueOperationalCountries(raw) {
+        var text = String(raw || '').trim();
+        if (!text) return [];
+        var parts = [];
+        try {
+            var decoded = JSON.parse(text);
+            if (Array.isArray(decoded)) {
+                parts = decoded;
+            }
+        } catch (e) {}
+        if (!parts.length) {
+            parts = text.split(/[,|]/);
+        }
+        var seen = {};
+        var unique = [];
+        parts.forEach(function(part) {
+            var name = String(part || '').trim();
+            if (!name) return;
+            var key = name.toLowerCase();
+            if (seen[key]) return;
+            seen[key] = true;
+            unique.push(name);
+        });
+        return unique;
+    }
+
     function renderMasterDmcTeam(team, meta) {
         var $body = $('#masterDmcTeamBody');
         meta = meta || {};
@@ -1456,6 +1580,7 @@
         var cards = team.map(function(u, idx) {
             var uid = u.userId;
             var inactiveClass = u.is_active ? '' : ' is-inactive';
+            var opsCountries = uniqueOperationalCountries(u.country);
 
             var userHtml =
                 '<div class="d-flex align-items-start gap-3">' +
@@ -1471,7 +1596,11 @@
                             '<span><i class="fas fa-envelope"></i>' + escapeHtml(u.email || '—') + '</span>' +
                             (u.phone ? '<span><i class="fas fa-phone"></i>' + escapeHtml(u.phone) + '</span>' : '') +
                             '<span><i class="fas fa-map-marker-alt"></i>' + escapeHtml(u.user_country || 'N/A') +
-                                (u.city ? ', ' + escapeHtml(u.city) : '') + '</span>' +
+                                (u.city && u.city !== 'N/A' ? ', ' + escapeHtml(u.city) : '') + '</span>' +
+                            (opsCountries.length
+                                ? '<span title="Operational country"><i class="fas fa-globe"></i>Operational: ' +
+                                    escapeHtml(opsCountries.join(', ')) + '</span>'
+                                : '') +
                         '</div>' +
                     '</div>' +
                 '</div>';
@@ -1555,6 +1684,39 @@
                     uid,
                     u.thirdparty_enabled,
                     !u.can_toggle_third_party
+                ));
+            }
+
+            if (u.show_online_api) {
+                controls.push(controlSwitch(
+                    'Online API',
+                    u.can_toggle_online_api ? 'online-api-toggle' : '',
+                    'modal_online_api_' + uid,
+                    uid,
+                    !!u.online_api,
+                    !u.can_toggle_online_api
+                ));
+            }
+
+            if (u.show_demo_api) {
+                controls.push(controlSwitch(
+                    'Demo API',
+                    u.can_toggle_demo_api ? 'demo-api-toggle' : '',
+                    'modal_demo_api_' + uid,
+                    uid,
+                    !!u.demo_api,
+                    !u.can_toggle_demo_api
+                ));
+            }
+
+            if (u.show_live_api) {
+                controls.push(controlSwitch(
+                    'Live API',
+                    u.can_toggle_live_api ? 'live-api-toggle' : '',
+                    'modal_live_api_' + uid,
+                    uid,
+                    !!u.live_api,
+                    !u.can_toggle_live_api
                 ));
             }
 
@@ -2242,6 +2404,123 @@ $(document).ready(function() {
                 const msg = xhr.responseJSON && xhr.responseJSON.message
                     ? xhr.responseJSON.message
                     : 'Error updating third party access';
+                toastr.error(msg);
+                console.error(xhr.responseText);
+            }
+        });
+    });
+
+    $(document).on('change', '.online-api-toggle', function() {
+        const $toggle = $(this);
+        const userId = $toggle.data('user-id');
+        const isChecked = $toggle.is(':checked');
+
+        $toggle.prop('disabled', true);
+
+        $.ajax({
+            url: "{{ route('users.update.online-api') }}",
+            type: "POST",
+            data: {
+                user_id: userId,
+                online_api: isChecked ? 1 : 0,
+                _token: "{{ csrf_token() }}"
+            },
+            success: function(response) {
+                $toggle.prop('disabled', false);
+                if (response.success) {
+                    $toggle.attr('title', isChecked ? 'Online API on' : 'Online API off');
+                    toastr.success(response.message || 'Online API access updated successfully');
+                } else {
+                    $toggle.prop('checked', !isChecked);
+                    toastr.error(response.message || 'Error updating Online API access');
+                }
+            },
+            error: function(xhr) {
+                $toggle.prop('disabled', false);
+                $toggle.prop('checked', !isChecked);
+                const msg = xhr.responseJSON && xhr.responseJSON.message
+                    ? xhr.responseJSON.message
+                    : 'Error updating Online API access';
+                toastr.error(msg);
+                console.error(xhr.responseText);
+            }
+        });
+    });
+
+    $(document).on('change', '.demo-api-toggle', function() {
+        const $toggle = $(this);
+        const userId = $toggle.data('user-id');
+        const isChecked = $toggle.is(':checked');
+
+        $toggle.prop('disabled', true);
+
+        $.ajax({
+            url: "{{ route('users.update.demo-api') }}",
+            type: "POST",
+            data: {
+                user_id: userId,
+                demo_api: isChecked ? 1 : 0,
+                _token: "{{ csrf_token() }}"
+            },
+            success: function(response) {
+                $toggle.prop('disabled', false);
+                if (response.success) {
+                    $toggle.attr('title', isChecked ? 'Demo API on' : 'Demo API off');
+                    if (isChecked) {
+                        $('.live-api-toggle[data-user-id="' + userId + '"]').prop('checked', false).attr('title', 'Live API off');
+                    }
+                    toastr.success(response.message || 'Demo API access updated successfully');
+                } else {
+                    $toggle.prop('checked', !isChecked);
+                    toastr.error(response.message || 'Error updating Demo API access');
+                }
+            },
+            error: function(xhr) {
+                $toggle.prop('disabled', false);
+                $toggle.prop('checked', !isChecked);
+                const msg = xhr.responseJSON && xhr.responseJSON.message
+                    ? xhr.responseJSON.message
+                    : 'Error updating Demo API access';
+                toastr.error(msg);
+                console.error(xhr.responseText);
+            }
+        });
+    });
+
+    $(document).on('change', '.live-api-toggle', function() {
+        const $toggle = $(this);
+        const userId = $toggle.data('user-id');
+        const isChecked = $toggle.is(':checked');
+
+        $toggle.prop('disabled', true);
+
+        $.ajax({
+            url: "{{ route('users.update.live-api') }}",
+            type: "POST",
+            data: {
+                user_id: userId,
+                live_api: isChecked ? 1 : 0,
+                _token: "{{ csrf_token() }}"
+            },
+            success: function(response) {
+                $toggle.prop('disabled', false);
+                if (response.success) {
+                    $toggle.attr('title', isChecked ? 'Live API on' : 'Live API off');
+                    if (isChecked) {
+                        $('.demo-api-toggle[data-user-id="' + userId + '"]').prop('checked', false).attr('title', 'Demo API off');
+                    }
+                    toastr.success(response.message || 'Live API access updated successfully');
+                } else {
+                    $toggle.prop('checked', !isChecked);
+                    toastr.error(response.message || 'Error updating Live API access');
+                }
+            },
+            error: function(xhr) {
+                $toggle.prop('disabled', false);
+                $toggle.prop('checked', !isChecked);
+                const msg = xhr.responseJSON && xhr.responseJSON.message
+                    ? xhr.responseJSON.message
+                    : 'Error updating Live API access';
                 toastr.error(msg);
                 console.error(xhr.responseText);
             }

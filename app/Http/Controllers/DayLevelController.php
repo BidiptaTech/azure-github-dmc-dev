@@ -57,16 +57,283 @@ class DayLevelController extends Controller
         // DMC role_id = 11
         if ((int) $user->role_id === 11) {
             return [
-                'dmc_id'        => (int) $user->userId,
-                'master_dmc_id' => (int) ($user->master_dmc_id ?? $user->userId),
+                'dmc_id'                  => (int) $dmcUser->userId,
+                'master_dmc_id'           => $masterId,
+                'dmc_name'                => $this->userDisplayName($dmcUser, 'DMC'),
+                'master_dmc_display_name' => $masterName,
+                'dmc_country'             => (string) ($dmcUser->country ?? ''),
             ];
         }
 
-        // Staff under a DMC
+        $dmcId = (int) (CommonHelper::getDmcId($user) ?: 0);
+        $dmcUser = $dmcId > 0
+            ? User::query()->where('userId', $dmcId)->whereNull('deleted_at')->first()
+            : $this->findDmcAccount($user);
+
+        if (!$dmcUser) {
+            $dmcId = (int) ($user->created_by ?: $user->userId);
+            $name  = (string) ($user->company_name ?: $user->name ?: 'DMC');
+
+            return [
+                'dmc_id'                  => $dmcId,
+                'master_dmc_id'           => (int) ($user->master_dmc_id ?: $dmcId),
+                'dmc_name'                => $name,
+                'master_dmc_display_name' => $name,
+                'dmc_country'             => (string) ($user->country ?? ''),
+            ];
+        }
+
+        $dmcId       = (int) $dmcUser->userId;
+        $dmcName     = $this->userDisplayName($dmcUser, 'DMC');
+        $masterDmcId = $this->resolveMasterDmcIdForDmc($dmcUser);
+        $masterUser  = User::query()->where('userId', $masterDmcId)->whereNull('deleted_at')->first();
+
         return [
-            'dmc_id'        => (int) ($user->created_by ?? $user->userId),
-            'master_dmc_id' => (int) ($user->master_dmc_id ?? $user->created_by ?? $user->userId),
+            'dmc_id'                  => $dmcId,
+            'master_dmc_id'           => $masterDmcId,
+            'dmc_name'                => $dmcName,
+            'master_dmc_display_name' => $this->userDisplayName($masterUser, 'Master DMC'),
+            'dmc_country'             => (string) ($dmcUser->country ?? ''),
         ];
+    }
+
+    private function userDisplayName(?User $user, string $fallback): string
+    {
+        if (!$user) {
+            return $fallback;
+        }
+
+        return (string) ($user->company_name ?: $user->name ?: $fallback);
+    }
+
+    /**
+     * Countries configured on the Master DMC (comma-separated users.country).
+     *
+     * @return list<string>
+     */
+    private function resolveMasterDmcCountryNames(int $masterDmcId): array
+    {
+        if ($masterDmcId <= 0) {
+            return [];
+        }
+
+        $master = User::query()
+            ->where('userId', $masterDmcId)
+            ->whereNull('deleted_at')
+            ->first();
+
+        if (!$master) {
+            return [];
+        }
+
+        return CommonHelper::resolveSupportedCountriesForDmc($master);
+    }
+
+    /**
+     * Cities for AI Definition: Master DMC countries only (not child DMC country alone).
+     *
+     * @return \Illuminate\Support\Collection<int, City>
+     */
+    private function loadCitiesForMasterDmc(int $masterDmcId, ?string $fallbackCountry = null)
+    {
+        $countries = $this->resolveMasterDmcCountryNames($masterDmcId);
+        $query = City::whereNull('deleted_at');
+
+        if ($countries !== []) {
+            $query->where(function ($q) use ($countries) {
+                foreach ($countries as $country) {
+                    $normalized = mb_strtolower(trim((string) $country));
+                    if ($normalized === '') {
+                        continue;
+                    }
+                    $q->orWhereRaw('LOWER(TRIM(country)) = ?', [$normalized]);
+                }
+            });
+        } elseif (trim((string) $fallbackCountry) !== '') {
+            $query->whereRaw('LOWER(TRIM(country)) = ?', [mb_strtolower(trim((string) $fallbackCountry))]);
+        }
+
+        return $query->orderBy('name')->get(['id', 'city_id', 'name', 'country']);
+    }
+
+    /**
+     * Operational DMC for hotels, attractions, etc.
+     * Sales Head → created_by is DMC; Sales Mgr → head → created_by is DMC.
+     * When city_name is present, resolve sibling DMC under the same Master
+     * so Singapore inventory is used for Singapore cities (etc.).
+     */
+    private function resolveHotelDmcId(Request $request): int
+    {
+        $baseDmcId = 0;
+        $user = Auth::user();
+        if ($user) {
+            if (in_array((int) $user->role_id, [11, 20], true)) {
+                $baseDmcId = (int) $user->userId;
+            } else {
+                $mapped = (int) (CommonHelper::getDmcId($user) ?: 0);
+                if ($mapped > 0) {
+                    $baseDmcId = $mapped;
+                }
+            }
+        }
+
+        if ($baseDmcId <= 0) {
+            $baseDmcId = (int) ($request->input('dmc_id') ?: $this->resolveDmcIds()['dmc_id']);
+        }
+
+        $cityName = trim((string) $request->input('city_name', ''));
+        if ($cityName !== '' && $baseDmcId > 0) {
+            $siblingId = (int) CommonHelper::resolveSiblingDmcIdForCity($baseDmcId, $cityName);
+            if ($siblingId > 0) {
+                return $siblingId;
+            }
+        }
+
+        return $baseDmcId;
+    }
+
+    private function findDmcAccount(User $user): ?User
+    {
+        if (in_array((int) $user->role_id, [11, 20], true)) {
+            return $user;
+        }
+
+        $walker = $user;
+        for ($depth = 0; $depth < 12; $depth++) {
+            $parentId = (int) ($walker->created_by ?? 0);
+            if ($parentId <= 0) {
+                break;
+            }
+
+            $parent = User::query()
+                ->where('userId', $parentId)
+                ->whereNull('deleted_at')
+                ->first();
+
+            if (!$parent) {
+                break;
+            }
+
+            if (in_array((int) $parent->role_id, [11, 20], true)) {
+                return $parent;
+            }
+
+            $walker = $parent;
+        }
+
+        return null;
+    }
+
+    /**
+     * Resolve the Master DMC for a DMC account: sales/staff → DMC (11) → Master DMC (10).
+     * Never treat the child DMC userId as the master id.
+     */
+    private function resolveMasterDmcIdForDmc(User $dmcUser): int
+    {
+        $parentId = (int) ($dmcUser->master_dmc_id ?? 0);
+        if ($parentId > 0) {
+            $parent = User::query()
+                ->where('userId', $parentId)
+                ->whereNull('deleted_at')
+                ->first();
+
+            if ($parent && in_array((int) $parent->role_id, [10, 19], true)) {
+                return (int) $parent->userId;
+            }
+        }
+
+        $walker = $dmcUser;
+        for ($depth = 0; $depth < 12; $depth++) {
+            $walkerParentId = (int) ($walker->created_by ?? 0);
+            if ($walkerParentId <= 0) {
+                break;
+            }
+
+            $parent = User::query()
+                ->where('userId', $walkerParentId)
+                ->whereNull('deleted_at')
+                ->first();
+
+            if (!$parent) {
+                break;
+            }
+
+            if (in_array((int) $parent->role_id, [10, 19], true)) {
+                return (int) $parent->userId;
+            }
+
+            $walker = $parent;
+        }
+
+        return (int) ($dmcUser->master_dmc_id ?: 0);
+    }
+
+    private function resolveMasterDmcIdForDmcUserId(int $dmcUserId): int
+    {
+        if ($dmcUserId <= 0) {
+            return 0;
+        }
+
+        $dmcUser = User::query()
+            ->where('userId', $dmcUserId)
+            ->whereNull('deleted_at')
+            ->first();
+
+        return $dmcUser ? $this->resolveMasterDmcIdForDmc($dmcUser) : 0;
+    }
+
+    /**
+     * Flat export rows must group under the real Master DMC (from DMC chain), not a child DMC id.
+     *
+     * @param  list<array<string, mixed>>  $payload
+     * @return list<array<string, mixed>>
+     */
+    private function normalizeFlatExportMasterDmcIds(array $payload): array
+    {
+        foreach ($payload as $i => $entry) {
+            if (! is_array($entry)) {
+                continue;
+            }
+
+            $dmcId = (int) ($entry['DMC_id'] ?? 0);
+            $resolvedMaster = $this->resolveMasterDmcIdForDmcUserId($dmcId);
+            if ($resolvedMaster > 0) {
+                $payload[$i]['Master_DMC_id'] = $resolvedMaster;
+            }
+        }
+
+        return $payload;
+    }
+
+    /**
+     * Correct day_levels.master_dmc_id (and inter_city) when a child DMC id was stored as master.
+     */
+    private function reconcileStoredMasterDmcIds($rows): void
+    {
+        foreach ($rows as $row) {
+            if (! $row instanceof DayLevel) {
+                continue;
+            }
+
+            $resolved = $this->resolveMasterDmcIdForDmcUserId((int) $row->dmc_id);
+            if ($resolved <= 0 || (int) $row->master_dmc_id === $resolved) {
+                continue;
+            }
+
+            $row->master_dmc_id = $resolved;
+
+            $ic = $row->inter_city;
+            if (is_array($ic) && isset($ic['Master_DMC']) && is_array($ic['Master_DMC'])) {
+                foreach ($ic['Master_DMC'] as $i => $masterNode) {
+                    if (is_array($masterNode)) {
+                        $ic['Master_DMC'][$i]['Master_DMC_id'] = $resolved;
+                    }
+                }
+                $row->inter_city = $ic;
+            }
+
+            $row->save();
+        }
     }
 
     // =========================================================================
@@ -84,9 +351,11 @@ class DayLevelController extends Controller
 
         $context = $this->resolveDmcContext();
 
-        $cities = City::whereNull('deleted_at')
-            ->orderBy('name')
-            ->get(['id', 'city_id', 'name', 'country']);
+        // City picker: Master DMC countries (not child DMC country alone).
+        $cities = $this->loadCitiesForMasterDmc(
+            (int) $context['master_dmc_id'],
+            (string) ($context['dmc_country'] ?? '')
+        );
 
         // Unique countries from cities for the country filter
         $countries = $cities->pluck('country')->filter()->unique()->sort()->values();
@@ -131,11 +400,18 @@ class DayLevelController extends Controller
     public function citiesByCountry(Request $request)
     {
         $country = trim($request->input('country', ''));
+        $context = $this->resolveDmcContext();
+        $cities = $this->loadCitiesForMasterDmc(
+            (int) $context['master_dmc_id'],
+            (string) ($context['dmc_country'] ?? '')
+        );
 
-        $cities = City::whereNull('deleted_at')
-            ->when(!blank($country), fn($q) => $q->where('country', 'ilike', "%{$country}%"))
-            ->orderBy('name')
-            ->get(['id', 'city_id', 'name', 'country']);
+        if (!blank($country)) {
+            $needle = mb_strtolower($country);
+            $cities = $cities->filter(
+                fn ($city) => str_contains(mb_strtolower(trim((string) ($city->country ?? ''))), $needle)
+            )->values();
+        }
 
         return response()->json($cities);
     }
@@ -1822,9 +2098,10 @@ class DayLevelController extends Controller
         $dmcUser = User::query()->where('userId', $dmcId)->whereNull('deleted_at')->first();
         $masterUser = User::query()->where('userId', $masterId)->whereNull('deleted_at')->first();
 
-        $cities = City::whereNull('deleted_at')
-            ->orderBy('name')
-            ->get(['id', 'city_id', 'name', 'country']);
+        $cities = $this->loadCitiesForMasterDmc(
+            $masterId,
+            (string) ($dmcUser?->country ?? $context['dmc_country'] ?? '')
+        );
 
         $countries = $cities->pluck('country')->filter()->unique()->sort()->values();
 

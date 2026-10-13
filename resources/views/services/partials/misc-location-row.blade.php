@@ -7,6 +7,9 @@
     $citiesByCountry = $citiesByCountry ?? [];
     $priceId = $loc->price_id ?? '';
     $country = $loc->country ?? '';
+    if ($country === '' && count($countryNames) === 1) {
+        $country = $countryNames[0];
+    }
     $city = $loc->city ?? '';
     $prefix = "selected_items[{$itemId}][locations][{$locIndex}]";
     $cityOptions = $citiesByCountry[$country] ?? [];
@@ -18,7 +21,9 @@
             <label class="misc-field-label">Country</label>
             <select class="form-select form-select-sm misc-loc-select misc-country-select"
                     name="{{ $prefix }}[country]" data-no-select2="true" {{ $readonly ? 'disabled' : '' }}>
-                <option value="">Select country</option>
+                @if(count($countryNames) !== 1)
+                    <option value="">Select country</option>
+                @endif
                 @foreach($countryNames as $cName)
                     <option value="{{ $cName }}" {{ $country === $cName ? 'selected' : '' }}>{{ $cName }}</option>
                 @endforeach

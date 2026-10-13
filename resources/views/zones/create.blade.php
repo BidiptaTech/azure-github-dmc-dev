@@ -5,6 +5,12 @@
 @section('content')
 @php
     $preselectedCountry = old('country', $selectedCountry ?? '');
+    $scopedCountries = collect($countries ?? []);
+    if ($preselectedCountry === '' && $scopedCountries->count() === 1) {
+        $preselectedCountry = $scopedCountries->first()->name ?? '';
+    }
+    $listUrl = $listUrl ?? route('zones.index');
+    $listQuery = $listQuery ?? [];
 @endphp
 <style>
     /* Select2 — same integration as vehicles add-vehicle */
@@ -112,11 +118,14 @@
             <div class="card mb-4">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5>Add New Zone</h5>
-                    <a href="{{ route('zones.index') }}" class="btn btn-secondary">Back to List</a>
+                    <a href="{{ $listUrl }}" class="btn btn-secondary">Back to List</a>
                 </div>
                 <div class="card-body">
                     <form action="{{ route('zones.store') }}" method="POST">
                         @csrf
+                        @foreach($listQuery as $returnKey => $returnValue)
+                            <input type="hidden" name="return_to[{{ $returnKey }}]" value="{{ $returnValue }}">
+                        @endforeach
                         
                         <div class="row mb-3">
                             <div class="col-md-3">
@@ -130,7 +139,7 @@
                             <div class="col-md-3">
                                 <label class="form-label">Zone Type <span class="text-danger">*</span></label>
                                 <div class="zone-type-options">
-                                    @php($oldZoneTypes = (array) old('zone_type', []))
+                                    @php($oldZoneTypes = (array) old('zone_type', $preselectedZoneTypes ?? []))
                                     <div class="zone-type-row">
                                         <div class="form-check">
                                             <input
@@ -183,10 +192,10 @@
                             <div class="col-md-3">
                                 <label for="country" class="form-label">Country <span class="text-danger">*</span></label>
                                 <select class="form-select @error('country') is-invalid @enderror" id="country" name="country" required>
-                                    @if(($countries ?? collect())->count() !== 1)
+                                    @if($scopedCountries->count() !== 1)
                                         <option value="">Select Country</option>
                                     @endif
-                                    @foreach(($countries ?? collect()) as $country)
+                                    @foreach($scopedCountries as $country)
                                         <option value="{{ $country->name }}" {{ ($preselectedCountry ?? '') === $country->name ? 'selected' : '' }}>{{ $country->name }}</option>
                                     @endforeach
                                 </select>
@@ -242,7 +251,7 @@
 
                         <div class="mt-4">
                             <button type="submit" class="btn btn-primary">Create Zone</button>
-                            <a href="{{ route('zones.index') }}" class="btn btn-outline-secondary">Cancel</a>
+                            <a href="{{ $listUrl }}" class="btn btn-outline-secondary">Cancel</a>
                         </div>
                     </form>
                 </div>
@@ -320,6 +329,10 @@
             allowClear: true,
             width: '100%'
         });
+
+        if (oldCountry) {
+            $('#country').val(oldCountry).trigger('change.select2');
+        }
 
         initCitySelect2(oldCountry ? 'Search and Select a City' : 'Select country first');
 

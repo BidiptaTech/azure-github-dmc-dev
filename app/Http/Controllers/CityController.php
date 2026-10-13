@@ -808,57 +808,23 @@ class CityController extends Controller
     public function ajaxCities(Request $request)
     {
         $q = trim((string) $request->query('q', ''));
-
         $authUser = Auth::user();
+        $dmcId = $authUser ? CommonHelper::getDmcId($authUser) : null;
 
-        // Resolve DMC userId for logged-in user (same role mapping used in SingleTourPackageController)
-        $dmcId = null;
-        if ($authUser) {
-            if ((int) $authUser->role_id === 11) {
-                $dmcId = $authUser->userId;
-            } elseif (in_array((int) $authUser->role_id, [33, 34, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138], true)) {
-                $dmcId = $authUser->created_by;
-            } elseif (in_array((int) $authUser->role_id, [37, 64, 65, 66, 67, 68], true)) {
-                $salesHead = User::where('userId', $authUser->created_by)->first();
-                $dmcId = $salesHead?->created_by;
-            } elseif (in_array((int) $authUser->role_id, [38, 81, 90, 108, 117, 124, 125, 126, 127], true)) {
-                $salesManager = User::where('userId', $authUser->created_by)->first();
-                $salesHead = $salesManager ? User::where('userId', $salesManager->created_by)->first() : null;
-                $dmcId = $salesHead?->created_by;
-            } else {
-                // Fallback to direct userId if role mapping is not covered
-                $dmcId = $authUser->userId ?? null;
-            }
-        }
-
-        // Cities scoped to all countries on the master DMC profile (multi-country multi-city)
-        $countryNames = $dmcId ? $this->getMasterDmcCountryNamesForDmc((int) $dmcId) : [];
-
-        // If we cannot resolve allowed countries, do not leak global cities
-        if (empty($countryNames)) {
+        if (empty($dmcId)) {
             return response()->json(['results' => []]);
         }
 
-        $cities = City::query()
-            ->whereIn('country', $countryNames)
-            ->when($q !== '', function ($query) use ($q) {
-                // Case-insensitive match regardless of DB collation.
-                $needle = mb_strtolower($q, 'UTF-8');
-                $query->whereRaw('LOWER(name) LIKE ?', ['%' . $needle . '%']);
+        $results = collect(CommonHelper::getSiblingDmcCityOptions((int) $dmcId, $q))
+            ->map(function (array $row) {
+                return [
+                    'id' => (string) ($row['id'] ?? ''),
+                    'text' => (string) ($row['text'] ?? ''),
+                    'country' => (string) ($row['country'] ?? ''),
+                    'dmc_id' => (int) ($row['dmc_id'] ?? 0),
+                ];
             })
-            ->orderBy('name')
-            ->get(['city_id', 'name', 'country']);
-
-        $results = $cities->map(function ($city) {
-            $countrySuffix = $city->country ? (' (' . $city->country . ')') : '';
-            return [
-                // Select2 compares ids as strings; force string to avoid numeric coercion edge-cases.
-                'id' => (string) $city->city_id,
-                'text' => $city->name . $countrySuffix,
-                // Exposed for tour save when country field is hidden — stored on segment city <option data-country>
-                'country' => $city->country,
-            ];
-        })->values();
+            ->values();
 
         return response()->json(['results' => $results]);
     }

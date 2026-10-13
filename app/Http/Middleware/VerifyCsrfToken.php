@@ -14,5 +14,6 @@ class VerifyCsrfToken extends Middleware
     protected $except = [
         'api/v1/external/receive',
         'api/external-api-receive',
+        'stripe/webhook',
     ];
 }

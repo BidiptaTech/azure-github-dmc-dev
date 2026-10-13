@@ -121,6 +121,13 @@
 @endpush
 
 @section('content')
+@php
+    $scopedCountries = collect($countries ?? []);
+    $preselectedCountry = old('country', $selectedCountry ?? ($defaultValue->country ?? ''));
+    if ($preselectedCountry === '' && $scopedCountries->count() === 1) {
+        $preselectedCountry = $scopedCountries->first()->name ?? '';
+    }
+@endphp
 <div class="container-xxl flex-grow-1 container-p-y default-value-page">
     <h4 class="fw-bold py-3 mb-4">
         <span class="text-muted fw-light">Default Values /</span> Edit
@@ -204,9 +211,11 @@
                         <div class="mb-3">
                             <label for="country" class="form-label">Country <span class="text-danger">*</span></label>
                             <select name="country" id="country" class="form-select @error('country') is-invalid @enderror" required>
-                                <option value="">Select Country</option>
-                                @foreach($countries as $country)
-                                    <option value="{{ $country->name }}" {{ old('country', $defaultValue->country) == $country->name ? 'selected' : '' }}>
+                                @if($scopedCountries->count() !== 1)
+                                    <option value="">Select Country</option>
+                                @endif
+                                @foreach($scopedCountries as $country)
+                                    <option value="{{ $country->name }}" {{ $preselectedCountry == $country->name ? 'selected' : '' }}>
                                         {{ $country->name }}
                                     </option>
                                 @endforeach

@@ -5,21 +5,27 @@ namespace App\Services\HotelSuppliers;
 use App\Models\City;
 use App\Models\Country;
 use App\Models\SupplierMaster;
-use App\Services\SupplierEnvService;
+use App\Services\ApiEnvironmentResolver;
+use App\Services\SupplierConfigResolver;
 use RuntimeException;
 
 class HotelSupplierResolver
 {
     public function __construct(
-        private SupplierEnvService $supplierEnv
+        private ApiEnvironmentResolver $apiEnvironment,
+        private SupplierConfigResolver $supplierConfig,
     ) {}
 
     /**
+     * `country_id` is the `countries.id` primary key, not `countries.country_id`,
+     * because `suppliers_master.country_id` is a foreign key against `countries.id`.
+     *
      * @return array{
      *     city: City,
      *     country_id: int,
      *     supplier: SupplierMaster,
-     *     credentials: array<string, string|null>
+     *     credentials: array<string, string|null>,
+     *     api_environment: string
      * }
      */
     public function resolveForCityName(string $cityName): array
@@ -44,17 +50,20 @@ class HotelSupplierResolver
             throw new RuntimeException("No active hotel supplier is mapped for {$countryName}. Configure it in Supplier Master.");
         }
 
-        if (! $this->supplierEnv->isConfigured($supplier->code)) {
-            $label = config("suppliers.{$supplier->code}.label", $supplier->code);
+        $environment = $this->apiEnvironment->resolve();
 
-            throw new RuntimeException("{$label} API credentials are not configured. Set them in Supplier Master → API Credentials.");
+        if (! $this->supplierConfig->isConfigured($supplier->code, $environment)) {
+            throw new RuntimeException(
+                $this->supplierConfig->missingCredentialsMessage($supplier->code, $environment)
+            );
         }
 
         return [
             'city' => $city,
             'country_id' => $countryId,
             'supplier' => $supplier,
-            'credentials' => $this->supplierEnv->valuesFor($supplier->code),
+            'credentials' => $this->supplierConfig->valuesFor($supplier->code, $environment),
+            'api_environment' => $environment,
         ];
     }
 
@@ -66,11 +75,9 @@ class HotelSupplierResolver
             return null;
         }
 
-        $query = City::query();
-
         if (ctype_digit($cityName)) {
-            return $query->where('id', (int) $cityName)
-                ->orWhere('city_id', (int) $cityName)
+            return City::query()
+                ->where('city_id', (int) $cityName)
                 ->first();
         }
 
